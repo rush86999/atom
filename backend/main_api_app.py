@@ -2847,22 +2847,13 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Webhook routes not found: {e}")
 
-    # Consolidated Stripe Webhook Routes
-    try:
-
-
-        # Legacy webhook URL support (adds backward compatibility for /api/billing/webhook)
-        from api.routes.stripe_webhook_routes import stripe_webhook
-
-        app.add_api_route(
-            "/api/billing/webhook",
-            stripe_webhook,
-            methods=["POST"],
-            tags=["Stripe Webhooks (Legacy)"],
-        )
-        logger.info("✓ Consolidated Stripe Webhook Routes Loaded (with legacy alias)")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Consolidated Stripe webhook routes not found: {e}")
+    # Legacy /api/billing/webhook alias — intentionally NOT registered.
+    # It referenced api/routes/stripe_webhook_routes.py, which no longer exists:
+    # Stripe webhook processing was removed (integrations.stripe_routes is now a
+    # health/capabilities stub, see tests/payment_integration/test_webhook_processing.py).
+    # The prior import was silently swallowed by except ImportError while still
+    # logging "✓ Loaded", implying a live surface that was actually a 404.
+    # Leaving it unregistered keeps the endpoint fail-closed (404).
 
     try:
         from integrations.universal.routes import router as universal_auth_router
@@ -3773,7 +3764,7 @@ async def load_integration_endpoint(
 
 
 @app.get("/api/integrations/stats")
-async def get_all_integration_stats():
+async def get_all_integration_stats(current_user: User = Depends(get_current_user)):
     return await circuit_breaker.get_all_stats()
 
 

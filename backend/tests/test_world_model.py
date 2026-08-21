@@ -613,7 +613,7 @@ class TestRecallExperiences:
                         }
                     }
                 ]
-            elif call_count[0] == 2:  # Second call: documents table
+            elif call_count[0] == 2:  # Second call: documents table (role-filtered, round 80)
                 return [
                     {
                         "id": "doc_1",
@@ -621,7 +621,9 @@ class TestRecallExperiences:
                         "metadata": {"source": "knowledge_base"}
                     }
                 ]
-            elif call_count[0] == 3:  # Third call: business_facts table
+            elif call_count[0] == 3:  # Third call: untagged general-knowledge top-up (round 80)
+                return []
+            elif call_count[0] == 4:  # Fourth call: business_facts table
                 return [
                     {
                         "id": "fact_1",

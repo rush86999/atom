@@ -965,15 +965,24 @@ class TestSignalAdapter:
 # ===========================================================================
 
 class TestExternalIntegrationRoutes:
-    """Routes carry NO auth dependency (mounted raw in main_api_app.py), so
-    401/403 paths are N/A for this router."""
+    """Round 80: all 3 routes now require get_current_user (they previously
+    carried NO auth dependency, allowing anonymous execution of arbitrary
+    Node-bridge 'piece' actions). The `_client` fixture overrides the
+    dependency; see tests/test_round80_integration_journey_auth.py for the
+    anonymous-401 coverage."""
 
-    def _client(self):
+    def _client(self, authed=True):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
+        from core.auth import get_current_user
         from integrations.bridge.external_integration_routes import router
         app = FastAPI()
         app.include_router(router)
+        if authed:
+            user = MagicMock()
+            user.id = "ext-route-user"
+            user.email = "ext@x.com"
+            app.dependency_overrides[get_current_user] = lambda: user
         return TestClient(app, raise_server_exceptions=False)
 
     def test_list_integrations_success(self):

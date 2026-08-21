@@ -323,10 +323,16 @@ class TestGetQwenResponse:
             {"message": "another", "response": {}},
         ]
         res = await orch._get_qwen_response("final", history, None)
-        assert res == {"content": "Hello world", "model": "m1", "provider": "p1"}
+        # memory_context is included whenever the assembler returns a block
+        # (or None) — subset-compare so an assembled block doesn't fail this.
+        assert res["content"] == "Hello world"
+        assert res["model"] == "m1"
+        assert res["provider"] == "p1"
+        assert "memory_context" in res
         messages = orch.llm_service.generate_completion.await_args.kwargs["messages"]
         roles = [m["role"] for m in messages]
-        assert roles == ["system", "user", "assistant", "user", "user"]
+        # A memory block is injected as a SECOND system message before history.
+        assert roles == ["system", "system", "user", "assistant", "user", "user"]
 
     async def test_failure_returns_none(self):
         orch = _make_orch()

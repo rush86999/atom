@@ -1,7 +1,10 @@
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from core.auth import get_current_user
+from core.models import User
 
 try:
     from .bamboohr_service import get_bamboohr_service, bamboohr_configured
@@ -21,7 +24,7 @@ class CreateEmployeeRequest(BaseModel):
 
 
 @router.get("/employees")
-async def list_employees():
+async def list_employees(current_user: User = Depends(get_current_user)):
     """List employees from the BambooHR directory"""
     if not BAMBOOHR_AVAILABLE or not bamboohr_configured():
         return {
@@ -41,7 +44,8 @@ async def list_employees():
 
 
 @router.get("/employees/{employee_id}")
-async def get_employee(employee_id: str):
+async def get_employee(employee_id: str,
+                       current_user: User = Depends(get_current_user)):
     """Get a single BambooHR employee by ID"""
     if not BAMBOOHR_AVAILABLE or not bamboohr_configured():
         return {"id": employee_id, "message": "BambooHR not configured (mock)"}
@@ -51,7 +55,8 @@ async def get_employee(employee_id: str):
 
 
 @router.post("/employees")
-async def create_employee(request: CreateEmployeeRequest):
+async def create_employee(request: CreateEmployeeRequest,
+                          current_user: User = Depends(get_current_user)):
     """Create a BambooHR employee"""
     if not BAMBOOHR_AVAILABLE or not bamboohr_configured():
         return {
@@ -78,7 +83,8 @@ async def create_employee(request: CreateEmployeeRequest):
 
 
 @router.get("/time-off/requests")
-async def get_time_off_requests(start_date: Optional[str] = None, end_date: Optional[str] = None):
+async def get_time_off_requests(start_date: Optional[str] = None, end_date: Optional[str] = None,
+                                current_user: User = Depends(get_current_user)):
     """Get BambooHR time-off requests"""
     if not BAMBOOHR_AVAILABLE or not bamboohr_configured():
         return {

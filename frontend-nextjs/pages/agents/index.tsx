@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import AgentCard, { AgentInfo } from "@/components/Agents/AgentCard";
 import AgentTerminal from "@/components/Agents/AgentTerminal";
 import { MaturityProgression } from "@/components/Agents/MaturityProgression";
+import { EmployeeOnboardingGuide } from "@/components/Agents/EmployeeOnboardingGuide";
 import { Badge } from "@/components/ui/badge";
 import { LayoutDashboard } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -352,6 +353,8 @@ const AgentsDashboard = () => {
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400">Monitor and orchestrate your autonomous workforce.</p>
                 </div>
+
+                <EmployeeOnboardingGuide />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 

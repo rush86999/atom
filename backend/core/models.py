@@ -2607,6 +2607,14 @@ class IngestedDocument(Base):
     # (public|internal|confidential|restricted). Defaults to internal.
     sensitivity = Column(String(20), nullable=True, default="internal", server_default="internal")
 
+    # Round 80: AI-employee relevance tag. The role (AgentRegistry.category,
+    # lowercased) this document was ingested FOR — i.e. the AI employee whose
+    # work/role/responsibilities this data belongs to. NULL = general
+    # knowledge (recalled by any employee). Filtered at recall time by
+    # WorldModelService._recall_general_knowledge so ingested data is relevant
+    # to the right employee's memory.
+    role = Column(String(64), nullable=True, index=True)
+
 class KnowledgeDocument(Base):
     """General-purpose document for RAG/knowledge base - persisted to DB"""
     __tablename__ = "knowledge_documents"

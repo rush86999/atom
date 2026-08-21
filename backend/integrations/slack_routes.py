@@ -258,7 +258,8 @@ async def slack_search(
 
 
 @router.get("/channels/{channel_id}")
-async def get_slack_channel(channel_id: str, user_id: str = "test_user"):
+async def get_slack_channel(channel_id: str, user_id: str = "test_user",
+                            current_user: User = Depends(get_current_user)):
     """Get a specific Slack channel"""
     logger.info(f"Getting Slack channel: {channel_id}")
 
@@ -280,7 +281,8 @@ async def get_slack_channel(channel_id: str, user_id: str = "test_user"):
 
 
 @router.get("/channels")
-async def list_slack_channels(user_id: str = "test_user"):
+async def list_slack_channels(user_id: str = "test_user",
+                              current_user: User = Depends(get_current_user)):
     """List available Slack channels"""
     logger.info("Listing Slack channels")
 
@@ -304,7 +306,8 @@ async def list_slack_channels(user_id: str = "test_user"):
 
 
 @router.get("/users/{user_id}")
-async def get_slack_user(user_id: str):
+async def get_slack_user(user_id: str,
+                         current_user: User = Depends(get_current_user)):
     """Get Slack user information"""
     logger.info(f"Getting Slack user: {user_id}")
 
@@ -385,7 +388,8 @@ async def get_conversation_history(
 
 @router.post("/reactions/add")
 async def add_slack_reaction(
-    channel: str, timestamp: str, reaction: str, user_id: str = "test_user"
+    channel: str, timestamp: str, reaction: str, user_id: str = "test_user",
+    current_user: User = Depends(get_current_user)
 ):
     """Add a reaction to a Slack message"""
     logger.info(f"Adding reaction {reaction} to message in {channel}")

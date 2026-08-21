@@ -1,7 +1,10 @@
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from core.auth import get_current_user
+from core.models import User
 
 try:
     from .twitter_service import get_twitter_service, twitter_configured
@@ -18,7 +21,8 @@ class PostTweetRequest(BaseModel):
 
 
 @router.post("/tweets")
-async def post_tweet(request: PostTweetRequest):
+async def post_tweet(request: PostTweetRequest,
+                     current_user: User = Depends(get_current_user)):
     """Post a tweet"""
     if not TWITTER_AVAILABLE or not twitter_configured():
         return {
@@ -40,7 +44,8 @@ async def post_tweet(request: PostTweetRequest):
 
 
 @router.get("/users/{username}/tweets")
-async def get_user_tweets(username: str, max_results: int = 10):
+async def get_user_tweets(username: str, max_results: int = 10,
+                          current_user: User = Depends(get_current_user)):
     """Get a user's recent tweets"""
     if not TWITTER_AVAILABLE or not twitter_configured():
         return {
@@ -62,7 +67,8 @@ async def get_user_tweets(username: str, max_results: int = 10):
 
 
 @router.get("/search/recent")
-async def search_recent_tweets(query: str, max_results: int = 10):
+async def search_recent_tweets(query: str, max_results: int = 10,
+                               current_user: User = Depends(get_current_user)):
     """Search recent tweets"""
     if not TWITTER_AVAILABLE or not twitter_configured():
         return {

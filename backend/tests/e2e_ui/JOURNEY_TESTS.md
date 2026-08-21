@@ -35,6 +35,14 @@ Supporting code:
    that env var also switches `core/database.py` to a schema-incompatible
    test database.)
 
+   **Required**: `DATABASE_URL` must point at the *same* database the running
+   backend uses — the role fixtures promote users via a direct DB write
+   (`_set_user_role` imports `core.database` in the test process). If they
+   diverge you get `no such table: users` setup errors on every role test:
+   ```bash
+   export DATABASE_URL="sqlite:///$(pwd)/../../data/atom.db"   # match the backend
+   ```
+
 2. **Frontend** on `http://localhost:3001` with `NEXT_PUBLIC_API_URL=http://localhost:8001`.
 
 3. **Playwright driver** — the bundled node binary may be missing; point at the
@@ -60,9 +68,12 @@ cd backend/tests/e2e_ui
 ../../venv/bin/python -m pytest tests/test_journey_page_smoke.py -k "canvas"
 ```
 
-Expected result: **47 passed, 4 xfailed**. The xfails are integrations whose
-health route isn't exposed yet (gdrive, gmail, jira, nextjs) — surfaced, not
-hidden.
+Expected result: **65 passed, 1 xfailed**. The xfail is `nextjs`, whose
+health route isn't wired up — surfaced, not hidden. (The 2026-08-21 journey
+audit extended the integrations-health matrix from 13 to all 32 frontend
+catalog entries; gdrive/gmail/jira/azure/zoho-workdrive & friends were
+re-pointed at the plain `/api/integrations/{name}/health` paths the
+Integrations Hub actually polls — the `/api/v1/...` variants 404.)
 
 ## Role-based coverage (all 8 roles)
 

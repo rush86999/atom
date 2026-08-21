@@ -72,7 +72,7 @@ class TestWriteThrough:
         svc = make_service()
         svc.enable_auto_sync("slack")
         stats = svc.usage_stats["slack"]
-        async def fake_fetch(integration_id, config, discovery_mode=False):
+        async def fake_fetch(integration_id, config, discovery_mode=False, role=None):
             return [{"id": "1", "type": "message", "text": "hello world"}]
         with patch.object(svc, "_fetch_integration_data", new=fake_fetch):
             await svc.sync_integration_data("slack", force=True)

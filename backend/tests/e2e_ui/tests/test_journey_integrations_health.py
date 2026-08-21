@@ -33,17 +33,39 @@ pytestmark = pytest.mark.e2e
 INTEGRATIONS = [
     ("box", "/api/v1/integrations/box/health"),
     ("dropbox", "/api/v1/integrations/dropbox/health"),
-    ("gdrive", "/api/v1/integrations/gdrive/health"),
+    ("gdrive", "/api/integrations/gdrive/health"),
     ("slack", "/api/v1/integrations/slack/health"),
-    ("gmail", "/api/v1/integrations/gmail/health"),
+    ("gmail", "/api/integrations/gmail/health"),
     ("notion", "/api/v1/integrations/notion/health"),
-    ("jira", "/api/v1/integrations/jira/health"),
+    ("jira", "/api/integrations/jira/health"),
     ("github", "/api/v1/integrations/github/health"),
     ("nextjs", "/api/nextjs/health"),
     ("stripe", "/api/v1/integrations/stripe/health"),
     ("linear", "/api/v1/integrations/linear/health"),
     ("outlook", "/api/v1/integrations/outlook/health"),
     ("asana", "/api/v1/integrations/asana/health"),
+    # Full frontend-catalog coverage (2026-08-21 journey audit): every
+    # integration the Integrations Hub offers a health pill for. 404s xfail
+    # and surface as "not wired up" gaps rather than hiding them.
+    ("onedrive", "/api/v1/integrations/onedrive/health"),
+    ("salesforce", "/api/v1/integrations/salesforce/health"),
+    ("microsoft365", "/api/v1/integrations/microsoft365/health"),
+    ("tableau", "/api/v1/integrations/tableau/health"),
+    ("trello", "/api/integrations/trello/health"),
+    ("google-workspace", "/api/integrations/google-workspace/health"),
+    ("gitlab", "/api/integrations/gitlab/health"),
+    ("intercom", "/api/integrations/intercom/health"),
+    ("freshdesk", "/api/integrations/freshdesk/health"),
+    ("mailchimp", "/api/integrations/mailchimp/health"),
+    ("quickbooks", "/api/integrations/quickbooks/health"),
+    ("hubspot", "/api/integrations/hubspot/health"),
+    ("zendesk", "/api/integrations/zendesk/health"),
+    ("xero", "/api/integrations/xero/health"),
+    ("azure", "/api/azure/health"),
+    ("teams", "/api/integrations/teams/health"),
+    ("telegram", "/api/integrations/telegram/health"),
+    ("shopify", "/api/integrations/shopify/health"),
+    ("zoho-workdrive", "/api/integrations/zoho-workdrive/health"),
 ]
 
 

@@ -1,20 +1,23 @@
 
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
+from core.auth import get_current_user
 from core.external_integration_service import external_integration_service
+from core.models import User
 
 router = APIRouter(prefix="/api/v1/external-integrations", tags=["External Integrations"])
 
 @router.get("/")
-async def list_external_integrations():
+async def list_external_integrations(current_user: User = Depends(get_current_user)):
     """
     List all available external (Node.js) integrations.
     """
     return await external_integration_service.get_all_integrations()
 
 @router.get("/{piece_name}")
-async def get_external_integration_details(piece_name: str):
+async def get_external_integration_details(piece_name: str,
+                                           current_user: User = Depends(get_current_user)):
     """
     Get details for a specific piece (actions, triggers, auth).
     """
@@ -24,7 +27,8 @@ async def get_external_integration_details(piece_name: str):
     return details
 
 @router.post("/execute")
-async def execute_external_action(payload: Dict[str, Any]):
+async def execute_external_action(payload: Dict[str, Any],
+                                  current_user: User = Depends(get_current_user)):
     """
     Execute an action on an external integration.
     """

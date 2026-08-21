@@ -194,7 +194,7 @@ class TestCommunicationRecordClassifier:
 async def test_integration_records_leg_rendered(monkeypatch):
     monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
 
-    async def fake_integration(message, ws):
+    async def fake_integration(message, ws, agent_role=None):
         return ["[zoho_crm] ACME Fabrication — raised inquiry about press brake"]
 
     with patch.object(mca, "_graph_leg", AsyncMock(return_value="")), \
@@ -402,3 +402,170 @@ async def test_rerank_phase_skipped_when_flag_off(monkeypatch):
     assert block is not None
     assert "RELATED KNOWLEDGE & CONVERSATIONS" in block
     mock_rerank.assert_not_called()
+
+
+# --------------------------------------------------------------------------- #
+# Integration-records leg regression (surfaced by the Zoho e2e UI journey:
+# synced records were NEVER recalled in chat — three stacked defects)
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.asyncio
+async def test_integration_leg_initializes_lazy_handler(monkeypatch):
+    """The leg must trigger the handler's lazy DB init before guarding on it.
+
+    Regression: `if handler.db is None: return []` fired on every fresh
+    handler (connection is lazy — only search/add init it), so the leg
+    always returned [] regardless of ingested data.
+    """
+    import core.memory_context_assembler as mca_mod
+
+    handler = MagicMock()
+    handler.db = None  # lazy: not connected yet
+    handler._ensure_db = MagicMock(
+        side_effect=lambda: setattr(handler, "db", MagicMock(table_names=lambda: ["integration_zoho"]))
+    )
+    handler.search = MagicMock(
+        return_value=[{"text": "Invoice from zoho amount: 499.99", "source": "zoho"}]
+    )
+
+    with patch("core.lancedb_handler.get_lancedb_handler", return_value=handler):
+        lines = await mca_mod._integration_records_leg("any query", "ws")
+
+    handler._ensure_db.assert_called_once()
+    assert lines and "499.99" in lines[0]
+
+
+@pytest.mark.asyncio
+async def test_integration_leg_uses_connection_directly(monkeypatch):
+    """The leg must call table_names() on the LanceDBConnection itself.
+
+    Regression: `handler.db.db.table_names()` raised AttributeError on
+    LanceDBConnection (no nested .db) — swallowed, so the leg always []-ed.
+    """
+    import core.memory_context_assembler as mca_mod
+
+    conn = MagicMock()
+    conn.table_names = MagicMock(return_value=["integration_zoho"])
+    handler = MagicMock()
+    handler.db = conn
+    handler._ensure_db = MagicMock()
+    handler.search = MagicMock(return_value=[])
+
+    with patch("core.lancedb_handler.get_lancedb_handler", return_value=handler):
+        await mca_mod._integration_records_leg("q", "ws")
+
+    conn.table_names.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_qwen_response_receives_user_id():
+    """process_chat_message must thread user_id into _get_qwen_response.
+
+    Regression: the memory block inside _get_qwen_response referenced an
+    undefined `user_id` -> NameError swallowed per turn -> memory context
+    was NEVER assembled for any chat user.
+    """
+    from integrations.chat_orchestrator import ChatOrchestrator
+
+    orch = ChatOrchestrator.__new__(ChatOrchestrator)  # skip heavy __init__
+    orch.llm_service = None  # _get_qwen_response returns None immediately
+
+    captured = {}
+
+    async def fake_qwen(message, history, routing_overrides=None,
+                        sticky_hint=None, user_id=None):
+        captured["user_id"] = user_id
+        return None
+
+    async def fake_analyze(message, session):
+        return {"primary_intent": MagicMock(value="search"), "confidence": 0.9}
+
+    async def fake_route(*a, **k):
+        return {}
+
+    with patch.object(orch, "_get_or_create_session", return_value={"id": "s1", "history": []}), \
+         patch.object(orch, "_get_qwen_response", side_effect=fake_qwen), \
+         patch.object(orch, "_analyze_intent", side_effect=fake_analyze), \
+         patch.object(orch, "_route_to_features", side_effect=fake_route), \
+         patch.object(orch, "_update_session"), \
+         patch.object(orch, "_dispatch_turn_fact_extraction"):
+        await orch.process_chat_message("user-1", "hello", session_id="s1")
+
+    assert captured.get("user_id") == "user-1"
+
+
+# --------------------------------------------------------------------------- #
+# Round 80 role loop — integration-data recall half
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.asyncio
+async def test_integration_leg_role_scoped_first_then_general_topup(monkeypatch):
+    """With a known role, the leg searches role-tagged records FIRST
+    (metadata.role filter) and tops up from the general pool — additive,
+    never exclusive."""
+    import core.memory_context_assembler as mca_mod
+
+    conn = MagicMock()
+    conn.table_names = MagicMock(return_value=["integration_zoho"])
+    handler = MagicMock()
+    handler.db = conn
+    handler._ensure_db = MagicMock()
+    handler.search = MagicMock(
+        side_effect=[
+            [{"id": "r1", "text": "finance invoice", "source": "zoho"}],   # role pass
+            [{"id": "r1", "text": "finance invoice", "source": "zoho"},    # general pass (dedup)
+             {"id": "r2", "text": "general lead", "source": "zoho"}],
+        ]
+    )
+
+    with patch("core.lancedb_handler.get_lancedb_handler", return_value=handler):
+        lines = await mca_mod._integration_records_leg("q", "ws", agent_role="Finance")
+
+    filters = [c.kwargs.get("filter_str") for c in handler.search.call_args_list]
+    assert filters[0] == "metadata.role == 'finance'"
+    assert filters[1] is None
+    assert len(lines) == 2  # deduped: r1 once, r2 top-up
+
+
+@pytest.mark.asyncio
+async def test_integration_leg_without_role_single_unfiltered_pass():
+    """No role → one unfiltered pass per table (general knowledge)."""
+    import core.memory_context_assembler as mca_mod
+
+    conn = MagicMock()
+    conn.table_names = MagicMock(return_value=["integration_zoho"])
+    handler = MagicMock()
+    handler.db = conn
+    handler._ensure_db = MagicMock()
+    handler.search = MagicMock(return_value=[{"id": "g1", "text": "any", "source": "zoho"}])
+
+    with patch("core.lancedb_handler.get_lancedb_handler", return_value=handler):
+        await mca_mod._integration_records_leg("q", "ws", agent_role=None)
+
+    assert handler.search.call_count == 1
+    assert handler.search.call_args.kwargs.get("filter_str") is None
+
+
+def test_resolve_agent_role_maps_category_lowercased():
+    """_resolve_agent_role returns AgentRegistry.category lowercased — the
+    same tag sync_integration_data stamps — and degrades to None on failure."""
+    import core.memory_context_assembler as mca_mod
+
+    agent = MagicMock()
+    agent.category = "Finance"
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = agent
+
+    class _SL:
+        def __call__(self):
+            return db
+
+        def close(self):
+            pass
+
+    with patch("core.database.SessionLocal", new=_SL()):
+        assert mca_mod._resolve_agent_role("agent-1") == "finance"
+
+    with patch("core.database.SessionLocal", side_effect=RuntimeError("db down")):
+        assert mca_mod._resolve_agent_role("agent-1") is None
+    assert mca_mod._resolve_agent_role(None) is None

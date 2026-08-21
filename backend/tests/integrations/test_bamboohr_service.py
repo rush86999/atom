@@ -150,6 +150,20 @@ route_app.include_router(bamboohr_routes.router)
 route_client = TestClient(route_app)
 
 
+def _authed_route_client():
+    """Client with get_current_user overridden (round 80: data/write routes
+    now require authentication; /status and /health stay public)."""
+    from unittest.mock import MagicMock
+
+    from core.auth import get_current_user
+
+    user = MagicMock()
+    user.id = "bb-route-user"
+    user.email = "bb@x.com"
+    route_app.dependency_overrides[get_current_user] = lambda: user
+    return TestClient(route_app)
+
+
 class TestBambooHRRoutes:
     def test_status_endpoint(self):
         response = route_client.get("/api/bamboohr/status")
@@ -166,14 +180,14 @@ class TestBambooHRRoutes:
     def test_employees_endpoint_unconfigured_returns_mock(self, monkeypatch):
         monkeypatch.delenv("BAMBOOHR_SUBDOMAIN", raising=False)
         monkeypatch.delenv("BAMBOOHR_API_KEY", raising=False)
-        response = route_client.get("/api/bamboohr/employees")
+        response = _authed_route_client().get("/api/bamboohr/employees")
         assert response.status_code == 200
         assert response.json()["employees"] == []
 
     def test_create_employee_unconfigured_returns_mock(self, monkeypatch):
         monkeypatch.delenv("BAMBOOHR_SUBDOMAIN", raising=False)
         monkeypatch.delenv("BAMBOOHR_API_KEY", raising=False)
-        response = route_client.post(
+        response = _authed_route_client().post(
             "/api/bamboohr/employees", json={"firstName": "A", "lastName": "B"}
         )
         assert response.status_code == 200
@@ -182,6 +196,6 @@ class TestBambooHRRoutes:
     def test_time_off_endpoint_unconfigured_returns_mock(self, monkeypatch):
         monkeypatch.delenv("BAMBOOHR_SUBDOMAIN", raising=False)
         monkeypatch.delenv("BAMBOOHR_API_KEY", raising=False)
-        response = route_client.get("/api/bamboohr/time-off/requests")
+        response = _authed_route_client().get("/api/bamboohr/time-off/requests")
         assert response.status_code == 200
         assert response.json()["requests"] == []

@@ -7,11 +7,13 @@ from datetime import datetime
 import logging
 import os
 from typing import Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from .discord_service import discord_service
+from core.auth import get_current_user as get_authed_user
 from core.messaging_action_dispatcher import MessagingActionDispatcher
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +77,8 @@ async def discord_status(user_id: str = "test_user"):
 
 
 @router.get("/user")
-async def get_current_user(access_token: Optional[str] = None):
+async def get_current_user(access_token: Optional[str] = None,
+                           current_user: User = Depends(get_authed_user)):
     """Get current Discord user information"""
     try:
         user = await discord_service.get_current_user(access_token)
@@ -85,7 +88,8 @@ async def get_current_user(access_token: Optional[str] = None):
 
 
 @router.get("/guilds")
-async def get_user_guilds(access_token: Optional[str] = None, limit: int = 100):
+async def get_user_guilds(access_token: Optional[str] = None, limit: int = 100,
+                          current_user: User = Depends(get_authed_user)):
     """Get guilds the user is a member of"""
     try:
         guilds = await discord_service.get_user_guilds(access_token, limit)
@@ -95,7 +99,8 @@ async def get_user_guilds(access_token: Optional[str] = None, limit: int = 100):
 
 
 @router.get("/guilds/{guild_id}/channels")
-async def get_guild_channels(guild_id: str):
+async def get_guild_channels(guild_id: str,
+                             current_user: User = Depends(get_authed_user)):
     """Get channels in a guild"""
     try:
         channels = await discord_service.get_guild_channels(guild_id)
@@ -105,7 +110,8 @@ async def get_guild_channels(guild_id: str):
 
 
 @router.post("/channels/{channel_id}/messages")
-async def send_message(channel_id: str, request: SendMessageRequest):
+async def send_message(channel_id: str, request: SendMessageRequest,
+                       current_user: User = Depends(get_authed_user)):
     """Send a message to a channel"""
     try:
         result = await discord_service.send_message(
@@ -119,7 +125,8 @@ async def send_message(channel_id: str, request: SendMessageRequest):
 
 
 @router.get("/channels/{channel_id}/messages")
-async def get_channel_messages(channel_id: str, limit: int = 50):
+async def get_channel_messages(channel_id: str, limit: int = 50,
+                               current_user: User = Depends(get_authed_user)):
     """Get messages from a channel"""
     try:
         messages = await discord_service.get_channel_messages(channel_id, limit)
@@ -129,7 +136,8 @@ async def get_channel_messages(channel_id: str, limit: int = 50):
 
 
 @router.post("/search")
-async def discord_search(request: DiscordSearchRequest):
+async def discord_search(request: DiscordSearchRequest,
+                         current_user: User = Depends(get_authed_user)):
     """Search Discord content"""
     logger.info(f"Searching Discord for: {request.query}")
     return DiscordSearchResponse(
@@ -141,7 +149,8 @@ async def discord_search(request: DiscordSearchRequest):
 
 
 @router.get("/items")
-async def list_discord_items(user_id: str = "test_user"):
+async def list_discord_items(user_id: str = "test_user",
+                             current_user: User = Depends(get_authed_user)):
     """List Discord items"""
     try:
         guilds = await discord_service.get_user_guilds()

@@ -1024,6 +1024,54 @@ class WorldModelService:
         finally:
             db.close()
 
+    def _recall_general_knowledge(
+        self,
+        db: Any,
+        task_description: str,
+        agent_role: Optional[str],
+        limit: int = 5,
+    ) -> list:
+        """Role-relevant general-knowledge recall (Round 80).
+
+        Makes ingested data relevant to the AI employee's memory for work/role/
+        responsibilities: documents tagged ``metadata.role == <agent role>``
+        (lowercased AgentRegistry.category, stamped at ingestion by
+        HybridDataIngestionService / AutoDocumentIngestionService) are recalled
+        FIRST; untagged general knowledge always tops up the remaining slots so
+        a role with few tagged docs never gets an empty recall (graceful
+        degradation — role scoping is additive, never exclusive).
+        """
+        if agent_role:
+            safe_role = str(agent_role).lower().replace("'", "''")
+            role_hits = db.search(
+                table_name="documents",
+                query=task_description,
+                limit=limit,
+                user_id=None,
+                filter_str=f"metadata.role == '{safe_role}'",
+            )
+            results = list(role_hits)
+            if len(results) < limit:
+                included = {r.get("id") for r in results}
+                general = db.search(
+                    table_name="documents",
+                    query=task_description,
+                    limit=limit,
+                    user_id=None,
+                )
+                for r in general:
+                    if len(results) >= limit:
+                        break
+                    if r.get("id") not in included:
+                        results.append(r)
+            return results
+        return db.search(
+            table_name="documents",
+            query=task_description,
+            limit=limit,
+            user_id=None,
+        )
+
     async def recall_experiences(
         self, 
         agent: AgentRegistry, 
@@ -1103,12 +1151,13 @@ class WorldModelService:
         valid_experiences = [exp for _score, exp in valid_experiences[:limit]]
         
         # 2. Search General Knowledge (Documents & Knowledge Graph)
-        # This is "Atom's memory" created from ingestion
-        knowledge_results = self.db.search(
-            table_name="documents", # Assuming generic docs are here
-            query=current_task_description,
-            limit=limit,
-            user_id=None # No user filter for general knowledge (or use system user)
+        # This is "Atom's memory" created from ingestion. Role-aware (Round 80):
+        # documents tagged with THIS agent's role are preferred, then untagged
+        # general knowledge tops up — so ingested data is relevant to the AI
+        # employee's work/role/responsibilities without hiding general memory.
+        agent_role = getattr(agent, "category", None)
+        knowledge_results = self._recall_general_knowledge(
+            self.db, current_task_description, agent_role, limit
         )
         
         # Also query Knowledge Graph if relationships are relevant

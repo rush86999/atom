@@ -385,6 +385,7 @@ class AutoDocumentIngestionService:
         source: str = "upload",
         user_id: str = "system",
         workspace_id: Optional[str] = None,
+        role: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Parse raw file bytes and ingest the extracted text into Atom memory.
 
@@ -399,6 +400,10 @@ class AutoDocumentIngestionService:
             source: Source label (e.g. "onedrive", "zoho_workdrive").
             user_id: Owning user id.
             workspace_id: Optional workspace override (defaults to service default).
+            role: Optional AI-employee role (AgentRegistry.category, lowercased)
+                the ingested file is relevant to. Tagged in the LanceDB metadata
+                so role-aware recall (WorldModelService) surfaces it to the right
+                employee's memory. None/empty = general knowledge.
 
         Returns:
             Dict with ``status``, ``file_name``, ``chars_ingested``.
@@ -429,15 +434,29 @@ class AutoDocumentIngestionService:
         ws_id = workspace_id or self.workspace_id
         chars_ingested = 0
 
+        # Join-key bridge (hybrid search, Step 1): the file-ingest path creates
+        # no PG IngestedDocument row, so vector hits from here can't resolve to
+        # documents.cat. Stamp a stable doc_id + source_type:"file" so the
+        # hybrid service can flag these as bridged:false (no PG row) rather
+        # than silently returning unresolvable hits.
+        _file_doc_id = f"file_{datetime.now(timezone.utc).timestamp()}"
+
+        _meta: Dict[str, Any] = {
+            "file_name": file_name,
+            "file_type": file_ext,
+            "file_size": len(content),
+            "integration_id": source,
+            "ingested_at": datetime.now(timezone.utc).isoformat(),
+            "pg_document_id": _file_doc_id,
+            "source_type": "file",
+        }
+        # AI-employee relevance tag (Round 80): lets role-aware recall surface
+        # this file to the employee whose role it was ingested for.
+        if role:
+            _meta["role"] = str(role).lower()
+
         if self.memory_handler:
             try:
-                # Join-key bridge (hybrid search, Step 1): the file-ingest path
-                # creates no PG IngestedDocument row, so vector hits from here
-                # can't resolve to documents.cat. Stamp a stable doc_id +
-                # source_type:"file" so the hybrid service can flag these as
-                # bridged:false (no PG row) rather than silently returning
-                # unresolvable hits.
-                _file_doc_id = f"file_{datetime.now(timezone.utc).timestamp()}"
                 # to_thread: sync add_document from the loop thread can never
                 # embed (embed_text same-thread guard)
                 success = await asyncio.to_thread(
@@ -445,15 +464,7 @@ class AutoDocumentIngestionService:
                     table_name="documents",
                     text=text,
                     source=f"{source}:{file_name}",
-                    metadata={
-                        "file_name": file_name,
-                        "file_type": file_ext,
-                        "file_size": len(content),
-                        "integration_id": source,
-                        "ingested_at": datetime.now(timezone.utc).isoformat(),
-                        "pg_document_id": _file_doc_id,
-                        "source_type": "file",
-                    },
+                    metadata=_meta,
                     user_id=user_id,
                     extract_knowledge=True,
                     doc_id=_file_doc_id,

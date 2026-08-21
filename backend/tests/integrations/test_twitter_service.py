@@ -135,6 +135,20 @@ route_app.include_router(twitter_routes.router)
 route_client = TestClient(route_app)
 
 
+def _authed_route_client():
+    """Client with get_current_user overridden (round 80: data/write routes
+    now require authentication; /status and /health stay public)."""
+    from unittest.mock import MagicMock
+
+    from core.auth import get_current_user
+
+    user = MagicMock()
+    user.id = "tw-route-user"
+    user.email = "tw@x.com"
+    route_app.dependency_overrides[get_current_user] = lambda: user
+    return TestClient(route_app)
+
+
 class TestTwitterRoutes:
     def test_status_endpoint(self):
         response = route_client.get("/api/twitter/status")
@@ -150,18 +164,18 @@ class TestTwitterRoutes:
 
     def test_post_tweet_unconfigured_returns_mock(self, monkeypatch):
         monkeypatch.delenv("TWITTER_BEARER_TOKEN", raising=False)
-        response = route_client.post("/api/twitter/tweets", json={"text": "hi"})
+        response = _authed_route_client().post("/api/twitter/tweets", json={"text": "hi"})
         assert response.status_code == 200
         assert response.json()["ok"] is True
 
     def test_user_tweets_unconfigured_returns_mock(self, monkeypatch):
         monkeypatch.delenv("TWITTER_BEARER_TOKEN", raising=False)
-        response = route_client.get("/api/twitter/users/someone/tweets")
+        response = _authed_route_client().get("/api/twitter/users/someone/tweets")
         assert response.status_code == 200
         assert response.json()["tweets"] == []
 
     def test_search_unconfigured_returns_mock(self, monkeypatch):
         monkeypatch.delenv("TWITTER_BEARER_TOKEN", raising=False)
-        response = route_client.get("/api/twitter/search/recent?query=test")
+        response = _authed_route_client().get("/api/twitter/search/recent?query=test")
         assert response.status_code == 200
         assert response.json()["tweets"] == []

@@ -35,9 +35,15 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
-def make_client(router):
+def make_client(router, authed=False):
+    from core.auth import get_current_user
+
     app = FastAPI()
     app.include_router(router)
+    if authed:
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id="u1", email="u1@x.com", tenant_id="t1"
+        )
     return TestClient(app, raise_server_exceptions=False)
 
 
@@ -485,20 +491,20 @@ class TestLocalModelRoutes:
 # ===========================================================================
 
 class TestDiscordRoutes:
-    def _call(self, method, path, svc=None, **kw):
+    def _call(self, method, path, svc=None, authed=True, **kw):
         from integrations.discord_routes import router
 
         with patch(
             "integrations.discord_routes.discord_service",
             svc if svc is not None else MagicMock(),
         ):
-            resp = getattr(make_client(router), method)(path, **kw)
+            resp = getattr(make_client(router, authed=authed), method)(path, **kw)
         return resp
 
     # -- GET /status ------------------------------------------------------
     def test_status_connected(self):
         svc = _async_svc({"health_check": {"ok": True}}, client_id="abc")
-        resp = self._call("get", "/api/discord/status", svc)
+        resp = self._call("get", "/api/discord/status", svc, authed=False)
         assert resp.status_code == 200
         body = resp.json()
         assert body["ok"] is True
@@ -506,12 +512,12 @@ class TestDiscordRoutes:
 
     def test_status_not_configured(self):
         svc = _async_svc({"health_check": {"ok": True}}, client_id=None)
-        resp = self._call("get", "/api/discord/status", svc)
+        resp = self._call("get", "/api/discord/status", svc, authed=False)
         assert resp.json()["status"] == "not_configured"
 
     def test_status_health_false(self):
         svc = _async_svc({"health_check": {"ok": False}}, client_id=None)
-        resp = self._call("get", "/api/discord/status", svc)
+        resp = self._call("get", "/api/discord/status", svc, authed=False)
         assert resp.json()["ok"] is False
 
     # -- GET /user --------------------------------------------------------
@@ -628,7 +634,7 @@ class TestDiscordRoutes:
     # -- GET /auth/url ----------------------------------------------------
     def test_auth_url(self):
         svc = _async_svc({}, get_authorization_url=lambda u: "https://discord.com/oauth")
-        resp = self._call("get", "/api/discord/auth/url", svc)
+        resp = self._call("get", "/api/discord/auth/url", svc, authed=False)
         assert resp.status_code == 200
         assert resp.json()["url"] == "https://discord.com/oauth"
 
@@ -638,7 +644,7 @@ class TestDiscordRoutes:
             {"exchange_token": {"access_token": "at", "refresh_token": "rt"}}
         )
         resp = self._call(
-            "get", "/api/discord/callback", svc, params={"code": "c", "redirect_uri": "u"}
+            "get", "/api/discord/callback", svc, params={"code": "c", "redirect_uri": "u"}, authed=False
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -650,7 +656,7 @@ class TestDiscordRoutes:
         """REGRESSION: str(e) leaked to the client in the error branch."""
         svc = _async_svc({"exchange_token": Exception("secret detail")})
         resp = self._call(
-            "get", "/api/discord/callback", svc, params={"code": "bad", "redirect_uri": "u"}
+            "get", "/api/discord/callback", svc, params={"code": "bad", "redirect_uri": "u"}, authed=False
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -661,14 +667,14 @@ class TestDiscordRoutes:
     # -- GET /health ------------------------------------------------------
     def test_health_healthy(self):
         svc = _async_svc({"health_check": {"ok": True}}, client_id="abc")
-        resp = self._call("get", "/api/discord/health", svc)
+        resp = self._call("get", "/api/discord/health", svc, authed=False)
         body = resp.json()
         assert body["status"] == "healthy"
         assert body["configured"] is True
 
     def test_health_unhealthy(self):
         svc = _async_svc({"health_check": {"ok": False}}, client_id=None)
-        resp = self._call("get", "/api/discord/health", svc)
+        resp = self._call("get", "/api/discord/health", svc, authed=False)
         body = resp.json()
         assert body["status"] == "unhealthy"
         assert body["configured"] is False

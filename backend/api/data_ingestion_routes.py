@@ -178,6 +178,7 @@ async def disable_auto_sync(
 async def trigger_sync(
     integration_id: str,
     force: bool = Query(False, description="Force sync even if recently synced"),
+    agent_id: Optional[str] = Query(None, description="Optional AI-employee (agent) id to scope the sync to; the agent's role (category) tags the ingested records so they are recalled into that employee's memory"),
     request: Request = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -188,11 +189,28 @@ async def trigger_sync(
     **Governance**: Requires INTERN+ maturity (MODERATE complexity).
     - Manual sync triggering is a moderate action
     - Requires INTERN maturity or higher
+
+    Round 80: when ``agent_id`` is provided, the AI employee's role
+    (``AgentRegistry.category``, lowercased) is resolved and stamped onto the
+    synced records so recall surfaces them for that employee's work/role/
+    responsibilities.
     """
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
         service = get_hybrid_ingestion_service(get_workspace_id(current_user))
-        result = await service.sync_integration_data(integration_id, force=force)
+
+        role = None
+        if agent_id and db:
+            try:
+                from core.models import AgentRegistry
+                agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+                if agent and getattr(agent, "category", None):
+                    role = str(agent.category).lower()
+            except Exception as resolve_err:
+                # Role resolution is best-effort; ingest as general knowledge.
+                logger.debug(f"agent_id role resolution failed for {agent_id}: {resolve_err}")
+
+        result = await service.sync_integration_data(integration_id, force=force, role=role)
 
         return SyncResponse(
             success=result.get("success", False),

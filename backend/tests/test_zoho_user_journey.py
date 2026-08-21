@@ -335,7 +335,7 @@ def _real_path_adapter():
     return _RealPathZohoAdapter()
 
 
-async def _build_ingestion_service(token_row=None):
+async def _build_ingestion_service(token_row=None, role=None):
     fake_handler = MagicMock()
     fake_handler.add_document.return_value = True
 
@@ -395,7 +395,7 @@ async def _build_ingestion_service(token_row=None):
     ), patch(
         "core.integrations.adapters.zoho.ZohoAdapter", return_value=fake_adapter
     ):
-        result = await service.sync_integration_data("zoho")
+        result = await service.sync_integration_data("zoho", role=role)
         return result, fake_handler, fake_graph_engine, token_row, dbmock
 
 
@@ -689,3 +689,38 @@ def test_j5_governance_runs_for_agent_and_skips_for_user():
     user_result = asyncio.run(_run([]))
     assert user_result == "ok"
     assert not calls, "user-initiated sync should skip governance by design"
+
+
+# J7 — ROLE LOOP: sync tagged for an AI employee's role reaches that
+# employee's memory first (additive top-up from general), mirroring the
+# WorldModelService._recall_general_knowledge contract.
+def test_j7_role_tagged_sync_stamps_metadata_role():
+    """sync_integration_data(role="Finance") stamps metadata.role='finance'
+    on every ingested LanceDB record; without a role, no tag is written
+    (general knowledge, recalled by any employee)."""
+    os.environ["ATOM_INGESTION_PERSIST_STATE"] = "false"
+    try:
+        result, handler, _, _, _ = asyncio.run(_build_ingestion_service())
+    finally:
+        os.environ.pop("ATOM_INGESTION_PERSIST_STATE", None)
+    assert result.get("records_ingested") == 5
+
+    # Without a role: every record is general knowledge (no role tag).
+    for call in handler.add_document.call_args_list:
+        assert "role" not in (call.kwargs.get("metadata") or {}), (
+            "untagged sync must not stamp a role — general knowledge"
+        )
+
+    # With a role: every record is tagged for that employee's memory.
+    handler.add_document.reset_mock()
+    os.environ["ATOM_INGESTION_PERSIST_STATE"] = "false"
+    try:
+        result, handler, _, _, _ = asyncio.run(_build_ingestion_service(role="Finance"))
+    finally:
+        os.environ.pop("ATOM_INGESTION_PERSIST_STATE", None)
+    assert result.get("records_ingested") == 5
+    tags = {
+        (call.kwargs.get("metadata") or {}).get("role")
+        for call in handler.add_document.call_args_list
+    }
+    assert tags == {"finance"}, f"role tag not stamped on every record: {tags}"
