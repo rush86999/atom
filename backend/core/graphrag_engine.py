@@ -1553,33 +1553,100 @@ class GraphRAGEngine:
 
     async def global_search(self, workspace_id: Optional[str] = None, 
                            tenant_id: Optional[str] = None,
-                           query: str = "") -> Dict[str, Any]:
-        """Global Search using LLM-based synthesis of Community Summaries."""
+                           query: str = "",
+                           as_of: Optional[datetime] = None) -> Dict[str, Any]:
+        """Global Search using LLM-based synthesis of Community Summaries.
+
+        W7 time travel: ``as_of`` synthesizes from the archived community
+        generation whose [valid_from, invalid_at) interval contains the
+        instant (graph_community_snapshots); ``None`` reads the live
+        ``graph_communities`` rows — byte-identical legacy behavior.
+        """
         ws_id = workspace_id or self.workspace_id
         tid = tenant_id or self.tenant_id
         
         with get_db_session() as session:
             try:
                 # 1. Fetch relevant communities
-                sql = text("""
-                    SELECT id, summary, keywords, level
-                    FROM graph_communities
-                    WHERE workspace_id = :ws_id
-                    ORDER BY created_at DESC
-                    LIMIT 20
-                """)
-                try:
-                    communities = session.execute(sql, {"ws_id": ws_id}).fetchall()
-                except OperationalError as oe:
-                    # Communities table not yet created (fresh DB / tests) —
-                    # global search degrades to the empty path, not an error.
-                    if "graph_communities" in str(oe):
-                        communities = []
-                    else:
-                        raise
+                if as_of is not None:
+                    sql = text("""
+                        SELECT id, summary, keywords, level
+                        FROM graph_community_snapshots
+                        WHERE workspace_id = :ws_id
+                        AND valid_from <= :as_of
+                        AND invalid_at > :as_of
+                        ORDER BY invalid_at DESC
+                        LIMIT 20
+                    """)
+                    try:
+                        communities = session.execute(
+                            sql, {"ws_id": ws_id, "as_of": as_of}
+                        ).fetchall()
+                    except OperationalError as oe:
+                        # Snapshots table not yet created (fresh DB / tests)
+                        if "graph_community_snapshots" in str(oe):
+                            communities = []
+                        else:
+                            raise
+                    if not communities:
+                        # Outside archived intervals: the LIVE rows are the
+                        # active generation from the last replacement onward
+                        # (or from first creation when nothing was archived).
+                        try:
+                            boundary = session.execute(text(
+                                "SELECT MAX(invalid_at) FROM graph_community_snapshots "
+                                "WHERE workspace_id = :ws_id"
+                            ), {"ws_id": ws_id}).scalar()
+                            if boundary is None:
+                                boundary = session.execute(text(
+                                    "SELECT MIN(created_at) FROM graph_communities "
+                                    "WHERE workspace_id = :ws_id"
+                                ), {"ws_id": ws_id}).scalar()
+                        except OperationalError:
+                            boundary = None
+                        if boundary is not None:
+                            # Raw text() on SQLite yields strings + naive
+                            # datetimes; normalize before comparing to as_of.
+                            if isinstance(boundary, str):
+                                boundary = datetime.fromisoformat(boundary)
+                            if boundary.tzinfo is None:
+                                boundary = boundary.replace(tzinfo=timezone.utc)
+                            if as_of >= boundary:
+                                communities = session.execute(text("""
+                                    SELECT id, summary, keywords, level
+                                    FROM graph_communities
+                                    WHERE workspace_id = :ws_id
+                                    ORDER BY created_at DESC
+                                    LIMIT 20
+                                """), {"ws_id": ws_id}).fetchall()
+                else:
+                    sql = text("""
+                        SELECT id, summary, keywords, level
+                        FROM graph_communities
+                        WHERE workspace_id = :ws_id
+                        ORDER BY created_at DESC
+                        LIMIT 20
+                    """)
+                    try:
+                        communities = session.execute(sql, {"ws_id": ws_id}).fetchall()
+                    except OperationalError as oe:
+                        # Communities table not yet created (fresh DB / tests) —
+                        # global search degrades to the empty path, not an error.
+                        if "graph_communities" in str(oe):
+                            communities = []
+                        else:
+                            raise
 
                 if not communities:
-                    return {"mode": "global", "summaries": [], "answer": "No community data available for global search."}
+                    answer = (
+                        "No community data available for global search."
+                        if as_of is None
+                        else "No community data available for global search at the requested time."
+                    )
+                    result = {"mode": "global", "summaries": [], "answer": answer}
+                    if as_of is not None:
+                        result["as_of"] = as_of.isoformat()
+                    return result
 
                 # 2. Filter/Rank communities by query relevance
                 scored = []
@@ -1623,7 +1690,8 @@ class GraphRAGEngine:
                     "mode": "global",
                     "summaries": top_summaries,
                     "answer": answer,
-                    "count": len(top_summaries)
+                    "count": len(top_summaries),
+                    **({"as_of": as_of.isoformat()} if as_of is not None else {}),
                 }
             except Exception as e:
                 logger.error(f"Global search failed: {e}")

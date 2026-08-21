@@ -2863,9 +2863,36 @@ class GraphCommunity(Base):
 class CommunityMembership(Base):
     """Mapping of Nodes to Communities (Many-to-Many but usually One-to-Many per level)"""
     __tablename__ = "community_membership"
-
     community_id = Column(String, ForeignKey("graph_communities.id", ondelete="CASCADE"), primary_key=True)
     node_id = Column(String, ForeignKey("graph_nodes.id", ondelete="CASCADE"), primary_key=True)
+
+
+class GraphCommunitySnapshot(Base):
+    """Archived community generation for global-search time travel (W7).
+
+    When community detection replaces a workspace's live rows, the outgoing
+    generation is archived here with a validity interval:
+    ``valid_from`` = the generation's original created_at,
+    ``invalid_at`` = the instant it was replaced. ``global_search(as_of=T)``
+    synthesizes from the snapshot whose interval contains T; the live
+    ``graph_communities`` rows always hold exactly the newest generation.
+    """
+    __tablename__ = "graph_community_snapshots"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    workspace_id = Column(String, nullable=False, index=True)
+
+    level = Column(Integer, default=0)
+    summary = Column(Text, nullable=False)
+    keywords = Column(JSONColumn, default=list)
+    node_ids = Column(JSONColumn, default=list)  # membership flattened (W7)
+    parent_label = Column(String, nullable=True)  # display lineage of the archived row
+
+    valid_from = Column(DateTime(timezone=True), nullable=False)
+    invalid_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 # Models supporting Admin Dashboard & Governance

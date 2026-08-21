@@ -15,7 +15,7 @@ import logging
 import itertools
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set, Tuple
 from sqlalchemy.orm import Session
@@ -599,21 +599,55 @@ class CommunityDetectionService:
     def _clear_workspace_communities(
         self,
         session: Session,
-        workspace_id: str
+        workspace_id: str,
+        replaced_at: Optional[datetime] = None
     ) -> None:
-        """Delete all GraphCommunity + membership rows for a workspace."""
+        """Archive then delete all GraphCommunity + membership rows for a
+        workspace (W7: the outgoing generation lands in
+        graph_community_snapshots with [valid_from, invalid_at) so
+        global_search(as_of=...) can travel back). ``replaced_at`` is the
+        single generation instant — the archive's invalid_at AND the
+        replacement's created_at — so consecutive intervals chain exactly."""
+        from core.models import GraphCommunitySnapshot
+
+        now = replaced_at or datetime.now(timezone.utc)
         # Capture the ids BEFORE deleting so the membership cleanup can target
         # them (the delete below removes the rows the subquery would read).
-        old_ids = [
-            r[0]
-            for r in session.query(GraphCommunity.id).filter(
-                GraphCommunity.workspace_id == workspace_id
-            ).all()
-        ]
-        if old_ids:
-            session.query(CommunityMembership).filter(
-                CommunityMembership.community_id.in_(old_ids)
-            ).delete(synchronize_session=False)
+        old_rows = session.query(GraphCommunity).filter(
+            GraphCommunity.workspace_id == workspace_id
+        ).all()
+        old_ids = [r.id for r in old_rows]
+        if not old_ids:
+            return
+
+        member_map: Dict[str, List[str]] = {}
+        memberships = session.query(CommunityMembership).filter(
+            CommunityMembership.community_id.in_(old_ids)
+        ).all()
+        for m in memberships:
+            member_map.setdefault(m.community_id, []).append(m.node_id)
+
+        for row in old_rows:
+            valid_from = getattr(row, "created_at", None) or now
+            if valid_from.tzinfo is None:
+                valid_from = valid_from.replace(tzinfo=timezone.utc)
+            session.add(GraphCommunitySnapshot(
+                # getattr defaults: these columns are nullable and some duck-
+                # typed row doubles (tests) predate them.
+                tenant_id=getattr(row, "tenant_id", None),
+                workspace_id=workspace_id,
+                level=getattr(row, "level", 0) or 0,
+                summary=getattr(row, "summary", None) or "community",
+                keywords=getattr(row, "keywords", None) or [],
+                node_ids=member_map.get(row.id, []),
+                parent_label=getattr(row, "parent_community_id", None),
+                valid_from=valid_from,
+                invalid_at=now,
+            ))
+
+        session.query(CommunityMembership).filter(
+            CommunityMembership.community_id.in_(old_ids)
+        ).delete(synchronize_session=False)
         session.query(GraphCommunity).filter(
             GraphCommunity.workspace_id == workspace_id
         ).delete()
@@ -633,7 +667,10 @@ class CommunityDetectionService:
         level-1 with the same id, or stay NULL (never a dangling id).
         """
         try:
-            self._clear_workspace_communities(session, workspace_id)
+            # One generation instant: archived rows' invalid_at AND the
+            # incoming rows' created_at (exact interval chaining, W7).
+            generation_at = datetime.now(timezone.utc)
+            self._clear_workspace_communities(session, workspace_id, generation_at)
 
             import uuid as _uuid
 
@@ -670,6 +707,7 @@ class CommunityDetectionService:
                         or "community"
                     ),
                     keywords=community.keywords,
+                    created_at=generation_at,  # W7: exact generation instant
                 )
                 session.add(db_comm)
 
