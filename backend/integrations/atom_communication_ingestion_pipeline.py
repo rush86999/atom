@@ -1761,19 +1761,53 @@ class CommunicationIngestionPipeline:
         
         # Email normalization
         elif app_type in [CommunicationAppType.EMAIL.value, CommunicationAppType.GMAIL.value, CommunicationAppType.OUTLOOK.value]:
+            # Field-name fallbacks for the three live email producers:
+            #   Outlook poller (:1610): content / sender+sender_email / recipient / timestamp(datetime)
+            #   Gmail poller   (:1466): content / sender+sender_email / recipient / timestamp(datetime)
+            #   Outlook webhook (:2973): content / sender_id / timestamp(ISO string)
+            # The legacy MIME-ish shape (body/from/to/date) is also supported.
+            # Without these fallbacks the email branch read only body/from/to/
+            # date, silently dropping sender/recipient/body AND resetting the
+            # timestamp to now() — the full body never reached the comm store.
+            raw_ts = message_data.get("timestamp", message_data.get("date"))
+            if isinstance(raw_ts, datetime):
+                ts = raw_ts
+            elif raw_ts:
+                try:
+                    ts = datetime.fromisoformat(str(raw_ts))
+                except (ValueError, TypeError):
+                    ts = datetime.now()
+            else:
+                ts = datetime.now()
+
+            sender = (
+                message_data.get("from")
+                or message_data.get("sender")
+                or message_data.get("sender_email")
+                or message_data.get("sender_id")
+            )
+            content = (
+                message_data.get("content")
+                or message_data.get("body")
+                or message_data.get("text")
+                or message_data.get("bodyPreview")
+                or ""
+            )
             return {
                 "id": message_data.get("id", f"email_{datetime.now().isoformat()}"),
                 "app_type": app_type,
-                "timestamp": datetime.fromisoformat(message_data.get("date", datetime.now().isoformat())),
-                "direction": "inbound" if message_data.get("from") != "user" else "outbound",
-                "sender": message_data.get("from"),
-                "recipient": message_data.get("to"),
+                "timestamp": ts,
+                "direction": "inbound" if sender != "user" else "outbound",
+                "sender": sender,
+                "recipient": message_data.get("to") or message_data.get("recipient"),
                 "subject": message_data.get("subject"),
-                "content": message_data.get("body", ""),
+                "content": content,
                 "attachments": message_data.get("attachments", []),
                 "metadata": {
                     "message_id": message_data.get("message_id"),
-                    "thread_id": message_data.get("thread_id"),
+                    "thread_id": message_data.get("thread_id")
+                    or (message_data.get("metadata") or {}).get("thread_id")
+                    or (message_data.get("metadata") or {}).get("conversation_id"),
                     "email_metadata": message_data.get("metadata", {})
                 },
                 "status": "active",
