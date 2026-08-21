@@ -173,9 +173,12 @@ agent inference) outranks confidence"):
   confidential|restricted`, default `internal`). **Recall-time enforcement is
   live**: `get_active_facts_for_prompt(..., max_sensitivity=…)` and
   `prefetch_relevant_facts(..., max_sensitivity=…)` exclude facts above the
-  ceiling (unknown values rank as restricted — conservative). Default `None`
-  keeps legacy behavior; wiring a ceiling into agent prompt assembly is the
-  remaining product decision (which contexts count as external-bound).
+  ceiling (unknown values rank as restricted — conservative). Default: the
+  `prompt_sensitivity_ceiling()` policy — env
+  `ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING` (default `confidential`, aligned
+  with P4's restricted-never-outbound posture; `none` disables; invalid
+  falls back to safe default). Wired into both meta-agent recall sites
+  (vector prefetch + Tier-1 durable facts).
 
 ## Retention & Erasure (write-path governance, 2026-08-21)
 

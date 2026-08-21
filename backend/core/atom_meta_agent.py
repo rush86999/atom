@@ -43,6 +43,7 @@ from core.turn_fact_extractor import (
     get_active_facts_for_prompt as _get_active_facts_for_prompt,
     get_turn_fact_extractor,
     prefetch_relevant_facts as _prefetch_relevant_facts,
+    prompt_sensitivity_ceiling as _prompt_ceiling,
 )
 _pending_extraction_tasks: set = set()  # module-level — prevents GC of in-flight tasks
 
@@ -436,7 +437,8 @@ class AtomMetaAgent:
         if _TURN_FACT_VECTOR_RECALL_ENABLED:
             try:
                 prefetched = _prefetch_relevant_facts(
-                    workspace_id=self.workspace_id, query=request, limit=5
+                    workspace_id=self.workspace_id, query=request, limit=5,
+                    max_sensitivity=_prompt_ceiling(),
                 )
                 if prefetched:
                     context.setdefault("prefetched_facts", []).extend(prefetched)
@@ -1528,7 +1530,8 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
         try:
             with SessionLocal() as facts_db:
                 durable = _get_active_facts_for_prompt(
-                    facts_db, self.workspace_id, limit=5
+                    facts_db, self.workspace_id, limit=5,
+                    max_sensitivity=_prompt_ceiling(),
                 )
             if durable:
                 memory_sections.append(

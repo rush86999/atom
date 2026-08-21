@@ -507,3 +507,46 @@ class TestSensitivityCeiling:
         texts = {r.fact_text for r in rows}
         assert "restricted payroll export" not in texts
         assert "internal process note" in texts
+
+# ============================================================================
+# Prompt-assembly ceiling wiring (P4-aligned default)
+# ============================================================================
+
+class TestPromptCeilingWiring:
+    def test_default_ceiling_is_confidential(self):
+        """P4 posture: restricted data never heads outbound — so prompt
+        assembly defaults to the confidential ceiling (excludes restricted)."""
+        from core.turn_fact_extractor import prompt_sensitivity_ceiling
+
+        with patch.dict("os.environ", {}, clear=False):
+            import os
+
+            env = dict(os.environ)
+            env.pop("ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING", None)
+            with patch.dict("os.environ", env, clear=True):
+                assert prompt_sensitivity_ceiling() == "confidential"
+
+    def test_env_overrides(self):
+        from core.turn_fact_extractor import prompt_sensitivity_ceiling
+
+        with patch.dict("os.environ",
+                        {"ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING": "internal"}):
+            assert prompt_sensitivity_ceiling() == "internal"
+        with patch.dict("os.environ",
+                        {"ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING": "none"}):
+            assert prompt_sensitivity_ceiling() is None
+        # invalid value falls back to the safe default, not off
+        with patch.dict("os.environ",
+                        {"ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING": "banana"}):
+            assert prompt_sensitivity_ceiling() == "confidential"
+
+    def test_both_recall_call_sites_pass_the_ceiling(self):
+        """Wiring pin: meta-agent prefetch + Tier-1 recall must thread the
+        ceiling (grep-level pin — execute() paths are too heavy to drive)."""
+        import inspect
+        from core import atom_meta_agent
+
+        src = inspect.getsource(atom_meta_agent)
+        assert src.count("_prompt_ceiling()") >= 2, (
+            "prefetch + Tier-1 recall call sites must pass max_sensitivity"
+        )

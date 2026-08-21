@@ -905,6 +905,25 @@ def _sensitivity_rank(value: Optional[str]) -> int:
     return SENSITIVITY_RANK.get((value or "").strip().lower(), 3)
 
 
+def prompt_sensitivity_ceiling() -> Optional[str]:
+    """
+    Default sensitivity ceiling for prompt-assembly recall. Aligned with the
+    P4 external-outbound posture (restricted data never heads outbound), so
+    the default is "confidential" — excluding restricted facts from prompts.
+    Env override ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING:
+      public | internal | confidential | restricted | none
+    Invalid values fall back to the safe default.
+    """
+    import os
+
+    raw = os.getenv(
+        "ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING", "confidential"
+    ).strip().lower()
+    if raw in ("", "none", "off"):
+        return None
+    return raw if raw in SENSITIVITY_RANK else "confidential"
+
+
 # ---------------------------------------------------------------------------
 # Tier-1 retrieval helper — pure SQL, used in prompt assembly
 # ---------------------------------------------------------------------------

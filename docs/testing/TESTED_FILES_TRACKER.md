@@ -5971,3 +5971,11 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Wiring**: `consolidate_workspace` now reports `facts_expired` so the 6-hourly worker enforces retention automatically when the env is set.
 
 **Verification**: suite 8/8; turn-fact + hardening cluster 205 passed.
+
+## Session 2026-08-21 (backend) — Sensitivity ceiling wired into prompt assembly (rev.2 #2 final plumbing)
+
+**Files**: `backend/core/turn_fact_extractor.py` (+`prompt_sensitivity_ceiling()` policy), `backend/core/atom_meta_agent.py` (both recall sites pass `max_sensitivity=_prompt_ceiling()`), `backend/tests/test_memory_epistemic_provenance_scoping.py` (+3 tests, 25 total), `docs/reference/ENVIRONMENT_VARIABLES.md` + `docs/architecture/CONTEXT_MEMORY.md` (+`ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING`, default `confidential`).
+
+**Policy**: restricted facts never surface into prompts sent to LLM providers (P4 external-outbound alignment). Env override: public|internal|confidential|restricted|none; invalid → safe default. Wiring pinned by a source-inspection test (both call sites), behavior tests cover the helper's env matrix.
+
+**Verification**: suite 25/25; turn-fact + meta-agent + retention + eval-gate cluster 204 passed.
