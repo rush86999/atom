@@ -5913,3 +5913,15 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Gotchas**: `search_communications` lives on `LanceDBMemoryManager`, not `CommunicationIngestionPipeline` (test targets the right class); concurrent-session edits caused transient exact-match failures in patch scripts — resolved by regex anchors + idempotent guards.
 
 **Verification**: suite 12/12; turn-fact suites (`test_covpush_w23/w37/w64l_turn_fact*`, `test_turn_fact_extraction`) + memory-symmetry 89 passed; migration up+down verified on scratch DB.
+
+## Session 2026-08-21 (backend) — Conversational-memory eval gate (rev.2 plan §5)
+
+**Files**: `backend/core/memory_eval_conversation.py` (new), `backend/tests/test_memory_eval_conversation_gate.py` (new — CI gate, baseline 5/5), `docs/architecture/CONTEXT_MEMORY.md` (eval section replaces the no-eval caveat).
+
+**What it measures**: golden multi-session conversation ingested into the turn-fact store → 5 QAs through the same Tier-1 recall the prompt assembly uses: single-hop hit ("which plan?"), update/supersession (stale plan fact absent), invoice-routing hit, epistemic filter (`epistemic_type="stated"` excludes inferences), and source-attribution ordering (stated ranks at/above equally-recent inferred under `prioritize_stated`).
+
+**Honest scope**: ingestion bypasses the LLM extractor (`_persist_one` direct) — measures STORE + RECALL correctness only; extraction quality needs live-LLM runs. Isolated workspace per invocation; seeder applies guarded DDL so pre-migration databases self-heal (create_all does not add columns to existing tables).
+
+**Gotchas**: differing fact texts never collide by content_hash — update chains need explicit consolidator-style supersession in the seeder (mirrors the nightly sweep); supersede-by-confidence-margin requires beating by >0.1 (capped facts can't).
+
+**Verification**: standalone run 5/5 accuracy=1.0; gate + provenance suite + P2.3 retrieval gate 14 passed / 1 skipped (env-dependent skip).

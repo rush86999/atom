@@ -174,9 +174,12 @@ agent inference) outranks confidence"):
   align fact handling with document sensitivity. **Enforcement is a separate,
   not-yet-built change** — this column enables it.
 
-Honest scope note: these are schema/prompt additions with one recall behavior
-(prioritize_stated). No conversational-memory benchmark claim is made until a
-LongMemEval-style golden-QA eval runs over Atom's stores (see plan §5).
+Eval: `core/memory_eval_conversation.py` — golden-QA over the turn-fact store
+(synthetic multi-session conversation → 5 questions pinning single-hop recall,
+update/supersession, stated-over-inferred ordering, epistemic filtering), CI
+gate `tests/test_memory_eval_conversation_gate.py` (baseline 5/5). It measures
+STORE + RECALL correctness; ingestion bypasses the LLM extractor, so extraction
+quality remains unmeasured (live-LLM runs required for that).
 
 ---
 
