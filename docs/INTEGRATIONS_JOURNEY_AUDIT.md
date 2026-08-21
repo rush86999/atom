@@ -120,8 +120,8 @@ Legend: ✅ wired · 🟡 partial (reachable, data surface limited) · ⚠️ kn
 
 ## 5. Role model (what "every role" means here)
 
-### Mobile surface (audited Round 80i)
-The mobile app (`mobile/`, Expo) has **no integration journeys at all** — screens are agent/analytics/auth/canvas/chat/debugging/device/settings/workflows, and `src/services/*` never calls any `/api/integrations|/api/{app}` endpoint. So there is nothing to break — but also **no mobile visibility into integration status or management**. Building an integrations screen (read-only connection list → `GET /api/integrations` + per-app health) would be new feature work, not gap-fill.
+### Mobile surface (audited Round 80i — v1 shipped)
+The mobile app (`mobile/`, Expo) had **no integration journeys at all** — screens are agent/analytics/auth/canvas/chat/debugging/device/settings/workflows, and `src/services/*` never called any `/api/integrations|/api/{app}` endpoint. Round 80 shipped **v1 read-only visibility**: `mobile/src/services/integrationService.ts` (GET `/api/v1/integrations/health` + GET `/api/integrations`), an expandable `IntegrationsSection` in Settings (healthy X of Y + per-service badges, pull-safe error/loading states), wired into `SettingsScreen`; covered by `src/__tests__/components/settings/IntegrationsSection.test.tsx`. Deeper journeys (per-app detail, connect/disconnect from mobile) remain future work.
 
 
 

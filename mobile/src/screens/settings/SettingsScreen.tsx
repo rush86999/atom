@@ -21,6 +21,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDevice } from '../../contexts/DeviceContext';
+import { IntegrationsSection } from '../../components/settings/IntegrationsSection';
 
 interface SettingItem {
   id: string;
@@ -38,6 +39,7 @@ export const SettingsScreen: React.FC = () => {
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+    const [integrationsExpanded, setIntegrationsExpanded] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -222,6 +224,15 @@ export const SettingsScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Device</Text>
           {settings.slice(3, 5).map(renderSettingItem)}
+        </View>
+
+        {/* Round 80: read-only integration status (was absent on mobile) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Integrations</Text>
+          <IntegrationsSection
+            expanded={integrationsExpanded}
+            onToggle={() => setIntegrationsExpanded((v) => !v)}
+          />
         </View>
 
         <View style={styles.section}>
