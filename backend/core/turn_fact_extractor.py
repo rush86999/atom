@@ -188,6 +188,61 @@ class _TTLSet:
 
 
 # ---------------------------------------------------------------------------
+# Poisoning tripwire (write-path governance): a source that repeatedly
+# SUPERSEDES established facts is treated as a memory-injection vector —
+# one bad write pollutes recall for every downstream step. After
+# ``_POISON_SUPERSEDE_LIMIT`` supersessions within the window, subsequent
+# writes from that source land as status="quarantined" (kept for audit,
+# excluded from active-recall). Self-heals after the quarantine window.
+# Kill switch: ATOM_MEMORY_POISON_TRIPWIRE=false.
+_POISON_SUPERSEDE_LIMIT = 5
+_POISON_WINDOW_S = 600.0        # supersession counting window (10 min)
+_POISON_QUARANTINE_S = 1800.0   # quarantine duration (30 min)
+
+_poison_state: Dict[str, List[float]] = {}      # source_key -> supersede timestamps
+_poison_quarantined: Dict[str, float] = {}      # source_key -> quarantined-at
+
+
+def _poison_enabled() -> bool:
+    import os
+
+    return os.getenv("ATOM_MEMORY_POISON_TRIPWIRE", "true").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _poison_source_key(user_id, execution_id, session_id) -> str:
+    return f"{user_id or 'anon'}:{execution_id or 'noexec'}:{session_id or 'nosess'}"
+
+
+def _poison_check_supersession(source_key: str, now: float) -> None:
+    """Record a supersession; trip the quarantine when over the limit."""
+    stamps = [t for t in _poison_state.get(source_key, []) if now - t < _POISON_WINDOW_S]
+    stamps.append(now)
+    _poison_state[source_key] = stamps
+    if len(stamps) >= _POISON_SUPERSEDE_LIMIT:
+        _poison_quarantined[source_key] = now
+        logger.warning(
+            "POISON TRIPWIRE: source %s superseded %d facts within %.0fs — "
+            "quarantining its writes for %.0fs",
+            source_key, len(stamps), _POISON_WINDOW_S, _POISON_QUARANTINE_S,
+        )
+
+
+def _poison_is_quarantined(source_key: str, now: float) -> bool:
+    """True while inside the quarantine window. Self-heals + prunes."""
+    q_at = _poison_quarantined.get(source_key)
+    if q_at is None:
+        return False
+    if now - q_at >= _POISON_QUARANTINE_S:
+        _poison_quarantined.pop(source_key, None)
+        _poison_state.pop(source_key, None)
+        logger.info("Poison quarantine expired for %s — writes resume", source_key)
+        return False
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Extraction prompt — Mem0's 5 categories verbatim, strict output contract
 # ---------------------------------------------------------------------------
 _EXTRACTION_PROMPT = """You extract DURABLE facts from a single agent turn. A durable fact is something that is:
@@ -484,6 +539,12 @@ class TurnFactExtractor:
         """Insert with dedup. Returns the canonical row (newly inserted or updated existing)."""
         content_hash = compute_content_hash(self.workspace_id, fact_text)
 
+        # Poisoning tripwire — a quarantined source may not add facts or
+        # overwrite established ones (kept for audit as status="quarantined").
+        now_ts = time.time()
+        source_key = _poison_source_key(user_id, execution_id, session_id)
+        quarantined = _poison_enabled() and _poison_is_quarantined(source_key, now_ts)
+
         # Anti-thrashing — a recent write is already in flight for this hash.
         # Skipped for explicit agent-initiated writes (memory_remember tool),
         # which are deliberate single writes, not extraction-loop re-inserts.
@@ -520,7 +581,7 @@ class TurnFactExtractor:
                         epistemic_type=epistemic_type,
                         sensitivity=sensitivity,
                         content_hash=content_hash,
-                        status="active",
+                        status="quarantined" if quarantined else "active",
                         # P3d: versioning — initial commit on the main branch.
                         parent_id=None,
                         commit_message="created",
@@ -539,7 +600,14 @@ class TurnFactExtractor:
                     self._recent_hashes.add(content_hash)
                     return row
 
-                # Collision — supersede or EWMA bump
+                # Collision — supersede or EWMA bump.
+                # Quarantined sources must not overwrite established facts.
+                if quarantined:
+                    logger.warning(
+                        "Poison quarantine: dropping conflicting write from %s",
+                        source_key,
+                    )
+                    return None
                 if confidence > (existing.confidence or 0.0) + _CONFIDENCE_BEAT_MARGIN:
                     # New fact meaningfully stronger — supersede + insert
                     existing.status = "superseded"
@@ -577,6 +645,8 @@ class TurnFactExtractor:
                     db.commit()
                     db.refresh(row)
                     self._recent_hashes.add(content_hash)
+                    if _poison_enabled():
+                        _poison_check_supersession(source_key, now_ts)
                     return row
 
                 # Else: confidence close — EWMA bump + touch created_at

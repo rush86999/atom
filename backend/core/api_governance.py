@@ -278,13 +278,19 @@ async def perform_governance_check(
                 detail=f"Agent {agent_id} not found"
             )
 
-        # Perform governance check
+        # Perform governance check.
+        # Round 80e: this call passed `action_complexity=`/`action_name=` —
+        # kwargs can_perform_action has never accepted — so EVERY governed
+        # request raised TypeError and surfaced as a 500 "Internal error"
+        # (routes only worked when their feature flag disabled governance).
+        # Uses the service's async variant per its own guidance: check_governance
+        # runs in an event loop, and only the async variant actually enforces
+        # spend budgets. Maturity enforcement vs `required_maturity` stays here.
         required_maturity = ActionComplexity.get_required_maturity(action_complexity)
 
-        governance_check = governance.can_perform_action(
+        governance_check = await governance.can_perform_action_async(
             agent_id=agent.id,
-            action_complexity=action_complexity,
-            action_name=action_name
+            action_type=action_name
         )
 
         if not governance_check['allowed']:

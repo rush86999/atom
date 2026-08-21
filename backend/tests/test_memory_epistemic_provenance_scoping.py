@@ -271,3 +271,108 @@ class TestActorProvenance:
         pipe.search_communications("invoice", direction="inbound")
         where_clauses = [c.args[0] for c in builder.where.call_args_list]
         assert any("direction" in w and "inbound" in w for w in where_clauses)
+
+# ============================================================================
+# Write-path governance — poisoning tripwire
+# ============================================================================
+
+class TestPoisoningTripwire:
+    @pytest.fixture(autouse=True)
+    def _reset_poison_state(self):
+        from core import turn_fact_extractor as tfe
+
+        tfe._poison_state.clear()
+        tfe._poison_quarantined.clear()
+        yield
+        tfe._poison_state.clear()
+        tfe._poison_quarantined.clear()
+
+    def _svc(self):
+        from core.turn_fact_extractor import TurnFactExtractor
+
+        return TurnFactExtractor(workspace_id="ws-1", tenant_id="default")
+
+    @pytest.mark.asyncio
+    async def test_repeated_supersessions_quarantine_the_source(self, db):
+        """5 supersessions within the window -> subsequent writes quarantined."""
+        from core import turn_fact_extractor as tfe
+
+        svc = self._svc()
+        kwargs = dict(
+            category="exact_value", domain="general", confidence=0.99,
+            tags=None, extraction_source="turn", execution_id=None,
+            reasoning_step_id=None, episode_id=None, session_id=None,
+            user_id="suspicious-user",
+        )
+        # seed an established fact, then supersede it 5 times (limit=5)
+        base = "the agreed SLA is seven days"
+        svc._persist_one(fact_text=base, **kwargs)
+        for i in range(tfe._POISON_SUPERSEDE_LIMIT):
+            row = svc._persist_one(
+                fact_text=f"{base} v{i + 2}", **kwargs, _skip_antithrash=True,
+            )
+            assert row is not None
+
+        assert "suspicious-user:noexec:nosess" in tfe._poison_quarantined
+
+        # next NEW write from this source lands quarantined, not active
+        q = svc._persist_one(
+            fact_text="totally new fact from a shady source",
+            **kwargs, _skip_antithrash=True,
+        )
+        assert q is not None and q.status == "quarantined"
+
+    def test_quarantined_rows_excluded_from_recall(self, db):
+        db.add(TurnFact(workspace_id="ws-1", extraction_source="turn",
+                        fact_text="poisoned claim", category="exact_value",
+                        confidence=0.99, content_hash="h-poison",
+                        status="quarantined"))
+        db.add(TurnFact(workspace_id="ws-1", extraction_source="turn",
+                        fact_text="legit claim", category="exact_value",
+                        confidence=0.9, content_hash="h-legit",
+                        status="active"))
+        db.commit()
+        from core.turn_fact_extractor import get_active_facts_for_prompt
+
+        rows = get_active_facts_for_prompt(db, "ws-1")
+        texts = {r.fact_text for r in rows}
+        assert "legit claim" in texts and "poisoned claim" not in texts
+
+    @pytest.mark.asyncio
+    async def test_kill_switch_disables_tripwire(self, db):
+        from core import turn_fact_extractor as tfe
+
+        svc = self._svc()
+        kwargs = dict(
+            category="exact_value", domain="general", confidence=0.99,
+            tags=None, extraction_source="turn", execution_id=None,
+            reasoning_step_id=None, episode_id=None, session_id=None,
+            user_id="suspicious-user",
+        )
+        base = "the contracted vendor is Acme Corp"
+        svc._persist_one(fact_text=base, **kwargs)
+        with patch.dict("os.environ", {"ATOM_MEMORY_POISON_TRIPWIRE": "false"}):
+            for i in range(tfe._POISON_SUPERSEDE_LIMIT + 2):
+                svc._persist_one(
+                    fact_text=f"{base} revision {i + 2}", **kwargs,
+                    _skip_antithrash=True,
+                )
+        assert not tfe._poison_quarantined, "kill switch must disable quarantine"
+
+    @pytest.mark.asyncio
+    async def test_normal_single_supersession_does_not_trigger(self):
+        from core import turn_fact_extractor as tfe
+
+        svc = self._svc()
+        kwargs = dict(
+            category="exact_value", domain="general", confidence=0.99,
+            tags=None, extraction_source="turn", execution_id=None,
+            reasoning_step_id=None, episode_id=None, session_id=None,
+            user_id="normal-user",
+        )
+        svc._persist_one(fact_text="budget approved at fifty K", **kwargs)
+        row = svc._persist_one(
+            fact_text="budget approved at sixty K", **kwargs, _skip_antithrash=True,
+        )
+        assert row is not None and row.status == "active"
+        assert not tfe._poison_quarantined

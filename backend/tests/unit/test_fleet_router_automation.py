@@ -188,11 +188,30 @@ class TestVerdict(TestAutomation):
 
 
 class TestModes(TestAutomation):
+    _active_patches: list = []
+
+    def teardown_method(self) -> None:
+        while TestModes._active_patches:
+            TestModes._active_patches.pop().undo()
+
     def _force_enable(self) -> None:
+        # Patch via a restoring context: assigning directly on the module
+        # leaked fake stats into every later test in the process (the
+        # TestCalibrationStatus suite saw 40 phantom rows → "ready").
         import core.fleet_orchestration.fleet_routing_stats as fstats
 
-        fstats._workload_stats = lambda db: {"wk": {"n": 40, "success_rate": 0.9}}
-        fstats._aggregate_recruitment_health = lambda db: {"recruit_attempts": 20, "recruit_success_rate": 0.95}
+        ctx = pytest.MonkeyPatch()
+        ctx.setattr(
+            fstats, "_workload_stats",
+            lambda db: {"wk": {"n": 40, "success_rate": 0.9}},
+        )
+        ctx.setattr(
+            fstats, "_aggregate_recruitment_health",
+            lambda db: {"recruit_attempts": 20, "recruit_success_rate": 0.95},
+        )
+        # Stay patched for the caller's certify_fleet() call; restored in
+        # teardown_method so nothing leaks to other test modules.
+        TestModes._active_patches.append(ctx)
 
     def test_off_mode_is_noop(self) -> None:
         with pytest.MonkeyPatch.context() as mp:
@@ -224,10 +243,16 @@ class TestModes(TestAutomation):
 
     def test_revoke_applies_immediately_in_approve_mode(self) -> None:
         with pytest.MonkeyPatch.context() as mp:
-            import core.fleet_orchestration.fleet_routing_stats as fstats
-
-            fstats._workload_stats = lambda db: {"wk": {"n": 25, "success_rate": 0.4}}
-            fstats._aggregate_recruitment_health = lambda db: {"recruit_attempts": 20, "recruit_success_rate": 0.95}
+            # mp.setattr (not bare assignment) — direct assignment leaked the
+            # fake stats into every later test in the process.
+            mp.setattr(
+                "core.fleet_orchestration.fleet_routing_stats._workload_stats",
+                lambda db: {"wk": {"n": 25, "success_rate": 0.4}},
+            )
+            mp.setattr(
+                "core.fleet_orchestration.fleet_routing_stats._aggregate_recruitment_health",
+                lambda db: {"recruit_attempts": 20, "recruit_success_rate": 0.95},
+            )
             result = auto.certify_fleet(self._db())
         assert result["revoked"] == ["__global__"]
         assert TestAutomation.actions[-1].state == "revoked"
