@@ -36,6 +36,7 @@ from core.oauth_handler import (
     SLACK_OAUTH_CONFIG,
     TRELLO_OAUTH_CONFIG,
     WHATSAPP_OAUTH_CONFIG,
+    ZOHO_OAUTH_CONFIG,
     OAuthHandler,
 )
 
@@ -224,6 +225,17 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
             provider_keys = [provider]
             if provider == "microsoft":
                 provider_keys.append("outlook")
+            if provider == "zoho":
+                # One Zoho app grant covers all four suite services; each
+                # service resolves its own token row by exact provider name
+                # (zoho_books/zoho_inventory/zoho_crm — workdrive falls back
+                # to generic "zoho"), so fan the same credentials out to all.
+                provider_keys += [
+                    "zoho_books",
+                    "zoho_inventory",
+                    "zoho_crm",
+                    "zoho_workdrive",
+                ]
 
             user_ids_to_sync = {current_user.id}
             from core.models import UserStatus
@@ -307,6 +319,7 @@ async def oauth_initiate(
         "trello": TRELLO_OAUTH_CONFIG,
         "dropbox": DROPBOX_OAUTH_CONFIG,
         "whatsapp": WHATSAPP_OAUTH_CONFIG,
+        "zoho": ZOHO_OAUTH_CONFIG,
     }
     
     if provider not in configs:
@@ -455,6 +468,7 @@ async def oauth_config_status(current_user: User = Depends(get_current_user)):
         "trello": TRELLO_OAUTH_CONFIG,
         "dropbox": DROPBOX_OAUTH_CONFIG,
         "whatsapp": WHATSAPP_OAUTH_CONFIG,
+        "zoho": ZOHO_OAUTH_CONFIG,
     }
     
     return {

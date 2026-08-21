@@ -45,17 +45,25 @@ If it ever needs reconnecting (token revoked, secret rotated):
 3. Sign in with the brennan.ca account → Accept → you land on a callback page
 4. Verify: `http://localhost:8001/api/v1/auth/oauth/tokens` shows provider `microsoft`, status `active`
 
-### ⏳ Zoho (Books + Inventory + CRM + WorkDrive) — one session, four services
+### ⏳ Zoho (Books + Inventory + CRM + WorkDrive) — automatic OAuth flow
 
-1. Go to **https://api-console.zoho.com** (sign in with the brennan.ca Zoho account)
-2. **Self Client** → **Generate Code** with scopes:
-   ```
-   ZohoBooks.fullaccess.all,ZohoInventory.fullaccess.all,ZohoCRM.fullaccess.all,ZohoWorkDrive.files.READ,ZohoWorkDrive.teamfolders.READ
-   ```
-   Duration: **10 minutes** · Description: `Atom pilot`
-3. Copy the **Grant Code** immediately (valid 10 minutes)
-4. Note the **data center** from the URL bar (`.com`, `.ca`, `.eu`…)
-5. Hand the agent: grant code + data center → it exchanges for permanent refresh tokens and wires all four services
+No grant codes, no console copy-paste. One-time app registration, then the
+same click-through flow as Outlook:
+
+1. **api-console.zoho.com** (brennan.ca Zoho login) → **Add Client → Server-based Application**
+   - Client Name: `Atom`
+   - Homepage URL: `http://localhost:3001`
+   - Authorized Redirect URI: `http://localhost:8001/api/v1/auth/oauth/zoho/callback`
+2. Copy **Client ID + Client Secret** (Client Secret tab) → set in
+   `~/projects/atom/.env` (`ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET`; also
+   `ZOHO_ACCOUNTS_BASE=https://accounts.zoho.xx` matching the DC in the URL bar)
+3. Connect: open `http://localhost:8001/api/v1/auth/oauth/zoho/initiate` (via
+   a browser logged into the pilot UI) → sign in to Zoho → Accept → the
+   callback stores refresh tokens automatically for all four services.
+4. Verify: `http://localhost:8001/api/v1/auth/oauth/tokens` shows provider `zoho`, status `active`.
+
+> A Zoho **Self Client** cannot drive this flow (no redirect URI — only
+> console "Generate Code" grant codes, which expire in 10 min). Use server-based.
 
 ### ⏳ Shopify — ~10 minutes
 
