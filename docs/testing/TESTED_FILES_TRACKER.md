@@ -5983,3 +5983,13 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Policy**: restricted facts never surface into prompts sent to LLM providers (P4 external-outbound alignment). Env override: public|internal|confidential|restricted|none; invalid → safe default. Wiring pinned by a source-inspection test (both call sites), behavior tests cover the helper's env matrix.
 
 **Verification**: suite 25/25; turn-fact + meta-agent + retention + eval-gate cluster 204 passed.
+
+## Session 2026-08-21 (backend) — Discord Gateway client: real-time message ingestion (closes the §7 Discord gap)
+
+**Files**: `backend/integrations/discord_gateway.py` (new), `main_api_app.py` (worker-block start hook, gated), `backend/tests/test_discord_gateway.py` (new — 6 tests, fake WebSocket injected — zero network), `docs/reference/ENVIRONMENT_VARIABLES.md` + `docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md` (§7 Discord row: gateway FIXED).
+
+**Contracts** (all against an injected ws double): HELLO(op10) → IDENTIFY(op2) with bot token + GUILD_MESSAGES|MESSAGE_CONTENT intents; heartbeat(op1) fires when the interval elapses via recv-timeout (op11 = ACK); MESSAGE_CREATE dispatches to the callback as normalized comm records (same shape as poller/bridge → `ingest_message("discord", …)` downstream); non-dispatch events ignored; socket death ends the lifetime cleanly and `start()` reconnects with capped exponential backoff. Gating: `maybe_start_from_env()` requires `DISCORD_GATEWAY_ENABLED=true` AND `DISCORD_BOT_TOKEN`, plus a RUNNING event loop (returns False honestly otherwise); wired into main_api_app's worker block.
+
+**Test-infra gotchas**: MagicMock dunder configuration must use `ctx.__enter__.return_value = db` (instance attribute assignment doesn't intercept the context protocol); fake `start()` must be `async def` (`create_task` rejects None returns); FakeWS `fail_after=N` delivers N frames then drops; pre-loop HELLO parse needs a None-guard when fakes return blocking Nones.
+
+**Verification**: suite 6/6; discord parity + symmetry cluster 22 passed.

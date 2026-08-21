@@ -716,6 +716,18 @@ async def lifespan(app: FastAPI):
 
                 _spawn_background_task(_warm_assembler())
 
+            # 8c-bis. Discord Gateway client — real-time MESSAGE_CREATE
+            # ingestion (P0.4 §7 follow-up). Gated: requires
+            # DISCORD_GATEWAY_ENABLED=true AND DISCORD_BOT_TOKEN; messages
+            # flow through ingest_message like every other comm source.
+            try:
+                from integrations.discord_gateway import maybe_start_from_env
+
+                if maybe_start_from_env():
+                    logger.info("✓ Discord Gateway client running (real-time message ingestion)")
+            except Exception as dg_err:
+                logger.warning(f"Discord Gateway start skipped: {dg_err}")
+
             # 8d. Memory consolidation worker (P2.1): nightly rule-based
             # consolidation — contradiction sweeps + supersede — always off
             # the user-facing turn (sleep-time principle).

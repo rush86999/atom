@@ -381,6 +381,8 @@ in [`backend/.env.example`](../../backend/.env.example) §10–§20.
 | `ATOM_TELEGRAM_WEBHOOK_SECRET` | unset | webhook mode | Fail-closed shared secret; Telegram sends it as `X-Telegram-Bot-Api-Secret-Token`. Requests without a match are rejected. |
 | `ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING` | `confidential` | — | Recall ceiling for prompt assembly: facts above it (public < internal < confidential < restricted) never surface into prompts sent to LLM providers. `none` disables; invalid values fall back to the safe default. |
 | `ATOM_MEMORY_POISON_TRIPWIRE` | `true` | — | Write-path governance for turn facts: a source superseding ≥5 facts within 10 min gets its writes quarantined (`status="quarantined"`, excluded from recall) for 30 min — memory-injection defense. `false` disables. |
+| `DISCORD_GATEWAY_ENABLED` | `false` | worker mode | Real-time Discord ingestion: connects the gateway WebSocket (bot token required) and routes MESSAGE_CREATE through `ingest_message("discord", …)` — closes the interactions-only bridge gap. |
+| `DISCORD_BOT_TOKEN` | unset | — | Discord bot token; also used by the gateway client (required when the gateway is enabled). |
 | `ZENDESK_WEBHOOK_SECRET` | unset | webhook mode | Fail-closed HMAC key for `POST /webhooks/zendesk/events`: requests carry `X-Zendesk-Webhook-Signature` (base64 HMAC-SHA256 over the raw body). Unset → 503; mismatch → 401. Ticket comments flow to both memory pipelines via `ingest_message("zendesk", …)`. |
 | `TELEGRAM_BOT_USERNAME` | unset | — | Bot @username, informational. |
 
