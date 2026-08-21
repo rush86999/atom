@@ -26,7 +26,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from api.agent_governance_routes import router, MOCK_AGENTS
+from api.agent_governance_routes import router
+from core.models import AgentRegistry
 from core.auth import get_current_user
 from core.models import User, UserRole
 
@@ -36,20 +37,46 @@ from core.models import User, UserRole
 # ============================================================================
 
 @pytest.fixture
-def client():
-    """Create TestClient for agent governance routes."""
+def client(registry_session_factory):
+    """Create TestClient for agent governance routes (isolated registry DB)."""
+    import contextlib
+    from unittest.mock import patch as mock_patch
     from fastapi import FastAPI
-    app = FastAPI()
-    app.include_router(router)
-    app.dependency_overrides[get_current_user] = lambda: User(
+    from core.database import get_db as route_get_db
+
+    Session = registry_session_factory
+
+    def _gen_db():
+        db = Session()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    @contextlib.contextmanager
+    def _session_cm():
+        db = Session()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    user = User(
         id="test-user",
         email="test@example.com",
         role=UserRole.MEMBER.value,
         first_name="Test",
         last_name="User",
-        status="active"
+        status="active",
     )
-    return TestClient(app)
+
+    app = FastAPI()
+    app.include_router(router)
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[route_get_db] = _gen_db
+    # handlers also wrap the governance service in `with get_db_session()`
+    with mock_patch("api.agent_governance_routes.get_db_session", _session_cm):
+        yield TestClient(app)
 
 
 @pytest.fixture
@@ -116,7 +143,76 @@ def mock_intervention_service():
         yield mock
 
 
-# ============================================================================
+# (id, name, category, confidence_score, description)
+# maturity mirrors api.agent_governance_routes.get_maturity_level_from_score
+_SEED_AGENTS = [
+    ("sales-agent", "Sales Agent", "sales", 0.85, "supervised", "CRM automation and lead management"),
+    ("marketing-agent", "Marketing Agent", "marketing", 0.72, "supervised", "Campaign automation and analytics"),
+    ("support-agent", "Support Agent", "support", 0.68, "intern", "Customer support automation"),
+    ("engineering-agent", "Engineering Agent", "engineering", 0.45, "student", "Engineering workflow automation"),
+    ("hr-agent", "HR Agent", "hr", 0.38, "student", "Human resources automation"),
+    ("finance-agent", "Finance Agent", "finance", 0.92, "autonomous", "Financial operations automation"),
+    ("data-agent", "Data Agent", "data", 0.78, "supervised", "Data analysis and reporting"),
+    ("productivity-agent", "Productivity Agent", "productivity", 0.55, "intern", "Personal productivity automation"),
+]
+
+
+@pytest.fixture
+def registry_session_factory():
+    """R81 replaced the hardcoded MOCK_AGENTS dict with real AgentRegistry
+    queries. Provide an ISOLATED in-memory engine (seeded with the exact
+    8-agent catalog the assertions were written against) and a Session
+    factory bound to it — seeding the shared live dev DB is racy when other
+    processes hold it."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    # full schema: the handlers + governance service touch more tables than
+    # AgentRegistry alone (hitl_actions, agent_feedback, …)
+    from core.models_registration import Base
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+
+    db = Session()
+    try:
+        db.add(User(
+            id="test-user",
+            email="test@example.com",
+            first_name="Test",
+            last_name="User",
+            role=UserRole.MEMBER.value,
+            status="active",
+        ))
+        for agent_id, name, category, score, maturity, description in _SEED_AGENTS:
+            db.add(AgentRegistry(
+                id=agent_id,
+                name=name,
+                category=category,
+                confidence_score=score,
+                description=description,
+                role="agent",
+                type="personal",
+                capabilities=[],
+                module_path="tests.agent_governance_seed",
+                class_name="SeedAgent",
+                workspace_id="default",
+                # AgentRegistry.maturity_level is a property alias for status
+                # (models.py) — lifecycle status IS the maturity tier here.
+                status=maturity,
+            ))
+        db.commit()
+    finally:
+        db.close()
+
+    return Session
+
+
 # Test Classes by Endpoint Category
 # ============================================================================
 
@@ -227,6 +323,8 @@ class TestAgentListing:
         response = client.get("/api/agent-governance/agents")
 
         agents = response.json()
+        import json as _json
+        print("[DBG-BODY]", type(agents).__name__, str(agents)[:220])
         finance_agent = next(a for a in agents if a["agent_id"] == "finance-agent")
 
         assert finance_agent["confidence_score"] == 0.92
@@ -482,7 +580,9 @@ class TestApprovalSubmission:
         assert result["data"]["maturity_level"] == "student"
         assert result["data"]["status"] == "pending"
         assert result["data"]["approval_id"] != ""
-        assert result["data"]["approval_id"].startswith("apr_")
+        # Phase 10: request_approval generates a UUID id (the apr_ prefix was
+        # a pre-R81 format that no longer exists)
+        assert len(result["data"]["approval_id"]) >= 32
         assert "estimated_review_time" in result["data"]
         assert "message" in result
 
@@ -809,7 +909,9 @@ class TestActionEnforcement:
         request_data = {
             "agent_id": "finance-agent",
             "action_type": "delete",
-            "action_details": {"resource": "invoice"}
+            # guardrail model-capability check requires an advanced model for
+            # high-risk actions
+            "action_details": {"resource": "invoice", "model_name": "gpt-4o"}
         }
 
         response = client.post("/api/agent-governance/enforce-action", json=request_data)
@@ -828,7 +930,8 @@ class TestActionEnforcement:
         request_data = {
             "agent_id": "hr-agent",
             "action_type": "delete",
-            "action_details": {"resource": "employee_record"}
+            # guardrail model-capability check (advanced model for high-risk)
+            "action_details": {"resource": "employee_record", "model_name": "gpt-4o"}
         }
 
         response = client.post("/api/agent-governance/enforce-action", json=request_data)

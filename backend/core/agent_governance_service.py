@@ -735,7 +735,16 @@ class AgentGovernanceService:
         check = self.can_perform_action(agent_id, action_type, chain_id=chain_id)
 
         if not check["allowed"]:
-            return {"proceed": False, "status": "BLOCKED", "reason": check["reason"], "action_required": "HUMAN_APPROVAL"}
+            # Round 80: carry the governance fields through — consumers
+            # (Agent Control Center) read required_status/agent_status from
+            # this documented contract, and the old subset dropped them.
+            return {
+                "proceed": False,
+                "status": "BLOCKED",
+                "reason": check["reason"],
+                "action_required": "HUMAN_APPROVAL",
+                **{k: check[k] for k in ("agent_status", "action_complexity", "required_status") if k in check},
+            }
 
         if check["requires_human_approval"]:
             return {"proceed": True, "status": "PENDING_APPROVAL", "reason": "Requires oversight", "action_required": "WAIT_FOR_APPROVAL"}
@@ -792,7 +801,13 @@ class AgentGovernanceService:
                     gr.handle_violation(agent_id, gr_check["violation_type"], gr_check["reason"])
                 return {"proceed": False, "status": "BLOCKED_BY_GUARDRAIL", "reason": gr_check["reason"], "action_required": "HUMAN_APPROVAL"}
 
-        return {"proceed": True, "status": "APPROVED", "reason": check["reason"], "action_required": None}
+        return {
+            "proceed": True,
+            "status": "APPROVED",
+            "reason": check["reason"],
+            "action_required": None,
+            **{k: check[k] for k in ("agent_status", "action_complexity", "required_status", "confidence") if k in check},
+        }
 
     # Policy Discovery
     async def find_relevant_policies(self, context: str, domain: Optional[str] = None, limit: int = 5) -> List[Dict]:
