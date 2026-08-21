@@ -41,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface GitHubRepository {
     id: number;
@@ -165,7 +166,7 @@ const GitHubIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/github/health");
+            const response = await fetch("/api/integrations/github/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -188,7 +189,7 @@ const GitHubIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/github/profile", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                 }),
@@ -210,7 +211,7 @@ const GitHubIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/github/repositories", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -239,7 +240,7 @@ const GitHubIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/github/issues", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     repository: repoName || selectedRepository,
@@ -265,7 +266,7 @@ const GitHubIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/github/issues/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     repository: newIssue.repository,

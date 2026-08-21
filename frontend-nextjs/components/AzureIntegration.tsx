@@ -44,6 +44,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface AzureResourceGroup {
     id: string;
@@ -163,7 +164,7 @@ const AzureIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/azure/health");
+            const response = await fetch("/api/integrations/azure/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -184,7 +185,7 @@ const AzureIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/azure/subscriptions", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                 }),
@@ -206,7 +207,7 @@ const AzureIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/azure/resource-groups", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     subscription_id: selectedSubscription,
@@ -227,7 +228,7 @@ const AzureIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/azure/virtual-machines", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     subscription_id: selectedSubscription,
@@ -249,7 +250,7 @@ const AzureIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/azure/storage-accounts", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     subscription_id: selectedSubscription,
@@ -271,7 +272,7 @@ const AzureIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/azure/app-services", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     subscription_id: selectedSubscription,
@@ -296,7 +297,7 @@ const AzureIntegration: React.FC = () => {
                 "/api/integrations/azure/virtual-machines/create",
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({
                         ...vmForm,
                         user_id: "current",
@@ -341,7 +342,7 @@ const AzureIntegration: React.FC = () => {
                 "/api/integrations/azure/app-services/deploy",
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({
                         ...appForm,
                         user_id: "current",
@@ -383,7 +384,7 @@ const AzureIntegration: React.FC = () => {
                 "/api/integrations/azure/storage-accounts/create",
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({
                         ...storageForm,
                         user_id: "current",

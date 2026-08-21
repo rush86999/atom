@@ -1,4 +1,3 @@
-import { authHeaders } from "@/lib/auth-headers";
 /**
  * Discord Integration Component
  * Real-time communication and community platform
@@ -25,6 +24,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { authHeaders } from "@/lib/auth-headers";
 
 // Discord brand color
 const DISCORD_COLOR = '#5865F2';

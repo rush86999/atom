@@ -32,6 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface JiraProject {
     id: string;
@@ -209,7 +210,7 @@ const JiraIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/jira/health");
+            const response = await fetch("/api/integrations/jira/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -233,7 +234,7 @@ const JiraIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/jira/profile", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                 }),
@@ -255,7 +256,7 @@ const JiraIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/jira/projects", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -283,7 +284,7 @@ const JiraIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/jira/issues", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     project: selectedProject,
@@ -309,7 +310,7 @@ const JiraIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/jira/users", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -334,7 +335,7 @@ const JiraIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/jira/sprints", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     project: projectId,
@@ -359,7 +360,7 @@ const JiraIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/jira/issues/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     project: newIssue.project,

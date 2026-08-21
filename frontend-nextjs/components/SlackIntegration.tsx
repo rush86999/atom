@@ -1,4 +1,3 @@
-import { authHeaders } from "@/lib/auth-headers";
 /**
  * Slack Integration Component
  * Complete Slack communication and collaboration integration
@@ -48,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface SlackChannel {
     id: string;

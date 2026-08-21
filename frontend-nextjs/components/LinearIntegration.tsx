@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface LinearIssue {
     id: string;
@@ -104,7 +105,7 @@ const LinearIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/linear/health");
+            const response = await fetch("/api/integrations/linear/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -125,7 +126,7 @@ const LinearIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/linear/issues", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current", // Will be replaced with actual user ID
                     team_id: selectedTeam || undefined,
@@ -154,7 +155,7 @@ const LinearIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/linear/teams", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 20,
@@ -177,7 +178,7 @@ const LinearIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/linear/projects", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     team_id: selectedTeam || undefined,
@@ -201,7 +202,7 @@ const LinearIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/linear/cycles", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     team_id: selectedTeam || undefined,
@@ -225,7 +226,7 @@ const LinearIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/linear/issues", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     title: newIssue.title,

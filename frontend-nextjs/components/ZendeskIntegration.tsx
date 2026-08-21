@@ -58,6 +58,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface ZendeskTicket {
     id: number;
@@ -396,7 +397,7 @@ const ZendeskIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/zendesk/health");
+            const response = await fetch("/api/integrations/zendesk/health", { headers: authHeaders() });
             if (response.ok) {
                 setConnected(true);
                 setHealthStatus("healthy");
@@ -423,7 +424,7 @@ const ZendeskIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zendesk/profile", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                 }),
@@ -445,7 +446,7 @@ const ZendeskIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zendesk/tickets", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -475,7 +476,7 @@ const ZendeskIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zendesk/users", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -498,7 +499,7 @@ const ZendeskIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zendesk/groups", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -521,7 +522,7 @@ const ZendeskIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zendesk/views", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 50,
@@ -544,7 +545,7 @@ const ZendeskIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zendesk/organizations", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     limit: 100,
@@ -569,7 +570,7 @@ const ZendeskIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zendesk/tickets/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     ticket: {
@@ -623,7 +624,7 @@ const ZendeskIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zendesk/users/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     user: {
@@ -673,7 +674,7 @@ const ZendeskIntegration: React.FC = () => {
         try {
             const response = await fetch("/api/integrations/zendesk/organizations/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
                     user_id: "current",
                     organization: {
