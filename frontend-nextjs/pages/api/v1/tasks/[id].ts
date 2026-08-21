@@ -31,9 +31,17 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
     if (req.method === 'PUT') {
         if (index === -1) return res.status(404).json({ error: 'Task not found' });
+        // Allowlist of updatable fields to prevent property injection (CWE-915)
+        const ALLOWED_FIELDS = ['name', 'description', 'status', 'priority', 'assignedTo', 'dueDate', 'tags', 'projectId', 'metadata'];
+        const update: Record<string, any> = {};
+        for (const field of ALLOWED_FIELDS) {
+            if (field in req.body) {
+                update[field] = req.body[field];
+            }
+        }
         tasks[index] = {
             ...tasks[index],
-            ...req.body,
+            ...update,
             id,
             updatedAt: new Date().toISOString(),
         };
