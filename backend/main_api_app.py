@@ -1432,6 +1432,30 @@ if not is_test_mode:
         except Exception as e:
             logger.error(f"  ✗ Forced registration failed for {mod}: {e}")
 
+# --- FORCED JOURNEY ROUTER REGISTRATION (Round 80b) ---
+# dropbox/gitlab/monday/telegram/whatsapp/xero ship hub pages + OAuth flows
+# (docs/INTEGRATIONS_JOURNEY_AUDIT.md §3 F1/F2) but were registry-LAZY, so
+# their real /api/{app}/* routes were shadowed by the legacy health stub
+# (api_legacy_health.py, mounted last) with fake data — and a missing logger
+# in that stub's broadcast path turned EVERY /api/{app}/status into a 500.
+# Mount them at their DECLARED root prefixes so real endpoints resolve and
+# precede the stub (FastAPI matches routes in registration order). The real
+# routers win; the legacy stub stays for apps that remain stub-only.
+if not is_test_mode:
+    journey_modules = ("dropbox", "gitlab", "monday", "telegram", "whatsapp", "xero")
+    for mod in journey_modules:
+        try:
+            if mod not in _loaded_integrations:
+                router = load_integration(mod, registry="api_routers")
+                if router and isinstance(router, APIRouter):
+                    # Router declares its own root prefix (/api/xero, ...): no
+                    # additional prefix — mirrors slack's root handling (line 1272).
+                    app.include_router(router, tags=[mod])
+                    _loaded_integrations.add(mod)
+                    logger.info(f"  ✓ {mod} (journey root mount)")
+        except Exception as e:
+            logger.error(f"  ✗ Journey registration failed for {mod}: {e}")
+
 
 @app.get("/api/debug/integrations")
 async def debug_integrations(current_user: User = Depends(get_current_user)):

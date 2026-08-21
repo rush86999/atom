@@ -6,12 +6,15 @@ Provides comprehensive health status for all 33+ service integrations
 
 import asyncio
 import datetime
+import logging
 import time
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from core.websockets import manager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["integration_health"])
 

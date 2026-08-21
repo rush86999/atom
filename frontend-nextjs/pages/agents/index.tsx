@@ -463,6 +463,19 @@ const AgentsDashboard = () => {
                             onChange={(e) => setRunInstructions(e.target.value)}
                             className="min-h-[100px]"
                         />
+                        {/* data-testid="run-dialog-guidance" */}
+                        <div data-testid="run-dialog-guidance" className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 rounded p-3 space-y-1">
+                            <p><strong>Tips for good instructions:</strong></p>
+                            <ul className="list-disc pl-4 space-y-0.5">
+                                <li>Name the systems and records to act on (&ldquo;Zoho invoice INV-1001&rdquo;, not &ldquo;the invoice&rdquo;).</li>
+                                <li>State the goal and any limits (&ldquo;draft, don&rsquo;t send&rdquo;).</li>
+                                <li>Include a success check (&ldquo;confirm stock levels match the sales order&rdquo;).</li>
+                            </ul>
+                            <p className="pt-1">
+                                Student/Intern employees will ask for approval before acting —
+                                watch <Link href="/approvals" className="text-blue-600 underline">Approvals</Link>.
+                            </p>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsRunDialogOpen(false)}>
@@ -494,13 +507,20 @@ const AgentsDashboard = () => {
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="description">Description</Label>
+                            <Label htmlFor="description">Job description</Label>
                             <Textarea
                                 id="description"
                                 value={editAgentDescription}
                                 onChange={(e) => setEditAgentDescription(e.target.value)}
                                 className="min-h-[100px]"
                             />
+                            {/* data-testid="edit-dialog-guidance" */}
+                            <p data-testid="edit-dialog-guidance" className="text-xs text-gray-500 dark:text-gray-400">
+                                This is the employee&rsquo;s job description: it steers behavior
+                                <em> and</em> which synced integration data (invoices, leads, tickets)
+                                the employee recalls. Write it like a role spec — responsibilities,
+                                systems it owns, boundaries.
+                            </p>
                         </div>
                     </div>
                     <DialogFooter>
