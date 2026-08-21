@@ -5957,3 +5957,17 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Test-infra gotchas**: MagicMock dunder configuration must use `ctx.__enter__.return_value = db` (instance attribute assignment doesn't intercept the context protocol); fake `start()` must be `async def` (`create_task` rejects None returns); FakeWS `fail_after=N` delivers N frames then drops; pre-loop HELLO parse needs a None-guard when fakes return blocking Nones.
 
 **Verification**: suite 6/6; discord parity + symmetry cluster 22 passed.
+
+## Session 2026-08-21 (backend) — Agent autonomy journey verification + gap closure (R81)
+
+**Files**: `backend/api/agent_maturity_routes.py` (new — restores the severed `/api/maturity/*` journey surface), `backend/main_api_app.py` (mount, section 8a), `backend/core/agent_governance_service.py` (`ACTION_COMPLEXITY` + `memory_search`=1/`memory_remember`=2/`memory_forget`=3), `backend/api/agent_governance_routes.py` (MOCK_AGENTS removed → AgentRegistry queries; `/feedback` → `AgentGovernanceService.submit_feedback`; `/submit-for-approval` → real HITLAction via `request_approval`; `/enforce-action` → real `enforce_action`), `backend/core/generic_agent.py` (session-linked runs now fire `trigger_episode_creation`), `backend/tests/test_round81_agent_journey_gaps.py` (new, 18 tests), `backend/tests/unit/api/test_agent_governance_routes.py` (rewritten from MOCK_AGENTS contract to seeded-SQLite DB contract).
+
+**Verified-working journey links** (no changes needed): execution gating (`generic_agent._step_act` → `can_perform_action_async`, generic_agent.py:1163) · learning loop (`record_outcome` from both ReAct loops + tools + byok_handler) · confidence→promotion thresholds 0.5/0.7/0.9 with cache invalidation (agent_governance_service.py:436-473) · turn-fact sync_turn hooks in atom_meta_agent + chat_orchestrator · memory recall into prompts (generic_agent._build_memory_sections) · graduation exam routes (episode_routes.py:599-644) · TriggerInterceptor STUDENT→training routing.
+
+**Gaps closed**: (1) training approval/completion had zero live API since maturity_routes was archived July 2026 — STUDENT→INTERN promotion via training was unreachable; (2) INTERN action-proposal approve/reject likewise unreachable; (3) live governance API served hardcoded mock agents and a no-op feedback endpoint; (4) `memory_forget` under-gated at INTERN (default complexity 2) vs its SUPERVISED+ tool contract; (5) workflow/scheduler GenericAgent runs never created episodes (only the chat endpoint did), starving episode-count graduation criteria.
+
+**Bug found during restoration**: archived route wrote `proposal.execution_result` / `capability_gaps` etc. — attributes that don't exist on `AgentProposal` (silently dropped by SQLAlchemy). Restored router reads/writes the real columns (`proposal_data` JSON, `approval_reason`).
+
+**Known remaining observations** (documented, not fixed): per-turn fact extraction (sync_turn) is wired into meta-agent/chat but not the GenericAgent specialty loop (chat orchestrator covers chat-driven runs); `record_outcome` from meta-agent hardcodes agent "atom_main"; approved-HITL actions execute without re-validating maturity at execution time (approval is itself the authority).
+
+**Verification**: round81 suite 18/18; unit/api governance routes 24/24 (rewritten); governance+graduation+trigger cluster 440 passed; memory/turn-fact/graduation cluster 109 passed; `main_api_app` imports clean.

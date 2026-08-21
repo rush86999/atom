@@ -174,6 +174,7 @@ class AgentGovernanceService:
         "list_emails": 1,
         "shell_read": 1,
         "shell_network": 1,
+        "memory_search": 1,       # fact recall is read-only (STUDENT+)
         "present_chart": 1,       # presentations are LOW complexity (STUDENT+)
         "present_markdown": 1,
 
@@ -209,6 +210,12 @@ class AgentGovernanceService:
         "device_get_location": 2,       # location (INTERN+)
         "device_send_notification": 2,  # notifications (INTERN+)
         "update_canvas": 2,             # canvas state moderation
+        # Memory tools (tools/memory_tool.py contracts): storing durable facts
+        # is MODERATE (INTERN+); destroying them is HIGH (SUPERVISED+).
+        # Without exact keys both resolved to the level-2 default, letting an
+        # INTERN agent invalidate facts at the governance layer.
+        "memory_remember": 2,           # store durable fact (INTERN+)
+        "memory_forget": 3,             # invalidate durable fact (SUPERVISED+)
 
         # Level 3: EXECUTE (Supervised) - Supervised Agents
         "create": 3,

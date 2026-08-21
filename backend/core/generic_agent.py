@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 import uuid
 
 from core.agent_governance_service import AgentGovernanceService
+from core.episode_integration import trigger_episode_creation
 from core.agent_world_model import AgentExperience, WorldModelService
 from core.database import get_db_session
 from core.llm.byok_handler import QueryComplexity
@@ -564,7 +565,24 @@ class GenericAgent:
         }
         
         await self._record_execution(task_input, execution_result)
-        
+
+        # R81 (G5): persist an episode for session-linked runs so workflow/
+        # scheduler-driven specialty agents accumulate episodic memory too —
+        # previously only the chat endpoint created episodes, which starved
+        # the episode-count graduation criteria for non-chat runs.
+        _session_id = (context or {}).get("session_id")
+        if _session_id:
+            try:
+                trigger_episode_creation(
+                    session_id=_session_id,
+                    agent_id=self.id,
+                    title=task_input[:50],
+                    user_id=(context or {}).get("user_id"),
+                    workspace_id=getattr(self, "workspace_id", None),
+                )
+            except Exception as ep_err:
+                logger.debug(f"episode trigger skipped: {ep_err}")
+
         return execution_result
 
     def _retrieve_skill_instructions(self, task_input: str) -> str:

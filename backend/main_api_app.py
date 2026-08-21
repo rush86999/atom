@@ -2968,6 +2968,18 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Agent Governance routes not found: {e}")
 
+    # 8a. Agent Maturity Journey Routes (R81) — training proposals/sessions
+    # (STUDENT→INTERN) + action-proposal review/execute (INTERN HITL). The
+    # original /api/maturity surface was archived with zero replacements,
+    # severing training approval → confidence boost → promotion.
+    try:
+        from api.agent_maturity_routes import router as maturity_router
+
+        app.include_router(maturity_router)
+        logger.info("✓ Agent Maturity Journey Routes Loaded (/api/maturity)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Agent Maturity Journey routes not found: {e}")
+
     # 8b. HITL Approval Routes (Phase 256-06)
     try:
 

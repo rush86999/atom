@@ -24,7 +24,6 @@ from api.agent_governance_routes import (
     router,
     get_maturity_level_from_score,
     can_deploy_directly,
-    MOCK_AGENTS,
 )
 from core.auth import get_current_user as auth_get_current_user
 from core.models import AgentRegistry, AgentStatus, User, UserRole
@@ -35,14 +34,52 @@ from core.database import get_db
 # Test Fixtures
 # =============================================================================
 
+def _registry_agent(agent_id, name, category, score, status):
+    return AgentRegistry(
+        id=agent_id,
+        name=name,
+        category=category,
+        module_path="t.m",
+        class_name="T",
+        status=status,
+        confidence_score=score,
+    )
+
+
 @pytest.fixture
 def app():
-    """Create test FastAPI app with governance routes."""
+    """Create test FastAPI app with governance routes backed by a seeded DB."""
     from fastapi import FastAPI
+
+    import sqlalchemy as sa
+    from sqlalchemy.orm import sessionmaker
+
+    # StaticPool + check_same_thread=False: share one in-memory DB across
+    # the TestClient worker thread and this thread.
+    engine = sa.create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=sa.pool.StaticPool,
+    )
+    AgentRegistry.__table__.create(engine)
+    User.__table__.create(engine)
+    TestSession = sessionmaker(bind=engine)
+    db = TestSession()
+    db.add_all([
+        _registry_agent("finance-agent", "Finance Agent", "finance", 0.92,
+                        AgentStatus.AUTONOMOUS.value),
+        _registry_agent("engineering-agent", "Engineering Agent", "engineering",
+                        0.45, AgentStatus.STUDENT.value),
+        _registry_agent("data-agent", "Data Agent", "data", 0.78,
+                        AgentStatus.SUPERVISED.value),
+    ])
+    db.commit()
+
     app = FastAPI()
     app.include_router(router)
     # Round 39: approval/rejection + pending-approval endpoints require auth.
     app.dependency_overrides[auth_get_current_user] = lambda: Mock(id="test-user")
+    app.dependency_overrides[get_db] = lambda: db
     return app
 
 
@@ -252,9 +289,8 @@ class TestSingleAgentMaturity:
         """RED: Test getting maturity for non-existent agent."""
         response = client.get("/api/agent-governance/agents/nonexistent-agent")
 
-        # API returns 500 for non-existent agents (internal error handling)
-        # In production this should be 404, but we're testing actual behavior
-        assert response.status_code in [404, 200, 500]
+        # R81: DB-backed lookup — unknown agents are a clean 404.
+        assert response.status_code == 404
 
     def test_supervised_agent_threshold(self, client):
         """RED: Test supervised agent with 0.8+ confidence can deploy directly."""
@@ -447,19 +483,23 @@ class TestFeedbackSubmission:
     """Tests for POST /api/agent-governance/feedback"""
 
     def test_submit_feedback_success(self, client):
-        """RED: Test submitting agent feedback."""
-        response = client.post(
-            "/api/agent-governance/feedback",
-            json={
-                "agent_id": "finance-agent",
-                "original_output": "Invoice processed successfully",
-                "user_correction": "Invoice processed with tax adjustment",
-                "input_context": "Process invoice #12345"
-            }
-        )
+        """RED: Test submitting agent feedback (delegates to governance)."""
+        with patch("api.agent_governance_routes.AgentGovernanceService") as gov_cls:
+            from unittest.mock import AsyncMock
+            gov_cls.return_value.submit_feedback = AsyncMock(return_value=Mock())
+            response = client.post(
+                "/api/agent-governance/feedback",
+                json={
+                    "agent_id": "finance-agent",
+                    "original_output": "Invoice processed successfully",
+                    "user_correction": "Invoice processed with tax adjustment",
+                    "input_context": "Process invoice #12345"
+                }
+            )
 
-        # Should accept feedback (may return 200 or 202)
-        assert response.status_code in [200, 202]
+            # Should accept feedback and reach the governance learning loop
+            assert response.status_code == 200
+            gov_cls.return_value.submit_feedback.assert_awaited_once()
 
     def test_submit_feedback_missing_fields(self, client):
         """RED: Test feedback submission with missing required fields."""
