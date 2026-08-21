@@ -6005,3 +6005,11 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Files**: `backend/integrations/mcp_service.py` (`_check_hitl_policy`: `agent.maturity_level >= 5` — AgentRegistry.maturity_level is a property returning the status STRING, so the comparison always raised TypeError; pre-R81b swallow-and-allow meant auto-approve NEVER worked and tenant policy was silently bypassed for risky sends; post-R81b fail-closed it meant hard-block instead of intervention. Now compares `status == "autonomous"`), `backend/tests/test_round81b_journey_followups.py` (+2 tests → 16: autonomous→auto-approved/None, supervised→intervention), stale numeric mocks updated (`mcp_svc`×2, `integrations_core`×3, `w85` SimpleNamespace).
 
 **Verification**: round81b 16/16; mcp trio 452 passed with failure profile identical to HEAD worktree (9 pre-existing incl. cross-file pollution on marketing_review_request).
+
+## Session 2026-08-21 (backend) — R81f: approved-proposal executions become episodes
+
+**Files**: `backend/core/proposal_service.py` (`_record_execution_episode()` helper wired into all six `_execute_*_action` finalize blocks — browser/canvas/integration/workflow/device/agent; `EpisodeService.create_episode_from_execution` had ZERO production callers despite ProposalService persisting AgentExecution rows, so INTERN-approved supervised actions never fed episodic memory or the episode-count graduation criteria), `backend/tests/test_round81b_journey_followups.py` (+4 tests → 20).
+
+**Also noted**: episode lifecycle decay/consolidation is opt-in (`POST /lifecycle/{decay,consolidate}` routes + experiments-flag-gated consolidation worker); episodes grow unbounded unless operators invoke them.
+
+**Verification**: round81b 20/20; proposal-service cluster 165 passed.

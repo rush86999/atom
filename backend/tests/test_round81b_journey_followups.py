@@ -507,3 +507,61 @@ def _q_ret_chaining(value):
     q = MagicMock()
     q.filter.return_value = f
     return q
+
+
+# ============================================================================
+# G12 - approved-proposal executions persist as episodes
+# ============================================================================
+
+
+class TestProposalExecutionEpisodes:
+    """ProposalService persisted AgentExecution rows for INTERN-approved
+    actions but never created episodes — EpisodeService.create_episode_
+    _from_execution had zero production callers, so supervised state changes
+    starved the episode-based graduation criteria."""
+
+    def _svc(self):
+        from core.proposal_service import ProposalService
+
+        return ProposalService(MagicMock(spec=Session))
+
+    def test_helper_maps_completed_to_success(self):
+        svc = self._svc()
+        execution = MagicMock()
+        execution.id = "exec-1"
+        execution.status = "completed"
+        proposal = MagicMock()
+        proposal.id = "pr-1"
+        with patch("core.episode_service.EpisodeService") as es_cls:
+            svc._record_execution_episode(execution, proposal, "browser_automate")
+            es_cls.return_value.create_episode_from_execution.assert_called_once()
+            _, kwargs = es_cls.return_value.create_episode_from_execution.call_args
+            assert kwargs["execution_id"] == "exec-1"
+            assert kwargs["success"] is True
+            assert kwargs["outcome"] == "completed"
+            assert kwargs["metadata"]["proposal_id"] == "pr-1"
+
+    def test_helper_maps_failed_to_failure(self):
+        svc = self._svc()
+        execution = MagicMock()
+        execution.id = "exec-2"
+        execution.status = "failed"
+        with patch("core.episode_service.EpisodeService") as es_cls:
+            svc._record_execution_episode(execution, MagicMock(id="pr-2"), "send_email")
+            _, kwargs = es_cls.return_value.create_episode_from_execution.call_args
+            assert kwargs["success"] is False
+
+    def test_helper_never_raises(self):
+        svc = self._svc()
+        with patch("core.episode_service.EpisodeService", side_effect=RuntimeError("x")):
+            svc._record_execution_episode(
+                MagicMock(id="e", status="completed"), MagicMock(id="p"), "t"
+            )  # must not raise
+
+    def test_all_six_executors_wire_episodes(self):
+        import inspect
+
+        from core.proposal_service import ProposalService
+
+        src = inspect.getsource(ProposalService)
+        assert src.count("_record_execution_episode(") >= 7  # 6 sites + helper def
