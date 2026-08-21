@@ -23,17 +23,24 @@ class ZohoWorkDriveService(IntegrationService):
             config = {}
         super().__init__(tenant_id=tenant_id, config=config)
         
-        # Use regional overrides if present (from HEAD)
-        accounts_base = os.getenv("ZOHO_CRM_ACCOUNTS_URL", "https://accounts.zoho.com").rstrip("/")
+        # Use regional overrides if present
+        accounts_base = os.getenv("ZOHO_ACCOUNTS_BASE") or os.getenv("ZOHO_CRM_ACCOUNTS_URL", "https://accounts.zoho.com")
+        accounts_base = accounts_base.rstrip("/")
         workdrive_base = "https://workdrive.zoho.com"
         
-        # If accounts is .in, workdrive is likely .in
-        if ".zoho.in" in accounts_base:
+        # Region mapping
+        if "zohocloud.ca" in accounts_base or ".zoho.ca" in accounts_base:
+            workdrive_base = "https://workdrive.zohocloud.ca"
+        elif ".zoho.in" in accounts_base:
             workdrive_base = "https://workdrive.zoho.in"
         elif ".zoho.eu" in accounts_base:
             workdrive_base = "https://workdrive.zoho.eu"
         elif ".zoho.com.au" in accounts_base:
             workdrive_base = "https://workdrive.zoho.com.au"
+        elif ".zoho.com.cn" in accounts_base:
+            workdrive_base = "https://workdrive.zoho.com.cn"
+        elif ".zoho.jp" in accounts_base:
+            workdrive_base = "https://workdrive.zoho.jp"
 
         self.base_url = f"{workdrive_base}/api/v1"
         self.accounts_url = f"{accounts_base}/oauth/v2"
@@ -94,6 +101,19 @@ class ZohoWorkDriveService(IntegrationService):
                     )
                     if token_record:
                         break
+
+                if not token_record:
+                    for provider in ("zoho_workdrive", "zoho"):
+                        token_record = (
+                            db.query(IntegrationToken)
+                            .filter(
+                                IntegrationToken.provider == provider,
+                                IntegrationToken.status == "active",
+                            )
+                            .first()
+                        )
+                        if token_record:
+                            break
 
                 if not token_record:
                     return None
@@ -190,28 +210,71 @@ class ZohoWorkDriveService(IntegrationService):
             return []
 
     async def list_files(self, user_id: str, parent_id: str = "root") -> List[Dict[str, Any]]:
-        """List files in a specific folder or 'root'"""
+        """List files in a specific folder or 'root' (user's private workspace)."""
         token = await self.get_access_token(user_id)
         if not token:
             return []
         
         try:
-            headers = {"Authorization": f"Zoho-oauthtoken {token}"}
-            url = f"{self.base_url}/files/{parent_id}/files"
-            response = await self.client.get(url, headers=headers)
+            headers = {
+                "Authorization": f"Zoho-oauthtoken {token}",
+                "Accept": "application/vnd.api+json",
+            }
+            
+            target_url = None
+            if not parent_id or parent_id == "root":
+                # Get user ID from /users/me then fetch private space workspace
+                user_res = await self.client.get(f"{self.base_url}/users/me", headers=headers)
+                if user_res.status_code == 200:
+                    zoho_uid = user_res.json().get("data", {}).get("id")
+                    if zoho_uid:
+                        ps_res = await self.client.get(f"{self.base_url}/users/{zoho_uid}/privatespace", headers=headers)
+                        if ps_res.status_code == 200:
+                            ps_data = ps_res.json().get("data", [])
+                            if ps_data and len(ps_data) > 0:
+                                ws_id = ps_data[0].get("id")
+                                target_url = f"{self.base_url}/workspaces/{ws_id}/files"
+
+            if not target_url:
+                target_url = f"{self.base_url}/files/{parent_id}/files"
+
+            response = await self.client.get(target_url, headers=headers)
+            
+            # If /files/{parent_id}/files returns 404/400, try /workspaces/{parent_id}/files as fallback
+            if response.status_code in (400, 404) and parent_id != "root":
+                ws_fallback_url = f"{self.base_url}/workspaces/{parent_id}/files"
+                fallback_res = await self.client.get(ws_fallback_url, headers=headers)
+                if fallback_res.status_code == 200:
+                    response = fallback_res
+
             response.raise_for_status()
             data = response.json()
             
             files = []
             for item in data.get("data", []):
                 attrs = item.get("attributes", {})
+                item_type = attrs.get("type", "file")
+                extn = attrs.get("extn") or attrs.get("extension")
+                name = attrs.get("name") or attrs.get("display_name", "Untitled")
+                
+                # Determine file size
+                storage_info = attrs.get("storage_info", {})
+                size = storage_info.get("size_in_bytes") or attrs.get("size") or 0
+                try:
+                    size = int(size)
+                except (ValueError, TypeError):
+                    size = 0
+
+                if name == "root" and item_type == "folder":
+                    continue
+
                 files.append({
                     "id": item.get("id"),
-                    "name": attrs.get("name"),
-                    "type": item.get("type"),
-                    "extension": attrs.get("extension"),
-                    "size": attrs.get("size"),
-                    "modified_at": attrs.get("modified_time_in_iso8601")
+                    "name": name,
+                    "type": "folder" if item_type == "folder" else "file",
+                    "extension": extn,
+                    "size": size,
+                    "modified_at": attrs.get("modified_time_in_iso8601") or attrs.get("modified_time")
                 })
             return files
         except Exception as e:

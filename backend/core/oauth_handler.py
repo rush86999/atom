@@ -81,7 +81,8 @@ class OAuthHandler:
                 detail=error_msg
             )
         
-        scope_str = " ".join(self.config.scopes)
+        delimiter = "," if "zoho" in self.config.auth_url.lower() else " "
+        scope_str = delimiter.join(self.config.scopes)
         
         params = {
             "client_id": self.config.client_id,
@@ -335,19 +336,16 @@ WHATSAPP_OAUTH_CONFIG = OAuthConfig(
 _ZOHO_ACCOUNTS_BASE = os.getenv(
     "ZOHO_ACCOUNTS_BASE", "https://accounts.zoho.com"
 ).rstrip("/")
+_ZOHO_SCOPES_DEFAULT = "WorkDrive.team.ALL,WorkDrive.files.ALL,WorkDrive.workspace.ALL"
+_ZOHO_SCOPES = [s.strip() for s in os.getenv("ZOHO_OAUTH_SCOPES", _ZOHO_SCOPES_DEFAULT).split(",") if s.strip()]
+
 ZOHO_OAUTH_CONFIG = OAuthConfig(
     client_id_env="ZOHO_CLIENT_ID",
     client_secret_env="ZOHO_CLIENT_SECRET",
     redirect_uri_env="ZOHO_REDIRECT_URI",
     auth_url=f"{_ZOHO_ACCOUNTS_BASE}/oauth/v2/auth",
     token_url=f"{_ZOHO_ACCOUNTS_BASE}/oauth/v2/token",
-    scopes=[
-        "ZohoBooks.fullaccess.all",
-        "ZohoInventory.fullaccess.all",
-        "ZohoCRM.fullaccess.all",
-        "ZohoWorkDrive.files.READ",
-        "ZohoWorkDrive.teamfolders.READ",
-    ],
+    scopes=_ZOHO_SCOPES,
 )
 
 

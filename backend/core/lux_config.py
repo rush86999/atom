@@ -28,6 +28,9 @@ class LuxConfig:
             logger.debug(f"BYOK system unavailable, falling back to environment variables: {e}")
             
         # 2. Fallback to Environment Variables
-        return os.getenv("ANTHROPIC_API_KEY") or os.getenv("LUX_MODEL_API_KEY")
+        key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("LUX_MODEL_API_KEY")
+        if key and (key.startswith("60a9596d") or key.startswith("dummy") or len(key) < 15):
+            return None
+        return key
 
 lux_config = LuxConfig()
