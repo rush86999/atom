@@ -1,7 +1,14 @@
 from datetime import datetime
+import hashlib
+import hmac
 import logging
+import os
+from typing import Optional
+from urllib.parse import urlencode
+
 from ecommerce.models import EcommerceStore
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -16,33 +23,86 @@ logger = logging.getLogger(__name__)
 # Auth Type: OAuth2
 router = APIRouter(prefix="/api/shopify", tags=["shopify"])
 
+
+def _env_or_die(name: str) -> str:
+    """Return env var value or raise 500 (Shopify OAuth misconfiguration)."""
+    val = os.getenv(name, "")
+    if not val:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Shopify OAuth not configured. Please set {name} in the backend environment."
+        )
+    return val
+
+
+def _shopify_state_secret() -> str:
+    """Secret used to sign the OAuth ``state`` so the callback can verify that
+    the merchant came back from the same authorize request. Falls back to the
+    app SECRET_KEY when SHOPIFY_STATE_SECRET is unset (test/dev)."""
+    secret = os.getenv("SHOPIFY_STATE_SECRET") or os.getenv("SECRET_KEY") or ""
+    if not secret:
+        raise HTTPException(status_code=500, detail="Shopify OAuth not configured. SECRET_KEY missing.")
+    return secret
+
+
+def _sign_state(user_id: str, workspace_id: str) -> str:
+    """Return a signed state token binding an authorize request to a user + workspace."""
+    message = f"{user_id}|{workspace_id}"
+    sig = hmac.new(_shopify_state_secret().encode(), message.encode(), hashlib.sha256).hexdigest()
+    return f"{sig}.{user_id}.{workspace_id}"
+
+
+def _verify_state(state: str) -> tuple:
+    """Verify a signed state token; returns (user_id, workspace_id) or raises 400."""
+    if not state:
+        raise HTTPException(status_code=400, detail="Missing OAuth state")
+    try:
+        sig, user_id, workspace_id = state.split(".", 2)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+    expected = hmac.new(_shopify_state_secret().encode(), f"{user_id}|{workspace_id}".encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, expected):
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+    return user_id, workspace_id
+
+
+def _redirect_base_url() -> str:
+    """Public base URL for Shopify's browser redirect (NOT the user's machine).
+    Resolved from deployment config: ATOM_PUBLIC_URL -> ATOM_BASE_URL ->
+    PYTHON_BACKEND_URL -> NEXT_PUBLIC_API_URL -> localhost dev fallback."""
+    for name in ("ATOM_PUBLIC_URL", "ATOM_BASE_URL", "PYTHON_BACKEND_URL", "NEXT_PUBLIC_API_URL"):
+        val = os.getenv(name, "").strip()
+        if val:
+            return val.rstrip("/")
+    return "http://localhost:8000"
+
+
+def _callback_url() -> str:
+    return f"{_redirect_base_url()}/api/shopify/auth/callback"
+
 @router.get("/auth/url")
 async def get_auth_url(
     shop: str = Query(..., description="Shop name (e.g. my-great-store)"),
     current_user: User = Depends(get_current_user),
 ):
-    """Get Shopify OAuth URL for a shop.
+    """Get Shopify OAuth URL for a shop (authenticated).
 
-    Requires SHOPIFY_API_KEY / SHOPIFY_API_SECRET env vars (Azure-level app
-    credentials). Redirects back to /api/shopify/auth/callback after approval.
+    Builds a signed OAuth ``state`` bound to the authenticated user + their
+    workspace so the callback can verify the merchant is the same principal.
+    The redirect URI is derived from deployment config, never hardcoded to a
+    local machine. Requires SHOPIFY_API_KEY / SHOPIFY_API_SECRET env vars.
     """
-    import os
-    client_id = os.getenv("SHOPIFY_API_KEY", "")
-    if not client_id:
-        raise HTTPException(
-            status_code=500,
-            detail="Shopify OAuth not configured. Please set SHOPIFY_API_KEY and SHOPIFY_API_SECRET environment variables."
-        )
+    client_id = _env_or_die("SHOPIFY_API_KEY")
+    _env_or_die("SHOPIFY_API_SECRET")
     shop_url = shop if shop.endswith(".myshopify.com") else f"{shop}.myshopify.com"
     scopes = "read_products,write_products,read_content,write_content,read_orders,read_customers,write_orders,write_draft_orders"
-    redirect_uri = "http://localhost:8000/api/shopify/auth/callback"
+    workspace_id = getattr(current_user, "workspace_id", None) or "default"
     params = {
         "client_id": client_id,
         "scope": scopes,
-        "redirect_uri": redirect_uri,
-        "state": str(current_user.id),
+        "redirect_uri": _callback_url(),
+        "state": _sign_state(str(current_user.id), workspace_id),
     }
-    from urllib.parse import urlencode
     url = f"https://{shop_url}/admin/oauth/authorize?{urlencode(params)}"
     return {
         "url": url,
@@ -96,46 +156,129 @@ class ArticleCreateRequest(BaseModel):
     tags: str = ""
     published: bool = True
 
-@router.post("/auth/callback")
-async def shopify_auth_callback(auth_request: ShopifyAuthRequest, db: Session = Depends(get_db)):
-    """Exchange authorization code for access token and save store"""
+@router.get("/auth/callback")
+async def shopify_auth_callback_get(
+    code: str = Query(...),
+    state: str = Query(...),
+    shop: str = Query(""),
+    hmac: str = Query(""),
+    db: Session = Depends(get_db),
+):
+    """OAuth callback — browser GET redirect from Shopify.
+
+    Validates the signed ``state`` (bound to the authenticated user + workspace
+    from the authorize step), then exchanges ``code`` for an access token and
+    persists the store under that verified workspace. Redirects the merchant's
+    browser back to the frontend connect page on success/failure.
+    """
+    # 1. Verify OAuth state -> recover the owning user + workspace (no client-
+    #    supplied workspace is trusted; it comes from the signed state).
+    user_id, workspace_id = _verify_state(state)
+
+    # 2. Exchange the code for an access token.
+    if not shop:
+        # Shopify sends the shop domain in the state-verified authorize flow via
+        # the shop query param; require it.
+        raise HTTPException(status_code=400, detail="Missing shop parameter")
     try:
+        token_data = await shopify_service.exchange_token(code, shop)
+    except Exception:
+        logger.error("Shopify token exchange failed in callback")
+        return _redirect_connect(connected=False, shop=shop)
+
+    access_token = token_data.get("access_token")
+    if not access_token:
+        logger.error("Shopify callback: no access_token returned")
+        return _redirect_connect(connected=False, shop=shop)
+
+    # 3. Persist the store, scoped to the verified workspace. Refuse to
+    #    reassign a store already owned by a DIFFERENT workspace.
+    store = db.query(EcommerceStore).filter(
+        EcommerceStore.shop_domain == shop
+    ).first()
+    if store is not None:
+        existing_owner = store.tenant_id or "default"
+        if existing_owner != workspace_id:
+            logger.warning(
+                f"Shopify callback: refusing to reassign store {shop} "
+                f"(owner {existing_owner} != verified {workspace_id})"
+            )
+            return _redirect_connect(connected=False, shop=shop)
+        store.access_token = access_token
+        store_meta = dict(store.metadata_json or {})
+        store_meta["workspace_id"] = workspace_id
+        store.metadata_json = store_meta
+    else:
+        store = EcommerceStore(
+            shop_domain=shop,
+            access_token=access_token,
+            platform="shopify",
+            tenant_id=workspace_id,
+            metadata_json={"workspace_id": workspace_id},
+        )
+        db.add(store)
+    db.commit()
+
+    logger.info(f"Shopify store {shop} connected for workspace {workspace_id}")
+    return _redirect_connect(connected=True, shop=shop)
+
+
+def _redirect_connect(connected: bool, shop: str) -> RedirectResponse:
+    """Redirect the merchant's browser to the frontend Shopify connect page with
+    the result encoded in the query string (frontend clears the stored state)."""
+    frontend = os.getenv("FRONTEND_URL") or _redirect_base_url().replace("/api", "") or "http://localhost:3000"
+    params = {"connected": "true" if connected else "false", "shop": shop}
+    return RedirectResponse(f"{frontend}/integrations/shopify?{urlencode(params)}", status_code=303)
+
+
+@router.post("/auth/callback")
+async def shopify_auth_callback_post(
+    auth_request: ShopifyAuthRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """OAuth callback — authenticated JSON alternative for non-browser clients.
+
+    Accepts the client's token as the identity source (state is implicit in the
+    authenticated principal). Ownership is still enforced: an existing store
+    owned by a different workspace is never reassigned.
+    """
+    try:
+        workspace_id = getattr(current_user, "workspace_id", None) or "default"
         token_data = await shopify_service.exchange_token(auth_request.code, auth_request.shop)
         access_token = token_data["access_token"]
-        
-        # Save or update EcommerceStore. tenant_id must equal the workspace id
-        # so the agent's shopify_* tools / action resolver (which scope by
-        # tenant_id == workspace_id) can find the connected store.
+
         store = db.query(EcommerceStore).filter(
             EcommerceStore.shop_domain == auth_request.shop
         ).first()
-        tenant_id = auth_request.workspace_id or "default"
-        
-        if not store:
+        if store is not None:
+            existing_owner = store.tenant_id or "default"
+            if existing_owner != workspace_id:
+                raise HTTPException(status_code=403, detail="Store belongs to another workspace")
+            store.access_token = access_token
+            store_meta = dict(store.metadata_json or {})
+            store_meta["workspace_id"] = workspace_id
+            store.metadata_json = store_meta
+        else:
             store = EcommerceStore(
                 shop_domain=auth_request.shop,
                 access_token=access_token,
                 platform="shopify",
-                tenant_id=tenant_id,
-                metadata_json={"workspace_id": auth_request.workspace_id}
+                tenant_id=workspace_id,
+                metadata_json={"workspace_id": workspace_id},
             )
             db.add(store)
-        else:
-            store.access_token = access_token
-            store.tenant_id = tenant_id
-            store_meta = dict(store.metadata_json or {})
-            store_meta["workspace_id"] = auth_request.workspace_id
-            store.metadata_json = store_meta
-            
         db.commit()
-        
+
         return {
             "ok": True,
             "access_token": access_token,
             "scope": token_data.get("scope"),
             "service": "shopify",
-            "workspace_id": auth_request.workspace_id
+            "workspace_id": workspace_id,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Shopify callback error: {e}")
         raise HTTPException(status_code=400, detail="Internal error")
