@@ -72,11 +72,13 @@ def _force_task_route(monkeypatch, agent):
 
 
 # ---------------------------------------------------------------------------
-# 1. Kill-switch parity (default): flag OFF → route_with_governance untouched.
+# 1. Kill-switch parity: explicit `=false` restores pre-P1a behavior.
+#    (Default flipped to ON-shadow on 2026-08-21 — the kill switch is now
+#    exercised via an explicit false, not flag absence.)
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_flag_off_never_routes_through_governance(atom_agent, monkeypatch):
-    monkeypatch.delenv("ATOM_FLEET_ROUTING_ENABLED", raising=False)
+    monkeypatch.setenv("ATOM_FLEET_ROUTING_ENABLED", "false")
     _force_task_route(monkeypatch, atom_agent)
 
     called = {"gov": False}

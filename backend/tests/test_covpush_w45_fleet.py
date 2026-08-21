@@ -50,10 +50,16 @@ def fresh_db():
 
 
 class TestFleetFlags:
-    def test_defaults_off(self):
+    def test_defaults_on_shadow(self):
+        # 2026-08-21: master switch defaults ON (shadow — recruitment+audit
+        # run, responses still Queen→ReAct); FORCE_ENFORCE stays off.
         with patch.dict(os.environ, {}, clear=True):
-            assert fleet_routing_enabled() is False
+            assert fleet_routing_enabled() is True
             assert fleet_routing_force_enforce() is False
+
+    def test_kill_switch_off(self):
+        with patch.dict(os.environ, {"ATOM_FLEET_ROUTING_ENABLED": "false"}):
+            assert fleet_routing_enabled() is False
 
     def test_enabled_on(self):
         with patch.dict(os.environ, {"ATOM_FLEET_ROUTING_ENABLED": "true"}):

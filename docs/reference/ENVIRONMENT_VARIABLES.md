@@ -250,8 +250,8 @@ ActionJudge stays opt-in (`ATOM_SANDBOX_JUDGE_ENABLED`). Flags live in
 | `ATOM_TEMPORALITY_ENABLED` | `true` | — | Temporal Evolution: ingestion-side date-anchor extraction (`temporal_entities`/`as_of`/`temporal_axis` on ingested records) feeding the bi-temporal graph reads (`edges_as_of`, expansion cutoffs, community windows, `local_search`/`global_search` `as_of`). See docs/architecture/TEMPORAL_EVOLUTION.md. |
 | `ATOM_REVIEWER_LOOP_ENABLED` | `false` | — | Reviewer re-delegation loop (W3/P4c): a REVIEW rejection re-delegates the step to the originating specialist with feedback (parking the workflow RUNNING→WAITING) instead of folding into the voting fallback. |
 | `ATOM_MOA_DIVERSITY_ENABLED` | `false` | — | Diversity-aware MoA init (W3/P4a): rotate per-sample perspective overlays and modulate the aggregator instruction by cross-sample agreement. Off = legacy byte-identical aggregator prompt. |
-| `ATOM_FLEET_ROUTING_ENABLED` | `false` | — | Route TASK intents through the governed fleet path (`route_with_governance` → `FleetAdmiral`). Default OFF — live-traffic behavior change; flip on after validation. |
-| `ATOM_FLEET_ROUTING_FORCE_ENFORCE` | `false` | — | Shadow mode for fleet routing: when on, return the recruitment summary; when off (default), compute telemetry but fall through to Queen→ReAct. |
+| `ATOM_FLEET_ROUTING_ENABLED` | `true` | — | Route TASK intents through the governed fleet path (`route_with_governance` → `FleetAdmiral`). Default ON since 2026-08-21 in **shadow** mode: recruitment + audit run on every eligible TASK, responses still come from Queen→ReAct. Set `false` for full kill-switch parity with pre-fleet behavior. |
+| `ATOM_FLEET_ROUTING_FORCE_ENFORCE` | `false` | — | Live-mode for fleet routing: when true, return the recruitment summary directly instead of falling through to Queen→ReAct. When false (default), telemetry-only. |
 | `ATOM_MOA_ENABLED` | `true` | — | Mixture-of-Agents on hard structured tasks (Workstream F). |
 | `ATOM_MOA_SAMPLES` | `3` | — | Samples drawn per MoA vote (min 2). |
 | `ATOM_PARALLEL_TOOLS` | `true` | — | In-loop parallel tool execution (Workstream G). |

@@ -310,7 +310,7 @@ ATOM_KNOWLEDGE_VFS_ENABLED=true            # knowledge/ VFS (11 documents.* acti
 ATOM_HYBRID_VECTOR_LEG_ENABLED=true        # BM25+vector RRF for documents.search; false = lexical-only
 ATOM_ORACLE_VERIFIER_ENABLED=true          # postcondition oracle (shadow; force-enforce companion off)
 ATOM_OBJECTIVE_LOOP_ENABLED=true           # goal-driven loop — definition_of_done early exit + stuck-detector
-ATOM_FLEET_ROUTING_ENABLED=false           # governed fleet dispatch — OFF (live-traffic change; FORCE_ENFORCE=shadow)
+ATOM_FLEET_ROUTING_ENABLED=true            # governed fleet dispatch — default ON (shadow: recruitment+audit run; FORCE_ENFORCE=true to return fleet results)
 ATOM_FLEET_ROUTING_FORCE_ENFORCE=false
 ATOM_RADIO_ENABLED=true                    # lateral peer messaging (3 radio.* actions) — default ON
 ATOM_RADIO_TEAM_BUDGET_USD=0.20   ATOM_RADIO_INBOX_CAP=10   ATOM_RADIO_BACKLOG_TTL_MIN=30
