@@ -340,7 +340,7 @@ MAX_BODY_BYTES=67108864                 # 64 MiB POST/PUT/PATCH body cap (R55)
 ATOM_BOOTSTRAP_PASSWORD_FILE=            # generated admin password, written 0600
 SHOPIFY_WEBHOOK_SECRET=   ATOM_WHATSAPP_WEBHOOK_SECRET=   ATOM_SLACK_WEBHOOK_SECRET=
 ATOM_DISCORD_WEBHOOK_SECRET=   ATOM_TELEGRAM_WEBHOOK_SECRET=    # fail-closed if missing
-ATOM_TEAMS_WEBHOOK_SECRET=   ATOM_GMAIL_WEBHOOK_SECRET=   ATOM_SCHEDULER_SECRET=   # R69 webhook/scheduler shared secrets — fail-closed if missing
+ATOM_TEAMS_WEBHOOK_SECRET=   ATOM_GMAIL_WEBHOOK_SECRET=   ATOM_SCHEDULER_SECRET=   ZENDESK_WEBHOOK_SECRET=   # R69 webhook/scheduler shared secrets — fail-closed if missing
 
 # LLM Gateway (Phase A, R70) — docs/architecture/LLM_GATEWAY.md
 ATOM_GATEWAY_ENABLED=true                # master switch for /v1/* inbound surface
