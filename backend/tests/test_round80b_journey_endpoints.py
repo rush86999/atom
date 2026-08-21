@@ -91,3 +91,21 @@ class TestJourneyEndpointsResolve:
         assert c.get("/api/discord/status").status_code == 200
         # the bogus double-prefixed duplicate must be gone
         assert c.get("/api/v1/integrations/discord/api/discord/status").status_code == 404
+
+class TestMeetingRoutesWired:
+    """Round 80f: api/meeting_routes.py had a real frontend consumer
+    (pages/api/meeting_attendance_status/[taskId].ts proxies
+    /api/meetings/attendance/{taskId}) but was never mounted — the meeting
+    attendance journey 404'd end-to-end. It is fully auth-gated already."""
+
+    def test_meeting_attendance_route_exists_and_gated(self):
+        c = TestClient(app, raise_server_exceptions=False)
+        resp = c.get("/api/meetings/attendance/some-task")
+        assert resp.status_code == 401, (
+            f"meeting attendance returned {resp.status_code} — route must exist "
+            f"and require auth (was: unmounted 404)"
+        )
+
+    def test_meeting_attendance_list_route_exists_and_gated(self):
+        c = TestClient(app, raise_server_exceptions=False)
+        assert c.get("/api/meetings/attendance").status_code == 401

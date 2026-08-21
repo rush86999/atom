@@ -297,7 +297,8 @@ def safe_import_router(module_path: str, router_name: str = "router"):
 
 analytics_router = safe_import_router("core.analytics_endpoints")
 workspace_router = safe_import_router("api.workspace_routes")
-risk_router = safe_import_router("api.risk_routes")
+# risk_routes was never included (dead import removed, round 80f) — the
+# orphaned router stays unmounted by design; see docs/INTEGRATIONS_JOURNEY_AUDIT.md §4.4
 template_router = safe_import_router("api.workflow_template_routes")
 entity_type_router = safe_import_router("api.entity_type_routes")
 multi_entity_extraction_router = safe_import_router("core.multi_entity_extraction_routes")
@@ -3055,6 +3056,18 @@ try:
         logger.info("✓ Canvas Recording Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas recording routes not found: {e}")
+
+    try:
+        # Round 80f: meeting attendance had a real frontend consumer
+        # (pages/api/meeting_attendance_status/[taskId].ts proxies
+        # /api/meetings/attendance/{taskId}) but the router was never
+        # mounted — the journey 404'd end-to-end. Fully auth-gated.
+        from api.meeting_routes import router as meeting_router
+
+        app.include_router(meeting_router)
+        logger.info("✓ Meeting Routes Loaded (attendance tracking)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Meeting routes not found: {e}")
 
     # --- PORTED FEATURES ---
     try:
