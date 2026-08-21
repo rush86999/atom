@@ -449,6 +449,43 @@ async def stage_router_status_route() -> Dict[str, Any]:
 
 
 @router.get(
+    "/health/fleet-router",
+    summary="Fleet Router Phase & Guidance",
+    description=(
+        "Operator guidance for fleet routing (shadow rollout): what phase it "
+        "is in (off / blocked / collecting / ready / enforced) and exactly "
+        "which action to take next. Read-only; returns row counts only, no "
+        "sensitive data. See docs/architecture/FLEET_ORCHESTRATION.md."
+    ),
+    tags=["Health", "Monitoring"],
+    responses={
+        200: {
+            "description": "Fleet router phase, audit-row counts, and next-action guidance",
+        }
+    },
+    openapi_extra={"x-auth-required": False},
+)
+async def fleet_router_status_route() -> Dict[str, Any]:
+    """Fleet router phase + operator guidance.
+
+    Answers "when do I flip force-enforce?" — shadow collection first,
+    calibration second, pilot (force-enforce) only after the automation's
+    consent-gated recommendation. Revocation is always automatic.
+    """
+    try:
+        from core.fleet_orchestration.fleet_routing_stats import fleet_calibration_status
+
+        return fleet_calibration_status()
+    except Exception as e:
+        logger.error(f"Fleet router status failed: {e}")
+        return {
+            "phase": "error",
+            "next_action": "Status unavailable",
+            "error": "internal",
+        }
+
+
+@router.get(
     "/health/metrics",
     summary="Prometheus Metrics",
     description=(

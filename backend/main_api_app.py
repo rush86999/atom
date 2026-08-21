@@ -1956,6 +1956,15 @@ async def auto_load_integration_middleware(request, call_next):
                                 prefix = "/api/integrations/outlook"
                             elif integration_name in CORE_API_MODULES:
                                 prefix = ""
+                            elif str(getattr(router, "prefix", "")).startswith("/api/"):
+                                # Round 80c: routers that declare their own root
+                                # prefix (discord /api/discord, telegram
+                                # /api/telegram, …) must mount UNPREFIXED — the
+                                # unified v1 prefix double-prefixed every route
+                                # (/api/v1/integrations/discord/api/discord/…)
+                                # and 404'd the real surface. Mirrors slack's
+                                # root handling (line ~1272).
+                                prefix = ""
                             else:
                                 prefix = f"/api/v1/integrations/{integration_name.replace('_', '-')}"
                             app.include_router(router, prefix=prefix, tags=[integration_name])
@@ -2605,10 +2614,10 @@ try:
 
         app.include_router(salesforce_router, prefix="/api/v1/integrations/salesforce")
 
-
-        from integrations.discord_routes import router as discord_router
-
-        app.include_router(discord_router, prefix="/api/v1/integrations/discord")
+        # discord_routes declares its own /api/discord prefix — the unified v1
+        # prefix here double-prefixed every route
+        # (/api/v1/integrations/discord/api/discord/...) and 404'd the real
+        # surface. It now auto-loads unprefixed via the middleware (round 80c).
 
         from integrations.trello_routes import router as trello_router
 
@@ -3709,6 +3718,15 @@ try:
         logger.info("✓ Stage Router Management Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Stage router management routes failed to load: {e}")
+
+    # 40. Fleet Router Management Routes (validation + approval queue)
+    try:
+        from api.fleet_router_routes import router as fleet_router_mgmt_router
+
+        app.include_router(fleet_router_mgmt_router)
+        logger.info("✓ Fleet Router Management Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Fleet router management routes failed to load: {e}")
 
     logger.info("✓ Core Routes Loaded Successfully")
 
