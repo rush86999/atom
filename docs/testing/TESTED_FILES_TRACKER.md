@@ -5959,3 +5959,13 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Gotchas**: patch target for prefetch tests is `core.turn_fact_extractor.SessionLocal` (module-bound import), NOT `core.database.SessionLocal`; MagicMock dunder configuration must use `ctx.__enter__.return_value = db`, not attribute assignment.
 
 **Verification**: suite 22/22; turn-fact cluster + eval gate 182 passed.
+
+## Session 2026-08-21 (backend) — Fact retention + right-to-erasure (rev.2 plan #2 completion)
+
+**Files**: `backend/core/memory_consolidator.py` (+`apply_retention_policy`, `purge_user_facts`, `_ERASED_TEXT`; `consolidate_workspace` wires retention as `facts_expired`), `backend/tests/test_fact_retention.py` (new — 8 tests), `docs/architecture/CONTEXT_MEMORY.md` (+retention/erasure section).
+
+**Contracts**: retention sweep invalidates ACTIVE facts older than `TURN_FACT_RETENTION_DAYS` (env; param overrides; default 0 = disabled) — text anonymized to `[erased per retention policy]`, tags cleared, status `invalidated` (excluded from recall, row preserved for audit). `purge_user_facts`: soft = anonymize+invalidate one user's facts; hard=True = DELETE (GDPR Art. 17; legal hold is caller's judgment). Both accept an optional session (`db=`) for testability and never raise.
+
+**Wiring**: `consolidate_workspace` now reports `facts_expired` so the 6-hourly worker enforces retention automatically when the env is set.
+
+**Verification**: suite 8/8; turn-fact + hardening cluster 205 passed.

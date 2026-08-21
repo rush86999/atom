@@ -177,6 +177,20 @@ agent inference) outranks confidence"):
   keeps legacy behavior; wiring a ceiling into agent prompt assembly is the
   remaining product decision (which contexts count as external-bound).
 
+## Retention & Erasure (write-path governance, 2026-08-21)
+
+- **Retention sweep** — `apply_retention_policy(workspace_id)`: invalidates
+  ACTIVE facts older than `TURN_FACT_RETENTION_DAYS` (env, default 0 =
+  disabled), anonymizing text to `[erased per retention policy]` — rows
+  preserved for the audit trail, excluded from recall. Wired into
+  `consolidate_workspace` (the 6-hourly worker) as `facts_expired`.
+- **Right-to-erasure** — `purge_user_facts(workspace_id, user_id)`:
+  soft (default) anonymizes + invalidates that user's facts; `hard=True`
+  DELETEs rows entirely (legal-hold judgment is the caller's).
+
+Both never raise; both live in `core/memory_consolidator.py`.
+
+---
 ## Poisoning Tripwire (write-path governance, 2026-08-21)
 
 A source (user_id+execution_id+session) that supersedes **5 facts within
