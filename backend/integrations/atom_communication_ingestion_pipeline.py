@@ -766,6 +766,8 @@ class CommunicationIngestionPipeline:
                 messages = await self._fetch_gmail_messages(last_fetch)
             elif app_type == CommunicationAppType.OUTLOOK.value:
                 messages = await self._fetch_outlook_messages(last_fetch)
+            elif app_type == CommunicationAppType.DISCORD.value:
+                messages = await self._fetch_discord_messages(last_fetch)
             else:
                 logger.warning(f"No polling implementation for {app_type}")
 
@@ -777,6 +779,62 @@ class CommunicationIngestionPipeline:
         except Exception as e:
             logger.error(f"Error fetching messages from {app_type}: {e}")
             # Note: Don't update timestamp on error, so we can retry the same time range
+            return []
+
+    async def _fetch_discord_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """
+        Fetch new Discord messages via bot token (P0.4 §7 parity follow-up).
+
+        Walks the bot's guilds -> text channels (type 0) -> channel messages,
+        normalizes to comm records, and filters to messages newer than
+        ``last_fetch`` when provided. Fail-closed: no bot token -> [].
+        API errors degrade to [] so the polling loop keeps running.
+        """
+        try:
+            from integrations.discord_service import DiscordService
+
+            svc = DiscordService()
+            if not svc.bot_token:
+                logger.warning("No Discord bot token found for Discord polling")
+                return []
+
+            all_messages: List[Dict[str, Any]] = []
+            guilds = await svc.get_user_guilds()
+            for guild in guilds:
+                channels = await svc.get_guild_channels(guild.get("id", ""))
+                for channel in channels:
+                    # type 0 = guild text channel
+                    if channel.get("type") != 0:
+                        continue
+                    raw = await svc.get_channel_messages(channel.get("id", ""))
+                    for msg in raw:
+                        try:
+                            ts_raw = msg.get("timestamp")
+                            ts = (
+                                datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+                                if isinstance(ts_raw, str) else None
+                            )
+                            if last_fetch is not None and ts is not None and ts <= last_fetch:
+                                continue
+                            author = msg.get("author") or {}
+                            all_messages.append({
+                                "id": msg.get("id", ""),
+                                "content": msg.get("content", ""),
+                                "author": author.get("username", ""),
+                                "channel_id": channel.get("id", ""),
+                                "channel_name": channel.get("name", ""),
+                                "guild_id": guild.get("id", ""),
+                                "timestamp": ts_raw or datetime.now(timezone.utc).isoformat(),
+                                "direction": "inbound",
+                                "source_app": "discord",
+                            })
+                        except Exception as msg_err:
+                            logger.warning(f"Failed to normalize Discord message: {msg_err}")
+
+            logger.info(f"Fetched {len(all_messages)} new messages from Discord")
+            return all_messages
+        except Exception as e:
+            logger.error(f"Error fetching messages from Discord: {e}")
             return []
 
     async def _fetch_whatsapp_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:

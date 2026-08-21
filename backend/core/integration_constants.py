@@ -1,5 +1,6 @@
 # Communication channels supporting multi-entity extraction
-COMMUNICATION_INTEGRATIONS = ["outlook", "gmail", "slack", "whatsapp", "teams", "hubspot"]
+# (discord added 2026-08-21 — P0.4 audit §7 parity follow-up)
+COMMUNICATION_INTEGRATIONS = ["outlook", "gmail", "slack", "whatsapp", "teams", "hubspot", "discord"]
 
 # Document channels supporting multi-entity extraction
 DOCUMENT_INTEGRATIONS = ["document"]

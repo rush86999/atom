@@ -5875,3 +5875,11 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Verification**: 240 backend tests passed (Zoho units + w38/w97/w101 + oauth cluster); e2e 2/2 (browser consent). Frontend jest 6/6; tsc clean for all new zoho files (pre-existing errors elsewhere unchanged). mypy 0 new errors on changed files.
 
 **Note**: `core/hybrid_data_ingestion.py` also carries the concurrent workstream's role-aware sync plumbing (agent_id → role tag on LanceDB metadata) — left intact; repaired a mid-edit indentation wedge in `_fetch_integration_data` so the file imports.
+
+## Session 2026-08-21 (backend) — Discord ingestion parity: poller branch + multi-entity (memory-plan §7)
+
+**Files**: `backend/integrations/atom_communication_ingestion_pipeline.py` (+`_fetch_discord_messages`, dispatch branch in `_fetch_new_messages`), `backend/core/integration_constants.py` (+`discord` ∈ `COMMUNICATION_INTEGRATIONS` → flows into `MULTI_ENTITY_INTEGRATIONS`), `backend/tests/test_discord_ingestion_parity.py` (new — 7 tests), `docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md` (§7 Discord row).
+
+**TDD red→green** (7 tests; RED = `_fetch_new_messages("discord")` hit the else branch and discord ∉ multi-entity sets): the poller now walks bot guilds → text channels (type 0) → channel messages via the existing `DiscordService` (bot-token auth), normalizes to comm records (`id/content/author/channel_id/channel_name/guild_id/timestamp/direction/source_app`) filtered to messages newer than `last_fetch`. Fail-closed without `DISCORD_BOT_TOKEN`; API errors degrade to [] so the polling loop survives. Multi-entity parity: discord queue records now get the same extraction treatment as slack/teams/whatsapp. Still tracked: bridge drops non-interaction Discord messages (needs a gateway client — out of scope here).
+
+**Verification**: suite 7/7; regression (`test_memory_symmetry_fixes` + `test_covpush_w83b_reflection` + webhook-bridge suite) 225 passed.
