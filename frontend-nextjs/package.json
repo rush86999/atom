@@ -40,7 +40,10 @@
     "prod:start": "NODE_ENV=production next start",
     "test:e2e": "wdio run wdio/wdio.conf.ts",
     "test:e2e:build": "wdio install",
-    "tauri:driver": "echo 'tauri-driver not available via npm - see wdio/README.md for alternatives'"
+    "tauri:driver": "echo 'tauri-driver not available via npm - see wdio/README.md for alternatives'",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium",
+    "typecheck:changed": "bash scripts/typecheck-changed.sh"
   },
   "dependencies": {
     "@apollo/client": "^3.7.10",
@@ -262,6 +265,7 @@
     "ts-jest": "^29.4.0",
     "typescript": "^5.9.2",
     "web-streams-polyfill": "^4.2.0",
-    "zustand": "^5.0.12"
+    "zustand": "^5.0.12",
+    "@playwright/test": "^1.40.0"
   }
 }

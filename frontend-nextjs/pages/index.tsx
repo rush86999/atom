@@ -21,7 +21,7 @@ import {
 } from "../components/ui/card";
 import { OnboardingWizard } from "../components/Onboarding/OnboardingWizard";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 interface DashboardFeed {
   recent_executions: Array<{
@@ -63,6 +63,17 @@ const Home = () => {
 
     const runBootstrap = async () => {
       if (typeof window === 'undefined') return;
+
+      // OIDC SSO callback: the backend's /api/auth/sso/oidc/callback page
+      // stores the JWT in localStorage and redirects here with ?sso=success.
+      // Strip the param so it doesn't linger in shared URLs, clear the
+      // explicit-logout flag (this is a fresh login), and fall through —
+      // hasAuth() now sees the token and routes to /dashboard like a normal
+      // login.
+      if (window.location.search.includes('sso=success')) {
+        window.history.replaceState({}, '', window.location.pathname);
+        localStorage.removeItem('atom_explicit_logout');
+      }
 
       if (hasAuth()) {
         router.replace('/dashboard');

@@ -319,6 +319,144 @@ async def _documents_search(args: Dict[str, Any], context: Dict[str, Any]) -> Di
         return {"success": False, "error": "Document search failed", "results": []}
 
 
+_SEARCH_COMMUNICATIONS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "query": {"type": "string", "description": "What to search conversation memory for (emails, Slack/WhatsApp/Teams/Telegram messages)"},
+        "limit": {"type": "integer", "description": "Max results (default 5)"},
+    },
+    "required": ["query"],
+}
+
+
+@register_action(
+    "search_communications",
+    description="Search conversation memory (ingested emails + chat messages) "
+                "with hybrid vector+FTS search. Use for 'what did X say about Y' "
+                "questions. Results include app, timestamp, and content.",
+    parameters_schema=_SEARCH_COMMUNICATIONS_SCHEMA,
+)
+async def _search_communications(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    query = (args.get("query") or "").strip()
+    limit = int(args.get("limit", 5))
+    if not query:
+        return {"success": False, "error": "query is required", "results": []}
+    try:
+        import asyncio
+
+        from integrations.atom_communication_ingestion_pipeline import (
+            get_ingestion_pipeline,
+        )
+
+        pipeline = get_ingestion_pipeline("default")
+        manager = getattr(pipeline, "memory_manager", pipeline)
+
+        def _search():
+            if getattr(manager, "connections_table", None) is None and hasattr(manager, "initialize"):
+                manager.initialize()
+            if getattr(manager, "connections_table", None) is None:
+                return []
+            return manager.search_communications(query[:500], limit)
+
+        records = await asyncio.to_thread(_search)
+        results = []
+        for rec in records or []:
+            content = str(rec.get("content") or rec.get("text") or "").strip()
+            if not content:
+                continue
+            results.append({
+                "id": str(rec.get("id") or ""),
+                "app_type": rec.get("app_type"),
+                "timestamp": str(rec.get("timestamp") or ""),
+                "content": content[:400],
+            })
+        return {"success": True, "query": query, "results": results}
+    except Exception as e:
+        logger.error("search_communications failed: %s", e)
+        return {"success": False, "error": "Communication search failed", "results": []}
+
+
+_RECALL_EPISODES_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "task": {"type": "string", "description": "The current task/question to find similar past episodes for"},
+        "mode": {"type": "string", "description": "contextual (default) | semantic | similar_failures"},
+        "canvas_id": {"type": "string", "description": "Canvas-aware recall: boost episodes from this canvas"},
+        "limit": {"type": "integer", "description": "Max episodes (default 3)"},
+    },
+    "required": ["task"],
+}
+
+
+@register_action(
+    "recall_episodes",
+    description="Recall past learning episodes (prior agent work sessions) relevant "
+                "to a task — what was done, the outcome, and how the user judged it. "
+                "Use before attempting a task similar to past work, or to answer "
+                "'have we handled this before' questions. Pass canvas_id for "
+                "canvas-aware recall (episodes from the same canvas are boosted).",
+    parameters_schema=_RECALL_EPISODES_SCHEMA,
+)
+async def _recall_episodes(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    task = (args.get("task") or "").strip()
+    mode = (args.get("mode") or "contextual").strip()
+    limit = int(args.get("limit", 3))
+    canvas_id = (args.get("canvas_id") or "").strip() or None
+    if not task:
+        return {"success": False, "error": "task is required", "episodes": []}
+    try:
+        # Canvas-aware mode: route through WorldModelService.recall_episodes,
+        # which applies canvas (+0.3 same / -0.05 different) and feedback
+        # boosts over BOTH the canonical episodes table and the mirror.
+        if canvas_id:
+            from core.agent_world_model import WorldModelService
+
+            world_model = WorldModelService(workspace_id=str(context.get("workspace_id") or "default"))
+            rows = await world_model.recall_episodes(
+                task_description=task,
+                agent_role=str(context.get("agent_role") or "agent"),
+                agent_id=str(context.get("agent_id")) if context.get("agent_id") else None,
+                canvas_id=canvas_id,
+                limit=limit,
+            )
+            episodes = [{
+                "id": str(r.get("episode_id") or ""),
+                "task": r.get("task_description") or "",
+                "outcome": r.get("outcome"),
+                "canvas_id": r.get("canvas_id"),
+                "final_score": r.get("final_score"),
+            } for r in rows or []]
+            return {"success": True, "mode": "canvas_aware", "episodes": episodes}
+
+        from core.database import SessionLocal
+        from core.episode_retrieval_service import EpisodeRetrievalService
+
+        agent_id = str(context.get("agent_id") or "atom_main")
+        db = SessionLocal()
+        try:
+            service = EpisodeRetrievalService(db)
+            if mode == "semantic":
+                result = await service.retrieve_semantic(agent_id, task, limit=limit)
+            elif mode == "similar_failures":
+                result = await service.retrieve_failed_similar(agent_id, task, limit=limit)
+            else:
+                result = await service.retrieve_contextual(agent_id, task, limit=limit)
+        finally:
+            db.close()
+        episodes = []
+        for ep in (result or {}).get("episodes", []) or []:
+            episodes.append({
+                "id": str(ep.get("id") or ""),
+                "task": ep.get("task_description") or ep.get("summary") or "",
+                "outcome": ep.get("outcome"),
+                "created_at": str(ep.get("created_at") or ""),
+            })
+        return {"success": True, "mode": mode, "episodes": episodes}
+    except Exception as e:
+        logger.error("recall_episodes failed: %s", e)
+        return {"success": False, "error": "Episode recall failed", "episodes": []}
+
+
 async def _documents_search_legacy(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     """The pre-P2 ILIKE implementation — flag-off parity path."""
     query = (args.get("query") or "").strip()

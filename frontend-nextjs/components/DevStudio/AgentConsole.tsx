@@ -29,7 +29,7 @@ const AgentConsole: React.FC = () => {
         let interval: NodeJS.Timeout;
 
         if (isRunning && taskId) {
-            const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
             interval = setInterval(async () => {
                 try {
                     const response = await fetch(`${API_BASE}/api/agent-status/agent/status/${taskId}`);
@@ -79,7 +79,7 @@ const AgentConsole: React.FC = () => {
         setStatus("starting");
 
         try {
-            const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
             // Use the real /api/agent/execute endpoint (was /api/agent/run — 404).
             // Map the UI's (goal, mode) to the backend's (command, timeout).
             const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;

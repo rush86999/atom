@@ -33,7 +33,7 @@ import { authOptions } from "../auth/[...nextauth]";
  * - 10 posts per hour per user (across all platforms)
  */
 
-const BACKEND_API_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BACKEND_API_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "";
 
 export default async function handler(
   req: NextApiRequest,

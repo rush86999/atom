@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default async function handler(
     req: NextApiRequest,
@@ -13,7 +13,7 @@ export default async function handler(
     if (req.method === 'GET') {
         try {
             const queryParams = new URLSearchParams({
-                user_id: (user_id as string) || 'default_user',
+                user_id: (user_id as string) || undefined,
                 workspace_id: (workspace_id as string) || 'default',
             });
 

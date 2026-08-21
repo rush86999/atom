@@ -2145,11 +2145,15 @@ class TestFetchGmail:
 
 class TestFetchOutlook:
     async def test_no_token(self, pipeline):
-        with patch("core.token_storage.token_storage.get_token", return_value=None):
+        with patch(
+            "integrations.outlook_service.outlook_service._get_access_token",
+            new_callable=AsyncMock,
+            return_value=None,
+        ):
             assert await pipeline._fetch_outlook_messages(None) == []
 
     async def test_import_error(self, pipeline):
-        with patch.dict(sys.modules, {"core.token_storage": None}):
+        with patch.dict(sys.modules, {"integrations.outlook_service": None}):
             assert await pipeline._fetch_outlook_messages(None) == []
 
     async def test_success_with_pagination(self, pipeline):
@@ -2172,9 +2176,11 @@ class TestFetchOutlook:
             "https://graph.microsoft.com/v1.0/me/messages": page1,
             "https://graph.microsoft.com/v1.0/next": page2,
         })
-        with patch("core.token_storage.token_storage.get_token",
-                   return_value={"access_token": "t"}), \
-                patch("httpx.AsyncClient", fake_client_factory(client)):
+        with patch(
+            "integrations.outlook_service.outlook_service._get_access_token",
+            new_callable=AsyncMock,
+            return_value="t",
+        ), patch("httpx.AsyncClient", fake_client_factory(client)):
             msgs = await pipeline._fetch_outlook_messages(datetime(2026, 1, 1))
         assert len(msgs) == 1
         assert msgs[0]["priority"] == "high"
@@ -2193,9 +2199,11 @@ class TestFetchOutlook:
         client = FakeHTTPClient(routes={
             "https://graph.microsoft.com/v1.0/me/messages": messages_route,
         })
-        with patch("core.token_storage.token_storage.get_token",
-                   return_value={"access_token": "t"}), \
-                patch("httpx.AsyncClient", fake_client_factory(client)), \
+        with patch(
+            "integrations.outlook_service.outlook_service._get_access_token",
+            new_callable=AsyncMock,
+            return_value="t",
+        ), patch("httpx.AsyncClient", fake_client_factory(client)), \
                 patch("integrations.atom_communication_ingestion_pipeline.asyncio.sleep",
                       new=AsyncMock()):
             msgs = await pipeline._fetch_outlook_messages(None)
@@ -2206,9 +2214,11 @@ class TestFetchOutlook:
         client = FakeHTTPClient(routes={
             "https://graph.microsoft.com/v1.0/me/messages": FakeHTTPResponse(status_code=500),
         })
-        with patch("core.token_storage.token_storage.get_token",
-                   return_value={"access_token": "t"}), \
-                patch("httpx.AsyncClient", fake_client_factory(client)):
+        with patch(
+            "integrations.outlook_service.outlook_service._get_access_token",
+            new_callable=AsyncMock,
+            return_value="t",
+        ), patch("httpx.AsyncClient", fake_client_factory(client)):
             msgs = await pipeline._fetch_outlook_messages(None)
         assert msgs == []
 
@@ -2219,9 +2229,11 @@ class TestFetchOutlook:
         client = FakeHTTPClient(routes={
             "https://graph.microsoft.com/v1.0/me/messages": boom,
         })
-        with patch("core.token_storage.token_storage.get_token",
-                   return_value={"access_token": "t"}), \
-                patch("httpx.AsyncClient", fake_client_factory(client)):
+        with patch(
+            "integrations.outlook_service.outlook_service._get_access_token",
+            new_callable=AsyncMock,
+            return_value="t",
+        ), patch("httpx.AsyncClient", fake_client_factory(client)):
             msgs = await pipeline._fetch_outlook_messages(None)
         assert msgs == []
 

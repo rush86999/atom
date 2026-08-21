@@ -51,10 +51,25 @@ class KnowledgeVFSProvider(VFSProvider):
         parts = [p for p in cleaned.split("/") if p]
 
         if not parts or parts == ["knowledge"]:
-            return [VFSNode(name="documents", type="dir", path="knowledge/documents")]
+            return [
+                VFSNode(name="documents", type="dir", path="knowledge/documents"),
+                VFSNode(name="conversations", type="dir", path="knowledge/conversations"),
+            ]
 
         if parts == ["knowledge", "documents"]:
             return await self._list_documents(ctx)
+
+        if parts == ["knowledge", "conversations"]:
+            return await self._list_conversations(ctx)
+
+        # knowledge/conversations/<id> → [content.lines]
+        if len(parts) >= 3 and parts[:2] == ["knowledge", "conversations"]:
+            conv = await self._get_conversation(parts[2])
+            if conv is None:
+                return []
+            return [
+                VFSNode(name="content.lines", type="file", path=f"knowledge/conversations/{parts[2]}/content.lines"),
+            ]
 
         # knowledge/documents/<id>
         if len(parts) >= 3 and parts[:2] == ["knowledge", "documents"]:
@@ -69,11 +84,24 @@ class KnowledgeVFSProvider(VFSProvider):
         return []
 
     async def cat(self, path: str, ctx: Optional[Dict[str, Any]] = None) -> VFSResource:
-        cleaned = (path or "").lstrip("/")
+        cleaned = (path or "/").lstrip("/")
         parts = [p for p in cleaned.split("/") if p]
-        # Expect knowledge/documents/<id>/{meta.json|content.lines}
         if len(parts) < 3:
             return VFSResource(path=path)
+
+        # knowledge/conversations/<id>/{content.lines}
+        if parts[:2] == ["knowledge", "conversations"]:
+            conv = await self._get_conversation(parts[2])
+            if conv is None:
+                return VFSResource(path=path)
+            res = VFSResource(
+                path=f"knowledge/conversations/{parts[2]}",
+                meta={"app_type": conv.get("app_type"), "timestamp": str(conv.get("timestamp", ""))},
+            )
+            res.lines = to_line_numbered(str(conv.get("content", "")))
+            return res
+
+        # Expect knowledge/documents/<id>/{meta.json|content.lines}
         doc_id = parts[2]
         leaf = parts[3] if len(parts) > 3 else "content.lines"
         doc = await self._get_doc(doc_id, ctx)
@@ -105,7 +133,18 @@ class KnowledgeVFSProvider(VFSProvider):
         except re.error:
             return citations
         # Enumerate document dirs under the prefix (or all if prefix is the root).
-        nodes = await self.ls(path_prefix, ctx)
+        # A root prefix ("/" or "") lists only the top-level category dirs, not
+        # documents — retarget it at BOTH content trees so grep("/") finds hits
+        # in documents and conversations alike.
+        prefixes = [path_prefix]
+        if path_prefix in ("/", "", "knowledge"):
+            prefixes = ["knowledge/documents", "knowledge/conversations"]
+        nodes: List[VFSNode] = []
+        for prefix in prefixes:
+            try:
+                nodes.extend(await self.ls(prefix, ctx))
+            except Exception:
+                continue
         for node in nodes:
             if node.type != "dir":
                 continue
@@ -157,8 +196,69 @@ class KnowledgeVFSProvider(VFSProvider):
             logger.warning(f"[KnowledgeVFS] list failed: {e}")
         return nodes
 
-    async def _doc_exists(self, doc_id: str, ctx) -> bool:
+    async def _doc_exists(self, doc_id: str, ctx: Optional[Dict[str, Any]] = None) -> bool:
         return (await self._get_doc(doc_id, ctx)) is not None
+
+    # ------------------------------------------------------------------
+    # Conversations subtree (communication memory store — bridge, not copy)
+    # ------------------------------------------------------------------
+    def _comms_table(self):
+        """LanceDB atom_communications table, or None when unavailable."""
+        try:
+            from integrations.atom_communication_ingestion_pipeline import (
+                get_ingestion_pipeline,
+            )
+            pipeline = get_ingestion_pipeline("default")
+            manager = getattr(pipeline, "memory_manager", None)
+            table = getattr(manager, "connections_table", None)
+            if table is None and manager is not None and getattr(manager, "db", None):
+                manager.initialize()
+                table = getattr(manager, "connections_table", None)
+            return table
+        except Exception as e:
+            logger.debug(f"[KnowledgeVFS] comms table unavailable: {e}")
+            return None
+
+    async def _list_conversations(self, ctx) -> List[VFSNode]:
+        import asyncio
+        nodes: List[VFSNode] = []
+
+        def _scan():
+            table = self._comms_table()
+            if table is None:
+                return []
+            try:
+                df = table.search().limit(200).to_df()
+                return df.to_dict("records")
+            except Exception:
+                return []
+
+        records = await asyncio.to_thread(_scan)
+        for rec in records:
+            cid = str(rec.get("id") or "")
+            if cid:
+                nodes.append(VFSNode(
+                    name=cid, type="dir", path=f"knowledge/conversations/{cid}",
+                    modified=str(rec.get("timestamp") or None),
+                ))
+        return nodes
+
+    async def _get_conversation(self, conv_id: str) -> Optional[Dict[str, Any]]:
+        import asyncio
+
+        def _fetch():
+            table = self._comms_table()
+            if table is None:
+                return None
+            try:
+                safe = conv_id.replace("'", "''")
+                df = table.search().where(f"id = '{safe}'").limit(1).to_df()
+                rows = df.to_dict("records")
+                return rows[0] if rows else None
+            except Exception:
+                return None
+
+        return await asyncio.to_thread(_fetch)
 
     async def _get_doc(self, doc_id: str, ctx):
         from core.models import IngestedDocument, KnowledgeDocument

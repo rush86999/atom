@@ -4190,6 +4190,8 @@ Methodology: previous combined full-suite data + wave test files (1,081 tests, 0
 |---|---|---|---|
 | 2026-08-09 | `integrations/teams_enhanced_service.py:512` | FIXED (SECURITY) | `jwt.decode(..., verify_signature=False)` — MS token claims trusted unverified (forgeable via debug hook/lateral path); now JWKS-verified (unknown-kid/same-kid-wrong-sig/expired rejected; valid RSA-signed accepted; JWKS fetch failure handled) |
 | 2026-08-09 | `api/oauth_routes.py` | FIXED (SECURITY) | **Static forgeable `state={provider}_oauth` → OAuth CSRF** (attacker binds their provider tokens to victim's account); now signed round-trip state — static/tampered rejected, cross-user 400/403, no open-redirect via redirect_uri param |
+
+**Follow-up (2026-08-20)**: the 3 `TestOauthRoutesStateCsrf` failures needed triage — 2 were stale assertions (signed-state redesign now returns 401 for legacy-format states; tests updated to accept 400/401), and 1 was a REAL residual gap behind the "cross-user 400/403" row: `oauth_callback` trusted the HMAC-signed state's user_id without cross-checking the authenticated session user, so a hijacked state minted for user-a accepted in user-b's session still bound tokens to user-a. Fixed: `_state_hmac_key()` now derives from `core.auth.SECRET_KEY` (repo-standard prod-fail-closed/resolution; removes hardcoded `"atom-oauth-state-fallback"` static key — CVE-class static-secret), and the callback now rejects a session user that doesn't match the state-bound user (403, additive to the public provider-redirect path). Suite 6/6 → cluster 59 passed.
 | 2026-08-09 | `api/oauth_routes.py:44` | FIXED | `AuthRateLimiter.check` passed an IP **string** (expects Request) → AttributeError → **EVERY OAuth callback 500'd**, rate limit silently dead |
 | 2026-08-09 | `api/routes/webhooks/ingestion_webhooks.py` Gmail handler | FIXED (SECURITY) | Google Pub/Sub push processed with **no verification at all** (has no signature header — R69 missed it); now token auth: unset→503, wrong→401 constant-time, correct→enqueued |
 
@@ -5648,3 +5650,139 @@ No source changes needed this wave (no genuine bugs found in the 6 modules — t
 **Files**: `core/llm/routing/routellm_trainer.py` (extract_features now iterates the contract — was a hardcoded 10-element list that silently dropped the new features), `core/llm/routing/per_model_router.py`, `core/learning_llm_router.py`, `core/llm/byok_handler.py`; docs `LEARNING_LLM_ROUTER.md`, `COGNITIVE_TIER_SYSTEM.md`, `HERMES_COMPARISON.md`.
 
 **Verification**: new suite 23/23; regression cluster 640 passed (learning/routing/byok/ema suites) + 635 passed (byok_handler cluster incl. wave11b/bigfour/stash tests) — 0 failed. mypy: 54 errors on the 5 touched files, identical pre-existing baseline (0 new; none on changed lines).
+
+## Session 2026-08-20 (backend + frontend) — pilot E2E fixes (3 new tests)
+
+**TDD red→green** (`tests/test_pilot_change_password.py`, 3 tests; observed failing 404 before fix):
+
+1. **POST /api/auth/change-password 404 on the live app** — the frontend settings/account page calls `/api/auth/change-password` with `{current_password, new_password}`, but the route only existed in `api/enterprise_auth_endpoints.py` (fields `old_password`/`new_password`), which is mounted only in `minimal_app.py` — the production `main_api_app` router (`core/auth_endpoints.py`, lazy-registry `"auth"`) had no change-password route. Fixed by adding the endpoint + `ChangePasswordRequest` (frontend field names) to `core/auth_endpoints.py`; verifies current password (400 on mismatch, 400 on same-as-current), sets new hash, revokes all other sessions via `revoke_all_user_helpers.revoke_all_user_tokens` (keeps current JWT via `except_jti`), audit `UPDATE`, 5/5min rate limiter. Live-verified on :8001 (400 for wrong current password, 401 unauthenticated) without altering the admin credential.
+   - **Aside**: the first edit accidentally wedged `change_password_rate_limit` under the `@router.post("/login")` decorator (login began returning HTTP 200 `null`) — caught by the route-name check (`/api/auth/login` bound to the dependency), decorator restored, login tests re-passed.
+
+**Files**: `backend/core/auth_endpoints.py` (new endpoint + request model + rate-limit dep), `backend/tests/test_pilot_change_password.py` (new), `frontend-nextjs/pages/dashboard.tsx` (removed hardcoded mock "Recent Activity" card + unused `Clock` import — only fake content on the dashboard; stats/integration tiles are live API data).
+
+**Verification**: new suite 3/3; regression `test_auth_routes_coverage.py` + `test_auth_fixes.py` → 71 passed, 0 failed. `npm run type-check`: `pages/dashboard.tsx` clean of new errors (2 pre-existing at lines 140-141 unchanged).
+
+**2026-08-20 R-fix**: P0.4 Outlook ingestion-symmetry backfill bridge. File: `core/memory_integration_mixin.py` (add `_bridge_records_to_unified_memory`, called at end of `_run_backfill`; lazy-import `get_ingestion_pipeline`; never raises). New suite `tests/test_memory_backfill_unified.py` 4/4 passed (Red first: backfill reached neither Pipeline A nor B). Verification: `test_memory_integration_framework.py` + `test_memory_backfill_unified.py` + `test_round46_outlook_client_state.py` 25 passed; `unit/test_memory_backfill.py` skip is pre-existing (module deleted in cleanup). Docs: `AGENT_MEMORY_UNIFICATION_PLAN.md` coverage table row updated (Outlook backfill FIXED).
+
+---
+
+## Session 2026-08-20 (backend) — v1 OAuth Bearer auth + mandatory /initiate auth (2 tests)
+
+**TDD red→green** (`tests/test_round71_oauth_routes_auth.py`; observed `captured token = None` for B17 and 500-vs-401 for B14 before fixes):
+
+1. **All Bearer-authenticated calls to `/api/v1/auth/oauth/*` 401'd** — commit `49de5a594` replaced the hand-rolled `get_current_user` in `api/oauth_routes.py` with a delegation to `core.auth.get_current_user(request=request, token=None, db=db)`. Passing `token=None` unconditionally meant the `Authorization` header (read only via FastAPI's `oauth2_scheme` injection, which this direct call skips) was never parsed — only cookie sessions worked. Fixed by extracting the Bearer token from the request headers before delegating. Live-verified on :8001: `GET /api/v1/auth/oauth/tokens` with a fresh JWT returns 200 + the active `microsoft` integration (was 401). Also pinned the bootstrap admin password (`ADMIN_PASSWORD` in `.env` + both `rish@brennan.ca` and re-created `admin@example.com` hashes) after `--reload` bootstrap re-created the admin row with a fresh password.
+2. **Unauthenticated `GET /api/v1/auth/oauth/{provider}/initiate` bypassed auth** — `oauth_initiate` used `get_optional_current_user`, which fell back to the first ACTIVE DB user when no token was present, so the B7 alias-router gate was bypassable by calling the v1 URL directly. Fixed by switching the dependency to the mandatory `get_current_user` (mirrors the B7 per-endpoint pattern used at the alias router and `/tokens`/`/revoke`); removed the now-dead `get_optional_current_user` helper (insecure fallback must not be reused). The `/{provider}/callback` endpoint stays public by design — OAuth providers redirect browsers to it.
+
+**Files**: `backend/api/oauth_routes.py` (wrapper now parses `Authorization: Bearer`; `oauth_initiate` now `Depends(get_current_user)`; `get_optional_current_user` removed), `backend/tests/test_round71_oauth_routes_auth.py` (B17 + B14 tests), `.env` (ADMIN_PASSWORD pinned, git-ignored).
+
+**Verification**: `test_round71_oauth_routes_auth.py` 4/4 (B14/B15/B16/B17); regression cluster `test_oauth_authentication.py` + `test_oauth_status_routes_auth.py` + `test_round70_llm_oauth_connect.py` + `test_oauth_token_storage.py` → 64 passed; `test_bughunt_20260809_oauth.py::TestOauthRoutesStateCsrf` 3 pre-existing failures (state-signature tests) — verified identical to pre-fix tree via `git stash`.
+
+## Session 2026-08-20 (backend) — Zoho automatic OAuth flow wiring
+
+Registered Zoho in the existing generic OAuth flow (`/initiate` → consent → `/callback` auto-stores encrypted IntegrationToken), matching how Outlook connects:
+
+1. `ZOHO_OAUTH_CONFIG` added to `core/oauth_handler.py` + `PROVIDER_CONFIGS["zoho"]` — server-based app flow (Self Client has no redirect URI, can't run automatic); auth/token URLs derive from `ZOHO_ACCOUNTS_BASE` env (default `accounts.zoho.com`, swap for `.eu`/`.ca`/etc.); scopes = Books/Inventory/CRM fullaccess + WorkDrive reads; `access_type=offline` via the handler default.
+2. `zoho` added to both inline config dicts in `api/oauth_routes.py` (initiate + callback) + import; `_KNOWN_PROVIDERS` in `oauth_status_routes.py` (B16 parity upheld).
+3. `.env`: `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET` (user-provided), `ZOHO_REDIRECT_URI=http://localhost:8001/api/v1/auth/oauth/zoho/callback`, `ZOHO_ACCOUNTS_BASE`.
+4. Pilot doc §2 Zoho section rewritten: server-based app registration → paste creds → open initiate URL → Accept (no grant codes).
+
+**Files**: `backend/core/oauth_handler.py`, `backend/api/oauth_routes.py`, `backend/oauth_status_routes.py`, `docs/operations/atom-self-hosted-pilot-instructions.md`, `.env` (git-ignored).
+
+**Verification**: config load + `is_configured(): True` under dotenv; B16 parity + B17 tests pass; live on :8001 — `GET /api/v1/auth/oauth/zoho/initiate` now 307s to a correct Zoho auth URL (both services scopes, signed state). Note: exchange only succeeds after the user creates the Server-based app (Self Client rejects redirect_uri).
+
+## Session 2026-08-20 (backend) — Zoho callback token fan-out for all four services
+
+**TDD red→green** (`tests/test_zoho_oauth_provider_keys.py`, 4 tests; observed `providers ['zoho']` only before fix):
+
+1. **Zoho connect flow would connect nothing but WorkDrive** — `_handle_callback_logic` wrote a single IntegrationToken row with provider `"zoho"` (microsoft→outlook was the only fan-out). But `zoho_books_service` (`provider == "zoho_books"`), `zoho_crm_service` (`"zoho_crm"`), `zoho_inventory_service` (`"zoho_inventory"`) resolve their token rows by exact provider name and run fail-closed (401/500) with no row; only `zoho_workdrive_service` survives via its generic-"zoho" fallback. The pilot doc's §2 claim ("callback stores refresh tokens automatically for all four services") was false while §4 verification (`tokens` page shows `zoho` active) would pass — a silent three-of-four-services outage. Fixed by fanning the same encrypted credentials out to `zoho_books`/`zoho_inventory`/`zoho_crm`/`zoho_workdrive` alongside the generic `zoho` row in `api/oauth_routes.py`.
+
+**Files**: `backend/api/oauth_routes.py` (zoho provider-key fan-out in `_handle_callback_logic`), `backend/tests/test_zoho_oauth_provider_keys.py` (new — 4 tests: fan-out set, shared encrypted creds, microsoft→outlook regression guard, OAuthToken row still written).
+
+**Verification**: new suite 4/4; OAuth regression cluster (`test_round71_oauth_routes_auth.py`, `test_oauth_token_storage.py`, `unit/api/test_oauth_routes.py`, `test_round69_unauth_sweep.py`) 45 passed, 1 failed (`test_versions_authed_200`) — verified pre-existing via `git stash` (fails identically at HEAD). `test_oauth_validation.py` (21) + `test_open_redirect_bugs.py` (2) failures pre-existing at HEAD, verified via stash. mypy `oauth_routes.py` clean (`--follow-imports=skip`). Live on :8001: Bearer-authed `GET /api/v1/auth/oauth/zoho/initiate` 307s to `accounts.zoho.com/oauth/v2/auth` with Books/Inventory/CRM/WorkDrive scopes + signed state. Next step for the operator: complete the interactive consent flow, then check `/api/v1/auth/oauth/tokens` shows `zoho` (all four services now get rows).
+
+## Session 2026-08-20 (backend) — Experience Marketplace MVP (feature #59-adjacent)
+
+**Files**: `backend/core/experience_marketplace/sanitizer.py` (new), `backend/core/experience_marketplace/pack_service.py` (new), `backend/core/experience_marketplace/__init__.py` (new), `backend/core/models.py` (+ExperienceItem/ExperienceRoleRegistry/ExperienceExport/ExperienceImport), `backend/api/experience_marketplace_routes.py` (new), `backend/main_api_app.py` (11c mount), `backend/alembic/versions/20260820_experience_marketplace.py` (new), `backend/tests/test_experience_marketplace.py` (new), `docs/architecture/EXPERIENCE_MARKETPLACE.md` (new).
+
+**TDD red→green** (24 tests): signed `atom_experience_pack` v1 with sections patterns/canvas_lessons (feature #7 LLM canvas summaries from `EpisodeSegment.canvas_context`)/facts/ontology/skills; role-token sanitizer (per-name `{type}_{nnn}` tokens), PII redaction, bucket envelopes, leak-scan abort; delta cursor via `ingestion_settings.usage_stats_json["experience_cursor"]`; import = verify-before-parse (hash + Ed25519), credential fail-closed, tombstones, no stub edges, raised-never-lowered; reputation tiers from verified steps; export CRITICAL / import HIGH governance + audit rows.
+
+**Key fixes during the loop**: `GraphEdge` has no `sensitivity`/`updated_at` (edge sensitivity = max of endpoint token sensitivities; delta on `created_at`); `strip_credentials` strips any key named `token` → exported key renamed to `role`; ontology import merges onto token-named rows only (destination's own real-name graph stays untouched); tombstone section keys are plural (`patterns_tombstones`); credential fail-closed tested by mocking `strip_credentials` to pass through (same convention as org bundle); `test_import_tombstones` re-signs the envelope after mutation.
+
+**Verification**: `pytest backend/tests/test_experience_marketplace.py` 24/24; mypy clean (4 files, `--follow-imports=skip`); `main_api_app` imports clean (11c mount verified). Flag `ATOM_EXPERIENCE_MARKETPLACE_ENABLED` default off (routes 503 + service refuses otherwise). Migration guarded (`_table_exists`); pending: alembic upgrade on a live dev DB + route smoke via HTTP.
+
+## Session 2026-08-20 (backend) — Temporal Normalization P0 (Temporal Evolution: A2/A7/A8)
+
+**Files**: `backend/core/memory/temporal_normalizer.py` (new), `backend/core/experiments.py` (+`temporal_normalization` flag, env `ATOM_TEMPORALITY_ENABLED`, default ON), `backend/core/ingestion_pipeline.py` (+`_apply_temporal_normalization` + `_record_to_text` override), `backend/tests/test_temporal_normalizer_p0.py` (new — 24 tests).
+
+**TDD red→green**: RED was the module ImportError at collection. Contracts pinned: regex date anchors (ISO / "as of <Month> <d>, <yyyy>" / "<Month> <yyyy>" / "Q<n> <yyyy>" / "by end of <yyyy>") sorted desc, deduped by value (anchored vs bare match of the same date collapse — higher-confidence pattern wins by application order), capped at 10/text; `normalize_record` additive (copy + `temporal_entities`/`as_of`/`temporal_axis`, never mutates input, unshaped input degrades to `{}`); `temporal_entities` receiver (`handle_temporal_entities`/`encode_temporal_context`) workspace-scoped in-memory store (cap 500/ws, newest kept), bi-temporal read mirroring `GraphRAGEngine.edges_as_of` (`as_of <= t < valid_until` via `_visible_at`); flag-off returns legacy shapes everywhere; never raises at any entry point; ingestion hook wired through a `_record_to_text` override so EVERY path (sync/webhook/binary/tiered) funnels through the single transformer insertion point — the override swallows hook failures (log + legacy text). Timezone-safe (R13): naive inputs assumed UTC.
+
+**Verification**: new suite 24/24; regression `test_covpush_ingestion_pipeline.py` + `test_covpush_ingestion_transformers.py` + `test_covpush_w9_graphrag.py` 237 passed; `test_berd_gap_closures.py` 11 passed; mypy clean on `temporal_normalizer.py` (0 errors); `ingestion_pipeline.py` mypy baseline unchanged (40 vs 43 at HEAD — fewer due to line-shift merges, zero new errors).
+
+## Session 2026-08-20 (backend) — Temporal Evolution W1: point-in-time cutoffs (GraphRAG)
+
+**Files**: `backend/core/graphrag/multi_hop_expansion.py` (+`as_of`), `backend/core/graphrag/community_detection.py` (+window), `backend/tests/test_temporal_w1_timelines.py` (new — 16 tests).
+
+**TDD red→green** (16 tests; RED was raised-`TypeError` on the new kwargs): expansion now prunes edges not alive at the query instant — ORM path filters `valid_from`/`invalid_at` in `_get_neighbors_with_cues`; SQL path binds `as_of`/`as_of_rel` params and emits the clause ONLY when present (legacy SQL text byte-identical → no parameter drift for old callers); both record `metadata["as_of"]` when used, nothing when not. `CommunityDetectionService.detect_communities`/`_detect_impl`/`_build_graph` take `window_start`/`window_end`: nodes must have been created ≤ `window_end`; edges must overlap the interval (born ≤ `window_end`, invalidated only after `window_start`); NULL bi-temporal fields pass (legacy rows never dropped); window recorded in `DetectionResult.metadata` on both the detect and graph-too-small paths. No-window calls are behavior-identical (graph builds and SQL text unchanged) — verified by the 3 legacy-control tests in-suite plus the existing `test_covpush_w9_graphrag.py` + `test_covpush_w77b_graphrag_oracle.py` (4 `TestLeidenAlgorithm` failures reproduce identically at pristine HEAD via stash — pre-existing cross-suite pollution, unrelated).
+
+**2026-08-20 R-fix**: P0.4 integration-symmetry follow-ups (WhatsApp/Slack/Teams). Files: `integrations/atom_communication_ingestion_pipeline.py` (WhatsApp `_normalize_message` now falls back across `content`/`text`/`body`; poller accepts `teams` alias), `api/routes/webhooks/slack_webhooks.py` (passes FULL payload to bridge, not inner `data.get("event",{})` — UCB adapter + `_transform_slack_payload` both needed the `event_callback` envelope), `core/ingestion_pipeline.py` (`teams` added to `_KNOWN_COMM_INTEGRATIONS`). New suite `tests/test_memory_symmetry_fixes.py` 9/9 (Red first). Verification: `test_memory_backfill_unified.py` + `test_covpush_w86_gmail_ingestion_ai.py` + `test_covpush_intgr_c.py` + `test_covpush_w71c_webhooks2.py` + `test_covpush_ingestion_pipeline.py` → 520 passed, 11 failed (all pre-existing: 5 PrivsecAuditLogger + 6 gmail/intgr-c import-order/env — verified identical via `git stash`); mypy 95 errors on the 3 touched files, identical pre-existing baseline (0 new). Docs: `AGENT_MEMORY_UNIFICATION_PLAN.md` §7 — WhatsApp/Slack/Teams rows + follow-ups marked FIXED.
+
+## Session 2026-08-20 (backend) — Temporal Evolution W2: hierarchy + persistence (GraphRAG)
+
+**Files**: `backend/core/graphrag/community_detection.py` (+`_detect_hierarchy_impl` thread, `_link_hierarchy`, `_store_hierarchy`, `_persist_communities`, `_clear_workspace_communities`; `detect_hierarchy` gains `store_results`), `backend/tests/test_temporal_w2_community_hierarchy.py` (new — 10 tests), `backend/core/models.py::GraphCommunity.parent_community_id` (W2 — pre-existing at HEAD), `docs/intelligence/graphrag.md` (schema doc +lineage column).
+
+**TDD red→green** (10 tests; RED was raised-`TypeError` on new kwargs): hierarchy now persists ALL levels with lineage: `detect_hierarchy`/`_detect_hierarchy_impl` thread `store_results` (default True) through to store; `_link_hierarchy` links each child to the previous-level community with MAXIMAL node overlap (containment heuristic — multi-resolution partitions not guaranteed nested; ties → first parent; zero-overlap children stay unparented; populates `parent_community_id` in-memory); `_store_hierarchy` flattens levels→`_persist_communities`; `_persist_communities` extracts the wipe + insert core so both single-level and hierarchy stores share one path — generated ids (`comm_<i>`/`leiden_comm_<i>`) mint fresh UUIDs (per-run counters are NOT unique across workspaces vs global `GraphCommunity.id` PK), persisted-id map keyed `(id, level)` (bare id would self-parent — counters recur at every level), parents resolve level-1 or NULL (never dangling), `parent_community_id` is stored on the row + shown in the wrangler view.
+
+**Key fixes during the loop**: `detect_hierarchy`'s store path collided with the single-level `_store_communities` wipe → hierarchy now shares `_clear_workspace_communities` (delete memberships BEFORE communities; backtrace-verified); `store_results=False` kept the in-memory shape (just lineage) with zero DB rows; test-side only: `sess.added` includes membership rows too → `_community_rows` filtered count for the replace-wipe assertions.
+
+**Verification**: new suite 10/10; regression cluster (`test_bughunt_graphrag.py`, `test_covpush_graphrag.py`, `test_graphrag_enhancements.py`, `test_graphrag_sql_injection.py`, `test_covpush_w9_graphrag.py`, `test_covpush_graphrag_engine.py`, `test_graphrag_engine.py`, `test_graphrag_hybrid_search.py`, `test_graphrag_patterns.py`, `test_covpush_w32_learning_graphrag_routes.py`, `test_covpush_w66b_graphrag_sandbox.py`, `test_covpush_w77b_graphrag_oracle.py`) 567 passed; mypy clean on both touched files (repo-root invocation); 0 new warnings.
+
+## Session 2026-08-20 (backend) — Temporal Evolution W3: hierarchy rolling-window parity (GraphRAG)
+
+**Files**: `backend/core/graphrag/community_detection.py` (+`CommunityHierarchy.metadata`, `detect_hierarchy`/`_detect_hierarchy_impl` gain `window_start`/`window_end`), `backend/tests/test_temporal_w3_hierarchy_windows.py` (new — 8 tests).
+
+**TDD red→green** (8 tests; RED was raised-`TypeError` on the new kwargs): `detect_hierarchy` now threads W1's rolling window into `_build_graph` BEFORE every resolution level runs — nodes created ≤ `window_end`, edges whose validity interval overlaps `[window_start, window_end]` (NULL bi-temporal fields pass; same semantics as `detect_communities`). The window is recorded in `CommunityHierarchy.metadata` (`window_start`/`window_end` ISO + `graph_nodes`/`graph_edges` counts; absent when no window). `store_results=True` persists the windowed lineage (parent ids still resolve level-1), `False` writes zero DB rows. Legacy control: same DB with no window vs full-range window → identical captured graph node/edge counts per level, no metadata keys.
+
+**Key fixes during the loop** (test-side): the two-level detection mock reused unprefixed ids (`c_a`) across levels — collides with the W2 uuid-minting contract (memberships `UNIQUE(community_id, node_id)` blew up) → mock now emits `comm_`-prefixed per-level ids; a mistaken early test window `[Apr, Aug]` legitimately included the Jul-created node → narrowed to `[Apr, Jun]`.
+
+**Verification**: W3 suite 8/8; W1+W2 suites 26 passed; graphrag cluster (16 files incl. W1–W4) 599 passed; mypy clean (`community_detection.py` 0 errors, both new test files clean).
+
+## Session 2026-08-20 (backend) — Temporal Evolution W4: query-side time travel — local_search as_of (GraphRAG)
+
+**Files**: `backend/core/graphrag_engine.py` (`local_search` gains `as_of` — CTE traversal join + relationship listing + in-loop `expand_sql`; `query`/`get_context_for_ai` thread it), `backend/tests/test_temporal_w4_query_asof.py` (new — 8 tests), `docs/architecture/TEMPORAL_EVOLUTION.md` (W5 doc — program record).
+
+**TDD red→green** (8 tests; RED was raised-`TypeError` on the new kwargs): with `as_of` the engine replaces `e.invalid_at IS NULL` with the edge-alive predicate `(invalid_at IS NULL OR invalid_at > :as_of) AND (valid_from IS NULL OR valid_from <= :as_of)` in the recursive-CTE join AND the relationship listing (SQLite + Postgres variants), injects `:as_of` params only when the clause is present (legacy SQL byte-identical), passes the cutoff to `SQLMultiHopExpander.expand_sql`, and records `result["as_of"]` (ISO). `query()` threads it into local mode via `to_thread`; global mode ignores it (community summaries carry no validity interval — documented boundary). Control test proves a future-`valid_from` edge is reachable WITHOUT `as_of` but pruned WITH it; `as_of` before invalidation keeps the invalidated-at-May edge alive in March.
+
+**Notes/findings**:
+- `SQLMultiHopExpander` body is Postgres-only (`ARRAY[]`, `::varchar`, `ANY()`) — on SQLite it raises and the engine's expansion degrades non-fatally (pre-existing, unchanged; documented in TEMPORAL_EVOLUTION.md).
+- Async query tests mock the search legs: `query()` runs local_search in a worker thread and SQLite sessions are not thread-safe (cross-thread ProgrammingError otherwise).
+- mypy: engine at 9 baseline errors — byte-identical to the HEAD baseline (verified via stash within this session); 0 new errors introduced.
+
+**Verification**: W4 suite 8/8; graphrag cluster (16 files incl. W1–W4) 599 passed; mypy: community_detection + both new test files clean.
+
+## Session 2026-08-20 (backend) — Temporal Evolution W5: program architecture doc
+
+**Files**: `docs/architecture/TEMPORAL_EVOLUTION.md` (new), `docs/intelligence/graphrag.md` (schema `graph_communities.parent_community_id` — lineage column was in the model + migration but absent from the SQL contract docs).
+
+**Content**: program record for P0 (ingestion temporal normalizer) + W1–W4 (cutoffs, hierarchy+persistence, hierarchy windows, query-side as_of), contract details (window edge-overlap semantics; as_of alive-predicate with exclusive invalidation boundary; lineage max-overlap heuristic; persisted-id `(id, level)` keying; uuid minting only for `comm_`-prefixed counters), explicit boundaries (global_search has no as_of; SQL expander is PG-only on SQLite — graceful degradation; nodes carry no validity fields), file map, verification commands. Resolves the dangling reference from migration `20260820_add_graph_community_parent` (which cited the doc since before it existed).
+
+**Verification**: doc-only (no code); linked from migration docstring + W4 docstrings.
+
+## Session 2026-08-20 (backend) — Migration + boot-smoke verification (closes W2/marketplace "pending" notes)
+
+**Scope**: no source changes — verification only.
+
+1. **Alembic migrations verified in isolation** (`20260820_add_graph_community_parent`, `20260820_experience_marketplace`; both branch from `20260816_org_ingestion_sharing`): Test A — create_all-shaped DB (hybrid dev-DB reality): guards no-op cleanly, both heads stamp. Test B — pre-W2 schema (`graph_communities` without the column, no experience tables): column `parent_community_id` + index `ix_graph_communities_parent` added, all four experience tables created, `downgrade` drops the column cleanly. Method: scratch SQLite DBs stamped at the shared down_revision, `alembic upgrade <rev>` per branch (this alembic rejects multi-revision targets), subprocess env must STRIP `PYTHONPATH=.` or `venv/bin/alembic` imports the local `backend/alembic/` migrations dir instead of the package.
+2. **Full-chain `alembic upgrade heads` on a fresh DB still fails** at an early unrelated revision (`ALTER TABLE agent_registry ADD COLUMN configuration ...` — no such table; the known R71 broken-chain issue). Pre-existing, unchanged; hybrid create_all remains the dev-DB authority. `data/atom.db` restored byte-identical from backup after the attempt.
+3. **Boot smoke** (throwaway DB): uvicorn boots clean — 0 tracebacks, `/health/live` 200, `✓ Experience Marketplace Routes Loaded`, `GET /api/experience-marketplace/status` → 401 (auth-gated before flag check; flag-off 503 applies post-auth). Smoke-test gotcha: SQLite URL needs 4 slashes for absolute paths — 3-slash relative paths surface as worker `unable to open database file` noise, not app defects.
+
+**Verification**: both migration paths green (A + B incl. downgrade); boot smoke clean; closes the "pending: alembic upgrade + route smoke" notes on the W2 temporal and Experience Marketplace sessions.
+
+## Session 2026-08-21 (backend) — Temporal Evolution W6: SQL expander SQLite portability (GraphRAG)
+
+**Files**: `backend/core/graphrag/multi_hop_expansion.py` (`_expand_sql_impl` dialect-aware CTE + relationship listing), `backend/tests/test_temporal_w6_sqlite_expander.py` (new — 6 tests), `tests/test_bughunt_graphrag.py` (stale-contract repair: error-hygiene test now forces failure via raising execute), `docs/architecture/TEMPORAL_EVOLUTION.md` (W6 row; PG-only boundary note removed).
+
+**TDD red→green** (6 tests; RED = sqlite runs ended in `metadata["error"] == "expansion_failed"` from the documented `near "as"` OperationalError): `_expand_sql_impl` now branches on `session.bind.dialect.name` — sqlite gets a portable recursive CTE (string-CSV path `',' || id || ','`, `NOT LIKE` cycle detection, plain NULLs, IN-list relationship query with quote-doubled ids); Postgres AND bind-less sessions keep the byte-identical legacy text (`ARRAY[]`/`::varchar`/`ANY()` — W1's recording-session contract holds, pinned by a postgres-bind spy test). The W1 as_of cutoff works identically on the sqlite variant (future-born pruned, invalidated-before-cutoff pruned, boundary exclusive, metadata recorded); no-as_of on sqlite stays unfiltered (legacy).
+
+**Stale-suite repair**: `TestSQLExpanderErrorHygiene::test_expansion_failure_does_not_leak_exception_text` relied on the PG-only CTE failing on sqlite as its implicit trigger — W6 removed that failure, so the test now forces the driver error via `patch.object(db, "execute", side_effect=_boom)` and still pins the hygiene contract (code-literal error, no SQL/params leak).
+
+**Verification**: W6 suite 6/6; full graphrag cluster (17 files incl. W1–W4+W6) 605 passed; mypy clean on `multi_hop_expansion.py` + new test file. Personal Edition (SQLite) multi-hop augmentation now actually executes instead of silently degrading.

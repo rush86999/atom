@@ -13,6 +13,7 @@ import { MiniAppHarness } from "@/components/canvas/MiniAppHarness";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import Layout from "@/components/layout/Layout";
+import { getCurrentUserId } from "@/lib/identity";
 
 interface CanvasMessage {
     id: string;
@@ -24,7 +25,7 @@ interface CanvasMessage {
 export default function CanvasDetailPage() {
     const router = useRouter();
     const { id: canvasId } = router.query;
-    const userId = typeof window !== "undefined" ? (localStorage.getItem("user_id") || "default_user") : "default_user";
+    const userId = typeof window !== "undefined" ? (localStorage.getItem("user_id") || getCurrentUserId()) : getCurrentUserId();
 
     // Canvas state
     const [canvasData, setCanvasData] = useState<any>(null);

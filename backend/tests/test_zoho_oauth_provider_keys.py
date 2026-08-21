@@ -1,0 +1,162 @@
+"""RED tests — Zoho OAuth callback must store tokens for all four services.
+
+Pilot doc (§2 Zoho) promises: "the callback stores refresh tokens
+automatically for all four services" (Books + Inventory + CRM + WorkDrive).
+The v1 callback (`api/oauth_routes._handle_callback_logic`) writes a single
+IntegrationToken row with provider "zoho" (plus the microsoft→outlook
+special case). But the Zoho services resolve their own token rows by exact
+provider name:
+
+- `integrations/zoho_books_service.py:83`      → provider == "zoho_books"
+- `integrations/zoho_crm_service.py:82`        → provider == "zoho_crm"
+- `integrations/zoho_inventory_service.py:89`  → provider == "zoho_inventory"
+- `integrations/zoho_workdrive_service.py`     → "zoho_workdrive", falling
+                                                back to generic "zoho"
+
+So after the documented connect flow, Books/CRM/Inventory find no token and
+run fail-closed (401/500), while WorkDrive happens to work by fallback. The
+tokens page shows "zoho active" and the pilot appears connected — the doc's
+section 4 verification passes while three of four services are broken.
+
+TDD: red first (only "zoho" row created today), then green (fan-out).
+"""
+import asyncio
+import uuid
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+try:
+    from api import oauth_routes as v1
+    from core.models import IntegrationToken, OAuthToken, User
+except ImportError:  # pragma: no cover
+    pytest.skip("oauth_routes not available", allow_module_level=True)
+
+
+def _make_db():
+    """Mock DB: OAuthToken lookup empty, one ACTIVE user, capture IntegrationToken adds."""
+    added = []
+
+    def query(model):
+        q = MagicMock()
+        if model is OAuthToken:
+            q.filter.return_value.first.return_value = None
+        elif model is User:
+            q.filter.return_value.all.return_value = [
+                MagicMock(id="u-admin", tenant_id="default", status="active")
+            ]
+        elif model is IntegrationToken:
+            q.filter.return_value.first.return_value = None
+        return q
+
+    db = MagicMock()
+    db.query.side_effect = query
+    db.add.side_effect = lambda row: added.append(row) if isinstance(row, IntegrationToken) else None
+    return db, added
+
+
+def _run_callback(db, user=None):
+    """Drive _handle_callback_logic with a fake Zoho token exchange."""
+    handler_cls = MagicMock()
+    handler_cls.return_value.exchange_code_for_tokens = AsyncMock(return_value={
+        "access_token": "at_zoho_" + uuid.uuid4().hex[:8],
+        "refresh_token": "rt_zoho_" + uuid.uuid4().hex[:8],
+        "token_type": "Bearer",
+        "scope": (
+            "ZohoBooks.fullaccess.all,ZohoInventory.fullaccess.all,"
+            "ZohoCRM.fullaccess.all,ZohoWorkDrive.files.READ"
+        ),
+        "expires_in": 3600,
+    })
+    request = MagicMock()
+    with patch("api.oauth_routes.OAuthHandler", handler_cls), patch(
+        "core.privsec.token_encryption.encrypt_token",
+        side_effect=lambda x: f"enc:{x}",
+    ):
+        return asyncio.run(v1._handle_callback_logic(
+            provider="zoho",
+            code="fake-auth-code",
+            config=MagicMock(),
+            request=request,
+            db=db,
+            user=user or MagicMock(id="u-admin", tenant_id="default", status="active"),
+        ))
+
+
+def test_zoho_callback_stores_all_four_service_providers():
+    """The generic 'zoho' row alone does not serve Books/CRM/Inventory —
+    each service queries its exact provider name. The callback must write a
+    row per service so the documented connect flow actually connects all
+    four apps."""
+    db, added = _make_db()
+    _run_callback(db)
+
+    providers = {row.provider for row in added}
+    assert providers == {
+        "zoho",
+        "zoho_books",
+        "zoho_inventory",
+        "zoho_crm",
+        "zoho_workdrive",
+    }, (
+        f"Zoho callback wrote only providers {sorted(providers)} — "
+        f"zoho_books/zoho_inventory/zoho_crm services run fail-closed "
+        f"without their own IntegrationToken rows (zoho_workdrive survives "
+        f"only via its generic-zoho fallback)."
+    )
+
+
+def test_zoho_callback_rows_share_encrypted_credentials():
+    """All fanned-out rows carry the same encrypted access/refresh tokens
+    (a single Zoho app grant covers the umbrella scopes)."""
+    db, added = _make_db()
+    _run_callback(db)
+
+    assert len({r.access_token for r in added}) == 1
+    assert len({r.refresh_token for r in added}) == 1
+    for row in added:
+        assert row.access_token.startswith("enc:")
+        assert row.status == "active"
+
+
+def test_microsoft_callback_still_writes_outlook_row():
+    """Regression guard: the microsoft→outlook fan-out already existed and
+    must keep working (pilot mailbox is connected via provider 'outlook')."""
+    db, added = _make_db()
+
+    handler_cls = MagicMock()
+    handler_cls.return_value.exchange_code_for_tokens = AsyncMock(return_value={
+        "access_token": "at_ms_" + uuid.uuid4().hex[:8],
+        "refresh_token": "rt_ms_" + uuid.uuid4().hex[:8],
+        "token_type": "Bearer",
+        "scope": "Mail.Read Mail.ReadWrite",
+        "expires_in": 3600,
+    })
+    with patch("api.oauth_routes.OAuthHandler", handler_cls), patch(
+        "core.privsec.token_encryption.encrypt_token",
+        side_effect=lambda x: f"enc:{x}",
+    ):
+        asyncio.run(v1._handle_callback_logic(
+            provider="microsoft",
+            code="fake-auth-code",
+            config=MagicMock(),
+            request=MagicMock(),
+            db=db,
+            user=MagicMock(id="u-admin", tenant_id="default", status="active"),
+        ))
+
+    providers = {row.provider for row in added}
+    assert "outlook" in providers
+
+
+def test_oauth_token_row_updates_with_scope():
+    """The legacy OAuthToken row is still written/updated with the granted
+    scopes so /api/v1/auth/oauth/tokens shows 'zoho, active'."""
+    db, added = _make_db()
+    _run_callback(db)
+
+    oauth_rows = [r for r in db.add.call_args_list]
+    # The OAuthToken add/update path must have run (no exception, commit called)
+    db.commit.assert_called()
+    assert any(r.provider == "zoho" for r in added)

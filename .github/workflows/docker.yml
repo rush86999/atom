@@ -27,7 +27,9 @@ jobs:
             JWT_SECRET_KEY=dummy-jwt-for-ci
             # Baked into the Next.js build at compile time so the frontend
             # talks to the right backend host.
-            NEXT_PUBLIC_API_URL=http://localhost:8000
+            # Realistic origin for the built image (compose service name);
+            # baking localhost is what the fail-fast guard exists to prevent.
+            NEXT_PUBLIC_API_URL=http://atom-backend:8000
 
       - name: Smoke-test the image (backend /alive + frontend /)
         run: |

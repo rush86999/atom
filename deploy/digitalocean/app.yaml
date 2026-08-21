@@ -1,0 +1,36 @@
+# DigitalOcean App Platform 1-Click spec for Atom (dual-app Docker image).
+# Launch via:
+#   https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml
+#
+# The root Dockerfile builds both the FastAPI backend (:8000) and the Next.js
+# frontend (:3000) into one image run by scripts/start-dual-app.sh. App Platform
+# routes public traffic to the frontend port; the backend is reachable on /api
+# through the frontend's rewrites, or expose it as an internal service below.
+name: atom
+region: nyc
+services:
+  - name: atom
+    instance_size_slug: basic-xxl
+    dockerfile_path: Dockerfile
+    http_port: 3000
+    health_check:
+      http_path: /
+      initial_delay_seconds: 180
+      period_seconds: 30
+    env_vars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        value: sqlite:////app/data/atom.db
+      - key: NEXT_PUBLIC_API_URL
+        value: ${APP_URL}/api
+      - key: SECRET_KEY
+        type: SECRET
+      - key: ATOM_ENCRYPTION_KEY
+        type: SECRET
+      # BYOK: set at least one provider key after launch via Settings > AI,
+      # or fill these in as app-level secrets now.
+      - key: OPENAI_API_KEY
+        type: SECRET
+      - key: OPENCODE_API_KEY
+        type: SECRET

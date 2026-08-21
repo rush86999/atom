@@ -59,7 +59,7 @@ interface DashboardData {
   }
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<DashboardData | null>(null)

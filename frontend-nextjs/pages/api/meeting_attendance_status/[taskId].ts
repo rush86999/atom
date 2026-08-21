@@ -5,7 +5,7 @@ import { authOptions } from "../auth/[...nextauth]";
 import { USE_BACKEND_API, meetingAPI } from '../../../lib/api';
 import appServiceLogger from '../../../lib/logger';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 type MeetingAttendanceStatus = {
   task_id: string;

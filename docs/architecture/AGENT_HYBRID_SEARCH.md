@@ -23,6 +23,20 @@
   lets vector hits resolve to `documents.cat` VFS paths.
 - This is **one leg** of a planned multi-source service. The RRF fusion layer
   is leg-agnostic; episodes/turn_facts/reasoning-steps legs are additive.
+- **Conversations leg (2026-08, P1.3 first slice)**: comms memory
+  (emails/Slack/WhatsApp/Teams/Telegram, vector+FTS in `atom_communications`)
+  is searched as a third leg and appended as first-class results
+  (`source="communication"`, hydrated from the comms record — bridge, don't
+  copy). Env-gated via `MEMORY_CONVERSATIONS_LEG` (default on), skipped under
+  a document-source filter. Mode label gains `+conversations`.
+- **Ops notes**: the FTS5 tables come from migration
+  `20260808_add_documents_fts` — on long-lived installs created via
+  `create_all`, apply the migration SQL manually (tables + backfill + sync
+  triggers) or the lexical leg silently falls back to ILIKE (which is now
+  token-based, not full-query-string). The vector column is sized to the
+  active embedding provider (384 for fastembed — the default), not a fixed
+  1536. The comms leg needs sentence-transformers (torch) for its 768-dim
+  embeddings; without it the leg degrades to empty.
 
 ## The three discoverability goals (and where each stands)
 

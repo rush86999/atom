@@ -13,10 +13,13 @@ import Layout from "../components/layout/Layout";
 import { useRouter } from "next/router";
 import { WakeWordProvider } from "../contexts/WakeWordContext";
 import { useCliHandler } from "../hooks/useCliHandler";
+import { getCurrentUserId } from "@/lib/identity";
+import { checkApiVersion } from "@/lib/apiVersion";
 
 const SessionSync: React.FC = () => {
   const { data: session } = useSession();
 
+  useEffect(() => { checkApiVersion(); }, []);
   useEffect(() => {
     if (session && (session as any).backendToken) {
       const token = (session as any).backendToken;
@@ -72,7 +75,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
             };
-            const res = await fetch('/api/v1/preferences?user_id=default_user&workspace_id=default', { headers });
+            const res = await fetch('/api/v1/preferences?user_id=${getCurrentUserId()}&workspace_id=default', { headers });
             if (res.ok) {
                 const data = await res.json();
                 if (data && data.theme) {

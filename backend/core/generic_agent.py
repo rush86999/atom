@@ -901,10 +901,41 @@ ORCHESTRATION POWERS:
         knowledge = memory.get('knowledge', [])
         formulas = memory.get('formulas', [])
         facts = memory.get('business_facts', [])
+        # P0 (memory unification plan): render the legs recall_experiences
+        # already fetches (previously fetched-then-discarded).
+        knowledge_graph = memory.get('knowledge_graph', '')
+        past_conversations = memory.get('conversations', [])
+        recalled_episodes = memory.get('episodes', [])
         memory_sections = []
+        if knowledge_graph:
+            graph_ctx = str(knowledge_graph).strip()
+            if len(graph_ctx) > 3200:
+                graph_ctx = graph_ctx[:3200] + "…"
+            memory_sections.append(f"KNOWLEDGE GRAPH CONTEXT (entities & relationships):\n{graph_ctx}")
         if experiences:
             exp_summaries = [f"- {e.get('input_summary', 'Task')[:80]}... → {e.get('outcome', 'completed')}" for e in experiences[:3]]
             memory_sections.append(f"PAST EXPERIENCES:\n" + "\n".join(exp_summaries))
+        if recalled_episodes:
+            def _episode_line(e: dict) -> str:
+                task = str(e.get('task_description') or e.get('summary') or 'Task')[:80]
+                line = f"- {task} → {e.get('outcome', 'completed')}"
+                fb = (e.get('feedback_context') or [None])[0]
+                if isinstance(fb, dict):
+                    verdict = fb.get('thumbs_up_down') or fb.get('rating')
+                    if verdict:
+                        line += f" (user feedback: {verdict})"
+                return line
+            ep_summaries = [_episode_line(e) for e in recalled_episodes[:3] if isinstance(e, dict)]
+            if ep_summaries:
+                memory_sections.append(f"LEARNING EPISODES (prior agent work):\n" + "\n".join(ep_summaries))
+        if past_conversations:
+            conv_summaries = [
+                f"- [{str(c.get('created_at', ''))[:10]}] {c.get('role', '?')}: {str(c.get('content', ''))[:120]}"
+                for c in past_conversations[:3]
+                if isinstance(c, dict) and c.get('content')
+            ]
+            if conv_summaries:
+                memory_sections.append(f"RECENT CONVERSATIONS:\n" + "\n".join(conv_summaries))
         if knowledge:
             doc_summaries = [f"- {k.get('text', '')[:100]}..." for k in knowledge[:3]]
             memory_sections.append(f"RELEVANT KNOWLEDGE:\n" + "\n".join(doc_summaries))
@@ -1032,6 +1063,77 @@ What is your next step?"""
             final_answer=raw_response if has_final_marker else None
         )
         
+    async def _oracle_check(self, tool_name: str, args: Dict, result: Any) -> Any:
+        """Post-execution oracle stamp (W2, default ON via ATOM_ORACLE_ENFORCE).
+
+        For mutating actions with a registered postcondition verifier, the
+        oracle re-derives the outcome against the system of record — including
+        fields only the *result* carries (e.g. task_id). Verdict is stamped
+        onto the observation: dict results get ``oracle_verified`` /
+        ``oracle_evidence`` keys; string results get an ``[ORACLE:...]`` tag.
+        A refuted outcome is marked UNVERIFIED so downstream confidence
+        scoring (selector_confidence) can never treat self-report as fact.
+        Failures here never block the tool result (verification is additive).
+        """
+        try:
+            import os
+
+            from core.oracle import (
+                get_postcondition,
+                oracle_verifier_enabled,
+                validate,
+            )
+
+            enforce = (
+                os.getenv("ATOM_ORACLE_ENFORCE", "true").strip().lower()
+                in ("1", "true", "yes", "on")
+            )
+            if not enforce or not oracle_verifier_enabled():
+                return result
+            if get_postcondition(tool_name) is None:
+                return result  # not in the high-risk mutating set
+            result_fields = result if isinstance(result, dict) else {}
+            with get_db_session() as oracle_db:
+                oracle_result = await validate(
+                    tool_name, {**args, **result_fields, "db": oracle_db}
+                )
+            if oracle_result is None:
+                return result
+            # Observability seam: one span per oracle verdict (local import to
+            # avoid import cycles; failures never affect the verdict path).
+            try:
+                import time as _time
+                import uuid as _uuid
+
+                from core.observability.tracing import record_span
+
+                _ended = _time.time()
+                record_span(
+                    trace_id=str(_uuid.uuid4()),
+                    name="oracle.verify",
+                    kind="oracle",
+                    attributes={
+                        "tool": tool_name,
+                        "verified": bool(oracle_result.verified),
+                        "evidence": str(oracle_result.evidence or "")[:200],
+                    },
+                    started_at=_ended,
+                    ended_at=_ended,
+                    status="ok" if oracle_result.verified else "unverified",
+                )
+            except Exception as _obs_exc:
+                logger.debug(f"oracle span recording skipped for {tool_name}: {_obs_exc}")
+            if isinstance(result, dict):
+                out = dict(result)
+                out["oracle_verified"] = oracle_result.verified
+                out["oracle_evidence"] = oracle_result.evidence
+                return out
+            verdict = "VERIFIED" if oracle_result.verified else "UNVERIFIED"
+            return f"{result}\n[ORACLE:{verdict} — {oracle_result.evidence}]"
+        except Exception as e:
+            logger.debug(f"oracle stamp skipped for {tool_name}: {e}")
+            return result
+
     async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False) -> Any:
         """Execute a tool via MCP with Governance Check
 
@@ -1090,7 +1192,12 @@ What is your next step?"""
                         return f"Governance Error: {auth_check['reason']}"
 
             # 2. Execute via MCP Service (Dynamic Resolution)
-            return await self.mcp.call_tool(tool_name, args, context=context)
+            result = await self.mcp.call_tool(tool_name, args, context=context)
+            # 3. Default-on outcome verification (W2): for actions with a
+            # registered postcondition verifier, re-derive success against the
+            # system of record and stamp the observation with the oracle's
+            # verdict — the tool never grades its own work.
+            return await self._oracle_check(tool_name, args, result)
             
         except Exception as e:
             error_msg = str(e)

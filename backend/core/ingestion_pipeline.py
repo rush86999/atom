@@ -32,6 +32,7 @@ from core.graphrag_engine import GraphRAGEngine
 from core.hybrid_data_ingestion import DEFAULT_SYNC_CONFIGS, HybridDataIngestionService
 from core.integration_constants import MULTI_ENTITY_INTEGRATIONS
 from core.lancedb_handler import LanceDBHandler
+from core.memory.temporal_normalizer import extract_temporal, handle_temporal_entities
 from core.models import DiscoveredEntity, DocumentIngestion, Tenant, UserConnection
 from core.multi_entity_llm_extractor import MultiEntityLLMExtractor
 from core.openie_schema_discovery import CORE_ENTITY_SCHEMAS
@@ -60,6 +61,44 @@ class IngestionPipelineService(HybridDataIngestionService):
 
     All operations are tenant-isolated via tenant_id filtering.
     """
+
+    # Integrations whose records are always treated as communications (known
+    # comm apps — includes both native ids and webhook ids).
+    _KNOWN_COMM_INTEGRATIONS = frozenset({
+        "outlook", "gmail", "slack", "microsoft_teams", "teams", "telegram",
+        "whatsapp", "discord", "sms", "calls", "zoom", "line", "signal",
+        "messenger", "google_chat",
+    })
+
+    # Fields that mark a record as message-like when the integration itself
+    # isn't a known comm app (e.g. a new 3rd-party source shipping webhook
+    # events with message payloads).
+    _MESSAGE_TEXT_FIELDS = ("content", "text", "body", "message")
+    _MESSAGE_ACTOR_FIELDS = ("from", "sender", "author", "user_id", "username")
+    _MESSAGE_TIME_FIELDS = ("timestamp", "date", "created_at", "time")
+
+    @classmethod
+    def _is_communication_record(
+        cls, integration_id: str, record: Dict[str, Any]
+    ) -> bool:
+        """True when the record should be persisted to the communication
+        memory store (vector+FTS): either the integration is a known comm
+        app, or the record itself is message-shaped (text + an actor or
+        timestamp field). Non-conversational records (products, invoices,
+        documents) fall through to standard indexing + graph extraction."""
+        if integration_id in cls._KNOWN_COMM_INTEGRATIONS:
+            return True
+        if not isinstance(record, dict):
+            return False
+        has_text = any(
+            isinstance(record.get(f), str) and len(record.get(f, "")) > 0
+            for f in cls._MESSAGE_TEXT_FIELDS
+        )
+        has_actor_or_time = any(
+            record.get(f) is not None
+            for f in cls._MESSAGE_ACTOR_FIELDS + cls._MESSAGE_TIME_FIELDS
+        )
+        return has_text and has_actor_or_time
 
     def __init__(self, tenant_id: str, workspace_id: str, db: Session = None):
         """
@@ -111,6 +150,45 @@ class IngestionPipelineService(HybridDataIngestionService):
             self.graphrag.close()
         if self.usage_tracker:
             self.usage_tracker.close()
+
+    # ---- P0 temporal normalization (A2): every ingestion path funnels
+    # through _record_to_text, so the override below is the single transformer
+    # insertion point. Flag-gated (ATOM_TEMPORALITY_ENABLED) and fail-safe:
+    # any normalizer failure degrades to legacy text with no side effects.
+    def _apply_temporal_normalization(self, record: Dict[str, Any], text: Optional[str] = None) -> Dict[str, Any]:
+        """Extract + store temporal anchors for a record; never raises."""
+        try:
+            source_text = text if text is not None else str(record)
+            entities = extract_temporal(source_text)
+            if not entities:
+                return record
+            payload = [
+                {
+                    "name": e.name,
+                    "entity_type": e.entity_type,
+                    "as_of": e.as_of.isoformat() if e.as_of else None,
+                    "valid_until": e.valid_until.isoformat() if e.valid_until else None,
+                    "confidence": e.confidence,
+                    "source_text": e.source_text,
+                }
+                for e in entities
+            ]
+            handle_temporal_entities(payload, self.workspace_id, source=record.get("id"))
+            record["temporal_entities"] = payload
+            record["as_of"] = payload[0]["as_of"]
+            record["temporal_axis"] = payload[0].get("source_text") or payload[0]["name"]
+        except Exception as e:
+            logger.error(f"Temporal normalization failed: {e}")
+        return record
+
+    def _record_to_text(self, record: Dict[str, Any], integration_id: str) -> str:
+        """Base record-to-text with the temporal normalization hook attached."""
+        text = super()._record_to_text(record, integration_id)
+        try:
+            self._apply_temporal_normalization(record, text)
+        except Exception as e:
+            logger.error(f"Temporal normalization hook failed: {e}")
+        return text
 
     async def sync_and_ingest(
         self,
@@ -1272,17 +1350,23 @@ class IngestionPipelineService(HybridDataIngestionService):
             for record in records:
                 text = self._record_to_text(record, integration_id)
 
-                # 3.1. SPECIAL CASE: Communication Apps (Outlook, Gmail, Slack, Teams)
-                # These use the specialized CommunicationIngestionPipeline for LanceDB/Hub persistence
-                if integration_id in ("outlook", "gmail", "slack", "microsoft_teams"):
+                # 3.1. SPECIAL CASE: Communication-like records from ANY integration
+                # Route through the specialized CommunicationIngestionPipeline
+                # (LanceDB vector+FTS hybrid store) when the integration is a
+                # known comm app OR the record itself looks like a message —
+                # so new 3rd-party integrations are ingested to readable memory
+                # without hand-maintaining an app list.
+                if self._is_communication_record(integration_id, record):
                     try:
                         from integrations.atom_communication_ingestion_pipeline import (
                             get_ingestion_pipeline,
                         )
 
                         comm_pipeline = get_ingestion_pipeline(self.tenant_id)
-                        # ingest_message handles normalization and LanceDB/Postgres persistence
-                        comm_pipeline.ingest_message(integration_id, record)
+                        # ingest_message handles normalization and LanceDB/Postgres persistence.
+                        # (Must be awaited — a bare call created a coroutine that
+                        # never ran, silently dropping the LanceDB write.)
+                        await comm_pipeline.ingest_message(integration_id, record)
                         results["records_processed"] += 1
                         results["tier"] = "basic"
                         continue  # Skip standard indexing as it's now handled

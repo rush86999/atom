@@ -1,6 +1,6 @@
 const API_BASE = typeof window !== "undefined"
   ? (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "")
-  : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+  : (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 
 export type BackendLoginResponse = {
   access_token: string;

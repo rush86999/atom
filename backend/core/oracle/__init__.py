@@ -8,8 +8,10 @@ success against the **system of record** (DB read-back, status endpoint),
 independently of the tool's claim.
 
 Behind ``ATOM_ORACLE_VERIFIER_ENABLED`` (default true — the checks run).
-Whether the oracle *overrides* self-report vs only audits alongside it is
-governed by the separate force-enforce companion (default false = audit only).
+Since W2 the oracle also stamps tool outcomes post-execution (default ON via
+``ATOM_ORACLE_ENFORCE``, default true): a refuted self-report is marked
+UNVERIFIED on the observation so downstream confidence scoring cannot treat
+it as fact. Set ``ATOM_ORACLE_ENFORCE=false`` to revert to pass-through.
 """
 from __future__ import annotations
 

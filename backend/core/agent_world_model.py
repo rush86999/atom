@@ -1442,13 +1442,47 @@ class WorldModelService:
                 limit=limit * 2  # Get more results for filtering
             )
 
+            # Canonical fusion leg: the segmentation service writes the
+            # canonical `episodes` table after every agent execution — the
+            # mirror above only has rows from WorldModelService.record_episode
+            # callers. Without this leg, canvas-aware recall was blind to most
+            # real episodes. Role filtering is relaxed here: canonical rows
+            # don't carry agent_role metadata.
+            try:
+                canonical = self.db.search(
+                    table_name="episodes",
+                    query=query,
+                    limit=limit * 2,
+                )
+            except Exception as canon_err:
+                logger.debug(f"canonical episodes leg unavailable: {canon_err}")
+                canonical = []
+            for res in canonical or []:
+                meta = res.get("metadata", {})
+                if not isinstance(meta, dict) or meta.get("type") != "episode":
+                    continue
+                if agent_id and meta.get("agent_id") != agent_id:
+                    continue
+                results.append(res)
+
             # Filter by agent role and optionally by agent_id
             scored_episodes = []
+            seen_episode_ids = set()
             for res in results:
                 meta = res.get("metadata", {})
 
-                # Filter by agent role
-                if meta.get("agent_role") != agent_role:
+                # Dedupe canonical + mirror copies of the same episode
+                ep_key = meta.get("episode_id") or res.get("id")
+                if ep_key and ep_key in seen_episode_ids:
+                    continue
+                if ep_key:
+                    seen_episode_ids.add(ep_key)
+
+                # Filter by agent role — ONLY for rows that carry the field
+                # (mirror rows). Canonical segmentation rows don't set
+                # agent_role; dropping them on this filter would defeat the
+                # fusion leg.
+                if meta.get("agent_role") is not None and meta.get("agent_role") != agent_role:
                     continue
 
                 # Filter by agent_id if specified

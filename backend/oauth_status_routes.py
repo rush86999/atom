@@ -56,7 +56,7 @@ router = APIRouter(
 _KNOWN_PROVIDERS = frozenset({
     # v1 providers (api/oauth_routes.py configs)
     "google", "microsoft", "slack", "github", "asana", "notion",
-    "trello", "dropbox", "linkedin", "salesforce", "whatsapp",
+    "trello", "dropbox", "linkedin", "salesforce", "whatsapp", "zoho",
     # status-route aliases (each mapped to a v1 provider below)
     "gmail", "gdrive", "outlook", "teams",
 })

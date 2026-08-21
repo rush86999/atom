@@ -42,7 +42,7 @@ export const UnifiedServicesManager: React.FC<ServicesManagerProps> = ({
   const deferredHealthCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const apiConfig = {
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
+    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "",
     endpoints: {
       implementations: '/implementations',
       health: '/health',

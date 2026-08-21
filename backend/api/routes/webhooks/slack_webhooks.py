@@ -100,10 +100,14 @@ async def slack_webhook(
             pass  # Cache unavailable — proceed (best-effort dedup)
 
     # 5. Dispatch via Webhook Bridge
+    # Pass the FULL payload (not data.get("event", {})). The UCB slack adapter
+    # reads payload.get("event", {}) and _transform_slack_payload needs the
+    # top-level "type": "event_callback" envelope — passing only the inner event
+    # silently no-oped the modern A+B ingestion path.
     result = await webhook_bridge.process_event(
         "slack",
         tenant_id,
-        data.get("event", {}),
+        data,
         registry,
         db
     )

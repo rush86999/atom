@@ -52,7 +52,7 @@ export const AgentHistoryTable: React.FC = () => {
             // NOTE: native fetch (not the shared apiClient) is used on purpose —
             // the repo's MSW test setup intercepts fetch but not axios' XHR
             // adapter, so apiClient calls hang in Jest.
-            const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
             const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
             const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 

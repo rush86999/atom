@@ -223,23 +223,26 @@ class TestOutlookAPIIntegration:
     @pytest.mark.asyncio(mode="auto")
     async def test_fetch_outlook_messages_without_token(self, ingestion_pipeline):
         """Test that missing Microsoft token is handled gracefully"""
-        with patch('core.token_storage.token_storage') as mock_storage:
-            mock_storage.get_token.return_value = None
-
+        with patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as mock_token:
             messages = await ingestion_pipeline._fetch_outlook_messages(None)
 
             assert messages == []
+            mock_token.assert_awaited_once()
 
     @pytest.mark.asyncio(mode="auto")
     async def test_fetch_outlook_messages_success(self, ingestion_pipeline, outlook_config):
         """Test successful Outlook message fetching"""
         ingestion_pipeline.configure_app(CommunicationAppType.OUTLOOK, outlook_config)
 
-        with patch('core.token_storage.token_storage') as mock_storage:
-            mock_storage.get_token.return_value = {
-                "access_token": "test_outlook_token"
-            }
-
+        with patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="test_outlook_token",
+        ):
             with patch('httpx.AsyncClient') as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client_class.return_value.__aenter__.return_value = mock_client
@@ -293,9 +296,11 @@ class TestOutlookAPIIntegration:
     @pytest.mark.asyncio(mode="auto")
     async def test_fetch_outlook_messages_with_attachments(self, ingestion_pipeline):
         """Test Outlook messages with attachments"""
-        with patch('core.token_storage.token_storage') as mock_storage:
-            mock_storage.get_token.return_value = {"access_token": "test_token"}
-
+        with patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="test_token",
+        ):
             with patch('httpx.AsyncClient') as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client_class.return_value.__aenter__.return_value = mock_client
@@ -348,9 +353,11 @@ class TestOutlookAPIIntegration:
     @pytest.mark.asyncio(mode="auto")
     async def test_fetch_outlook_rate_limiting(self, ingestion_pipeline):
         """Test Outlook API rate limiting handling"""
-        with patch('core.token_storage.token_storage') as mock_storage:
-            mock_storage.get_token.return_value = {"access_token": "test_token"}
-
+        with patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="test_token",
+        ):
             with patch('httpx.AsyncClient') as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client_class.return_value.__aenter__.return_value = mock_client
@@ -377,9 +384,11 @@ class TestOutlookAPIIntegration:
     @pytest.mark.asyncio(mode="auto")
     async def test_fetch_outlook_incremental_filtering(self, ingestion_pipeline):
         """Test Outlook incremental fetching with timestamp filter"""
-        with patch('core.token_storage.token_storage') as mock_storage:
-            mock_storage.get_token.return_value = {"access_token": "test_token"}
-
+        with patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="test_token",
+        ):
             with patch('httpx.AsyncClient') as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client_class.return_value.__aenter__.return_value = mock_client
@@ -433,9 +442,11 @@ class TestEmailErrorHandling:
     @pytest.mark.asyncio(mode="auto")
     async def test_outlook_handles_api_error(self, ingestion_pipeline):
         """Test graceful handling of Outlook API errors"""
-        with patch('core.token_storage.token_storage') as mock_storage:
-            mock_storage.get_token.return_value = {"access_token": "test_token"}
-
+        with patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="test_token",
+        ):
             with patch('httpx.AsyncClient') as mock_client_class:
                 mock_client = AsyncMock()
                 mock_client_class.return_value.__aenter__.return_value = mock_client
@@ -449,6 +460,104 @@ class TestEmailErrorHandling:
 
                 # Should handle gracefully and return empty list
                 assert messages == []
+
+
+class TestOutlookPollerWiring:
+    """Test the Outlook poller wiring (P0.4 audit fix)"""
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_start_outlook_poller_configured(self, ingestion_pipeline):
+        """Starting the poller configures outlook with real-time + embedding on"""
+        with patch.object(ingestion_pipeline, '_real_time_ingestion', new_callable=AsyncMock):
+            started = ingestion_pipeline.start_outlook_poller(polling_interval_seconds=45)
+
+            assert started is True
+            assert "outlook" in ingestion_pipeline.active_streams
+            cfg = ingestion_pipeline.ingestion_configs["outlook"]
+            assert cfg["real_time"] is True
+            assert cfg["embed_content"] is True
+            assert cfg["polling_interval_seconds"] == 45
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_start_outlook_poller_idempotent(self, ingestion_pipeline):
+        """Starting the poller twice creates only one stream task"""
+        with patch.object(ingestion_pipeline, '_real_time_ingestion', new_callable=AsyncMock) as mock_rt:
+            assert ingestion_pipeline.start_outlook_poller() is True
+            task1 = ingestion_pipeline.active_streams["outlook"]
+
+            assert ingestion_pipeline.start_outlook_poller() is True
+            task2 = ingestion_pipeline.active_streams["outlook"]
+
+            assert task2 is task1
+            assert mock_rt.call_count == 1
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_start_outlook_poller_failure_returns_false(self, ingestion_pipeline):
+        """A failed stream start propagates False instead of raising"""
+        with patch.object(ingestion_pipeline, 'start_real_time_stream', return_value=False):
+            assert ingestion_pipeline.start_outlook_poller() is False
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_oauth_callback_microsoft_starts_poller(self):
+        """Connecting Microsoft OAuth starts the Outlook poller"""
+        from api import oauth_routes
+        from core.oauth_handler import OAuthHandler
+        import integrations.atom_communication_ingestion_pipeline as ip_module
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        db.query.return_value.filter.return_value.all.return_value = []
+        user = MagicMock()
+        user.id = "u1"
+        user.tenant_id = "default"
+        user.status = "active"
+
+        with patch.object(
+            OAuthHandler, 'exchange_code_for_tokens', new_callable=AsyncMock,
+            return_value={
+                "access_token": "acc",
+                "refresh_token": "ref",
+                "token_type": "Bearer",
+                "scope": "Mail.Read",
+                "expires_in": 3600,
+            },
+        ):
+            with patch.object(ip_module.ingestion_pipeline, 'start_outlook_poller', return_value=True) as mock_poller:
+                await oauth_routes._handle_callback_logic(
+                    "microsoft", "code", MagicMock(), None, db, user
+                )
+                mock_poller.assert_called_once()
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_oauth_callback_google_does_not_start_poller(self):
+        """Non-Microsoft providers must NOT start the Outlook poller"""
+        from api import oauth_routes
+        from core.oauth_handler import OAuthHandler
+        import integrations.atom_communication_ingestion_pipeline as ip_module
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        db.query.return_value.filter.return_value.all.return_value = []
+        user = MagicMock()
+        user.id = "u1"
+        user.tenant_id = "default"
+        user.status = "active"
+
+        with patch.object(
+            OAuthHandler, 'exchange_code_for_tokens', new_callable=AsyncMock,
+            return_value={
+                "access_token": "acc",
+                "refresh_token": "ref",
+                "token_type": "Bearer",
+                "scope": "gmail.readonly",
+                "expires_in": 3600,
+            },
+        ):
+            with patch.object(ip_module.ingestion_pipeline, 'start_outlook_poller', return_value=True) as mock_poller:
+                await oauth_routes._handle_callback_logic(
+                    "google", "code", MagicMock(), None, db, user
+                )
+                mock_poller.assert_not_called()
 
 
 class TestEmailMessageNormalization:

@@ -804,3 +804,12 @@ backend/analytics_data/workflow_metrics.json
 .planning/
 backend/backend/
 backend/tests/browser_discovery/
+
+# Repo hygiene: junk artifacts
+.git-rewrite/
+*.profraw
+FINAL_100_PERCENT_*
+INTEGRATION_TEST_REPORT_*.json
+import_debug.log
+stripe_setup.log
+0001-*.patch

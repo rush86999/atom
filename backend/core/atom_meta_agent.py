@@ -350,12 +350,20 @@ class AtomMetaAgent:
     """
     
     CORE_TOOLS_NAMES = [
-        "mcp_tool_search", 
+        "mcp_tool_search",
         "save_business_fact",
         "verify_citation",
         "ingest_knowledge_from_text",
         "ingest_knowledge_from_file",
         "query_knowledge_graph",
+        # Memory self-service (P1.1 tool equality — the meta agent could
+        # query the graph but not search documents, remember/forget facts,
+        # or search conversation memory):
+        "documents.search",
+        "search_communications",
+        "recall_episodes",
+        "memory_remember",
+        "memory_forget",
         "trigger_workflow",
         "invoke_capability",
         "recruit_fleet",    # NEW: Multi-agent orchestration
@@ -1385,17 +1393,48 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
         formulas = memory_context.get('formulas', [])
         facts = memory_context.get('business_facts', [])
         canvas_episodes = memory_context.get('canvas_episodes', [])  # NEW: Canvas-aware episodes
+        # P0 (memory unification plan): these legs are fetched by
+        # world_model.recall_experiences but were previously never rendered.
+        knowledge_graph = memory_context.get('knowledge_graph', '')
+        past_conversations = memory_context.get('conversations', [])
+        recalled_episodes = memory_context.get('episodes', [])
 
         memory_sections = []
+        if knowledge_graph:
+            graph_ctx = str(knowledge_graph).strip()
+            if len(graph_ctx) > 3200:
+                graph_ctx = graph_ctx[:3200] + "…"
+            memory_sections.append(f"KNOWLEDGE GRAPH CONTEXT (entities & relationships):\n{graph_ctx}")
         if experiences:
             exp_summaries = [f"- {getattr(e, 'input_summary', 'Task')[:80]}... → {getattr(e, 'outcome', 'completed')}" for e in experiences[:3]]
             memory_sections.append(f"PAST EXPERIENCES:\n" + "\n".join(exp_summaries))
+        if recalled_episodes:
+            def _episode_line(e: dict) -> str:
+                task = str(e.get('task_description') or e.get('summary') or 'Task')[:80]
+                line = f"- {task} → {e.get('outcome', 'completed')}"
+                fb = (e.get('feedback_context') or [None])[0]
+                if isinstance(fb, dict):
+                    verdict = fb.get('thumbs_up_down') or fb.get('rating')
+                    if verdict:
+                        line += f" (user feedback: {verdict})"
+                return line
+            ep_summaries = [_episode_line(e) for e in recalled_episodes[:3] if isinstance(e, dict)]
+            if ep_summaries:
+                memory_sections.append(f"LEARNING EPISODES (prior agent work):\n" + "\n".join(ep_summaries))
         if canvas_episodes:  # NEW: Canvas-aware episodic memory
             canvas_ep_summaries = [
                 f"- [{e.get('canvas_id', 'unknown')[:8]}] {e.get('task_description', 'Task')[:60]}... → {e.get('outcome', 'completed')} (boost: +{e.get('canvas_boost', 0):.2f})"
                 for e in canvas_episodes[:3]
             ]
             memory_sections.append(f"CANVAS EPISODES (same workspace):\n" + "\n".join(canvas_ep_summaries))
+        if past_conversations:
+            conv_summaries = [
+                f"- [{str(c.get('created_at', ''))[:10]}] {c.get('role', '?')}: {str(c.get('content', ''))[:120]}"
+                for c in past_conversations[:3]
+                if isinstance(c, dict) and c.get('content')
+            ]
+            if conv_summaries:
+                memory_sections.append(f"RECENT CONVERSATIONS:\n" + "\n".join(conv_summaries))
         if knowledge:
             doc_summaries = [f"- {k.get('text', '')[:100]}..." for k in knowledge[:3]]
             memory_sections.append(f"RELEVANT KNOWLEDGE:\n" + "\n".join(doc_summaries))

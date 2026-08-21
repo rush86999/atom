@@ -25,6 +25,19 @@
 └───────────────┘    └───────────────┘    └───────────────┘
 ```
 
+### Turn-time unification (2026-08): the Memory Context Assembler
+
+All three tiers — plus communication memory (emails/Slack/WhatsApp/Teams)
+and learning episodes — are now fused into one bounded `RELEVANT MEMORY`
+block at the moment a user talks to an agent, on every chat/IM surface
+(`core/memory_context_assembler.py`, injected by the ChatOrchestrator).
+Legs run in parallel with per-leg fault isolation and timeouts; a startup
+warm-up preloads embedding models so first turns are fast. Conversational
+records from ANY integration reach the same store via shape-based routing
+(`IngestionPipelineService._is_communication_record`). Toggle with
+`MEMORY_CONTEXT_ASSEMBLY` (default on). Design and gap inventory:
+[`architecture/AGENT_MEMORY_UNIFICATION_PLAN.md`](../architecture/AGENT_MEMORY_UNIFICATION_PLAN.md).
+
 ---
 
 ## Tier 1: Durable Facts (SQL + FTS5)

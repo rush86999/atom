@@ -3,7 +3,7 @@ import { query } from '../../../lib/db';
 import { USE_BACKEND_API } from '../../../lib/api';
 import bcrypt from 'bcryptjs';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default async function handler(
     req: NextApiRequest,

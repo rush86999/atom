@@ -123,7 +123,7 @@ cd backend && ../backend/venv/bin/python -m pytest tests/ -v
 
 - **Python**: Follow PEP 8 guidelines
 - **TypeScript/React**: Follow existing patterns in `frontend-nextjs/`
-- **Tests**: Maintain test coverage above 80%
+- **Tests**: Add tests for new code and run the CI-gated core suite locally (`make test-core`); never reduce existing coverage on files you touch. Overall backend coverage is tracked against a rising baseline (see `backend/tests/coverage_reports/metrics/`) — don't regress it
 - **Documentation**: Update relevant docs in `docs/` directory
 
 #### Conventions learned from past bugs

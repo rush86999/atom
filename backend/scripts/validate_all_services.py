@@ -101,8 +101,15 @@ class ServiceValidator:
             "BOX_CLIENT_SECRET": "Box"
         }
         
+        # HR / Social Media
+        hr_social_keys = {
+            "BAMBOOHR_SUBDOMAIN": "BambooHR",
+            "BAMBOOHR_API_KEY": "BambooHR",
+            "TWITTER_BEARER_TOKEN": "Twitter"
+        }
+
         # Combine all keys
-        all_keys = {**ai_keys, **task_keys, **comm_keys, **file_keys}
+        all_keys = {**ai_keys, **task_keys, **comm_keys, **file_keys, **hr_social_keys}
         
         for env_key, service_name in all_keys.items():
             value = os.getenv(env_key)

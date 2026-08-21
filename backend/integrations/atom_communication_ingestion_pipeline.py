@@ -113,6 +113,7 @@ class IngestionConfig:
     embed_content: bool
     retention_days: int
     vector_dim: int = 768
+    polling_interval_seconds: int = 30
 
 class LanceDBMemoryManager:
     """LanceDB-based memory manager for ATOM"""
@@ -131,24 +132,40 @@ class LanceDBMemoryManager:
         """Initialize LanceDB connection and tables"""
         try:
             self.db = lancedb.connect(str(self.db_path))
-            self._create_connections_table()
-            self._create_metadata_table()
-            
-            # Initialize embedding model
+
+            # Initialize embedding model FIRST — the table schema's vector
+            # dimension depends on which embedder is active.
+            # Primary: sentence-transformers all-mpnet-base-v2 (768-dim).
+            # Fallback: FastEmbed bge-small-en-v1.5 (384-dim, ONNX — no
+            # torch). Without a fallback, a broken/missing torch install
+            # silently zero-vectorized every message and comm search
+            # returned nothing.
+            self.model = None
+            self._fastembed = None
+            self.embedding_dim = 384
             try:
                 sentence_transformer = _get_sentence_transformer()
                 if sentence_transformer:
                     logger.info("Loading embedding model (all-mpnet-base-v2)...")
                     self.model = sentence_transformer('all-mpnet-base-v2')
+                    self.embedding_dim = 768
                     logger.info("Embedding model loaded successfully")
                 else:
-                    logger.warning("Embedding model skipped (library missing)")
-                    self.model = None
+                    logger.warning("sentence-transformers unavailable — trying FastEmbed")
             except Exception as e:
-                logger.error(f"Error loading embedding model: {str(e)}")
-                # Continue without embeddings
-                self.model = None
-                
+                logger.warning(f"sentence-transformers load failed ({e}) — trying FastEmbed")
+            if self.model is None:
+                try:
+                    from fastembed import TextEmbedding
+
+                    self._fastembed = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+                    self.embedding_dim = 384
+                    logger.info("Using FastEmbed (bge-small, 384-dim) for communication embeddings")
+                except Exception as fe:
+                    logger.error(f"No embedder available — comm vectors will be zeros: {fe}")
+
+            self._create_connections_table()
+            self._create_metadata_table()
             logger.info("LanceDB memory manager initialized successfully")
             return True
         except Exception as e:
@@ -157,6 +174,7 @@ class LanceDBMemoryManager:
     
     def _create_connections_table(self):
         """Create communications table with vector search"""
+        dim = getattr(self, "embedding_dim", 384)
         schema = pa.schema([
             pa.field("id", pa.string()),
             pa.field("app_type", pa.string()),
@@ -171,17 +189,34 @@ class LanceDBMemoryManager:
             pa.field("status", pa.string()),
             pa.field("priority", pa.string()),
             pa.field("tags", pa.list_(pa.string())),
-            pa.field("vector", pa.list_(pa.float32(), 768)),  # For vector search
-            pa.field("search_vector", pa.list_(pa.float32(), 768))  # Primary search vector
+            pa.field("vector", pa.list_(pa.float32(), dim)),  # For vector search
+            pa.field("search_vector", pa.list_(pa.float32(), dim))  # Primary search vector
         ])
-        
+
         # Check if table exists
         table_names = self.db.table_names()
         if "atom_communications" not in table_names:
             self.connections_table = self.db.create_table("atom_communications", schema=schema)
-            logger.info("Created atom_communications table")
+            logger.info(f"Created atom_communications table ({dim}-dim vectors)")
         else:
             self.connections_table = self.db.open_table("atom_communications")
+            # Self-heal: an existing EMPTY table created for a different
+            # embedder dim would reject every insert. Recreate it; a table
+            # with rows is left alone (logged) to avoid data loss.
+            try:
+                existing_dim = str(self.connections_table.schema.field("vector").type)
+                if str(dim) not in existing_dim and self.connections_table.count_rows() == 0:
+                    self.db.drop_table("atom_communications")
+                    self.connections_table = self.db.create_table("atom_communications", schema=schema)
+                    logger.info(f"Recreated empty atom_communications at {dim}-dim")
+                elif str(dim) not in existing_dim:
+                    logger.warning(
+                        f"atom_communications has {existing_dim} vectors but active "
+                        f"embedder emits {dim} — new inserts will fail; "
+                        f"migrate or clear the table to match"
+                    )
+            except Exception as dim_err:
+                logger.debug(f"dim check skipped: {dim_err}")
             logger.info("Opened existing atom_communications table")
             
         # Create FTS index for hybrid search if it doesn't exist
@@ -228,8 +263,8 @@ class LanceDBMemoryManager:
                 "status": data.status,
                 "priority": data.priority,
                 "tags": data.tags,
-                "vector": data.vector_embedding or [0.0] * 768,  # Default embedding
-                "search_vector": data.vector_embedding or [0.0] * 768
+                "vector": data.vector_embedding or [0.0] * self.embedding_dim,  # Default embedding
+                "search_vector": data.vector_embedding or [0.0] * self.embedding_dim
             }
             
             # Add to database
@@ -308,7 +343,7 @@ class LanceDBMemoryManager:
                     "priority": data.priority,
                     "tags": data.tags,
                     "vector": data.vector_embedding or [0.0] * 768,
-                    "search_vector": data.vector_embedding or [0.0] * 768
+                    "search_vector": data.vector_embedding or [0.0] * self.embedding_dim
                 }
                 records.append(record)
             
@@ -326,17 +361,20 @@ class LanceDBMemoryManager:
             return False
     
     def generate_embedding(self, text: str) -> List[float]:
-        """Generate embedding for text content"""
+        """Generate embedding for text content (mpnet → fastembed → zeros)"""
+        dim = getattr(self, "embedding_dim", 384)
         try:
-            if not self.model:
-                logger.warning("Embedding model not initialized, returning zero vector")
-                return [0.0] * 768
-                
-            embedding = self.model.encode(text)
-            return embedding.tolist()
+            if self.model:
+                return self.model.encode(text).tolist()
+            if getattr(self, "_fastembed", None) is not None:
+                embeddings = list(self._fastembed.embed([text]))
+                if embeddings:
+                    return embeddings[0].tolist()
+            logger.warning("Embedding model not initialized, returning zero vector")
+            return [0.0] * dim
         except Exception as e:
-            logger.error(f"Error generating embedding: {str(e)}")
-            return [0.0] * 768
+            logger.error(f"Error generating embedding: {e}")
+            return [0.0] * dim
 
     def search_communications(self, query: str, limit: int = 10, app_type: str = None, tag: str = None) -> List[Dict]:
         """Search communications using hybrid search (vector + FTS)"""
@@ -495,6 +533,47 @@ class CommunicationIngestionPipeline:
     def is_webhook_enabled(self, app_type: str) -> bool:
         """Check if webhook ingestion is enabled for an app"""
         return self.webhook_enabled.get(app_type, False)
+
+    def start_outlook_poller(self, polling_interval_seconds: int = 60) -> bool:
+        """
+        Start the Outlook real-time polling stream (idempotent).
+
+        Complements the Graph push webhook (SaaS/Redis/tenant path) with a
+        NAT-friendly poller that works on Personal Edition without Redis or a
+        public notification URL. Reads the token from IntegrationToken (the
+        OAuth callback's store) via outlook_service, not the deprecated
+        file-based token_storage.
+
+        Args:
+            polling_interval_seconds: How often to poll Microsoft Graph for new mail.
+
+        Returns:
+            True if the stream is running (or was already running).
+        """
+        try:
+            if "outlook" in self.active_streams:
+                logger.info("Outlook poller already running")
+                return True
+
+            config = IngestionConfig(
+                app_type=CommunicationAppType.OUTLOOK,
+                enabled=True,
+                real_time=True,
+                batch_size=200,
+                ingest_attachments=True,
+                embed_content=True,
+                retention_days=365,
+                vector_dim=768,
+                polling_interval_seconds=max(30, int(polling_interval_seconds)),
+            )
+            self.configure_app(CommunicationAppType.OUTLOOK, config)
+            started = self.start_real_time_stream(CommunicationAppType.OUTLOOK.value)
+            if started:
+                logger.info(f"Started Outlook poller (interval={config.polling_interval_seconds}s)")
+            return started
+        except Exception as e:
+            logger.error(f"Error starting Outlook poller: {e}")
+            return False
 
     async def _handle_webhook_message(self, message_data: Dict[str, Any]):
         """
@@ -679,7 +758,7 @@ class CommunicationIngestionPipeline:
                 messages = await self._fetch_whatsapp_messages(last_fetch)
             elif app_type == CommunicationAppType.SLACK.value:
                 messages = await self._fetch_slack_messages(last_fetch)
-            elif app_type == CommunicationAppType.MICROSOFT_TEAMS.value:
+            elif app_type == CommunicationAppType.MICROSOFT_TEAMS.value or app_type == "teams":
                 messages = await self._fetch_teams_messages(last_fetch)
             elif app_type == CommunicationAppType.EMAIL.value:
                 messages = await self._fetch_email_messages(last_fetch)
@@ -1433,14 +1512,17 @@ class CommunicationIngestionPipeline:
         Supports incremental fetching and rate limiting.
         """
         try:
-            from core.token_storage import token_storage
+            # Token source: DB IntegrationToken (encrypted, OAuth-callback
+            # populated) via outlook_service. The legacy file-based
+            # token_storage is NOT populated by the current OAuth flow, so it
+            # always returned None here and the poller never fetched mail.
+            from integrations.outlook_service import outlook_service
 
-            token_data = token_storage.get_token("microsoft")
-            if not token_data:
-                logger.warning("No Microsoft OAuth token found for Outlook polling")
+            access_token = await outlook_service._get_access_token(user_id=None)
+            if not access_token:
+                logger.warning("No Microsoft OAuth token found for Outlook polling (IntegrationToken)")
                 return []
 
-            access_token = token_data.get("access_token")
             headers = {"Authorization": f"Bearer {access_token}"}
 
             all_messages = []
@@ -1449,7 +1531,11 @@ class CommunicationIngestionPipeline:
                 # Build filter for messages since last fetch
                 params = {"$top": 50}
                 if last_fetch:
-                    params["$filter"] = f"receivedDateTime gt {last_fetch.isoformat()}"
+                    # Graph OData requires UTC 'Z' format — a bare isoformat()
+                    # (no timezone marker) returns 400 InvalidFilter, which
+                    # silently broke every incremental poll after the first.
+                    ts = last_fetch.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    params["$filter"] = f"receivedDateTime gt {ts}"
 
                 # Pagination support
                 next_link = None
@@ -1593,7 +1679,17 @@ class CommunicationIngestionPipeline:
                 "sender": message_data.get("from"),
                 "recipient": message_data.get("to"),
                 "subject": None,
-                "content": message_data.get("content", ""),
+                # Field-name fallback: the Meta/WhatsApp transformer emits
+                # `text` (ingestion_pipeline.py:3321), while some pollers and
+                # older payloads use `content`/`body`. Without the fallback,
+                # messages were stored with EMPTY content (and meaningless
+                # embeddings) — the same bug class that hit Telegram.
+                "content": (
+                    message_data.get("content")
+                    or message_data.get("text")
+                    or message_data.get("body")
+                    or ""
+                ),
                 "attachments": message_data.get("attachments", []),
                 "metadata": {
                     "message_type": message_data.get("message_type", "text"),
@@ -1637,7 +1733,16 @@ class CommunicationIngestionPipeline:
                 "sender": message_data.get("sender"),
                 "recipient": message_data.get("recipient"),
                 "subject": message_data.get("subject"),
-                "content": message_data.get("content", ""),
+                # Field-name fallbacks across platforms: Telegram/Discord use
+                # "text", email-ish sources use "body", others "content".
+                # Without this, Telegram messages were stored with EMPTY
+                # content (and meaningless embeddings).
+                "content": (
+                    message_data.get("content")
+                    or message_data.get("text")
+                    or message_data.get("body")
+                    or ""
+                ),
                 "attachments": message_data.get("attachments", []),
                 "metadata": message_data.get("metadata", {}),
                 "status": message_data.get("status", "active"),

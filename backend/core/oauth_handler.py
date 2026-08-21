@@ -3,6 +3,7 @@ Centralized OAuth 2.0 Handler
 Provides reusable OAuth flow implementation for all integrations
 """
 
+import os
 import logging
 import os
 from typing import Dict, Optional
@@ -218,12 +219,17 @@ GOOGLE_OAUTH_CONFIG = OAuthConfig(
 
 
 
+# Tenant-aware endpoints: single-tenant app registrations MUST use their
+# tenant-specific endpoint — Microsoft rejects /common for single-tenant
+# apps created after 2018 (AADSTS50194). Set MICROSOFT_TENANT_ID (tenant
+# GUID or verified domain); default 'common' only fits multi-tenant apps.
+_MS_TENANT = os.getenv("MICROSOFT_TENANT_ID", "common")
 MICROSOFT_OAUTH_CONFIG = OAuthConfig(
     client_id_env="MICROSOFT_CLIENT_ID",
     client_secret_env="MICROSOFT_CLIENT_SECRET",
     redirect_uri_env="MICROSOFT_REDIRECT_URI",
-    auth_url="https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-    token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    auth_url=f"https://login.microsoftonline.com/{_MS_TENANT}/oauth2/v2.0/authorize",
+    token_url=f"https://login.microsoftonline.com/{_MS_TENANT}/oauth2/v2.0/token",
     scopes=[
         "https://graph.microsoft.com/Calendars.ReadWrite",
         "https://graph.microsoft.com/Mail.ReadWrite",
@@ -321,6 +327,29 @@ WHATSAPP_OAUTH_CONFIG = OAuthConfig(
     scopes=["whatsapp_business_messaging", "whatsapp_business_management"]
 )
 
+# Zoho (Books + Inventory + CRM + WorkDrive) — server-based app OAuth flow.
+# Requires a "Server-based application" client in the Zoho API console with
+# redirect URI http://localhost:8001/api/v1/auth/oauth/zoho/callback (a
+# "Self Client" has no redirect URI and can only hand out 10-min grant codes
+# from the console UI, so it cannot drive the automatic flow).
+_ZOHO_ACCOUNTS_BASE = os.getenv(
+    "ZOHO_ACCOUNTS_BASE", "https://accounts.zoho.com"
+).rstrip("/")
+ZOHO_OAUTH_CONFIG = OAuthConfig(
+    client_id_env="ZOHO_CLIENT_ID",
+    client_secret_env="ZOHO_CLIENT_SECRET",
+    redirect_uri_env="ZOHO_REDIRECT_URI",
+    auth_url=f"{_ZOHO_ACCOUNTS_BASE}/oauth/v2/auth",
+    token_url=f"{_ZOHO_ACCOUNTS_BASE}/oauth/v2/token",
+    scopes=[
+        "ZohoBooks.fullaccess.all",
+        "ZohoInventory.fullaccess.all",
+        "ZohoCRM.fullaccess.all",
+        "ZohoWorkDrive.files.READ",
+        "ZohoWorkDrive.teamfolders.READ",
+    ],
+)
+
 
 # Provider → OAuthConfig map. Consumed by core/oauth_user_context for
 # automatic token refresh. Configs snapshot the environment at import time,
@@ -337,6 +366,7 @@ PROVIDER_CONFIGS: Dict[str, OAuthConfig] = {
     "dropbox": DROPBOX_OAUTH_CONFIG,
     "linkedin": LINKEDIN_OAUTH_CONFIG,
     "whatsapp": WHATSAPP_OAUTH_CONFIG,
+    "zoho": ZOHO_OAUTH_CONFIG,
 }
 
 

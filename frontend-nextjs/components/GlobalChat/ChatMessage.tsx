@@ -54,6 +54,9 @@ export interface ChatMessageData {
     reasoningTrace?: ReasoningStep[];
     model?: string;
     provider?: string;
+    /** The auto-retrieved memory context injected before this answer
+     * (memory-transparency drawer, UI gap #5). */
+    memoryContext?: string;
 }
 
 export interface ReasoningStep {
@@ -194,6 +197,19 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate }
                         </span>
                     )}
                 </span>
+
+                {/* Memory transparency (UI gap #5): what the agent recalled to
+                    answer this turn. Collapsed by default. */}
+                {!isUser && message.memoryContext && (
+                    <details className="mt-2 px-1 group/memory">
+                        <summary className="text-[10px] text-muted-foreground cursor-pointer select-none hover:text-foreground">
+                            🧠 Context used ({message.memoryContext.length.toLocaleString()} chars)
+                        </summary>
+                        <pre className="mt-1 max-h-56 overflow-auto rounded-md bg-muted/60 border p-2 text-[10px] leading-relaxed whitespace-pre-wrap font-mono">
+                            {message.memoryContext}
+                        </pre>
+                    </details>
+                )}
 
                 {/* Feedback Controls for Assistant */}
                 {!isUser && (onFeedback || onRegenerate) && (

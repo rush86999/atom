@@ -3,13 +3,15 @@ import { useRouter } from 'next/router';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { loginWithBackend, persistBackendToken } from '../lib/backendAuth';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function LoginPage() {
     const router = useRouter();
     const [isLogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [ssoLoading, setSsoLoading] = useState(false);
+    const [ssoError, setSsoError] = useState('');
     const [error, setError] = useState('');
 
     const [formData, setFormData] = useState({
@@ -18,6 +20,33 @@ export default function LoginPage() {
         first_name: '',
         last_name: ''
     });
+
+    // OIDC SSO: probe the backend login endpoint first so we can surface a
+    // friendly message when SSO isn't configured (409/503) instead of
+    // navigating the user to a raw error response. When configured, the
+    // endpoint 302s to the IdP — hand off to a full-page navigation so the
+    // browser follows the redirect (an opaque redirect under CORS hides the
+    // Location header, so we re-navigate to the login URL itself).
+    const handleSSO = async () => {
+        setSsoError('');
+        setSsoLoading(true);
+        const ssoLoginUrl = `${API_BASE}/api/auth/sso/oidc/login`;
+        try {
+            const response = await fetch(ssoLoginUrl, {
+                redirect: 'manual',
+                headers: { Accept: 'application/json' },
+            });
+            if (response.status === 409 || response.status === 503) {
+                setSsoError('SSO is not configured for this workspace');
+                setSsoLoading(false);
+                return;
+            }
+        } catch {
+            // Probe failed (e.g. CORS on the redirect hop) — fall through and
+            // let the navigation itself surface any real problem.
+        }
+        window.location.href = ssoLoginUrl;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -182,6 +211,34 @@ export default function LoginPage() {
                             {loading ? 'Processing...' : isLogin ? 'Sign In' : 'Create Account'}
                         </button>
                     </form>
+
+                    {/* SSO (OIDC) — only meaningful for sign-in */}
+                    {isLogin && (
+                        <div className="mt-4">
+                            <div className="relative my-4">
+                                <div className="absolute inset-0 flex items-center">
+                                    <span className="w-full border-t border-gray-200 dark:border-gray-700" />
+                                </div>
+                                <div className="relative flex justify-center text-sm">
+                                    <span className="bg-white dark:bg-gray-800 px-2 text-gray-500 dark:text-gray-400">or</span>
+                                </div>
+                            </div>
+                            {ssoError && (
+                                <div data-testid="sso-error-message" className="mb-3 p-3 bg-yellow-100 dark:bg-yellow-900/20 border border-yellow-400 dark:border-yellow-800 rounded-lg text-yellow-700 dark:text-yellow-400 text-sm">
+                                    {ssoError}
+                                </div>
+                            )}
+                            <button
+                                type="button"
+                                onClick={handleSSO}
+                                disabled={ssoLoading}
+                                data-testid="login-sso-button"
+                                className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold rounded-lg transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {ssoLoading ? 'Redirecting...' : 'Sign in with SSO (OIDC)'}
+                            </button>
+                        </div>
+                    )}
 
                     {/* Toggle Login/Register */}
                     <div className="mt-6 text-center">

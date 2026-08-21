@@ -2819,7 +2819,15 @@ class GraphEdge(Base):
     relationship_type = Column(String, nullable=False) # e.g., 'manages', 'blocks'
     weight = Column(Float, default=1.0)
     properties = Column(JSONColumn, default={})
-    
+
+    # Bi-temporal (P2.2, Zep/Graphiti pattern): valid_from = when the fact
+    # became true in the world; invalid_at = when a contradicting fact
+    # superseded it (edges are INVALIDATED, never deleted — "what was true
+    # last quarter" stays answerable). Reads filter invalid_at IS NULL.
+    valid_from = Column(DateTime(timezone=True), nullable=True)
+    invalid_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    invalidation_reason = Column(Text, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
@@ -2844,6 +2852,7 @@ class GraphCommunity(Base):
     level = Column(Integer, default=0) # Hierarchy level
     summary = Column(Text, nullable=False) # LLM-generated summary
     keywords = Column(JSONColumn, default=list) # Top keywords for indexing
+    parent_community_id = Column(String, nullable=True, index=True) # Lineage: parent community at level-1 (W2)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -11892,4 +11901,121 @@ class FieldGuide(Base):
     line_count = Column(Integer, nullable=False, default=0)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class ExperienceItem(Base):
+    """Shareable agent experience lesson (Experience Marketplace MVP).
+
+    One row per imported (or locally mirrored) lesson item. Idempotency key is
+    (workspace_id, source_agent_id, item_id): re-imports dedup by content hash,
+    changed payloads update, tombstones set ``superseded_at``.
+
+    *Never* holds raw identity: payloads are already sanitized/tokenized by the
+    pack sanitizer (``core/experience_marketplace/sanitizer.py``); re-reads
+    through the service strip credentials fail-closed regardless.
+    """
+    __tablename__ = "experience_items"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String(64), nullable=False, index=True)
+    tenant_id = Column(String(64), nullable=True, index=True)
+    source_agent_id = Column(String(255), nullable=False, index=True)  # exporting agent
+    kind = Column(String(32), nullable=False, index=True)  # pattern|canvas_lesson|fact|skill
+    item_id = Column(String(255), nullable=False)  # exporter-side stable id (ep:<uuid>, canvas:..., fact:..., skill:<uuid>)
+    sensitivity = Column(String(32), nullable=False, default="internal")  # public|internal|confidential|restricted
+    payload = Column(JSONColumn, nullable=False)
+    content_hash = Column(String(64), nullable=False, index=True)  # sha256 canonical payload
+    superseded_at = Column(DateTime(timezone=True), nullable=True)  # tombstoned by re-import
+    imported_from = Column(String(255), nullable=True)  # audit provenance (destination/workspace)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "source_agent_id", "item_id", name="uq_experience_item_key"),
+        Index("ix_experience_items_workspace_kind", "workspace_id", "kind"),
+        Index("ix_experience_items_workspace_agent", "workspace_id", "source_agent_id"),
+    )
+
+    def __repr__(self):
+        return f"<ExperienceItem(workspace_id={self.workspace_id}, kind={self.kind}, item_id={self.item_id})>"
+
+
+class ExperienceRoleRegistry(Base):
+    """Deterministic entity-name → role-token registry for pack sanitization.
+
+    Entity names observed by the agent (graph node names + episode entity
+    names) map to stable generic tokens ``{type}_{n:03d}`` — persisted per
+    (workspace_id, entity_type, name) so delta packs keep the same token for
+    the same name across exports. Names are the *identity* being protected —
+    register them, export only tokens.
+    """
+    __tablename__ = "experience_role_registry"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String(64), nullable=False, index=True)
+    entity_type = Column(String(64), nullable=False)
+    name = Column(String(255), nullable=False)  # original identity — never exported
+    token = Column(String(64), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "entity_type", "name", name="uq_experience_role_name"),
+        Index("ix_experience_role_token", "workspace_id", "token"),
+    )
+
+
+class ExperienceExport(Base):
+    """Audit row for every experience pack export (CRITICAL gate)."""
+    __tablename__ = "experience_exports"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String(64), nullable=False, index=True)
+    tenant_id = Column(String(64), nullable=True)
+    agent_id = Column(String(255), nullable=False, index=True)
+    sensitivity_ceiling = Column(String(32), nullable=False, default="internal")
+    destination = Column(String(255), nullable=True)  # required when ceiling raised
+    sections = Column(JSONColumn, nullable=True)
+    delta = Column(Boolean, nullable=False, default=False)
+    item_count = Column(Integer, nullable=False, default=0)
+    section_counts = Column(JSONColumn, nullable=True)
+    excluded_by_sensitivity = Column(JSONColumn, nullable=True)
+    payload_hash = Column(String(64), nullable=False)
+    signature = Column(Text, nullable=False)
+    signed_by = Column(String(255), nullable=True)
+    performed_by = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_experience_exports_workspace_agent", "workspace_id", "agent_id"),
+    )
+
+
+class ExperienceImport(Base):
+    """Audit row for every experience pack import (HIGH gate)."""
+    __tablename__ = "experience_imports"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String(64), nullable=False, index=True)
+    tenant_id = Column(String(64), nullable=True)
+    source_agent_id = Column(String(255), nullable=True)
+    payload_hash = Column(String(64), nullable=False)
+    signature_valid = Column(Boolean, nullable=False, default=False)
+    signature_strip_credentials = Column(Boolean, nullable=False, default=False)
+    sensitivity_ceiling = Column(String(32), nullable=True)
+    item_total = Column(Integer, nullable=False, default=0)
+    item_applied = Column(Integer, nullable=False, default=0)
+    item_skipped = Column(Integer, nullable=False, default=0)
+    item_excluded = Column(Integer, nullable=False, default=0)
+    tombstones_applied = Column(Integer, nullable=False, default=0)
+    nodes_applied = Column(Integer, nullable=False, default=0)
+    edges_applied = Column(Integer, nullable=False, default=0)
+    edges_skipped = Column(Integer, nullable=False, default=0)
+    section_counts = Column(JSONColumn, nullable=True)
+    failure_reason = Column(String(255), nullable=True)
+    performed_by = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_experience_imports_workspace", "workspace_id"),
+    )
 

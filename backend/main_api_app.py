@@ -598,6 +598,32 @@ async def lifespan(app: FastAPI):
             logger.info("✓ Outlook Automation Loop started")
         except Exception as e:
             logger.error(f"Failed to start Outlook Automation Loop: {e}")
+
+        # Start Outlook Memory Poller (recover after restart when Outlook is
+        # already connected). Reads tokens from IntegrationToken; skips when no
+        # active outlook/microsoft token exists or the stream is already up.
+        try:
+            from core.database import get_db_session
+            from core.models import IntegrationToken
+
+            with get_db_session() as db:
+                has_outlook = (
+                    db.query(IntegrationToken)
+                    .filter(
+                        IntegrationToken.provider.in_(["outlook", "microsoft"]),
+                        IntegrationToken.status == "active",
+                    )
+                    .first()
+                )
+            if has_outlook:
+                from integrations.atom_communication_ingestion_pipeline import (
+                    ingestion_pipeline,
+                )
+
+                if ingestion_pipeline.start_outlook_poller():
+                    logger.info("✓ Outlook memory poller recovered (connected account found)")
+        except Exception as e:
+            logger.error(f"Failed to start Outlook memory poller: {e}")
     elif is_test_mode:
         logger.info("⊘ Skipping Schedulers and Workers in test mode")
 
@@ -651,6 +677,8 @@ async def lifespan(app: FastAPI):
             from workers.activity_state_worker import ActivityStateWorker
             from workers.queue_processing_worker import QueueProcessingWorker
 
+            from core.experiments import is_enabled as _exp
+
             # Start Activity State Worker (online/away/offline transitions)
             activity_worker = ActivityStateWorker(interval_seconds=60)
             _spawn_background_task(activity_worker.run())
@@ -666,7 +694,7 @@ async def lifespan(app: FastAPI):
             # Mutually exclusive with webhook mode (worker deletes any
             # registered webhook on startup).
             if (
-                os.getenv("TELEGRAM_POLLING_ENABLED", "false").lower() == "true"
+                _exp("telegram_polling")
                 and os.getenv("TELEGRAM_BOT_TOKEN")
             ):
                 from workers.telegram_polling_worker import TelegramPollingWorker
@@ -674,6 +702,29 @@ async def lifespan(app: FastAPI):
                 telegram_poller = TelegramPollingWorker()
                 _spawn_background_task(telegram_poller.run())
                 logger.info("✓ Telegram Polling Worker running (webhook mode disabled)")
+
+            # 8c. Warm the memory assembler (P0): preload embedding models and
+            # LanceDB tables so the first turn-time retrieval hits warm caches
+            # instead of the per-leg timeout.
+            if _exp("memory_context_assembly"):
+                from core.memory_context_assembler import warm as warm_memory_assembler
+
+                async def _warm_assembler():
+                    await warm_memory_assembler()
+                    logger.info("✓ Memory assembler warmed")
+
+                _spawn_background_task(_warm_assembler())
+
+            # 8d. Memory consolidation worker (P2.1): nightly rule-based
+            # consolidation — contradiction sweeps + supersede — always off
+            # the user-facing turn (sleep-time principle).
+            if _exp("memory_consolidation"):
+                from workers.memory_consolidation_worker import MemoryConsolidationWorker
+
+                interval_h = float(os.getenv("MEMORY_CONSOLIDATION_INTERVAL_HOURS", "24"))
+                consolidation_worker = MemoryConsolidationWorker(interval_hours=interval_h)
+                _spawn_background_task(consolidation_worker.run())
+                logger.info("✓ Memory Consolidation Worker running (%.1fh)", interval_h)
 
             # 9. Start Webhook Renewal Worker (NEW)
             from core.database import SessionLocal
@@ -857,6 +908,18 @@ try:
             "status": "alive",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "debug_id": "v8.0.0",
+        }
+
+    # API compatibility pin (berd gap #2): clients record the API version
+    # they were built against; a mismatch warns instead of failing subtly.
+    ATOM_API_VERSION = 1
+
+    @app.get("/api/meta/version", tags=["System"])
+    async def api_version():
+        return {
+            "api_version": ATOM_API_VERSION,
+            "product": "atom",
+            "commit": os.getenv("GIT_SHA", "dev"),
         }
 
     @app.get("/", tags=["System"])
@@ -2666,6 +2729,70 @@ try:
     except (ImportError, TypeError):
         logger.warning("WebSocket routes not found, skipping.")
 
+    # 4b. ACP bridge — standard Agent Client Protocol v1 endpoint so any
+    # ACP-compatible client (Zed, Berd-style shells) can drive Atom agents.
+    try:
+        from api.acp_routes import router as acp_router
+
+        app.include_router(acp_router, tags=["ACP"])
+        logger.info("✓ ACP bridge mounted at /acp/ws")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"ACP bridge not mounted: {e}")
+
+    # 4c. A2A — Agent Card discovery + JSON-RPC message/send so external
+    # agents can discover and delegate to Atom agents (A2A protocol baseline).
+    try:
+        from api.a2a_routes import router as a2a_router
+
+        app.include_router(a2a_router, tags=["A2A"])
+        logger.info("✓ A2A endpoint mounted at /api/a2 (+ /.well-known/agent-card.json)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"A2A endpoint not mounted: {e}")
+
+    # 4d. OIDC SSO — authorization-code login against an enterprise IdP.
+    try:
+        from api.sso_oidc_routes import router as sso_oidc_router
+
+        app.include_router(sso_oidc_router, tags=["SSO"])
+        logger.info("✓ OIDC SSO mounted at /api/auth/sso/oidc")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"OIDC SSO not mounted: {e}")
+
+    # 4d-bis. SCIM v2 — user provisioning for enterprise IdPs (Okta/Entra).
+    try:
+        from api.scim_routes import install_scim_exception_handlers, router as scim_router
+
+        app.include_router(scim_router, tags=["SCIM"])
+        install_scim_exception_handlers(app)
+        logger.info("✓ SCIM v2 mounted at /api/scim/v2")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"SCIM v2 not mounted: {e}")
+
+    # 4d-ter. Observability — span tracing + optional Langfuse export.
+    try:
+        from api.observability_routes import router as observability_router
+
+        app.include_router(observability_router, tags=["Observability"])
+        logger.info("✓ Observability mounted at /api/observability")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Observability not mounted: {e}")
+
+    # 4e. BambooHR + Twitter/X integrations.
+    try:
+        from integrations.bamboohr_routes import router as bamboohr_router
+
+        app.include_router(bamboohr_router, tags=["BambooHR"])
+        logger.info("✓ BambooHR integration mounted at /api/bamboohr")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"BambooHR integration not mounted: {e}")
+    try:
+        from integrations.twitter_routes import router as twitter_router
+
+        app.include_router(twitter_router, tags=["Twitter"])
+        logger.info("✓ Twitter/X integration mounted at /api/twitter")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Twitter/X integration not mounted: {e}")
+
     # 6. MCP Routes (Web Search & Web Access for Agents)
     try:
         from integrations.mcp_routes import router as mcp_router
@@ -3074,6 +3201,15 @@ try:
         logger.info("✓ Document Hub Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Document Hub routes not found: {e}")
+
+    # 11c. Experience Marketplace Routes
+    try:
+        from api.experience_marketplace_routes import router as experience_marketplace_router
+
+        app.include_router(experience_marketplace_router)  # Prefix defined in router
+        logger.info("✓ Experience Marketplace Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Experience Marketplace routes not found: {e}")
 
     # 12. Formula Routes
     # Formulas loaded via ESSENTIAL_INTEGRATIONS

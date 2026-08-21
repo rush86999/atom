@@ -9,9 +9,14 @@ COPY frontend-nextjs/ .
 # NEXT_PUBLIC_* vars are baked into the Next.js build at compile time, so they
 # must be passed as build-args (not runtime env). Default to the in-container
 # backend on port 8000 (the dual-app image serves backend on 8000).
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+# No loopback default — the next.config.js fail-fast guard demands a
+# conscious origin (or an explicit NEXT_PUBLIC_ALLOW_LOOPBACK=1 for
+# same-machine deployments) so images can't silently bake localhost.
+ARG NEXT_PUBLIC_API_URL=
+ARG NEXT_PUBLIC_ALLOW_LOOPBACK=
 ARG NEXT_PUBLIC_USE_BACKEND_API=true
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_ALLOW_LOOPBACK=$NEXT_PUBLIC_ALLOW_LOOPBACK
 ENV NEXT_PUBLIC_USE_BACKEND_API=$NEXT_PUBLIC_USE_BACKEND_API
 RUN npm run build
 

@@ -327,6 +327,10 @@ to no-ops when no token is set.
 | `WORKFLOW_OPTIMIZATION_ENABLED` | `true` | — | Workflow optimization. |
 | `COMMISSION_AUTO_CALCULATE` | `true` | — | Auto-commission calculation. |
 | `FEDERATION_API_KEY` | unset | — | Cross-instance agent sharing. |
+| `ATOM_ORACLE_ENFORCE` | `true` | — | Postcondition oracle stamps tool outcomes (refuted self-reports marked UNVERIFIED). `false` = pass-through. |
+| `ATOM_OIDC_ISSUER` / `ATOM_OIDC_CLIENT_ID` / `ATOM_OIDC_CLIENT_SECRET` / `ATOM_OIDC_ENABLED` | unset | — | OIDC SSO env fallback (a DB config row via `PUT /api/auth/sso/oidc/config` takes precedence). |
+| `ATOM_SCIM_TOKEN` | unset | — | Bearer token for SCIM v2 provisioning (`/api/scim/v2`). Unset = SCIM disabled (503). |
+| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST` | unset / `https://cloud.langfuse.com` | — | Enables async trace-span export to Langfuse (`/api/observability/spans` works without them). |
 
 ### Monitoring thresholds
 
@@ -349,6 +353,19 @@ to no-ops when no token is set.
 
 ## 14. Integration credentials (46+ services)
 
+### BambooHR (HR)
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `BAMBOOHR_SUBDOMAIN` | unset | for BambooHR | Your BambooHR subdomain. |
+| `BAMBOOHR_API_KEY` | unset | for BambooHR | API key (Basic auth). |
+
+### Twitter / X
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `TWITTER_BEARER_TOKEN` | unset | for X API v2 | Bearer token for post/user-tweets/search. |
+
 All optional. Each integration has `*_CLIENT_ID` / `*_CLIENT_SECRET` (OAuth) or
 `*_API_KEY` / `*_ACCESS_TOKEN` patterns. The full list with sign-up URLs lives
 in [`backend/.env.example`](../../backend/.env.example) §10–§20.
@@ -362,6 +379,13 @@ in [`backend/.env.example`](../../backend/.env.example) §10–§20.
 | `TELEGRAM_WEBHOOK_URL` | unset | webhook mode | Public HTTPS URL Telegram pushes updates to. |
 | `ATOM_TELEGRAM_WEBHOOK_SECRET` | unset | webhook mode | Fail-closed shared secret; Telegram sends it as `X-Telegram-Bot-Api-Secret-Token`. Requests without a match are rejected. |
 | `TELEGRAM_BOT_USERNAME` | unset | — | Bot @username, informational. |
+
+### Turn-time memory retrieval (Memory Context Assembler)
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `MEMORY_CONTEXT_ASSEMBLY` | `true` | — | Fuse comm memory + GraphRAG + episodes + turn facts + all ingested `integration_*` records into one bounded `RELEVANT MEMORY` block injected before the LLM on every chat/IM surface. Legs are fault-isolated with per-leg timeouts; a startup warm-up preloads embedding models. See [Agent Memory Unification Plan](../architecture/AGENT_MEMORY_UNIFICATION_PLAN.md). |
+| `MEMORY_CONVERSATIONS_LEG` | `true` | — | Include the communication memory store (email/Slack/WhatsApp/Teams/Telegram) as a leg in `documents.search` hybrid results (`source=communication`, bridged — never copied into documents). See [Agent Hybrid Search](../architecture/AGENT_HYBRID_SEARCH.md). |
 
 For group chats, disable the bot's privacy mode via BotFather `/setprivacy`,
 and remember bots can never DM a user first (each user must `/start` the bot).

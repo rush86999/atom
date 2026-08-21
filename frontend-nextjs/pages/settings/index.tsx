@@ -24,7 +24,7 @@ export default function SettingsPage() {
                         <TabsTrigger value="preferences">Preferences</TabsTrigger>
                         <TabsTrigger value="pipelines">Data Pipelines</TabsTrigger> {/* New Tab */}
                         <TabsTrigger value="workspace" disabled>Workspace</TabsTrigger>
-                        <TabsTrigger value="account" disabled>Account</TabsTrigger>
+                        <TabsTrigger value="account">Account</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="preferences" className="space-y-4">
@@ -38,6 +38,18 @@ export default function SettingsPage() {
                     <TabsContent value="workspace">
                         {/* Future Workspace Settings */}
                     </TabsContent>
+
+                    {/* Advanced settings — previously URL-only orphans (UI gap #8) */}
+                    <div className="pt-6 border-t border-border mt-6">
+                        <h3 className="text-sm font-medium text-muted-foreground mb-2">Advanced</h3>
+                        <div className="flex flex-wrap gap-3 text-sm">
+                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/ai">AI Providers</a>
+                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/account">Account, Password & 2FA</a>
+                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/routing">LLM Routing</a>
+                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/local-models">Local Models (Ollama)</a>
+                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/sessions">Sessions</a>
+                        </div>
+                    </div>
                 </Tabs>
             </div>
         </>

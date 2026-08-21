@@ -122,6 +122,7 @@ class CommunityHierarchy:
     root_communities: List[Community] = field(default_factory=list)
     levels: Dict[int, List[Community]] = field(default_factory=dict)
     max_depth: int = 0
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -199,7 +200,10 @@ class LeidenAlgorithm:
         """Detect using python-louvain/igraph libraries"""
         try:
             import igraph as ig
-            from leidenalg import ModularityVertexPartition, find_partition
+            # leidenalg 0.10+ removed resolution_parameter from
+            # ModularityVertexPartition; RBConfigurationVertexPartition is the
+            # resolution-carrying partition type (compatible across versions).
+            from leidenalg import RBConfigurationVertexPartition, find_partition
 
             # Convert NetworkX to igraph
             g = self._nx_to_igraph(graph)
@@ -207,7 +211,7 @@ class LeidenAlgorithm:
             # Run Leiden
             partition = find_partition(
                 g,
-                ModularityVertexPartition,
+                RBConfigurationVertexPartition,
                 resolution_parameter=resolution,
                 n_iterations=-1  # Run until convergence
             )
@@ -363,7 +367,9 @@ class CommunityDetectionService:
         self,
         workspace_id: str,
         session: Optional[Session] = None,
-        store_results: bool = True
+        store_results: bool = True,
+        window_start: Optional[datetime] = None,
+        window_end: Optional[datetime] = None
     ) -> DetectionResult:
         """
         Detect communities in workspace graph.
@@ -372,27 +378,40 @@ class CommunityDetectionService:
             workspace_id: Workspace identifier
             session: Optional database session
             store_results: Whether to store results in database
+            window_start: Optional W1 time-window start (exclusive for edge
+                validity: edges invalidated at or before it are pruned)
+            window_end: Optional W1 time-window end (inclusive: only edges
+                born at or before it, and nodes created at or before it)
 
         Returns:
             DetectionResult with detected communities
         """
         if session is None:
             with get_db_session() as sess:
-                return self._detect_impl(workspace_id, sess, store_results)
+                return self._detect_impl(workspace_id, sess, store_results, window_start, window_end)
         else:
-            return self._detect_impl(workspace_id, session, store_results)
+            return self._detect_impl(workspace_id, session, store_results, window_start, window_end)
 
     def _detect_impl(
         self,
         workspace_id: str,
         session: Session,
-        store_results: bool
+        store_results: bool,
+        window_start: Optional[datetime] = None,
+        window_end: Optional[datetime] = None
     ) -> DetectionResult:
         """Internal detection implementation"""
         start_time = datetime.now()
 
-        # Build graph from database
-        graph = self._build_graph(workspace_id, session)
+        # Build graph from database (W1: window filters apply here)
+        graph = self._build_graph(workspace_id, session, window_start, window_end)
+
+        def _with_window_meta(metadata: Dict[str, Any]) -> Dict[str, Any]:
+            if window_start is not None:
+                metadata["window_start"] = window_start.isoformat()
+            if window_end is not None:
+                metadata["window_end"] = window_end.isoformat()
+            return metadata
 
         if graph.number_of_nodes() < self.config.min_community_size:
             logger.info(f"Graph too small for community detection: {graph.number_of_nodes()} nodes")
@@ -400,7 +419,7 @@ class CommunityDetectionService:
                 num_communities=0,
                 modularity=0.0,
                 coverage=0.0,
-                metadata={"reason": "graph_too_small"}
+                metadata=_with_window_meta({"reason": "graph_too_small"})
             )
 
         # Determine resolution
@@ -408,6 +427,7 @@ class CommunityDetectionService:
 
         # Run detection
         result = self.leiden.detect(graph, resolution)
+        result.metadata = _with_window_meta(result.metadata)
         result.metadata["workspace_id"] = workspace_id
         result.metadata["graph_nodes"] = graph.number_of_nodes()
         result.metadata["graph_edges"] = graph.number_of_edges()
@@ -426,25 +446,59 @@ class CommunityDetectionService:
 
         return result
 
-    def _build_graph(self, workspace_id: str, session: Session) -> 'nx.Graph':
-        """Build NetworkX graph from database"""
+    def _build_graph(
+        self,
+        workspace_id: str,
+        session: Session,
+        window_start: Optional[datetime] = None,
+        window_end: Optional[datetime] = None
+    ) -> 'nx.Graph':
+        """Build NetworkX graph from database.
+
+        With a W1 window the graph snapshots the network as it was at that
+        point in time: nodes must have been created at or before
+        ``window_end``, and edges must overlap the window interval
+        (born at or before ``window_end`` and never invalidated before
+        ``window_start``). NULL bi-temporal fields are treated as always
+        valid so legacy rows are never dropped.
+        """
         if not NETWORKX_AVAILABLE:
             raise ImportError("NetworkX required for graph operations")
+
+        windowed = window_start is not None or window_end is not None
 
         graph = nx.Graph()
 
         # Add nodes
-        nodes = session.query(GraphNode).filter(
+        nodes_query = session.query(GraphNode).filter(
             GraphNode.workspace_id == workspace_id
-        ).all()
+        )
+        if windowed and window_end is not None:
+            nodes_query = nodes_query.filter(
+                (GraphNode.created_at.is_(None)) | (GraphNode.created_at <= window_end)
+            )
+        nodes = nodes_query.all()
 
         for node in nodes:
             graph.add_node(str(node.id), name=node.name, type=node.type)
 
         # Add edges
-        edges = session.query(GraphEdge).filter(
+        edges_query = session.query(GraphEdge).filter(
             GraphEdge.workspace_id == workspace_id
-        ).all()
+        )
+        if windowed:
+            edge_conds = []
+            if window_end is not None:
+                edge_conds.append(
+                    (GraphEdge.valid_from.is_(None)) | (GraphEdge.valid_from <= window_end)
+                )
+            if window_start is not None:
+                edge_conds.append(
+                    (GraphEdge.invalid_at.is_(None)) | (GraphEdge.invalid_at > window_start)
+                )
+            if edge_conds:
+                edges_query = edges_query.filter(*edge_conds)
+        edges = edges_query.all()
 
         for edge in edges:
             weight = edge.properties.get('weight', 1.0) if edge.properties else 1.0
@@ -539,43 +593,73 @@ class CommunityDetectionService:
         workspace_id: str,
         session: Session
     ) -> None:
-        """Store detected communities in database"""
-        try:
-            # Clear existing communities for this workspace. Capture the ids
-            # BEFORE deleting so the membership cleanup can target them (the
-            # delete below removes the rows the subquery would read).
-            old_ids = [
-                r[0]
-                for r in session.query(GraphCommunity.id).filter(
-                    GraphCommunity.workspace_id == workspace_id
-                ).all()
-            ]
-            if old_ids:
-                session.query(CommunityMembership).filter(
-                    CommunityMembership.community_id.in_(old_ids)
-                ).delete(synchronize_session=False)
-            session.query(GraphCommunity).filter(
+        """Store detected communities in database (replace-wipe per workspace)."""
+        self._persist_communities(result.communities, workspace_id, session)
+
+    def _clear_workspace_communities(
+        self,
+        session: Session,
+        workspace_id: str
+    ) -> None:
+        """Delete all GraphCommunity + membership rows for a workspace."""
+        # Capture the ids BEFORE deleting so the membership cleanup can target
+        # them (the delete below removes the rows the subquery would read).
+        old_ids = [
+            r[0]
+            for r in session.query(GraphCommunity.id).filter(
                 GraphCommunity.workspace_id == workspace_id
-            ).delete()
+            ).all()
+        ]
+        if old_ids:
+            session.query(CommunityMembership).filter(
+                CommunityMembership.community_id.in_(old_ids)
+            ).delete(synchronize_session=False)
+        session.query(GraphCommunity).filter(
+            GraphCommunity.workspace_id == workspace_id
+        ).delete()
 
-            # Store new communities
-            for community in result.communities:
-                # Generated ids ("comm_<i>", "leiden_comm_<i>") are per-run
-                # counters, NOT unique across workspaces — but GraphCommunity.id
-                # is a global PK, so the second workspace's insert would
-                # collide and roll back the whole store. Mint a fresh UUID for
-                # persistence; the in-memory id keeps its display value.
-                import uuid as _uuid
+    def _persist_communities(
+        self,
+        communities: List[Community],
+        workspace_id: str,
+        session: Session
+    ) -> None:
+        """Persist communities (replace-wipe) resolving parent lineage.
 
+        Generated ids ("comm_<i>", "leiden_comm_<i>") are per-run counters that
+        recur at EVERY hierarchy level, so the persisted-id map is keyed by
+        (id, level) — a bare id map would let a child resolve its own freshly
+        minted uuid (self-parenting). Parents resolve to the community at
+        level-1 with the same id, or stay NULL (never a dangling id).
+        """
+        try:
+            self._clear_workspace_communities(session, workspace_id)
+
+            import uuid as _uuid
+
+            id_map: Dict[Tuple[str, int], str] = {}
+            for community in communities:
+                # Generated ids are NOT unique across workspaces — but
+                # GraphCommunity.id is a global PK, so the second workspace's
+                # insert would collide and roll back the whole store. Mint a
+                # fresh UUID for persistence; the in-memory id keeps its
+                # display value.
                 comm_id = (
                     str(_uuid.uuid4())
                     if community.id.startswith(("comm_", "leiden_comm_"))
                     else community.id
                 )
+                id_map[(community.id, community.level)] = comm_id
+                parent_id = None
+                if community.parent_community:
+                    parent_id = id_map.get(
+                        (community.parent_community, community.level - 1)
+                    )
                 db_comm = GraphCommunity(
                     id=comm_id,
                     workspace_id=workspace_id,
                     level=community.level,
+                    parent_community_id=parent_id,
                     # Model columns only (create_all authority): summary is the
                     # single free-text field — fall back to description/name so
                     # the community's identity survives persistence.
@@ -598,34 +682,99 @@ class CommunityDetectionService:
                     session.add(membership)
 
             session.commit()
-            logger.info(f"Stored {len(result.communities)} communities for workspace {workspace_id}")
+            logger.info(f"Stored {len(communities)} communities for workspace {workspace_id}")
 
         except Exception as e:
             session.rollback()
             logger.error(f"Failed to store communities: {e}")
 
+    def _link_hierarchy(self, hierarchy: CommunityHierarchy) -> None:
+        """Link each child community to the previous-level community with
+        MAXIMAL node overlap (containment heuristic — multi-resolution
+        partitions are not guaranteed nested). Ties resolve to the first
+        parent; children with zero overlap stay unparented. Populates
+        ``Community.parent_community`` and ``Community.child_communities``
+        in-memory; the persisted column mirrors it via ``_store_hierarchy``.
+        """
+        if hierarchy.max_depth < 2:
+            return
+        for level in range(1, hierarchy.max_depth):
+            parents = hierarchy.levels.get(level - 1, [])
+            if not parents:
+                continue
+            for child in hierarchy.levels.get(level, []):
+                child_nodes = child.nodes
+                if not child_nodes:
+                    continue
+                best_parent = None
+                best_overlap = 0.0
+                for parent in parents:
+                    if not parent.nodes:
+                        continue
+                    overlap = len(child_nodes & parent.nodes) / len(child_nodes)
+                    if overlap > best_overlap:
+                        best_overlap = overlap
+                        best_parent = parent
+                if best_parent is not None:
+                    child.parent_community = best_parent.id
+                    best_parent.child_communities.append(child.id)
+
+    def _store_hierarchy(
+        self,
+        hierarchy: CommunityHierarchy,
+        workspace_id: str,
+        session: Session
+    ) -> None:
+        """Persist every hierarchy level with parent lineage (replace-wipe)."""
+        flattened: List[Community] = []
+        for level in sorted(hierarchy.levels):
+            flattened.extend(hierarchy.levels[level])
+        self._persist_communities(flattened, workspace_id, session)
+
     def detect_hierarchy(
         self,
         workspace_id: str,
-        session: Optional[Session] = None
+        session: Optional[Session] = None,
+        store_results: bool = True,
+        window_start: Optional[datetime] = None,
+        window_end: Optional[datetime] = None
     ) -> CommunityHierarchy:
         """
         Detect hierarchical community structure.
 
-        Returns communities at multiple resolutions.
+        Detects communities at multiple resolutions (``min_resolution`` ->
+        ``max_resolution`` over ``max_hierarchy_depth`` levels), links each
+        child to the previous-level community with maximal node overlap
+        (W2 lineage), and with ``store_results`` persists every level into
+        ``graph_communities`` with ``parent_community_id`` lineage.
+
+        With a W3 time window the graph snapshots the network as it was at
+        that point in time before EVERY resolution runs (same semantics as
+        W1's ``detect_communities``: nodes created at or before
+        ``window_end``; edges overlapping the interval). The window is
+        recorded in ``CommunityHierarchy.metadata``.
+
+        Returns communities at multiple resolutions (with lineage when stored).
         """
         hierarchy = CommunityHierarchy()
 
         if session is None:
             with get_db_session() as sess:
-                return self._detect_hierarchy_impl(workspace_id, sess)
+                return self._detect_hierarchy_impl(
+                    workspace_id, sess, store_results, window_start, window_end
+                )
         else:
-            return self._detect_hierarchy_impl(workspace_id, session)
+            return self._detect_hierarchy_impl(
+                workspace_id, session, store_results, window_start, window_end
+            )
 
     def _detect_hierarchy_impl(
         self,
         workspace_id: str,
-        session: Session
+        session: Session,
+        store_results: bool = True,
+        window_start: Optional[datetime] = None,
+        window_end: Optional[datetime] = None
     ) -> CommunityHierarchy:
         """Internal hierarchy detection implementation"""
         if not self.config.enable_hierarchy:
@@ -633,8 +782,14 @@ class CommunityDetectionService:
 
         hierarchy = CommunityHierarchy()
 
-        # Build graph
-        graph = self._build_graph(workspace_id, session)
+        # Build graph (W3: window filters apply here, before every resolution)
+        graph = self._build_graph(workspace_id, session, window_start, window_end)
+        if window_start is not None:
+            hierarchy.metadata["window_start"] = window_start.isoformat()
+        if window_end is not None:
+            hierarchy.metadata["window_end"] = window_end.isoformat()
+        hierarchy.metadata["graph_nodes"] = graph.number_of_nodes()
+        hierarchy.metadata["graph_edges"] = graph.number_of_edges()
 
         # Detect at multiple resolutions
         resolutions = np.linspace(
@@ -655,6 +810,11 @@ class CommunityDetectionService:
             hierarchy.max_depth = max(hierarchy.max_depth, level + 1)
 
         hierarchy.root_communities = hierarchy.levels.get(0, [])
+
+        # W2: lineage (max-overlap parent/child nesting) + optional persistence
+        self._link_hierarchy(hierarchy)
+        if store_results and hierarchy.max_depth > 0:
+            self._store_hierarchy(hierarchy, workspace_id, session)
 
         logger.info(
             f"Detected hierarchy with {hierarchy.max_depth} levels, "

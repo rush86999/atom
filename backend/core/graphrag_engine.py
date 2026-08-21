@@ -644,7 +644,12 @@ class GraphRAGEngine:
                     session.add(node)
                     
                 session.commit()
-                
+
+                # Vector index (P1.5): mirror the node into the LanceDB
+                # graph_nodes table so local_search's vector leg works on
+                # SQLite (the pgvector leg only ever ran on Postgres).
+                self._index_node_vector(entity.id, entity.name, entity.entity_type, entity.description, ws_id)
+
                 # Trigger Automation. Keep a strong ref so the task isn't
                 # GC'd before the event fires.
                 if AUTOMATION_AVAILABLE:
@@ -1031,6 +1036,8 @@ class GraphRAGEngine:
                             target_node_id=dst,
                             relationship_type=rel_type,
                             properties=props,
+                            # Bi-temporal (P2.2): new facts are valid from now
+                            valid_from=datetime.utcnow(),
                         )
                         session.add(edge)
 
@@ -1096,11 +1103,95 @@ class GraphRAGEngine:
 
     # ==================== READ OPERATIONS (SQL) ====================
 
+    # ---- Vector index (P1.5): LanceDB mirror of graph nodes ---------------
+    # The pgvector vector leg only ever ran on Postgres (the `<=>` operator
+    # fails on SQLite), leaving Personal Edition keyword-only. Nodes are
+    # mirrored into a LanceDB `graph_nodes` table (id = node id) which works
+    # on every backend.
+
+    def _index_node_vector(self, node_id, name, entity_type, description, ws_id) -> bool:
+        """Mirror a node into the LanceDB graph_nodes table. node_id/name/type
+        ride in the metadata JSON (schema-safe against pre-existing tables);
+        the row id is the node id. Returns add success."""
+        try:
+            from core.lancedb_handler import get_lancedb_handler
+
+            handler = get_lancedb_handler(ws_id)
+            text = f"{name} ({entity_type}): {description or ''}"
+            return bool(handler.add_document(
+                "graph_nodes",
+                text,
+                source="graphrag",
+                metadata={"node_id": node_id, "name": name, "type": entity_type},
+                extra_columns={"id": node_id},
+            ))
+        except Exception as e:
+            logger.debug(f"graph node vector index failed for {node_id}: {e}")
+            return False
+
+    # ---- Bi-temporal edges (P2.2) -------------------------------------------
+    def invalidate_edge(self, edge_id: str, reason: str) -> bool:
+        """Mark an edge superseded (invalidated, never deleted — full history
+        preserved for 'what was true as of date X' queries)."""
+        try:
+            with get_db_session() as session:
+                edge = session.query(GraphEdge).filter(GraphEdge.id == edge_id).first()
+                if not edge or edge.invalid_at is not None:
+                    return False
+                edge.invalid_at = datetime.utcnow()
+                edge.invalidation_reason = reason or "superseded"
+                session.commit()
+                return True
+        except Exception as e:
+            logger.error(f"invalidate_edge failed: {e}")
+            return False
+
+    def edges_as_of(self, as_of: datetime, workspace_id: Optional[str] = None) -> List[Dict]:
+        """Point-in-time edge list (bi-temporal read): edges whose valid_from
+        ≤ as_of and (invalid_at is null or invalid_at > as_of)."""
+        ws_id = workspace_id or self.workspace_id
+        try:
+            with get_db_session() as session:
+                rows = session.query(GraphEdge).filter(
+                    GraphEdge.workspace_id == ws_id,
+                    GraphEdge.valid_from <= as_of,
+                    (GraphEdge.invalid_at.is_(None)) | (GraphEdge.invalid_at > as_of),
+                ).all()
+                return [{
+                    "id": r.id, "source": r.source_node_id, "target": r.target_node_id,
+                    "type": r.relationship_type, "valid_from": str(r.valid_from),
+                    "invalid_at": str(r.invalid_at),
+                } for r in rows]
+        except Exception as e:
+            logger.error(f"edges_as_of failed: {e}")
+            return []
+
+    def backfill_node_vectors(self, workspace_id: Optional[str] = None) -> Dict[str, int]:
+        """(Re)embed all graph nodes for a workspace into the LanceDB
+        graph_nodes table. Idempotent per node id (LanceDB rows are
+        appended — call drop_table('graph_nodes') first for a clean rebuild)."""
+        ws_id = workspace_id or self.workspace_id
+        embedded = skipped = 0
+        try:
+            with get_db_session() as session:
+                nodes = session.query(GraphNode).filter(
+                    GraphNode.workspace_id == ws_id
+                ).all()
+            for n in nodes:
+                if self._index_node_vector(n.id, n.name, n.type, n.description, ws_id):
+                    embedded += 1
+                else:
+                    skipped += 1
+        except Exception as e:
+            logger.error(f"backfill_node_vectors failed: {e}")
+        return {"embedded": embedded, "skipped": skipped, "workspace": ws_id}
+
     def local_search(self, workspace_id: Optional[str] = None,
                      tenant_id: Optional[str] = None,
                      query: str = "", depth: int = 2,
                      exclude_doc_ids: Optional[set] = None,
-                     include_stale: bool = False) -> Dict[str, Any]:
+                     include_stale: bool = False,
+                     as_of: Optional[datetime] = None) -> Dict[str, Any]:
         """Perform Local Search using Recursive CTE (BFS) with Bidirectional Traversal.
 
         Freshness cascade: by default, graph nodes/edges whose origin document
@@ -1109,9 +1200,28 @@ class GraphRAGEngine:
         ``ingested_documents`` table unless the caller supplies
         ``exclude_doc_ids``. Pass ``include_stale=True`` to bypass (admin/
         observability). See core/doc_freshness_service.py.
+
+        W4 time travel: ``as_of`` prunes edges that were not alive at that
+        instant from the CTE traversal and the relationship listing
+        (``valid_from <= as_of`` and ``invalid_at`` null or ``> as_of``).
+        Nodes carry no bi-temporal fields, so they are never time-filtered.
+        ``None`` = legacy behavior (``invalid_at IS NULL`` only, byte-identical
+        SQL). The cutoff is recorded in the result as ``as_of`` (ISO string).
         """
         ws_id = workspace_id or self.workspace_id
         tid = tenant_id or self.tenant_id or "default"
+
+        # W4: edge-alive predicate. When as_of is absent the legacy fragment
+        # ``e.invalid_at IS NULL`` is emitted verbatim (no params injected).
+        as_of_extra: Dict[str, Any] = {}
+        if as_of is not None:
+            as_of_extra["as_of"] = as_of
+        edge_alive = (
+            "(e.invalid_at IS NULL OR e.invalid_at > :as_of)"
+            " AND (e.valid_from IS NULL OR e.valid_from <= :as_of)"
+            if as_of is not None
+            else "e.invalid_at IS NULL"
+        )
 
         def _run_sync(coro):
             import asyncio
@@ -1194,44 +1304,80 @@ class GraphRAGEngine:
                             f"OR json_extract(target.properties, '$.doc_id') NOT IN ({ids_csv}))"
                         )
 
-                # -- Vector leg --
+                # -- Vector leg (LanceDB graph_nodes mirror — works on SQLite
+                # and Postgres alike; the old pgvector `<=>` leg never ran
+                # on SQLite, leaving Personal Edition keyword-only) --
                 vector_nodes = []
-                if query_embedding:
-                    try:
-                        # node_fresh_anchor uses alias ``n``; alias graph_nodes
-                        # as n here so the same fragment applies.
-                        vector_sql = text(f"""
-                            SELECT id, name, type, description
-                            FROM graph_nodes n
-                            WHERE workspace_id = :ws_id
-                            AND embedding IS NOT NULL
-                            {node_fresh_anchor}
-                            ORDER BY embedding <=> :query_embedding
-                            LIMIT 5
-                        """)
-                        vector_nodes = session.execute(
-                            vector_sql, {
-                                "ws_id": ws_id,
-                                "query_embedding": query_embedding
-                            }
-                        ).fetchall()
-                        logger.info(f"Hybrid search: vector leg found {len(vector_nodes)} nodes")
-                    except Exception as pg_err:
-                        logger.debug(f"pgvector query failed (hybrid): {pg_err}")
+                try:
+                    import json as _json
+
+                    from core.lancedb_handler import get_lancedb_handler
+
+                    handler = get_lancedb_handler(ws_id)
+                    vec_rows = handler.search("graph_nodes", query, limit=5) or []
+                    seen: set = set()
+                    vec_ids = []
+                    for r in vec_rows:
+                        # node_id rides in the metadata JSON (schema-safe)
+                        raw_meta = r.get("metadata")
+                        try:
+                            meta = _json.loads(raw_meta) if isinstance(raw_meta, str) else (raw_meta or {})
+                        except Exception:
+                            meta = {}
+                        nid = str(meta.get("node_id") or r.get("node_id") or r.get("id") or "")
+                        if nid and nid not in seen:
+                            seen.add(nid)
+                            vec_ids.append(nid)
+                    if vec_ids:
+                        safe_ids = ", ".join(
+                            "'" + str(i).replace("'", "''") + "'" for i in vec_ids
+                        )
+                        vector_nodes = session.execute(text(
+                            f"SELECT id, name, type, description FROM graph_nodes "
+                            f"WHERE id IN ({safe_ids})"
+                        )).fetchall()
+                    logger.info(f"Hybrid search: vector leg found {len(vector_nodes)} nodes")
+                except Exception as lanc_err:
+                    logger.debug(f"LanceDB graph vector leg failed: {lanc_err}")
 
                 # -- Keyword leg (always runs) --
+                # Match on extracted search terms, not the raw query: a
+                # natural-language question ("What did ACME inquire about?")
+                # is never a substring of a node name, so the old full-query
+                # LIKE returned ~0 entities for every conversational lookup.
                 like_op = "ILIKE" if is_postgres else "LIKE"
-                keyword_sql = text(f"""
-                    SELECT id, name, type, description
-                    FROM graph_nodes n
-                    WHERE workspace_id = :ws_id
-                    AND name {like_op} :query
-                    {node_fresh_anchor}
-                    LIMIT 5
-                """)
-                keyword_nodes = session.execute(
-                    keyword_sql, {"ws_id": ws_id, "query": f"%{query}%"}
-                ).fetchall()
+                _stop = {
+                    "what", "which", "who", "whom", "whose", "when", "where",
+                    "why", "how", "did", "does", "do", "is", "are", "was",
+                    "were", "the", "a", "an", "of", "for", "about", "on",
+                    "in", "to", "from", "with", "and", "or", "their", "they",
+                    "our", "we", "you", "me", "tell", "give", "show", "find",
+                    "any", "all", "that", "this", "it",
+                }
+                terms = [
+                    w for w in query.replace("?", " ").replace(",", " ").split()
+                    if len(w) > 2 and w.lower() not in _stop
+                ][:8]
+                if terms:
+                    term_clauses = " OR ".join(
+                        f"(name {like_op} :term_{i} OR description {like_op} :term_{i})"
+                        for i in range(len(terms))
+                    )
+                    keyword_sql = text(f"""
+                        SELECT id, name, type, description
+                        FROM graph_nodes n
+                        WHERE workspace_id = :ws_id
+                        AND ({term_clauses})
+                        {node_fresh_anchor}
+                        LIMIT 5
+                    """)
+                    keyword_params = {
+                        "ws_id": ws_id,
+                        **{f"term_{i}": f"%{t}%" for i, t in enumerate(terms)},
+                    }
+                    keyword_nodes = session.execute(keyword_sql, keyword_params).fetchall()
+                else:
+                    keyword_nodes = []
                 logger.info(f"Hybrid search: keyword leg found {len(keyword_nodes)} nodes")
 
                 # -- Union & deduplicate by ID --
@@ -1276,7 +1422,7 @@ class GraphRAGEngine:
                                 t.depth + 1,
                                 t.path || target.id
                             FROM traversal t
-                            JOIN graph_edges e ON (e.source_node_id = t.id OR e.target_node_id = t.id)
+                            JOIN graph_edges e ON ((e.source_node_id = t.id OR e.target_node_id = t.id) AND {edge_alive})
                             JOIN graph_nodes target ON (
                                 CASE
                                     WHEN e.source_node_id = t.id THEN e.target_node_id = target.id
@@ -1297,16 +1443,18 @@ class GraphRAGEngine:
                         FROM graph_edges e
                         WHERE (e.source_node_id = ANY(:node_ids) OR e.target_node_id = ANY(:node_ids))
                         AND e.workspace_id = :ws_id
+                        AND {edge_alive}
                         LIMIT 50
                     """)
 
                     nodes_result = session.execute(traversal_sql, {
                         "max_depth": depth,
-                        "ws_id": ws_id
+                        "ws_id": ws_id,
+                        **as_of_extra,
                     }).fetchall()
 
                     found_node_ids = [n.id for n in nodes_result]
-                    edges_result = session.execute(edges_sql, {"node_ids": found_node_ids, "ws_id": ws_id}).fetchall()
+                    edges_result = session.execute(edges_sql, {"node_ids": found_node_ids, "ws_id": ws_id, **as_of_extra}).fetchall()
                 else:
                     # SQLite / Fallback CTE with string path cycle detection
                     traversal_sql = text(f"""
@@ -1324,7 +1472,7 @@ class GraphRAGEngine:
                                 t.depth + 1,
                                 t.path || target.id || ','
                             FROM traversal t
-                            JOIN graph_edges e ON (e.source_node_id = t.id OR e.target_node_id = t.id)
+                            JOIN graph_edges e ON ((e.source_node_id = t.id OR e.target_node_id = t.id) AND {edge_alive})
                             JOIN graph_nodes target ON (
                                 CASE
                                     WHEN e.source_node_id = t.id THEN e.target_node_id = target.id
@@ -1343,7 +1491,8 @@ class GraphRAGEngine:
 
                     nodes_result = session.execute(traversal_sql, {
                         "max_depth": depth,
-                        "ws_id": ws_id
+                        "ws_id": ws_id,
+                        **as_of_extra,
                     }).fetchall()
 
                     found_node_ids = [n.id for n in nodes_result]
@@ -1354,9 +1503,10 @@ class GraphRAGEngine:
                             FROM graph_edges e
                             WHERE (e.source_node_id IN ({found_ids_str}) OR e.target_node_id IN ({found_ids_str}))
                             AND e.workspace_id = :ws_id
+                            AND {edge_alive}
                             LIMIT 50
                         """)
-                        edges_result = session.execute(edges_sql, {"ws_id": ws_id}).fetchall()
+                        edges_result = session.execute(edges_sql, {"ws_id": ws_id, **as_of_extra}).fetchall()
                     else:
                         edges_result = []
 
@@ -1379,6 +1529,7 @@ class GraphRAGEngine:
                         workspace_id=ws_id,
                         max_depth=depth,
                         session=session,
+                        as_of=as_of,
                     )
                     multi_hop_paths = [
                         {"nodes": p.node_ids, "relevance": p.relevance_score, "hops": p.hops}
@@ -1393,7 +1544,8 @@ class GraphRAGEngine:
                     "entities": entities,
                     "relationships": relationships,
                     "multi_hop_paths": multi_hop_paths,
-                    "count": len(entities)
+                    "count": len(entities),
+                    **({"as_of": as_of.isoformat()} if as_of is not None else {}),
                 }
             except Exception as e:
                 logger.error(f"Local search failed: {e}")
@@ -1479,8 +1631,14 @@ class GraphRAGEngine:
 
     async def query(self, workspace_id: Optional[str] = None, 
                     tenant_id: Optional[str] = None,
-                    query: str = "", mode: str = "auto") -> Dict[str, Any]:
-        """Unified query entry point (Async)."""
+                    query: str = "", mode: str = "auto",
+                    as_of: Optional[datetime] = None) -> Dict[str, Any]:
+        """Unified query entry point (Async).
+
+        W4: ``as_of`` threads into local mode only — global mode answers from
+        persisted community summaries, which carry no validity interval to
+        filter on (documented in docs/architecture/TEMPORAL_EVOLUTION.md).
+        """
         ws_id = workspace_id or self.workspace_id
         tid = tenant_id or self.tenant_id
 
@@ -1491,16 +1649,26 @@ class GraphRAGEngine:
         if mode == "global":
             return await self.global_search(ws_id, tid, query)
         else:
-            return self.local_search(ws_id, tid, query)
+            # to_thread: local_search's LanceDB vector leg calls the sync
+            # embed_text, which no-ops in the event-loop thread (async-context
+            # guard) — the vector leg silently returned [] from every async
+            # caller. A worker thread embeds fine.
+            return await asyncio.to_thread(
+                self.local_search, ws_id, tid, query, 2, None, False, as_of
+            )
 
     async def get_context_for_ai(self, workspace_id: Optional[str] = None, 
                                tenant_id: Optional[str] = None,
-                               query: str = "") -> str:
-        """Format context for AI prompt (Async)."""
+                               query: str = "",
+                               as_of: Optional[datetime] = None) -> str:
+        """Format context for AI prompt (Async).
+
+        W4: ``as_of`` threads through to ``query`` (local mode only).
+        """
         ws_id = workspace_id or self.workspace_id
         tid = tenant_id or self.tenant_id
         
-        result = await self.query(ws_id, tid, query)
+        result = await self.query(ws_id, tid, query, as_of=as_of)
         if result.get("mode") == "global":
             return f"Global Context: {result.get('answer')}"
         
@@ -1509,8 +1677,37 @@ class GraphRAGEngine:
         id_to_name = {e['id']: e['name'] for e in entities}
         
         context_lines = [f"Found {len(entities)} relevant entities:"]
+
+        # Business properties (price, stock, sku, status…) live on the node's
+        # `properties` JSON, which the search legs don't select. Re-hydrate
+        # them so the injected context can answer "what's the price / stock"
+        # questions — the most common employee lookup — without a second query.
+        prop_map: Dict[str, Dict[str, Any]] = {}
+        try:
+            ent_ids = [e["id"] for e in entities[:15] if e.get("id")]
+            if ent_ids:
+                with get_db_session() as session:
+                    rows = session.query(GraphNode).filter(
+                        GraphNode.id.in_(ent_ids)
+                    ).all()
+                    prop_map = {r.id: (r.properties or {}) for r in rows}
+        except Exception as prop_err:
+            logger.debug(f"property hydration failed: {prop_err}")
+
+        _PROP_EXCLUDE = {
+            "id", "source", "created_at", "updated_at", "embedding",
+            "sensitivity", "doc_id", "workspace_id", "tenant_id",
+        }
         for e in entities[:15]:
-            context_lines.append(f"- {e['name']} ({e['type']}): {e.get('description', '')}")
+            line = f"- {e['name']} ({e['type']}): {e.get('description', '')}"
+            props = prop_map.get(e.get("id")) or {}
+            salient = [
+                f"{k}={v}" for k, v in props.items()
+                if k not in _PROP_EXCLUDE and v not in (None, "", [], {})
+            ][:12]
+            if salient:
+                line += " [" + "; ".join(str(s) for s in salient) + "]"
+            context_lines.append(line)
             
         context_lines.append("\nRelationships:")
         for r in rels[:25]:

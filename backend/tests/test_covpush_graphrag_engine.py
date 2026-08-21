@@ -559,20 +559,23 @@ class TestLocalSearch:
 
         session = Mock()
         session.bind = SimpleNamespace(dialect=SimpleNamespace(name="postgresql"))
-        session.execute = Mock(side_effect=[vector_result, keyword_result,
-                                            traversal_result, edges_result])
+        session.execute = Mock(side_effect=[keyword_result, traversal_result,
+                                            edges_result])
         g.llm_service.generate_embedding = AsyncMock(return_value=[0.1, 0.2])
 
         expander = Mock()
         expander.expand_sql = Mock(return_value=SimpleNamespace(paths=[]))
         with _db_ctx(session), patch(
             "core.graphrag.multi_hop_expansion.get_sql_expander", return_value=expander
+        ), patch(
+            "core.lancedb_handler.get_lancedb_handler",
+            return_value=Mock(search=Mock(return_value=[])),
         ):
             result = g.local_search("ws-1", "t-1", query="Alpha", depth=2,
                                     exclude_doc_ids={"stale1"})
         assert result["entities"][0]["id"] == "n1"
         assert result["relationships"][0]["type"] == "rel"
-        assert session.execute.call_count == 4
+        assert session.execute.call_count == 3
 
     def test_pg_branch_uses_array_binding(self, g):
         row = SimpleNamespace(id="n1", name="Alpha", type="org", description="d")
@@ -591,16 +594,21 @@ class TestLocalSearch:
             "core.graphrag.multi_hop_expansion.get_sql_expander", Mock(return_value=Mock(
                 expand_sql=Mock(return_value=SimpleNamespace(paths=[]))
             ))
+        ), patch(
+            "core.lancedb_handler.get_lancedb_handler",
+            return_value=Mock(search=Mock(return_value=[])),
         ):
             result = g.local_search("ws-1", "t-1", query="Alpha")
         assert result["entities"][0]["id"] == "n1"
 
     def test_query_exception_returns_error_dict(self, g, session):
+        session.add(GraphNode(id="n1", workspace_id="ws-1", name="Target", type="task"))
+        session.commit()
         orig_execute = session.execute
         session.execute = Mock(side_effect=RuntimeError("db down"))
         try:
             with _db_ctx(session):
-                result = g.local_search("ws-1", "t-1", query="x")
+                result = g.local_search("ws-1", "t-1", query="Target")
             assert result["error"] is not None
             assert result["mode"] == "local"
         finally:

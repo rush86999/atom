@@ -132,6 +132,17 @@ const IntegrationsPage: React.FC = () => {
 
     // Communication & Collaboration
     {
+      id: "telegram",
+      name: "Telegram",
+      description: "Teammate IM channel — long-polling bot, no public URL needed (see IM Adapter Setup)",
+      category: "communication",
+      status: "complete",
+      connected: false,
+      icon: MessageSquare,
+      color: "text-sky-500",
+      documentation: "https://core.telegram.org/bots/api",
+    },
+    {
       id: "slack",
       name: "Slack",
       description: "Team communication and collaboration platform",

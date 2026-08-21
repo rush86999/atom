@@ -47,7 +47,7 @@ export const CollaborativeCursor = React.forwardRef<CollaborativeCursorHandle, C
 
     // Derive WS base from NEXT_PUBLIC_API_URL (env-configurable), matching
     // the useWebSocket hook pattern. Was hardcoded ws://localhost:8000.
-    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, '');
     const wsBase = apiBase.replace(/^http/, 'ws');
     const wsUrl = `${wsBase}/ws/${sessionId}/${currentUserId}`;
     wsRef.current = new WebSocket(wsUrl);

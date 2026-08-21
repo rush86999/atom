@@ -20,7 +20,7 @@ from alembic import op
 
 
 revision: str = "20260808_documents_fts"
-down_revision: Union[str, Sequence[str], None] = "0e360bb1a3d3_agent_message_from_user"
+down_revision: Union[str, Sequence[str], None] = "0e360bb1a3d3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -15,7 +15,7 @@ import Link from "next/link";
 import { FaBell, FaCheckCircle } from "react-icons/fa";
 import { cn } from "@/lib/utils";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 interface NotificationItem {
     id: string;

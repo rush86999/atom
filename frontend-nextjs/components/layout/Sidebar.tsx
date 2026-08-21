@@ -90,6 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 { label: "Kanban", icon: KanbanSquare, path: "/boards" },
                 { label: "Automations", icon: Play, path: "/automations" },
                 { label: "Agents", icon: Bot, path: "/agents" },
+                { label: "Approvals", icon: CheckSquare, path: "/approvals" },
                 { label: "Marketplace", icon: Store, path: "/marketplace" },
             ]
         },
@@ -125,6 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             items: [
                 { label: "JIT Verification", icon: Shield, path: "/admin/jit-verification" },
                 { label: "Business Facts", icon: CheckCircle, path: "/admin/business-facts" },
+                { label: "User Management", icon: Shield, path: "/admin/users" },
             ]
         },
         {

@@ -702,6 +702,8 @@ describe('OutlookIntegration Component', () => {
         });
       });
       consoleErrorSpy.mockRestore();
+      server.resetHandlers();
+      server.use(...outlookHandlers);
     });
 
     it('shows an error toast when the OAuth authorization request fails', async () => {
@@ -729,6 +731,8 @@ describe('OutlookIntegration Component', () => {
         });
       });
       consoleErrorSpy.mockRestore();
+      server.resetHandlers();
+      server.use(...outlookHandlers);
     });
 
     it('refresh status re-runs the health check', async () => {
@@ -742,7 +746,10 @@ describe('OutlookIntegration Component', () => {
       await user.click(screen.getByRole('button', { name: /refresh status/i }));
 
       await waitFor(() => {
-        expect(fetchSpy).toHaveBeenCalledWith('/api/integrations/outlook/health');
+        expect(fetchSpy).toHaveBeenCalledWith(
+          expect.stringContaining('/api/integrations/outlook/health'),
+          expect.anything()
+        );
       });
     });
   });

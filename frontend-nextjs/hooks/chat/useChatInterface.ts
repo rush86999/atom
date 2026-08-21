@@ -5,6 +5,7 @@ import { ChatMessageData, ReasoningStep } from "@/components/GlobalChat/ChatMess
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { getCurrentUserId } from "@/lib/identity";
 
 interface UseChatInterfaceProps {
     sessionId: string | null;
@@ -51,7 +52,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             setIsProcessing(true);
             setStatusMessage("Loading history...");
             const { apiClient } = await import('../../lib/api-client');
-            const response = await apiClient.get(`/api/chat/history/${sid}?user_id=default_user`) as any;
+            const response = await apiClient.get(`/api/chat/history/${sid}?user_id=${getCurrentUserId()}`) as any;
             if (response.status === 200) {
                 const data = response.data;
                 if (data.messages && Array.isArray(data.messages)) {
@@ -134,7 +135,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             const { apiClient } = await import('../../lib/api-client');
             const response = await apiClient.patch(`/api/chat/sessions/${sessionId}`, {
                 title: tempTitle,
-                user_id: "default_user",
+                user_id: getCurrentUserId(),
             }) as any;
             const data = response.data || response;
             if (data.success) {
@@ -187,7 +188,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             const response = await apiClient.post("/api/chat/message", {
                 message: currentInput,
                 session_id: sessionId,
-                user_id: "default_user",
+                user_id: getCurrentUserId(),
                 context: {
                     current_page: "/chat",
                     agent_id: initialAgentId,
@@ -261,6 +262,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     actions: data.metadata?.actions || data.suggested_actions || [],
                     model: data.model,
                     provider: data.provider,
+                    memoryContext: data.memory_context || undefined,
                 };
                 setMessages(prev => [...prev, agentMsg]);
                 // Mark this generation as REST-fulfilled so the WebSocket
@@ -411,7 +413,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             loadSessionHistory(sessionId);
             // Use apiClient for auth (raw fetch was 401'ing for logged-in users).
             import('../../lib/api-client').then(({ apiClient }) => {
-                apiClient.get(`/api/chat/sessions/${sessionId}?user_id=default_user`)
+                apiClient.get(`/api/chat/sessions/${sessionId}?user_id=${getCurrentUserId()}`)
                     .then((resp: any) => {
                         const data = resp.data || resp;
                         if (data.title) setSessionTitle(data.title);

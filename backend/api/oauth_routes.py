@@ -36,6 +36,7 @@ from core.oauth_handler import (
     SLACK_OAUTH_CONFIG,
     TRELLO_OAUTH_CONFIG,
     WHATSAPP_OAUTH_CONFIG,
+    ZOHO_OAUTH_CONFIG,
     OAuthHandler,
 )
 
@@ -47,9 +48,16 @@ _oauth_limiter = AuthRateLimiter(limit=20, window_seconds=60)
 
 
 def _state_hmac_key() -> bytes:
-    """HMAC key for signing OAuth state tokens (stable within a process)."""
-    raw = os.getenv("SECRET_KEY") or "atom-oauth-state-fallback"
-    return hashlib.sha256(raw.encode()).digest()
+    """HMAC key for signing OAuth state tokens — derived from the JWT secret.
+
+    Deliberately reuses ``core.auth.SECRET_KEY`` so there is exactly ONE secret
+    resolution policy in the app: raise in production if unset, random
+    dev fallback. A standalone hardcoded fallback here would be a static secret
+    any repo reader could use to forge state tokens (OAuth CSRF / token-binding).
+    """
+    from core.auth import SECRET_KEY as _auth_secret
+
+    return hashlib.sha256(_auth_secret.encode()).digest()
 
 
 def _build_state(provider: str, user_id: str) -> str:
@@ -147,19 +155,17 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)) -> U
     """
     from core.auth import get_current_user as _core_get_current_user
 
-    return await _core_get_current_user(request=request, token=None, db=db)
+    # Extract the Bearer token from the Authorization header ourselves.
+    # core.auth.oauth2_scheme only binds when FastAPI injects it as a
+    # dependency; this wrapper is called directly (not as a FastAPI dep), so
+    # passing token=None unconditionally meant the Authorization header was
+    # never read and every Bearer call /api/v1/auth/oauth/* 401'd.
+    auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
+    token = None
+    if auth_header and auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()
 
-async def get_optional_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    """Get current user, falling back to active DB user if token is missing or invalid."""
-    try:
-        return await get_current_user(request, db)
-    except Exception as e:
-        logger.warning(f"OAuth initiation auth fallback triggered: {e}")
-        from core.models import UserStatus
-        user = db.query(User).filter(User.status == UserStatus.ACTIVE).first() or db.query(User).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="No active user found in database")
-        return user
+    return await _core_get_current_user(request=request, token=token, db=db)
 
 async def _handle_callback_logic(provider: str, code: str, config: Any, request: Request, db: Session, user: Optional[User] = None):
     """Common logic for handling OAuth callbacks."""
@@ -219,6 +225,17 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
             provider_keys = [provider]
             if provider == "microsoft":
                 provider_keys.append("outlook")
+            if provider == "zoho":
+                # One Zoho app grant covers all four suite services; each
+                # service resolves its own token row by exact provider name
+                # (zoho_books/zoho_inventory/zoho_crm — workdrive falls back
+                # to generic "zoho"), so fan the same credentials out to all.
+                provider_keys += [
+                    "zoho_books",
+                    "zoho_inventory",
+                    "zoho_crm",
+                    "zoho_workdrive",
+                ]
 
             user_ids_to_sync = {current_user.id}
             from core.models import UserStatus
@@ -259,6 +276,21 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
             logger.error(f"Failed to populate IntegrationToken record: {it_err}", exc_info=True)
 
         db.commit()
+
+        # Start the Outlook poller on connect (Personal Edition / NAT-friendly
+        # complement to the Graph push webhook). Uses the module-level pipeline
+        # singleton so the polling task survives this request.
+        if provider == "microsoft":
+            try:
+                from integrations.atom_communication_ingestion_pipeline import (
+                    ingestion_pipeline,
+                )
+
+                if ingestion_pipeline.start_outlook_poller():
+                    logger.info("Outlook polling stream started after Microsoft OAuth connect")
+            except Exception as poller_err:
+                logger.error(f"Failed to start Outlook poller after OAuth connect: {poller_err}")
+
         return token_data
         
     except Exception as e:
@@ -272,7 +304,7 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
 @router.get("/{provider}/initiate")
 async def oauth_initiate(
     provider: str,
-    current_user: User = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Initiate OAuth flow for a specific provider."""
     configs = {
@@ -287,6 +319,7 @@ async def oauth_initiate(
         "trello": TRELLO_OAUTH_CONFIG,
         "dropbox": DROPBOX_OAUTH_CONFIG,
         "whatsapp": WHATSAPP_OAUTH_CONFIG,
+        "zoho": ZOHO_OAUTH_CONFIG,
     }
     
     if provider not in configs:
@@ -334,6 +367,25 @@ async def oauth_callback(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=400, detail="User bound to state not found")
+
+    # CSRF / token-binding check: if this request carries an authenticated
+    # session, the user it belongs to MUST be the user the state was minted
+    # for. A validly-signed state for user-a presented in user-b's session
+    # means the state was hijacked mid-flow — bind the attacker's tokens to
+    # user-a's account. (Public callback keeps working for provider redirects:
+    # the session check is additive; a missing/invalid session falls through
+    # to the signed state as the sole credential.)
+    session_user = None
+    try:
+        session_user = await get_current_user(request, db)
+    except HTTPException:
+        pass
+
+    if session_user is not None and str(session_user.id) != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="OAuth state was issued for a different user",
+        )
 
     await _handle_callback_logic(provider, code, configs[provider], request, db, user=user)
     
@@ -416,6 +468,7 @@ async def oauth_config_status(current_user: User = Depends(get_current_user)):
         "trello": TRELLO_OAUTH_CONFIG,
         "dropbox": DROPBOX_OAUTH_CONFIG,
         "whatsapp": WHATSAPP_OAUTH_CONFIG,
+        "zoho": ZOHO_OAUTH_CONFIG,
     }
     
     return {

@@ -156,7 +156,7 @@ class LanceDBHandler:
         workspace_id: Union[str, None] = None,
         tenant_id: Union[str, None] = None,
         db: Any = None,  # SQLAlchemy session for BYOK key lookup
-        embedding_provider: str = "openai",
+        embedding_provider: str = "fastembed",
         embedding_model: str = "text-embedding-3-small",
     ):
         # Determine DB path (S3 or local)
@@ -182,16 +182,23 @@ class LanceDBHandler:
         self.db = None
         self.embedder = None
 
-        # Initialize LLMService (Handles local and cloud providers)
-        # It handles BYOK, cost tracking, and model selection internally.
-        if LLMService:
-            self.embedding_service = LLMService(
-                tenant_id=self.tenant_id,
-                workspace_id=self.workspace_id,
-                db=db,
+        # Embeddings go through the dedicated EmbeddingService, which honors
+        # EMBEDDING_PROVIDER (Personal Edition default: fastembed, local,
+        # 384-dim) and only falls back to LLMService/OpenAI for cloud
+        # providers. The previous direct-LLMService wiring ignored the
+        # provider setting entirely — every embed attempted OpenAI and failed
+        # on installs without an OpenAI key, breaking document ingestion,
+        # hybrid search, and Knowledge VFS.
+        try:
+            from core.embedding_service import EmbeddingService
+
+            # Same resolution as self.embedding_provider above so the vector
+            # column dim and the embedder always agree.
+            self.embedding_service = EmbeddingService(
+                provider=self.embedding_provider
             )
-        else:
-            logger.warning("LLMService not available, using MockEmbedder fallback")
+        except Exception as emb_err:
+            logger.warning(f"EmbeddingService unavailable: {emb_err}")
             self.embedding_service = None
 
         logger.info(
@@ -349,7 +356,12 @@ class LanceDBHandler:
         try:
             if schema is None:
                 # Default to OpenAI dimension
-                if self.embedding_provider == "openai" or not vector_size:
+                # Vector column must match the ACTIVE embedding provider's
+                # output dim, not a fixed 1536: fastembed (the default) emits
+                # 384-dim vectors and a 1536 column rejects every insert.
+                if self.embedding_provider == "fastembed":
+                    vector_size = 384
+                elif self.embedding_provider == "openai" or not vector_size:
                     vector_size = 1536
 
                 # Knowledge-graph tables need the edge columns IN ADDITION to
@@ -683,11 +695,15 @@ class LanceDBHandler:
             try:
                 table = self.get_table(table_name)
                 if table is None:
-                    # Infer schema from data
-                    table = self.db.create_table(table_name, data=[record])
-                    logger.info(f"Created table '{table_name}' with inferred schema")
-                else:
+                    # Create with the explicit schema (vector column sized to
+                    # the active embedding provider). Inferring from a plain
+                    # record fails: LanceDB cannot derive a FixedSizeList
+                    # vector column from a Python list of floats.
+                    table = self.create_table(table_name)
+                if table is not None:
                     table.add([record])
+                else:
+                    return False
                 logger.info(f"Document added to '{table_name}': {doc_id}")
                 return True
             except Exception as e:
@@ -738,9 +754,13 @@ class LanceDBHandler:
 
             table = self.get_table(table_name)
             if table is None:
-                table = self.db.create_table(table_name, data=[record])
-            else:
+                # Explicit schema (provider-sized vector column) — inferred
+                # creation cannot derive a FixedSizeList from Python lists.
+                table = self.create_table(table_name)
+            if table is not None:
                 table.add([record])
+            else:
+                return False
             logger.info(f"Document added to '{table_name}': {doc_id}")
             return True
         except Exception as e:
@@ -788,8 +808,15 @@ class LanceDBHandler:
             # Get or Create Table
             table = self.get_table(table_name)
             if table is None:
-                # Infer schema from data to support Struct metadata
+                # Create with the explicit provider-sized schema first; fall
+                # back to data-inference only for custom/extra columns the
+                # standard schema doesn't cover.
+                table = self.create_table(table_name)
                 try:
+                    if table is not None:
+                        table.add(records)
+                        logger.info(f"Created table '{table_name}' and added {len(records)} documents")
+                        return len(records)
                     table = self.db.create_table(table_name, data=records)
                     logger.info(f"Created table '{table_name}' with inferred schema")
                     return len(records)
