@@ -5809,3 +5809,13 @@ Registered Zoho in the existing generic OAuth flow (`/initiate` → consent → 
 **Gotchas hit**: raw `text()` on SQLite returns `MAX(invalid_at)` as a STRING and naive datetimes → parse with `fromisoformat` + attach UTC before comparing to aware `as_of`; duck-typed fake Rows in w9/w77b predate archive fields → all archived attributes read via `getattr` with column-appropriate defaults; `_enrich_communities` rewrites keywords pre-persist so archival tests must capture the OUTGOING row's enriched values, not the detection result's.
 
 **Verification**: W7 suite 8/8; full graphrag cluster (18 files incl. W1–W4+W6+W7) 613 passed; mypy: community_detection + test file clean, engine at its 9-error HEAD baseline; migration verified up+down on a scratch DB.
+
+## Session 2026-08-21 (backend) — Gmail webhook A-path: ingest_message bridge (memory-plan follow-up #4)
+
+**Files**: `backend/core/ingestion_pipeline.py` (`process_webhook_payload` comm block gains a gmail branch), `backend/tests/test_gmail_webhook_ingest_message.py` (new — 5 tests), `docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md` (§7 Gmail row + follow-up #4 marked FIXED).
+
+**TDD red→green** (5 tests; RED = gmail records hit the raw `LanceDBHandler.add_document` write with zero `ingest_message` calls): gmail webhook records now bridge to `CommunicationIngestionPipeline.ingest_message("gmail", record)` — the same normalized comm-store path as Gmail's own poller and Outlook's poller/backfill, so emails land as structured, searchable memory (normalization + FTS hybrid + graph trigger) instead of an unsearchable raw vector dump. Per-record resilience: bridge failures fall back to the legacy raw write (only failed records continue to it — no double-writes); outlook/slack stay on the legacy write (audit marks them working; pinned by control tests).
+
+**Test-infra notes**: the comm block constructs its own `LanceDBHandler` in-function → tests must patch `core.lancedb_handler.LanceDBHandler`, not the service attribute; `_transform_gmail_payload` fetches real messages via historyId (or emits a content-less stub) → tests mock `_transform_webhook_payload` to focus on the bridge. A `test_covpush_w26_hybrid_ingestion.py::TestZohoMultiAppFetcher::test_no_org_id_skips_books` failure in the same run is NOT this change — verified via stash that it passes at HEAD of `core/hybrid_data_ingestion.py` and fails only with the OTHER concurrent session's uncommitted Zoho diff (`MagicMock can't be used in 'await' expression` at :1107).
+
+**Verification**: new suite 5/5; ingestion/memory cluster (`test_memory_symmetry_fixes` + `test_covpush_ingestion_pipeline` + `test_covpush_w34_ingestion` + `test_memory_backfill_unified`) 191 passed.

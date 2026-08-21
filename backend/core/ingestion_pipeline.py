@@ -1169,6 +1169,38 @@ class IngestionPipelineService(HybridDataIngestionService):
             # LanceDB indexing for webhook records (communication memory)
             # This enables semantic search for email/chat content
             if integration_id in ["outlook", "gmail", "slack"]:
+                # Gmail routes through the SAME normalized comm pipeline as
+                # its poller (and Outlook's poller/backfill): raw vector
+                # dumps are not structured memory — ingest_message gives
+                # normalization, FTS-hybrid store, and the graph trigger
+                # (P0.4 audit follow-up #4). Falls back to the legacy raw
+                # write if the bridge fails so records are never lost.
+                if integration_id == "gmail":
+                    try:
+                        from integrations.atom_communication_ingestion_pipeline import (
+                            get_ingestion_pipeline,
+                        )
+
+                        comm_pipeline = get_ingestion_pipeline(self.tenant_id)
+                        failed_records: list = []
+                        for record in records:
+                            try:
+                                await comm_pipeline.ingest_message("gmail", record)
+                                results["records_processed"] += 1
+                            except Exception as gm_bridge_err:
+                                logger.warning(
+                                    f"Gmail ingest_message bridge failed for "
+                                    f"{record.get('id')}: {gm_bridge_err} — "
+                                    f"falling back to raw write"
+                                )
+                                failed_records.append(record)
+                        # only bridge failures continue to the legacy raw write
+                        records = failed_records
+                    except Exception as bridge_setup_err:
+                        logger.warning(
+                            f"Gmail comm-pipeline bridge unavailable "
+                            f"({bridge_setup_err}) — falling back to raw write"
+                        )
                 try:
                     from core.lancedb_handler import LanceDBHandler
 
