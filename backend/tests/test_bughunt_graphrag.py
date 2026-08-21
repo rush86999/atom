@@ -103,9 +103,11 @@ class TestMultiHopPathExtension:
 
 class TestSQLExpanderErrorHygiene:
     def test_expansion_failure_does_not_leak_exception_text(self, memory_db):
-        """On SQLite the PG-only recursive CTE fails; the raw driver error
-        (including the full SQL + bind params) must not be stashed in
-        result.metadata — internal detail can leak to route callers."""
+        """When the driver raises, the raw error (including the full SQL +
+        bind params) must not be stashed in result.metadata — internal detail
+        can leak to route callers. Failure is forced via a raising execute:
+        W6 made the sqlite CTE actually work, so the old implicit trigger
+        (PG-only syntax) no longer fires."""
         ws = "ws-sql"
         with memory_db() as db:
             db.add(GraphNode(id="A", workspace_id=ws, name="Alpha", type="task", properties={}))
@@ -113,7 +115,13 @@ class TestSQLExpanderErrorHygiene:
 
         expander = get_sql_expander()
         with memory_db() as db:
-            result = expander.expand_sql(start_entity_id="A", workspace_id=ws, session=db)
+            def _boom(sql, params=None):
+                raise RuntimeError(
+                    "syntax error near WITH RECURSIVE — sqlite3 driver detail"
+                )
+
+            with patch.object(db, "execute", side_effect=_boom):
+                result = expander.expand_sql(start_entity_id="A", workspace_id=ws, session=db)
 
         # Graceful: no exception, code literal, driver error text absent.
         assert "error" in result.metadata

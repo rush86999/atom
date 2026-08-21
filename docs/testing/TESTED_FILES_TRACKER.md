@@ -5776,3 +5776,13 @@ Registered Zoho in the existing generic OAuth flow (`/initiate` → consent → 
 3. **Boot smoke** (throwaway DB): uvicorn boots clean — 0 tracebacks, `/health/live` 200, `✓ Experience Marketplace Routes Loaded`, `GET /api/experience-marketplace/status` → 401 (auth-gated before flag check; flag-off 503 applies post-auth). Smoke-test gotcha: SQLite URL needs 4 slashes for absolute paths — 3-slash relative paths surface as worker `unable to open database file` noise, not app defects.
 
 **Verification**: both migration paths green (A + B incl. downgrade); boot smoke clean; closes the "pending: alembic upgrade + route smoke" notes on the W2 temporal and Experience Marketplace sessions.
+
+## Session 2026-08-21 (backend) — Temporal Evolution W6: SQL expander SQLite portability (GraphRAG)
+
+**Files**: `backend/core/graphrag/multi_hop_expansion.py` (`_expand_sql_impl` dialect-aware CTE + relationship listing), `backend/tests/test_temporal_w6_sqlite_expander.py` (new — 6 tests), `tests/test_bughunt_graphrag.py` (stale-contract repair: error-hygiene test now forces failure via raising execute), `docs/architecture/TEMPORAL_EVOLUTION.md` (W6 row; PG-only boundary note removed).
+
+**TDD red→green** (6 tests; RED = sqlite runs ended in `metadata["error"] == "expansion_failed"` from the documented `near "as"` OperationalError): `_expand_sql_impl` now branches on `session.bind.dialect.name` — sqlite gets a portable recursive CTE (string-CSV path `',' || id || ','`, `NOT LIKE` cycle detection, plain NULLs, IN-list relationship query with quote-doubled ids); Postgres AND bind-less sessions keep the byte-identical legacy text (`ARRAY[]`/`::varchar`/`ANY()` — W1's recording-session contract holds, pinned by a postgres-bind spy test). The W1 as_of cutoff works identically on the sqlite variant (future-born pruned, invalidated-before-cutoff pruned, boundary exclusive, metadata recorded); no-as_of on sqlite stays unfiltered (legacy).
+
+**Stale-suite repair**: `TestSQLExpanderErrorHygiene::test_expansion_failure_does_not_leak_exception_text` relied on the PG-only CTE failing on sqlite as its implicit trigger — W6 removed that failure, so the test now forces the driver error via `patch.object(db, "execute", side_effect=_boom)` and still pins the hygiene contract (code-literal error, no SQL/params leak).
+
+**Verification**: W6 suite 6/6; full graphrag cluster (17 files incl. W1–W4+W6) 605 passed; mypy clean on `multi_hop_expansion.py` + new test file. Personal Edition (SQLite) multi-hop augmentation now actually executes instead of silently degrading.

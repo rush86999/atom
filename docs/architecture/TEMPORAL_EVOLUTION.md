@@ -20,14 +20,12 @@
 | W3 | Hierarchy rolling-window parity: `detect_hierarchy(store_results, window_start, window_end)` — window filters the graph before every resolution; recorded in `CommunityHierarchy.metadata` | ✅ live |
 | W4 | Query-side time travel: `GraphRAGEngine.local_search(as_of=…)` (CTE traversal join + relationship listing + in-loop `expand_sql`), threaded through `query()` / `get_context_for_ai()` | ✅ live |
 | W5 | This document + docs schema sync (`docs/intelligence/graphrag.md` `parent_community_id` column) | ✅ live |
+| W6 | SQL expander SQLite portability: `_expand_sql_impl` emits a dialect-aware CTE (string-CSV path + `NOT LIKE` cycle detection on sqlite; legacy `ARRAY[]`/`ANY()` text for Postgres and bind-less callers) — Personal Edition's multi-hop augmentation now actually runs | ✅ live |
 
 **Out of scope (explicit boundaries)**:
 - `global_search` has no `as_of` — persisted community summaries carry no
   validity interval to filter on. When communities gain per-window summaries
   (Graphiti-style), global search gets its own cutoff.
-- `SQLMultiHopExpander` SQL body is Postgres-only syntax (`ARRAY[]`,
-  `::varchar`, `ANY()`). On SQLite it raises and the engine's in-loop
-  expansion degrades gracefully (logged, non-fatal) — pre-existing, unchanged.
 - Nodes have no bi-temporal fields (only edges do, P2.2) — reads never
   time-filter nodes themselves; node `created_at` bounds only community
   detection windows (`_build_graph`).
@@ -64,6 +62,9 @@ an edge invalidated *at* `t` is gone by `t`).
   note: `query()` runs local_search in a worker thread (embedding guard) —
   SQLite sessions are not thread-safe, so threaded regression tests mock the
   search legs (sync tests exercise real filtering).
+- W6: the expander's own SQL is dialect-aware — sqlite gets the portable
+  variant; Postgres and bind-less sessions keep the byte-identical legacy
+  text (W1's recording-session contract holds).
 
 ### Hierarchy lineage (W2/W3)
 
@@ -85,7 +86,7 @@ an edge invalidated *at* `t` is gone by `t`).
 
 ## Files
 
-- `core/graphrag/multi_hop_expansion.py` — W1 `as_of` (ORM + SQL)
+- `core/graphrag/multi_hop_expansion.py` — W1 `as_of` (ORM + SQL), W6 dialect-aware SQL
 - `core/graphrag/community_detection.py` — W1 windows, W2 hierarchy/link/
   persist, W3 hierarchy windows
 - `core/graphrag_engine.py` — W4 query-side `as_of`
@@ -94,7 +95,8 @@ an edge invalidated *at* `t` is gone by `t`).
 - `core/memory/temporal_normalizer.py` — P0 ingestion normalization
 - Tests: `test_temporal_normalizer_p0.py` (24), `test_temporal_w1_timelines.py`
   (16), `test_temporal_w2_community_hierarchy.py` (10),
-  `test_temporal_w3_hierarchy_windows.py` (8), `test_temporal_w4_query_asof.py` (8)
+  `test_temporal_w3_hierarchy_windows.py` (8), `test_temporal_w4_query_asof.py` (8),
+  `test_temporal_w6_sqlite_expander.py` (6)
 
 ## Verification
 

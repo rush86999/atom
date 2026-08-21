@@ -636,68 +636,134 @@ class SQLMultiHopExpander:
                 cte_params["as_of"] = as_of
                 cte_params["as_of_rel"] = as_of
 
-            # Build recursive CTE query
-            cte_query = text(f"""
-                WITH RECURSIVE traversal AS (
-                    -- Base case: start node
-                    SELECT
-                        n.id, n.name, n.type, n.description, n.properties,
-                        0 as hop_level,
-                        ARRAY[n.id] as path,
-                        1.0 as relevance_score,
-                        NULL::varchar as relationship_from,
-                        NULL::varchar as relationship_type
-                    FROM graph_nodes n
-                    WHERE n.id = :start_id
-                    AND n.workspace_id = :ws_id
+            # W6: dialect-aware SQL. The recursive CTE historically used
+            # Postgres-only constructs (ARRAY[], ::casts, ANY()) and hard-failed
+            # on SQLite — Personal Edition's default — silently degrading the
+            # engine's multi-hop augmentation. Bind-less sessions (legacy
+            # recording-session callers, prod Postgres) keep the byte-identical
+            # Postgres text.
+            bind = getattr(session, "bind", None)
+            dialect_name = bind.dialect.name if bind is not None else "postgresql"
+            if dialect_name == "sqlite":
+                cte_sql = f"""
+                    WITH RECURSIVE traversal AS (
+                        -- Base case: start node (string CSV path for sqlite)
+                        SELECT
+                            n.id, n.name, n.type, n.description, n.properties,
+                            0 as hop_level,
+                            ',' || n.id || ',' as path,
+                            1.0 as relevance_score,
+                            NULL as relationship_from,
+                            NULL as relationship_type
+                        FROM graph_nodes n
+                        WHERE n.id = :start_id
+                        AND n.workspace_id = :ws_id
 
-                    UNION ALL
+                        UNION ALL
 
-                    -- Recursive case: expand neighbors
-                    SELECT
-                        neighbor.id, neighbor.name, neighbor.type,
-                        neighbor.description, neighbor.properties,
-                        t.hop_level + 1,
-                        t.path || neighbor.id,
-                        t.relevance_score * :decay_factor * (
-                            -- Relationship-based relevance boost
-                            CASE e.relationship_type
-                                WHEN 'belongs_to' THEN 1.0
-                                WHEN 'depends_on' THEN 0.95
-                                WHEN 'part_of' THEN 0.9
-                                WHEN 'related_to' THEN 0.8
-                                ELSE 0.7
+                        -- Recursive case: expand neighbors
+                        SELECT
+                            neighbor.id, neighbor.name, neighbor.type,
+                            neighbor.description, neighbor.properties,
+                            t.hop_level + 1,
+                            t.path || neighbor.id || ',',
+                            t.relevance_score * :decay_factor * (
+                                CASE e.relationship_type
+                                    WHEN 'belongs_to' THEN 1.0
+                                    WHEN 'depends_on' THEN 0.95
+                                    WHEN 'part_of' THEN 0.9
+                                    WHEN 'related_to' THEN 0.8
+                                    ELSE 0.7
+                                END
+                            ),
+                            t.id,
+                            e.relationship_type
+                        FROM traversal t
+                        JOIN graph_edges e ON (
+                            e.source_node_id = t.id OR e.target_node_id = t.id
+                        )
+                        JOIN graph_nodes neighbor ON (
+                            CASE
+                                WHEN e.source_node_id = t.id THEN e.target_node_id = neighbor.id
+                                ELSE e.source_node_id = neighbor.id
                             END
-                        ),
-                        t.id,
-                        e.relationship_type
-                    FROM traversal t
-                    JOIN graph_edges e ON (
-                        e.source_node_id = t.id OR e.target_node_id = t.id
+                        )
+                        WHERE t.hop_level < :max_depth
+                        AND e.workspace_id = :ws_id
+                        AND neighbor.workspace_id = :ws_id
+                        AND t.path NOT LIKE '%,' || neighbor.id || ',%'
+                        AND t.relevance_score >= :min_relevance
+                        {as_of_clause}
                     )
-                    JOIN graph_nodes neighbor ON (
-                        CASE
-                            WHEN e.source_node_id = t.id THEN e.target_node_id = neighbor.id
-                            ELSE e.source_node_id = neighbor.id
-                        END
+                    SELECT DISTINCT
+                        id, name, type, description, properties,
+                        hop_level, relevance_score
+                    FROM traversal
+                    ORDER BY hop_level, relevance_score DESC
+                    LIMIT :max_nodes;
+                """
+            else:
+                cte_sql = f"""
+                    WITH RECURSIVE traversal AS (
+                        -- Base case: start node
+                        SELECT
+                            n.id, n.name, n.type, n.description, n.properties,
+                            0 as hop_level,
+                            ARRAY[n.id] as path,
+                            1.0 as relevance_score,
+                            NULL::varchar as relationship_from,
+                            NULL::varchar as relationship_type
+                        FROM graph_nodes n
+                        WHERE n.id = :start_id
+                        AND n.workspace_id = :ws_id
+
+                        UNION ALL
+
+                        -- Recursive case: expand neighbors
+                        SELECT
+                            neighbor.id, neighbor.name, neighbor.type,
+                            neighbor.description, neighbor.properties,
+                            t.hop_level + 1,
+                            t.path || neighbor.id,
+                            t.relevance_score * :decay_factor * (
+                                -- Relationship-based relevance boost
+                                CASE e.relationship_type
+                                    WHEN 'belongs_to' THEN 1.0
+                                    WHEN 'depends_on' THEN 0.95
+                                    WHEN 'part_of' THEN 0.9
+                                    WHEN 'related_to' THEN 0.8
+                                    ELSE 0.7
+                                END
+                            ),
+                            t.id,
+                            e.relationship_type
+                        FROM traversal t
+                        JOIN graph_edges e ON (
+                            e.source_node_id = t.id OR e.target_node_id = t.id
+                        )
+                        JOIN graph_nodes neighbor ON (
+                            CASE
+                                WHEN e.source_node_id = t.id THEN e.target_node_id = neighbor.id
+                                ELSE e.source_node_id = neighbor.id
+                            END
+                        )
+                        WHERE t.hop_level < :max_depth
+                        AND e.workspace_id = :ws_id
+                        AND neighbor.workspace_id = :ws_id
+                        AND NOT (neighbor.id = ANY(t.path))  -- Cycle detection
+                        AND t.relevance_score >= :min_relevance
+                        {as_of_clause}
                     )
-                    WHERE t.hop_level < :max_depth
-                    AND e.workspace_id = :ws_id
-                    AND neighbor.workspace_id = :ws_id
-                    AND NOT (neighbor.id = ANY(t.path))  -- Cycle detection
-                    AND t.relevance_score >= :min_relevance
-                    {as_of_clause}
-                )
-                SELECT DISTINCT
-                    id, name, type, description, properties,
-                    hop_level, relevance_score
-                FROM traversal
-                ORDER BY hop_level, relevance_score DESC
-                LIMIT :max_nodes;
-            """)
+                    SELECT DISTINCT
+                        id, name, type, description, properties,
+                        hop_level, relevance_score
+                    FROM traversal
+                    ORDER BY hop_level, relevance_score DESC
+                    LIMIT :max_nodes;
+                """
 
             # Execute query
-            rows = session.execute(cte_query, cte_params).fetchall()
+            rows = session.execute(text(cte_sql), cte_params).fetchall()
 
             # Process results
             seen_ids: Set[str] = set()
@@ -718,21 +784,36 @@ class SQLMultiHopExpander:
 
             # Get relationships for discovered nodes
             if seen_ids:
-                rel_query = text(f"""
-                    SELECT e.source_node_id, e.target_node_id,
-                           e.relationship_type, e.properties
-                    FROM graph_edges e
-                    WHERE (e.source_node_id = ANY(:node_ids)
-                           OR e.target_node_id = ANY(:node_ids))
-                    AND e.workspace_id = :ws_id
-                    {as_of_rel_clause}
-                    LIMIT 100;
-                """)
-
-                rel_params = {
-                    "node_ids": list(seen_ids),
-                    "ws_id": workspace_id,
-                }
+                if dialect_name == "sqlite":
+                    ids_csv = ", ".join(
+                        "'" + str(nid).replace("'", "''") + "'" for nid in seen_ids
+                    )
+                    rel_query = text(f"""
+                        SELECT e.source_node_id, e.target_node_id,
+                               e.relationship_type, e.properties
+                        FROM graph_edges e
+                        WHERE (e.source_node_id IN ({ids_csv})
+                               OR e.target_node_id IN ({ids_csv}))
+                        AND e.workspace_id = :ws_id
+                        {as_of_rel_clause}
+                        LIMIT 100;
+                    """)
+                    rel_params: Dict[str, Any] = {"ws_id": workspace_id}
+                else:
+                    rel_query = text(f"""
+                        SELECT e.source_node_id, e.target_node_id,
+                               e.relationship_type, e.properties
+                        FROM graph_edges e
+                        WHERE (e.source_node_id = ANY(:node_ids)
+                               OR e.target_node_id = ANY(:node_ids))
+                        AND e.workspace_id = :ws_id
+                        {as_of_rel_clause}
+                        LIMIT 100;
+                    """)
+                    rel_params = {
+                        "node_ids": list(seen_ids),
+                        "ws_id": workspace_id,
+                    }
                 if as_of is not None:
                     rel_params["as_of_rel"] = as_of
                 rel_rows = session.execute(rel_query, rel_params).fetchall()
