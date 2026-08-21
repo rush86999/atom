@@ -1,0 +1,255 @@
+"""Round 81b — journey follow-up gap closure (continuation of R81).
+
+- G6: ``atom_main`` was never persisted anywhere — every meta-agent
+  ``record_outcome("atom_main")`` was a silent no-op (learning loop dead) and
+  governance lookups for the id returned "Agent not found". Fix: idempotent
+  get-or-create at execute() start.
+- G7: per-turn fact extraction (sync_turn hook) fired only in the meta-agent
+  loop + chat orchestrator; specialty agents running via GenericAgent never
+  extracted durable facts. Fix: mirror the meta-agent's session-end digest
+  pass, flag-gated + fire-and-forget.
+- G8: ``_check_hitl_policy`` catch-all swallowed its own security raises
+  (missing workspace/tenant ValueError) AND every other DB error into
+  ``return None`` = silently ALLOW risky external comms. Fix: fail closed.
+"""
+
+import pytest
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from sqlalchemy.orm import Session
+
+from core.models import AgentRegistry, AgentStatus
+
+
+# ============================================================================
+# G6 — atom_main registry persistence
+# ============================================================================
+
+
+class TestAtomMainPersistence:
+    def _session(self):
+        import sqlalchemy as sa
+        from sqlalchemy.orm import sessionmaker
+
+        engine = sa.create_engine("sqlite://")
+        AgentRegistry.__table__.create(engine)
+        return sessionmaker(bind=engine)()
+
+    def test_creates_row_when_absent(self):
+        from core.atom_meta_agent import ensure_atom_registry_persisted
+
+        db = self._session()
+        row = ensure_atom_registry_persisted(db)
+        assert row.id == "atom_main"
+        assert row.status == AgentStatus.AUTONOMOUS.value
+        # actually persisted
+        assert (
+            db.query(AgentRegistry).filter(AgentRegistry.id == "atom_main").first()
+            is not None
+        )
+
+    def test_returns_existing_row(self):
+        from core.atom_meta_agent import ensure_atom_registry_persisted
+
+        db = self._session()
+        first = ensure_atom_registry_persisted(db)
+        second = ensure_atom_registry_persisted(db)
+        assert first.id == second.id == "atom_main"
+        assert db.query(AgentRegistry).count() == 1
+
+    def test_execute_wiring_pinned(self):
+        """execute() must ensure the row exists before governance/outcome use."""
+        import inspect
+
+        from core import atom_meta_agent
+
+        src = inspect.getsource(atom_meta_agent.AtomMetaAgent.execute)
+        assert "ensure_atom_registry_persisted" in src
+
+
+# ============================================================================
+# G7 — turn-fact extraction parity in GenericAgent
+# ============================================================================
+
+
+def _harness_patches():
+    mock_world_model = AsyncMock()
+    mock_world_model.recall_experiences.return_value = {}
+    mock_reflection = AsyncMock()
+    mock_reflection.generate_critique = AsyncMock(return_value=None)
+    mock_reflection.get_relevant_critiques = AsyncMock(return_value=[])
+
+    async def mock_generate(*args, **kwargs):
+        resp = MagicMock()
+        resp.thought = "thinking"
+        resp.action = None
+        resp.final_answer = "all done"
+        return resp
+
+    mock_llm = AsyncMock()
+    mock_llm.generate_structured = mock_generate
+    handler = MagicMock()
+    handler.analyze_query_complexity.return_value = MagicMock(value="simple")
+    mock_llm._get_handler = MagicMock(return_value=handler)
+    mock_mcp = AsyncMock()
+    mock_mcp.get_all_tools.return_value = []
+    return mock_world_model, mock_reflection, mock_llm, mock_mcp
+
+
+def _make_agent_model():
+    return AgentRegistry(
+        id="agent-tf-1",
+        name="TF Agent",
+        type="assistant",
+        module_path="agents.assistant",
+        class_name="AssistantAgent",
+        category="general",
+        configuration={"max_steps": 2},
+    )
+
+
+class TestGenericAgentTurnFacts:
+    @pytest.mark.asyncio
+    async def test_session_end_extraction_fires(self):
+        """A completed ReAct run extracts durable facts (sync_turn parity)."""
+        from core.generic_agent import GenericAgent
+
+        mw, mr, ml, mmcp = _harness_patches()
+        extractor = MagicMock()
+        extractor.extract_from_turn = AsyncMock(return_value=None)
+
+        budget_patch = patch.object(
+            GenericAgent,
+            "_check_budget_before_react",
+            new=AsyncMock(return_value={"allowed": True, "reason": "ok"}),
+        )
+        with patch("core.generic_agent.WorldModelService", return_value=mw), \
+             patch("core.generic_agent.ReflectionService", return_value=mr), \
+             patch("core.generic_agent.CanvasSummaryService"), \
+             patch("core.generic_agent.mcp_service", mmcp), \
+             patch("core.generic_agent.LLMService", return_value=ml), \
+             patch("core.generic_agent.get_db_session"), \
+             patch("core.generic_agent.AgentGovernanceService") as gov_cls, \
+             budget_patch, \
+             patch("core.turn_fact_extractor.TURN_FACT_EXTRACTION_ENABLED", True), \
+             patch(
+                 "core.turn_fact_extractor.get_turn_fact_extractor",
+                 return_value=extractor,
+             ) as get_ext:
+            gov_cls.return_value.record_outcome = AsyncMock(return_value=None)
+            agent = GenericAgent(_make_agent_model())
+            result = await agent.execute(
+                "Remember-worthy task", context={"session_id": "s-1"}
+            )
+            assert result["status"] == "success"
+            # extraction dispatched (create_task) — wait for it
+            import asyncio as _aio
+
+            pending = list(getattr(GenericAgent, "_pending_extraction_tasks", set()))
+            if pending:
+                await _aio.gather(*pending, return_exceptions=True)
+            get_ext.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_extraction_disabled_skips(self):
+        from core.generic_agent import GenericAgent
+
+        mw, mr, ml, mmcp = _harness_patches()
+        extractor = MagicMock()
+        extractor.extract_from_turn = AsyncMock(return_value=None)
+
+        budget_patch = patch.object(
+            GenericAgent,
+            "_check_budget_before_react",
+            new=AsyncMock(return_value={"allowed": True, "reason": "ok"}),
+        )
+        with patch("core.generic_agent.WorldModelService", return_value=mw), \
+             patch("core.generic_agent.ReflectionService", return_value=mr), \
+             patch("core.generic_agent.CanvasSummaryService"), \
+             patch("core.generic_agent.mcp_service", mmcp), \
+             patch("core.generic_agent.LLMService", return_value=ml), \
+             patch("core.generic_agent.get_db_session"), \
+             patch("core.generic_agent.AgentGovernanceService") as gov_cls, \
+             budget_patch, \
+             patch("core.turn_fact_extractor.TURN_FACT_EXTRACTION_ENABLED", False), \
+             patch(
+                 "core.turn_fact_extractor.get_turn_fact_extractor",
+                 return_value=extractor,
+             ) as get_ext:
+            gov_cls.return_value.record_outcome = AsyncMock(return_value=None)
+            agent = GenericAgent(_make_agent_model())
+            await agent.execute("Task")
+            get_ext.assert_not_called()
+
+
+# ============================================================================
+# G8 — HITL policy fail-closed
+# ============================================================================
+
+
+class TestHitlPolicyFailClosed:
+    def _svc(self):
+        from integrations.mcp_service import MCPService
+
+        return MCPService()
+
+    @pytest.mark.asyncio
+    async def test_db_failure_blocks_risky_tool(self):
+        svc = self._svc()
+        with patch(
+            "core.database.SessionLocal",
+            side_effect=RuntimeError("db down"),
+        ):
+            result = await svc._check_hitl_policy(
+                "ws-1", "send_email", {"to": "x@y.z"}, {"agent_id": "a1"}
+            )
+        # Previously returned None (= proceed) on ANY exception — fail-open.
+        assert result is not None
+        assert result.get("blocked_by") == "hitl_policy_error"
+        assert result.get("requires_approval") is True
+
+    @pytest.mark.asyncio
+    async def test_missing_workspace_blocks_not_allows(self):
+        """The security raises (workspace/tenant missing) were swallowed by the
+        same catch-all into allow — they must block."""
+        svc = self._svc()
+        fake_db = MagicMock(spec=Session)
+        fake_db.query.return_value.filter.return_value.first = Mock(
+            return_value=None
+        )
+        cm = MagicMock()
+        cm.__enter__.return_value = fake_db
+        cm.__exit__.return_value = False
+        with patch("core.database.SessionLocal", return_value=cm):
+            result = await svc._check_hitl_policy(
+                "ghost-ws", "send_message", {"target": "c"}, {}
+            )
+        assert result is not None
+        assert result.get("blocked_by") == "hitl_policy_error"
+
+    @pytest.mark.asyncio
+    async def test_low_risk_tool_still_allowed_on_error_path_absence(self):
+        """Non-risky tool with healthy policy path still returns None (allow).
+        Uses a workspace/tenant present with no HITL requirement."""
+        from core.models import Tenant as _Tenant, Workspace as _Workspace
+
+        svc = self._svc()
+        tenant = Mock()
+        tenant.metadata_json = {"governance": {"require_hitl_external": False}}
+        workspace = Mock()
+        workspace.tenant_id = "t1"
+
+        ws_q, tn_q = MagicMock(), MagicMock()
+        ws_q.filter.return_value.first.return_value = workspace
+        tn_q.filter.return_value.first.return_value = tenant
+        model_map = {_Workspace: ws_q, _Tenant: tn_q}
+
+        fake_db = MagicMock(spec=Session)
+        fake_db.query = Mock(side_effect=lambda m, *a, **k: model_map[m])
+        cm = MagicMock()
+        cm.__enter__.return_value = fake_db
+        cm.__exit__.return_value = False
+        with patch("core.database.SessionLocal", return_value=cm):
+            result = await svc._check_hitl_policy(
+                "ws-ok", "search_contacts", {}, {}
+            )
+        assert result is None

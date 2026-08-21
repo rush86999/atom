@@ -343,6 +343,37 @@ class SpecialtyAgentTemplate:
 # Uses LLMService for unified LLM interactions (BYOK key resolution, cost tracking, observability).
 # All LLM calls (generate_completion, generate_structured_response) go through self.llm.
 
+
+def ensure_atom_registry_persisted(db) -> "AgentRegistry":
+    """Get-or-create the persisted ``atom_main`` registry row (R81b G6).
+
+    ``_get_atom_registry()`` builds an ephemeral in-memory row that is never
+    committed, so ``record_outcome("atom_main")`` found no DB row and silently
+    no-op'd — the meta-agent's confidence-based learning loop never advanced,
+    and governance lookups for the id returned "Agent not found". Idempotent:
+    returns the existing row when present.
+    """
+    row = db.query(AgentRegistry).filter(AgentRegistry.id == "atom_main").first()
+    if row:
+        return row
+    row = AgentRegistry(
+        id="atom_main",
+        name="Atom",
+        category="Meta",  # Special category for the main agent
+        description="Central orchestrator agent",
+        # NOT NULL without defaults — the in-memory _get_atom_registry()
+        # template omits these, which only surfaces when persisting.
+        module_path="core.atom_meta_agent",
+        class_name="AtomMetaAgent",
+        status=AgentStatus.AUTONOMOUS.value,
+        confidence_score=1.0,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
 class AtomMetaAgent:
     """
     The central Atom agent that orchestrates all platform capabilities.
@@ -457,6 +488,15 @@ class AtomMetaAgent:
         
         start_time = datetime.now(timezone.utc)
         execution_id = execution_id or str(uuid.uuid4())
+
+        # R81b (G6): make sure the atom_main registry row actually exists so
+        # governance checks and the end-of-run record_outcome() hit a real DB
+        # row instead of silently no-op'ing. Never raises.
+        try:
+            with SessionLocal() as _reg_db:
+                ensure_atom_registry_persisted(_reg_db)
+        except Exception as _reg_err:
+            logger.debug(f"atom_main registry ensure skipped: {_reg_err}")
 
         # P9: thread the run identity + tier into the dispatch context. Without
         # run_id/tier, the shared sandbox gate (and _meta_agent_sandbox_check)

@@ -869,8 +869,8 @@ async def test_project_tools(svc, uis, base_env):
 
 
 async def test_communication_tools(svc, uis, base_env):
-    # _check_hitl_policy: default mocked session finds no workspace -> raises
-    # inside -> caught -> None (allowed)
+    # R81b: healthy-policy path — HITL allows (None) so tool execution proceeds.
+    svc._check_hitl_policy = AsyncMock(return_value=None)
     assert await svc.execute_tool("local-tools", "post_channel_message",
                                   {"platform": "slack", "channel": "c",
                                    "message": "m"}, {"workspace_id": "w"})
@@ -1065,6 +1065,8 @@ async def test_search_dashboards(svc, uis):
 
 
 async def test_whatsapp_send_message(svc, base_env):
+    # R81b: allow via healthy HITL mock (whatsapp_send_message is risky-gated).
+    svc._check_hitl_policy = AsyncMock(return_value=None)
     mgr = MagicMock()
     mgr.status = "connected"
     mgr.integration = MagicMock()
@@ -1441,13 +1443,16 @@ def _hitl_db(workspace, tenant, user=None, agent=None):
 
 async def test_hitl_policy_paths(svc, base_env):
     from core.models import Tenant, Workspace
-    # no workspace found -> error caught -> returns None
+    # R81b: fail-closed — missing workspace/tenant now BLOCKS risky tools
+    # instead of the old swallow-and-allow.
     base_env.setattr("core.database.SessionLocal", mk_session(first=None))
-    assert await svc._check_hitl_policy("w", "send_email", {}) is None
+    blocked = await svc._check_hitl_policy("w", "send_email", {})
+    assert blocked and blocked.get("blocked_by") == "hitl_policy_error"
     # workspace but no tenant
     base_env.setattr("core.database.SessionLocal",
                      _hitl_db(SimpleNamespace(tenant_id="t"), None))
-    assert await svc._check_hitl_policy("w", "send_email", {}) is None
+    blocked = await svc._check_hitl_policy("w", "send_email", {})
+    assert blocked and blocked.get("blocked_by") == "hitl_policy_error"
     # no governance requirement -> None
     base_env.setattr("core.database.SessionLocal",
                      _hitl_db(SimpleNamespace(tenant_id="t"),

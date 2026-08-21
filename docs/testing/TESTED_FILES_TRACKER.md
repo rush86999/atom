@@ -5971,3 +5971,15 @@ Bugs fixed (each RED first; full narrative in `docs/architecture/BUGS_FOUND_AND_
 **Known remaining observations** (documented, not fixed): per-turn fact extraction (sync_turn) is wired into meta-agent/chat but not the GenericAgent specialty loop (chat orchestrator covers chat-driven runs); `record_outcome` from meta-agent hardcodes agent "atom_main"; approved-HITL actions execute without re-validating maturity at execution time (approval is itself the authority).
 
 **Verification**: round81 suite 18/18; unit/api governance routes 24/24 (rewritten); governance+graduation+trigger cluster 440 passed; memory/turn-fact/graduation cluster 109 passed; `main_api_app` imports clean.
+
+## Session 2026-08-21 (backend) — R81b journey follow-ups: meta-agent learning loop + memory parity + HITL fail-closed
+
+**Files**: `backend/core/atom_meta_agent.py` (`ensure_atom_registry_persisted()` get-or-create at execute() start — `atom_main` was never persisted, so `record_outcome("atom_main")` no-op'd forever and governance lookups returned "Agent not found"; persisted row also needs module_path/class_name NOT NULL cols the ephemeral template omitted), `backend/core/generic_agent.py` (session-end turn-fact extraction mirroring the meta-agent digest pass; flag-gated, fire-and-forget, `_pending_extraction_tasks` set), `backend/integrations/mcp_service.py` (`_check_hitl_policy` fail-CLOSED: the catch-all previously swallowed its own missing-workspace/tenant security ValueErrors plus any DB error into `return None` = silently allow send_email/whatsapp/send_message; now returns `{blocked_by: hitl_policy_error, requires_approval: True}`), `backend/tests/test_round81b_journey_followups.py` (new, 8 tests).
+
+**Stale tests re-contracted to fail-closed** (they codified the old allow-on-error): w85 `test_hitl_policy_paths`/`test_communication_tools`/`test_whatsapp_send_message`; integrations_core `test_hitl_missing_workspace_and_tenant`/`test_hitl_exception_returns_none→blocks`/`test_hitl_autonomous_agent_approved` (per-model keyed mocks — the shared filter/first chain broke on the production two-stage tenant-scoped filter)/`TestExecuteToolLocalTools::test_communication_tools`; mcp_svc `test_missing_workspace_returns_none`/`test_missing_tenant_returns_none`.
+
+**Pre-existing failures confirmed NOT mine** (identical on HEAD worktree): bigfour GenericAction/MCPAndMainAgent ×4, mcp_svc shopify×2+zoom+formulas, integrations_core shopify_tools+pm×2, w85 shopify.
+
+**Test-infra gotchas**: patch `core.database.SessionLocal` not `integrations.mcp_service.SessionLocal` (function-local import); chained-filter mocks need `f.filter.return_value = f`.
+
+**Verification**: round81b+round81+governance-routes 50 passed; mcp trio 461 passed (8 pre-existing); generic/meta/bigfour 222 passed (4 pre-existing).

@@ -1321,8 +1321,19 @@ class MCPService(IntegrationService):
                             )
                              return result
         except Exception as e:
-            logger.error(f"HITL Policy Check Failed: {e}")
-            return None 
+            # R81b (G8): fail CLOSED. The previous catch-all returned None
+            # (= proceed) on ANY failure — including this method's own
+            # security ValueErrors for missing workspace/tenant — so a DB
+            # outage silently bypassed the tenant HITL gate on send_email /
+            # whatsapp / send_message. Callers treat any truthy return as
+            # "do not execute the tool".
+            logger.error(f"HITL Policy Check Failed ({type(e).__name__}): {e}")
+            return {
+                "error": "Governance policy check unavailable; action blocked pending approval",
+                "blocked_by": "hitl_policy_error",
+                "status": "BLOCKED",
+                "requires_approval": True,
+            }
 
     async def execute_tool(self, server_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """Executes a tool on a specific MCP server."""

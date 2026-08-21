@@ -8,6 +8,10 @@ import uuid
 
 from core.agent_governance_service import AgentGovernanceService
 from core.episode_integration import trigger_episode_creation
+
+# In-flight fire-and-forget turn-fact extraction tasks (R81b G7 parity with
+# atom_meta_agent) — kept referenced so they are not garbage-collected mid-run.
+_pending_extraction_tasks: set = set()
 from core.agent_world_model import AgentExperience, WorldModelService
 from core.database import get_db_session
 from core.llm.byok_handler import QueryComplexity
@@ -582,6 +586,48 @@ class GenericAgent:
                 )
             except Exception as ep_err:
                 logger.debug(f"episode trigger skipped: {ep_err}")
+
+        # R81b (G7 parity): per-run durable-fact extraction (sync_turn hook) —
+        # mirrors the meta-agent's session-end digest pass so specialty agents
+        # accumulate turn facts too, not just chat/meta runs. Flag-gated,
+        # fire-and-forget, never raises.
+        if steps and final_answer:
+            try:
+                from core.turn_fact_extractor import (
+                    TURN_FACT_EXTRACTION_ENABLED,
+                    get_turn_fact_extractor,
+                )
+                if TURN_FACT_EXTRACTION_ENABLED:
+                    extractor = get_turn_fact_extractor(
+                        workspace_id=getattr(self, "workspace_id", None),
+                        tenant_id=getattr(self, "tenant_id", None),
+                    )
+                    digest_parts = [f"REQUEST: {task_input}"]
+                    for _s in steps[-6:]:
+                        _t = (str(_s.get("thought") or ""))[:200]
+                        _o = (str(_s.get("output") or ""))[:200]
+                        if _t:
+                            digest_parts.append(f"THOUGHT: {_t}")
+                        if _o:
+                            digest_parts.append(f"OBSERVATION: {_o}")
+                    digest_parts.append(f"FINAL ANSWER: {final_answer}")
+                    _tf_task = asyncio.create_task(
+                        extractor.extract_from_turn(
+                            user_request=task_input,
+                            thought="\n".join(digest_parts),
+                            final_answer=final_answer,
+                            execution_id=(context or {}).get("execution_id"),
+                            session_id=(context or {}).get("session_id"),
+                            user_id=(context or {}).get("user_id"),
+                            maturity=None,
+                        )
+                    )
+                    _pending_extraction_tasks.add(_tf_task)
+                    _tf_task.add_done_callback(
+                        lambda t: _pending_extraction_tasks.discard(t)
+                    )
+            except Exception as tf_err:
+                logger.debug(f"turn-fact extraction dispatch failed: {tf_err}")
 
         return execution_result
 

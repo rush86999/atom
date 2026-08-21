@@ -2564,17 +2564,19 @@ class TestCheckHITLPolicy:
 
     @pytest.mark.asyncio
     async def test_missing_workspace_returns_none(self, svc, monkeypatch):
+        # R81b: fail-closed — a missing workspace BLOCKS risky tools.
         self._patch_db(monkeypatch, self._db_with(workspace=None))
         result = await svc._check_hitl_policy("ghost", "send_email", {}, {})
-        assert result is None
+        assert result and result.get("blocked_by") == "hitl_policy_error"
 
     @pytest.mark.asyncio
     async def test_missing_tenant_returns_none(self, svc, monkeypatch):
+        # R81b: fail-closed — a missing tenant BLOCKS risky tools.
         workspace = MagicMock()
         workspace.tenant_id = "t1"
         self._patch_db(monkeypatch, self._db_with(workspace=workspace, tenant=None))
         result = await svc._check_hitl_policy("ws1", "send_email", {}, {})
-        assert result is None
+        assert result and result.get("blocked_by") == "hitl_policy_error"
 
     @pytest.mark.asyncio
     async def test_no_user_and_no_agent_intercepts(self, svc, monkeypatch):
