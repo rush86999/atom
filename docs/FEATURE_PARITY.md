@@ -8,8 +8,7 @@
 |---|---|---|---|---|
 | Auth / session | ✅ | ✅ (biometric) | ✅ LoginScreen | ✅ `login` (80r, token 0600) |
 | Agent list + chat | ✅ | ✅ AgentList/AgentChat | ✅ AgentList/Detail/QuickChat | ✅ `ask` posts to /api/chat/message (80t); `execute` stub repointed |
-| Workflow list / detail | ✅ | ✅ full suite (list/trigger/logs/progress) | ❌ | ➖ (use REST) |
-| Workflow trigger | ✅ | ✅ WorkflowTrigger | ❌ | ➖ |
+| Workflow list + trigger | ✅ | ✅ full suite (list/trigger/logs/progress) | ✅ 80u WorkflowsPanel (list/run) | ➖ (use REST) |
 | **Approvals / HITL** | ✅ approvals.tsx + R81i panel | ✅ **80s** ApprovalsScreen | ❌ | ➖ |
 | Canvas viewer | ✅ canvas suite | ✅ CanvasViewer | ✅ CanvasList | ➖ |
 | Integrations status | ✅ hub + health | ✅ v1 section | ✅ 80r panel | ✅ `integrations list/status` (80r) |
@@ -29,8 +28,7 @@
    implemented"). Wiring it to `POST /api/agent/start` +
    `/api/agent/execute` would complete the agent-chat journey from the
    terminal. (80t candidate)
-3. **Desktop workflows** — menubar lacks any workflow surface; QuickChat can
-   trigger agents but there is no workflow visibility.
+3. ~~Desktop workflows~~ — closed in 80u (WorkflowsPanel: catalog + Run).
 4. **Desktop analytics** — no dashboard KPIs in menubar.
 
 ## Notes
