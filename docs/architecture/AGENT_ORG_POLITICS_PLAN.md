@@ -1,7 +1,18 @@
 # Agent Org Politics & Hierarchy — Integration Plan
 
-> **Created**: Aug 22, 2026 · **Status**: P0–P2 IMPLEMENTED · P3–P6 pending
-> **Implemented**: P0 telemetry (`agent_org_events` + `core/org_telemetry_service.py` + wire-ins at recruit/radio/review; `scripts/org_dynamics_report.py`), P1 delegation contracts (`core/fleet_orchestration/delegation_contracts.py` wired into `_recruit_fleet` + conductor `_execute_step`), P2 privilege axis (`core/org_privileges.py` + dispatch gate in `mcp_service.call_tool`; flag default OFF).
+> **Created**: Aug 22, 2026 · **Status**: ALL PHASES IMPLEMENTED (P0–P6)
+> **Implemented**: P0 telemetry (`agent_org_events` + `core/org_telemetry_service.py` + wire-ins at recruit/radio/review; `scripts/org_dynamics_report.py`), P1 delegation contracts (`core/fleet_orchestration/delegation_contracts.py` wired into `_recruit_fleet` + conductor `_execute_step`; RACI `accountable_agent_id` field), P2 privilege axis (`core/org_privileges.py` + dispatch gate in `mcp_service.call_tool`; flag default OFF), P3 skill-scoped trust (`core/skill_scoped_trust.py` — shrinkage + laundering floor + fast-fail penalty + exploration boost; matcher integration flag-gated; `record_usage` stamps failures_verified/last_outcome_at), P4 contribution credit (`core/contribution_credit.py` — bucket-brigade γ=0.7, Σw=outcome delta, dampened-not-zeroed late failures; wired into `record_fleet_execution_outcome`; flag default OFF), P5 allocator integrity (`core/org_integrity.py` — self-dealing block wired in `_recruit_fleet`, coordinator rotation helpers, diversity floor shadow check, COI signal on link context; flag default OFF), P6 alignment sweep (`tests/e2e/multi_agent_alignment/` — 3 adversarial scenarios × 3 org structures, judge rubric unit-tested, double-gated nightly-only, cost-capped ≤400 tok/call).
+> **Enforcement posture**: only P0/P1 are ON by default (additive telemetry + prompts). P2/P3/P4/P5 flags stay OFF until Phase 0 baseline accumulates and the P6 sweep passes — flip order: P3 shadow-diff → pilot → enforce; P2 audit → ON; P5 signals → calibrate.
+
+## 7. Lifecycle automation (implemented)
+
+The rollout is fully automated via `core/org_politics_automation.py` + `api/org_politics_routes.py` (`/api/v1/org-politics/*`, admin-gated), mirroring the stage/fleet-router consent pattern:
+
+- **Modes** `ATOM_ORG_AUTO_ENFORCE` = off | notify | approve (**default**) | auto; cadence `ATOM_ORG_AUTO_INTERVAL_MIN` (default 1440 = daily). Background loop scheduled at app startup.
+- **Escalation** (enable a flag) requires: P0 telemetry flowing (≥10 recruit events) AND a green alignment sweep. `approve` queues into `org_politics_actions` + notifies; `auto` applies immediately + notifies.
+- **Revocation is always automatic** (every non-off mode): red alignment sweep (gap > 2.0) or ≥20 open COI pairs → immediate revoke + notification. Manual revoke endpoint too.
+- **Flag resolution** for P2/P3/P5 live gates: explicit env kill-switch wins > latest applied/revoked action row > default off — flips take effect without restarts (60s TTL cache); an env var still restores prior behavior instantly. P4 remains env-only by design (per-execution supplement).
+- **Sweep transport**: opencode-go cheapest-model convention when `ATOM_ALIGNMENT_SWEEP_ENABLED=true` + credentials present (~18 calls/night, ≤400 tok each); without it the pass reports `skipped_reason=sweep_disabled` and no escalation happens (fail-safe).
 > **Scope**: Apply 2025–2026 research on agent organizations, hierarchy, and emergent "office politics" to Atom's fleet/meta-agent stack.
 > **House rules**: every phase = TDD (failing test first), feature-flagged, shadow-first, kill switch, docs in `docs/architecture/`, no new auth surfaces without governance review.
 

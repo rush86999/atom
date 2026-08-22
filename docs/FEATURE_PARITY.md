@@ -8,7 +8,7 @@
 |---|---|---|---|---|
 | Auth / session | ✅ | ✅ (biometric) | ✅ LoginScreen | ✅ `login` (80r, token 0600) |
 | Agent list + chat | ✅ | ✅ AgentList/AgentChat | ✅ AgentList/Detail/QuickChat | ✅ `ask` posts to /api/chat/message (80t); `execute` stub repointed |
-| Workflow list + trigger | ✅ | ✅ full suite (list/trigger/logs/progress) | ✅ 80u WorkflowsPanel (list/run) | ➖ (use REST) |
+| Workflow list + trigger | ✅ | ✅ full suite (list/trigger/logs/progress) | ✅ 80u WorkflowsPanel (list/run) | ✅ 80w `workflows list/run` |
 | **Approvals / HITL** | ✅ approvals.tsx + R81i panel | ✅ **80s** ApprovalsScreen | ❌ | ➖ |
 | Canvas viewer | ✅ canvas suite | ✅ CanvasViewer | ✅ CanvasList | ➖ |
 | Integrations status | ✅ hub + health | ✅ v1 section | ✅ 80r panel | ✅ `integrations list/status` (80r) |
