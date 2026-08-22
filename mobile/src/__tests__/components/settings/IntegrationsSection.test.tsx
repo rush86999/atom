@@ -10,11 +10,13 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react-nativ
 import { IntegrationsSection } from '../../../components/settings/IntegrationsSection';
 import {
   getIntegrationHealth,
+  disconnectIntegration,
 } from '../../../services/integrationService';
 
 jest.mock('../../../services/integrationService');
 
 const mockedGetHealth = getIntegrationHealth as jest.Mock;
+const mockedDisconnect = disconnectIntegration as jest.Mock;
 
 const healthyFixture = {
   total_integrations: 3,
@@ -24,7 +26,7 @@ const healthyFixture = {
   overall_health_percentage: 66.7,
   integration_status: [
     { service_name: 'slack', status: 'healthy', enabled: true, configured: true },
-    { service_name: 'xero', status: 'healthy', enabled: true, configured: true },
+    { service_name: 'notion', status: 'healthy', enabled: true, configured: true },
     { service_name: 'zoom', status: 'unhealthy', enabled: true, configured: false, error_message: 'not configured' },
   ],
 };
@@ -52,7 +54,7 @@ describe('IntegrationsSection', () => {
     await waitFor(() => {
       expect(screen.getByTestId('integration-row-slack')).toBeTruthy();
     });
-    expect(screen.getByTestId('integration-row-xero')).toBeTruthy();
+    expect(screen.getByTestId('integration-row-notion')).toBeTruthy();
     expect(screen.getByTestId('integration-row-zoom')).toBeTruthy();
     expect(screen.getAllByText(/healthy/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/unhealthy/i)).toBeTruthy();
@@ -77,5 +79,40 @@ describe('IntegrationsSection', () => {
 
     fireEvent.press(screen.getByTestId('integrations-section-header'));
     expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('IntegrationsSection disconnect (v1.5)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedGetHealth.mockResolvedValue(healthyFixture);
+    mockedDisconnect.mockResolvedValue({ disconnected: true, message: 'ok' });
+  });
+
+  it('offers Disconnect only for known oauth providers that are healthy', async () => {
+    render(<IntegrationsSection expanded />);
+    await waitFor(() =>
+      expect(screen.getByTestId('disconnect-notion')).toBeTruthy()
+    );
+    // slack is in the allowlist too
+    expect(screen.getByTestId('disconnect-slack')).toBeTruthy();
+    // zoom unhealthy + not an oauth provider -> no button
+    expect(screen.queryByTestId('disconnect-zoom')).toBeNull();
+  });
+
+  it('revokes via the service and reloads health after disconnect', async () => {
+    render(<IntegrationsSection expanded />);
+    const btn = await screen.findByTestId('disconnect-notion');
+    fireEvent.press(btn);
+    await waitFor(() => expect(mockedDisconnect).toHaveBeenCalledWith('notion'));
+    await waitFor(() => expect(mockedGetHealth.mock.calls.length).toBeGreaterThanOrEqual(2));
+  });
+
+  it('surfaces errors when disconnect fails', async () => {
+    mockedDisconnect.mockRejectedValue(new Error('revoke denied'));
+    render(<IntegrationsSection expanded />);
+    const btn = await screen.findByTestId('disconnect-notion');
+    fireEvent.press(btn);
+    await waitFor(() => expect(screen.getByText(/revoke denied/i)).toBeTruthy());
   });
 });

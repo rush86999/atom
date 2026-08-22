@@ -60,3 +60,27 @@ export const getIntegrationHealth = async (): Promise<AllIntegrationsHealth> => 
   }
   throw new Error(response.error || 'Failed to fetch integration health');
 };
+
+/**
+ * Revoke a provider's stored OAuth tokens (disconnect).
+ * DELETE /api/v1/auth/oauth/tokens/{provider} (auth-gated)
+ * 404 = no stored integration for that provider (treated as already-off).
+ */
+export const disconnectIntegration = async (
+  provider: string
+): Promise<{ disconnected: boolean; message: string }> => {
+  const response = await apiService.delete<{ status: string; message: string }>(
+    `/api/v1/auth/oauth/tokens/${provider}`
+  );
+  if (response.success && response.data) {
+    return { disconnected: true, message: response.data.message || 'Disconnected' };
+  }
+  // 404 -> nothing to revoke; treat as already-disconnected
+  if (
+    !response.success &&
+    /no integration found/i.test(response.error || '')
+  ) {
+    return { disconnected: true, message: 'Already disconnected' };
+  }
+  throw new Error(response.error || 'Failed to disconnect');
+};

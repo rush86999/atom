@@ -121,7 +121,7 @@ Legend: ✅ wired · 🟡 partial (reachable, data surface limited) · ⚠️ kn
 ## 5. Role model (what "every role" means here)
 
 ### Mobile surface (audited Round 80i — v1 shipped)
-The mobile app (`mobile/`, Expo) had **no integration journeys at all** — screens are agent/analytics/auth/canvas/chat/debugging/device/settings/workflows, and `src/services/*` never called any `/api/integrations|/api/{app}` endpoint. Round 80 shipped **v1 read-only visibility**: `mobile/src/services/integrationService.ts` (GET `/api/v1/integrations/health` + GET `/api/integrations`), an expandable `IntegrationsSection` in Settings (healthy X of Y + per-service badges, pull-safe error/loading states), wired into `SettingsScreen`; covered by `src/__tests__/components/settings/IntegrationsSection.test.tsx`. Deeper journeys (per-app detail, connect/disconnect from mobile) remain future work.
+The mobile app (`mobile/`, Expo) had **no integration journeys at all** — screens are agent/analytics/auth/canvas/chat/debugging/device/settings/workflows, and `src/services/*` never called any `/api/integrations|/api/{app}` endpoint. Round 80 shipped **v1 read-only visibility**: `mobile/src/services/integrationService.ts` (GET `/api/v1/integrations/health` + GET `/api/integrations`), an expandable `IntegrationsSection` in Settings (healthy X of Y + per-service badges, pull-safe error/loading states), wired into `SettingsScreen`; covered by `src/__tests__/components/settings/IntegrationsSection.test.tsx`. v1.5 (shipped): per-service **Disconnect** for OAuth-backed providers via DELETE /api/v1/auth/oauth/tokens/{provider}. Connect-from-mobile (browser OAuth round-trip) remains future work.
 
 
 
