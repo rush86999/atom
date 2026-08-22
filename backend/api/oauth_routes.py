@@ -376,6 +376,11 @@ async def oauth_initiate(
         
     handler = OAuthHandler(configs[provider])
     auth_url = handler.get_authorization_url(state=_build_state(provider, uid))
+    # Round 80o: JSON variant for mobile clients — they cannot follow a 302
+    # into the provider consent page; hand them the URL as data instead.
+    from fastapi import Query
+    if request is not None and "json" == request.query_params.get("format"):
+        return {"url": auth_url}
     return RedirectResponse(url=auth_url)
 
 @router.get("/{provider}/callback")

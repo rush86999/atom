@@ -14,10 +14,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Linking,
+  AppState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   getIntegrationHealth,
+  getOAuthAuthorizeUrl,
   disconnectIntegration,
   AllIntegrationsHealth,
 } from '../../services/integrationService';
@@ -41,6 +44,7 @@ export const IntegrationsSection: React.FC<IntegrationsSectionProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,6 +66,29 @@ export const IntegrationsSection: React.FC<IntegrationsSectionProps> = ({
   const total = health?.total_integrations ?? 0;
   const disconnectable = (name: string) =>
     DISCONNECTABLE_PROVIDERS.has(name.toLowerCase());
+
+  const handleConnect = async (provider: string) => {
+    setConnecting(provider);
+    setError(null);
+    try {
+      const url = await getOAuthAuthorizeUrl(provider);
+      await Linking.openURL(url);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to start connection');
+    } finally {
+      setConnecting(null);
+    }
+  };
+
+  // Re-check health when the user returns from the system browser
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        load();
+      }
+    });
+    return () => sub.remove();
+  }, [load]);
 
   const handleDisconnect = async (provider: string) => {
     setDisconnecting(provider);
@@ -97,6 +124,18 @@ export const IntegrationsSection: React.FC<IntegrationsSectionProps> = ({
           >
             <Text style={styles.disconnectText}>
               {disconnecting === item.service_name ? '…' : 'Disconnect'}
+            </Text>
+          </TouchableOpacity>
+        )}
+        {disconnectable(item.service_name) && item.status !== 'healthy' && (
+          <TouchableOpacity
+            style={styles.connectButton}
+            onPress={() => handleConnect(item.service_name)}
+            disabled={connecting === item.service_name}
+            testID={`connect-${item.service_name}`}
+          >
+            <Text style={styles.connectText}>
+              {connecting === item.service_name ? '…' : 'Connect'}
             </Text>
           </TouchableOpacity>
         )}
@@ -226,5 +265,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#c0392b',
+  },
+  connectButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#e6f7ed',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#4caf50',
+  },
+  connectText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2e7d32',
   },
 });

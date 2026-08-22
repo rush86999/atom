@@ -84,3 +84,20 @@ export const disconnectIntegration = async (
   }
   throw new Error(response.error || 'Failed to disconnect');
 };
+
+/**
+ * Fetch the OAuth authorization URL for a provider (JSON variant of the
+ * initiate endpoint — mobile cannot follow the default 302).
+ * GET /api/v1/auth/oauth/{provider}/initiate?format=json (auth-resolved)
+ */
+export const getOAuthAuthorizeUrl = async (
+  provider: string
+): Promise<string> => {
+  const response = await apiService.get<{ url: string }>(
+    `/api/v1/auth/oauth/${provider}/initiate?format=json`
+  );
+  if (response.success && response.data?.url) {
+    return response.data.url;
+  }
+  throw new Error(response.error || 'Failed to fetch authorization URL');
+};

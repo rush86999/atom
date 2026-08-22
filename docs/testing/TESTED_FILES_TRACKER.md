@@ -35,6 +35,8 @@
 
 **Round 80 closing verification**: entire frontend jest tree **666 suites / 10,997 passed** (0 failures). Full-tree backend pytest is NOT isolation-clean on this machine: a whole-`tests/` run dies to cross-file ordering pollution (~100 failures in `test_covpush_autodev3`/`autodev_comms`, which pass standalone; pre-existing, unrelated to rounds 80–80n — none of those files were touched). Per-suite batteries remain the reliable signal: 638 backend + 271 frontend + 4280 mobile green across the round-80 targeted set.
 
+**Round 80p follow-on (same session — mobile integrations v2: connect)**: backend `GET /api/v1/auth/oauth/{provider}/initiate?format=json` returns `{url}` (same state binding; default 302 contract unchanged — `tests/test_round80f_oauth_json_initiate.py`, 2 tests). Mobile: `integrationService.getOAuthAuthorizeUrl(provider)`; IntegrationsSection shows **Connect** for unhealthy allowlisted providers, opens the system browser via Linking, and auto-refreshes health on AppState 'active' (post-consent return); errors surface inline. 3 new tests; mobile tree 128 suites / 4286 passed; tsc clean.
+
 **Round 80o follow-on (same session — mobile integrations v1.5: disconnect)**: `integrationService.disconnectIntegration(provider)` → DELETE `/api/v1/auth/oauth/tokens/{provider}` (404 treated as already-disconnected); `IntegrationsSection` rows show a Disconnect button for healthy services in the OAuth-provider allowlist (google/microsoft/salesforce/slack/github/asana/notion/trello/dropbox/whatsapp/zoho), reloading health after revoke and surfacing errors. 3 new tests; full mobile suite **128 suites / 4283 passed**; tsc clean.
 
 **Round 80n follow-on (same session — full-suite sweep + agent-governance suite repair + enforce contract completion)**: first full-tree backend collection+run (~20 min): **2 collection errors, both from the user's in-flight R81 rewrite of `api/agent_governance_routes.py`** (removed `MOCK_AGENTS`; 0 test failures elsewhere). Repaired `tests/api/test_agent_governance_routes.py` (43 passed): replaced the MOCK_AGENTS import with an isolated in-memory AgentRegistry seed fixture (8 agents w/ maturity-mapped status — note `AgentRegistry.maturity_level` is a property alias for `status`) + overrode BOTH `get_db` and the module-level `get_db_session` (handlers open `with get_db_session()` around the governance service). Seeding via conftest `db` or core SessionLocal was invisible/wrong-engine — the routes resolve `Depends(get_db)` from core.database (shared live dev DB, racy under parallel processes). Bonus contract completions: `enforce_action` BLOCKED/APPROVED responses now carry `agent_status`/`action_complexity`/`required_status`/`confidence` (were dropped by the R81 normalization), and high-risk-action tests pass `model_name` for the guardrail's model-capability check. supply_chain e2e file collects/passes fine standalone (36).
@@ -6084,3 +6086,17 @@ Automated sweep: extracted all 347 browser-level `/api/*` fetch/client calls fro
 - Route-scan confirmations (false alarms, verified existing): `/api/atom-agent/{chat,execute-generated}`, `/api/graphrag/{entities,relationships}`, `/api/financial/net-worth/summary`, `/api/forensics/*`, `/api/enterprise/teams`, `/api/services/registry`, `/api/status`, `/api/data`.
 - Documented, out-of-journey (unreferenced legacy code, no page imports): `lib/api.ts` legacy client paths (/api/dashboard/*, /api/email-verification/*, /api/tenants/context), unreferenced components (`ShareWorkflowModal`, `AgentRequestPrompt`, `CollaborativeDebugging`, `VariableModifier`, `SessionPersistence`, legacy `StripeIntegration`/`GoogleDriveIntegration`/`OneDriveIntegration`/`ZoomIntegration`) — their fetches target endpoints that never existed; these are dead UI code, not live journeys.
 - Frontend full suite final: 667 suites / 11,003 tests green (0 failures).
+
+## Session 2026-08-22 (R82 live-boot smoke — phantom rename found by E2E, not mocks)
+
+Booted the REAL backend (uvicorn, isolated SQLite, bootstrap admin) and walked the user journey over HTTP:
+- chat send → `success:True`, model/provider + `memory_context` (memory transparency live) ✓
+- `/api/chat/{sessions,history,health,root}` with JWT ✓; anonymous → 401 ✓
+- `/api/maturity/training/proposals` → live ✓ · `/api/episodes/trajectories` → live ✓ (`{success,data,metadata}`)
+- `/api/agents/approvals/pending` → live ✓ · `/api/chat/routing-stats` + `/harness-evolution` → live ✓
+- `/api/reasoning/chain/{unknown}` → 404 graceful ✓
+- **rename bug caught by the live loop only**: `PATCH /api/chat/sessions/{id}` still 500ed because the route called `chat_orchestrator.rename_session(...)` — a method that never existed (unit tests mock the whole orchestrator and hid it). The real implementation lives on `core/chat_session_manager.rename_session` (DB + file sync). Route now delegates to the manager + updates the in-memory cache; manager exception → 500, durable-store "False" → 404.
+- Tests updated to the real contract (`tests/test_covpush_w92_chat_routes.py` rename block now asserts the session-manager call). 68 passed.
+- Live re-run after the fix: rename 200, re-read shows the new title, history intact, anon 401.
+
+Lesson: journey E2E (live HTTP) catches "mocked-away" phantom calls that unit suites cannot; this round's live boot is now the reference check for the chat/agent/maturity leg.
