@@ -6170,3 +6170,11 @@ Ran every backend test file that imports my changed modules (`integrations.chat_
 **Gotchas**: gate opens own session via core.database.get_db_session — tests monkeypatch it to the fixture engine or grants land in the wrong DB; tier does NOT confer privileges by design (AUTONOMOUS agent without lease is denied); human paths without context.agent_id stay on role auth.
 
 **Verification**: 15/15 new; capability/action-registry/mcp/mini-app suites 164 passed; only failure = pre-existing test_shopify_create_product_and_inventory (fails on clean main too).
+
+## Session 2026-08-22 (backend) — R81n: trust-calibration P2 certification gate
+
+**Files**: `backend/core/trust_calibration/certify.py` (`certify(resolved)` — temporal holdout (oldest 70% train / newest ≥8 eval), GP refit with certifier-tuned hyperparameters (sv=4/base=0.02/l_tool=0.5/l_ctx=0.7 — sharper than gateway defaults so separable history isn't masked by prior shrinkage), metrics: holdout Brier ≤ 0.25, denial-coverage ≥ 0.7, 10-bin ECE; naive-datetime normalization for SQLite), `backend/scripts/calibrate_trust_gateway.py` (SQL join loader → gate → JSON verdict, exit 0/1/2; clean degradation when migration unapplied), `tests/test_round81f_trust_certification.py` (6).
+
+**Bugs the tests caught**: certify fed 0/1 labels into a ±1-probit GP — every rejection read as zero evidence, muting denial detection entirely. Also: colocated alternating labels are an exact tie (assert on stale-vs-fresh delta, not absolute bands); anti-correlation fixtures need a real feature/outcome MISMATCH, not just uniform outcomes.
+
+**Verification**: 6/6 f-suite; d+e+f 27/27; end-to-end script run against seeded DB → exit 0, certified, Brier 0.002/coverage 1.0; un-migrated DB → exit 2 with clear message.
