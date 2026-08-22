@@ -6226,3 +6226,9 @@ Ran every backend test file that imports my changed modules (`integrations.chat_
 **Files**: `frontend-nextjs/lib/trust-api.ts` (typed admin client: assessAction/getTrustStats/automation get+set/runCertificationNow), `lib/__tests__/api/trust-api.test.ts` (5 contract tests), CLAUDE.md (component #60 + history row 81o–p + env block), `docs/reference/ENVIRONMENT_VARIABLES.md` (trust section + certification gate).
 
 **Verification**: trust-api 5/5; full api dir 286/286; tsc clean.
+
+## Session 2026-08-22 (backend) — stale Shopify MCP test repaired
+
+**Files**: `backend/tests/test_covpush_w85_mcp_service.py::test_shopify_create_product_and_inventory` — production `execute_tool` had migrated shopify_create_product to the real async `ShopifyService.create_product` while the test still mocked inline httpx + asserted legacy strings ("Product created successfully: 9"), producing `TypeError: MagicMock can't be used in 'await'`. Rewritten to current contract: AsyncMock create_product → "Product created successfully. id=9 title=Widget handle=widget"; failure case now fail-loud (no outer try/except in execute_tool) → pytest.raises; update_inventory unchanged (inline httpx, "Inventory updated"/"Failed to update inventory: bad").
+
+**Verification**: 73/73 in suite; failing since before R81 sessions on clean main.

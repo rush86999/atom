@@ -579,17 +579,22 @@ async def test_shopify_no_store(svc, base_env):
 
 
 async def test_shopify_create_product_and_inventory(svc, base_env):
-    _shopify_env(base_env)
-    base_env.setattr(
-        mcp_mod.httpx, "AsyncClient",
-        fake_httpx_client(post_resp=http_response(201, {"product": {"id": 9}})))
-    assert "Product created successfully: 9" == await svc.execute_tool(
+    # Current contract: create_product delegates to ShopifyService (async);
+    # update_inventory still uses the inline httpx client.
+    shopify = _shopify_env(base_env)
+    shopify.create_product = AsyncMock(
+        return_value={"id": 9, "title": "Widget", "handle": "widget"}
+    )
+    res = await svc.execute_tool(
         "local-tools", "shopify_create_product", {}, {"workspace_id": "w"})
-    base_env.setattr(
-        mcp_mod.httpx, "AsyncClient",
-        fake_httpx_client(post_resp=http_response(500, text="err")))
-    assert "Failed to create product" in await svc.execute_tool(
-        "local-tools", "shopify_create_product", {}, {"workspace_id": "w"})
+    assert "Product created successfully" in res
+    assert "id=9" in res
+    assert "title=Widget" in res
+    assert "handle=widget" in res
+    shopify.create_product = AsyncMock(side_effect=RuntimeError("shopify 500"))
+    with pytest.raises(RuntimeError, match="shopify 500"):
+        await svc.execute_tool(
+            "local-tools", "shopify_create_product", {}, {"workspace_id": "w"})
     base_env.setattr(
         mcp_mod.httpx, "AsyncClient",
         fake_httpx_client(post_resp=http_response(200)))
