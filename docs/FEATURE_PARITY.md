@@ -14,7 +14,7 @@
 | Integrations status | ✅ hub + health | ✅ v1 section | ✅ 80r panel | ✅ `integrations list/status` (80r) |
 | Integrations connect | ✅ OAuth flows | ✅ 80p system-browser | ✅ 80r browser | ✅ `connect` prints URL (80r) |
 | Integrations disconnect | ✅ | ✅ 80o | ✅ 80r | ✅ `disconnect` (80r) |
-| Analytics / KPIs | ✅ dashboards | ✅ AnalyticsDashboard | ❌ | ➖ |
+| Analytics / KPIs | ✅ dashboards | ✅ AnalyticsDashboard | ✅ 80v AnalyticsPanel | ➖ |
 | Debugging / traces | ✅ dev-studio | ✅ debugging suite | ❌ | ➖ |
 | Device capabilities | ➖ web-only APIs | ✅ camera/location/notifs | ➖ | ➖ |
 | Server control (start/daemon) | ➖ | ➖ | ➖ | ✅ start/daemon/stop/status |
@@ -29,7 +29,6 @@
    `/api/agent/execute` would complete the agent-chat journey from the
    terminal. (80t candidate)
 3. ~~Desktop workflows~~ — closed in 80u (WorkflowsPanel: catalog + Run).
-4. **Desktop analytics** — no dashboard KPIs in menubar.
 
 ## Notes
 
