@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 // Screen Imports
 import { WorkflowsListScreen } from '../screens/workflows/WorkflowsListScreen';
+import ApprovalsScreen from '../screens/approvals/ApprovalsScreen';
 import { WorkflowDetailScreen } from '../screens/workflows/WorkflowDetailScreen';
 import { WorkflowTriggerScreen } from '../screens/workflows/WorkflowTriggerScreen';
 import { ExecutionProgressScreen } from '../screens/workflows/ExecutionProgressScreen';
@@ -38,6 +39,13 @@ function WorkflowStackNavigator() {
         },
       }}
     >
+      <WorkflowStack.Screen
+        name="Approvals"
+        component={ApprovalsScreen}
+        options={{
+          title: 'Pending Approvals',
+        }}
+      />
       <WorkflowStack.Screen
         name="WorkflowsList"
         component={WorkflowsListScreen}

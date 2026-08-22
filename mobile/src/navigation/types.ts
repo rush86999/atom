@@ -30,6 +30,7 @@ export type MainTabParamList = {
  * Workflow Stack Navigation Types
  */
 export type WorkflowStackParamList = {
+  Approvals: undefined;
   WorkflowsList: undefined;
   WorkflowDetail: { workflowId: string };
   WorkflowTrigger: { workflowId: string; workflowName: string };

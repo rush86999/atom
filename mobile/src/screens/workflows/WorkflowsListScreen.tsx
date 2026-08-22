@@ -24,6 +24,7 @@ type NavigationType = {
   WorkflowsList: any;
   WorkflowDetail: { workflowId: string };
   WorkflowTrigger: { workflowId: string; workflowName: string };
+  Approvals: undefined;
 };
 
 export const WorkflowsListScreen: React.FC = () => {
@@ -170,7 +171,26 @@ export const WorkflowsListScreen: React.FC = () => {
   // Render category filter
   const renderCategoryFilter = () => (
     <View style={styles.categoryFilter}>
-      <FlatList
+            <TouchableOpacity
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: '#e3f2fd',
+          borderRadius: 10,
+          padding: 12,
+          marginHorizontal: 12,
+          marginBottom: 8,
+        }}
+        onPress={() => navigation.navigate('Approvals' as never)}
+        testID="open-approvals"
+      >
+        <Ionicons name="checkmark-done-circle" size={20} color="#2196F3" />
+        <Text style={{ marginLeft: 8, color: '#1a1a1a', fontWeight: '600', flex: 1 }}>
+          Pending Approvals
+        </Text>
+        <Ionicons name="chevron-forward" size={18} color="#999" />
+      </TouchableOpacity>
+<FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
         data={categories}
