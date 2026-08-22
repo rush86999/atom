@@ -314,3 +314,48 @@ class TestRolePersistsOnConfig:
         # explicit call-site param beats config; here we pass none so config applies
 
 
+
+
+class TestEnableSyncRolePersistence:
+    """POST /enable-sync?agent_id=X resolves the role and persists it on
+    the SyncConfiguration — completing the set-once story (80s)."""
+
+    def test_agent_id_persists_role_on_config(self):
+        from unittest.mock import AsyncMock
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        import core.auth as ca
+        from core.database import get_db as route_db
+
+        service = MagicMock()
+        service.enable_auto_sync = MagicMock()
+        agent = MagicMock()
+        agent.category = "Finance"
+
+        app = FastAPI()
+        from api import data_ingestion_routes as r
+        app.include_router(r.router)
+        user = MagicMock(spec=User)
+        app.dependency_overrides[ca.get_current_user] = lambda: user
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = agent
+        app.dependency_overrides[route_db] = lambda: db
+
+        with patch("core.hybrid_data_ingestion.get_hybrid_ingestion_service",
+                   return_value=service), \
+             patch.object(r, "get_workspace_id", return_value="default"), \
+             patch("core.agent_governance_service.AgentGovernanceService.can_perform_action",
+                   return_value={"allowed": True}):
+            c = TestClient(app, raise_server_exceptions=False)
+            resp = c.post("/api/data-ingestion/enable-sync", json={
+                "integration_id": "zoho",
+                "entity_types": ["deals"],
+                "sync_last_n_days": 30,
+            }, params={"agent_id": "finance-agent-1"})
+
+        assert resp.status_code == 200, resp.text[:200]
+        # role resolved from the agent and stored on the config handed to
+        # enable_auto_sync (service is a MagicMock; inspect the call)
+        args, kwargs = service.enable_auto_sync.call_args
+        cfg = args[1]
+        assert cfg.role == "finance", f"config role: {cfg.role}"
