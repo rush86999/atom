@@ -6134,3 +6134,13 @@ Ran every backend test file that imports my changed modules (`integrations.chat_
 - **`tests/unit` full cluster**: 308 files → 6,585 passed / 46 failed / 18 errors in ONE batch, but **every sampled failure passes in isolation** (auth_endpoints 18/18, byok_routes 16/16, sandbox_policy S3 ✓) — the batch-only failures are the known cross-suite environment-pollution pattern (matches the documented pre-existing profile; suites that import this round's changed modules were already certified by the 1,092-suite cross-import sweep, all green).
 - **Handler syntax audit**: transpile-checked all 283 `pages/api/*` files — 0 syntax errors. Confirms the 160-file proxy-handler normalization left the handlers intact (the earlier collateral was confined to test-file `createMocks` call sites, since repaired + verified: `method as any` = 0 remaining).
 - **Frontend full suite final runs**: 668 suites / 11,008 tests, 0 failures (two consecutive clean runs).
+
+## Session 2026-08-22 (backend) — R81l/R81m: trust-calibration gateway (P0 spike + P1 live shadow)
+
+**Files**: `backend/core/trust_calibration/` (gp.py product-kernel probit GP — k_tool×k_ctx×k_time, half-life decay folded as covariance scale AND label noise so predictive variance floors at base_noise = bounded false-allows; features.py v1 vectors; service.py adapters over hitl_actions+agent_proposals with per-stream isolation; gateway.py TTL refit + three-tier allow/ask/block, fail-safe ask), `backend/api/trust_calibration_routes.py` (admin-gated /assess + /stats; flag off → 503), `core/models.py` + `alembic/versions/20260822_add_trust_calibration_assessments.py` (guarded, down=20260821_fleet_routing_audit), `integrations/mcp_service.py` + `core/generic_agent.py` (P1 hooks: assess_and_record at BOTH ask-paths with decision_ref→HITLAction.id), stats `_calibration_metrics` (outcome join → Brier/10-bin ECE/rec×outcome matrix, pending excluded), `tests/test_round81d_trust_calibration.py` (14) + `tests/test_round81e_trust_calibration_p1.py` (7).
+
+**Flag**: `ATOM_TRUST_CALIBRATION_ENABLED` (default false → 503). Shadow-only: no decision path reads the posterior yet (P2 certification gate next).
+
+**Gotchas**: patch api-module attribute not core.database when route imports at top; in-memory sqlite needs StaticPool once TestClient threads are involved (was the intermittent 0-row stats failure); colocated contradictory evidence is an exact 0.5 tie under balanced noise — decay assertions must compare stale-vs-fresh, not absolute bands.
+
+**Verification**: 21/21 d+e; full R81 cluster 72 passed; smoke 12/12; app imports with routes mounted.

@@ -1261,6 +1261,26 @@ What is your next step?"""
                             reason=auth_check["reason"]
                         )
 
+                        # R81l P1: shadow trust-calibration assessment for
+                        # this ask-the-human moment (joined to the outcome
+                        # via decision_ref=action_id). Flag-gated, never
+                        # raises, never alters the pause.
+                        try:
+                            from core.trust_calibration.gateway import (
+                                TrustCalibrationGateway as _TCG,
+                            )
+
+                            _TCG(db=db).assess_and_record(
+                                db=db,
+                                action_type=tool_name,
+                                platform="internal",
+                                agent_id=self.id,
+                                source_path="hitl_step_act",
+                                decision_ref=action_id,
+                            )
+                        except Exception as _tc_err:
+                            logger.debug(f"trust calibration skipped: {_tc_err}")
+
                         logger.info(f"Action {tool_name} requires approval. Pausing agent...")
 
                         if step_callback:

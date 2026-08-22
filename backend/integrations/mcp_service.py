@@ -1329,6 +1329,32 @@ class MCPService(IntegrationService):
                                 user_id=user_id,
                                 workspace_id=workspace_id  # Optional workspace context
                             )
+
+                             # R81l P1: shadow trust-calibration assessment
+                             # for this ask moment (decision_ref -> the
+                             # created HITLAction). Flag-gated, never raises.
+                             try:
+                                 from core.trust_calibration.gateway import (
+                                     TrustCalibrationGateway as _TCG,
+                                 )
+
+                                 _TCG(db=db).assess_and_record(
+                                     db=db,
+                                     action_type=tool_name,
+                                     platform=str(
+                                         (arguments or {}).get("platform")
+                                         or "internal"
+                                     ),
+                                     agent_id=(context.get("agent_id") if context else None),
+                                     source_path="governance_hitl_policy",
+                                     decision_ref=(
+                                         result.get("action_id")
+                                         if isinstance(result, dict) else None
+                                     ),
+                                 )
+                             except Exception as _tc_err:
+                                 logger.debug(f"trust calibration skipped: {_tc_err}")
+
                              return result
         except Exception as e:
             # R81b (G8): fail CLOSED. The previous catch-all returned None

@@ -11,7 +11,7 @@ the gateway never mutates any decision path in P0.
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from fastapi import Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -72,6 +72,85 @@ async def assess(
         raise HTTPException(status_code=500, detail="Assessment failed")
 
 
+
+def _calibration_metrics(db: Session, limit: int = 500) -> Dict[str, Any]:
+    """P1 outcome join: assessments x HITLAction.status -> live shadow quality.
+
+    Brier over resolved decisions, 10-bin ECE, and a recommendation-x-outcome
+    matrix. Expired HITL actions are excluded (no ground truth).
+    """
+    from core.models import HITLAction, TrustCalibrationAssessment
+
+    rows = (
+        db.query(TrustCalibrationAssessment)
+        .order_by(TrustCalibrationAssessment.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    refs = [r.decision_ref for r in rows if r.decision_ref]
+    status_by_ref: Dict[str, str] = {}
+    if refs:
+        try:
+            hrows = db.query(HITLAction).filter(HITLAction.id.in_(refs)).all()
+            status_by_ref = {h.id: h.status for h in hrows}
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"outcome join failed: {e}")
+
+    brier_sum = 0.0
+    resolved = 0
+    bins = [[] for _ in range(10)]
+    matrix: Dict[str, Dict[str, int]] = {}
+    pending = 0
+    for r in rows:
+        st = status_by_ref.get(r.decision_ref) if r.decision_ref else None
+        if st is None:
+            continue
+        y = {"approved": 1.0, "rejected": 0.0}.get((st or "").lower())
+        if y is None:
+            continue  # expired / pending / unknown
+        y01 = int(y)
+        brier_sum += (float(r.p_approve) - y01) ** 2
+        resolved += 1
+        b = min(int(float(r.p_approve) * 10), 9)
+        bins[b].append(y01)
+        rec = r.recommendation or "unknown"
+        matrix.setdefault(rec, {"approved": 0, "rejected": 0})
+        matrix[rec]["approved" if y01 else "rejected"] += 1
+
+    ece = 0.0
+    for b in bins:
+        if b:
+            conf = sum(b) / len(b)
+            ece += len(b) / max(sum(len(x) for x in bins), 1) * abs(conf - (sum(b) / len(b)))
+    # NOTE: bin confidence == observed rate for binary labels; keep the
+    # standard |mean_p - freq| form using mean p per bin instead:
+    p_sums = [0.0] * 10
+    counts = [0] * 10
+    for r in rows:
+        st = status_by_ref.get(r.decision_ref) if r.decision_ref else None
+        if st not in ("approved", "rejected"):
+            continue
+        idx = min(int(float(r.p_approve) * 10), 9)
+        counts[idx] += 1
+        p_sums[idx] += float(r.p_approve)
+    ece = 0.0
+    total_resolved = sum(counts)
+    for i in range(10):
+        if counts[i]:
+            mean_p = p_sums[i] / counts[i]
+            freq = sum(bins[i]) / counts[i]
+            ece += (counts[i] / total_resolved) * abs(mean_p - freq)
+
+    return {
+        "assessments_total": len(rows),
+        "resolved": resolved,
+        "pending": len(rows) - resolved,
+        "brier": round(brier_sum / resolved, 6) if resolved else None,
+        "ece_10bin": round(ece, 6) if resolved else None,
+        "recommendation_outcome_matrix": matrix,
+    }
+
+
 @router.get("/stats")
 async def stats(
     _admin: User = Depends(_require_admin),
@@ -93,6 +172,8 @@ async def stats(
                 approved += 1
             else:
                 rejected += 1
+        calibration = _calibration_metrics(db)
+
         return {
             "enabled": True,
             "shadow_only": True,
@@ -102,6 +183,7 @@ async def stats(
                 "approved": approved,
                 "rejected": rejected,
             },
+            "calibration": calibration,
             "kernel": {
                 "half_life_days": gw.half_life_days,
                 "max_obs": gw.max_obs,

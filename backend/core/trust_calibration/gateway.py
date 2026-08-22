@@ -189,6 +189,57 @@ class TrustCalibrationGateway:
         })
         return base
 
+    def assess_and_record(
+        self,
+        db,
+        action_type: str,
+        platform: str = "internal",
+        agent_id: Optional[str] = None,
+        source_path: str = "hitl_step_act",
+        decision_ref: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Assess AND persist one shadow row (P1 live-shadow).
+
+        Call at every ask-the-human moment; decision_ref is the HITLAction.id
+        so /stats can join the human's actual outcome later. Flag-gated and
+        never raises — recording must never break the ask path.
+        """
+        if not enabled():
+            return None
+        try:
+            from core.models import TrustCalibrationAssessment
+
+            assessment = self.assess(
+                action_type=action_type, platform=platform, agent_id=agent_id
+            )
+            row = TrustCalibrationAssessment(
+                agent_id=agent_id,
+                action_type=action_type,
+                platform=platform,
+                features_json={
+                    "tool": tool_vector(action_type).tolist(),
+                    "ctx": context_vector(agent_status=None, platform=platform).tolist(),
+                },
+                p_approve=assessment["p_approve"],
+                uncertainty=assessment["uncertainty"],
+                recommendation=assessment["recommendation"],
+                source_path=source_path,
+                decision_ref=decision_ref,
+                half_life_days=self.half_life_days,
+                n_obs=assessment["n_obs"],
+            )
+            db.add(row)
+            db.commit()
+            logger.debug(
+                "trust calibration recorded: %s %s p=%.3f rec=%s ref=%s",
+                source_path, action_type, assessment["p_approve"],
+                assessment["recommendation"], decision_ref,
+            )
+            return {"id": row.id, **assessment}
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"trust calibration record skipped: {e}")
+            return None
+
     # -------------------------------------------------------- test hook
 
     def seed_synthetic_history(self) -> None:

@@ -29,7 +29,10 @@ import numpy as np
 def tmp_sqlite():
     import sqlalchemy as sa
     from sqlalchemy.orm import sessionmaker
-    from core.models import HITLAction, AgentProposal, AgentRegistry
+    from core.models import (
+        HITLAction, AgentProposal, AgentRegistry,
+        TrustCalibrationAssessment,
+    )
 
     engine = sa.create_engine(
         "sqlite://",
@@ -39,6 +42,7 @@ def tmp_sqlite():
     HITLAction.__table__.create(engine)
     AgentProposal.__table__.create(engine)
     AgentRegistry.__table__.create(engine)
+    TrustCalibrationAssessment.__table__.create(engine)
     Session = sessionmaker(bind=engine)
     yield Session()
 

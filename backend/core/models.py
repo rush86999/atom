@@ -12150,3 +12150,34 @@ class FleetRouterAutomationAction(Base):
     __table_args__ = (
         Index("ix_fleet_router_auto_created", "workload_key", "created_at"),
     )
+
+
+class TrustCalibrationAssessment(Base):
+    """One shadow assessment per ask-the-human moment (R81l P1).
+
+    Written at HITL pause time by the trust-calibration gateway; the outcome
+    is joined live from HITLAction via decision_ref at /stats read time, so
+    there is exactly one writer and no second process to keep in sync.
+    See docs/architecture/TRUST_CALIBRATION_PLAN.md.
+    """
+
+    __tablename__ = "trust_calibration_assessments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    agent_id = Column(String, nullable=True, index=True)
+    action_type = Column(String, nullable=False, index=True)
+    platform = Column(String, default="internal")
+
+    features_json = Column(JSONColumn, nullable=True)
+
+    p_approve = Column(Float, nullable=False)
+    uncertainty = Column(Float, nullable=False)
+    recommendation = Column(String, nullable=False)  # allow | ask | block
+
+    source_path = Column(String, nullable=False, index=True)  # hitl_step_act | governance_hitl_policy
+    decision_ref = Column(String, nullable=True, index=True)  # -> HITLAction.id
+
+    half_life_days = Column(Float, nullable=True)
+    n_obs = Column(Integer, nullable=True)
