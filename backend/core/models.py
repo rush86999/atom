@@ -12181,3 +12181,60 @@ class TrustCalibrationAssessment(Base):
 
     half_life_days = Column(Float, nullable=True)
     n_obs = Column(Integer, nullable=True)
+
+
+class AgentOrgEvent(Base):
+    """One append-only org-dynamics observation (org-politics plan Phase 0).
+
+    Written by ``core/org_telemetry_service`` at three wire-in points — fleet
+    recruitment (who recruited whom), Agent Radio (thread attach + message
+    send), and reviewer verdicts — so the org_dynamics report can measure
+    incumbency, reviewer favoritism, and radio→recruitment conflict-of-interest
+    signals WITHOUT influencing any runtime decision (pure telemetry).
+    See docs/architecture/AGENT_ORG_POLITICS_PLAN.md.
+    """
+
+    __tablename__ = "agent_org_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    event_type = Column(String(length=32), nullable=False, index=True)
+    # fleet_recruit / radio_thread_attach: actor recruited/targeted the chain
+    # or member; radio_message: sender→recipient; review_verdict: the
+    # reviewed specialist's output (actor is the reviewer, may be null).
+    actor_agent_id = Column(String, nullable=True, index=True)
+    target_agent_id = Column(String, nullable=True, index=True)
+
+    execution_id = Column(String, nullable=True, index=True)
+    chain_id = Column(String, nullable=True, index=True)
+    workspace_id = Column(String, nullable=True, index=True)
+    tenant_id = Column(String, nullable=True, index=True)
+
+    payload_json = Column(JSONColumn, nullable=True)
+
+    __table_args__ = (
+        Index("ix_org_events_pair_created", "actor_agent_id", "target_agent_id", "created_at"),
+        Index("ix_org_events_type_created", "event_type", "created_at"),
+    )
+
+
+class TrustCalibrationAction(Base):
+    """Consent-gated automation ledger for the trust gateway (R81o).
+
+    Mirrors FleetRouterAutomationAction: certification verdicts become
+    recorded actions whose ``state`` drives (future) relaxation consumers
+    via resolved_trust_enforce(). Revocation is always automatic.
+    """
+
+    __tablename__ = "trust_calibration_actions"
+
+    # Monotonic integer PK: created_at alone has second granularity on
+    # SQLite, making applied/revoked rows order-ambiguous.
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    workload_key = Column(String(length=32), nullable=False, default="__global__", index=True)
+    verdict = Column(String(length=16), nullable=False)  # enable | revoke | collecting | blocked
+    mode = Column(String(length=16), nullable=False)     # notify | approve | auto | off
+    state = Column(String(length=16), nullable=False, default="approval")  # approval|applied|rejected|revoked
+    stats_json = Column(JSONColumn, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)

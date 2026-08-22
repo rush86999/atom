@@ -207,6 +207,7 @@ class TrustCalibrationGateway:
         if not enabled():
             return None
         try:
+            _ensure_table(db)
             from core.models import TrustCalibrationAssessment
 
             assessment = self.assess(
@@ -271,3 +272,29 @@ class TrustCalibrationGateway:
                 ),
             ).finalize())
         self._synthetic.extend(obs)
+
+
+# Engines already provisioned this process. Keyed by engine identity (not a
+# single bool) so multiple isolated databases each get their own create;
+# checkfirst=True keeps re-runs harmless regardless.
+_ensured_engines: set = set()
+
+
+def _ensure_table(db) -> None:
+    """Idempotent self-provisioning so the shadow never silently no-ops on
+    an un-migrated database (dev/hybrid convention; alembic remains
+    canonical for prod)."""
+    try:
+        bind = db.get_bind()
+        key = id(bind)
+        if key in _ensured_engines:
+            return
+        from core.models import TrustCalibrationAssessment
+
+        TrustCalibrationAssessment.__table__.create(
+            bind=bind, checkfirst=True
+        )
+        _ensured_engines.add(key)
+        logger.info("trust_calibration_assessments table ensured")
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"ensure_table skipped: {e}")

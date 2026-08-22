@@ -197,3 +197,87 @@ async def stats(
     except Exception as e:  # noqa: BLE001
         logger.error(f"trust calibration stats failed: {e}")
         raise HTTPException(status_code=500, detail="Stats failed")
+
+
+# ============================================================================
+# P3 consent-gated automation (mirrors fleet/stage router management)
+# ============================================================================
+
+
+@router.get("/automation")
+async def get_automation(
+    _admin: User = Depends(_require_admin),
+    db: Session = Depends(get_db),
+):
+    if not _flag_on():
+        raise HTTPException(status_code=503, detail="Trust calibration disabled")
+    from core.trust_calibration import automation
+
+    latest = automation._latest_action(db)
+    return {
+        "mode": automation.automation_mode(),
+        "interval_min": automation.automation_interval_min(),
+        "resolved_enforce": automation.resolved_trust_enforce(db),
+        "latest_action": (
+            {k: str(v) for k, v in latest.items()} if latest else None
+        ),
+    }
+
+
+@router.post("/automation")
+async def set_automation(
+    mode: Optional[str] = Query(None),
+    interval_min: Optional[float] = Query(None),
+    _admin: User = Depends(_require_admin),
+):
+    if not _flag_on():
+        raise HTTPException(status_code=503, detail="Trust calibration disabled")
+    from core.trust_calibration import automation
+
+    try:
+        cfg = automation.set_automation_config(mode=mode, interval_min=interval_min)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return cfg
+
+
+@router.post("/run-now")
+async def run_now(
+    _admin: User = Depends(_require_admin),
+    db: Session = Depends(get_db),
+):
+    if not _flag_on():
+        raise HTTPException(status_code=503, detail="Trust calibration disabled")
+    from core.trust_calibration import automation
+
+    return automation.run_automation_pass(db, force=True)
+
+
+@router.post("/approve/{action_id}")
+async def approve_queued(
+    action_id: str,
+    _admin: User = Depends(_require_admin),
+    db: Session = Depends(get_db),
+):
+    if not _flag_on():
+        raise HTTPException(status_code=503, detail="Trust calibration disabled")
+    from core.trust_calibration import automation
+
+    if automation.approve_action(db, action_id):
+        return {"approved": True, "action_id": action_id}
+    raise HTTPException(status_code=404, detail="Queued approval not found")
+
+
+@router.post("/reject/{action_id}")
+async def reject_queued(
+    action_id: str,
+    _admin: User = Depends(_require_admin),
+    db: Session = Depends(get_db),
+):
+    if not _flag_on():
+        raise HTTPException(status_code=503, detail="Trust calibration disabled")
+    from core.trust_calibration import automation
+
+    if automation.reject_action(db, action_id):
+        return {"rejected": True, "action_id": action_id}
+    raise HTTPException(status_code=404, detail="Queued approval not found")

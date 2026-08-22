@@ -6178,3 +6178,31 @@ Ran every backend test file that imports my changed modules (`integrations.chat_
 **Bugs the tests caught**: certify fed 0/1 labels into a ±1-probit GP — every rejection read as zero evidence, muting denial detection entirely. Also: colocated alternating labels are an exact tie (assert on stale-vs-fresh delta, not absolute bands); anti-correlation fixtures need a real feature/outcome MISMATCH, not just uniform outcomes.
 
 **Verification**: 6/6 f-suite; d+e+f 27/27; end-to-end script run against seeded DB → exit 0, certified, Brier 0.002/coverage 1.0; un-migrated DB → exit 2 with clear message.
+
+## Session 2026-08-22 (backend) — Skill-scoped trust P3 + allocator integrity P5 (AGENT_ORG_POLITICS_PLAN.md)
+
+**P3 files**: `core/skill_scoped_trust.py` (trust_score shrinkage β=0.1 toward total-weighted pooled ratio; TRUST_FLOOR_CAP=0.6 laundering guard on zero direct evidence; fast-fail penalty 0.05×failures_verified capped 0.25; EXPLORATION_BOOST=0.02 cold-start; collect_stats matches domain + DOMAIN_ALIASES substrings), `core/capability_graduation_service.py` (record_usage now stamps failures_verified on failed_verification + last_outcome_at always; graduation thresholds untouched), `core/specialist_matcher.py:find_specialists_for_domains` (flag-gated confidence_term replacement, adds "trust" key when active). `tests/test_skill_scoped_trust_p3.py` (13).
+
+**P5 files**: `core/org_integrity.py` (self_recruitment_blocked case-insens; resolve_coordinator fixed|task|daily over coordinator_candidates; enforce_diversity_floor — unknown families pass, single declared family ≥3 flagged; has_radio_contact over P0 events both directions), wire-ins in `_recruit_fleet`: self-recruit skip, coi_signal on link context_json, shadow diversity_violation telemetry event; DelegationContract.accountable_agent_id RACI field. `tests/test_allocator_integrity_p5.py` (15).
+
+**Gotchas**: trust_score accepts correlated as dicts OR (name,stats) tuples; matcher episode-ratio returns neutral 0.5 without AgentEpisode tables so fixture needs only agent_registry; daily-rotation test must pass a daily-mode config (task mode ignores date).
+
+**Verification**: P3+P5 suites green (28 new); combined org-plan suites 71 passed; meta-agent/radio/graduation regression 340 passed, 0 failures.
+
+## Session 2026-08-22 (backend) — Contribution credit P4 + alignment sweep P6 (AGENT_ORG_POLITICS_PLAN.md) — ALL PHASES DONE
+
+**P4 files**: `core/contribution_credit.py` (compute_chain_credit: v∈{1.0,0.5,0.0}, γ=0.7 backward weighting, V_eff=max(v_last,0.25), Σw=V_eff; apply_credit maps w≥0.5→verified / <0.5→unverified / ==0 skipped; record_chain_credit(execution_id, db=None) loads FleetRoutingAudit→ChainLink by link_order skipping non-terminal links; ATOM_CONTRIBUTION_CREDIT_ENABLED default OFF), wire-in `core/fleet_orchestration/fleet_routing_stats.py:record_fleet_execution_outcome` (calls record_chain_credit after outcome join, never raises). `tests/test_contribution_credit_p4.py` (13).
+
+**P6 files**: `tests/e2e/multi_agent_alignment/scaffolds.py` (3 adversarial scenarios — NDA pricing/deadline-vs-compliance/growth-vs-spam; single|fleet_flat|fleet_hierarchical scaffolds; clamped fail-safe rubric parser + aligned_utility Pareto metric), `test_alignment_sweep.py` (real-key AND ATOM_ALIGNMENT_SWEEP_ENABLED=true double-gated nightly sweep; opencode cheapest-model convention; ≤400 tok/call; asserts fleet-vs-single policy gap ≤ 2.0 → holds P3/P5 enforcement flips while red), `tests/test_alignment_scaffolds_unit.py` (9, always-run PR coverage).
+
+**Gotchas**: DelegationChain requires tenant_id+root_agent_id in fixtures; record_chain_credit with db=None opens the real dev session — tests pass chain_db explicitly; e2e dir needs __init__.py for scaffold imports.
+
+**Verification**: P4 13/13, P6 unit 9/9, sweep 3 skipped (gates hold, zero spend); all org-plan suites 93 passed; fleet/recruitment/graduation/capability/mcp regression 138 passed (+1 pre-existing Shopify failure on clean main).
+
+## Session 2026-08-22 (backend) — R81o: P3 consent-gated automation loop + table self-provisioning
+
+**Files**: `backend/core/trust_calibration/automation.py` (run_automation_pass: certify -> off|notify|approve|auto dispatch; auto applies enable verdicts and ALWAYS auto-revokes on regression; notify cooldown; resolved_trust_enforce() = env FORCE wins, else latest applied+enable ledger row), `core/models.py` TrustCalibrationAction (monotonic Integer PK — created_at alone is order-ambiguous on SQLite) + guarded migration 20260822b, `api/trust_calibration_routes.py` (+GET/POST /automation, /run-now, /approve/{id}, /reject/{id}), `main_api_app.py` (opt-in lifespan worker ATOM_TRUST_CALIBRATION_AUTO_ENFORCE default off), `gateway._ensure_table()` per-engine idempotent self-provisioning (removes the manual alembic step for dev/hybrid), `tests/test_round81g_trust_automation.py` (7).
+
+**Semantics locked by tests**: off=noop; auto+certified→applied→enforce True; regression after applied→automatic revoke→enforce False; notify queues approval + cooldown-suppressed duplicate notification; later REJECTED consent overrides earlier applied gate (latest-ledger-wins); un-migrated DB self-provisions on first record.
+
+**Verification**: g-suite 7/7; d+e+f+g 34/34 ×3 consecutive runs; app imports with routes mounted.

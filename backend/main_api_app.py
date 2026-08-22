@@ -761,6 +761,41 @@ async def lifespan(app: FastAPI):
                     "(ATOM_EPISODE_LIFECYCLE_MAINTENANCE_ENABLED)"
                 )
 
+            # 8c-ter. Trust calibration automation loop (R81o P3): consent-
+            # gated certify->notify/approve/auto dispatch. Default off.
+            if os.getenv("ATOM_TRUST_CALIBRATION_AUTO_ENFORCE", "off").lower() != "off":
+                _tc_interval = float(
+                    os.getenv("ATOM_TRUST_CALIBRATION_AUTO_INTERVAL_MIN", "60")
+                )
+
+                async def _trust_calibration_automation():
+                    from core.trust_calibration import automation as _tca
+                    from core.database import SessionLocal as _TSL
+
+                    while True:
+                        try:
+                            await asyncio.sleep(max(_tc_interval, 1.0) * 60)
+                            with _TSL() as _tc_db:
+                                result = _tca.run_automation_pass(_tc_db)
+                            if result.get("ran"):
+                                logger.info(
+                                    "Trust calibration automation: %s",
+                                    {k: v for k, v in result.items() if k != "stats"},
+                                )
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as _tc_err:
+                            logger.warning(
+                                f"Trust calibration automation failed: {_tc_err}"
+                            )
+
+                _spawn_background_task(_trust_calibration_automation())
+                logger.info(
+                    f"✓ Trust calibration automation enabled "
+                    f"(mode={os.getenv('ATOM_TRUST_CALIBRATION_AUTO_ENFORCE')}, "
+                    f"interval={_tc_interval}min)"
+                )
+
             # 8d. Memory consolidation worker (P2.1): nightly rule-based
             # consolidation — contradiction sweeps + supersede — always off
             # the user-facing turn (sleep-time principle).
