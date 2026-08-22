@@ -1,6 +1,9 @@
 # Trust Calibration Gateway — Integration Plan (Ou-style GP)
 
-> Status: **P0 IMPLEMENTED** (shadow spike live behind ATOM_TRUST_CALIBRATION_ENABLED; P1+ planned). Research grounding: Ou 2026,
+> Status: **P0+P1+P2 IMPLEMENTED** (shadow recording live at both ask-paths; certification gate shipped as
+> scripts/calibrate_trust_gateway.py). P3 enforcement relaxation is intentionally gated on: real HITL decisions
+> accumulating through P1, a PASSING certification run on that production data, and explicit operator consent
+> (off|notify|approve|auto). P4 (BOCPD changepoints, per-user posteriors) remains research-grade. Research grounding: Ou 2026,
 > "Progressive Autonomy as Preference Learning: A Formalization of Trust
 > Calibration for Agentic Tool Use" (arXiv 2605.19151) — a policy gateway
 > maintains a Gaussian-process posterior over a latent human risk-tolerance
