@@ -323,6 +323,24 @@ const nextConfig = {
         source: "/api/agents/:path*",
         destination: "http://127.0.0.1:8000/api/agents/:path*",
       },
+      // R82: episodic-memory surfaces (MemoryRecallFeed trajectory feed)
+      {
+        source: "/api/episodes",
+        destination: "http://127.0.0.1:8000/api/episodes",
+      },
+      {
+        source: "/api/episodes/:path*",
+        destination: "http://127.0.0.1:8000/api/episodes/:path*",
+      },
+      // R82: agent maturity/training surfaces (Approvals page training proposals)
+      {
+        source: "/api/maturity",
+        destination: "http://127.0.0.1:8000/api/maturity",
+      },
+      {
+        source: "/api/maturity/:path*",
+        destination: "http://127.0.0.1:8000/api/maturity/:path*",
+      },
       // WebSocket Proxy - REMOVED to prevent ECONNRESET crashes
       // Frontend now connects directly to port 8000 (see hooks/useWebSocket.ts)
       /*

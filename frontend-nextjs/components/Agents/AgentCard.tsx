@@ -17,6 +17,7 @@ export interface AgentInfo {
 
 interface AgentCardProps {
     agent: AgentInfo;
+    progress?: GraduationProgress | null;
     onRun: (id: string) => void;
     onStop: (id: string) => void;
     onChat: (id: string) => void;
@@ -25,14 +26,22 @@ interface AgentCardProps {
 }
 
 // P3.1 — Mirror of AgentGraduationService.CRITERIA min_episodes thresholds.
-// Used to render a lightweight progress hint on the card. For real-time
-// progress numbers, the dashboard calls GET /api/agents/:id/graduation-progress.
+// Used to render a lightweight progress hint on the card. When the dashboard
+// supplies live `progress` (GET /api/agents/:id/graduation-progress) the real
+// episode count is rendered instead of the static target.
 const TIER_THRESHOLDS: Record<NonNullable<AgentInfo["maturity_level"]>, number> = {
     student: 10,    // episodes needed to reach intern
     intern: 25,     // episodes needed to reach supervised
     supervised: 50, // episodes needed to reach autonomous
     autonomous: 0,  // max tier — the badge renders "Max tier reached" instead
 };
+
+export interface GraduationProgress {
+    episode_count: number;
+    episodes_to_next?: number | null;
+    next_threshold_episodes?: number | null;
+    next_tier?: string | null;
+}
 
 const TIER_COLORS: Record<NonNullable<AgentInfo["maturity_level"]>, string> = {
     student: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
@@ -49,7 +58,7 @@ function getMaturityBadge(level: NonNullable<AgentInfo["maturity_level"]>) {
     );
 }
 
-const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop, onChat, onEdit, onViewReasoning }) => {
+const AgentCard: React.FC<AgentCardProps> = ({ agent, progress, onRun, onStop, onChat, onEdit, onViewReasoning }) => {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -90,10 +99,28 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop, onChat, onE
                         <span className="text-[11px] text-muted-foreground">
                             {agent.maturity_level === "autonomous"
                                 ? "Max tier reached"
-                                : `${TIER_THRESHOLDS[agent.maturity_level]} episodes to next tier`}
+                                : (() => {
+                                    const threshold = progress?.next_threshold_episodes ?? TIER_THRESHOLDS[agent.maturity_level!];
+                                    const count = progress?.episode_count;
+                                    if (typeof count === "number" && typeof threshold === "number" && threshold > 0) {
+                                        return `✓ ${count}/${threshold} episodes · ${Math.max(0, threshold - count)} to next tier`;
+                                    }
+                                    return `${threshold} episodes to next tier`;
+                                })()}
                         </span>
                     </div>
                 )}
+                {progress && agent.maturity_level !== "autonomous" && (() => {
+                    const threshold = progress.next_threshold_episodes ?? TIER_THRESHOLDS[agent.maturity_level!];
+                    const count = progress.episode_count ?? 0;
+                    if (!threshold || threshold <= 0) return null;
+                    const pct = Math.min(100, Math.round((count / threshold) * 100));
+                    return (
+                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden mt-1" aria-label={`${count} of ${threshold} verified episodes`}>
+                            <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                    );
+                })()}
                 <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-2">
                     <Clock className="w-3 h-3 mr-1" />
                     {agent.last_run ? `Last run: ${new Date(agent.last_run).toLocaleString()}` : 'Never run'}

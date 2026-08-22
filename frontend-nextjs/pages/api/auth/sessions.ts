@@ -5,7 +5,7 @@ import { query } from '../../../lib/db';
 import { USE_BACKEND_API, userManagementAPI } from '../../../lib/api';
 import { UAParser } from 'ua-parser-js';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const API_BASE_URL = process.env.PYTHON_API_SERVICE_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 export default async function handler(
     req: NextApiRequest,

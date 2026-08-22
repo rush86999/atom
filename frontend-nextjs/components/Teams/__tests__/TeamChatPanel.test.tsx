@@ -198,7 +198,7 @@ describe('TeamChatPanel', () => {
       expect(mockWebSocket().getMockCalls().length).toBe(1);
     });
     const ws = mockWebSocket().getMockInstances()[0];
-    expect(ws._url).toBe('ws://localhost:8000/ws?token=token123');
+    expect(ws._url).toBe('/ws?token=token123');
 
     act(() => {
       ws._onopen?.(new Event('open'));

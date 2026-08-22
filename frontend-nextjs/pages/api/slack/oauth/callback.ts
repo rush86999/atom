@@ -17,7 +17,7 @@ import { authOptions } from "../../auth/[...nextauth]";
  * 7. User is redirected back to the app with success/error status
  *
  * Environment Variables Required:
- * - NEXT_PUBLIC_API_URL: Backend API URL (e.g., http://localhost:8000)
+ * - NEXT_PUBLIC_API_URL: Backend API URL (e.g., http://127.0.0.1:8000)
  * - SLACK_CLIENT_ID, SLACK_CLIENT_SECRET: Set in backend
  *
  * Query Parameters:
@@ -27,7 +27,7 @@ import { authOptions } from "../../auth/[...nextauth]";
  * - error_description: Error description
  */
 
-const BACKEND_API_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "";
+const BACKEND_API_URL = process.env.BACKEND_URL || process.env.PYTHON_API_SERVICE_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 export default async function handler(
   req: NextApiRequest,

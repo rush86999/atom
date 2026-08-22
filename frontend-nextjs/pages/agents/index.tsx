@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useToast } from "@/components/ui/use-toast";
-import AgentCard, { AgentInfo } from "@/components/Agents/AgentCard";
+import AgentCard, { AgentInfo, GraduationProgress } from "@/components/Agents/AgentCard";
 import AgentTerminal from "@/components/Agents/AgentTerminal";
 import { MaturityProgression } from "@/components/Agents/MaturityProgression";
+import MaturityApprovalPanel from "@/components/Agents/MaturityApprovalPanel";
 import { EmployeeOnboardingGuide } from "@/components/Agents/EmployeeOnboardingGuide";
 import { Badge } from "@/components/ui/badge";
 import { LayoutDashboard } from "lucide-react";
@@ -51,6 +52,7 @@ const extractErrorMessage = (json: any, fallback: string): string => {
 const AgentsDashboard = () => {
     const router = useRouter();
     const [agents, setAgents] = useState<AgentInfo[]>([]);
+    const [progressByAgent, setProgressByAgent] = useState<Record<string, GraduationProgress | null>>({});
     const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
     const [logs, setLogs] = useState<string[]>([]);
     const { toast } = useToast();
@@ -168,6 +170,37 @@ const AgentsDashboard = () => {
         const interval = setInterval(fetchAgents, 5000); // Poll every 5s
         return () => clearInterval(interval);
     }, []);
+
+    // R82: fetch real graduation progress (episode counts) per agent so the
+    // card renders live progress instead of the static threshold text. Best
+    // effort — failures keep the card's static fallback.
+    const fetchGraduationProgress = useCallback(async () => {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+        const map: Record<string, GraduationProgress | null> = {};
+        await Promise.allSettled(
+            agents.map(async (a) => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(a.id)}/graduation-progress`, {
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        map[a.id] = (json?.data ?? json) as GraduationProgress;
+                    }
+                } catch {
+                    map[a.id] = null;
+                }
+            })
+        );
+        setProgressByAgent(map);
+    }, [agents]);
+
+    useEffect(() => {
+        if (agents.length > 0) {
+            fetchGraduationProgress();
+        }
+    }, [agents, fetchGraduationProgress]);
 
     const handleRunAgent = (id: string) => {
         setSelectedAgentId(id);
@@ -407,6 +440,7 @@ const AgentsDashboard = () => {
                                 <AgentCard
                                     key={agent.id}
                                     agent={agent}
+                                    progress={progressByAgent[agent.id]}
                                     onRun={handleRunAgent}
                                     onStop={handleStopAgent}
                                     onChat={handleChat}
@@ -425,10 +459,13 @@ const AgentsDashboard = () => {
                                 {isConnected ? "Live Connection" : "Offline"}
                             </Badge>
                         </div>
-                        <MaturityProgression 
-                            currentLevel={activeAgentMaturity} 
+                        <MaturityProgression
+                            currentLevel={activeAgentMaturity}
                             className="mb-4"
                         />
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mb-4">
+                            <MaturityApprovalPanel />
+                        </div>
                         <AgentTerminal
                             agentName={activeAgentName}
                             logs={logs}

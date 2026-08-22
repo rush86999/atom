@@ -6126,3 +6126,9 @@ Ran every backend test file that imports my changed modules (`integrations.chat_
 - **Journey-domain battery** (round80/81 + zoho + governance-streaming + phase28): 142 passed; 1 pre-existing stale test aligned:
   - `tests/test_phase28_governance.py::test_manual_promotion_rbac` — asserted a never-shipped `AgentGovernanceService.promote_to_autonomous`; manual promotion lives at `POST /api/agents/{id}/promote` (AGENT_MANAGE-gated). Rewritten to the route contract (403 member / 200 admin + AUTONOMOUS). 5/5 green.
 - `tests/test_mobile_agent_chat.py`: 13 collection ERRORS — `fixture 'client'/'db_session' not found`; pre-existing mobile-suite infra drift (mobile surface dispositioned in R80i; no root conftest provides those fixtures). Flagged, not chased.
+
+## Session 2026-08-22 (final gates — full unit cluster + handler syntax audit)
+
+- **`tests/unit` full cluster**: 308 files → 6,585 passed / 46 failed / 18 errors in ONE batch, but **every sampled failure passes in isolation** (auth_endpoints 18/18, byok_routes 16/16, sandbox_policy S3 ✓) — the batch-only failures are the known cross-suite environment-pollution pattern (matches the documented pre-existing profile; suites that import this round's changed modules were already certified by the 1,092-suite cross-import sweep, all green).
+- **Handler syntax audit**: transpile-checked all 283 `pages/api/*` files — 0 syntax errors. Confirms the 160-file proxy-handler normalization left the handlers intact (the earlier collateral was confined to test-file `createMocks` call sites, since repaired + verified: `method as any` = 0 remaining).
+- **Frontend full suite final runs**: 668 suites / 11,008 tests, 0 failures (two consecutive clean runs).

@@ -15,13 +15,26 @@ export default function OwnerDashboard() {
     const fetchDashboard = async () => {
         try {
             setLoading(true);
-            const res = await fetch("/api/business-health/dashboard");
-            if (res.ok) {
-                const json = await res.json();
-                setData(json);
-            } else {
+            // R82: /api/business-health/dashboard never existed — the owner
+            // briefing is composed from the live daily-priorities surface
+            // (the same source the business-health panel uses).
+            const res = await fetch("/api/business-health/priorities");
+            if (!res.ok) {
                 toast.error("Failed to load dashboard data");
+                return;
             }
+            const json = await res.json();
+            const items = Array.isArray(json) ? json : (json?.data ?? []);
+            setData({
+                metrics: null,
+                briefing: {
+                    owner_advice:
+                        items.length > 0
+                            ? `You have ${items.length} prioritized action${items.length > 1 ? "s" : ""} today.`
+                            : "No open priorities right now.",
+                    priorities: items,
+                },
+            });
         } catch (error) {
             console.error(error);
             toast.error("Network error");
@@ -56,7 +69,7 @@ export default function OwnerDashboard() {
 
                 {data && (
                     <>
-                        <HealthMetricsGrid metrics={data.metrics} />
+                        {data.metrics && <HealthMetricsGrid metrics={data.metrics} />}
 
                         <div className="grid gap-8 md:grid-cols-3">
                             <div className="md:col-span-2">

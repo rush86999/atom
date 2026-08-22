@@ -2,8 +2,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const BACKEND_URL =
   process.env.BACKEND_URL ||
+  process.env.PYTHON_API_SERVICE_BASE_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8000";
+  "http://127.0.0.1:8000";
 
 async function proxyToBackend(req: NextApiRequest, backendUrl: string) {
   return fetch(backendUrl, {

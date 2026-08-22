@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Card } from '@/components/ui/card'
+import { getAuthToken } from '@/lib/identity'
 
 interface Trajectory {
     id: string
@@ -26,7 +27,7 @@ interface Trajectory {
     step_efficiency: number
     timestamp: string
     summary: string
-    learnings?: string
+    learnings?: string[] | string
     confidence_score?: number
 }
 
@@ -45,14 +46,21 @@ export function MemoryRecallFeed({ workspaceId, agentId, className }: MemoryReca
         const fetchTrajectories = async () => {
             setLoading(true)
             try {
-                const url = new URL('/api/governance/analytics/trajectories', window.location.origin)
+                // R82: /api/governance/analytics/trajectories never existed
+                // (dead route → empty feed). The live surface is
+                // /api/episodes/trajectories (episodic memory), which requires
+                // auth — send the stored JWT.
+                const url = new URL('/api/episodes/trajectories', window.location.origin)
                 url.searchParams.append('workspace_id', workspaceId)
                 if (agentId) url.searchParams.append('agent_id', agentId)
+                const token = getAuthToken()
                 
-                const response = await fetch(url.toString())
+                const response = await fetch(url.toString(), {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                })
                 if (response.ok) {
                     const data = await response.json()
-                    setTrajectories(data)
+                    setTrajectories(Array.isArray(data) ? data : (data?.data ?? []))
                 }
             } catch (error) {
                 console.error('Failed to fetch trajectories:', error)
@@ -159,17 +167,22 @@ export function MemoryRecallFeed({ workspaceId, agentId, className }: MemoryReca
                                             </p>
                                         </div>
 
-                                        {trajectory.learnings && (
-                                            <div className="flex items-start gap-2 pt-2 border-t border-slate-100">
-                                                <Lightbulb className="h-4 w-4 text-amber-500 mt-0.5" />
-                                                <div>
-                                                    <span className="text-[10px] uppercase font-bold text-slate-400 block">System Learning</span>
-                                                    <p className="text-xs text-slate-600 italic">
-                                                        "{trajectory.learnings}"
-                                                    </p>
+                                        {trajectory.learnings && (() => {
+                                            const learnings = Array.isArray(trajectory.learnings)
+                                                ? trajectory.learnings.join(' · ')
+                                                : trajectory.learnings;
+                                            return (
+                                                <div className="flex items-start gap-2 pt-2 border-t border-slate-100">
+                                                    <Lightbulb className="h-4 w-4 text-amber-500 mt-0.5" />
+                                                    <div>
+                                                        <span className="text-[10px] uppercase font-bold text-slate-400 block">System Learning</span>
+                                                        <p className="text-xs text-slate-600 italic">
+                                                            "{learnings}"
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
+                                            );
+                                        })()}
                                         
                                         <div className="flex items-center justify-between pt-2">
                                             <div className="flex items-center gap-4">

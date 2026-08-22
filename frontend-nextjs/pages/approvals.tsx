@@ -18,10 +18,22 @@ type PendingAction = {
   created_at?: string;
 };
 
+type TrainingProposal = {
+  id: string;
+  agent_id: string;
+  agent_name?: string;
+  title: string;
+  description?: string;
+  status: string;
+  capability_gaps?: unknown[];
+  created_at?: string;
+};
+
 const API = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function ApprovalsPage() {
   const [actions, setActions] = useState<PendingAction[]>([]);
+  const [proposals, setProposals] = useState<TrainingProposal[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,11 +60,47 @@ export default function ApprovalsPage() {
     }
   }, [headers]);
 
+  // Training proposals (STUDENT → INTERN): the maturity-training surface is
+  // backend-complete (R81) but had zero UI — team leads could never see or
+  // decide on training proposals from the app. Best-effort: a 403 signals
+  // the viewer is not a supervisor, which is surfaced as a subtle note.
+  const loadProposals = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/maturity/training/proposals`, { headers: headers() });
+      if (res.ok) {
+        const json = await res.json();
+        setProposals(Array.isArray(json) ? json : (json.proposals ?? []));
+      }
+    } catch {
+      // Non-critical: the HITL queue still works without this section.
+    }
+  }, [headers]);
+
   useEffect(() => {
     load();
-    const t = setInterval(load, 15000); // auto-refresh; approvals can be time-sensitive
+    loadProposals();
+    const t = setInterval(() => { load(); loadProposals(); }, 15000); // auto-refresh; approvals can be time-sensitive
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, loadProposals]);
+
+  const decideProposal = async (id: string, approve: boolean) => {
+    setNotice(null);
+    try {
+      const res = await fetch(`${API}/api/maturity/training/proposals/${id}/${approve ? "approve" : "reject"}`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(approve ? { approve: true } : { reason: "Rejected via Approvals page" }),
+      });
+      if (!res.ok) {
+        setError(`Training decision failed (${res.status}). Supervisor (TEAM_LEAD+) permission required.`);
+        return;
+      }
+      setNotice(`Training proposal ${approve ? "approved" : "rejected"}.`);
+      loadProposals();
+    } catch (e) {
+      setError(`Training decision failed: ${String(e)}`);
+    }
+  };
 
   const decide = async (id: string, decision: "approved" | "rejected") => {
     setNotice(null);
@@ -134,6 +182,54 @@ export default function ApprovalsPage() {
             ))}
           </div>
         )}
+
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold">Training Proposals (STUDENT → INTERN)</h2>
+          <p className="text-sm text-gray-400 mb-4">
+            Agents who need supervised training before their next maturity tier. Supervisors (TEAM_LEAD+) can approve or reject.
+          </p>
+          {proposals.length === 0 ? (
+            <div className="rounded-xl border border-gray-800 p-6 text-center text-gray-500">
+              No training proposals waiting.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {proposals.filter((p) => p.status === "pending").map((p) => (
+                <div key={p.id} className="rounded-xl border border-sky-800/60 bg-gray-900 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-sky-300">{p.title}</div>
+                      <div className="text-xs text-gray-500 mt-1">agent {p.agent_name || String(p.agent_id).slice(0, 8)}</div>
+                      {p.description && <div className="text-sm text-gray-400 mt-1">{p.description}</div>}
+                      {Array.isArray(p.capability_gaps) && p.capability_gaps.length > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {p.capability_gaps.length} capability gap{p.capability_gaps.length > 1 ? "s" : ""} identified
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-600 mt-1">
+                        {p.created_at ? new Date(p.created_at).toLocaleString() : ""}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => decideProposal(p.id, true)}
+                        className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => decideProposal(p.id, false)}
+                        className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-sm font-medium"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

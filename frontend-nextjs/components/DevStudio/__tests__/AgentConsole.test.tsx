@@ -37,13 +37,14 @@ describe('AgentConsole', () => {
 
     server.resetHandlers();
     server.use(
-      // AgentConsole builds absolute URLs from the API base; MSW only matches
-      // absolute-URL requests with absolute-URL handlers in this setup.
-      rest.post('http://localhost:8000/api/agent/execute', async (req, res, ctx) => {
+      // AgentConsole builds relative URLs (API base unset in tests); MSW
+      // resolves those against the jsdom origin, so handlers must be
+      // host-agnostic paths rather than absolute http://localhost:8000 URLs.
+      rest.post('/api/agent/execute', async (req, res, ctx) => {
         executeBodies.push(req.body);
         return res(ctx.status(200), ctx.json({ id: 'task-123' }));
       }),
-      rest.get('http://localhost:8000/api/agent-status/agent/status/:taskId', (req, res, ctx) => {
+      rest.get('/api/agent-status/agent/status/:taskId', (req, res, ctx) => {
         pollCount += 1;
         return res(
           ctx.status(200),
@@ -151,7 +152,7 @@ describe('AgentConsole', () => {
 
   it('shows an error toast when the execute request fails', async () => {
     server.use(
-      rest.post('http://localhost:8000/api/agent/execute', (req, res, ctx) => {
+      rest.post('/api/agent/execute', (req, res, ctx) => {
         return res(ctx.status(500));
       })
     );

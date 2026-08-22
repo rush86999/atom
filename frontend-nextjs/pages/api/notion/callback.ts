@@ -18,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Forward the request to the backend Notion OAuth callback endpoint
     const backendResponse = await fetch(
-      `http://localhost:8000/api/auth/notion/callback?code=${code}&state=${state}`,
+      `http://127.0.0.1:8000/api/auth/notion/callback?code=${code}&state=${state}`,
       {
         method: 'GET',
         headers: {

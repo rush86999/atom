@@ -61,6 +61,12 @@ class AutonomousGuardrailService:
         if effective_tenant:
             query = query.filter(AgentRegistry.tenant_id == effective_tenant)
         
+        _q = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        )
+        if effective_tenant:
+            _q = _q.filter(AgentRegistry.tenant_id == effective_tenant)
         agent = query.first()
         if not agent:
             return {"proceed": False, "reason": "Agent not found", "requires_downgrade": False}

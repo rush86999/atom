@@ -90,11 +90,11 @@ class TestAuth:
 class TestRenameSession:
     def test_success(self, client, orch):
         orch.conversation_sessions = {"s1": make_session()}
-        orch.rename_session.return_value = True
+        orch.session_manager.rename_session.return_value = True
         resp = client.patch("/api/chat/sessions/s1", json={"title": "New", "user_id": "x"})
         assert resp.status_code == 200
         assert resp.json()["title"] == "New"
-        orch.rename_session.assert_called_once_with("s1", "New")
+        orch.session_manager.rename_session.assert_called_once_with("s1", "New")
 
     def test_not_found_in_memory(self, client, orch):
         orch.conversation_sessions = {}
@@ -106,7 +106,7 @@ class TestRenameSession:
         managed = make_session()
         orch.conversation_sessions = {}
         orch.session_manager.get_session.return_value = managed
-        orch.rename_session.return_value = True
+        orch.session_manager.rename_session.return_value = True
         resp = client.patch("/api/chat/sessions/s1", json={"title": "R", "user_id": "u"})
         assert resp.status_code == 200
 
@@ -119,7 +119,7 @@ class TestRenameSession:
     def test_legacy_placeholder_reclaimed(self, client, orch):
         orch.conversation_sessions = {"s1": make_session(owner="default_user")}
         orch.session_manager.rebind_session_owner.return_value = True
-        orch.rename_session.return_value = True
+        orch.session_manager.rename_session.return_value = True
         resp = client.patch("/api/chat/sessions/s1", json={"title": "Mine", "user_id": "u"})
         assert resp.status_code == 200
         assert orch.conversation_sessions["s1"]["user_id"] == "user_1"
@@ -135,13 +135,13 @@ class TestRenameSession:
 
     def test_rename_failed_404(self, client, orch):
         orch.conversation_sessions = {"s1": make_session()}
-        orch.rename_session.return_value = False
+        orch.session_manager.rename_session.return_value = False
         resp = client.patch("/api/chat/sessions/s1", json={"title": "x", "user_id": "u"})
         assert resp.status_code == 404
 
     def test_internal_error_500(self, client, orch):
         orch.conversation_sessions = {"s1": make_session()}
-        orch.rename_session.side_effect = RuntimeError("boom")
+        orch.session_manager.rename_session.side_effect = RuntimeError("boom")
         resp = client.patch("/api/chat/sessions/s1", json={"title": "x", "user_id": "u"})
         assert resp.status_code == 500
 

@@ -191,6 +191,48 @@ async def retrieve_contextual(
     )
 
 
+@router.get("/trajectories")
+async def list_trajectories(
+    workspace_id: Optional[str] = Query(None, description="Scope to a workspace"),
+    agent_id: Optional[str] = Query(None, description="Scope to one agent"),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Agent execution trajectories for the memory-recall feed.
+
+    The UI (components/Agents/MemoryRecallFeed.tsx) previously fetched a
+    /api/governance/analytics/trajectories endpoint that no backend route
+    served — the memory-recall feed was permanently empty. This is the live
+    episodic-memory-backed surface for it.
+    """
+    query = db.query(Episode)
+    if agent_id:
+        query = query.filter(Episode.agent_id == agent_id)
+    if workspace_id:
+        query = query.filter(Episode.workspace_id == workspace_id)
+    episodes = query.order_by(Episode.started_at.desc()).limit(limit).all()
+
+    def _trajectory(e: Episode) -> Dict[str, Any]:
+        meta = e.metadata_json if isinstance(e.metadata_json, dict) else {}
+        return {
+            "id": e.id,
+            "agent_id": e.agent_id,
+            "task_type": meta.get("task_type") or "completion",
+            "outcome": e.outcome or "unknown",
+            "step_efficiency": e.step_efficiency,
+            "confidence_score": e.confidence_score,
+            "timestamp": e.started_at.isoformat() if getattr(e, "started_at", None) else None,
+            "summary": (e.task_description or "").strip(),
+            "learnings": (meta.get("learnings") if isinstance(meta.get("learnings"), list) else None),
+        }
+
+    return router.success_response(
+        data=[_trajectory(e) for e in episodes],
+        metadata={"count": len(episodes)}
+    )
+
+
 @router.get("/{agent_id}/list")
 async def list_episodes(
     agent_id: str,

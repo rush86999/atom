@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Redirect to backend OAuth authorization endpoint (Standard Google OAuth)
-    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://127.0.0.1:8000';
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
     // Redirect to the standard Google OAuth initiation endpoint
     // The backend will handle the redirect to Google

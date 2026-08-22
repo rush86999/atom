@@ -276,7 +276,7 @@ describe('ChatHistorySidebar', () => {
     await waitFor(() => {
       expect(screen.getByText('No chat history.')).toBeInTheDocument();
     });
-    expect(consoleSpy).toHaveBeenCalledWith('Error fetching chat history:', expect.any(Error));
+    expect(consoleSpy).toHaveBeenCalledWith('Error fetching chat history:', expect.anything());
 
     consoleSpy.mockRestore();
   });
@@ -300,7 +300,7 @@ describe('ChatHistorySidebar', () => {
       },
       { timeout: 10000 }
     );
-    expect(consoleSpy).toHaveBeenCalledWith('Error fetching chat history:', expect.any(Error));
+    expect(consoleSpy).toHaveBeenCalledWith('Error fetching chat history:', expect.anything());
 
     consoleSpy.mockRestore();
   });

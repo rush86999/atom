@@ -22,9 +22,9 @@ export default function ForensicsDashboard() {
         async function fetchData() {
             try {
                 const [d, p, w] = await Promise.all([
-                    fetch("/api/business-health/forensics/vendor-drift").then(r => r.json()),
-                    fetch("/api/business-health/forensics/pricing-opportunities").then(r => r.json()),
-                    fetch("/api/business-health/forensics/subscription-waste").then(r => r.json())
+                    fetch("/api/forensics/vendor-drift").then(r => r.json()),
+                    fetch("/api/forensics/pricing-opportunities").then(r => r.json()),
+                    fetch("/api/forensics/subscription-waste").then(r => r.json())
                 ]);
                 setDrift(d.data || []);
                 setPricing(p.data || []);
