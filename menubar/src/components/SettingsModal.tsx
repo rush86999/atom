@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import IntegrationsPanel from "./IntegrationsPanel";
+import WorkflowsPanel from "./WorkflowsPanel";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -256,6 +257,14 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
               INTEGRATIONS
             </div>
             <IntegrationsPanel serverUrl={settings.serverUrl || undefined} />
+          </div>
+
+          {/* Workflows (round 80u: desktop parity) */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
+              WORKFLOWS
+            </div>
+            <WorkflowsPanel serverUrl={settings.serverUrl || undefined} />
           </div>
 
           {/* Appearance */}
