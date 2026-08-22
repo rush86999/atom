@@ -3833,6 +3833,25 @@ try:
     except (ImportError, NameError) as e:
         logger.warning(f"Fleet router management routes failed to load: {e}")
 
+    # 40b. Org-Politics Management Routes (consent-gated lifecycle automation)
+    try:
+        from api.org_politics_routes import router as org_politics_mgmt_router
+
+        app.include_router(org_politics_mgmt_router)
+        logger.info("✓ Org-Politics Management Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Org-politics management routes failed to load: {e}")
+
+    # Start the consent-gated org-politics lifecycle loop (no-op when off).
+    try:
+        from core.org_politics_automation import ensure_automation_task
+
+        ensure_automation_task()
+        logger.info("✓ Org-Politics Automation Loop Scheduled (mode=%s)",
+                    os.getenv("ATOM_ORG_AUTO_ENFORCE", "auto"))
+    except Exception as e:
+        logger.warning(f"Org-politics automation scheduling failed: {e}")
+
     # 41. Trust Calibration Gateway routes (R81l P0 spike — shadow-only,
     # flag-gated: ATOM_TRUST_CALIBRATION_ENABLED, default false -> 503)
     try:

@@ -1159,6 +1159,19 @@ class MCPService(IntegrationService):
         except Exception as cap_err:  # pragma: no cover - defensive fail-open
             logger.debug("capability gate skipped: %s", cap_err)
 
+        # P2b: org-privilege gate (AGENT_ORG_POLITICS_PLAN.md Phase 2).
+        # Permission ≠ Privilege — org-state-changing actions additionally
+        # require an explicit, default-deny privilege lease. Fail-CLOSED on
+        # check errors for privileged actions; flag off = exact prior behavior.
+        try:
+            from core.org_privileges import check_action_privilege
+
+            privilege_denial = check_action_privilege(tool_name, context)
+            if privilege_denial is not None:
+                return privilege_denial
+        except Exception as priv_err:  # pragma: no cover - defensive
+            logger.debug("privilege gate skipped: %s", priv_err)
+
         # P9: shared sandbox gate. Routes the legacy dispatch (generic agents,
         # fleet, workflow, business agents — everything that goes through this
         # call_tool) through the same sandbox evaluation as atom_meta_agent, so

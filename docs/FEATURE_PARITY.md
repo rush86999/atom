@@ -14,7 +14,7 @@
 | Integrations status | ✅ hub + health | ✅ v1 section | ✅ 80r panel | ✅ `integrations list/status` (80r) |
 | Integrations connect | ✅ OAuth flows | ✅ 80p system-browser | ✅ 80r browser | ✅ `connect` prints URL (80r) |
 | Integrations disconnect | ✅ | ✅ 80o | ✅ 80r | ✅ `disconnect` (80r) |
-| Analytics / KPIs | ✅ dashboards | ✅ AnalyticsDashboard | ✅ 80v AnalyticsPanel | ➖ |
+| Analytics / KPIs | ✅ dashboards | ✅ AnalyticsDashboard | ✅ 80v AnalyticsPanel | ✅ 80x `analytics [--window]` |
 | Debugging / traces | ✅ dev-studio | ✅ debugging suite | ❌ | ➖ |
 | Device capabilities | ➖ web-only APIs | ✅ camera/location/notifs | ➖ | ➖ |
 | Server control (start/daemon) | ➖ | ➖ | ➖ | ✅ start/daemon/stop/status |

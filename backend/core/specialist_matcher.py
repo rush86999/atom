@@ -207,14 +207,32 @@ class SpecialistMatcher:
                 episode = _verified_episode_ratio(self.db, ag.id)
                 confidence = float(getattr(ag, "confidence_score", 0.5) or 0.5)
                 recency = _recency_bonus(getattr(ag, "last_request_date", None))
+                # P3 skill-scoped trust (flag OFF → exact legacy behavior):
+                # replaces the global-confidence term with a per-domain
+                # shrunk posterior over the agent's verified capability
+                # stats (laundering-capped borrowing via DOMAIN_ALIASES).
+                trust_term: Optional[float] = None
+                try:
+                    from core.skill_scoped_trust import (
+                        confidence_term,
+                        skill_scoped_trust_enabled,
+                    )
+
+                    if skill_scoped_trust_enabled():
+                        trust_term = confidence_term(ag, domain)
+                except Exception as te:
+                    logger.debug(f"skill-scoped trust skipped for {ag.id}: {te}")
+                conf_component = (
+                    trust_term if trust_term is not None else confidence
+                )
                 score = (
                     _W_OVERLAP * overlap
                     + _W_TIER * tier_w
                     + _W_EPISODE * episode
-                    + _W_CONFIDENCE * confidence
+                    + _W_CONFIDENCE * conf_component
                     + _W_RECENCY * recency
                 )
-                scored.append({
+                entry = {
                     "agent_id": ag.id,
                     "name": getattr(ag, "name", ag.id),
                     "category": getattr(ag, "category", domain),
@@ -222,7 +240,10 @@ class SpecialistMatcher:
                     "overlap": round(overlap, 4),
                     "tier": getattr(ag, "status", None),
                     "confidence": confidence,
-                })
+                }
+                if trust_term is not None:
+                    entry["trust"] = trust_term
+                scored.append(entry)
             # Rank highest score first.
             scored.sort(key=lambda m: m["capability_score"], reverse=True)
             results[domain] = scored[:limit_per_domain]

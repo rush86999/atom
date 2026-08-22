@@ -6,7 +6,7 @@ Student, Intern, Supervised, and Autonomous levels.
 """
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
@@ -97,6 +97,12 @@ class CapabilityGraduationService:
         # Graduation-gating signal: only verified successes count.
         if success and verified == "verified":
             stats["verified_success"] = stats.get("verified_success", 0) + 1
+        # P3 asymmetry (R9: slow to gain, fast to lose): externally-verified
+        # failures increment a dedicated penalty counter consumed by
+        # skill_scoped_trust.trust_score. Graduation thresholds unchanged.
+        if verified == "failed_verification":
+            stats["failures_verified"] = stats.get("failures_verified", 0) + 1
+        stats["last_outcome_at"] = datetime.now(timezone.utc).isoformat()
 
         config["capability_stats"][capability_name] = stats
         # Persist back through the model's JSON column (mutation isn't auto-detected).

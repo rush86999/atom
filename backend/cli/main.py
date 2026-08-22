@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 from cli.integrations import integrations_cli, login  # noqa: E402
 from cli.ask import ask  # noqa: E402
 from cli.workflows import workflows_cli  # noqa: E402
+from cli.analytics import analytics  # noqa: E402
 
 
 @click.group()
@@ -41,6 +42,7 @@ main_cli.add_command(integrations_cli)
 main_cli.add_command(login)
 main_cli.add_command(ask)
 main_cli.add_command(workflows_cli)
+main_cli.add_command(analytics)
 
 
 @main_cli.command()

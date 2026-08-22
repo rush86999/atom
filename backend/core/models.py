@@ -12219,6 +12219,33 @@ class AgentOrgEvent(Base):
     )
 
 
+class OrgPoliticsAction(Base):
+    """One consent-gated org-politics automation action (approval queue +
+    audit trail), mirroring FleetRouterAutomationAction / StageRouterAutomationAction.
+
+    Written by ``core/org_politics_automation``: escalation (enable) requires
+    consent per mode (notify|approve|auto); revocation is ALWAYS automatic
+    when the alignment sweep goes red or COI signals explode. Enforcement
+    flags resolve env kill-switch > latest applied/revoked row > default off,
+    so flips take effect without restarts.
+    """
+
+    __tablename__ = "org_politics_actions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    flag_key = Column(String(length=32), nullable=False, default="__global__", index=True)
+    verdict = Column(String(length=24), nullable=False)  # enable | revoke
+    mode = Column(String(length=16), nullable=False)  # notify | approve | auto
+    state = Column(String(length=16), nullable=False, default="approval")  # approval|applied|rejected|revoked
+    stats_json = Column(JSONColumn, nullable=True)  # readiness snapshot at decision time
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_org_politics_actions_flag_created", "flag_key", "created_at"),
+    )
+
+
 class TrustCalibrationAction(Base):
     """Consent-gated automation ledger for the trust gateway (R81o).
 

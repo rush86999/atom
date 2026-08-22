@@ -870,9 +870,15 @@ class ConductorAgent:
         If a real step executor was injected (via ``set_step_executor``),
         delegates to it so the Conductor runs actual AI/webhook/tool steps.
         Otherwise falls back to the mock stub (for tests and standalone use).
+
+        P1 delegation contracts: AGENT-type steps get a typed contract
+        (objective/output format/guidance/boundaries/effort) injected into
+        ``step.parameters`` so the executing agent receives an explicit
+        handoff. Additive; flag-gated; never raises.
         """
         if self._step_executor is not None:
             try:
+                self._maybe_inject_contract(step)
                 result = self._step_executor(step, context)
                 if asyncio.iscoroutine(result):
                     result = await result
@@ -891,6 +897,37 @@ class ConductorAgent:
             "status": "completed",
             "output": f"Result from {step.name}"
         }
+
+    def _maybe_inject_contract(self, step: WorkflowStep) -> None:
+        """Attach a delegation contract to AGENT steps (P1, flag-gated)."""
+        if getattr(step, "step_type", None) != StepType.AGENT:
+            return
+        try:
+            from core.fleet_orchestration.delegation_contracts import (
+                build_contract,
+                contracts_enabled,
+            )
+
+            if not contracts_enabled():
+                return
+            contract = build_contract(
+                goal=str(getattr(step, "name", "") or "workflow step"),
+                task_desc=str(
+                    getattr(step, "description", "") or getattr(step, "name", "")
+                ),
+                domain=str(getattr(step, "capability", "") or "general"),
+            )
+            step.parameters = dict(step.parameters or {})
+            # The workflow's own prompt stays authoritative for phrasing; the
+            # contract adds structure around it (boundaries + effort).
+            existing_prompt = step.parameters.get("prompt")
+            if isinstance(existing_prompt, str) and existing_prompt.strip():
+                contract.objective = (
+                    f"{contract.objective} — user prompt: {existing_prompt.strip()}"
+                )
+            step.parameters["delegation_contract"] = contract.to_dict()
+        except Exception as e:  # noqa: BLE001 — additive, never block the step
+            logger.debug(f"delegation contract injection skipped: {e}")
 
     def set_step_executor(self, executor: Callable) -> None:
         """Inject a real step executor (e.g. WorkflowEngine._execute_step).

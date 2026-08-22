@@ -1915,16 +1915,63 @@ What is your next step?"""
                         )
                         logger.info(f"Optimization for {domain}: {optimization_metadata['optimization_reason']}")
 
-                    # 2. Recruit the specialist
+                    # 3. Recruit the specialist
                     agent = get_specialized_agent(domain, self.workspace_id)
+
+                    # P5 integrity: self-dealing block — an agent cannot
+                    # recruit itself onto the fleet it controls.
+                    _child_id = agent.id if agent else f"specialist_{domain}"
+                    try:
+                        from core.org_integrity import self_recruitment_blocked
+
+                        if self_recruitment_blocked("atom_main", _child_id):
+                            logger.warning(
+                                "Allocator integrity: self-recruitment blocked (%s)",
+                                _child_id,
+                            )
+                            continue
+                    except Exception:
+                        pass
+
+                    # P5 COI signal (shadow): prior radio contact between the
+                    # coordinator and this candidate, recorded on the link.
+                    _coi = False
+                    try:
+                        from core.org_integrity import has_radio_contact
+
+                        _coi = has_radio_contact(db, "atom_main", _child_id)
+                    except Exception:
+                        pass
                     
                     # 3. Create the Link
+                    # P1 delegation contract: typed handoff (objective/format/
+                    # guidance/boundaries/effort) stored on the link so any
+                    # executor of this task receives the full contract.
+                    _contract = None
+                    try:
+                        from core.fleet_orchestration.delegation_contracts import (
+                            maybe_contract_for_link,
+                        )
+
+                        _contract = maybe_contract_for_link(
+                            goal=goal, sub_task=st
+                        )
+                    except Exception as ce:
+                        logger.debug(f"delegation contract skipped: {ce}")
+
+                    _link_ctx = {"fleet_goal": goal, "domain": domain}
+                    if _contract is not None:
+                        _link_ctx["delegation_contract"] = _contract.to_dict()
+                    if _coi:
+                        # Shadow signal only — informs Phase 5 calibration.
+                        _link_ctx["coi_signal"] = True
+
                     link = fleet_service.recruit_member(
                         chain_id=chain.id,
                         parent_agent_id="atom_main",
                         child_agent_id=agent.id if agent else f"specialist_{domain}",
                         task_description=task_desc,
-                        context_json={"fleet_goal": goal, "domain": domain},
+                        context_json=_link_ctx,
                         link_order=i,
                         optimization_metadata=optimization_metadata
                     )
@@ -1941,7 +1988,62 @@ What is your next step?"""
                         "type": "fleet_recruited",
                         "chain_id": chain.id,
                         "members": fleet_members
-                    })
+                })
+
+                # P5 diversity floor (shadow): teams of >=3 spanning a single
+                # declared model family are flagged (R6/R12 — homogeneous
+                # pools entrench incumbents). Never blocks; telemetry only.
+                try:
+                    from core.org_integrity import (
+                        allocator_integrity_enabled,
+                        enforce_diversity_floor,
+                    )
+                    from core.models import AgentRegistry as _AR
+
+                    if allocator_integrity_enabled() and len(fleet_members) >= 3:
+                        _ids = [m["agent_id"] for m in fleet_members]
+                        _rows = {
+                            r.id: (r.diversity_profile or {})
+                            for r in db.query(_AR).filter(_AR.id.in_(_ids)).all()
+                            if r is not None
+                        }
+
+                        def _family_of(aid: str):
+                            prof = _rows.get(aid) or {}
+                            fam = prof.get("model_family") or prof.get("family")
+                            return str(fam) if fam else None
+
+                        _div = enforce_diversity_floor(_ids, _family_of)
+                        if not _div.get("ok"):
+                            logger.warning(
+                                "Allocator integrity: diversity floor violated "
+                                "for chain %s: %s",
+                                chain.id, _div,
+                            )
+                            AgentOrgTelemetryService(db).emit(
+                                "diversity_violation",
+                                actor_agent_id="atom_main",
+                                target_agent_id=chain.id,
+                                payload=_div,
+                            )
+                except Exception as de:
+                    logger.debug(f"diversity floor check skipped: {de}")
+
+                # P0 org telemetry: coordinator→specialist recruit pairs
+                # (incumbency baseline; write-only, never raises)
+                try:
+                    from core.org_telemetry_service import AgentOrgTelemetryService
+
+                    AgentOrgTelemetryService(db).emit_fleet_recruit(
+                        coordinator_agent_id="atom_main",
+                        members=fleet_members,
+                        chain_id=chain.id,
+                        execution_id=context.get("execution_id"),
+                        workspace_id=self.workspace_id,
+                        tenant_id=tenant_id,
+                    )
+                except Exception as te:
+                    logger.debug(f"org telemetry recruit emit skipped: {te}")
 
                 # AgentRadio bridge: attach a lateral thread for the team —
                 # ONLY when the task crosses responsibility breakpoints

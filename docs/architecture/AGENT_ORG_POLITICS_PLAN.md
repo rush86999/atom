@@ -8,7 +8,7 @@
 
 The rollout is fully automated via `core/org_politics_automation.py` + `api/org_politics_routes.py` (`/api/v1/org-politics/*`, admin-gated), mirroring the stage/fleet-router consent pattern:
 
-- **Modes** `ATOM_ORG_AUTO_ENFORCE` = off | notify | approve (**default**) | auto; cadence `ATOM_ORG_AUTO_INTERVAL_MIN` (default 1440 = daily). Background loop scheduled at app startup.
+- **Modes** `ATOM_ORG_AUTO_ENFORCE` = off | notify | approve | auto (**default auto**); cadence `ATOM_ORG_AUTO_INTERVAL_MIN` (default 1440 = daily). Background loop scheduled at app startup.
 - **Escalation** (enable a flag) requires: P0 telemetry flowing (≥10 recruit events) AND a green alignment sweep. `approve` queues into `org_politics_actions` + notifies; `auto` applies immediately + notifies.
 - **Revocation is always automatic** (every non-off mode): red alignment sweep (gap > 2.0) or ≥20 open COI pairs → immediate revoke + notification. Manual revoke endpoint too.
 - **Flag resolution** for P2/P3/P5 live gates: explicit env kill-switch wins > latest applied/revoked action row > default off — flips take effect without restarts (60s TTL cache); an env var still restores prior behavior instantly. P4 remains env-only by design (per-execution supplement).
