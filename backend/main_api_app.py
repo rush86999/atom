@@ -22,6 +22,7 @@ import asyncio
 # -*- coding: utf-8 -*-
 # Reload trigger
 import os
+from sqlalchemy import text as _sa_text
 import sys
 from typing import ClassVar, Union
 
@@ -727,6 +728,38 @@ async def lifespan(app: FastAPI):
                     logger.info("✓ Discord Gateway client running (real-time message ingestion)")
             except Exception as dg_err:
                 logger.warning(f"Discord Gateway start skipped: {dg_err}")
+
+            # 8c-bis. Episode lifecycle maintenance (R81j G15): opt-in daily
+            # hygiene pass — recency decay + similarity consolidation.
+            if os.getenv("ATOM_EPISODE_LIFECYCLE_MAINTENANCE_ENABLED", "false").lower() == "true":
+                async def _episode_lifecycle_maintenance():
+                    from core.database import SessionLocal as _SL
+                    from core.episode_lifecycle_service import EpisodeLifecycleService
+
+                    while True:
+                        try:
+                            await asyncio.sleep(24 * 3600)
+                            with _SL() as _db:
+                                agent_ids = [
+                                    row[0]
+                                    for row in _db.execute(
+                                        _sa_text("SELECT id FROM agent_registry")
+                                    ).fetchall()
+                                ]
+                                svc = EpisodeLifecycleService(_db)
+                                await svc.run_daily_maintenance(agents=agent_ids)
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as _maint_err:
+                            logger.warning(
+                                f"Episode lifecycle maintenance pass failed: {_maint_err}"
+                            )
+
+                _spawn_background_task(_episode_lifecycle_maintenance())
+                logger.info(
+                    "✓ Episode lifecycle maintenance enabled "
+                    "(ATOM_EPISODE_LIFECYCLE_MAINTENANCE_ENABLED)"
+                )
 
             # 8d. Memory consolidation worker (P2.1): nightly rule-based
             # consolidation — contradiction sweeps + supersede — always off

@@ -466,6 +466,16 @@ and stay dormant until you configure them.
 > [DATA_PROTECTION.md](../security/DATA_PROTECTION.md) and
 > [SANDBOX_LAYER.md](../architecture/SANDBOX_LAYER.md).
 
+## Agent journey learning knobs (R81j, Aug 2026)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ATOM_POSITIVE_RATING_BOOST_ENABLED` | `true` | Trusted-user star ratings ≥4 give a tiny confidence nudge to the rated agent. Explicit ratings are a high-precision but low-volume/extremes-biased signal, so the nudge is half the outcome drip and promotions remain gated on outcome evidence + exams. |
+| `ATOM_POSITIVE_RATING_BOOST_MAGNITUDE` | `0.005` | Confidence delta per applied rating boost. |
+| `ATOM_POSITIVE_RATING_BOOST_DAILY_CAP` | `3` | Max boosts per (agent, user) per day — anti-farming / diminishing returns. Ledger is written into `AgentFeedback.ai_reasoning` (`[rating_boost_applied]` / `[rating_boost_skipped_daily_cap]`). |
+| `ATOM_EPISODE_LIFECYCLE_MAINTENANCE_ENABLED` | `false` | Opt-in daily worker: episode recency decay (`days_threshold=90`) + per-agent similarity consolidation via `EpisodeLifecycleService.run_daily_maintenance`. Manual alternatives: `POST /api/episodes/lifecycle/{decay,consolidate}`. |
+
+
 ---
 
-*Last Updated: August 5, 2026*
+*Last Updated: August 21, 2026*

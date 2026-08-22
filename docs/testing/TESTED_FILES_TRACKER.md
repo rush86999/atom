@@ -6115,3 +6115,10 @@ Ran every backend test file that imports my changed modules (`integrations.chat_
 **Bug caught by test**: generic run() wrapper clobbered fn-specific notices → handlers may now return an override message.
 
 **Verification**: panel 5/5; maturity-api client 6/6; tsc clean for both files.
+
+## Session 2026-08-22 (R82 runtime checks + final journey battery)
+
+- **Next.js runtime**: booted `next dev --webpack` (Next 16 Turbopack has no native darwin/x64 bindings — env issue, not app; Makefile's `npm run dev` hits the same platform caveat). All 23 sidebar journey pages compile + SSR-render; unauthenticated hit 307→`/login?callbackUrl=…` (correct auth gate). Zero compile errors in the dev log.
+- **Journey-domain battery** (round80/81 + zoho + governance-streaming + phase28): 142 passed; 1 pre-existing stale test aligned:
+  - `tests/test_phase28_governance.py::test_manual_promotion_rbac` — asserted a never-shipped `AgentGovernanceService.promote_to_autonomous`; manual promotion lives at `POST /api/agents/{id}/promote` (AGENT_MANAGE-gated). Rewritten to the route contract (403 member / 200 admin + AUTONOMOUS). 5/5 green.
+- `tests/test_mobile_agent_chat.py`: 13 collection ERRORS — `fixture 'client'/'db_session' not found`; pre-existing mobile-suite infra drift (mobile surface dispositioned in R80i; no root conftest provides those fixtures). Flagged, not chased.

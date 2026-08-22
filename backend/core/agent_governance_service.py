@@ -440,8 +440,19 @@ class AgentGovernanceService:
         feedback.adjudicated_at = datetime.now(timezone.utc)
         self.db.commit()
 
-    def _update_confidence_score(self, agent_id: str, positive: bool, impact_level: str = "high") -> None:
-        """Update confidence and manage maturity transitions"""
+    def _update_confidence_score(
+        self,
+        agent_id: str,
+        positive: bool,
+        impact_level: str = "high",
+        magnitude: Optional[float] = None,
+    ) -> None:
+        """Update confidence and manage maturity transitions.
+
+        ``magnitude`` optionally overrides the impact-table step size (used by
+        the research-informed positive-rating signal, R81j: explicit ratings
+        are high-precision but noisy, so they nudge at half the outcome drip).
+        """
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id,
             self._workspace_scope_condition()
@@ -449,8 +460,11 @@ class AgentGovernanceService:
         if not agent: return
 
         current = agent.confidence_score or 0.5
-        boost = 0.05 if impact_level == "high" else 0.01
-        penalty = 0.1 if impact_level == "high" else 0.02
+        if magnitude is not None:
+            boost = penalty = abs(magnitude)
+        else:
+            boost = 0.05 if impact_level == "high" else 0.01
+            penalty = 0.1 if impact_level == "high" else 0.02
         
         new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
         # Round to 4dp: repeated increments accumulate binary noise
