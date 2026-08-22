@@ -20,28 +20,28 @@ const proxyCases: Array<[string, ProxyHandler, string, string, string]> = [
   [
     "pages/api/integrations/google-workspace/tasks",
     tasksHandler,
-    "http://localhost:5058/api/google-workspace/tasks",
+    "http://127.0.0.1:8000/api/google-workspace/tasks",
     "Failed to fetch Google Tasks",
     "Google Tasks API error:",
   ],
   [
     "pages/api/integrations/google-workspace/docs/create",
     docsCreateHandler,
-    "http://localhost:5058/api/google-workspace/docs/create",
+    "http://127.0.0.1:8000/api/google-workspace/docs/create",
     "Failed to create Google Doc",
     "Google Docs create error:",
   ],
   [
     "pages/api/integrations/google-workspace/keep/notes",
     keepNotesHandler,
-    "http://localhost:5058/api/google-workspace/keep/notes",
+    "http://127.0.0.1:8000/api/google-workspace/keep/notes",
     "Failed to fetch Google Keep notes",
     "Google Keep API error:",
   ],
   [
     "pages/api/integrations/google-workspace/tasks/create",
     tasksCreateHandler,
-    "http://localhost:5058/api/google-workspace/tasks/create",
+    "http://127.0.0.1:8000/api/google-workspace/tasks/create",
     "Failed to create Google Task",
     "Google Tasks create error:",
   ],
@@ -89,7 +89,7 @@ proxyCases.forEach(([label, handler, backendPath, failureError, logPrefix]) => {
       expect(res._getStatusCode()).toBe(401);
       expect(res._getJSONData()).toEqual({ error: "no google token" });
       expect(mockFetch.mock.calls[0][0]).toBe(
-        backendPath.replace("http://localhost:5058", "http://backend:5058"),
+        backendPath.replace("http://127.0.0.1:8000", "http://backend:5058"),
       );
     });
 

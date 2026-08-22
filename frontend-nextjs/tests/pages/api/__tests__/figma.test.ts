@@ -94,7 +94,7 @@ const runFigmaSuite = (
       const res = await invoke();
       expect(res._getStatusCode()).toBe(200);
       expect(mockFetch.mock.calls[0][0]).toBe(backendUrl.replace(
-        "http://localhost:5058",
+        "http://127.0.0.1:8000",
         "http://python:5058",
       ));
     });
@@ -104,7 +104,7 @@ const runFigmaSuite = (
 runFigmaSuite(
   "pages/api/integrations/figma/analytics",
   analyticsHandler,
-  "http://localhost:5058/api/figma/analytics",
+  "http://127.0.0.1:8000/api/figma/analytics",
   "POST",
   { files_analyzed: 4 },
 );
@@ -112,7 +112,7 @@ runFigmaSuite(
 runFigmaSuite(
   "pages/api/integrations/figma/files",
   filesHandler,
-  "http://localhost:5058/api/figma/files",
+  "http://127.0.0.1:8000/api/figma/files",
   "POST",
   { files: [{ id: "f1", name: "Landing page" }] },
 );
@@ -120,7 +120,7 @@ runFigmaSuite(
 runFigmaSuite(
   "pages/api/integrations/figma/profile",
   profileHandler,
-  "http://localhost:5058/api/figma/user",
+  "http://127.0.0.1:8000/api/figma/user",
   "GET",
   { id: "u1", handle: "atom-user" },
 );

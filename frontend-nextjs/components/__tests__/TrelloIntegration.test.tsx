@@ -1004,7 +1004,10 @@ describe('TrelloIntegration', () => {
       await userEvent.click(screen.getByRole('button', { name: /refresh status/i }));
 
       await waitFor(() => {
-        expect(fetchSpy).toHaveBeenCalledWith('/api/integrations/trello/health');
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/integrations/trello/health',
+          expect.anything()
+        );
       });
     });
   });

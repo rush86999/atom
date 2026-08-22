@@ -96,7 +96,7 @@ const runDiscordSuite = (
 runDiscordSuite(
   "pages/api/integrations/discord/analytics",
   analyticsHandler,
-  "http://localhost:5058/api/integrations/discord/analytics",
+  "http://127.0.0.1:8000/api/integrations/discord/analytics",
   "POST",
   { guild_id: "g1", messages_analyzed: 10 },
 );
@@ -104,7 +104,7 @@ runDiscordSuite(
 runDiscordSuite(
   "pages/api/integrations/discord/channels",
   channelsHandler,
-  "http://localhost:5058/api/integrations/discord/channels",
+  "http://127.0.0.1:8000/api/integrations/discord/channels",
   "POST",
   { channels: [{ id: "c1", name: "general" }] },
 );
@@ -112,7 +112,7 @@ runDiscordSuite(
 runDiscordSuite(
   "pages/api/integrations/discord/guilds",
   guildsHandler,
-  "http://localhost:5058/api/integrations/discord/guilds",
+  "http://127.0.0.1:8000/api/integrations/discord/guilds",
   "POST",
   { guilds: [{ id: "g1", name: "Atom" }] },
 );
@@ -120,7 +120,7 @@ runDiscordSuite(
 runDiscordSuite(
   "pages/api/integrations/discord/health",
   healthHandler,
-  "http://localhost:5059/api/integrations/discord/health",
+  "http://127.0.0.1:8000/api/integrations/discord/health",
   "GET",
   { status: "healthy" },
 );
@@ -128,7 +128,7 @@ runDiscordSuite(
 runDiscordSuite(
   "pages/api/integrations/discord/messages",
   messagesHandler,
-  "http://localhost:5058/api/integrations/discord/messages",
+  "http://127.0.0.1:8000/api/integrations/discord/messages",
   "POST",
   { messages: [{ id: "m1" }] },
 );
@@ -136,7 +136,7 @@ runDiscordSuite(
 runDiscordSuite(
   "pages/api/integrations/discord/profile",
   profileHandler,
-  "http://localhost:5058/api/discord/user",
+  "http://127.0.0.1:8000/api/discord/user",
   "GET",
   { id: "u1", username: "atom-user" },
 );

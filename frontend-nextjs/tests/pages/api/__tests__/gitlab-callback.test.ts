@@ -68,7 +68,7 @@ describe("pages/api/integrations/gitlab/callback", () => {
       success: true,
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/auth/gitlab/callback",
+      "http://127.0.0.1:8000/api/auth/gitlab/callback",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -56,7 +56,7 @@ describe("pages/api/integrations/slack/messages/edit", () => {
     expect(res._getJSONData()).toEqual({ ok: true, ts: "123.456" });
 
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe("http://localhost:5058/api/slack/messages/edit");
+    expect(url).toBe("http://127.0.0.1:8000/api/slack/messages/edit");
     expect(init.method).toBe("PUT");
     expect(init.headers).toEqual({ "Content-Type": "application/json" });
     expect(JSON.parse(init.body)).toEqual({

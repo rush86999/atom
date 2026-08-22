@@ -86,7 +86,7 @@ describe('useWebSocket Hook', () => {
       // WebSocket should be instantiated with correct URL
       // Note: useEffect runs synchronously in renderHook
       expect((global as any).WebSocket.getMockCalls()).toContainEqual(
-        ['ws://localhost:8000/ws?token=test-session-token']
+        ['/ws?token=test-session-token']
       );
     });
 

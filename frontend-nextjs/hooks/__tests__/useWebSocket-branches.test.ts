@@ -54,7 +54,7 @@ describe('useWebSocket - Branch Coverage', () => {
       useWebSocket({ autoConnect: true, url: 'custom/socket' })
     );
     expect((global as any).WebSocket.getMockCalls()).toContainEqual([
-      'ws://localhost:8000/custom/socket?token=test-session-token',
+      '/custom/socket?token=test-session-token',
     ]);
   });
 
@@ -63,7 +63,7 @@ describe('useWebSocket - Branch Coverage', () => {
       useWebSocket({ autoConnect: true, url: '/custom/socket' })
     );
     expect((global as any).WebSocket.getMockCalls()).toContainEqual([
-      'ws://localhost:8000/custom/socket?token=test-session-token',
+      '/custom/socket?token=test-session-token',
     ]);
   });
 

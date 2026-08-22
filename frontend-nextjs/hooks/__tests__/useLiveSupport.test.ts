@@ -15,7 +15,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useLiveSupport, Ticket } from '../useLiveSupport';
 
 const API_URL =
-  'http://localhost:8000/api/atom/communication/live/support/tickets';
+  '/api/atom/communication/live/support/tickets';
 
 const mockTickets: Ticket[] = [
   {

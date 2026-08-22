@@ -46,7 +46,7 @@ describe("pages/api/gitlab/health", () => {
       timestamp: "2026-08-14T00:00:00.000Z",
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/gitlab/health",
+      "http://127.0.0.1:8000/api/gitlab/health",
       { method: "GET", headers: {} },
     );
   });
@@ -66,7 +66,7 @@ describe("pages/api/gitlab/health", () => {
     const res = await invoke("POST", { user_id: "user-9" });
     expect(res._getStatusCode()).toBe(200);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/gitlab/health",
+      "http://127.0.0.1:8000/api/gitlab/health",
       { method: "GET", headers: { "X-User-ID": "user-9" } },
     );
   });
@@ -75,7 +75,7 @@ describe("pages/api/gitlab/health", () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, {}));
     await invoke("POST", {});
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/gitlab/health",
+      "http://127.0.0.1:8000/api/gitlab/health",
       { method: "GET", headers: {} },
     );
   });

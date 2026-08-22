@@ -47,7 +47,7 @@ describe("pages/api/integrations/figma/projects", () => {
       projects: [{ id: "f1" }],
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/figma/projects",
+      "http://127.0.0.1:8000/api/figma/projects",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -120,7 +120,7 @@ describe("pages/api/integrations/figma/search", () => {
       files: [{ id: "file-1" }],
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/figma/search",
+      "http://127.0.0.1:8000/api/figma/search",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -189,7 +189,8 @@ describe("pages/api/integrations/figma/health", () => {
       service: "figma",
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5059/api/integrations/figma/health",
+      "http://127.0.0.1:8000/api/integrations/figma/health",
+      { headers: {} },
     );
   });
 

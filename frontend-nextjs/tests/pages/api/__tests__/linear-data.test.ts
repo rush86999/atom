@@ -20,19 +20,19 @@ const proxyCases: Array<[string, MethodProxyHandler, string, string]> = [
   [
     "pages/api/integrations/linear/cycles",
     cyclesHandler,
-    "http://localhost:5058/api/integrations/linear/cycles",
+    "http://127.0.0.1:8000/api/integrations/linear/cycles",
     "Failed to fetch Linear cycles",
   ],
   [
     "pages/api/integrations/linear/projects",
     projectsHandler,
-    "http://localhost:5058/api/integrations/linear/projects",
+    "http://127.0.0.1:8000/api/integrations/linear/projects",
     "Failed to fetch Linear projects",
   ],
   [
     "pages/api/integrations/linear/teams",
     teamsHandler,
-    "http://localhost:5058/api/integrations/linear/teams",
+    "http://127.0.0.1:8000/api/integrations/linear/teams",
     "Failed to fetch Linear teams",
   ],
 ];
@@ -90,7 +90,7 @@ proxyCases.forEach(([label, handler, backendPath, failureError]) => {
       expect(res._getStatusCode()).toBe(401);
       expect(res._getJSONData()).toEqual({ error: "linear token missing" });
       expect(mockFetch.mock.calls[0][0]).toBe(
-        backendPath.replace("http://localhost:5058", "http://backend:5058"),
+        backendPath.replace("http://127.0.0.1:8000", "http://backend:5058"),
       );
     });
 

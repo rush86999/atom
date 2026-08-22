@@ -77,7 +77,7 @@ describe("pages/api/auth/forgot-password", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ message: "backend handled it" });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/auth/forgot-password",
+      "http://127.0.0.1:8000/api/auth/forgot-password",
       expect.objectContaining({ method: "POST" }),
     );
     expect(mockQuery).not.toHaveBeenCalled();

@@ -85,7 +85,7 @@ describe("pages/api/integrations/gmail/memory/search", () => {
     const res = await invoke("POST", { query: "anything" });
     expect(res._getStatusCode()).toBe(200);
     expect(mockFetch.mock.calls[0][0]).toContain(
-      "http://localhost:5058/api/memory/ingestion/search",
+      "http://127.0.0.1:8000/api/memory/ingestion/search",
     );
   });
 

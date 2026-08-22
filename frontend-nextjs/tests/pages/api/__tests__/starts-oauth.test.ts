@@ -78,7 +78,7 @@ const runAuthorizeSuite = (
         csrf_token: "csrf-1",
       });
       expect(mockFetch).toHaveBeenCalledWith(
-        `http://localhost:8000${backendPath}?user_id=user-1`,
+        `http://127.0.0.1:8000${backendPath}?user_id=user-1`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },

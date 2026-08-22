@@ -92,7 +92,7 @@ describe("pages/api/integrations/gitlab/create-merge-request", () => {
       message: "Merge request created: Add feature x",
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/integrations/gitlab/create-merge-request",
+      "http://127.0.0.1:8000/api/integrations/gitlab/create-merge-request",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -30,9 +30,9 @@ const resetEnv = () => {
 type BackendStartHandler = (req: any, res: any) => Promise<void>;
 
 const backendStartCases: Array<[string, BackendStartHandler, string]> = [
-  ["pages/api/hubspot/oauth/start", hubspotStartHandler, "http://localhost:5058/api/hubspot/auth/start"],
-  ["pages/api/zendesk/oauth/start", zendeskStartHandler, "http://localhost:5058/api/zendesk/auth/start"],
-  ["pages/api/integrations/linear/auth/start", linearStartHandler, "http://localhost:5058/api/integrations/linear/auth/start"],
+  ["pages/api/hubspot/oauth/start", hubspotStartHandler, "http://127.0.0.1:8000/api/hubspot/auth/start"],
+  ["pages/api/zendesk/oauth/start", zendeskStartHandler, "http://127.0.0.1:8000/api/zendesk/auth/start"],
+  ["pages/api/integrations/linear/auth/start", linearStartHandler, "http://127.0.0.1:8000/api/integrations/linear/auth/start"],
 ];
 
 backendStartCases.forEach(([label, handler, backendPath]) => {
@@ -190,7 +190,7 @@ describe("pages/api/integrations/azure/auth/start", () => {
       "https://login.microsoftonline.com/oauth",
     );
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/auth/azure/start",
+      "http://127.0.0.1:8000/api/auth/azure/start",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -271,7 +271,7 @@ describe("pages/api/integrations/azure/auth/callback", () => {
     expect(res._getStatusCode()).toBe(302);
     expect(res._getRedirectUrl()).toBe("/integrations/azure?success=true");
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/auth/azure/callback",
+      "http://127.0.0.1:8000/api/auth/azure/callback",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

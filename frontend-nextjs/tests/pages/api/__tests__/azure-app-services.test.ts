@@ -35,7 +35,7 @@ describe("pages/api/integrations/azure/app-services", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ value: [{ name: "app-1" }] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/azure/app-services",
+      "http://127.0.0.1:8000/api/azure/app-services",
       {
         method: "GET",
         headers: { "Content-Type": "application/json", "x-user-id": "current" },
@@ -48,7 +48,7 @@ describe("pages/api/integrations/azure/app-services", () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, { name: "app-1" }));
     await invoke("GET", { id: "app-1" });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/azure/app-services/app-1",
+      "http://127.0.0.1:8000/api/azure/app-services/app-1",
       expect.anything(),
     );
   });
@@ -58,7 +58,7 @@ describe("pages/api/integrations/azure/app-services", () => {
     await invoke("GET", { id: ["1", "2"], resourceGroup: "rg-1" });
     const [url] = mockFetch.mock.calls[0];
     expect(url).toContain("/api/azure/app-services");
-    expect(url).not.toContain("/1");
+    expect(url).not.toMatch(/\/1(\?|$)/);
     expect(url).not.toContain("id=");
     expect(url).toContain("resourceGroup=rg-1");
   });
@@ -68,7 +68,7 @@ describe("pages/api/integrations/azure/app-services", () => {
     const res = await invoke("POST", {}, { name: "app-new" });
     expect(res._getStatusCode()).toBe(201);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/azure/app-services",
+      "http://127.0.0.1:8000/api/azure/app-services",
       {
         method: "POST",
         headers: {

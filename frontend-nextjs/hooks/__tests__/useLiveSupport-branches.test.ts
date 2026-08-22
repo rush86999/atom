@@ -12,7 +12,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useLiveSupport } from '../useLiveSupport';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = '';
 
 // jsdom exposes localStorage as a getter-only accessor — plain assignment
 // silently fails; defineProperty is required (same pattern as api-admin.test).

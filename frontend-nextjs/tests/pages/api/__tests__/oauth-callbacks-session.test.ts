@@ -57,7 +57,7 @@ describe("pages/api/integrations/zoom/auth/start", () => {
     expect(res._getStatusCode()).toBe(302);
     expect(res._getRedirectUrl()).toBe("https://zoom.us/oauth/authorize?x=1");
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/zoom/v1/auth/url",
+      "http://127.0.0.1:8000/api/zoom/v1/auth/url",
       { headers: { Authorization: "Bearer ztok" } },
     );
   });
@@ -202,7 +202,7 @@ describe("pages/api/integrations/salesforce/callback", () => {
     expect(res._getStatusCode()).toBe(302);
     expect(res._getRedirectUrl()).toBe("/integrations/salesforce?success=true&connected=true");
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/salesforce/callback?code=c1&state=s1",
+      "http://127.0.0.1:8000/api/salesforce/callback?code=c1&state=s1",
       { method: "GET", headers: { Authorization: "Bearer stok" } },
     );
   });
@@ -267,7 +267,7 @@ describe("pages/api/integrations/gmail/callback", () => {
     await gmailCallback(req, res);
     expect(res._getRedirectUrl()).toBe("/integrations/gmail?success=true");
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/auth/google/callback",
+      "http://127.0.0.1:8000/api/auth/google/callback",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -330,7 +330,7 @@ describe("pages/api/integrations/nextjs/config", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true, config: { key: "v" }, message: "Configuration saved successfully" });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/integrations/nextjs/config",
+      "http://127.0.0.1:8000/api/integrations/nextjs/config",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -345,7 +345,7 @@ describe("pages/api/integrations/nextjs/config", () => {
     await nextjsConfig(req, res);
     expect(res._getJSONData()).toEqual({ ok: true, config: { loaded: true }, message: "Configuration loadd successfully" });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/integrations/nextjs/config",
+      "http://127.0.0.1:8000/api/integrations/nextjs/config",
       { method: "GET", headers: { "Content-Type": "application/json", "X-User-ID": "u1" } },
     );
   });

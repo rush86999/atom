@@ -58,7 +58,7 @@ describe("pages/api/auth/nextjs/callback", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true, ...backendSuccess });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/auth/nextjs/callback",
+      "http://127.0.0.1:8000/api/auth/nextjs/callback",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

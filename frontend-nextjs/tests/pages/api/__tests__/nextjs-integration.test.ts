@@ -68,7 +68,7 @@ const runBaseSuite = (
       mockFetch.mockResolvedValue(okResponse({}));
       await invoke(handler, validBody);
       expect(mockFetch.mock.calls[0][0]).toBe(
-        `http://localhost:5058${backendPath}`,
+        `http://127.0.0.1:8000${backendPath}`,
       );
       expect(mockFetch.mock.calls[0][1].method).toBe("POST");
     });

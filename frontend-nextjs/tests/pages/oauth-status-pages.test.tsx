@@ -58,6 +58,7 @@ describe("OAuthErrorPage", () => {
     act(() => {
       jest.advanceTimersByTime(5000);
     });
+    // The error page routes to the app home ("/"), not the dashboard.
     expect(mockPush).toHaveBeenCalledWith("/");
   });
 
@@ -100,6 +101,6 @@ describe("OAuthSuccessPage", () => {
     act(() => {
       jest.advanceTimersByTime(3000);
     });
-    expect(mockPush).toHaveBeenCalledWith("/");
+    expect(mockPush).toHaveBeenCalledWith("/dashboard");
   });
 });

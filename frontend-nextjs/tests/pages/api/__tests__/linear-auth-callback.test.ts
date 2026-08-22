@@ -82,7 +82,7 @@ describe("pages/api/integrations/linear/auth/callback", () => {
     const res = await invoke({ code: "c" });
     expect(res._getStatusCode()).toBe(302);
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/integrations/linear/auth/callback",
+      "http://127.0.0.1:8000/api/integrations/linear/auth/callback",
     );
   });
 

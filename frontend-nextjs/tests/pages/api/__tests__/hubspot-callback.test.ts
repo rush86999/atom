@@ -78,7 +78,7 @@ describe("pages/api/integrations/hubspot/callback", () => {
     const res = await invoke({ code: "c" });
     expect(res._getStatusCode()).toBe(302);
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/hubspot/callback",
+      "http://127.0.0.1:8000/api/hubspot/callback",
     );
   });
 

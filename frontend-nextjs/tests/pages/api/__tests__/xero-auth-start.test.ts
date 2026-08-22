@@ -81,7 +81,7 @@ describe("pages/api/integrations/xero/auth/start", () => {
     });
     const res = await invoke();
     expect(res._getStatusCode()).toBe(302);
-    expect(mockFetch.mock.calls[0][0]).toBe("http://localhost:5058/api/auth/xero/start");
+    expect(mockFetch.mock.calls[0][0]).toBe("http://127.0.0.1:8000/api/auth/xero/start");
   });
 
   it("returns 500 when the backend response has no authorization URL", async () => {

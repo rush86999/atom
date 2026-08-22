@@ -55,7 +55,7 @@ describe("pages/api/integrations/gitlab/merge-requests", () => {
       total: 3,
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/integrations/gitlab/merge-requests",
+      "http://127.0.0.1:8000/api/integrations/gitlab/merge-requests",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

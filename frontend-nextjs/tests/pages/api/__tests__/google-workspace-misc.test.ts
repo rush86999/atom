@@ -49,7 +49,7 @@ describe("pages/api/integrations/google-workspace/docs", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ docs: [{ id: "d1" }] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/google-workspace/docs",
+      "http://127.0.0.1:8000/api/google-workspace/docs",
       {
         method: "GET",
         headers: {
@@ -65,7 +65,7 @@ describe("pages/api/integrations/google-workspace/docs", () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, { id: "d1" }));
     await invoke("GET", { id: "d1" });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/google-workspace/docs/d1",
+      "http://127.0.0.1:8000/api/google-workspace/docs/d1",
     );
   });
 
@@ -73,7 +73,7 @@ describe("pages/api/integrations/google-workspace/docs", () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, {}));
     await invoke("GET", { id: ["1", "2"], pageSize: "10" });
     const [url] = mockFetch.mock.calls[0];
-    expect(url).toBe("http://localhost:5058/api/google-workspace/docs?pageSize=10");
+    expect(url).toBe("http://127.0.0.1:8000/api/google-workspace/docs?pageSize=10");
   });
 
   it("sends the request body for non-GET methods", async () => {
@@ -81,7 +81,7 @@ describe("pages/api/integrations/google-workspace/docs", () => {
     const res = await invoke("POST", {}, { title: "New doc" });
     expect(res._getStatusCode()).toBe(201);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/google-workspace/docs",
+      "http://127.0.0.1:8000/api/google-workspace/docs",
       {
         method: "POST",
         headers: {
@@ -173,7 +173,7 @@ describe("pages/api/integrations/google-workspace/auth/start", () => {
     const res = await invoke();
     expect(res._getStatusCode()).toBe(302);
     expect(res._getRedirectUrl()).toBe(
-      "http://localhost:8000/api/v1/auth/oauth/google/initiate",
+      "http://127.0.0.1:8000/api/v1/auth/oauth/google/initiate",
     );
     expect(mockGetServerSession).toHaveBeenCalledWith(
       expect.anything(),

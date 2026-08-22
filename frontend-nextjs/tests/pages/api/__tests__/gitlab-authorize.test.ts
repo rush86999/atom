@@ -56,7 +56,7 @@ describe("pages/api/integrations/gitlab/authorize", () => {
       success: true,
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/auth/gitlab/authorize",
+      "http://127.0.0.1:8000/api/auth/gitlab/authorize",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

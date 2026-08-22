@@ -27,17 +27,17 @@ const statusHealthCases: Array<[string, StatusHealthHandler, string]> = [
   [
     "pages/api/integrations/quickbooks/health",
     quickbooksIntegrationsHealthHandler,
-    "http://localhost:5059/api/quickbooks/status",
+    "http://127.0.0.1:8000/api/quickbooks/status",
   ],
   [
     "pages/api/quickbooks/health",
     quickbooksHealthHandler,
-    "http://localhost:5058/api/quickbooks/health",
+    "http://127.0.0.1:8000/api/quickbooks/health",
   ],
   [
     "pages/api/integrations/zendesk/health",
     zendeskHealthHandler,
-    "http://localhost:5059/api/zendesk/status",
+    "http://127.0.0.1:8000/api/zendesk/status",
   ],
 ];
 
@@ -127,8 +127,8 @@ describe("pages/api/health", () => {
       realTimeUpdates: true,
     });
     expect(body.dependencies).toEqual({
-      backend: "http://localhost:8000",
-      oauth: "http://localhost:5058",
+      backend: "http://127.0.0.1:8000",
+      oauth: "http://127.0.0.1:8000",
     });
     expect(typeof body.uptime).toBe("number");
     expect(body.timestamp).toBeDefined();
@@ -161,13 +161,13 @@ const demoHealthCases: Array<[string, StatusHealthHandler, string, string]> = [
   [
     "pages/api/integrations/notion/health",
     notionHealthHandler,
-    "http://localhost:5059/api/notion/status",
+    "http://127.0.0.1:8000/api/notion/status",
     "Notion",
   ],
   [
     "pages/api/integrations/stripe/health",
     stripeHealthHandler,
-    "http://localhost:5059/api/stripe/health",
+    "http://127.0.0.1:8000/api/stripe/health",
     "Stripe",
   ],
 ];
@@ -201,7 +201,7 @@ demoHealthCases.forEach(([label, handler, backendPath, service]) => {
         service,
         backend_data: { connected: true, details: "fine" },
       });
-      expect(mockFetch).toHaveBeenCalledWith(backendPath);
+      expect(mockFetch).toHaveBeenCalledWith(backendPath, expect.anything());
     });
 
     it("falls back to a healthy response when the backend responds not-ok", async () => {

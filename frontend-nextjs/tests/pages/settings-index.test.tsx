@@ -39,6 +39,7 @@ describe("SettingsPage", () => {
   test("disables the workspace and account tabs", () => {
     render(<SettingsPage />);
     expect(screen.getByRole("button", { name: "Workspace" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Account" })).toBeDisabled();
+    const accountTab = screen.getByRole("button", { name: "Account" });
+    expect(accountTab).not.toBeDisabled();
   });
 });

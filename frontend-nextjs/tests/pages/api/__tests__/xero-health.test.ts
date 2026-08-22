@@ -42,7 +42,7 @@ describe("pages/api/integrations/xero/health", () => {
     expect(body.services.api.error).toBeUndefined();
     expect(typeof body.timestamp).toBe("string");
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5059/api/xero/status",
+      "http://127.0.0.1:8000/api/xero/status",
       expect.objectContaining({ method: "GET" }),
     );
   });

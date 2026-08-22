@@ -95,7 +95,7 @@ describe("pages/api/projects/competitor-analysis", () => {
     expect(body.message).toBe("Competitor analysis completed successfully");
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/v1/analysis/competitors",
+      "http://127.0.0.1:8000/api/v1/analysis/competitors",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({

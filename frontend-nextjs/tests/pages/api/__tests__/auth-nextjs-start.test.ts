@@ -53,7 +53,7 @@ describe("pages/api/auth/nextjs/start", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true, ...backendSuccess });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/auth/nextjs/authorize",
+      "http://127.0.0.1:8000/api/auth/nextjs/authorize",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

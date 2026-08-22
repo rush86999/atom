@@ -219,7 +219,7 @@ describe("pages/api/search/[...path]", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ results: [] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/search/documents/42",
+      "http://127.0.0.1:8000/api/search/documents/42",
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -237,7 +237,7 @@ describe("pages/api/search/[...path]", () => {
     }) as any;
     await searchHandler(req, res);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/search/q",
+      "http://127.0.0.1:8000/api/search/q",
       expect.objectContaining({
         headers: { "Content-Type": "application/json", Authorization: "Bearer tok" },
       }),
@@ -251,7 +251,7 @@ describe("pages/api/search/[...path]", () => {
     await searchHandler(req, res);
     expect(res._getStatusCode()).toBe(201);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/search/documents",
+      "http://127.0.0.1:8000/api/search/documents",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -286,7 +286,7 @@ describe("pages/api/search/[...path]", () => {
     mockFetch.mockResolvedValue(httpResponse(true, 200, {}));
     const { req, res } = createMocks({ method: "GET", query: {} }) as any;
     await searchHandler(req, res);
-    expect(mockFetch.mock.calls[0][0]).toBe("http://localhost:8000/api/search/");
+    expect(mockFetch.mock.calls[0][0]).toBe("http://127.0.0.1:8000/api/search/");
   });
 });
 
@@ -306,7 +306,7 @@ describe("pages/api/lancedb-search/[...path]", () => {
     await lancedbHandler(req, res);
     expect(res._getStatusCode()).toBe(200);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/lancedb-search/collections/docs?q=hello&limit=5",
+      "http://127.0.0.1:8000/api/lancedb-search/collections/docs?q=hello&limit=5",
       expect.anything(),
     );
   });
@@ -318,14 +318,14 @@ describe("pages/api/lancedb-search/[...path]", () => {
       query: { path: ["s"], tag: ["a", "b"] },
     }) as any;
     await lancedbHandler(req, res);
-    expect(mockFetch.mock.calls[0][0]).toBe("http://localhost:8000/api/lancedb-search/s?tag=a&tag=b");
+    expect(mockFetch.mock.calls[0][0]).toBe("http://127.0.0.1:8000/api/lancedb-search/s?tag=a&tag=b");
   });
 
   it("omits the query string when there are no params", async () => {
     mockFetch.mockResolvedValue(httpResponse(true, 200, {}));
     const { req, res } = createMocks({ method: "GET", query: { path: ["s"] } }) as any;
     await lancedbHandler(req, res);
-    expect(mockFetch.mock.calls[0][0]).toBe("http://localhost:8000/api/lancedb-search/s");
+    expect(mockFetch.mock.calls[0][0]).toBe("http://127.0.0.1:8000/api/lancedb-search/s");
   });
 
   it("sends a body for POST and returns the data", async () => {
@@ -335,7 +335,7 @@ describe("pages/api/lancedb-search/[...path]", () => {
     await lancedbHandler(req, res);
     expect(res._getJSONData()).toEqual({ done: true });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/lancedb-search/q",
+      "http://127.0.0.1:8000/api/lancedb-search/q",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

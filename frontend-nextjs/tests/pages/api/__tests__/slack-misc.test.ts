@@ -48,7 +48,8 @@ describe("pages/api/integrations/slack/auth/start", () => {
       "https://slack.com/oauth/v2/authorize?state=abc",
     );
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/slack/auth/url",
+      "http://127.0.0.1:8000/api/slack/auth/url",
+      { headers: {} },
     );
   });
 
@@ -108,7 +109,7 @@ describe("pages/api/integrations/slack/user/info", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true, user: { id: "U1" } });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/slack/user/info",
+      "http://127.0.0.1:8000/api/slack/user/info",
       {
         method: "GET",
         headers: { "Content-Type": "application/json", "x-user-id": "current" },
@@ -172,7 +173,7 @@ describe("pages/api/integrations/slack/callback", () => {
     expect(res._getStatusCode()).toBe(302);
     expect(res._getRedirectUrl()).toBe("/integrations/slack?success=true");
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/slack/callback",
+      "http://127.0.0.1:8000/api/slack/callback",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -243,7 +244,7 @@ describe("pages/api/integrations/slack/messages", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true, messages: [{ ts: "1" }] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/slack/conversations/history?channel=C123&limit=10&user_id=current",
+      "http://127.0.0.1:8000/api/slack/conversations/history?channel=C123&limit=10&user_id=current",
       {
         method: "GET",
         headers: { "Content-Type": "application/json", "x-user-id": "current" },
@@ -302,7 +303,7 @@ describe("pages/api/integrations/slack/channels", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true, channels: [] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/slack/channels?user_id=current",
+      "http://127.0.0.1:8000/api/slack/channels?user_id=current",
       {
         method: "GET",
         headers: { "Content-Type": "application/json", "x-user-id": "current" },
@@ -314,7 +315,7 @@ describe("pages/api/integrations/slack/channels", () => {
     mockFetch.mockResolvedValue(jsonResponse({ ok: true }, true, 200));
     await invoke({ query: { user_id: "from-query" }, body: { user_id: "from-body" } });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/slack/channels?user_id=from-query",
+      "http://127.0.0.1:8000/api/slack/channels?user_id=from-query",
     );
   });
 
@@ -322,7 +323,7 @@ describe("pages/api/integrations/slack/channels", () => {
     mockFetch.mockResolvedValue(jsonResponse({ ok: true }, true, 200));
     await invoke({ body: { user_id: "from-body" } });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/slack/channels?user_id=from-body",
+      "http://127.0.0.1:8000/api/slack/channels?user_id=from-body",
     );
   });
 
@@ -362,7 +363,7 @@ describe("pages/api/integrations/slack/users", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true, user: { name: "alice" } });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/slack/users/current",
+      "http://127.0.0.1:8000/api/slack/users/current",
       {
         method: "GET",
         headers: { "Content-Type": "application/json", "x-user-id": "current" },
@@ -374,7 +375,7 @@ describe("pages/api/integrations/slack/users", () => {
     mockFetch.mockResolvedValue(jsonResponse({ ok: true }, true, 200));
     await invoke({ query: { user_id: "U999" }, body: { user_id: "U111" } });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/slack/users/U999",
+      "http://127.0.0.1:8000/api/slack/users/U999",
     );
   });
 
@@ -382,7 +383,7 @@ describe("pages/api/integrations/slack/users", () => {
     mockFetch.mockResolvedValue(jsonResponse({ ok: true }, true, 200));
     await invoke({ body: { user_id: "U111" } });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/slack/users/U111",
+      "http://127.0.0.1:8000/api/slack/users/U111",
     );
   });
 
@@ -426,7 +427,7 @@ describe("pages/api/integrations/slack/messages/send", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true, ts: "1690000000.000100" });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/slack/messages",
+      "http://127.0.0.1:8000/api/slack/messages",
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-id": "current" },

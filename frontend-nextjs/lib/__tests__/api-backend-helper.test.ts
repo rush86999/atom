@@ -314,7 +314,8 @@ describe('API Backend Helper', () => {
 
       const url = generateGoogleAuthUrl('state123');
 
-      expect(url).toBe('http://localhost:8000/api/auth/google/authorize?state=state123');
+      // Client-side convention: no env → relative URL (same-origin proxy)
+      expect(url).toBe('/api/auth/google/authorize?state=state123');
 
       process.env.NEXT_PUBLIC_API_URL = 'https://api.test.com';
     });
@@ -592,7 +593,9 @@ describe('API Backend Helper', () => {
 
       const url = generateGoogleAuthUrl();
 
-      expect(url).toContain('http://localhost:8000');
+      // Client-side convention: no env → relative URL (same-origin proxy)
+      expect(url).toContain('/api/auth/google/authorize');
+      expect(url).not.toContain('http://localhost');
       process.env.NEXT_PUBLIC_API_URL = 'https://api.test.com';
     });
 

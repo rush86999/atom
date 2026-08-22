@@ -60,7 +60,7 @@ describe("pages/api/graphrag/[...path]", () => {
     expect(res._getJSONData()).toEqual({ success: true, result: "ok" });
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:8000/api/graphrag/api/graphrag/health/status",
+      "http://127.0.0.1:8000/api/graphrag/api/graphrag/health/status",
     );
     expect(mockFetch.mock.calls[0][1].method).toBe("GET");
     expect(mockFetch.mock.calls[0][1].body).toBeUndefined();
@@ -74,21 +74,21 @@ describe("pages/api/graphrag/[...path]", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ success: true, source: "fallback" });
     expect(mockFetch.mock.calls[1][0]).toBe(
-      "http://localhost:8000/api/graphrag/documents",
+      "http://127.0.0.1:8000/api/graphrag/documents",
     );
   });
 
   it("accepts a plain string path segment", async () => {
     await invoke("GET", { path: "health" });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:8000/api/graphrag/api/graphrag/health",
+      "http://127.0.0.1:8000/api/graphrag/api/graphrag/health",
     );
   });
 
   it("handles a missing path segment", async () => {
     await invoke("GET", {});
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:8000/api/graphrag/api/graphrag/",
+      "http://127.0.0.1:8000/api/graphrag/api/graphrag/",
     );
   });
 
@@ -123,7 +123,7 @@ describe("pages/api/graphrag/[...path]", () => {
       missing: undefined,
     });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:8000/api/graphrag/api/graphrag/search?q=atoms&tags=a&tags=b",
+      "http://127.0.0.1:8000/api/graphrag/api/graphrag/search?q=atoms&tags=a&tags=b",
     );
   });
 
@@ -140,7 +140,7 @@ describe("pages/api/graphrag/[...path]", () => {
       },
     );
     const call = mockFetch.mock.calls[0];
-    expect(call[0]).toBe("http://localhost:8000/api/graphrag/api/graphrag/query");
+    expect(call[0]).toBe("http://127.0.0.1:8000/api/graphrag/api/graphrag/query");
     expect(call[1].method).toBe("POST");
     expect(call[1].headers).toEqual({
       "Content-Type": "application/json",

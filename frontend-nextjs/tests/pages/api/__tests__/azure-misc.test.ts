@@ -20,28 +20,28 @@ const proxyCases: Array<[string, ProxyHandler, string, string, string]> = [
   [
     "pages/api/integrations/azure/app-services/deploy",
     deployHandler,
-    "http://localhost:5058/api/azure/app-services/deploy",
+    "http://127.0.0.1:8000/api/azure/app-services/deploy",
     "Failed to deploy Azure app service",
     "Azure app service deployment error:",
   ],
   [
     "pages/api/integrations/azure/costs/analysis",
     costsHandler,
-    "http://localhost:5058/api/azure/costs/analysis",
+    "http://127.0.0.1:8000/api/azure/costs/analysis",
     "Failed to fetch Azure cost analysis",
     "Azure cost analysis API error:",
   ],
   [
     "pages/api/integrations/azure/storage/files",
     storageFilesHandler,
-    "http://localhost:5058/api/azure/storage/files",
+    "http://127.0.0.1:8000/api/azure/storage/files",
     "Failed to fetch Azure storage files",
     "Azure storage files API error:",
   ],
   [
     "pages/api/integrations/azure/virtual-machines/create",
     vmCreateHandler,
-    "http://localhost:5058/api/azure/virtual-machines/create",
+    "http://127.0.0.1:8000/api/azure/virtual-machines/create",
     "Failed to create Azure virtual machine",
     "Azure VM creation error:",
   ],
@@ -91,7 +91,7 @@ proxyCases.forEach(([label, handler, backendPath, failureError, logPrefix]) => {
       const res = await invoke({ subscription_id: "sub" });
       expect(res._getStatusCode()).toBe(404);
       expect(res._getJSONData()).toEqual({ error: "subscription not found" });
-      expect(mockFetch.mock.calls[0][0]).toBe(backendPath.replace("http://localhost:5058", "http://backend:5058"));
+      expect(mockFetch.mock.calls[0][0]).toBe(backendPath.replace("http://127.0.0.1:8000", "http://backend:5058"));
     });
 
     it("returns 500 when the backend fetch rejects", async () => {

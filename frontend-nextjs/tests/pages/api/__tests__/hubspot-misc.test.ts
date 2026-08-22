@@ -36,7 +36,7 @@ describe("pages/api/hubspot/analytics", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ visits: 42, contacts: 7 });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/analytics",
+      "http://127.0.0.1:8000/api/hubspot/analytics",
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -109,7 +109,7 @@ describe("pages/api/integrations/hubspot/tickets", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ results: [{ id: "t1" }], total: 1 });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/tickets",
+      "http://127.0.0.1:8000/api/hubspot/tickets",
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-id": "current" },

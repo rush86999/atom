@@ -1,4 +1,5 @@
 const mockExec = jest.fn();
+const mockExecFile = jest.fn();
 const mockExistsSync = jest.fn();
 const mockReadFileSync = jest.fn();
 const mockWriteFileSync = jest.fn();
@@ -19,9 +20,10 @@ jest.mock("fs", () => {
 
 jest.mock("child_process", () => {
   const real = jest.requireActual("child_process");
-  return { ...real, exec: mockExec };
+  return { ...real, exec: mockExec, execFile: mockExecFile };
 });
 
+import path from "path";
 import { createMocks } from "node-mocks-http";
 import handler from "@/pages/api/dev/desktop-bridge";
 
@@ -71,7 +73,7 @@ describe("pages/api/dev/desktop-bridge", () => {
     mockExistsSync.mockReturnValue(false);
     const res = await invoke("POST", {
       command: "read_file_content",
-      args: { path: "/tmp/nope.txt" },
+      args: { path: `${process.cwd()}/nope.txt` },
     });
     expect(res._getStatusCode()).toBe(400);
     expect(res._getJSONData().error).toBe("File does not exist");
@@ -82,11 +84,11 @@ describe("pages/api/dev/desktop-bridge", () => {
     mockReadFileSync.mockReturnValue("hello from file");
     const res = await invoke("POST", {
       command: "read_file_content",
-      args: { path: "/tmp/real.txt" },
+      args: { path: `${process.cwd()}/real.txt` },
     });
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ success: true, content: "hello from file" });
-    expect(mockReadFileSync).toHaveBeenCalledWith("/tmp/real.txt", "utf8");
+    expect(mockReadFileSync).toHaveBeenCalledWith(path.join(process.cwd(), "real.txt"), "utf8");
   });
 
   it("returns 400 when write_file_content has no path", async () => {
@@ -104,27 +106,27 @@ describe("pages/api/dev/desktop-bridge", () => {
   it("writes file content and returns success", async () => {
     const res = await invoke("POST", {
       command: "write_file_content",
-      args: { path: "/tmp/out.txt", content: "data" },
+      args: { path: `${process.cwd()}/out.txt`, content: "data" },
     });
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ success: true });
-    expect(mockWriteFileSync).toHaveBeenCalledWith("/tmp/out.txt", "data", "utf8");
+    expect(mockWriteFileSync).toHaveBeenCalledWith(path.join(process.cwd(), "out.txt"), "data", "utf8");
   });
 
   it("writes an empty string when content is omitted", async () => {
     const res = await invoke("POST", {
       command: "write_file_content",
-      args: { path: "/tmp/out.txt" },
+      args: { path: `${process.cwd()}/out.txt` },
     });
     expect(res._getStatusCode()).toBe(200);
-    expect(mockWriteFileSync).toHaveBeenCalledWith("/tmp/out.txt", "", "utf8");
+    expect(mockWriteFileSync).toHaveBeenCalledWith(path.join(process.cwd(), "out.txt"), "", "utf8");
   });
 
   it("returns 400 when list_directory target does not exist", async () => {
     mockExistsSync.mockReturnValue(false);
     const res = await invoke("POST", {
       command: "list_directory",
-      args: { path: "/tmp/ghost" },
+      args: { path: `${process.cwd()}/ghost` },
     });
     expect(res._getStatusCode()).toBe(400);
     expect(res._getJSONData().error).toBe("Directory does not exist");
@@ -157,32 +159,32 @@ describe("pages/api/dev/desktop-bridge", () => {
     });
     const res = await invoke("POST", {
       command: "list_directory",
-      args: { path: "/tmp/dir" },
+      args: { path: `${process.cwd()}/dir` },
     });
     expect(res._getStatusCode()).toBe(200);
     const { entries } = res._getJSONData();
     expect(entries).toHaveLength(2);
     expect(entries[0]).toEqual({
       name: "a.txt",
-      path: "/tmp/dir/a.txt",
+      path: path.join(process.cwd(), "dir", "a.txt"),
       is_directory: false,
       size: 123,
     });
     expect(entries[1]).toEqual({
       name: "b",
-      path: "/tmp/dir/b",
+      path: path.join(process.cwd(), "dir", "b"),
       is_directory: false,
       size: 0,
     });
   });
 
-  it("executes a command and returns its stdout on success", async () => {
-    mockExec.mockImplementation((_cmd: string, _opts: any, cb: any) => {
+  it("executes an allowlisted command and returns its stdout on success", async () => {
+    mockExecFile.mockImplementation((_bin: string, _args: any, _opts: any, cb: any) => {
       cb(null, "hello out", "");
     });
     const res = await invoke("POST", {
       command: "execute_command",
-      args: { command: "echo", args: ["hi"], workingDir: "/tmp" },
+      args: { command: "node --version" },
     });
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({
@@ -192,9 +194,10 @@ describe("pages/api/dev/desktop-bridge", () => {
       stdout: "hello out",
       stderr: "",
     });
-    expect(mockExec).toHaveBeenCalledWith(
-      "echo hi",
-      expect.objectContaining({ cwd: "/tmp" }),
+    expect(mockExecFile).toHaveBeenCalledWith(
+      "node",
+      ["--version"],
+      expect.objectContaining({ cwd: expect.any(String) }),
       expect.any(Function),
     );
   });
@@ -202,12 +205,12 @@ describe("pages/api/dev/desktop-bridge", () => {
   it("reports exit code and stderr when a command fails", async () => {
     const err: any = new Error("boom");
     err.code = 2;
-    mockExec.mockImplementation((_cmd: string, _opts: any, cb: any) => {
+    mockExecFile.mockImplementation((_bin: string, _args: any, _opts: any, cb: any) => {
       cb(err, "", "some stderr");
     });
     const res = await invoke("POST", {
       command: "execute_command",
-      args: { command: "false" },
+      args: { command: "node --version" },
     });
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({
@@ -219,19 +222,32 @@ describe("pages/api/dev/desktop-bridge", () => {
     });
   });
 
-  it("uses the current working directory when workingDir is omitted", async () => {
-    mockExec.mockImplementation((_cmd: string, _opts: any, cb: any) => {
+  it("runs allowlisted commands against the resolved working directory", async () => {
+    mockExecFile.mockImplementation((_bin: string, _args: any, _opts: any, cb: any) => {
       cb(null, "", "");
     });
-    await invoke("POST", { command: "execute_command", args: { command: "pwd" } });
-    expect(mockExec).toHaveBeenCalledWith(
-      "pwd",
-      expect.objectContaining({ cwd: process.cwd() }),
+    await invoke("POST", { command: "execute_command", args: { command: "npm --version" } });
+    expect(mockExecFile).toHaveBeenCalledWith(
+      "npm",
+      ["--version"],
+      expect.objectContaining({ cwd: path.resolve(process.cwd()) }),
       expect.any(Function),
     );
   });
 
-  it("rejects unsupported commands with 400", async () => {
+  it("rejects non-allowlisted commands with 403", async () => {
+    const res = await invoke("POST", {
+      command: "execute_command",
+      args: { command: "echo hi" },
+    });
+    expect(res._getStatusCode()).toBe(403);
+    expect(res._getJSONData()).toEqual({
+      success: false,
+      error: "Command not in allowlist. Only safe read-only commands are permitted.",
+    });
+  });
+
+  it("rejects unknown bridge commands with 400", async () => {
     const res = await invoke("POST", { command: "rm_rf", args: {} });
     expect(res._getStatusCode()).toBe(400);
     expect(res._getJSONData()).toEqual({ error: "Command rm_rf not supported" });

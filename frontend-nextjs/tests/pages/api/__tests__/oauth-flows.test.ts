@@ -210,7 +210,7 @@ describe("pages/api/notion/start", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ success: true, auth_url: "https://api.notion.com/v1/oauth/authorize?x=1", user_id: "u1", csrf_token: "t" });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/auth/notion/authorize?user_id=u1",
+      "http://127.0.0.1:8000/api/auth/notion/authorize?user_id=u1",
       { method: "GET", headers: { "Content-Type": "application/json" } },
     );
   });
@@ -341,7 +341,7 @@ describe("pages/api/teams/start", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ success: true, auth_url: "https://login.microsoftonline.com/authorize", user_id: "u1", csrf_token: "t" });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/auth/teams/authorize?user_id=u1",
+      "http://127.0.0.1:8000/api/auth/teams/authorize?user_id=u1",
       expect.anything(),
     );
   });

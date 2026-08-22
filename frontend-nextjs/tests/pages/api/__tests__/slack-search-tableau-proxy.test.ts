@@ -83,7 +83,7 @@ describe.each(routes)(
       expect(res._getJSONData()).toEqual({ results: [{ id: "r-1" }] });
       expect(mockFetch).toHaveBeenCalledTimes(1);
       expect(mockFetch).toHaveBeenCalledWith(
-        `http://localhost:5058${backendPath}`,
+        `http://127.0.0.1:8000${backendPath}`,
         {
           method: "POST",
           headers: {

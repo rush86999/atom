@@ -56,7 +56,7 @@ describe("pages/api/integrations/bitbucket/health", () => {
       user: "u@example.com",
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/bitbucket/health",
+      "http://127.0.0.1:8000/api/bitbucket/health",
       {
         method: "GET",
         headers: {

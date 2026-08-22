@@ -26,7 +26,7 @@ describe("pages/api/integrations/slack/files", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ files: [] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/slack/files?channel=C1&limit=10",
+      "http://127.0.0.1:8000/api/slack/files?channel=C1&limit=10",
       {
         method: "GET",
         headers: { "Content-Type": "application/json", "x-user-id": "current" },
@@ -43,7 +43,7 @@ describe("pages/api/integrations/slack/files", () => {
     }) as any;
     await filesHandler(req, res);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/slack/files/F123",
+      "http://127.0.0.1:8000/api/slack/files/F123",
       expect.anything(),
     );
     expect(res._getJSONData()).toEqual({ file: { id: "F1" } });
@@ -55,7 +55,7 @@ describe("pages/api/integrations/slack/files", () => {
     const { req, res } = createMocks({ method: "POST", body }) as any;
     await filesHandler(req, res);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/slack/files",
+      "http://127.0.0.1:8000/api/slack/files",
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-id": "current" },
@@ -121,7 +121,7 @@ describe("pages/api/integrations/slack/files/upload", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true, file: {} });
     const [url, opts] = mockFetch.mock.calls[0];
-    expect(url).toBe("http://localhost:5058/api/slack/files/upload");
+    expect(url).toBe("http://127.0.0.1:8000/api/slack/files/upload");
     expect(opts.method).toBe("POST");
     const form = opts.body as FormData;
     expect(String(form.get("file"))).toBe("[object Blob]");

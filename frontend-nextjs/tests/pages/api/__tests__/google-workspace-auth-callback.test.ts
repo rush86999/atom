@@ -2,7 +2,7 @@ import { createMocks } from "node-mocks-http";
 import handler from "@/pages/api/integrations/google-workspace/auth/callback";
 
 const expectedBase =
-  process.env.PYTHON_API_SERVICE_BASE_URL || "http://localhost:8000";
+  process.env.PYTHON_API_SERVICE_BASE_URL || "http://127.0.0.1:8000";
 
 describe("pages/api/integrations/google-workspace/auth/callback", () => {
   beforeEach(() => {

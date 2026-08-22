@@ -46,7 +46,7 @@ const runProxySuite = (
       const res = await invoke("GET");
       expect(res._getStatusCode()).toBe(200);
       expect(res._getJSONData()).toEqual({ QueryResponse: { Account: [] } });
-      expect(mockFetch).toHaveBeenCalledWith(`http://localhost:5058${backendPath}`, {
+      expect(mockFetch).toHaveBeenCalledWith(`http://127.0.0.1:8000${backendPath}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
         body: undefined,
@@ -57,7 +57,7 @@ const runProxySuite = (
       mockFetch.mockResolvedValue(jsonResponse(true, 200, { Id: "qb-1" }));
       await invoke("GET", { id: "qb-1" });
       expect(mockFetch.mock.calls[0][0]).toBe(
-        `http://localhost:5058${backendPath}/qb-1`,
+        `http://127.0.0.1:8000${backendPath}/qb-1`,
       );
     });
 
@@ -65,7 +65,7 @@ const runProxySuite = (
       mockFetch.mockResolvedValue(jsonResponse(true, 200, {}));
       await invoke("GET", { id: ["1", "2"], minorversion: "70" });
       const [url] = mockFetch.mock.calls[0];
-      expect(url).toBe(`http://localhost:5058${backendPath}?minorversion=70`);
+      expect(url).toBe(`http://127.0.0.1:8000${backendPath}?minorversion=70`);
     });
 
     it("sends the request body for non-GET methods", async () => {
@@ -73,7 +73,7 @@ const runProxySuite = (
       const res = await invoke("POST", {}, { Name: "created" });
       expect(res._getStatusCode()).toBe(201);
       expect(mockFetch).toHaveBeenCalledWith(
-        `http://localhost:5058${backendPath}`,
+        `http://127.0.0.1:8000${backendPath}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
