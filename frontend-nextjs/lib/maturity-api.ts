@@ -63,6 +63,13 @@ export interface ActionProposal {
   approved_at: string | null;
 }
 
+// apiClient.fetch exists at runtime (attached in lib/api.ts) but is not part
+// of the axios type surface — route through one typed accessor instead of
+// sprinkling casts at every call site.
+type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
+const rawFetch = apiClient as unknown as { fetch: FetchLike };
+const fetchJson: FetchLike = (url, init) => rawFetch.fetch(url, init);
+
 function query(params: Record<string, string | number | undefined>): string {
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
@@ -79,7 +86,7 @@ export async function listTrainingProposals(opts: {
   statusFilter?: string;
   limit?: number;
 } = {}): Promise<TrainingProposal[]> {
-  const res = await apiClient.fetch(
+  const res = await fetchJson(
     `/api/maturity/training/proposals${query({
       agent_id: opts.agentId,
       status_filter: opts.statusFilter,
@@ -93,7 +100,7 @@ export async function listTrainingProposals(opts: {
 export async function getTrainingProposal(
   proposalId: string
 ): Promise<TrainingProposalDetail> {
-  const res = await apiClient.fetch(
+  const res = await fetchJson(
     `/api/maturity/training/proposals/${proposalId}`
   );
   return res.json();
@@ -104,7 +111,7 @@ export async function approveTrainingProposal(
   proposalId: string,
   durationOverride?: Record<string, unknown>
 ): Promise<{ session_id: string; proposal_id: string }> {
-  const res = await apiClient.fetch(
+  const res = await fetchJson(
     `/api/maturity/training/proposals/${proposalId}/approve`,
     {
       method: 'POST',
@@ -120,7 +127,7 @@ export async function rejectTrainingProposal(
   proposalId: string,
   reason: string
 ): Promise<void> {
-  const res = await apiClient.fetch(
+  const res = await fetchJson(
     `/api/maturity/training/proposals/${proposalId}/reject`,
     {
       method: 'POST',
@@ -143,7 +150,7 @@ export async function completeTrainingSession(
     capability_gaps_remaining?: string[];
   }
 ): Promise<TrainingCompletionResult> {
-  const res = await apiClient.fetch(
+  const res = await fetchJson(
     `/api/maturity/training/sessions/${sessionId}/complete`,
     {
       method: 'POST',
@@ -163,7 +170,7 @@ export async function getTrainingHistory(
   agentId: string,
   limit = 50
 ): Promise<TrainingSessionSummary[]> {
-  const res = await apiClient.fetch(
+  const res = await fetchJson(
     `/api/maturity/agents/${agentId}/training-history${query({ limit })}`
   );
   const body = await res.json();
@@ -177,7 +184,7 @@ export async function listActionProposals(opts: {
   statusFilter?: string;
   limit?: number;
 } = {}): Promise<ActionProposal[]> {
-  const res = await apiClient.fetch(
+  const res = await fetchJson(
     `/api/maturity/proposals${query({
       agent_id: opts.agentId,
       status_filter: opts.statusFilter,
@@ -192,7 +199,7 @@ export async function approveActionProposal(
   proposalId: string,
   modifications?: Record<string, unknown>
 ): Promise<{ execution_result: unknown }> {
-  const res = await apiClient.fetch(`/api/maturity/proposals/${proposalId}/approve`, {
+  const res = await fetchJson(`/api/maturity/proposals/${proposalId}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ approve: true, modifications }),
@@ -205,7 +212,7 @@ export async function rejectActionProposal(
   proposalId: string,
   reason: string
 ): Promise<void> {
-  const res = await apiClient.fetch(`/api/maturity/proposals/${proposalId}/reject`, {
+  const res = await fetchJson(`/api/maturity/proposals/${proposalId}/reject`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),

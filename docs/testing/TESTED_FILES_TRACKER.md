@@ -6100,3 +6100,18 @@ Booted the REAL backend (uvicorn, isolated SQLite, bootstrap admin) and walked t
 - Live re-run after the fix: rename 200, re-read shows the new title, history intact, anon 401.
 
 Lesson: journey E2E (live HTTP) catches "mocked-away" phantom calls that unit suites cannot; this round's live boot is now the reference check for the chat/agent/maturity leg.
+
+## Session 2026-08-22 (R82 regression sweep — 1,092 green incl. module-importing suites)
+
+Ran every backend test file that imports my changed modules (`integrations.chat_routes`, `integrations.chat_orchestrator`, `api.agent_routes`, `api.episode_routes`, `chat_session_manager`) — 1,092 passed / 0 failed.
+- `tests/test_chat_orchestrator.py` (2 tests): pre-existing stale expectations aligned to the live contract — (a) agent dispatch is intentionally scoped to explicit `AGENT_REQUEST` intents (the blanket SEARCH→ComputerUseAgent fallback was removed upstream; test now asserts the explicit-request path), (b) message copy is "Task initiated. ID: <id>" not "Task ID:". No production code changed for these — verified the orchestrator file is untouched by this round (diff empty).
+
+## Session 2026-08-21 (frontend) — R81i-b: MaturityApprovalPanel supervisor UI
+
+**Files**: `frontend-nextjs/components/Agents/MaturityApprovalPanel.tsx` (new — self-fetching panel over lib/maturity-api.ts: pending training proposals approve→inline completion form→promotion notice; reject-with-reason; INTERN action-proposal approve&execute/reject; loading/error/empty states), `components/Agents/__tests__/MaturityApprovalPanel.test.tsx` (5 RTL tests), `lib/maturity-api.ts` (+typed fetchJson accessor removing axios-type noise).
+
+**Wiring (left to land with the in-flight agents-page work)**: pages/agents/index.tsx — add `import MaturityApprovalPanel from "@/components/Agents/MaturityApprovalPanel";` and `<div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mb-4"><MaturityApprovalPanel /></div>` directly below the existing `<MaturityProgression …>` in the Terminal Panel column.
+
+**Bug caught by test**: generic run() wrapper clobbered fn-specific notices → handlers may now return an override message.
+
+**Verification**: panel 5/5; maturity-api client 6/6; tsc clean for both files.
