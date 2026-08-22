@@ -46,6 +46,10 @@ class SyncConfiguration:
     include_metadata: bool = True
     sync_mode: str = "incremental"  # "incremental", "discovery"
     discovery_frequency_hours: int = 168  # Weekly by default
+    # Round 80s: AI-employee role (AgentRegistry.category, lowercased) this
+    # integration's records are relevant to. Persisted so SCHEDULED auto-syncs
+    # keep tagging new records with the role, not just one-shot triggers.
+    role: Optional[str] = None
 
 
 # Default sync configurations for popular integrations
@@ -236,6 +240,7 @@ class HybridDataIngestionService:
                             max_records_per_sync=row.max_records_per_sync or 1000,
                             include_metadata=True,
                             sync_mode=row.sync_mode or "incremental",
+                            role=usage.get("sync_role"),
                         )
                 if self.usage_stats:
                     logger.info(
@@ -282,6 +287,7 @@ class HybridDataIngestionService:
                     "last_synced": stats.last_synced.isoformat() if stats.last_synced else None,
                     "auto_sync_enabled": stats.auto_sync_enabled,
                     "sync_frequency_minutes": stats.sync_frequency_minutes,
+                    **({"sync_role": config.role} if config and config.role else {}),
                 }
 
             db = SessionLocal()
@@ -308,6 +314,8 @@ class HybridDataIngestionService:
                     row.sync_last_n_days = config.sync_last_n_days
                     row.max_records_per_sync = config.max_records_per_sync
                     row.sync_mode = config.sync_mode
+                    if config.role:
+                        usage_json["sync_role"] = config.role
                 db.commit()
             finally:
                 db.close()
@@ -420,7 +428,6 @@ class HybridDataIngestionService:
         Returns:
             Dict with sync results: records_synced, entities_extracted, etc.
         """
-        _role = str(role).lower() if role else None
         stats = self.usage_stats.get(integration_id)
         config = self.sync_configs.get(integration_id)
         if not config:
@@ -434,7 +441,14 @@ class HybridDataIngestionService:
         
         if not config:
             return {"error": f"No sync config for {integration_id}"}
-        
+
+        # Explicit role param wins; else inherit the persistent config role
+        # (set via enable-sync/trigger with agent_id) so scheduled auto-syncs
+        # keep tagging records for the right AI employee.
+        _role = str(role).lower() if role else (
+            str(getattr(config, "role", None)).lower()
+            if getattr(config, "role", None) else None)
+
         # Check if sync is needed (unless forced)
         if not force and stats and stats.last_synced:
             minutes_since_sync = (datetime.now(timezone.utc) - stats.last_synced).total_seconds() / 60
