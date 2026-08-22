@@ -3798,6 +3798,16 @@ try:
     except (ImportError, NameError) as e:
         logger.warning(f"Fleet router management routes failed to load: {e}")
 
+    # 41. Trust Calibration Gateway routes (R81l P0 spike — shadow-only,
+    # flag-gated: ATOM_TRUST_CALIBRATION_ENABLED, default false -> 503)
+    try:
+        from api.trust_calibration_routes import router as trust_cal_router
+
+        app.include_router(trust_cal_router)
+        logger.info("✓ Trust Calibration Routes Loaded (shadow, flag-gated)")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Trust calibration routes failed to load: {e}")
+
     logger.info("✓ Core Routes Loaded Successfully")
 
 except (ImportError, TypeError) as e:

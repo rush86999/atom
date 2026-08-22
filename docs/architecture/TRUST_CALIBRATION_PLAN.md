@@ -1,6 +1,6 @@
 # Trust Calibration Gateway — Integration Plan (Ou-style GP)
 
-> Status: PLANNED (P0 spike next). Research grounding: Ou 2026,
+> Status: **P0 IMPLEMENTED** (shadow spike live behind ATOM_TRUST_CALIBRATION_ENABLED; P1+ planned). Research grounding: Ou 2026,
 > "Progressive Autonomy as Preference Learning: A Formalization of Trust
 > Calibration for Agentic Tool Use" (arXiv 2605.19151) — a policy gateway
 > maintains a Gaussian-process posterior over a latent human risk-tolerance

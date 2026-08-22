@@ -568,6 +568,9 @@ class TestGovernanceRoutesRealData:
 
     def test_enforce_action_delegates_to_real_governance(self, gov_app):
         """enforce-action must consult the real service, not MOCK_AGENTS."""
+        from unittest.mock import MagicMock as _MG
+        from contextlib import contextmanager as _cm
+
         db = Mock(spec=Session)
         agent = AgentRegistry(
             id="real-agent",
@@ -579,14 +582,25 @@ class TestGovernanceRoutesRealData:
             confidence_score=0.30,
         )
         db.query.return_value.filter.return_value.first = Mock(return_value=agent)
+
+        # Hermetic: the handler opens core.database.get_db_session() for the
+        # governance call — point BOTH entry points at the mocked session so
+        # the test never depends on ambient DATABASE_URL state.
+        cm = _cm(lambda: iter([db]))
+        from contextlib import nullcontext
+        sess_cm = _MG()
+        sess_cm.__enter__.return_value = db
+        sess_cm.__exit__.return_value = False
+
         from core.database import get_db as _get_db
         gov_app.dependency_overrides[_get_db] = lambda: db
         client = TestClient(gov_app)
 
-        resp = client.post(
-            "/api/agent-governance/enforce-action",
-            json={"agent_id": "real-agent", "action_type": "send_email"},
-        )
+        with patch("api.agent_governance_routes.get_db_session", return_value=sess_cm):
+            resp = client.post(
+                "/api/agent-governance/enforce-action",
+                json={"agent_id": "real-agent", "action_type": "send_email"},
+            )
         assert resp.status_code == 200
         body = resp.json()
         # A STUDENT cannot send email — real decision, not a mock lookup.
