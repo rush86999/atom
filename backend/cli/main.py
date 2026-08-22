@@ -22,6 +22,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 logger = logging.getLogger(__name__)
 
+from cli.integrations import integrations_cli, login  # noqa: E402
+
 
 @click.group()
 @click.version_option(version="0.1.0")
@@ -32,6 +34,9 @@ def main_cli():
     Governance-first architecture with multi-agent system.
     """
     pass
+
+main_cli.add_command(integrations_cli)
+main_cli.add_command(login)
 
 
 @main_cli.command()

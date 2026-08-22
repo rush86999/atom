@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import IntegrationsPanel from "./IntegrationsPanel";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -247,6 +248,14 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
                 Play notification sound
               </label>
             </div>
+          </div>
+
+          {/* Integrations (round 80r: desktop parity with web/mobile) */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
+              INTEGRATIONS
+            </div>
+            <IntegrationsPanel serverUrl={settings.serverUrl || undefined} />
           </div>
 
           {/* Appearance */}
