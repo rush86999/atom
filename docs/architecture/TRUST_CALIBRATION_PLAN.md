@@ -9,6 +9,16 @@
 > is most uncertain. Non-stationarity via time-decay kernel; abrupt shifts
 > via Bayesian online changepoint detection (future phase).
 >
+> **Orthogonal to the stage router (#58)**: stage router decides *which
+> model tier runs a turn* from tool-result signals; the gateway decides
+> *whether the human is asked* for a proposed action — separate layers
+> sharing one deployment skeleton. Atom already implements Ou's
+> deployment pattern everywhere but the inference (shadow → certify →
+> per-workload enforce → consent-gated automation → auto-revoke; both
+> #56 and #58 do this),
+> and the GP version swaps the frequentist two-proportion certification
+> for a posterior you can read uncertainty off directly.
+
 > Complementary in-repo precedent: the stage-router and fleet-router
 > validation automations already implement the discipline this gateway must
 > follow — measure in shadow → certify on audit evidence → consent-gated
@@ -37,6 +47,11 @@ the G14 rating nudge), execution successes/failures (not *human* decisions).
 5. Automation approval queues (fleet-router / stage-router) — admin attention
    ordering only.
 
+**Bounded false-allows (by construction)**
+v* ≥ sn*² = base_noise/w*, so σ² has a noise floor — the ASK band
+narrows as evidence concentrates but can never be starved below
+base_noise; τ_uncertain (0.15) is set above the 0.05 floor.
+
 **Applies**: gray-zone escalations inside already-authorized envelopes, and
 attention allocation over pending approvals.
 **Never applies**: complexity-4 CRITICAL actions (deletions/payments stay
@@ -48,18 +63,21 @@ not expand what an agent may do.
 
 ```
 core/trust_calibration/
-├── gp.py         # numpy Laplace-probit GP classifier: RBF kernel +
-│                 # per-point time-decay weighting (half-life), jitter,
-│                 # cap N=400 most-recent observations; predictive
-│                 # p(approve)=Φ(m*/√(1+v*)), uncertainty = v*
+├── gp.py         # numpy probit-link GP over signed decisions; PRODUCT
+│                 # kernel k_tool × k_ctx × k_time (per-block squared-
+│                 # exponential, k_time = pointwise half-life decay
+│                 # down-weighting stale evidence); noise folded as
+│                 # base/w_i so stale points are noisier AND lower-scale;
+│                 # predictive p(approve)=Φ(m*/√(1+v*))
 ├── features.py   # v1 vector: [complexity(1-4), tier_idx(0-3),
 │                 #  is_destructive, platform_risk(0-2)]; tool-family
 │                 #  one-hots as v2. Complexity resolution reuses
 │                 #  AgentGovernanceService.ACTION_COMPLEXITY.
 ├── gateway.py    # TrustCalibrationGateway: fit-on-demand with TTL cache,
 │                 # assess() -> {p_approve, uncertainty, recommendation}
-│                 # recommendation ∈ auto_ok | escalate_uncertain |
-│                 # escalate_likely_denial (fail-safe default)
+│                 # recommendation ∈ allow | ask | block (three-tier;
+│                 # default ask = fail-safe; never emits allow until
+│                 # n_obs >= min and σ² below threshold)
 └── service.py    # DB adapters: load_decisions(limit) over HITLAction +
                   # AgentProposal; persistence of assessments for outcome join
 ```
@@ -92,7 +110,11 @@ calibration. Readiness computed per workload (reuse
 `resolve_agent_policy`-style precedence: env kill-switch > workspace config
 > global). No enforcement until certified per-workload.
 
-### P3 — Consent-gated relaxation (automation loop)
+### P3 — Consent-gated relaxation (automation loop + P3 middleware hook)
+
+Second enforcement surface: `middleware/governance_middleware.py` (the
+outbound gatekeeper fronting every integration call) consults the gateway
+for its HITL/mask decisions once certified — same allow/ask/block contract.
 `off | notify | approve | auto` automation (mirror
 `fleet_router_automation`) that may ONLY relax two things, never create new
 autonomy: (a) meta-agent Propose-Only confirmations for feature clusters
@@ -125,7 +147,7 @@ subtasks to agents with better track records (supervisor trust models).
 | `ATOM_TRUST_CALIBRATION_HALF_LIFE_DAYS` | `30` | Kernel time-decay half-life |
 | `ATOM_TRUST_CALIBRATION_MAX_OBS` | `400` | Most-recent observations used per refit |
 | `ATOM_TRUST_CALIBRATION_REFIT_TTL` | `300` | Posterior cache seconds |
-| `ATOM_TRUST_CALIBRATION_TAU_LOW` | `0.35` | p_approve below → escalate_likely_denial |
+| `ATOM_TRUST_CALIBRATION_TAU_LOW` | `0.35` | p_approve below → **block** (confident denial, don't ask) |
 | `ATOM_TRUST_CALIBRATION_TAU_UNCERTAIN` | `0.15` | variance above → escalate_uncertain |
 | `ATOM_TRUST_CALIBRATION_EXPLORATION_EPS` | `0.02` | Random escalation fraction during shadow |
 
