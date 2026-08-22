@@ -6216,3 +6216,9 @@ Ran every backend test file that imports my changed modules (`integrations.chat_
 **Gotchas**: _MODE read at import — tests must use set_automation_config not setenv; module-global mode leaks across tests → reset in autouse fixture; judge prompts arrive as the USER message ("BINDING POLICY" marker) while proposals arrive as system-scaffold+user pair; resolver cache lives in org_politics_automation, not the consumer modules.
 
 **Verification**: 19/19 new; org-plan suites total 112 passed; capability/mini-app/mcp regression 110 passed (+3 sweep skips by gate; only pre-existing Shopify failure remains); app boots with routes mounted, unauth 401.
+
+## Session 2026-08-22 (frontend + docs) — R81p: trust-api client; docs sweep
+
+**Files**: `frontend-nextjs/lib/trust-api.ts` (typed admin client: assessAction/getTrustStats/automation get+set/runCertificationNow), `lib/__tests__/api/trust-api.test.ts` (5 contract tests), CLAUDE.md (component #60 + history row 81o–p + env block), `docs/reference/ENVIRONMENT_VARIABLES.md` (trust section + certification gate).
+
+**Verification**: trust-api 5/5; full api dir 286/286; tsc clean.

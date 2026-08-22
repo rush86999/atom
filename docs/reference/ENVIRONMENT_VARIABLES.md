@@ -479,3 +479,23 @@ and stay dormant until you configure them.
 ---
 
 *Last Updated: August 21, 2026*
+
+## Trust Calibration Gateway (R81l–p, Aug 2026)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ATOM_TRUST_CALIBRATION_ENABLED` | `false` | Master switch; true = SHADOW recording at both ask-paths (`_step_act` HITL pauses + `_check_hitl_policy` interventions). Routes answer 503 when off. |
+| `ATOM_TRUST_CALIBRATION_AUTO_ENFORCE` | `off` | Consent-gated automation: off\|notify\|approve\|auto. Auto applies certified enable verdicts and ALWAYS auto-revokes on regression. |
+| `ATOM_TRUST_CALIBRATION_AUTO_INTERVAL_MIN` | `60` | Automation worker cadence (lifespan loop). |
+| `ATOM_TRUST_CALIBRATION_FORCE_ENFORCE` | `false` | Env hard-switch overriding the action ledger for `resolved_trust_enforce()`. |
+| `ATOM_TRUST_CALIBRATION_HALF_LIFE_DAYS` | `30` | k_time decay half-life (stale decisions down-weighted + noisier). |
+| `ATOM_TRUST_CALIBRATION_MAX_OBS` | `400` | Most-recent decisions per posterior refit. |
+| `ATOM_TRUST_CALIBRATION_REFIT_TTL` | `300` | Posterior cache seconds between refits. |
+| `ATOM_TRUST_CALIBRATION_TAU_LOW` | `0.35` | p_approve below → **block** (confident denial, don't ask). |
+| `ATOM_TRUST_CALIBRATION_TAU_UNCERTAIN` | `0.15` | σ² above → **ask** (ASK band entry). |
+| `ATOM_TRUST_CALIBRATION_MIN_OBS` | `10` | Resolved observations before any non-ask recommendation. |
+
+Certification gate: `scripts/calibrate_trust_gateway.py` (exit 0=certified,
+1=not certified, 2=setup error) — temporal holdout Brier ≤ 0.25 AND
+denial-coverage ≥ 0.7 AND n ≥ 30. See
+[TRUST_CALIBRATION_PLAN.md](../architecture/TRUST_CALIBRATION_PLAN.md).
