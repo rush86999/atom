@@ -7,7 +7,7 @@
 | Feature | Web | Mobile | Desktop (menubar) | CLI (`atom-os`) |
 |---|---|---|---|---|
 | Auth / session | ✅ | ✅ (biometric) | ✅ LoginScreen | ✅ `login` (80r, token 0600) |
-| Agent list + chat | ✅ | ✅ AgentList/AgentChat | ✅ AgentList/Detail/QuickChat | ⚠️ `execute` prints "not yet implemented" |
+| Agent list + chat | ✅ | ✅ AgentList/AgentChat | ✅ AgentList/Detail/QuickChat | ✅ `ask` posts to /api/chat/message (80t); `execute` stub repointed |
 | Workflow list / detail | ✅ | ✅ full suite (list/trigger/logs/progress) | ❌ | ➖ (use REST) |
 | Workflow trigger | ✅ | ✅ WorkflowTrigger | ❌ | ➖ |
 | **Approvals / HITL** | ✅ approvals.tsx + R81i panel | ✅ **80s** ApprovalsScreen | ❌ | ➖ |

@@ -35,6 +35,8 @@
 
 **Round 80 closing verification**: entire frontend jest tree **666 suites / 10,997 passed** (0 failures). Full-tree backend pytest is NOT isolation-clean on this machine: a whole-`tests/` run dies to cross-file ordering pollution (~100 failures in `test_covpush_autodev3`/`autodev_comms`, which pass standalone; pre-existing, unrelated to rounds 80–80n — none of those files were touched). Per-suite batteries remain the reliable signal: 638 backend + 271 frontend + 4280 mobile green across the round-80 targeted set.
 
+**Round 80t follow-on (same session — CLI agent-chat journey)**: new `backend/cli/ask.py` — `atom-os ask "message" [--session ID]` posts to the live chat orchestrator (POST /api/chat/message) and prints the reply + session/intent/confidence meta; placeholder `execute` guidance repointed to the working command. Tests: `tests/cli/test_ask_command.py` (6, incl. stored-JWT passthrough and connection-error path). Note: patch seam is `cli.integrations._request` via module-attribute call-through (`_integ._request`) so both integrations and ask commands share one testable HTTP boundary.
+
 **Round 80r follow-on (same session — desktop + CLI parity)**: **CLI**: new `backend/cli/integrations.py` — `atom-os login` (POST /api/auth/login, JWT stored at ~/.atom/token 0600) + `integrations` group (`list` / `status` / `connect <prov>` via initiate?format=json / `disconnect <prov>` via DELETE tokens/{provider}); single `_request()` HTTP seam for tests; token resolution ATOM_TOKEN env > ~/.atom/token. Tests: `tests/cli/test_integrations.py` (10). Note: legacy `tests/cli/test_cli_coverage.py` boots the real server and contains a pre-existing ~6-min wait — run it in its own window. **Desktop**: `menubar/src/components/IntegrationsPanel.tsx` wired into SettingsModal (health summary + per-service rows + Connect via initiate?format=json opened in system browser + Disconnect for healthy OAuth-allowlisted providers + Bearer session token); contract tests `desktop/tests/test_integrations_panel.py` (11 — endpoints, auth header, allowlist, conditional UX states) runnable without TAURI_CI.
 
 **Round 80q follow-on (same session — FE tsc noise cleanup, 1568 -> 24 errors)**: `types/test-globals.d.ts` declares `global.mockFetch` (-365 TS7017); RequestMethod `as any` casts across ~100 api-proxy suites (TS2322 x103) — including repairing two intermediate regex passes that mangled shorthand (`method,`) and ternary (`opts.method ?? "GET"`) forms; URL expectations updated to the live 127.0.0.1:8000 defaults and single-arg toHaveBeenCalledWith widened with `expect.anything()` where round-80d/80l handlers now send headers. Full FE suite verified green under **`--maxWorkers=2`** (11,008 passed) — default worker count exhibits MSW/global-fetch cross-suite contention in tests/pages/api (pre-existing fragility; use maxWorkers=2 for full-tree runs).
@@ -6144,3 +6146,27 @@ Ran every backend test file that imports my changed modules (`integrations.chat_
 **Gotchas**: patch api-module attribute not core.database when route imports at top; in-memory sqlite needs StaticPool once TestClient threads are involved (was the intermittent 0-row stats failure); colocated contradictory evidence is an exact 0.5 tie under balanced noise — decay assertions must compare stale-vs-fresh, not absolute bands.
 
 **Verification**: 21/21 d+e; full R81 cluster 72 passed; smoke 12/12; app imports with routes mounted.
+
+## Session 2026-08-22 (backend) — Org-dynamics telemetry P0 (AGENT_ORG_POLITICS_PLAN.md)
+
+**Files**: `backend/core/models.py` + `alembic/versions/20260822_add_agent_org_events.py` (AgentOrgEvent, guarded indexes, down=20260822_trust_cal_assess), `core/org_telemetry_service.py` (emit/emit_fleet_recruit + compute_incumbency/compute_review_rates/compute_coi_pairs; ATOM_ORG_TELEMETRY_ENABLED default ON; never raises; commit=False rides caller txn), wire-ins: `core/atom_meta_agent.py:_recruit_fleet` (recruit pairs), `core/agent_radio/radio_adapter.py` (thread attach, commit=False), `core/agent_radio/radio_service.py:send_message` (per-mention edges), `core/orchestration/verification/review.py` (verdicts via owned session), `scripts/org_dynamics_report.py` (--json/--window-hours), `tests/test_org_telemetry_p0.py` (15).
+
+**Gotchas**: RadioFakeDb asserts committed counts — telemetry at attach must use commit=False (event persists via _recruit_fleet's ChainLink-propagation commit); reviewer loop holds no session → emit_org_event(db=None) opens one, tests monkeypatch core.database.get_db_session to the test engine.
+
+**Verification**: 15/15 new; radio 287, verification/meta/fleet 382, trust-calibration+fleet-router 28 — all pass, 0 regressions.
+
+## Session 2026-08-22 (backend) — Delegation contracts P1 (AGENT_ORG_POLITICS_PLAN.md)
+
+**Files**: `core/fleet_orchestration/delegation_contracts.py` (DelegationContract dataclass + to/from_dict tolerant; recommended_effort deterministic keyword table, caps 30 steps/120 calls; build/render/contract_for_link/maybe_contract_for_link; ATOM_DELEGATION_CONTRACTS_ENABLED default ON), wire-ins: `core/atom_meta_agent.py:_recruit_fleet` (contract into ChainLink.context_json["delegation_contract"], input dict not mutated) + `core/orchestration/conductor_agent.py:_execute_step/_maybe_inject_contract` (AGENT-type steps only; existing step.parameters["prompt"] folded into objective; INTEGRATION/other types untouched; flag off = exact prior behavior), `tests/test_delegation_contracts_p1.py` (13).
+
+**Gotchas**: conductor has no WEBHOOK StepType — use INTEGRATION for non-agent skip test; contract injection happens only on the injected-executor path (mock fallback untouched by design).
+
+**Verification**: 13/13 new; combined run with conductor + meta-agent + P0 telemetry suites: 180 passed, 0 regressions.
+
+## Session 2026-08-22 (backend) — Org-privilege axis P2 (AGENT_ORG_POLITICS_PLAN.md)
+
+**Files**: `core/org_privileges.py` (6 canonical privileges; default-DENY leases in AgentRegistry.configuration["org_privileges"] with expires_at; grant/revoke/has/require + check_action_privilege fail-CLOSED on errors; ATOM_ORG_PRIVILEGES_ENABLED default FALSE), wire-in `integrations/mcp_service.py:call_tool` (privilege gate right after capability gate; PRIVILEGED_ACTIONS = mini_app_publish/install → publish_skill), `tests/test_org_privileges_p2.py` (15).
+
+**Gotchas**: gate opens own session via core.database.get_db_session — tests monkeypatch it to the fixture engine or grants land in the wrong DB; tier does NOT confer privileges by design (AUTONOMOUS agent without lease is denied); human paths without context.agent_id stay on role auth.
+
+**Verification**: 15/15 new; capability/action-registry/mcp/mini-app suites 164 passed; only failure = pre-existing test_shopify_create_product_and_inventory (fails on clean main too).

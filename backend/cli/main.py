@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 logger = logging.getLogger(__name__)
 
 from cli.integrations import integrations_cli, login  # noqa: E402
+from cli.ask import ask  # noqa: E402
 
 
 @click.group()
@@ -37,6 +38,7 @@ def main_cli():
 
 main_cli.add_command(integrations_cli)
 main_cli.add_command(login)
+main_cli.add_command(ask)
 
 
 @main_cli.command()
@@ -255,7 +257,7 @@ def execute(command: str):
     click.echo(click.style("⚡ Executing Atom command...", fg="yellow"))
     click.echo(f"Command: {command}")
     click.echo("")
-    click.echo("(Command routing not yet implemented - use REST API instead)")
+    click.echo("For one-shot agent chat, use: atom-os ask \"your message\"")
     click.echo("")
     click.echo("For programmatic control, use:")
     click.echo("  POST /api/agent/start   - Start Atom as service")
