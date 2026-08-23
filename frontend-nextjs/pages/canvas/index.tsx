@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Layout as LayoutIcon, FileText, Mail, Table, Code, Terminal, Plus } from "lucide-react";
-import Layout from "@/components/layout/Layout";
 
 interface CanvasSummary {
     canvas_id: string;
@@ -68,7 +67,9 @@ export default function CanvasIndexPage() {
     }, {} as Record<string, number>);
 
     return (
-        <Layout>
+        // _app.tsx already wraps every non-standalone page in <Layout> — a
+        // second wrapper here rendered a duplicate navigation sidebar.
+        <>
             <Head><title>Canvases | Atom</title></Head>
             <div className="container mx-auto max-w-5xl py-8">
                 <div className="flex items-center justify-between mb-6">
@@ -164,6 +165,6 @@ export default function CanvasIndexPage() {
                     </div>
                 )}
             </div>
-        </Layout>
+        </>
     );
 }

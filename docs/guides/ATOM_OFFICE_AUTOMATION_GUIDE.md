@@ -69,11 +69,30 @@ sequenceDiagram
     User->>Canvas UI: Edits Text / Cell (onBlur)
     Canvas UI->>REST API: POST /api/v1/office/sync-update
     REST API->>OfficeSyncService: sync_canvas_to_file()
-    OfficeSyncService->>Filesystem: Write file (docx/xlsx/pptx)
-    OfficeSyncService->>OfficeSyncService: Render file to HTML
-    OfficeSyncService->>WebSocket: Broadcast 'canvas:update' (rendered HTML)
-    WebSocket->>Canvas UI: Refresh preview to match disk
+    OfficeSyncService->>Filesystem: Write file in place (docx paragraphs / xlsx cell / pptx slide)
+    OfficeSyncService->>OfficeSyncService: Structured snapshot + HTML render
+    OfficeSyncService->>WebSocket: Broadcast 'canvas:update' on canvas:{id} AND user:{uid}
+    WebSocket->>Canvas UI: OfficeFileCanvas re-renders from the snapshot
 ```
+
+The editable UI (`frontend-nextjs/components/canvas/OfficeFileCanvas.tsx`) renders
+from **structured snapshots**, not scraped HTML:
+
+| Format | Edit surface | Sync semantics |
+|---|---|---|
+| `.xlsx` | Grid with sheet tabs; formula cells flagged from `formulas` map | Cell writes recalc via the workbook runtime; response snapshot carries computed values |
+| `.docx` | One line = one paragraph | In-place paragraph sync — headings, tables, images and styles survive every save |
+| `.pptx` | Per-slide title/content cards + Add Slide | `slide` / `add_slide` edit types round-trip to the deck |
+
+Agent edits flow the opposite direction: every write tool in
+`tools/office_tool.py` calls `notify_file_canvases()` after a successful write,
+which re-broadcasts to every active canvas bound to that file. Snapshots arriving
+while the user is mid-edit are queued behind an "Agent updated this file" notice
+instead of clobbering their work.
+
+`POST /api/v1/office/present` persists (and reuses) a DB `Canvas` row bound to
+the file (`content.office_file`), so office canvases are reloadable at
+`/canvas/{id}` and `CanvasAudit` rows reference a real parent.
 
 ---
 
@@ -118,6 +137,8 @@ but interoperating systems**:
   the append-only `CanvasAudit` table is the source of truth, with no filesystem
   binding.
 
-Both broadcast the same `canvas:update` WebSocket event on the user channel, so
-a canvas presented in chat also appears in the `/canvas` list and can be opened
-standalone.
+Both broadcast the same `canvas:update` WebSocket event. Office-file updates
+deliver on **both** `canvas:{canvas_id}` (page-scoped subscribers) and
+`user:{user_id}` channels, so a canvas presented in chat also appears in the
+`/canvas` list and can be opened standalone — where the same editable
+OfficeFileCanvas renders from the persisted `Canvas.content` snapshot.

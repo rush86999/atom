@@ -486,6 +486,57 @@ class PowerPointManager:
                 content = options.get("content")
                 if content and len(slide.placeholders) > 1:
                     slide.placeholders[1].text = content
+            elif action == "update_slide":
+                # Canvas co-editing: update title/body text of an existing slide
+                # (1-based slide_number) without touching other slides.
+                slide_number = int(options.get("slide_number", 0))
+                if slide_number < 1 or slide_number > len(prs.slides):
+                    return {"success": False, "error": f"Slide number out of range: {slide_number}"}
+                slide = prs.slides[slide_number - 1]
+
+                new_title = options.get("title")
+                if new_title is not None and slide.shapes.title is not None:
+                    slide.shapes.title.text = str(new_title)
+
+                new_content = options.get("content")
+                if new_content is not None:
+                    target = None
+                    for ph in slide.placeholders:
+                        try:
+                            idx = ph.placeholder_format.idx
+                        except Exception:
+                            continue
+                        if idx == 1 and ph.has_text_frame:
+                            target = ph
+                            break
+                    if target is None:
+                        title_shape = slide.shapes.title
+                        for shape in slide.shapes:
+                            if shape.has_text_frame and shape is not title_shape:
+                                target = shape
+                                break
+                    if target is not None:
+                        target.text_frame.text = str(new_content)
+
+            elif action == "set_shape_text":
+                # Canvas co-edit: replace the text of an existing shape while
+                # preserving the shape itself, its position, and its layout.
+                slide_index = options.get("slide_index")
+                shape_name = options.get("shape_name")
+                text = options.get("text", "")
+                if not isinstance(slide_index, int) or slide_index < 0 or slide_index >= len(prs.slides):
+                    return {"success": False, "error": f"Invalid slide_index: {slide_index}"}
+                if not shape_name:
+                    return {"success": False, "error": "shape_name required for set_shape_text"}
+
+                slide = prs.slides[slide_index]
+                shape = next((s for s in slide.shapes if s.name == shape_name), None)
+                if shape is None or not shape.has_text_frame:
+                    return {"success": False, "error": f"Text shape '{shape_name}' not found on slide {slide_index}"}
+
+                # Setting .text replaces all runs with a single run inheriting
+                # the paragraph's style — the least destructive simple edit.
+                shape.text_frame.text = str(text)
             else:
                 return {"success": False, "error": f"Unknown PowerPoint action: {action}"}
 

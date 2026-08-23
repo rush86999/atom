@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText } from "lucide-react";
+import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText, Table2, Presentation } from "lucide-react";
 import { marked } from "marked";
 import { renderMarkdownSafe } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
@@ -11,11 +11,12 @@ import { LineChartCanvas } from "@/components/canvas/LineChart";
 import { BarChartCanvas } from "@/components/canvas/BarChart";
 import { PieChartCanvas } from "@/components/canvas/PieChart";
 import { InteractiveForm } from "@/components/canvas/InteractiveForm";
+import { OfficeFileCanvas } from "@/components/canvas/OfficeFileCanvas";
 
 interface CanvasState {
     id?: string;
     visible: boolean;
-    component: "markdown" | "code" | "chart" | "form" | "status_panel" | "eval" | "snapshot" | "browser_view" | "email" | "sheet" | "document" | "custom";
+    component: "markdown" | "code" | "chart" | "form" | "status_panel" | "eval" | "snapshot" | "browser_view" | "email" | "sheet" | "document" | "office_excel" | "office_word" | "office_pptx" | "custom";
     title?: string;
     data: any;
     version?: number;
@@ -170,6 +171,36 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                     title: state.title || "Status",
                     text: localContentRef.current,
                 };
+            // Office co-editing canvases (#39): agents read back what the user
+            // sees — grid cells / document text / slide outline — so they can
+            // reason about the file before editing it.
+            case "office_excel": {
+                const d = state.data as any;
+                const sheet = d?.sheets?.find((s: any) => s.name === d?.active_sheet) || d?.sheets?.[0];
+                return {
+                    type: "sheets" as const,
+                    cells: sheet?.rows || [],
+                    sheetName: sheet?.name || "Sheet1",
+                    activeCell: null as string | null,
+                    filePath: d?.file_path,
+                };
+            }
+            case "office_word":
+                return {
+                    type: "docs" as const,
+                    title: state.title || "Document",
+                    format: "docx" as const,
+                    sections: [{ heading: "Content", body: (state.data as any)?.text || "" }],
+                    filePath: (state.data as any)?.file_path,
+                };
+            case "office_pptx":
+                return {
+                    type: "generic" as const,
+                    component: "office_pptx" as const,
+                    title: state.title || "Presentation",
+                    slides: (state.data as any)?.slides || [],
+                    filePath: (state.data as any)?.file_path,
+                };
             default:
                 return {
                     type: "generic" as const,
@@ -256,7 +287,7 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                     <button className="text-[10px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center gap-1 transition-colors">
                         <History className="h-3 w-3" /> History
                     </button>
-                    {(state.component === "markdown" || state.component === "document") && (
+                    {(state.component === "markdown" || state.component === "document" || state.component.startsWith("office_")) && (
                         <button
                             onClick={() => setShowPreview(!showPreview)}
                             className={`text-[10px] flex items-center gap-1 transition-colors ${showPreview ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
@@ -283,6 +314,9 @@ function CanvasIcon({ component }: { component: string }) {
         case "document": return <FileText className="h-4 w-4 text-indigo-500" />;
         case "snapshot": return <Camera className="h-4 w-4 text-purple-500" />;
         case "browser_view": return <Globe className="h-4 w-4 text-green-500" />;
+        case "office_excel": return <Table2 className="h-4 w-4 text-amber-500" />;
+        case "office_word": return <FileText className="h-4 w-4 text-blue-500" />;
+        case "office_pptx": return <Presentation className="h-4 w-4 text-orange-500" />;
         default: return <Layers className="h-4 w-4 text-indigo-500" />;
     }
 }
@@ -331,6 +365,14 @@ function CanvasContent({
     const content = typeof data === 'string' ? data : (data.content || JSON.stringify(data, null, 2));
 
     switch (component) {
+        // Real-file co-editing canvases (.xlsx/.docx/.pptx): edits commit to
+        // the file on disk via /api/v1/office/sync-update; agent edits arrive
+        // as WS canvas:update snapshots that OfficeFileCanvas re-renders from.
+        case "office_excel":
+        case "office_word":
+        case "office_pptx":
+            return <OfficeFileCanvas canvasId={canvasId} data={data} showPreview={showPreview} />;
+
         case "line_chart":
             return <LineChartCanvas data={resolveChartData(data)} title={resolveChartTitle(data, canvasTitle)} />;
         case "bar_chart":

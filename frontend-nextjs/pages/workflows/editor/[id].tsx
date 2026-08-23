@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import Layout from '@/components/layout/Layout';
 import WorkflowBuilder from '@/components/Automations/WorkflowBuilder';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';

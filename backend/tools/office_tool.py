@@ -52,6 +52,23 @@ async def _ingest_after_write(file_path: str, user_id: str) -> None:
         logger.debug(f"Office write→memory ingestion skipped for {file_path}: {e}")
 
 
+async def _notify_canvases(file_path: str, user_id: str) -> None:
+    """Fire-and-forget: push the updated file to every open canvas bound to it.
+
+    After an agent writes to an office file, any canvas the user has open for
+    that file must re-render (the co-edit loop's agent→user direction).
+    Best-effort: failures never break the tool result.
+    """
+    try:
+        from core.database import get_db_session
+        from core.office_sync_service import OfficeSyncService
+
+        with get_db_session() as db:
+            OfficeSyncService(db).notify_file_canvases(file_path, user_id)
+    except Exception as e:
+        logger.debug(f"Office write→canvas notify skipped for {file_path}: {e}")
+
+
 async def read_excel_cell(
     user_id: str,
     file_path: str,
@@ -103,6 +120,7 @@ async def write_excel_cell(
         )
         if res.get("success"):
             asyncio.create_task(_ingest_after_write(file_path, user_id))
+            asyncio.create_task(_notify_canvases(file_path, user_id))
         return res
     except Exception as e:
         logger.error(f"Excel write tool failed: {e}")
@@ -161,6 +179,7 @@ async def modify_word_document(
         )
         if res.get("success"):
             asyncio.create_task(_ingest_after_write(file_path, user_id))
+            asyncio.create_task(_notify_canvases(file_path, user_id))
         return res
     except Exception as e:
         logger.error(f"Word modify tool failed: {e}")
@@ -218,6 +237,7 @@ async def modify_pptx_slides(
         )
         if res.get("success"):
             asyncio.create_task(_ingest_after_write(file_path, user_id))
+            asyncio.create_task(_notify_canvases(file_path, user_id))
         return res
     except Exception as e:
         logger.error(f"PowerPoint modify tool failed: {e}")
@@ -281,6 +301,7 @@ async def insert_excel_rows(
         )
         if result.get("success"):
             asyncio.create_task(_ingest_after_write(file_path, user_id))
+            asyncio.create_task(_notify_canvases(file_path, user_id))
         return result
     except Exception as e:
         logger.error(f"Insert rows tool failed: {e}")
@@ -310,6 +331,7 @@ async def insert_excel_columns(
         )
         if result.get("success"):
             asyncio.create_task(_ingest_after_write(file_path, user_id))
+            asyncio.create_task(_notify_canvases(file_path, user_id))
         return result
     except Exception as e:
         logger.error(f"Insert columns tool failed: {e}")
@@ -335,6 +357,7 @@ async def recalculate_excel(
         result = await office_service.excel.recalculate(file_path)
         if result.get("success"):
             asyncio.create_task(_ingest_after_write(file_path, user_id))
+            asyncio.create_task(_notify_canvases(file_path, user_id))
         return result
     except Exception as e:
         logger.error(f"Recalculate tool failed: {e}")
@@ -370,6 +393,7 @@ async def add_excel_pivot_table(
         )
         if result.get("success"):
             asyncio.create_task(_ingest_after_write(file_path, user_id))
+            asyncio.create_task(_notify_canvases(file_path, user_id))
         return result
     except Exception as e:
         logger.error(f"Add pivot table tool failed: {e}")
@@ -393,6 +417,7 @@ async def run_excel_macro(
         result = await office_service.excel.run_excel_macro(file_path, macro_name)
         if result.get("success"):
             asyncio.create_task(_ingest_after_write(file_path, user_id))
+            asyncio.create_task(_notify_canvases(file_path, user_id))
         return result
     except Exception as e:
         logger.error(f"Run macro tool failed: {e}")

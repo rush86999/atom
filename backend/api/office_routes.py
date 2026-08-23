@@ -7,6 +7,7 @@ document manipulation, visualization, and canvas synchronization.
 
 import logging
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -18,6 +19,20 @@ from core.office_sync_service import OfficeSyncService
 from core.auth import get_current_user, User
 
 logger = logging.getLogger(__name__)
+
+
+def get_db_session_dep() -> Session:
+    """FastAPI dependency yielding a DB session.
+
+    core.database.get_db_session is a @contextmanager for service-layer use —
+    Depends(get_db_session) injects the raw _GeneratorContextManager in
+    production (inspector.isgeneratorfunction is False for the wrapper), which
+    crashed /present and /sync-update with "'...context manager' has no
+    attribute 'query'". Wrap it in a real generator dependency instead;
+    tests override this by name.
+    """
+    with get_db_session() as db:
+        yield db
 
 
 def _require_office_path(file_path: str) -> str:
@@ -247,16 +262,31 @@ def modify_pptx(req: PptxModifyRequest):
 
 
 @router.post("/present")
-def present_coedit(
+async def present_coedit(
     req: PresentRequest,
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_db_session_dep),
     current_user: User = Depends(get_current_user),
 ):
     """Present document co-editing canvas panel via WebSocket & CanvasAudit record."""
     file_path = _require_office_path(req.file_path)
     sync_service = OfficeSyncService(db)
-    canvas_id = req.canvas_id or f"canvas_{uuid.uuid4().hex[:12]}"
-    
+
+    # Persist (or reuse) the Canvas row bound to this file so the co-edit
+    # canvas is reloadable at /canvas/{id} and CanvasAudit rows reference a
+    # real parent. Repeated presents of the same file reuse one canvas.
+    canvas = sync_service.ensure_canvas_for_file(
+        canvas_id=req.canvas_id,
+        file_path=file_path,
+        user_id=current_user.id,
+        title=req.title,
+    )
+    canvas_id = req.canvas_id
+    candidate = canvas.get("id") if isinstance(canvas, dict) else getattr(canvas, "id", None)
+    if isinstance(candidate, str) and candidate:
+        canvas_id = candidate
+    if not canvas_id:
+        canvas_id = f"canvas_{uuid.uuid4().hex[:12]}"
+
     # R58: attribution comes from the token, never from the body — a
     # client-supplied user_id forged audit records and memory ingestion.
     sync_service.broadcast_file_update(
@@ -265,17 +295,24 @@ def present_coedit(
         user_id=current_user.id
     )
 
-    return {
+    resp: Dict[str, Any] = {
         "success": True,
         "canvas_id": canvas_id,
-        "message": f"Presented co-editing canvas for {file_path}"
+        "title": Path(file_path).name,
+        "message": f"Presented co-editing canvas for {file_path}",
     }
+    if isinstance(canvas, dict):
+        for key in ("canvas_type", "component", "content"):
+            value = canvas.get(key)
+            if isinstance(value, (str, dict)):
+                resp[key] = value
+    return resp
 
 
 @router.post("/sync-update")
-def sync_update(
+async def sync_update(
     req: SyncUpdateRequest,
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_db_session_dep),
     current_user: User = Depends(get_current_user),
 ):
     """Synchronize canvas co-editing operations back to the local filesystem file."""

@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
-import { Layout } from "@/components/layout/Layout";
 import { DailyBriefingCard } from "@/components/dashboard/DailyBriefingCard";
 import { HealthMetricsGrid } from "@/components/dashboard/HealthMetricsGrid";
 import { Button } from "@/components/ui/button";
@@ -48,7 +47,7 @@ export default function OwnerDashboard() {
     }, []);
 
     return (
-        <Layout>
+        <>
             <Head>
                 <title>Owner Cockpit - ATOM</title>
             </Head>
@@ -92,6 +91,6 @@ export default function OwnerDashboard() {
                     </>
                 )}
             </div>
-        </Layout>
+        </>
     );
 }

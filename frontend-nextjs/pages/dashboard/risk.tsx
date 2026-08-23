@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
-import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +42,7 @@ export default function RiskDashboard() {
     };
 
     return (
-        <Layout>
+        <>
             <Head>
                 <title>Risk Control Center - ATOM</title>
             </Head>
@@ -175,6 +174,6 @@ export default function RiskDashboard() {
                     </div>
                 </div>
             </div>
-        </Layout>
+        </>
     );
 }

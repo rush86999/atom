@@ -12,7 +12,6 @@ import { CanvasPanel } from "@/components/canvas/CanvasPanel";
 import { MiniAppHarness } from "@/components/canvas/MiniAppHarness";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
-import Layout from "@/components/layout/Layout";
 import { getCurrentUserId } from "@/lib/identity";
 
 interface CanvasMessage {
@@ -205,7 +204,15 @@ export default function CanvasDetailPage() {
         type: "canvas:update",
         data: {
             action: "present",
-            component: canvasData.canvas_type || "markdown",
+            // File-bound office canvases (content.office_file) render the
+            // editable OfficeFileCanvas; component maps xlsx/docx/pptx →
+            // office_excel/office_word/office_pptx. Audit-sourced content
+            // carries the office_* component name directly.
+            component: canvasData.content?.office_file
+                ? `office_${canvasData.content.format || "docx"}`
+                : (typeof canvasData.content?.component === "string" && canvasData.content.component.startsWith("office_"))
+                    ? canvasData.content.component
+                    : (canvasData.canvas_type || "markdown"),
             canvas_id: canvasId,
             data: canvasData.content,
             title: canvasData.title,
@@ -215,7 +222,9 @@ export default function CanvasDetailPage() {
     } : lastMessage;
 
     return (
-        <Layout>
+        // _app.tsx already wraps every non-standalone page in <Layout> — a
+        // second wrapper here rendered a duplicate navigation sidebar.
+        <>
             <Head>
                 <title>{canvasData?.title || "Canvas"} | Atom</title>
             </Head>
@@ -366,6 +375,6 @@ export default function CanvasDetailPage() {
                     </div>
                 )}
             </div>
-        </Layout>
+        </>
     );
 }

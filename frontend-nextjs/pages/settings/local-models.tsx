@@ -10,8 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Trash2, RefreshCw, Cable, Settings2 } from 'lucide-react';
-import Layout from '../../components/layout/Layout';
-
 interface Provider {
     id: string;
     name: string;
@@ -109,7 +107,7 @@ const LocalModelsPage: React.FC = () => {
     };
 
     return (
-        <Layout>
+        <>
             <Head><title>Local Models | Atom</title></Head>
             <div className="container mx-auto max-w-4xl py-8">
                 <div className="mb-8">
@@ -223,7 +221,7 @@ const LocalModelsPage: React.FC = () => {
                     <Link href="/settings/ai"><p className="text-blue-500 hover:underline cursor-pointer">← Back to AI Provider Settings</p></Link>
                 </div>
             </div>
-        </Layout>
+        </>
     );
 };
 
