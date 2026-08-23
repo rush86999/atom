@@ -166,3 +166,68 @@ async def test_execution_status_404_when_unknown():
             db=_FakeExecDB(None),
         )
     assert exc.value.status_code == 404
+
+
+# --- Step-level results ---
+
+
+def _row_with_context(context_json, status="completed"):
+    import json
+    from datetime import datetime
+
+    return SimpleNamespace(
+        execution_id="exe-1",
+        workflow_id="workflow_abc123",
+        status=status,
+        error=None,
+        created_at=datetime(2026, 8, 23, 12, 0, 0),
+        completed_at=datetime(2026, 8, 23, 12, 0, 5),
+        context=context_json if isinstance(context_json, str) else (
+            json.dumps(context_json) if context_json is not None else None
+        ),
+    )
+
+
+async def test_results_parses_execution_history():
+    row = _row_with_context({
+        "variables": {"x": 1},
+        "results": {"s1": {"status": "completed"}},
+        "execution_history": [
+            {"step_id": "scan_inbox", "step_type": "action", "status": "completed"},
+            {"step_id": "approval_gate", "step_type": "approval", "status": "awaiting_approval",
+             "notes": "waiting for human OK"},
+        ],
+    })
+    result = await wtr.get_execution_results(
+        "workflow_abc123",
+        current_user=SimpleNamespace(id="u1"),
+        db=_FakeExecDB(row),
+    )
+    assert [s["step_id"] for s in result["steps"]] == ["scan_inbox", "approval_gate"]
+    assert result["steps"][1]["notes"] == "waiting for human OK"
+    assert result["outputs"] == {"s1": {"status": "completed"}}
+
+
+async def test_results_handles_garbage_context():
+    row = _row_with_context("not-json{")
+    result = await wtr.get_execution_results(
+        "whatever",
+        current_user=SimpleNamespace(id="u1"),
+        db=_FakeExecDB(row),
+    )
+    assert result["steps"] == []
+    assert result["outputs"] is None
+
+
+async def test_results_caps_history_and_outputs():
+    big = {
+        "execution_history": [{"step_id": f"s{i}", "status": "completed"} for i in range(250)],
+        "results": {f"k{i}": i for i in range(80)},
+    }
+    result = await wtr.get_execution_results(
+        "big",
+        current_user=SimpleNamespace(id="u1"),
+        db=_FakeExecDB(_row_with_context(big)),
+    )
+    assert len(result["steps"]) == 100
+    assert len(result["outputs"]) == 50

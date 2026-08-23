@@ -329,6 +329,20 @@ describe("WorkflowEditorPage", () => {
             }),
           );
         }
+        if (url.includes("/results")) {
+          return Promise.resolve(
+            okResponse({
+              success: true,
+              status: "completed",
+              error: null,
+              steps: [
+                { step_id: "scan_inbox", step_type: "action", status: "completed" },
+                { step_id: "approval_gate", step_type: "approval", status: "awaiting_approval", notes: "waiting for human OK" },
+              ],
+              outputs: { chased_count: 3 },
+            }),
+          );
+        }
         return Promise.resolve(okResponse({}));
       });
     }
@@ -405,6 +419,15 @@ describe("WorkflowEditorPage", () => {
       await waitFor(() => {
         expect(chip).toHaveTextContent(/completed/);
       });
+
+      // Clicking the chip opens the step-results panel.
+      fireEvent.click(within(chip).getByRole("button"));
+      const panel = await screen.findByTestId("execution-results-panel");
+      await waitFor(() => {
+        expect(panel).toHaveTextContent("scan_inbox");
+      });
+      expect(panel).toHaveTextContent("awaiting_approval");
+      expect(panel).toHaveTextContent("waiting for human OK");
     });
   });
 });

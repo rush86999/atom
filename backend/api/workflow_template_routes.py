@@ -480,6 +480,73 @@ async def get_execution_status(
     }
 
 
+def _safe_json_loads(raw):
+    """Parse a JSON Text column defensively — legacy rows may hold anything."""
+    import json as _json
+
+    if not raw:
+        return None
+    if isinstance(raw, (dict, list)):
+        return raw
+    try:
+        return _json.loads(raw)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+@router.get("/executions/{execution_id}/results")
+async def get_execution_results(
+    execution_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Step-level results for a finished/running execution.
+
+    Reads the orchestrator-persisted ``context`` blob (variables + results +
+    execution_history). Capped so a runaway run can't blow up the response.
+    """
+    from core.models import WorkflowExecution
+
+    row = (
+        db.query(WorkflowExecution)
+        .filter(
+            (WorkflowExecution.execution_id == execution_id)
+            | (WorkflowExecution.workflow_id == execution_id)
+        )
+        .order_by(WorkflowExecution.created_at.desc())
+        .first()
+    )
+    if not row:
+        raise router.not_found_error("Execution", execution_id)
+
+    context = _safe_json_loads(row.context) or {}
+    raw_history = context.get("execution_history") or []
+    steps = []
+    for entry in raw_history[:100]:
+        if not isinstance(entry, dict):
+            continue
+        steps.append({
+            "step_id": entry.get("step_id") or entry.get("step"),
+            "step_type": entry.get("step_type"),
+            "status": entry.get("status"),
+            "notes": (str(entry.get("notes"))[:200] if entry.get("notes") else None),
+        })
+
+    raw_outputs = context.get("results")
+    outputs = raw_outputs if isinstance(raw_outputs, dict) else None
+    if outputs and len(outputs) > 50:
+        outputs = dict(list(outputs.items())[:50])
+
+    return {
+        "success": True,
+        "execution_id": row.execution_id,
+        "status": row.status,
+        "error": row.error,
+        "steps": steps,
+        "outputs": outputs,
+    }
+
+
 @router.post("/{template_id}/execute")
 @require_governance(
     action_complexity=ActionComplexity.HIGH,

@@ -37,6 +37,11 @@ export default function WorkflowEditorPage() {
     const [paramValues, setParamValues] = useState<Record<string, string>>({});
     const [isRunning, setIsRunning] = useState(false);
     const [lastRun, setLastRun] = useState<{ id: string; status: string | null } | null>(null);
+    const [resultsOpen, setResultsOpen] = useState(false);
+    const [runResults, setRunResults] = useState<{
+        steps: { step_id?: string; step_type?: string; status?: string; notes?: string | null }[];
+        outputs: Record<string, any> | null;
+    } | null>(null);
 
     useEffect(() => {
         if (!id) return;
@@ -208,6 +213,31 @@ export default function WorkflowEditorPage() {
                 }
             })
             .catch(() => {});
+    };
+
+    const fetchRunResults = (executionId: string) => {
+        const token = localStorage.getItem('auth_token');
+        fetch(`/api/workflow-templates/executions/${encodeURIComponent(executionId)}/results`, {
+            headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+        })
+            .then(r => (r.ok ? r.json() : null))
+            .then(d => {
+                if (!d) return;
+                setRunResults({ steps: d.steps || [], outputs: d.outputs || null });
+                if (d.error) {
+                    setLastRun(prev => (prev && prev.id === executionId ? { ...prev, status: 'failed' } : prev));
+                }
+            })
+            .catch(() => {});
+    };
+
+    const toggleResultsPanel = () => {
+        if (!lastRun) return;
+        const next = !resultsOpen;
+        setResultsOpen(next);
+        if (next && runResults === null) {
+            fetchRunResults(lastRun.id);
+        }
     };
 
     const openRunDialog = () => {
@@ -394,21 +424,72 @@ export default function WorkflowEditorPage() {
                   data-testid="execution-status-chip"
                   className="fixed bottom-4 right-4 z-50 rounded-lg border bg-white px-3 py-2 text-xs shadow-md dark:bg-gray-900 dark:border-gray-700"
                 >
-                    <span className="text-muted-foreground">Last run </span>
-                    <span className="font-mono">{lastRun.id.slice(0, 12)}…</span>{' '}
-                    <span
-                      className={
-                        lastRun.status == null
-                            ? 'font-medium text-blue-600 dark:text-blue-400'
-                            : ['completed', 'success', 'succeeded'].includes(lastRun.status.toLowerCase())
-                              ? 'font-medium text-green-600 dark:text-green-400'
-                              : ['failed', 'error', 'cancelled', 'canceled'].includes(lastRun.status.toLowerCase())
-                                ? 'font-medium text-red-600 dark:text-red-400'
-                                : 'font-medium text-amber-600 dark:text-amber-400'
-                      }
+                    <button
+                      onClick={toggleResultsPanel}
+                      className="flex items-center gap-2"
+                      title="Toggle step results"
                     >
-                        {lastRun.status ?? 'starting…'}
-                    </span>
+                        <span className="text-muted-foreground">Last run </span>
+                        <span className="font-mono">{lastRun.id.slice(0, 12)}…</span>{' '}
+                        <span
+                          className={
+                            lastRun.status == null
+                                ? 'font-medium text-blue-600 dark:text-blue-400'
+                                : ['completed', 'success', 'succeeded'].includes(lastRun.status.toLowerCase())
+                                  ? 'font-medium text-green-600 dark:text-green-400'
+                                  : ['failed', 'error', 'cancelled', 'canceled'].includes(lastRun.status.toLowerCase())
+                                    ? 'font-medium text-red-600 dark:text-red-400'
+                                    : 'font-medium text-amber-600 dark:text-amber-400'
+                          }
+                        >
+                            {lastRun.status ?? 'starting…'}
+                        </span>
+                    </button>
+
+                    {resultsOpen && (
+                        <div
+                          data-testid="execution-results-panel"
+                          className="mt-2 max-h-72 w-72 overflow-y-auto border-t pt-2 dark:border-gray-700"
+                        >
+                            {runResults === null && (
+                                <p className="text-muted-foreground">Loading results…</p>
+                            )}
+                            {runResults && runResults.steps.length === 0 && (
+                                <p className="text-muted-foreground">No step history recorded.</p>
+                            )}
+                            {runResults?.steps.map((step, idx) => (
+                                <div key={`${step.step_id}-${idx}`} className="mb-1.5 flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                        <div className="truncate font-mono">{step.step_id || `step-${idx}`}</div>
+                                        {step.notes && (
+                                            <div className="truncate text-[11px] text-muted-foreground">{step.notes}</div>
+                                        )}
+                                    </div>
+                                    <span
+                                      className={
+                                        step.status === 'completed' || step.status === 'success'
+                                            ? 'font-medium text-green-600 dark:text-green-400'
+                                            : step.status === 'failed' || step.status === 'error'
+                                              ? 'font-medium text-red-600 dark:text-red-400'
+                                              : 'font-medium text-amber-600 dark:text-amber-400'
+                                      }
+                                    >
+                                        {step.status ?? 'unknown'}
+                                    </span>
+                                </div>
+                            ))}
+                            {runResults && !runResults.steps.some(s => s.status === 'failed') && runResults.error && (
+                                <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
+                                    Error: {runResults.error}
+                                </p>
+                            )}
+                            {runResults?.outputs && (
+                                <pre className="mt-2 max-h-32 overflow-auto rounded bg-muted p-2 text-[10px] leading-tight">
+                                    {JSON.stringify(runResults.outputs, null, 2).slice(0, 2000)}
+                                </pre>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </div>
