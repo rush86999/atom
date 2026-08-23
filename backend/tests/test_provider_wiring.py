@@ -389,6 +389,7 @@ class TestEgressCompleteness:
             "api.mistral.ai",
             "api.groq.com",
             "openrouter.ai",
+            "opencode.ai",
         ]
         for domain in expected_domains:
             assert domain in _BASELINE_EGRESS_HOSTS, (

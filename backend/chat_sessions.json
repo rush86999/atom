@@ -1401,5 +1401,25 @@
     "metadata": {},
     "message_count": 0,
     "history": []
+  },
+  {
+    "session_id": "twilio_unknown_unknown_",
+    "user_id": "external_agent_user",
+    "created_at": "2026-08-22T11:46:28.416042+00:00",
+    "last_active": "2026-08-22T11:46:28.416042+00:00",
+    "metadata": {
+      "channel_id": "unknown"
+    },
+    "message_count": 0,
+    "history": []
+  },
+  {
+    "session_id": "session_1787510911922_ibji0n99s",
+    "user_id": "browser-test-user",
+    "created_at": "2026-08-23T19:02:58.585722+00:00",
+    "last_active": "2026-08-23T19:02:58.585722+00:00",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
   }
 ]

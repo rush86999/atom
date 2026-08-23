@@ -716,7 +716,10 @@ class TestCheckActionRisk:
         }
         assert audits and audits[0]["allowed"] is False
 
-    async def test_taint_exception_is_skipped(self):
+    async def test_taint_exception_fails_closed(self):
+        """A taint tracker that cannot answer means restricted data cannot be
+        ruled out — the gate must BLOCK (fail-closed), matching the repo-wide
+        posture (cf. _check_hitl_policy). Previously this failed OPEN."""
         from middleware.governance_middleware import Gatekeeper
         gk = Gatekeeper()
         tracker = MagicMock()
@@ -726,7 +729,8 @@ class TestCheckActionRisk:
             new=AsyncMock(return_value=(False, 10)),
         ):
             result = await gk.check_action_risk("svc", action="send", taint_tracker=tracker)
-        assert result["allowed"] is True
+        assert result["allowed"] is False
+        assert "unavailable" in result["reason"].lower()
 
     async def test_hitl_required_and_approved_pauses(self):
         from middleware.governance_middleware import Gatekeeper

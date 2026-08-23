@@ -89,6 +89,17 @@ class TestOpenCodeGoRegistration:
             openai_calls = [c for c in mock_openai.call_args_list if c.kwargs.get("base_url") == "https://opencode.ai/zen/v1"]
             assert openai_calls == []
 
+    def test_client_honors_base_url_override(self, mock_byok_manager, monkeypatch):
+        monkeypatch.setenv("OPENCODE_API_KEY", "sk-opencode-test")
+        monkeypatch.setenv("OPENCODE_BASE_URL", "https://zen.example.com/v1")
+        with patch("core.llm.byok_handler.get_byok_manager", return_value=mock_byok_manager), \
+             patch("core.llm.byok_handler.get_db_session", return_value=Mock()), \
+             patch("core.llm.byok_handler.OpenAI") as mock_openai, \
+             patch("core.llm.byok_handler.AsyncOpenAI"):
+            BYOKHandler()
+            kwargs = mock_openai.call_args.kwargs
+            assert kwargs["base_url"] == "https://zen.example.com/v1"
+
     def test_provider_serves_any_gateway_model(self, byok_handler):
         assert byok_handler._provider_serves_model("opencode-go", "deepseek-v4-flash")
         assert byok_handler._provider_serves_model("opencode-go", "kimi-k2.7-code")
@@ -736,6 +747,37 @@ class TestOpenCodeGoFreePaidRetryStreaming:
             chunks = await self._collect(handler, model="deepseek-v4-flash-free")
         assert client.chat.completions.create.call_count == 1
         assert "partial" in "".join(chunks)
+
+    async def test_mid_stream_credits_error_does_not_retry_or_duplicate(
+        self, byok_handler
+    ):
+        """A CreditsError arriving AFTER tokens flowed must neither trigger the
+        free→paid retry (that would duplicate content) nor re-issue the request."""
+        client = Mock()
+        client.chat.completions.create = AsyncMock(return_value=_AsyncChunks(
+            [_StreamChunk("partial", None)], fail_after=1))
+        # Patch the chunk stream to raise the balance error instead of a
+        # generic RuntimeError after the first token.
+        original_chunks = _AsyncChunks(
+            [_StreamChunk("partial", None)], fail_after=1)
+
+        async def _anext(self):
+            if self._fail_after is not None and self._i >= self._fail_after:
+                self._fail_after = None
+                raise _insufficient_balance_error()
+            return await _AsyncChunks.__anext__(self)
+
+        original_chunks.__anext__ = _anext.__get__(original_chunks)
+        client.chat.completions.create = AsyncMock(return_value=original_chunks)
+        handler = self._handler_with_client(byok_handler, client)
+        with patch.object(handler, "_record_outcome_feedback", new=AsyncMock()), \
+             patch("core.llm.routing.request_healer.get_request_healer",
+                   return_value=Mock(heal=lambda *a, **k: type("H", (), {"patched_kwargs": None})())):
+            chunks = await self._collect(handler, model="deepseek-v4-flash-free")
+        text = "".join(chunks)
+        assert client.chat.completions.create.call_count == 1
+        assert "partial" in text
+        assert text.count("partial") == 1
 
 
 class TestOpenCodePaidFallbackHelper:

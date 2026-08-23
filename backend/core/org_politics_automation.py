@@ -263,47 +263,36 @@ def alignment_verdict(chat_fn=None) -> Dict[str, Any]:
 
 
 def _default_chat_fn():
-    """OpenAI-compatible transport from env credentials (opencode first)."""
-    opencode_key = os.getenv("OPENCODE_API_KEY") or ""
-    openai_key = os.getenv("OPENAI_API_KEY") or ""
+    """Governed BYOK-handler transport.
 
-    def _real(key: str) -> bool:
-        return bool(key) and not key.startswith("sk-test") and "test-key" not in key
+    Routes through ``BYOKHandler.generate_response`` so the sweep's LLM calls
+    get BPC ranking (opencode-go/deepseek-v4-flash when OPENCODE_API_KEY is
+    set, OpenAI/others otherwise), rate-limit tracking, cost attribution and
+    outcome feedback — instead of a raw httpx call hardcoding one model.
+    Returns None when no provider is configured.
+    """
+    try:
+        from core.llm.byok_handler import BYOKHandler, _run_coroutine_sync
 
-    if not (_real(opencode_key) or _real(openai_key)):
+        handler = BYOKHandler(workspace_id="org-politics-sweep")
+        if not handler.clients and not handler.async_clients:
+            return None
+
+        def chat(system: str, user: str) -> str:
+            return _run_coroutine_sync(
+                handler.generate_response(
+                    prompt=user,
+                    system_instruction=system,
+                    temperature=0.0,
+                    prefer_cost=True,
+                ),
+                timeout=120.0,
+            )
+
+        return chat
+    except Exception as e:
+        logger.warning(f"_default_chat_fn unavailable: {type(e).__name__}")
         return None
-
-    def chat(system: str, user: str) -> str:
-        import httpx
-
-        if _real(opencode_key):
-            base = os.getenv("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")
-            url = f"{base.rstrip('/')}/chat/completions"
-            headers = {"Authorization": f"Bearer {opencode_key}"}
-            model = "deepseek-v4-flash"
-        else:
-            base = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-            url = f"{base.rstrip('/')}/chat/completions"
-            headers = {"Authorization": f"Bearer {openai_key}"}
-            model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        resp = httpx.post(
-            url,
-            headers=headers,
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                "max_tokens": 400,
-                "temperature": 0,
-            },
-            timeout=60,
-        )
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
-
-    return chat
 
 
 # ── Notifications ───────────────────────────────────────────────────────────

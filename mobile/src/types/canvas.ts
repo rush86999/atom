@@ -12,6 +12,10 @@ export enum CanvasType {
   ORCHESTRATION = 'orchestration',
   TERMINAL = 'terminal',
   CODING = 'coding',
+  // File-backed PowerPoint decks (/api/v1/office present → canvas_type
+  // 'presentation'). Office canvases are detected via content.office_file /
+  // content.format and rendered by OfficeCanvas.
+  PRESENTATION = 'presentation',
 }
 
 // Canvas component types

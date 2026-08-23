@@ -173,6 +173,15 @@ from core.llm_credential_service import LLMCredentialService
 
 logger = logging.getLogger(__name__)
 
+# --- P4 prompt-taint gate (shadow by default) -------------------------------
+# The prompt IS the exfil payload on the LLM path: the full text leaves for a
+# third-party processor. When the head of the outbound prompt classifies as
+# restricted-sensitivity (PII/credential patterns), shadow mode logs a
+# structured warning; ATOM_LLM_TAINT_ENFORCE additionally blocks the dispatch.
+# Ordinary confidential business text is never flagged.
+_LLM_TAINT_SHADOW = os.getenv("ATOM_LLM_TAINT_SHADOW", "true").lower() == "true"
+_LLM_TAINT_ENFORCE = os.getenv("ATOM_LLM_TAINT_ENFORCE", "false").lower() == "true"
+
 # Bounded per-request timeout for provider clients (seconds). The OpenAI SDK
 # defaults to 600s; with multi-provider fallback + self-heal retries a wedged
 # provider (dead key, hanging endpoint) could hold a request — and the
@@ -180,6 +189,21 @@ logger = logging.getLogger(__name__)
 # POST /api/v1/ai/nlu froze the whole server). httpx applies this as a
 # per-read timeout, so legitimately long streaming responses are unaffected.
 LLM_REQUEST_TIMEOUT_DEFAULT_SECONDS = 120
+
+
+def _last_user_text(messages: List[Dict]) -> str:
+    """Extract the most recent user message's text for the taint gate."""
+    for _m in reversed(messages or []):
+        if isinstance(_m, dict) and _m.get("role") == "user":
+            content = _m.get("content", "")
+            if isinstance(content, list):
+                # Multimodal form: keep only text parts.
+                content = " ".join(
+                    p.get("text", "") for p in content
+                    if isinstance(p, dict) and p.get("type") == "text"
+                )
+            return content if isinstance(content, str) else str(content)
+    return ""
 
 
 def _llm_request_timeout() -> float:
@@ -1404,6 +1428,7 @@ class BYOKHandler:
         estimated_tokens: int = 1000, # Cache-aware routing
         workspace_id: str = "default", # Cache-aware routing
         cognitive_tier: Optional[CognitiveTier] = None,  # Phase 68: Cognitive tier system
+        max_quality: Optional[int] = None,  # Stage-router "fast" steering: upper quality bound
         required_capability: Optional[str] = None,  # Phase 226.4-04: Capability-based routing
         turn_index: int = 0 # NEW: Deterministic BPC
     ) -> List[tuple[str, str]]:
@@ -1478,13 +1503,19 @@ class BYOKHandler:
             # Also exclude o-series models — they don't reliably return
             # message.content (reasoning goes to a separate field).
             if task_type == "extraction":
-                max_quality = 90
+                max_quality = min(90, max_quality) if max_quality is not None else 90
                 # Adjust min_quality down if it exceeds the cap
                 min_quality = min(min_quality, 90)
                 _excluded_models = {"o1", "o1-mini", "o1-pro", "o3", "o3-mini", "o4", "o4-mini"}
             else:
-                max_quality = 100
+                max_quality = min(100, max_quality) if max_quality is not None else 100
                 _excluded_models = set()
+
+            # A caller-supplied cap ("fast" steering) can sit below a raised
+            # min floor (e.g. ADVANCED=94 vs cap 89) — clamp so the window
+            # stays non-empty instead of filtering every candidate out.
+            if max_quality is not None:
+                min_quality = min(min_quality, max_quality)
             
             available_providers = list(self.clients.keys())
             candidates = []
@@ -1748,6 +1779,34 @@ class BYOKHandler:
 
         return AwaitableResult(ranked_options)
 
+    def _llm_taint_check(self, text: str, provider_id: str, model: str) -> Optional[str]:
+        """P4 prompt-taint gate. Returns a block reason under enforce mode,
+        None when the call may proceed. Shadow mode logs only. Never raises."""
+        if not (_LLM_TAINT_SHADOW or _LLM_TAINT_ENFORCE):
+            return None
+        try:
+            from core.data_taint_tracker import assess_prompt_outbound
+
+            decision = assess_prompt_outbound(text or "", provider_id, model)
+        except Exception:
+            return None
+        if decision is None:
+            return None
+        if _LLM_TAINT_SHADOW:
+            logger.warning(
+                "llm_taint.shadow provider=%s model=%s max_observed=%s — %s "
+                "(set ATOM_LLM_TAINT_ENFORCE=true to block)",
+                provider_id, model, decision.get("max_observed"),
+                decision.get("reason"),
+            )
+        if _LLM_TAINT_ENFORCE:
+            return (
+                "[LLM CALL BLOCKED] Prompt classified restricted-sensitivity "
+                f"(potential PII/secrets); dispatch to {provider_id}/{model} "
+                "denied by taint policy (ATOM_LLM_TAINT_ENFORCE)."
+            )
+        return None
+
     async def generate_response(
         self,
         prompt: str,
@@ -1878,6 +1937,24 @@ class BYOKHandler:
             else:
                 complexity = self.analyze_query_complexity(prompt, task_type)
 
+            # --- Stage-router / caller model-type steering ---
+            # Documented vocabulary: "auto", "fast", "quality", or a concrete
+            # model name (stage_router.map_decision_to_model_type emits the
+            # first three; the tier-escalation loop passes concrete models).
+            # Previously this parameter was accepted and DROPPED, so an
+            # enforced stage-router decision changed audit rows but never the
+            # actual model selection. An explicit x-atom-tier override
+            # (cognitive_tier) always wins over the soft steering.
+            max_quality_override: Optional[int] = None
+            pinned_model: Optional[str] = None
+            if cognitive_tier is None and model_type and model_type != "auto":
+                if model_type == "quality":
+                    forced_tier_enum = CognitiveTier.HEAVY
+                elif model_type == "fast":
+                    max_quality_override = 89
+                else:
+                    pinned_model = model_type
+
             # Identify tool/structured requirements (Phase 6.6)
             requires_tools = agent_id is not None or task_type == "agentic"
 
@@ -1893,6 +1970,7 @@ class BYOKHandler:
                 requires_tools=requires_tools, requires_structured=False,
                 turn_index=turn_index,
                 cognitive_tier=forced_tier_enum,
+                max_quality=max_quality_override,
             )
 
             # --- LKGP (Last-Known-Good-Path) sticky boost ---
@@ -1935,6 +2013,18 @@ class BYOKHandler:
             # start (no predictor) leaves BPC order untouched. Best-effort: any
             # error falls back to BPC order so the hot path never breaks.
             options = await self._rerank_with_learning(options, prompt, task_type, intent=detected_intent)
+
+            # --- Concrete-model pinning (model_type = specific model) ---
+            # Hoist every candidate serving the requested concrete model to the
+            # front (provider order preserved) so the tier-escalation loop's
+            # explicit choice is attempted first; the remaining ranked
+            # candidates stay available as fallback.
+            if pinned_model:
+                pinned_opts = [(p, m) for p, m in options if m == pinned_model]
+                if pinned_opts:
+                    rest_opts = [(p, m) for p, m in options if m != pinned_model]
+                    options = pinned_opts + rest_opts
+                    logger.debug(f"[model-type] pinned '{pinned_model}' candidates to front")
 
             # Capture the decision id minted by _rerank_with_learning (if any) in
             # a local so EVERY provider attempt in the fallback loop below can
@@ -1997,6 +2087,16 @@ class BYOKHandler:
             
             if not options:
                 return "No eligible LLM providers found for your current plan."
+
+            # P4 prompt-taint gate (single check — the prompt text is
+            # identical for every candidate provider).
+            _taint_block = self._llm_taint_check(
+                prompt,
+                options[0][0] if options else "",
+                options[0][1] if options else "",
+            )
+            if _taint_block:
+                return _taint_block
 
             last_error = None
             primary_provider = options[0][0] if options else None
@@ -3802,6 +3902,14 @@ class BYOKHandler:
                 break
         stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
 
+        # P4 prompt-taint gate (shadow by default; blocks under enforce).
+        _taint_block = self._llm_taint_check(
+            stream_prompt, primary_provider or "", model
+        )
+        if _taint_block:
+            yield f"Error: {_taint_block}"
+            return
+
         # Governance tracking
         governance_enabled = os.getenv("STREAMING_GOVERNANCE_ENABLED", "true").lower() == "true"
         agent_execution = None
@@ -4264,6 +4372,14 @@ class BYOKHandler:
                 break
         decision_id = self._stash_decision_features(prompt_str, task_type)
 
+        # P4 prompt-taint gate (shadow by default; GatewayBlockedError maps to
+        # a 4xx by the gateway's error mapping).
+        _taint_block = self._llm_taint_check(
+            prompt_str, provider_id, model
+        )
+        if _taint_block:
+            raise GatewayBlockedError("taint_blocked", _taint_block)
+
         base_kwargs: Dict[str, Any] = {
             "model": model,
             "messages": messages,
@@ -4465,6 +4581,117 @@ class BYOKHandler:
                                 last_error = retry_err
                     except Exception:
                         logger.debug("[SelfHeal] healer raised; skipping", exc_info=True)
+
+                # --- OpenCode Go free-usage → paid retry ---
+                # Mirrors generate_response/stream_completion: a free-usage
+                # model (gateway ID ends in "-free") draws from the account's
+                # FREE allowance, which can be exhausted even with an ACTIVE
+                # subscription — the gateway then answers CreditsError /
+                # "Insufficient balance" while paid models would complete
+                # fine. Re-issue the SAME request on the subscription-paid
+                # fallback model before falling back to the next provider.
+                # The gateway path (chat_completion backs the inbound LLM
+                # Gateway and workflow engine) previously lacked this retry
+                # entirely, so free-tier exhaustion surfaced as hard failures.
+                if (
+                    attempt_provider_id == "opencode-go"
+                    and _is_opencode_free_model(model)
+                    and _is_insufficient_balance_error(e)
+                ):
+                    paid_model = _opencode_paid_fallback_model(model)
+                    if paid_model and paid_model != model:
+                        try:
+                            retry_kwargs: Dict[str, Any] = {
+                                k: v for k, v in base_kwargs.items() if k != "model"
+                            }
+                            retry_kwargs["model"] = paid_model
+                            paid_response = await client.chat.completions.create(**retry_kwargs)
+                            p_choice = (
+                                paid_response.choices[0]
+                                if getattr(paid_response, "choices", None)
+                                else None
+                            )
+                            p_content = ""
+                            if p_choice is not None:
+                                p_content = getattr(p_choice.message, "content", "") or ""
+                            p_finish = getattr(p_choice, "finish_reason", None) or "stop"
+                            p_usage = getattr(paid_response, "usage", None)
+                            pp = getattr(p_usage, "prompt_tokens", 0) if p_usage else 0
+                            pc = getattr(p_usage, "completion_tokens", 0) if p_usage else 0
+                            latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
+                            self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+                            self._track_rate_usage(
+                                attempt_provider_id,
+                                input_tokens=pp,
+                                output_tokens=pc,
+                                model_id=paid_model,
+                            )
+                            self._track_llm_call(
+                                provider=attempt_provider_id, model=paid_model, success=True,
+                                latency_ms=latency_ms, input_tokens=pp, output_tokens=pc,
+                                fallback=attempt_provider_id != primary_provider,
+                                fallback_provider=primary_provider if attempt_provider_id != primary_provider else None,
+                            )
+                            # Usage attribution: the gateway enforces budgets
+                            # from recorded usage — an unattributed retry would
+                            # be unbounded spend on this path.
+                            paid_cost: Optional[float] = None
+                            try:
+                                fetcher = get_pricing_fetcher()
+                                paid_cost = fetcher.estimate_cost(paid_model, pp or 0, pc or 0)
+                                if paid_cost is None:
+                                    paid_cost = get_llm_cost(paid_model, pp or 0, pc or 0)
+                                if paid_cost and paid_cost > 0:
+                                    llm_usage_tracker.record(
+                                        workspace_id=self.workspace_id,
+                                        provider=attempt_provider_id,
+                                        model=paid_model,
+                                        input_tokens=pp or 0,
+                                        output_tokens=pc or 0,
+                                        cost_usd=paid_cost,
+                                        savings_usd=0.0,
+                                        agent_id=agent_id,
+                                        complexity=str(getattr(self.analyze_query_complexity(prompt_str, task_type), "value", "moderate")),
+                                    )
+                            except Exception as cost_err:
+                                logger.warning(f"Could not attribute LLM cost: {cost_err}")
+                            await self._record_outcome_feedback(
+                                model=paid_model, provider_id=attempt_provider_id, task_type=task_type,
+                                content=p_content, finish_reason=p_finish,
+                                success=True, cost=paid_cost, latency_ms=latency_ms,
+                                routing_result_id=decision_id,
+                            )
+                            self._last_used_model = paid_model
+                            self._last_used_provider = attempt_provider_id
+                            logger.info(
+                                f"OpenCode Go free-model retry SUCCEEDED on paid model "
+                                f"{paid_model} (free {model} hit credit limit)"
+                            )
+                            return {
+                                "id": f"chatcmpl_atom_{uuid.uuid4().hex}",
+                                "object": "chat.completion",
+                                "created": int(datetime.now().timestamp()),
+                                "model": paid_model,
+                                "provider": attempt_provider_id,
+                                "choices": [
+                                    {
+                                        "index": 0,
+                                        "message": {"role": "assistant", "content": p_content},
+                                        "finish_reason": p_finish,
+                                        "logprobs": None,
+                                    }
+                                ],
+                                "usage": {
+                                    "prompt_tokens": pp or 0,
+                                    "completion_tokens": pc or 0,
+                                    "total_tokens": (pp or 0) + (pc or 0),
+                                },
+                            }
+                        except Exception as paid_err:
+                            logger.warning(
+                                f"OpenCode Go paid retry FAILED for {paid_model}: {paid_err}"
+                            )
+                            last_error = paid_err
 
                 await self._record_outcome_feedback(
                     model=model, provider_id=attempt_provider_id, task_type=task_type,

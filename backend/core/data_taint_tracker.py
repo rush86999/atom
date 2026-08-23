@@ -210,3 +210,44 @@ class DataTaintTracker:
             "sources": {k: sorted(v) for k, v in self._sources.items()},
             "run_id": self.run_id,
         }
+
+
+# Classification sample cap — prompts can be huge; PII/secrets relevant to an
+# outbound decision are overwhelmingly near the head (instructions, pasted
+# credentials). Keeps the per-call regex cost bounded.
+_PROMPT_SAMPLE_CHARS = 20000
+
+
+def assess_prompt_outbound(
+    text: str, provider_id: str, model: str
+) -> Optional[Dict[str, Any]]:
+    """Assess an outbound LLM prompt against the P4 sensitivity policy.
+
+    The prompt IS the exfil payload on the LLM path: unlike integration calls,
+    the full text leaves for a third-party processor. This checks the head of
+    the prompt with :func:`classify_sensitivity` and flags only
+    ``restricted`` classifications (PII / credential patterns or explicit
+    "restricted" marking) — ordinary ``confidential`` business text is allowed
+    so normal agent work is never disrupted.
+
+    Returns:
+        ``None`` when the prompt may proceed; otherwise a decision dict in the
+        same shape as :meth:`DataTaintTracker.check_outbound`.
+    """
+    if not text:
+        return None
+    try:
+        label = classify_sensitivity(text[:_PROMPT_SAMPLE_CHARS])
+    except Exception:  # classifier must never break dispatch
+        return None
+    if label == "restricted":
+        return {
+            "allowed": False,
+            "violation_type": VT_PROVENANCE,
+            "reason": (
+                f"Prompt classified restricted-sensitivity (potential PII or "
+                f"secrets) heading to external LLM {provider_id}/{model}"
+            ),
+            "max_observed": "restricted",
+        }
+    return None

@@ -199,7 +199,9 @@ def _probe_opencode_subscription() -> Optional[str]:
     """
     global _OPENCODE_CANARY
     if _OPENCODE_CANARY is not None:
-        return _OPENCODE_CANARY
+        # "" (cached success) normalizes to None per the documented contract;
+        # both are falsy so fixture skip behavior is unchanged.
+        return _OPENCODE_CANARY or None
     try:
         from core.llm.byok_handler import BYOKHandler
         handler = BYOKHandler(workspace_id="e2e_test", provider_id="auto")
