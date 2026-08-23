@@ -422,6 +422,57 @@ def _opencode_paid_fallback_model(model: str) -> Optional[str]:
     return "deepseek-v4-flash"  # cheapest paid model
 
 
+# --- OpenRouter: budget-exhausted → free-model fallback (round 80w2) ---
+# OpenRouter serves many models with a ":free" variant that has no per-token
+# cost but lower rate limits. When the user's credits are exhausted on a
+# paid model, retry on the :free sibling before skipping the provider.
+OPENROUTER_PAID_FREE_FALLBACK_DEFAULTS = {
+    "openai/gpt-4o-mini": "google/gemma-2-9b-it:free",
+    "anthropic/claude-3.5-sonnet": "meta-llama/llama-3.1-8b-instruct:free",
+    "anthropic/claude-3-sonnet": "meta-llama/llama-3.1-8b-instruct:free",
+    "openai/gpt-4o": "google/gemma-2-9b-it:free",
+    "google/gemini-flash-1.5": "google/gemma-2-9b-it:free",
+}
+
+_openrouter_free_fallback_cache: dict | None = None
+
+
+def _openrouter_free_fallback() -> dict:
+    """Read OPENROUTER_FREE_FALLBACK env override or return defaults."""
+    global _openrouter_free_fallback_cache
+    if _openrouter_free_fallback_cache is not None:
+        return _openrouter_free_fallback_cache
+    raw = os.getenv("OPENROUTER_FREE_FALLBACK", "").strip()
+    if raw:
+        try:
+            overrides = json.loads(raw)
+            if isinstance(overrides, dict):
+                result = {k: v for k, v in overrides.items() if isinstance(v, str)}
+                _openrouter_free_fallback_cache = result
+                return result
+            logger.warning("OPENROUTER_FREE_FALLBACK must be a JSON object — ignoring")
+        except (ValueError, TypeError):
+            logger.warning("OPENROUTER_FREE_FALLBACK is not valid JSON — ignoring")
+    _openrouter_free_fallback_cache = dict(OPENROUTER_PAID_FREE_FALLBACK_DEFAULTS)
+    return _openrouter_free_fallback_cache
+
+
+def _openrouter_free_fallback_model(model: str) -> Optional[str]:
+    """Map an OpenRouter paid model to its :free fallback variant.
+
+    Returns None if the model already ends with ":free" (nothing to fall
+    back to) or no mapping exists and no default free model is available.
+    """
+    if model.endswith(":free"):
+        return None
+    fallbacks = _openrouter_free_fallback()
+    free = fallbacks.get(model)
+    if free:
+        return free
+    # Default: use a known-good free model
+    return "google/gemma-2-9b-it:free"
+
+
 def _is_insufficient_balance_error(err: Exception) -> bool:
     """True when an LLM error means the gateway's free/credit allowance is gone.
 
@@ -435,7 +486,9 @@ def _is_insufficient_balance_error(err: Exception) -> bool:
         "insufficient balance" in text
         or "creditserror" in text
         or "credit limit" in text
-        or "billing" in text and "401" in text
+        or "insufficient credit" in text
+        or "payment required" in text
+        or ("billing" in text and "401" in text)
     )
 
 
@@ -2123,6 +2176,42 @@ class BYOKHandler:
                     last_error = attempt_err
 
                     err_str = str(attempt_err)
+
+                    # Round 80w2: insufficient-balance → model fallback before
+                    # skipping the provider. OpenCode Go: free → paid sibling.
+                    # OpenRouter: paid → :free variant. Both gateways serve the
+                    # same model families from one key; a budget error on one
+                    # tier shouldn't kill the request when another tier works.
+                    if provider_id in {"opencode-go", "opencode", "zen", "openrouter"} and _is_insufficient_balance_error(attempt_err):
+                        fallback_model = (
+                            _opencode_paid_fallback_model(model)
+                            if provider_id in {"opencode-go", "opencode", "zen"}
+                            else _openrouter_free_fallback_model(model)
+                        )
+                        if fallback_model and fallback_model != model:
+                            logger.info(
+                                f"Budget exhausted on {provider_id}/{model} — "
+                                f"retrying with {fallback_model}"
+                            )
+                            try:
+                                response = client.chat.completions.create(
+                                    model=fallback_model,
+                                    messages=messages,
+                                    temperature=temperature
+                                )
+                                result = response.choices[0].message.content
+                                self._last_used_model = fallback_model
+                                self._last_used_provider = provider_id
+                                logger.info(
+                                    f"Fallback succeeded: {provider_id}/{fallback_model}"
+                                )
+                                return result
+                            except Exception as fb_err:
+                                logger.warning(
+                                    f"Fallback {fallback_model} also failed: {fb_err}"
+                                )
+                            # Both tiers exhausted — skip this provider
+
                     if "401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str:
                         failed_providers.add(provider_id)
                         continue
