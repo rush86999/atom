@@ -200,7 +200,15 @@ class TestStageSteeringRealBPC:
 
     def _handler_with_zen_cache(self, handler, monkeypatch):
         from core.dynamic_pricing_fetcher import DynamicPricingFetcher
+        from core.llm.provider_rate_limits import ProviderRateTracker
         import core.cost_config as cost_config
+
+        # The handler shares the process-wide rate tracker singleton; usage
+        # recorded by earlier tests (their real completion calls) exhausts
+        # per-model quota and silently drops flash from the ranked candidates
+        # — order-dependent pollution. Give this handler a clean tracker so
+        # the REAL ranking below sees both models.
+        handler.rate_tracker = ProviderRateTracker()
 
         # Managed free-plan allowlist: admit the Zen gateway models (an
         # operator configuring a cost-controlled deployment would do the

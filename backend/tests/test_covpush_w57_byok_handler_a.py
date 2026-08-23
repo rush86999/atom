@@ -121,7 +121,14 @@ class TestAwaitableResultOperators:
         async def consume():
             return await AwaitableResult(7)
 
-        assert asyncio.get_event_loop().run_until_complete(consume()) == 7
+        # asyncio.get_event_loop() raises when no loop is set (Python 3.14+
+        # always; earlier versions after another test closed the loop) —
+        # drive the coroutine on a fresh loop instead.
+        loop = asyncio.new_event_loop()
+        try:
+            assert loop.run_until_complete(consume()) == 7
+        finally:
+            loop.close()
 
 
 class TestErrorClasses:
