@@ -14,6 +14,13 @@ export default function WorkflowEditorPage() {
     const [initialData, setInitialData] = useState<{ nodes: Node[], edges: Edge[] } | undefined>(undefined);
     const [templateName, setTemplateName] = useState('');
 
+    // First-run checklist: required inputs + integration readiness for the
+    // imported workflow. Advisory only — never blocks editing.
+    const [requiredInputs, setRequiredInputs] = useState<string[]>([]);
+    const [missingDeps, setMissingDeps] = useState<string[]>([]);
+    const [connectUrls, setConnectUrls] = useState<string[]>([]);
+    const [checklistDismissed, setChecklistDismissed] = useState(false);
+
     useEffect(() => {
         if (!id) return;
         fetchWorkflow(id as string);
@@ -32,6 +39,24 @@ export default function WorkflowEditorPage() {
 
             const template = await res.json();
             setTemplateName(template.name);
+            setRequiredInputs(
+                (template.inputs || [])
+                    .filter((i: any) => i.required)
+                    .map((i: any) => i.label || i.name)
+            );
+
+            // Integration readiness (fail-soft; personal starters declare deps).
+            fetch(`/api/workflow-templates/${workflowId}/readiness`, {
+                headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+            })
+                .then(r => (r.ok ? r.json() : null))
+                .then(d => {
+                    if (d && typeof d.ready === 'boolean' && !d.ready) {
+                        setMissingDeps(d.missing || []);
+                        setConnectUrls(d.connect_urls || []);
+                    }
+                })
+                .catch(() => {});
 
             // Convert Backend Template -> React Flow Nodes/Edges
             const newNodes: Node[] = [];
@@ -150,8 +175,50 @@ export default function WorkflowEditorPage() {
         </div>
     );
 
+    const showChecklist =
+        !checklistDismissed &&
+        (requiredInputs.length > 0 || missingDeps.length > 0);
+
     return (
         <div className="h-[calc(100vh-64px)] w-full bg-gray-50 dark:bg-gray-800">
+            {showChecklist && (
+                <div
+                  data-testid="first-run-checklist"
+                  className="flex flex-col gap-2 border-b border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/30 sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <div className="text-amber-900 dark:text-amber-200">
+                        <span className="font-medium">Before first run:</span>{' '}
+                        {requiredInputs.length > 0 && (
+                            <span>
+                                set {requiredInputs.length} required input
+                                {requiredInputs.length > 1 ? 's' : ''}
+                                {' '}({requiredInputs.join(', ')})
+                            </span>
+                        )}
+                        {requiredInputs.length > 0 && missingDeps.length > 0 && ' · '}
+                        {missingDeps.length > 0 && (
+                            <span>connect {missingDeps.join(', ')}</span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {connectUrls.map(url => (
+                            <a
+                              key={url}
+                              href={url}
+                              className="rounded-md bg-amber-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-900 dark:bg-amber-700 dark:hover:bg-amber-600"
+                            >
+                                Connect {decodeURIComponent(url.split('connect=')[1] || '')}
+                            </a>
+                        ))}
+                        <button
+                          onClick={() => setChecklistDismissed(true)}
+                          className="text-xs font-medium text-amber-700 underline hover:text-amber-900 dark:text-amber-300"
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
+            )}
             <WorkflowBuilder
                 initialData={initialData}
                 onSave={handleSave}

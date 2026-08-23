@@ -101,8 +101,7 @@ describe("WorkflowEditorPage", () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === "/api/workflow-templates/wf-1") return Promise.resolve(okResponse(WORKFLOW));
       return Promise.resolve(okResponse({}));
-    });
-  });
+    });  });
 
   it("shows the loading spinner while the workflow is fetched", () => {
     mockFetch.mockReturnValue(new Promise(() => {}));
@@ -214,6 +213,90 @@ describe("WorkflowEditorPage", () => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({ title: "Error", description: "Failed to save workflow", variant: "error" })
       );
+    });
+  });
+
+  describe("first-run checklist", () => {
+    const TEMPLATE_WITH_INPUTS = {
+      ...WORKFLOW,
+      template_id: "wf-1",
+      inputs: [
+        { name: "client_email_domain", label: "Client email domain", type: "string", required: false },
+        { name: "overdue_days", label: "Overdue after (days)", type: "number", required: true },
+      ],
+    };
+
+    it("shows required inputs and a connect CTA when not ready", async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url === "/api/workflow-templates/wf-1") {
+          return Promise.resolve(okResponse(TEMPLATE_WITH_INPUTS));
+        }
+        if (url.includes("/readiness")) {
+          return Promise.resolve(
+            okResponse({
+              success: true,
+              ready: false,
+              connected: [],
+              missing: ["gmail"],
+              connect_urls: ["/integrations?connect=gmail"],
+            }),
+          );
+        }
+        return Promise.resolve(okResponse({}));
+      });
+
+      render(<WorkflowEditorPage />);
+      const banner = await screen.findByTestId("first-run-checklist");
+      expect(banner).toHaveTextContent(/Overdue after \(days\)/);
+      expect(banner).not.toHaveTextContent("Client email domain");
+
+      const cta = screen.getByRole("link", { name: /Connect gmail/i });
+      expect(cta).toHaveAttribute("href", "/integrations?connect=gmail");
+    });
+
+    it("hides the checklist when ready and no required inputs", async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url === "/api/workflow-templates/wf-1") {
+          // WORKFLOW declares no required inputs.
+          return Promise.resolve(okResponse(WORKFLOW));
+        }
+        if (url.includes("/readiness")) {
+          return Promise.resolve(
+            okResponse({ success: true, ready: true, missing: [], connect_urls: [] }),
+          );
+        }
+        return Promise.resolve(okResponse({}));
+      });
+
+      render(<WorkflowEditorPage />);
+      await waitFor(() =>
+        expect(screen.getByTestId("workflow-builder")).toBeInTheDocument(),
+      );
+      expect(screen.queryByTestId("first-run-checklist")).not.toBeInTheDocument();
+    });
+
+    it("dismisses the checklist", async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url === "/api/workflow-templates/wf-1") {
+          return Promise.resolve(okResponse(TEMPLATE_WITH_INPUTS));
+        }
+        if (url.includes("/readiness")) {
+          return Promise.resolve(
+            okResponse({
+              success: true,
+              ready: false,
+              missing: ["gmail"],
+              connect_urls: ["/integrations?connect=gmail"],
+            }),
+          );
+        }
+        return Promise.resolve(okResponse({}));
+      });
+
+      render(<WorkflowEditorPage />);
+      await screen.findByTestId("first-run-checklist");
+      fireEvent.click(screen.getByRole("button", { name: /Dismiss/i }));
+      expect(screen.queryByTestId("first-run-checklist")).not.toBeInTheDocument();
     });
   });
 });
