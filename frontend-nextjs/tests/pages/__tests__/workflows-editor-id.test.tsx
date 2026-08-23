@@ -318,6 +318,17 @@ describe("WorkflowEditorPage", () => {
             okResponse({ status: "success", execution_id: "workflow_exe1" }),
           );
         }
+        if (url.includes("/executions/") && url.includes("/status")) {
+          return Promise.resolve(
+            okResponse({
+              success: true,
+              execution_id: "workflow_exe1",
+              workflow_id: "workflow_exe1",
+              status: "completed",
+              error: null,
+            }),
+          );
+        }
         return Promise.resolve(okResponse({}));
       });
     }
@@ -388,6 +399,12 @@ describe("WorkflowEditorPage", () => {
         overdue_days: "21",
       });
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      // Status chip polls and reflects terminal state.
+      const chip = await screen.findByTestId("execution-status-chip");
+      await waitFor(() => {
+        expect(chip).toHaveTextContent(/completed/);
+      });
     });
   });
 });

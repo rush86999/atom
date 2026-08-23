@@ -93,3 +93,76 @@ async def test_readiness_404_for_unknown_template(template_manager_monkeypatch):
             db=_FakeDB(providers=[]),
         )
     assert exc.value.status_code == 404
+
+
+# --- Execution status (post-run loop closure) ---
+
+
+class _FakeExecQuery:
+    def __init__(self, row):
+        self._row = row
+
+    def filter(self, *args, **kwargs):
+        return self
+
+    def order_by(self, *args, **kwargs):
+        return self
+
+    def first(self):
+        return self._row
+
+
+class _FakeExecDB:
+    def __init__(self, row):
+        self._row = row
+
+    def query(self, *_model):
+        return _FakeExecQuery(self._row)
+
+
+def _row(status="completed", error=None):
+    from datetime import datetime
+
+    return SimpleNamespace(
+        execution_id="exe-1",
+        workflow_id="workflow_abc123",
+        status=status,
+        error=error,
+        created_at=datetime(2026, 8, 23, 12, 0, 0),
+        completed_at=datetime(2026, 8, 23, 12, 0, 5) if status == "completed" else None,
+    )
+
+
+async def test_execution_status_found_by_workflow_id():
+    from core.models import WorkflowExecution
+
+    result = await wtr.get_execution_status(
+        "workflow_abc123",
+        current_user=SimpleNamespace(id="u1"),
+        db=_FakeExecDB(_row()),
+    )
+    assert result["success"] is True
+    assert result["status"] == "completed"
+    assert result["error"] is None
+
+
+async def test_execution_status_includes_error_on_failure():
+    result = await wtr.get_execution_status(
+        "whatever",
+        current_user=SimpleNamespace(id="u1"),
+        db=_FakeExecDB(_row(status="failed", error="step s2 exploded")),
+    )
+    assert result["status"] == "failed"
+    assert result["error"] == "step s2 exploded"
+
+
+async def test_execution_status_404_when_unknown():
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc:
+        await wtr.get_execution_status(
+            "nope",
+            current_user=SimpleNamespace(id="u1"),
+            db=_FakeExecDB(None),
+        )
+    assert exc.value.status_code == 404

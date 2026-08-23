@@ -444,6 +444,42 @@ async def import_template(
             message="Failed to import template"
         )
 
+@router.get("/executions/{execution_id}/status")
+async def get_execution_status(
+    execution_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Post-run loop closure: did the execution I just started work?
+
+    Matches either the persisted ``execution_id`` or the ``workflow_id`` the
+    execute endpoint hands back, so callers can poll with whatever they got.
+    """
+    from core.models import WorkflowExecution
+
+    row = (
+        db.query(WorkflowExecution)
+        .filter(
+            (WorkflowExecution.execution_id == execution_id)
+            | (WorkflowExecution.workflow_id == execution_id)
+        )
+        .order_by(WorkflowExecution.created_at.desc())
+        .first()
+    )
+    if not row:
+        raise router.not_found_error("Execution", execution_id)
+
+    return {
+        "success": True,
+        "execution_id": row.execution_id,
+        "workflow_id": row.workflow_id,
+        "status": row.status,
+        "error": row.error,
+        "started_at": row.created_at.isoformat() if row.created_at else None,
+        "completed_at": row.completed_at.isoformat() if row.completed_at else None,
+    }
+
+
 @router.post("/{template_id}/execute")
 @require_governance(
     action_complexity=ActionComplexity.HIGH,

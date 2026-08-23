@@ -36,6 +36,7 @@ export default function WorkflowEditorPage() {
     const [runOpen, setRunOpen] = useState(false);
     const [paramValues, setParamValues] = useState<Record<string, string>>({});
     const [isRunning, setIsRunning] = useState(false);
+    const [lastRun, setLastRun] = useState<{ id: string; status: string | null } | null>(null);
 
     useEffect(() => {
         if (!id) return;
@@ -186,6 +187,29 @@ export default function WorkflowEditorPage() {
         }
     };
 
+    const TERMINAL_STATUSES = new Set([
+        'completed', 'success', 'succeeded', 'failed', 'error', 'cancelled', 'canceled'
+    ]);
+
+    const pollExecutionStatus = (executionId: string, attempt = 0) => {
+        if (attempt > 20) return;
+        const token = localStorage.getItem('auth_token');
+        fetch(`/api/workflow-templates/executions/${encodeURIComponent(executionId)}/status`, {
+            headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+        })
+            .then(r => (r.ok ? r.json() : null))
+            .then(d => {
+                if (!d || !d.status) return;
+                setLastRun(prev =>
+                    prev && prev.id === executionId ? { ...prev, status: d.status } : prev
+                );
+                if (!TERMINAL_STATUSES.has(String(d.status).toLowerCase())) {
+                    setTimeout(() => pollExecutionStatus(executionId, attempt + 1), 3000);
+                }
+            })
+            .catch(() => {});
+    };
+
     const openRunDialog = () => {
         setParamValues(
             Object.fromEntries(
@@ -232,6 +256,10 @@ export default function WorkflowEditorPage() {
                     ? `Execution ${data.execution_id} is running. Approval gates will pause for your OK.`
                     : 'Execution started.'
             });
+            if (data?.execution_id) {
+                setLastRun({ id: data.execution_id, status: null });
+                pollExecutionStatus(data.execution_id);
+            }
             setRunOpen(false);
         } catch (error) {
             console.error(error);
@@ -360,6 +388,29 @@ export default function WorkflowEditorPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {lastRun && (
+                <div
+                  data-testid="execution-status-chip"
+                  className="fixed bottom-4 right-4 z-50 rounded-lg border bg-white px-3 py-2 text-xs shadow-md dark:bg-gray-900 dark:border-gray-700"
+                >
+                    <span className="text-muted-foreground">Last run </span>
+                    <span className="font-mono">{lastRun.id.slice(0, 12)}…</span>{' '}
+                    <span
+                      className={
+                        lastRun.status == null
+                            ? 'font-medium text-blue-600 dark:text-blue-400'
+                            : ['completed', 'success', 'succeeded'].includes(lastRun.status.toLowerCase())
+                              ? 'font-medium text-green-600 dark:text-green-400'
+                              : ['failed', 'error', 'cancelled', 'canceled'].includes(lastRun.status.toLowerCase())
+                                ? 'font-medium text-red-600 dark:text-red-400'
+                                : 'font-medium text-amber-600 dark:text-amber-400'
+                      }
+                    >
+                        {lastRun.status ?? 'starting…'}
+                    </span>
+                </div>
+            )}
         </div>
     );
 }
