@@ -10,7 +10,7 @@
 | Agent list + chat | ✅ | ✅ AgentList/AgentChat | ✅ AgentList/Detail/QuickChat | ✅ `ask` posts to /api/chat/message (80t); `execute` stub repointed |
 | Workflow list + trigger | ✅ | ✅ full suite (list/trigger/logs/progress) | ✅ 80u WorkflowsPanel (list/run) | ✅ 80w `workflows list/run` |
 | **Approvals / HITL** | ✅ approvals.tsx + R81i panel | ✅ **80s** ApprovalsScreen | ✅ 80t2 ApprovalsPanel | ✅ 80t2 `approvals` commands |
-| Canvas viewer | ✅ canvas suite | ✅ CanvasViewer | ✅ CanvasList | ➖ |
+| Canvas viewer | ✅ canvas suite | ✅ CanvasViewer | ✅ CanvasList | ✅ 80v2 `canvas list/view` |
 | Integrations status | ✅ hub + health | ✅ v1 section | ✅ 80r panel | ✅ `integrations list/status` (80r) |
 | Integrations connect | ✅ OAuth flows | ✅ 80p system-browser | ✅ 80r browser | ✅ `connect` prints URL (80r) |
 | Integrations disconnect | ✅ | ✅ 80o | ✅ 80r | ✅ `disconnect` (80r) |

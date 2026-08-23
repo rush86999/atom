@@ -43,6 +43,8 @@
 
 **Round 80t2 follow-on (same session — CLI approvals, HITL parity)**: `cli/approvals.py` — `atom-os approvals list|approve <id>|reject <id>` driving the governance endpoints (pending-approvals / approve / reject). RBAC enforced server-side (TEAM_LEAD+); CLI forwards the stored JWT. Tests: `tests/cli/test_approvals_cli.py` (6). Completes the HITL journey on CLI.
 
+**Round 80v2 follow-on (same session — CLI canvas commands, completes CLI column)**: `cli/canvas.py` — `atom-os canvas list` (GET /api/canvas/) and `canvas view <id>` (GET /api/canvas/<id>), sharing the `_integ._request`/`_resolve_token` seam. Tests: `tests/cli/test_canvas_cli.py` (5). CLI column of the parity matrix now fully ✅.
+
 **Round 80x follow-on (same session — CLI analytics command, completes CLI column)**: `cli/analytics.py` — `atom-os analytics [--window 1h|24h|7d|30d]` prints executions/success-rate/failures/duration/users/flows from GET /api/analytics/dashboard/kpis. Tests: `tests/cli/test_analytics_cli.py` (4). CLI column of the parity matrix is now fully green.
 
 **Round 80w follow-on (same session — CLI workflow commands)**: `cli/workflows.py` — `atom-os workflows list` (GET /api/mobile/workflows) and `workflows run <id>` (POST trigger {workflow_id}), sharing the `_integ._request`/`_require_token` seam with integrations+ask. Tests: `tests/cli/test_workflows_cli.py` (5). CLI column now covers auth/agents/integrations/workflows/server-control/office/config.
