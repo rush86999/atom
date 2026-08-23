@@ -208,6 +208,40 @@ async def get_template(template_id: str, current_user: User = Depends(get_curren
     
     return template.dict()
 
+@router.get("/{template_id}/readiness")
+async def get_template_readiness(
+    template_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """First-run friction killer: can this starter run *right now*?
+
+    Personal starters declare integrations (``template.dependencies``); this
+    checks them against the user's actual OAuth tokens so the UI can render a
+    single "Connect Gmail" CTA instead of failing mid-workflow.
+    """
+    from core.models import IntegrationToken
+    from core.workflow_ui_endpoints import _compute_readiness
+
+    template = get_template_manager().get_template(template_id)
+    if not template:
+        raise router.not_found_error("Template", template_id)
+
+    dependencies = list(template.dependencies or [])
+    if not dependencies:
+        return {"success": True, **_compute_readiness([], set())}
+
+    token_query = db.query(IntegrationToken.provider).filter(
+        IntegrationToken.user_id == current_user.id
+    )
+    if getattr(current_user, "tenant_id", None):
+        token_query = token_query.filter(
+            IntegrationToken.tenant_id == str(current_user.tenant_id)
+        )
+    connected = {p.lower() for (p,) in token_query.distinct().all()}
+    return {"success": True, **_compute_readiness(dependencies, connected)}
+
+
 @router.put("/{template_id}")
 async def update_template_endpoint(template_id: str, request: UpdateTemplateRequest, current_user: User = Depends(get_current_user)):
     """Update an existing workflow template"""

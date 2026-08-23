@@ -302,4 +302,76 @@ describe("MarketplacePage", () => {
       expect(listToggle.className).not.toContain("bg-secondary");
     });
   });
+
+  describe("personal starter readiness", () => {
+    const PERSONAL_TEMPLATES = [
+      {
+        template_id: "template_personal_invoice_chase",
+        name: "Personal: Invoice Chase (Freelancer)",
+        description: "Chase unpaid invoices with approval gates",
+        category: "business",
+        author: "Atom",
+        version: "1.0.0",
+        tags: ["gmail"],
+        usage_count: 0,
+        rating: 0,
+        complexity: "beginner",
+        steps: [],
+        input_schema: {},
+      },
+    ];
+
+    it("shows a Connect CTA when an integration is missing", async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url.includes("/readiness")) {
+          return Promise.resolve(
+            okResponse({
+              success: true,
+              ready: false,
+              connected: [],
+              missing: ["gmail"],
+              connect_urls: ["/settings/integrations?connect=gmail"],
+            }),
+          );
+        }
+        return Promise.resolve(okResponse(PERSONAL_TEMPLATES));
+      });
+
+      render(<MarketplacePage />);
+      expect(
+        await screen.findByText("Personal: Invoice Chase (Freelancer)"),
+      ).toBeInTheDocument();
+
+      const cta = await screen.findByText(
+        "Setup needed: connect gmail",
+      );
+      expect(cta.closest("a")).toHaveAttribute(
+        "href",
+        "/settings/integrations?connect=gmail",
+      );
+    });
+
+    it("shows no setup badge when readiness reports ready", async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url.includes("/readiness")) {
+          return Promise.resolve(
+            okResponse({
+              success: true,
+              ready: true,
+              connected: ["gmail"],
+              missing: [],
+              connect_urls: [],
+            }),
+          );
+        }
+        return Promise.resolve(okResponse(PERSONAL_TEMPLATES));
+      });
+
+      render(<MarketplacePage />);
+      await screen.findByText("Personal: Invoice Chase (Freelancer)");
+      await waitFor(() => {
+        expect(screen.queryByText(/Setup needed/i)).not.toBeInTheDocument();
+      });
+    });
+  });
 });

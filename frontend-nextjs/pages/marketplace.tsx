@@ -46,6 +46,12 @@ interface WorkflowTemplate {
     input_schema?: any
 }
 
+interface TemplateReadiness {
+    ready: boolean
+    missing: string[]
+    connect_urls: string[]
+}
+
 const categories = [
     { label: "Automation", value: "automation" },
     { label: "Data Processing", value: "data_processing" },
@@ -76,6 +82,31 @@ export default function MarketplacePage() {
     const [previewTemplate, setPreviewTemplate] = useState<WorkflowTemplate | null>(null)
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
+    // Per-template integration readiness (personal starters): drives the
+    // "Connect Gmail" CTA instead of failing mid-workflow.
+    const [readiness, setReadiness] = useState<Record<string, TemplateReadiness>>({})
+
+    const fetchReadiness = useCallback(async (ids: string[]) => {
+        const token = localStorage.getItem('auth_token')
+        await Promise.all(ids.map(async id => {
+            try {
+                const response = await fetch(`/api/workflow-templates/${id}/readiness`, {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                })
+                if (!response.ok) return
+                const data = await response.json()
+                if (data && typeof data.ready === 'boolean') {
+                    setReadiness(prev => ({
+                        ...prev,
+                        [id]: { ready: data.ready, missing: data.missing || [], connect_urls: data.connect_urls || [] }
+                    }))
+                }
+            } catch {
+                // Readiness is advisory; never block the marketplace on it.
+            }
+        }))
+    }, [])
+
     const fetchTemplates = useCallback(async () => {
         try {
             setLoading(true)
@@ -95,7 +126,7 @@ export default function MarketplacePage() {
                 throw new Error(details || `Failed to fetch templates (${response.status})`)
             }
             const data = await response.json()
-            setTemplates((data || []).map((t: any) => ({ // Direct list, not data.templates
+            const mapped = (data || []).map((t: any) => ({ // Direct list, not data.templates
                 ...t,
                 id: t.template_id, // Map template_id to id
                 integrations: t.tags || [], // Map tags to integrations
@@ -104,7 +135,14 @@ export default function MarketplacePage() {
                 created_at: t.created_at || new Date().toISOString(),
                 steps: t.steps || [],
                 input_schema: t.input_schema || {}
-            })))
+            }))
+            setTemplates(mapped)
+            const personalIds = mapped
+                .map((t: WorkflowTemplate) => t.id)
+                .filter((id: string) => id.startsWith('template_personal_'))
+            if (personalIds.length > 0) {
+                fetchReadiness(personalIds)
+            }
         } catch (error) {
             console.warn('Error fetching templates:', error instanceof Error ? error.message : error)
             setTemplates([])
@@ -112,7 +150,7 @@ export default function MarketplacePage() {
         } finally {
             setLoading(false)
         }
-    }, [selectedCategory])
+    }, [selectedCategory, fetchReadiness])
 
     useEffect(() => {
         fetchTemplates()
@@ -242,6 +280,14 @@ export default function MarketplacePage() {
                                             </Badge>
                                         ))}
                                     </div>
+                                    {readiness[template.id] && !readiness[template.id].ready && (
+                                        <a
+                                          href={readiness[template.id].connect_urls[0]}
+                                          className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"
+                                        >
+                                            Setup needed: connect {readiness[template.id].missing.join(', ')}
+                                        </a>
+                                    )}
                                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                                         <div className="flex items-center">
                                             <Clock className="h-3 w-3 mr-1" />
@@ -295,6 +341,26 @@ export default function MarketplacePage() {
 
                     <div className="flex-1 overflow-y-auto pr-4 mt-4">
                         <div className="space-y-6">
+                            {/* Readiness banner (personal starters) */}
+                            {previewTemplate && readiness[previewTemplate.id] && !readiness[previewTemplate.id].ready && (
+                                <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
+                                    <div className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                                        Setup needed before first run
+                                    </div>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {readiness[previewTemplate.id].connect_urls.map(url => (
+                                            <a
+                                              key={url}
+                                              href={url}
+                                              className="rounded-md bg-amber-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-900 dark:bg-amber-700 dark:hover:bg-amber-600"
+                                            >
+                                                Connect {url.split('connect=')[1]}
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Stats */}
                             <div className="grid grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
                                 <div className="text-center">
