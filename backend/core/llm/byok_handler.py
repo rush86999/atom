@@ -64,8 +64,14 @@ def _run_coroutine_sync(coro, timeout: float = 15.0):
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        # No running loop on this thread: drive the coroutine directly.
-        return asyncio.get_event_loop().run_until_complete(coro)
+        # No running loop on this thread: drive the coroutine on a fresh
+        # loop — asyncio.get_event_loop() no longer creates one implicitly
+        # on Python 3.14+, so that call raised RuntimeError here.
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
     # A loop IS running here — schedule on the dedicated background loop.
     global _CREDENTIAL_LOOP
     with _CREDENTIAL_LOOP_LOCK:
@@ -4634,27 +4640,32 @@ class BYOKHandler:
                             )
                             # Usage attribution: the gateway enforces budgets
                             # from recorded usage — an unattributed retry would
-                            # be unbounded spend on this path.
+                            # be unbounded spend on this path. Record even when
+                            # the cost resolves to 0/None (unpriced model);
+                            # only a FAILED resolution skips recording.
                             paid_cost: Optional[float] = None
                             try:
                                 fetcher = get_pricing_fetcher()
                                 paid_cost = fetcher.estimate_cost(paid_model, pp or 0, pc or 0)
                                 if paid_cost is None:
                                     paid_cost = get_llm_cost(paid_model, pp or 0, pc or 0)
-                                if paid_cost and paid_cost > 0:
+                            except Exception as cost_err:
+                                logger.warning(f"Could not attribute LLM cost: {cost_err}")
+                            else:
+                                try:
                                     llm_usage_tracker.record(
                                         workspace_id=self.workspace_id,
                                         provider=attempt_provider_id,
                                         model=paid_model,
                                         input_tokens=pp or 0,
                                         output_tokens=pc or 0,
-                                        cost_usd=paid_cost,
+                                        cost_usd=paid_cost or 0.0,
                                         savings_usd=0.0,
                                         agent_id=agent_id,
                                         complexity=str(getattr(self.analyze_query_complexity(prompt_str, task_type), "value", "moderate")),
                                     )
-                            except Exception as cost_err:
-                                logger.warning(f"Could not attribute LLM cost: {cost_err}")
+                                except Exception as cost_err:
+                                    logger.warning(f"Could not record LLM usage: {cost_err}")
                             await self._record_outcome_feedback(
                                 model=paid_model, provider_id=attempt_provider_id, task_type=task_type,
                                 content=p_content, finish_reason=p_finish,
