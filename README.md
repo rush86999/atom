@@ -88,7 +88,7 @@ Atom is an open-source, self-hosted **AI agent workforce** — a team of special
 
 **Atom is the only open-source platform that delivers:**
 - **Enterprise governance** (maturity tiers, HITL, audit) — without vendor lock-in
-- **Calibrated autonomy & governed agent organizations** — agents know when to ask; fleets ship with delegation contracts, privilege leases, and alignment sweeps
+- **Agents that know when to ask** — autonomy earned per action type from verified track records, auto-revoked on regression; governed agent orgs with delegation contracts & privilege leases
 - **Self-hosted privacy** — your data, your keys, your infrastructure
 - **Autonomous agent teammates** — agents that work *with* your people, not just *for* them
 - **Agent-authored workflows** — chat to build, no drag-and-drop
@@ -136,8 +136,8 @@ This isn't "AI replacing humans." It's **AI handling the work humans shouldn't b
 | **🤖 Multi-Agent Orchestration** | Queen Agent (structured workflows) + Fleet Admiral (open-ended tasks) + Conductor (5 execution strategies) + validated state machine with rollback; governed fleet routing with ranked specialist matching |
 | **🛡️ Governance & Safety** | 4-tier maturity (Student→Autonomous), policy-gated HITL approval, comprehensive audit trail, AI-powered training, OIDC SSO + SCIM v2 provisioning + 8-role RBAC |
 | **✅ Outcome Verification** | Postcondition oracle re-derives success against the system of record — on by default, a refuted self-report is stamped UNVERIFIED (`ATOM_ORACLE_ENFORCE` kill switch); two-tier confidence provenance (self-reported vs externally verified); opt-in reviewer re-delegation loop |
-| **🎚️ Trust Calibration** | Per-action allow/ask/block from a Gaussian-process posterior over verified outcomes — *ask* fails safe; relaxing autonomy requires passing a temporal-holdout certification gate (Brier ≤ 0.25, denial-coverage ≥ 0.7) and any regression auto-revokes |
-| **🏛️ Agent Org Governance** | Delegation contracts with RACI accountability, default-deny expiring privilege leases, self-recruitment/conflict-of-interest detection, contribution credit feeding graduation, opt-in nightly alignment sweeps over org-dynamics telemetry |
+| **🎚️ Agents That Know When To Ask** | Every action type earns interruption-free status from its verified track record, keeps asking when evidence is thin (*ask* fails safe), and loses the privilege automatically when results regress — autonomy only relaxes after passing a held-out certification gate (Brier ≤ 0.25, denial-coverage ≥ 0.7) |
+| **🏛️ Governed Agent Teams** | Multi-agent fleets fail like human orgs — ignored instructions, redone work, nobody accountable. Atom ships the countermeasures: delegation contracts with a single accountable agent, expiring privilege leases instead of titles, conflict-of-interest detection, contribution credit feeding graduation, opt-in nightly alignment sweeps |
 | **🧠 Memory & Learning** | Per-turn fact extraction, 2-tier recall (SQL + LanceDB), episodic memory, `memory_remember/forget`, self-evolution (Memento/AlphaEvolver, self-evolving harness) |
 | **🔎 Hybrid Search** | `documents.search` fuses BM25 (FTS5/tsvector) + vector (LanceDB) via Reciprocal Rank Fusion (RRF) — semantic + precise retrieval with citations |
 | **🗂️ Knowledge VFS** | Agent-native document tree — `ls`/`cat`/`grep`/`search` with line-numbered citations instead of bespoke per-store queries |
