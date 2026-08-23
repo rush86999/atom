@@ -1,0 +1,145 @@
+{
+  "template_id": "template_personal_support_triage",
+  "name": "Personal: Support Triage (Indie / Small Shop)",
+  "description": "Solo-operator starter: classify incoming support emails by urgency and topic, draft replies for the routine ones, and escalate anything urgent to your phone/Slack immediately. Replies send only after your approval. Built for Personal Edition (BYOK or fully local).",
+  "category": "business",
+  "complexity": "beginner",
+  "tags": [
+    "personal-edition",
+    "solo-operator",
+    "support",
+    "triage",
+    "gmail",
+    "hitl"
+  ],
+  "version": "1.0.0",
+  "author": "Atom",
+  "inputs": [
+    {
+      "name": "urgent_keywords",
+      "label": "Urgent keywords",
+      "description": "Comma-separated keywords that mark a message urgent for your product.",
+      "type": "string",
+      "required": false,
+      "default_value": "down, outage, billing error, refund, data loss"
+    },
+    {
+      "name": "business_hours",
+      "label": "Business hours",
+      "description": "When instant escalation is allowed to buzz you outside quiet hours.",
+      "type": "string",
+      "required": false,
+      "default_value": "09:00-18:00"
+    }
+  ],
+  "steps": [
+    {
+      "id": "watch_support_inbox",
+      "name": "Watch support inbox",
+      "description": "Trigger on new email in the support label/address.",
+      "step_type": "trigger",
+      "service": "gmail",
+      "action": "on_new_email",
+      "parameters": {
+        "label": "support"
+      },
+      "estimated_duration": 0,
+      "depends_on": []
+    },
+    {
+      "id": "classify_message",
+      "name": "Classify urgency + topic",
+      "description": "Agent classifies each message: urgent vs routine, and topic (bug, billing, how-to, feature).",
+      "step_type": "ai_task",
+      "service": "agent",
+      "action": "classify",
+      "parameters": {
+        "labels": ["urgent", "routine"],
+        "topics": ["bug", "billing", "how-to", "feature", "other"],
+        "keyword_boost_input": "urgent_keywords"
+      },
+      "estimated_duration": 30,
+      "depends_on": ["watch_support_inbox"]
+    },
+    {
+      "id": "escalate_urgent",
+      "name": "Escalate urgent instantly",
+      "description": "Urgent messages ping you on Slack right away with sender, subject, and a suggested first response.",
+      "step_type": "action",
+      "service": "slack",
+      "action": "send_dm",
+      "parameters": {
+        "condition": "label == 'urgent'",
+        "include_suggested_response": true,
+        "audience": "self"
+      },
+      "estimated_duration": 10,
+      "depends_on": ["classify_message"]
+    },
+    {
+      "id": "draft_routine_replies",
+      "name": "Draft replies for routine mail",
+      "description": "Draft concise, accurate replies for routine messages using product docs as context.",
+      "step_type": "ai_task",
+      "service": "agent",
+      "action": "draft_reply",
+      "parameters": {
+        "context_sources": ["knowledge_documents"],
+        "max_words": 150,
+        "tone": "warm-concise"
+      },
+      "estimated_duration": 45,
+      "depends_on": ["classify_message"]
+    },
+    {
+      "id": "approval_gate",
+      "name": "Approve before send (HITL)",
+      "description": "Review drafted replies in one batch — approve, edit, or discard. Nothing is sent unreviewed.",
+      "step_type": "approval",
+      "service": "governance",
+      "action": "request_approval",
+      "parameters": {
+        "mode": "batch",
+        "timeout_action": "keep_draft"
+      },
+      "estimated_duration": 0,
+      "depends_on": ["draft_routine_replies"]
+    },
+    {
+      "id": "send_approved",
+      "name": "Send approved replies",
+      "description": "Send approved replies and label the thread handled.",
+      "step_type": "action",
+      "service": "gmail",
+      "action": "send_email",
+      "parameters": {
+        "only_approved": true,
+        "label_after_send": "handled"
+      },
+      "estimated_duration": 15,
+      "depends_on": ["approval_gate"]
+    }
+  ],
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "messages_classified": {"type": "integer"},
+      "escalated_urgent": {"type": "integer"},
+      "replies_approved_sent": {"type": "integer"},
+      "kept_as_draft": {"type": "integer"}
+    }
+  },
+  "usage_count": 0,
+  "rating": 0.0,
+  "review_count": 0,
+  "estimated_total_duration": 100,
+  "prerequisites": [
+    "Gmail connected in Settings > Integrations",
+    "Slack connected (optional, for urgent escalations)"
+  ],
+  "dependencies": ["gmail", "slack"],
+  "permissions": ["email.read", "email.send", "message.send"],
+  "is_public": true,
+  "is_featured": false,
+  "license": "MIT"
+}

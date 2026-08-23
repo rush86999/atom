@@ -66,6 +66,8 @@ make frontend              # Next.js UI on :3001
 
 [Full Quick Start →](docs/getting_started/quick-start.md) · [Docker →](docs/operations/personal-edition.md) · [DigitalOcean 1-Click →](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml)
 
+**Solo operator?** Skip setup — import a pre-built personal starter (invoice chase, candidate pipeline, support triage), each with an approval gate so nothing sends without your OK: **[Personal → Team Playbook →](docs/getting_started/PERSONAL_TO_TEAM_PLAYBOOK.md)**
+
 ---
 
 ## 🚀 AI-Generated Workflow Automation

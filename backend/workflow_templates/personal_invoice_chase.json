@@ -1,0 +1,140 @@
+{
+  "template_id": "template_personal_invoice_chase",
+  "name": "Personal: Invoice Chase (Freelancer)",
+  "description": "Solo-operator starter: find unpaid invoices in your inbox, match them against your records, and draft polite reminder emails — every send passes an approval gate first. Built for Personal Edition (BYOK or fully local).",
+  "category": "business",
+  "complexity": "beginner",
+  "tags": [
+    "personal-edition",
+    "solo-operator",
+    "freelancer",
+    "invoicing",
+    "gmail",
+    "hitl"
+  ],
+  "version": "1.0.0",
+  "author": "Atom",
+  "inputs": [
+    {
+      "name": "client_email_domain",
+      "label": "Client email domain",
+      "description": "Only chase invoices for this client domain, e.g. acmecorp.com. Leave empty to scan all.",
+      "type": "string",
+      "required": false,
+      "default_value": "",
+      "help_text": "Narrowing the scan keeps the first run small and fast."
+    },
+    {
+      "name": "overdue_days",
+      "label": "Overdue after (days)",
+      "description": "Consider an invoice overdue past this many days since issue.",
+      "type": "number",
+      "required": false,
+      "default_value": 14
+    }
+  ],
+  "steps": [
+    {
+      "id": "scan_inbox",
+      "name": "Scan inbox for invoice threads",
+      "description": "Find emails matching invoice/payment threads from the client domain.",
+      "step_type": "action",
+      "service": "gmail",
+      "action": "search_messages",
+      "parameters": {
+        "query": "invoice OR payment OR 'past due'"
+      },
+      "estimated_duration": 30,
+      "depends_on": []
+    },
+    {
+      "id": "extract_invoice_state",
+      "name": "Extract invoice status",
+      "description": "Agent reads each thread and extracts invoice number, amount, issue date, and whether payment was mentioned.",
+      "step_type": "ai_task",
+      "service": "agent",
+      "action": "extract_structured",
+      "parameters": {
+        "fields": ["invoice_number", "amount", "issue_date", "paid"],
+        "source_step": "scan_inbox"
+      },
+      "estimated_duration": 60,
+      "depends_on": ["scan_inbox"]
+    },
+    {
+      "id": "flag_overdue",
+      "name": "Flag overdue invoices",
+      "description": "Keep only unpaid invoices older than the overdue threshold.",
+      "step_type": "condition",
+      "service": "workflow",
+      "action": "filter",
+      "parameters": {
+        "expression": "not paid and days_since(issue_date) > inputs.overdue_days"
+      },
+      "estimated_duration": 10,
+      "depends_on": ["extract_invoice_state"]
+    },
+    {
+      "id": "draft_reminders",
+      "name": "Draft friendly reminders",
+      "description": "Draft a short, polite reminder per overdue invoice referencing the invoice number and amount.",
+      "step_type": "ai_task",
+      "service": "agent",
+      "action": "draft_email",
+      "parameters": {
+        "tone": "friendly-professional",
+        "max_words": 120
+      },
+      "estimated_duration": 45,
+      "depends_on": ["flag_overdue"]
+    },
+    {
+      "id": "approval_gate",
+      "name": "Approve before send (HITL)",
+      "description": "Nothing is sent without you. Review each draft; approve sends it, edits are honored, rejects archive the draft.",
+      "step_type": "approval",
+      "service": "governance",
+      "action": "request_approval",
+      "parameters": {
+        "mode": "per_item",
+        "timeout_action": "keep_draft"
+      },
+      "estimated_duration": 0,
+      "depends_on": ["draft_reminders"]
+    },
+    {
+      "id": "send_approved",
+      "name": "Send approved reminders",
+      "description": "Send only the approved reminder emails via Gmail.",
+      "step_type": "action",
+      "service": "gmail",
+      "action": "send_email",
+      "parameters": {
+        "only_approved": true
+      },
+      "estimated_duration": 20,
+      "depends_on": ["approval_gate"]
+    }
+  ],
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "chased_count": {"type": "integer"},
+      "approved_sent": {"type": "integer"},
+      "kept_as_draft": {"type": "integer"},
+      "total_overdue_amount": {"type": "number"}
+    }
+  },
+  "usage_count": 0,
+  "rating": 0.0,
+  "review_count": 0,
+  "estimated_total_duration": 165,
+  "prerequisites": [
+    "Gmail connected in Settings > Integrations"
+  ],
+  "dependencies": ["gmail"],
+  "permissions": ["email.read", "email.send"],
+  "is_public": true,
+  "is_featured": true,
+  "license": "MIT"
+}
