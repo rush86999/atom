@@ -37,9 +37,34 @@ Atom is an open-source, self-hosted **AI agent workforce** — a team of special
 
 **No lock-in**: 16+ LLM providers (OpenAI, Anthropic, DeepSeek, Gemini, MiniMax, Groq…) with automatic cost-aware routing, fallback, and self-healing — every run makes the next run cheaper (learning router + caching tiers).
 
+**The vision**: every employee gets a *personal agent team* that knows their workflows, remembers context across weeks, and autonomously handles the repetitive work — research, data entry, drafting, reconciliation — while governance keeps you in control. Not AI replacing humans: AI handling the work humans shouldn't be doing.
+
 ---
 
 *Receipts: 0.027ms P99 governance checks (repo benchmark) · 616k ops/s cached throughput · 69+ documented TDD hardening rounds (~1,100 fixes in the deep security sweep alone) · 85k+ test functions (84,737 across 2,759 files, verified Aug 2026). External stats sourced in [docs/marketing/RESEARCH_NOTES.md](docs/marketing/RESEARCH_NOTES.md); copy kit in [COPY_README.md](docs/marketing/COPY_README.md) + [POSITIONING.md](docs/marketing/POSITIONING.md).*
+
+---
+
+## 💻 Quick Start
+
+**Clone to first governed workflow in ~10 minutes.** Start small — one workflow, one integration, one approval gate.
+
+```bash
+git clone https://github.com/rush86999/atom.git && cd atom
+make setup                 # one-shot dev bootstrap (venv, deps, .env, frontend)
+make backend               # full backend on :8001
+# in a second terminal:
+make frontend              # Next.js UI on :3001
+```
+
+**To use LLM features, set one key in `backend/.env`** (or add via Settings > AI):
+- `OPENCODE_API_KEY` for low-cost subscription coding models (~90% savings, recommended) or
+- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `DEEPSEEK_API_KEY` / `GOOGLE_API_KEY` … or
+- `ATOM_LOCAL_ONLY=true` + `OLLAMA_BASE_URL=http://localhost:11434/v1` for fully local
+
+**Expected result:** open http://localhost:3001 → sign in as `admin@example.com` (password in `backend/logs/bootstrap_admin_password.txt`) → describe a workflow in plain language and watch it build with an approval gate before anything ships.
+
+[Full Quick Start →](docs/getting_started/quick-start.md) · [Docker →](docs/operations/personal-edition.md) · [DigitalOcean 1-Click →](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml)
 
 ---
 
@@ -67,24 +92,12 @@ Atom is an open-source, self-hosted **AI agent workforce** — a team of special
 
 ## ⚡ The AI Agent Landscape — Where Atom Fits
 
-```
-                     ┌─────────────────────────────────────────────────────┐
-                     │              AI AGENT SPECTRUM                      │
-                     ├─────────────────┬─────────────────┬─────────────────┤
-                     │   CONSUMER      │   DEVELOPER     │   ENTERPRISE    │
-                     │   ASSISTANTS    │   FRAMEWORKS    │   WORKFORCE     │
-                     ├─────────────────┼─────────────────┼─────────────────┤
-                     │ ChatGPT/Claude  │ LangGraph       │ ✅ ATOM         │
-                     │ Notion AI       │ AutoGPT         │                 │
-                     │ Copilot         │ CrewAI          │                 │
-                     │ Perplexity      │ AutoGen         │                 │
-                     ├─────────────────┼─────────────────┼─────────────────┤
-                     │ Single chat     │ Code-first      │ Team delegation │
-                     │ Reactive only   │ Build-your-own  │ Governed by     │
-                     │ Cloud-only      │ Self-hosted     │ design          │
-                     │ No integrations │ Bring integrations│ 46+ native    │
-                     └─────────────────┴─────────────────┴─────────────────┘
-```
+| | 🧵 Consumer Assistants | 🧰 Developer Frameworks | 🏢 Enterprise Workforce |
+|---|---|---|---|
+| **Examples** | ChatGPT, Claude, Notion AI, Copilot, Perplexity | LangGraph, AutoGPT, CrewAI, AutoGen | ✅ **Atom** |
+| **Interaction** | Single chat, reactive only | Code-first, build-your-own | Delegate to agent teammates in plain language |
+| **Data & hosting** | Cloud-only | Self-hosted; bring your own integrations | Self-hosted + 46+ native business integrations |
+| **Governance** | None | DIY | Governed by design |
 
 **Atom is the only open-source platform that delivers:**
 - **Enterprise governance** (maturity tiers, HITL, audit) — without vendor lock-in
@@ -97,35 +110,18 @@ Atom is an open-source, self-hosted **AI agent workforce** — a team of special
 
 ---
 
-## 🤖 Autonomous Agents as Digital Teammates
-
-Atom redefines the relationship between humans and AI in the workplace. Instead of a single chat assistant, your employees get a **team of autonomous digital teammates**:
-
-| Traditional AI Assistant | Atom Autonomous Agent Teammates |
-|---|---|
-| Reactive — waits for commands | Proactive — handles routine work end-to-end |
-| Single-threaded, no memory | Persistent memory, cross-session continuity |
-| No governance, no audit | 4-tier maturity, HITL approval, full audit trail |
-| One generic model per task | Specialized agents per domain (sales, finance, support, eng) |
-| Human does the orchestration | Agents collaborate with each other & humans |
-| Cloud-only, data leaves your infra | Self-hosted, your keys, your infrastructure |
-
-**The vision**: Every employee gets a *personal agent team* that knows their workflows, remembers context across days/weeks, and autonomously executes the repetitive 60-80% of work — research, data entry, scheduling, drafting, reconciliation — so people can focus on judgment, creativity, and relationships.
-
-This isn't "AI replacing humans." It's **AI handling the work humans shouldn't be doing**, with governance that keeps you in control.
-
----
-
 ## 📊 Comparisons
 
 | Alternative | Focus | Key Difference | Deep Dive |
 |---|---|---|---|
 | **Hermes Agent** (Nous Research) | Personal coding/productivity assistant | Single-agent, no governance, no integrations, no sandbox | [Atom vs Hermes →](docs/architecture/HERMES_COMPARISON.md) |
 | **OpenClaw** | Personal productivity, messaging-first | Single-agent, Markdown memory, smart home focus | [Atom vs OpenClaw →](docs/features/atom-vs-openclaw.md) |
-| **LangGraph / CrewAI / AutoGen** | Developer frameworks | Code-first, build-your-own governance & integrations | [Why Atom?](#-why-atom) |
+| **LangGraph / CrewAI / AutoGen** | Developer frameworks | Code-first, build-your-own governance & integrations | [Why Atom? ↓](#-why-teams-choose-atom) |
 | **Zapier / Make / n8n** | Workflow automation | Step-based (not agents), no reasoning, no governance | [AI-Generated Workflow Automation](#-ai-generated-workflow-automation) |
 
 **TL;DR**: If you're evaluating personal agents → Hermes/OpenClaw. If you need governed multi-agent business automation → Atom.
+
+**Full feature matrix:** [Why Teams Choose Atom ↓](#-why-teams-choose-atom)
 
 ---
 
@@ -165,27 +161,6 @@ This isn't "AI replacing humans." It's **AI handling the work humans shouldn't b
 | **External MCP Client** | Connect to arbitrary external MCP servers (Cloudflare portals) |
 
 [Security Architecture →](docs/architecture/CLOUDFLARE_OS_SECURITY.md) · [Sandbox Deep-Dive →](docs/guides/EXECUTION_SANDBOX.md)
-
----
-
-## 💻 Quick Start
-
-```bash
-git clone https://github.com/rush86999/atom.git && cd atom
-make setup                 # one-shot dev bootstrap (venv, deps, .env, frontend)
-make backend               # full backend on :8001
-# in a second terminal:
-make frontend              # Next.js UI on :3001
-```
-
-**To use LLM features, set one key in `backend/.env`** (or add via Settings > AI):
-- `OPENCODE_API_KEY` for low-cost subscription coding models (~90% savings, recommended) or
-- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `DEEPSEEK_API_KEY` / `GOOGLE_API_KEY` … or
-- `ATOM_LOCAL_ONLY=true` + `OLLAMA_BASE_URL=http://localhost:11434/v1` for fully local
-
-**Open http://localhost:3001** — Sign in as `admin@example.com` (password in `backend/logs/bootstrap_admin_password.txt`)
-
-[Full Quick Start →](docs/getting_started/quick-start.md) · [Docker →](docs/operations/personal-edition.md) · [DigitalOcean 1-Click →](https://cloud.digitalocean.com/apps/new?repo=https://github.com/rush86999/atom/tree/main&config=deploy/digitalocean/app.yaml)
 
 ---
 
@@ -237,6 +212,8 @@ atom/
 ---
 
 ## 🌟 Why Teams Choose Atom
+
+*Per-competitor analysis: [📊 Comparisons ↑](#-comparisons)*
 
 | | Atom | Zapier/Make/n8n | LangGraph/CrewAI | OpenClaw | LangChain |
 |---|---|---|---|---|---|

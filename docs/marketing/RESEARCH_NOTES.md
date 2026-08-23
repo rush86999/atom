@@ -142,3 +142,14 @@
 
 1. **Calibrated autonomy — "agents that know when to ask"** (#60 Trust Calibration Gateway). Repo mechanisms: `core/trust_calibration/`, `docs/architecture/TRUST_CALIBRATION_PLAN.md`. Honesty constraint: flag-off/shadow today (`ATOM_TRUST_CALIBRATION_ENABLED` default false) — describe capability + certification gate, never claim it gates decisions by default.
 2. **Governed agent organizations — the countermeasure stack for documented multi-agent dysfunction** (#61 Org Politics & Hierarchy). Repo mechanisms: `docs/architecture/AGENT_ORG_POLITICS_PLAN.md` (telemetry P0, contracts P1, privilege leases P2, skill-scoped trust P3, contribution credit P4, allocator integrity P5, alignment sweep P6). Honesty constraint: P0/P1 default-on; P2–P6 automation-gated; sweep is opt-in.
+
+## GitHub evaluator behaviour / README-as-landing-page (added Aug 22, 2026)
+
+- **98.9% of stargazers never open an issue or PR on the same repo — the star is the evaluation, made in silence; 62.9% of evaluators appear exactly once; 25.6% star a second (competitor) devtool within 24h and the median multi-tool gap is 25.5 days; top 1% of repos capture 61.8% of all engagement (top 10% = 93.3%); ~39% of title-resolved evaluators are buyers or tech leads (13.8% founders/C-level/VP/director + 21.2% senior/staff/principal/lead engineers + 4.3% platform/DevOps/SRE); stars peak Tuesday and run 33% below peak on Saturday (n=5.04M events, 5,213 repos, 760k developers, Jan 2024–Jun 2026).**
+  Source: Fruitful Code / LeadCognition, "How Developers Evaluate Dev Tools on GitHub: What 5 Million Events Reveal" (Jun 11, 2026).
+  https://www.fruitfulcode.com/blog/state-of-devtool-evaluation-github-2026/
+- **README-as-landing-page audit pattern for developer tools: the five-second test (what is this / who for / what outcome / what next), proof path before feature catalog, bounded first action ("try it on one workflow in ten minutes").**
+  Source: DEV Community, "Your README is a landing page: a 10-minute adoption audit for developer tools" (Jun 14, 2026).
+  https://dev.to/mt211211/your-readme-is-a-landing-page-a-10-minute-adoption-audit-for-developer-tools-250f
+- **Enterprise agent-platform buyers evaluate on governance/trust controls, deployment flexibility (self-host/on-prem), integration depth, long-running workflows with approvals, and safe demotion — "Enterprises that cannot demote agents safely will, rationally, never promote them."**
+  Sources: Ampcome AI Agent Evaluation Framework (Aug 18, 2026) https://www.ampcome.com/post/ai-agent-evaluation-framework · xpander.ai enterprise platform criteria https://xpander.ai/resources/best-enterprise-ai-automation-platforms-2026 · Writer, "Evaluating agentic AI solutions for the enterprise" https://writer.com/guides/evaluating-generative-ai-2026
