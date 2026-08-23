@@ -2175,33 +2175,35 @@ class BYOKHandler:
                         try:
                             fetcher = get_pricing_fetcher()
                             cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
-                            
+
                             # Calculate Reference Cost (gpt-4o) for savings tracking (Phase 58)
                             reference_cost = fetcher.estimate_cost("gpt-4o", input_tokens, output_tokens)
-                            savings_usd = max(0, reference_cost - cost) if reference_cost and cost is not None else 0.0
-                            
+
                             # Fallback to static pricing if dynamic not available
                             if cost is None:
                                 cost = get_llm_cost(model, input_tokens, output_tokens)
-                                # Static reference cost fallback
-                                ref_cost_static = get_llm_cost("gpt-4o", input_tokens, output_tokens)
-                                savings_usd = max(0, ref_cost_static - cost)
-                            
-                            if cost and cost > 0:
-                                # Record to LLM Usage Tracker
-                                llm_usage_tracker.record(
-                                    workspace_id=self.workspace_id,
-                                    provider=provider_id,
-                                    model=model,
-                                    input_tokens=input_tokens,
-                                    output_tokens=output_tokens,
-                                    cost_usd=cost,
-                                    savings_usd=savings_usd,
-                                    agent_id=agent_id,
-                                    chain_id=chain_id, # Phase 11
-                                    complexity=complexity.value, # Phase 6.6
-                                    is_managed_service=is_managed
-                                )
+                                reference_cost = get_llm_cost("gpt-4o", input_tokens, output_tokens)
+
+                            savings_usd = max(0, reference_cost - cost) if (reference_cost is not None and cost is not None) else 0.0
+
+                            # Record even when the cost resolves to 0/None
+                            # (unpriced model) — the budget guard enforces from
+                            # recorded usage, so skipping would be
+                            # unattributed spend.
+                            llm_usage_tracker.record(
+                                workspace_id=self.workspace_id,
+                                provider=provider_id,
+                                model=model,
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                cost_usd=cost or 0.0,
+                                savings_usd=savings_usd,
+                                agent_id=agent_id,
+                                chain_id=chain_id, # Phase 11
+                                complexity=complexity.value, # Phase 6.6
+                                is_managed_service=is_managed
+                            )
+                            if cost:
                                 logger.info(f"LLM Cost Attributed ({'Managed' if is_managed else 'BYOK'}): {model} - ${cost:.6f} (Saved: ${savings_usd:.6f})")
                             observed_cost = cost
                         except Exception as cost_err:
@@ -3356,21 +3358,26 @@ class BYOKHandler:
 
                             fetcher = get_pricing_fetcher()
                             cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
+                            if cost is None:
+                                cost = get_llm_cost(model, input_tokens, output_tokens)
                             _structured_cost = cost
 
-                            if cost and cost > 0:
-                                llm_usage_tracker.record(
-                                    workspace_id=self.workspace_id,
-                                    provider=provider_id,
-                                    model=model,
-                                    input_tokens=input_tokens,
-                                    output_tokens=output_tokens,
-                                    cost_usd=cost,
-                                    agent_id=agent_id,
-                                    chain_id=chain_id, # Phase 11
-                                    complexity=complexity.value,
-                                    is_managed_service=is_managed
-                                )
+                            # Record even when the cost resolves to 0/None
+                            # (unpriced model) — the budget guard enforces
+                            # from recorded usage, so skipping would be
+                            # unattributed spend.
+                            llm_usage_tracker.record(
+                                workspace_id=self.workspace_id,
+                                provider=provider_id,
+                                model=model,
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                cost_usd=cost or 0.0,
+                                agent_id=agent_id,
+                                chain_id=chain_id, # Phase 11
+                                complexity=complexity.value,
+                                is_managed_service=is_managed
+                            )
                     except Exception as cost_err:
                         logger.warning(f"Could not attribute structured LLM cost: {cost_err}")
 
@@ -4439,20 +4446,27 @@ class BYOKHandler:
                     cost = fetcher.estimate_cost(model, prompt_tokens or 0, completion_tokens or 0)
                     if cost is None:
                         cost = get_llm_cost(model, prompt_tokens or 0, completion_tokens or 0)
-                    if cost and cost > 0:
+                except Exception as cost_err:
+                    logger.warning(f"Could not attribute LLM cost: {cost_err}")
+                else:
+                    # Record even when the cost resolves to 0/None (unpriced
+                    # model) — the budget guard enforces from recorded usage,
+                    # so skipping would be unattributed spend. Only a FAILED
+                    # resolution skips recording.
+                    try:
                         llm_usage_tracker.record(
                             workspace_id=self.workspace_id,
                             provider=attempt_provider_id,
                             model=model,
                             input_tokens=prompt_tokens or 0,
                             output_tokens=completion_tokens or 0,
-                            cost_usd=cost,
+                            cost_usd=cost or 0.0,
                             savings_usd=0.0,
                             agent_id=agent_id,
                             complexity=str(getattr(self.analyze_query_complexity(prompt_str, task_type), "value", "moderate")),
                         )
-                except Exception as cost_err:
-                    logger.warning(f"Could not attribute LLM cost: {cost_err}")
+                    except Exception as cost_err:
+                        logger.warning(f"Could not record LLM usage: {cost_err}")
 
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
                 self._track_rate_usage(
