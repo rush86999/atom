@@ -7,6 +7,9 @@ import CanvasList from "./components/CanvasList";
 import StatusIndicator from "./components/StatusIndicator";
 import NotificationBadge from "./components/NotificationBadge";
 import SettingsModal from "./components/SettingsModal";
+import { getIntegrationHealth } from "../src/services/integrationService";
+// Approvals badge: poll count so supervisors see pending HITL items
+
 import AgentDetail from "./components/AgentDetail";
 import { useHotkeys } from "./hooks/useHotkeys";
 import type { User, AgentSummary, CanvasSummary, ConnectionStatus } from "./types";
@@ -40,6 +43,7 @@ export default function MenuBar({ user, token, onLogout }: MenuBarProps) {
 
   // New component states
   const [showSettings, setShowSettings] = useState(false);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [selectedAgent, setSelectedAgent] = useState<AgentSummary | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -208,6 +212,30 @@ export default function MenuBar({ user, token, onLogout }: MenuBarProps) {
     setSelectedAgent(agent);
   };
 
+
+  // Round 80v: poll pending approvals so the settings button shows a badge
+  useEffect(() => {
+    let cancelled = false;
+    const checkPending = async () => {
+      try {
+        const session = await invoke<{ token: string } | null>("get_session");
+        if (!session?.token || cancelled) return;
+        const res = await fetch(
+          `${localStorage.getItem("atom_server_url") || "http://localhost:8000"}/api/agent-governance/pending-approvals`,
+          { headers: { Authorization: `Bearer ${session.token}` } }
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        setPendingApprovalCount(data.count ?? 0);
+      } catch {
+        // non-fatal — badge stays at current value
+      }
+    };
+    checkPending();
+    const interval = setInterval(checkPending, 60_000); // every minute
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
   return (
     <div className="menubar-container">
       {/* Header */}
@@ -245,10 +273,29 @@ export default function MenuBar({ user, token, onLogout }: MenuBarProps) {
               fontSize: "16px",
               cursor: "pointer",
               padding: "4px",
+              position: "relative",
             }}
             title="Settings"
           >
             ⚙️
+          
+              {pendingApprovalCount > 0 && (
+                <span style={{
+                  position: "absolute",
+                  top: "-2px",
+                  right: "-4px",
+                  background: "#f44336",
+                  color: "#fff",
+                  borderRadius: "50%",
+                  width: "16px",
+                  height: "16px",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }} data-testid="approval-badge">{pendingApprovalCount}</span>
+              )}
           </button>
 
           <button
