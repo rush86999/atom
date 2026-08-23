@@ -344,6 +344,60 @@ async def instantiate_template(template_id: str, request: InstantiateRequest, cu
             message="Failed to instantiate template"
         )
 
+def _persist_imported_workflow(
+    manager,
+    *,
+    template,
+    workflow_name: str,
+    author_email: Optional[str],
+) -> Dict[str, Any]:
+    """Instantiate a template AND persist it as a private editable template copy.
+
+    Previously ``import_template`` generated a workflow definition and threw it
+    away — ``workflow_id`` pointed at nothing queryable, so the editor's
+    ``GET /{template_id}`` 404'd and the post-import deep link dead-ended.
+    Persisting through ``create_template`` makes the imported id resolvable by
+    the same surface the editor reads (file-backed, survives restarts).
+    """
+    result = manager.create_workflow_from_template(
+        template_id=template.template_id,
+        workflow_name=workflow_name,
+        template_parameters={},
+    )
+    workflow_def = result.get("workflow_definition") or {}
+
+    # Generated steps carry parameters under "input_parameters"; the
+    # TemplateStep model expects "parameters". Remap so edits keep param data.
+    steps = []
+    for step in workflow_def.get("steps", []):
+        step = dict(step)
+        params = step.pop("input_parameters", None)
+        if params is not None:
+            step["parameters"] = params
+        steps.append(step)
+
+    def _enum_value(value):
+        return value.value if hasattr(value, "value") else str(value)
+
+    imported = manager.create_template({
+        "template_id": result["workflow_id"],
+        "name": workflow_name,
+        "description": template.description,
+        "category": _enum_value(template.category),
+        "complexity": _enum_value(template.complexity),
+        "tags": ["imported"] + list(template.tags or []),
+        "author": author_email or "import",
+        "is_public": False,
+        "steps": steps,
+        "inputs": [p.model_dump() for p in template.inputs],
+    })
+    return {
+        "workflow_id": imported.template_id,
+        "workflow_name": imported.name,
+        "editor_url": f"/workflows/editor/{imported.template_id}",
+    }
+
+
 @router.post("/{template_id}/import")
 @require_governance(ActionComplexity.LOW, "import_template", "workflow")
 async def import_template(
@@ -360,16 +414,18 @@ async def import_template(
         if not template:
              raise router.not_found_error("Template", template_id)
 
-        result = manager.create_workflow_from_template(
-            template_id=template_id,
+        result = _persist_imported_workflow(
+            manager,
+            template=template,
             workflow_name=f"Imported {template.name}",
-            template_parameters={}
+            author_email=getattr(current_user, "email", None),
         )
-        
+
         return {
             "status": "success",
             "message": f"Template imported as '{result.get('workflow_name')}'",
-            "workflow_id": result.get("workflow_id")
+            "workflow_id": result.get("workflow_id"),
+            "editor_url": result.get("editor_url")
         }
         
     except ValueError as e:

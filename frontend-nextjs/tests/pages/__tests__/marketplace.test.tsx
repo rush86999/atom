@@ -10,6 +10,11 @@ jest.mock("react-hot-toast", () => ({
   },
 }));
 
+const mockPush = jest.fn();
+jest.mock("next/router", () => ({
+  useRouter: () => ({ push: mockPush, query: {}, pathname: "/marketplace" }),
+}));
+
 const okResponse = (body: any) => ({
   ok: true,
   status: 200,
@@ -372,6 +377,48 @@ describe("MarketplacePage", () => {
       await waitFor(() => {
         expect(screen.queryByText(/Setup needed/i)).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe("post-import handoff", () => {
+    it("navigates to the editor when import returns an editor_url", async () => {
+      mockFetch.mockImplementation((url: string) =>
+        url.includes("/import")
+          ? Promise.resolve(
+              okResponse({
+                status: "success",
+                workflow_id: "workflow_abc123",
+                editor_url: "/workflows/editor/workflow_abc123",
+              }),
+            )
+          : Promise.resolve(okResponse(TEMPLATES)),
+      );
+
+      render(<MarketplacePage />);
+      await screen.findByText("Lead Enrichment");
+
+      fireEvent.click(screen.getAllByRole("button", { name: /^Import$/i })[0]);
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith(
+          "/workflows/editor/workflow_abc123",
+        );
+        expect(toast.success).toHaveBeenCalledWith(
+          "Workflow imported — opening the editor…",
+        );
+      });
+    });
+
+    it("falls back to a plain success toast when no editor_url is returned", async () => {
+      render(<MarketplacePage />);
+      await screen.findByText("Lead Enrichment");
+
+      fireEvent.click(screen.getAllByRole("button", { name: /^Import$/i })[0]);
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          "Workflow imported successfully!",
+        );
+      });
+      expect(mockPush).not.toHaveBeenCalled();
     });
   });
 });

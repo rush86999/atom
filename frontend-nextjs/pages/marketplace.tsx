@@ -7,6 +7,7 @@
 export const dynamic = 'force-dynamic'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/router'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -71,6 +72,7 @@ const formatCategory = (category?: string) => {
 }
 
 export default function MarketplacePage() {
+    const router = useRouter()
     const [templates, setTemplates] = useState<WorkflowTemplate[]>([])
     const [loading, setLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -168,7 +170,15 @@ export default function MarketplacePage() {
             })
 
             if (response.ok) {
-                toast.success('Workflow imported successfully!')
+                const data = await response.json().catch(() => null)
+                toast.success(
+                    data?.editor_url
+                        ? 'Workflow imported — opening the editor…'
+                        : 'Workflow imported successfully!'
+                )
+                if (data?.workflow_id && data?.editor_url) {
+                    router.push(data.editor_url)
+                }
             } else {
                 const error = await response.json()
                 toast.error(`Import failed: ${error.detail || 'Unknown error'}`)
