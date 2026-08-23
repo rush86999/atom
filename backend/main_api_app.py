@@ -446,6 +446,16 @@ async def lifespan(app: FastAPI):
                 logger.info("Bootstrapping essential data (admin, tenants)...")
                 ensure_admin_user()
                 logger.info("✓ Bootstrap complete")
+
+                # Personal→Team wedge: surface solo-operator starter templates in
+                # the DB-backed template UI (idempotent, fail-soft).
+                from core.database import SessionLocal
+                from core.personal_template_seeder import seed_personal_templates
+
+                with SessionLocal() as _seed_db:
+                    _seeded = seed_personal_templates(_seed_db)
+                    if _seeded:
+                        logger.info(f"✓ Seeded {_seeded} personal starter template(s)")
             else:
                 logger.info("⊘ Skipping admin bootstrap in test mode (fixture managed)")
         except Exception as e:
