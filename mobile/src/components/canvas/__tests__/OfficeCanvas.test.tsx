@@ -12,17 +12,17 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 
 import { OfficeCanvas, isOfficeContent } from '../OfficeCanvas';
 
-jest.mock('../../services/api', () => ({
+jest.mock('../../../services/api', () => ({
   apiService: {
     post: jest.fn().mockResolvedValue({ success: true, data: {} }),
   },
 }));
 
-import { apiService } from '../../services/api';
+import { apiService } from '../../../services/api';
 const postMock = apiService.post as jest.Mock;
 
 describe('isOfficeContent', () => {
@@ -40,6 +40,7 @@ describe('OfficeCanvas — xlsx', () => {
   const content = {
     format: 'xlsx',
     title: 'book.xlsx',
+    office_file: '/data/office/book.xlsx',
     active_sheet: 'Sheet1',
     sheet_names: ['Sheet1'],
     sheets: [{ name: 'Sheet1', rows: [['Item', 'Qty'], ['Widget', 4]] }],
@@ -85,7 +86,7 @@ describe('OfficeCanvas — xlsx', () => {
     expect(postMock.mock.calls[0][0]).toBe('/api/v1/office/sync-update');
     expect(postMock.mock.calls[0][1]).toMatchObject({
       canvas_id: 'c-1',
-      file_path: '/data/office/book.xlsx'.replace('/data/office', '') || undefined,
+      file_path: '/data/office/book.xlsx',
       edit_type: 'cell',
       data: { cell_path: '/Sheet1/B2', value: '9', is_formula: false },
     });
@@ -117,7 +118,7 @@ describe('OfficeCanvas — docx', () => {
   it('renders and commits the document text', async () => {
     render(
       <OfficeCanvas
-        content={{ format: 'docx', title: 'r.docx', text: 'Para one.' }}
+        content={{ format: 'docx', title: 'r.docx', office_file: '/data/office/r.docx', text: 'Para one.' }}
         canvasId="c-doc"
       />
     );
@@ -137,6 +138,7 @@ describe('OfficeCanvas — pptx', () => {
   const pptx = {
     format: 'pptx',
     title: 'deck.pptx',
+    office_file: '/data/office/deck.pptx',
     slides: [{ slide_number: 1, title: 'Intro', content: 'Body text' }],
   };
 
