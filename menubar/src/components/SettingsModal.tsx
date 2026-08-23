@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import IntegrationsPanel from "./IntegrationsPanel";
 import WorkflowsPanel from "./WorkflowsPanel";
 import AnalyticsPanel from "./AnalyticsPanel";
+import ApprovalsPanel from "./ApprovalsPanel";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -274,6 +275,14 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
               ANALYTICS
             </div>
             <AnalyticsPanel serverUrl={settings.serverUrl || undefined} />
+          </div>
+
+          {/* Approvals (round 80t2: HITL parity — last surface) */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
+              APPROVALS
+            </div>
+            <ApprovalsPanel serverUrl={settings.serverUrl || undefined} />
           </div>
 
           {/* Appearance */}
