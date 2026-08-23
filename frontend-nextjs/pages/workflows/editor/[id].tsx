@@ -3,6 +3,16 @@ import { useRouter } from 'next/router';
 import Layout from '@/components/layout/Layout';
 import WorkflowBuilder from '@/components/Automations/WorkflowBuilder';
 import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 import { Node, Edge } from 'reactflow';
 
@@ -20,6 +30,12 @@ export default function WorkflowEditorPage() {
     const [missingDeps, setMissingDeps] = useState<string[]>([]);
     const [connectUrls, setConnectUrls] = useState<string[]>([]);
     const [checklistDismissed, setChecklistDismissed] = useState(false);
+
+    // Run flow: parameter entry dialog generated from the template's inputs.
+    const [templateInputs, setTemplateInputs] = useState<any[]>([]);
+    const [runOpen, setRunOpen] = useState(false);
+    const [paramValues, setParamValues] = useState<Record<string, string>>({});
+    const [isRunning, setIsRunning] = useState(false);
 
     useEffect(() => {
         if (!id) return;
@@ -39,6 +55,7 @@ export default function WorkflowEditorPage() {
 
             const template = await res.json();
             setTemplateName(template.name);
+            setTemplateInputs(template.inputs || []);
             setRequiredInputs(
                 (template.inputs || [])
                     .filter((i: any) => i.required)
@@ -169,6 +186,65 @@ export default function WorkflowEditorPage() {
         }
     };
 
+    const openRunDialog = () => {
+        setParamValues(
+            Object.fromEntries(
+                templateInputs.map(i => [i.name, i.default_value != null ? String(i.default_value) : ''])
+            )
+        );
+        setRunOpen(true);
+    };
+
+    const handleRunSubmit = async () => {
+        const missing = templateInputs.filter(
+            i => i.required && !(paramValues[i.name] ?? '').toString().trim()
+                && (i.default_value == null || i.default_value === '')
+        );
+        if (missing.length > 0) {
+            toast({
+                title: 'Missing required inputs',
+                description: `Please provide: ${missing.map(i => i.label || i.name).join(', ')}`,
+                variant: 'error'
+            });
+            return;
+        }
+
+        setIsRunning(true);
+        try {
+            const token = localStorage.getItem('auth_token');
+            const res = await fetch(`/api/workflow-templates/${id}/execute`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify(paramValues)
+            });
+            const data = await res.json().catch(() => null);
+
+            if (!res.ok) {
+                throw new Error(data?.detail || data?.message || `Execution failed (${res.status})`);
+            }
+
+            toast({
+                title: 'Workflow started',
+                description: data?.execution_id
+                    ? `Execution ${data.execution_id} is running. Approval gates will pause for your OK.`
+                    : 'Execution started.'
+            });
+            setRunOpen(false);
+        } catch (error) {
+            console.error(error);
+            toast({
+                title: 'Error',
+                description: error instanceof Error ? error.message : 'Failed to execute workflow',
+                variant: 'error'
+            });
+        } finally {
+            setIsRunning(false);
+        }
+    };
+
     if (isLoading) return (
         <div className="flex h-screen items-center justify-center">
             <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
@@ -223,7 +299,67 @@ export default function WorkflowEditorPage() {
                 initialData={initialData}
                 onSave={handleSave}
                 workflowId={id as string}
+                onRun={openRunDialog}
             />
+
+            <Dialog open={runOpen} onOpenChange={setRunOpen}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Run &quot;{templateName}&quot;</DialogTitle>
+                        <DialogDescription>
+                            Provide values for this run. Approval gates still pause
+                            for your OK before anything sends.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        {templateInputs.length === 0 && (
+                            <p className="text-sm text-muted-foreground">
+                                This workflow has no inputs — run as-is.
+                            </p>
+                        )}
+                        {templateInputs.map(input => (
+                            <div key={input.name} className="space-y-1.5">
+                                <label className="text-sm font-medium" htmlFor={`param-${input.name}`}>
+                                    {input.label || input.name}
+                                    {input.required && <span className="text-red-500 ml-1">*</span>}
+                                </label>
+                                {input.description && (
+                                    <p className="text-xs text-muted-foreground">{input.description}</p>
+                                )}
+                                {input.options && input.options.length > 0 ? (
+                                    <select
+                                        id={`param-${input.name}`}
+                                        className="w-full h-9 rounded-md border bg-transparent px-3 text-sm"
+                                        value={paramValues[input.name] ?? ''}
+                                        onChange={(e) => setParamValues(v => ({ ...v, [input.name]: e.target.value }))}
+                                    >
+                                        <option value="">Select…</option>
+                                        {input.options.map((opt: string) => (
+                                            <option key={opt} value={opt}>{opt}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <Input
+                                        id={`param-${input.name}`}
+                                        type={input.type === 'number' ? 'number' : 'text'}
+                                        value={paramValues[input.name] ?? ''}
+                                        onChange={(e) => setParamValues(v => ({ ...v, [input.name]: e.target.value }))}
+                                    />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRunOpen(false)}>Cancel</Button>
+                        <Button onClick={handleRunSubmit} disabled={isRunning}>
+                            {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            {isRunning ? 'Starting…' : 'Run workflow'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

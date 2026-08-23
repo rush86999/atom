@@ -18,7 +18,7 @@ import PiecesSidebar, { Piece, PieceAction, PieceTrigger } from './PiecesSidebar
 import { LogsSidebar } from './LogsSidebar';
 import SmartSuggestions, { StepSuggestion } from './SmartSuggestions';
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Zap, Clock, Sparkles, PanelLeftClose, PanelLeft, Loader2, Undo, Redo, Activity, List } from "lucide-react";
+import { Plus, Save, Zap, Clock, Sparkles, PanelLeftClose, PanelLeft, Loader2, Undo, Redo, Activity, List, Play } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import NodeConfigSidebar from './NodeConfigSidebar';
 import { VoiceInput } from '@/components/Voice/VoiceInput';
@@ -49,9 +49,10 @@ interface WorkflowBuilderProps {
     onSave?: (data: { nodes: Node[]; edges: Edge[] }) => void;
     initialData?: { nodes: Node[]; edges: Edge[] };
     workflowId?: string;
+    onRun?: () => void;
 }
 
-const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, initialData, workflowId }) => {
+const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, initialData, workflowId, onRun }) => {
     // Use prop data if available, otherwise fallback to default initialNodes
     const [nodes, setNodes, onNodesChange] = useNodesState(initialData?.nodes || initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialData?.edges || initialEdges);
@@ -799,6 +800,18 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                     <Button size="sm" variant="outline" onClick={() => addNode('timer')}>
                         <Clock className="w-3 h-3 mr-1" /> Delay
                     </Button>
+                    {onRun && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!workflowId}
+                            onClick={onRun}
+                            className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                            title={workflowId ? "Run this workflow" : "Save the workflow first"}
+                        >
+                            <Play className="w-3 h-3 mr-1" /> Run
+                        </Button>
+                    )}
                     <Button size="sm" onClick={onSave} className="ml-2">
                         <Save className="w-3 h-3 mr-1" /> Save
                     </Button>

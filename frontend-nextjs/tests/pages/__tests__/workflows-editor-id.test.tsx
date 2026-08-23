@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import WorkflowEditorPage from "@/pages/workflows/editor/[id]";
 import { useRouter } from "next/router";
 import { useToast } from "@/components/ui/use-toast";
@@ -38,6 +38,9 @@ jest.mock("@/components/Automations/WorkflowBuilder", () => ({
       </ul>
       <button onClick={() => props.onSave({ nodes: props.initialData?.nodes || [], edges: props.initialData?.edges || [] })}>
         save-from-builder
+      </button>
+      <button onClick={() => props.onRun?.()}>
+        run-from-builder
       </button>
     </div>
   ),
@@ -275,28 +278,117 @@ describe("WorkflowEditorPage", () => {
       expect(screen.queryByTestId("first-run-checklist")).not.toBeInTheDocument();
     });
 
-    it("dismisses the checklist", async () => {
-      mockFetch.mockImplementation((url: string) => {
+  it("dismisses the checklist", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/workflow-templates/wf-1") {
+        return Promise.resolve(okResponse(TEMPLATE_WITH_INPUTS));
+      }
+      if (url.includes("/readiness")) {
+        return Promise.resolve(
+          okResponse({
+            success: true,
+            ready: false,
+            missing: ["gmail"],
+            connect_urls: ["/integrations?connect=gmail"],
+          }),
+        );
+      }
+      return Promise.resolve(okResponse({}));
+    });
+
+    render(<WorkflowEditorPage />);
+    await screen.findByTestId("first-run-checklist");
+    fireEvent.click(screen.getByRole("button", { name: /Dismiss/i }));
+    expect(screen.queryByTestId("first-run-checklist")).not.toBeInTheDocument();
+  });
+
+  describe("run flow with parameter entry", () => {
+    function mockTemplateAndReady() {
+      mockFetch.mockImplementation((url: string, opts?: any) => {
         if (url === "/api/workflow-templates/wf-1") {
           return Promise.resolve(okResponse(TEMPLATE_WITH_INPUTS));
         }
         if (url.includes("/readiness")) {
           return Promise.resolve(
-            okResponse({
-              success: true,
-              ready: false,
-              missing: ["gmail"],
-              connect_urls: ["/integrations?connect=gmail"],
-            }),
+            okResponse({ success: true, ready: true, missing: [], connect_urls: [] }),
+          );
+        }
+        if (url === "/api/workflow-templates/wf-1/execute" && opts?.method === "POST") {
+          return Promise.resolve(
+            okResponse({ status: "success", execution_id: "workflow_exe1" }),
           );
         }
         return Promise.resolve(okResponse({}));
       });
+    }
 
+    it("opens the parameter dialog from the Run action", async () => {
+      mockTemplateAndReady();
       render(<WorkflowEditorPage />);
-      await screen.findByTestId("first-run-checklist");
-      fireEvent.click(screen.getByRole("button", { name: /Dismiss/i }));
-      expect(screen.queryByTestId("first-run-checklist")).not.toBeInTheDocument();
+      await screen.findByTestId("workflow-builder");
+
+      fireEvent.click(screen.getByRole("button", { name: /run-from-builder/i }));
+
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByText(/Run "Competitor Watch"/)).toBeInTheDocument();
+      expect(within(dialog).getByText("Overdue after (days)")).toBeInTheDocument();
+      // Optional input renders too
+      expect(within(dialog).getByText("Client email domain")).toBeInTheDocument();
+    });
+
+    it("blocks submit and lists missing required inputs", async () => {
+      mockTemplateAndReady();
+      render(<WorkflowEditorPage />);
+      await screen.findByTestId("workflow-builder");
+
+      fireEvent.click(screen.getByRole("button", { name: /run-from-builder/i }));
+      const dialog = await screen.findByRole("dialog");
+      fireEvent.click(within(dialog).getByRole("button", { name: /Run workflow/i }));
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({ title: "Missing required inputs" }),
+        );
+      });
+      expect(
+        mockFetch.mock.calls.filter(([u]: [string]) => u.includes("/execute")),
+      ).toHaveLength(0);
+    });
+
+    it("POSTs entered parameters flat to /execute and toasts the execution id", async () => {
+      mockTemplateAndReady();
+      render(<WorkflowEditorPage />);
+      await screen.findByTestId("workflow-builder");
+
+      fireEvent.click(screen.getByRole("button", { name: /run-from-builder/i }));
+      const dialog = await screen.findByRole("dialog");
+
+      fireEvent.change(within(dialog).getByLabelText(/Overdue after/), {
+        target: { value: "21" },
+      });
+      fireEvent.change(within(dialog).getByLabelText(/Client email domain/), {
+        target: { value: "acmecorp.com" },
+      });
+      fireEvent.click(within(dialog).getByRole("button", { name: /Run workflow/i }));
+
+      await waitFor(() => {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "Workflow started",
+            description: expect.stringContaining("workflow_exe1"),
+          }),
+        );
+      });
+      const [, callOpts] = mockFetch.mock.calls.find(
+        ([u]: [string]) => u === "/api/workflow-templates/wf-1/execute",
+      )!;
+      expect(callOpts.method).toBe("POST");
+      expect(JSON.parse(callOpts.body)).toEqual({
+        client_email_domain: "acmecorp.com",
+        overdue_days: "21",
+      });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
   });
+});
 });
