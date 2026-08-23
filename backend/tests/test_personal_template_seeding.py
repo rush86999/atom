@@ -124,8 +124,8 @@ def test_readiness_reports_missing_dependencies():
     assert result["connected"] == []
     assert result["missing"] == ["gmail", "slack"]
     assert result["connect_urls"] == [
-        "/settings/integrations?connect=gmail",
-        "/settings/integrations?connect=slack",
+        "/integrations?connect=gmail",
+        "/integrations?connect=slack",
     ]
 
 

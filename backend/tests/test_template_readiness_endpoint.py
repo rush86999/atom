@@ -60,7 +60,7 @@ async def test_readiness_missing_and_ready_paths(template_manager_monkeypatch):
     )
     assert missing["ready"] is False
     assert missing["missing"] == ["gmail", "slack"]
-    assert "/settings/integrations?connect=gmail" in missing["connect_urls"]
+    assert "/integrations?connect=gmail" in missing["connect_urls"]
 
     ready = await wtr.get_template_readiness(
         "template_personal_invoice_chase",

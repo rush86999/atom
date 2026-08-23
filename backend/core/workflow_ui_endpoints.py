@@ -335,9 +335,10 @@ def _compute_readiness(dependencies: List[str], connected_providers: set) -> Dic
         "ready": not missing,
         "connected": [d for d in dependencies if _connected(d)],
         "missing": missing,
-        # Deep link for the one-action fix (frontend route handles ?connect=).
+        # Deep link into the Integrations Hub, which handles ?connect=<id>
+        # by highlighting and prompting that provider's card.
         "connect_urls": [
-            f"/settings/integrations?connect={m}" for m in missing
+            f"/integrations?connect={m}" for m in missing
         ],
     }
 
