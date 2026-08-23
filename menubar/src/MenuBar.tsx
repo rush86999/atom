@@ -7,6 +7,12 @@ import CanvasList from "./components/CanvasList";
 import StatusIndicator from "./components/StatusIndicator";
 import NotificationBadge from "./components/NotificationBadge";
 import SettingsModal from "./components/SettingsModal";
+import IntegrationsPanel from "./components/IntegrationsPanel";
+import WorkflowsPanel from "./components/WorkflowsPanel";
+import AnalyticsPanel from "./components/AnalyticsPanel";
+import ApprovalsPanel from "./components/ApprovalsPanel";
+
+type MenuTab = "chat" | "agents" | "canvases" | "workflows" | "approvals" | "integrations" | "analytics";
 import { getIntegrationHealth } from "../src/services/integrationService";
 // Approvals badge: poll count so supervisors see pending HITL items
 
@@ -44,6 +50,7 @@ export default function MenuBar({ user, token, onLogout }: MenuBarProps) {
   // New component states
   const [showSettings, setShowSettings] = useState(false);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+  const [activeTab, setActiveTab] = useState<MenuTab>("agents");
   const [selectedAgent, setSelectedAgent] = useState<AgentSummary | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -236,25 +243,29 @@ export default function MenuBar({ user, token, onLogout }: MenuBarProps) {
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
+  const serverUrl = localStorage.getItem("atom_server_url") || "http://localhost:8000";
+  const tabs: Array<{ id: MenuTab; label: string; icon: string; badge?: number }> = [
+    { id: "chat", label: "Chat", icon: "💬" },
+    { id: "agents", label: "Agents", icon: "🤖" },
+    { id: "canvases", label: "Canvas", icon: "🎨" },
+    { id: "workflows", label: "Workflows", icon: "⚙️" },
+    { id: "approvals", label: "Approvals", icon: "✅", badge: pendingApprovalCount },
+    { id: "integrations", label: "Integrations", icon: "🔗" },
+    { id: "analytics", label: "Analytics", icon: "📊" },
+  ];
+
   return (
     <div className="menubar-container">
       {/* Header */}
-      <div className="header">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderBottom: "1px solid #333" }}>
         <div>
-          <h1>Atom</h1>
+          <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff" }}>Atom</div>
           <div style={{ fontSize: "11px", color: "#888" }}>
-            {user?.first_name} {user?.last_name}
+            {connectionStatus === ConnectionStatus.CONNECTED ? "Connected" : connectionStatus}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {/* Status Indicator */}
-          <StatusIndicator
-            status={connectionStatus.status as any}
-            agentStatus={agentStatus}
-            latency={latency}
-          />
-
-          {/* Notification Badge */}
+          <StatusIndicator status={connectionStatus} />
           <NotificationBadge
             count={unreadCount}
             notifications={notifications}
@@ -262,8 +273,6 @@ export default function MenuBar({ user, token, onLogout }: MenuBarProps) {
             onMarkAllRead={handleMarkAllNotificationsRead}
             onDismiss={handleDismissNotification}
           />
-
-          {/* Settings Button */}
           <button
             onClick={() => setShowSettings(true)}
             style={{
@@ -278,96 +287,153 @@ export default function MenuBar({ user, token, onLogout }: MenuBarProps) {
             title="Settings"
           >
             ⚙️
-          
-              {pendingApprovalCount > 0 && (
-                <span style={{
-                  position: "absolute",
-                  top: "-2px",
-                  right: "-4px",
-                  background: "#f44336",
-                  color: "#fff",
-                  borderRadius: "50%",
-                  width: "16px",
-                  height: "16px",
-                  fontSize: "10px",
-                  fontWeight: 700,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }} data-testid="approval-badge">{pendingApprovalCount}</span>
-              )}
-          </button>
-
-          <button
-            onClick={onLogout}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#888",
-              fontSize: "11px",
-              cursor: "pointer",
-            }}
-          >
-            Logout
+            {pendingApprovalCount > 0 && (
+              <span style={{
+                position: "absolute",
+                top: "-2px",
+                right: "-4px",
+                background: "#f44336",
+                color: "#fff",
+                borderRadius: "50%",
+                width: "16px",
+                height: "16px",
+                fontSize: "10px",
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }} data-testid="approval-badge">{pendingApprovalCount}</span>
+            )}
           </button>
         </div>
       </div>
 
-      {/* Quick Chat */}
-      <QuickChat
-        onSend={handleQuickChat}
-        agents={agents}
-        autoFocus={false}
-      />
-
-      {/* Recent Agents */}
-      <div style={{ marginTop: "20px" }}>
-        <div className="section-title">Recent Agents</div>
-        {isLoading ? (
-          <div className="loading">Loading...</div>
-        ) : (
-          <AgentList
-            agents={agents}
-            getMaturityColor={getMaturityColor}
-            onAgentClick={handleAgentClick}
-          />
-        )}
+      {/* Tab Bar */}
+      <div style={{
+        display: "flex",
+        overflowX: "auto",
+        borderBottom: "1px solid #333",
+        background: "#1a1a1a",
+      }}>
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              flex: 1,
+              background: activeTab === tab.id ? "#2a2a2a" : "transparent",
+              border: "none",
+              borderBottom: activeTab === tab.id ? "2px solid #2196F3" : "2px solid transparent",
+              color: activeTab === tab.id ? "#fff" : "#888",
+              fontSize: "11px",
+              fontWeight: activeTab === tab.id ? 600 : 400,
+              padding: "8px 4px",
+              cursor: "pointer",
+              position: "relative",
+              whiteSpace: "nowrap",
+            }}
+            data-testid={`tab-${tab.id}`}
+          >
+            {tab.icon} {tab.label}
+            {tab.badge != null && tab.badge > 0 && (
+              <span style={{
+                position: "absolute",
+                top: "2px",
+                right: "2px",
+                background: "#f44336",
+                color: "#fff",
+                borderRadius: "50%",
+                width: "14px",
+                height: "14px",
+                fontSize: "9px",
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}>{tab.badge}</span>
+            )}
+          </button>
+        ))}
       </div>
 
-      {/* Recent Canvases */}
-      <div style={{ marginTop: "20px" }}>
-        <div className="section-title">Recent Canvases</div>
-        {isLoading ? (
-          <div className="loading">Loading...</div>
-        ) : (
-          <CanvasList canvases={canvases} />
+      {/* Tab Content */}
+      <div style={{ padding: "12px", flex: 1, overflowY: "auto" }}>
+        {/* Chat Tab */}
+        {activeTab === "chat" && (
+          <QuickChat
+            autoFocus={true}
+            onSend={handleQuickChat}
+          />
+        )}
+
+        {/* Agents Tab */}
+        {activeTab === "agents" && (
+          <div>
+            {isLoading ? (
+              <div className="loading">Loading...</div>
+            ) : (
+              <AgentList
+                agents={agents}
+                getMaturityColor={getMaturityColor}
+                onAgentClick={handleAgentClick}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Canvases Tab */}
+        {activeTab === "canvases" && (
+          <div>
+            {isLoading ? (
+              <div className="loading">Loading...</div>
+            ) : (
+              <CanvasList canvases={canvases} />
+            )}
+          </div>
+        )}
+
+        {/* Workflows Tab */}
+        {activeTab === "workflows" && (
+          <WorkflowsPanel serverUrl={serverUrl} token={token} />
+        )}
+
+        {/* Approvals Tab */}
+        {activeTab === "approvals" && (
+          <ApprovalsPanel serverUrl={serverUrl} token={token} />
+        )}
+
+        {/* Integrations Tab */}
+        {activeTab === "integrations" && (
+          <IntegrationsPanel serverUrl={serverUrl} token={token} />
+        )}
+
+        {/* Analytics Tab */}
+        {activeTab === "analytics" && (
+          <AnalyticsPanel serverUrl={serverUrl} token={token} />
         )}
       </div>
 
       {/* Keyboard Shortcut Hint */}
-      <div
-        style={{
-          marginTop: "20px",
-          padding: "8px 12px",
-          background: "#2a2a2a",
-          borderRadius: "6px",
-          fontSize: "11px",
-          color: "#888",
-          textAlign: "center",
-        }}
-      >
+      <div style={{
+        padding: "6px 12px",
+        background: "#2a2a2a",
+        borderRadius: "6px",
+        fontSize: "10px",
+        color: "#666",
+        textAlign: "center",
+      }}>
         Press{" "}
-        <kbd style={{ background: "#444", padding: "2px 6px", borderRadius: "3px" }}>
+        <kbd style={{ background: "#444", padding: "2px 5px", borderRadius: "3px" }}>
           {hotkeys.getHotkeyLabel("toggle_window") || "⌘⇧A"}
         </kbd>{" "}
-        to toggle •{" "}
-        <kbd style={{ background: "#444", padding: "2px 6px", borderRadius: "3px" }}>
+        toggle •{" "}
+        <kbd style={{ background: "#444", padding: "2px 5px", borderRadius: "3px" }}>
           {hotkeys.getHotkeyLabel("quick_chat_focus") || "⌘⇧C"}
         </kbd>{" "}
-        for chat
+        chat
       </div>
 
-      {/* Settings Modal */}
+      {/* Settings Modal (config only — feature tabs are above) */}
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} onLogout={onLogout} />
 
       {/* Agent Detail Modal */}
