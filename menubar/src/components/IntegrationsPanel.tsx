@@ -12,6 +12,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from "react";
+import { panelStyles as ps } from "../styles/panelStyles";
 
 interface IntegrationHealthRow {
   service_name: string;
@@ -133,11 +134,11 @@ export default function IntegrationsPanel({
   const total = health?.total_integrations ?? 0;
 
   return (
-    <div className="integrations-panel" data-testid="integrations-panel">
-      <div className="integrations-summary">
-        <span className="integrations-title">Integrations</span>
+    <div style={ps.container} data-testid="integrations-panel">
+      <div style={ps.header}>
+        <span style={ps.title}>Integrations</span>
         <span
-          className={`integrations-count ${healthy === total && total > 0 ? "all-healthy" : ""}`}
+          style={{...ps.count}} data-count= ${healthy === total && total > 0 ? "all-healthy" : ""}`}
           data-testid="integrations-summary"
         >
           {loading ? "Checking…" : `${healthy} of ${total} healthy`}
@@ -148,13 +149,13 @@ export default function IntegrationsPanel({
       </div>
 
       {error && (
-        <div className="integrations-error" role="alert">
+        <div style={ps.error} role="alert">
           {error}
         </div>
       )}
 
       {!loading && health && (
-        <ul className="integrations-list">
+        <ul style={ps.list}>
           {health.integration_status.map((row) => {
             const name = row.service_name.toLowerCase();
             const canDisconnect =
@@ -167,7 +168,7 @@ export default function IntegrationsPanel({
                 className={`integrations-row ${row.status}`}
                 data-testid={`integration-row-${name}`}
               >
-                <span className="service-name">{row.service_name}</span>
+                <span style={ps.name}>{row.service_name}</span>
                 {row.error_message && row.status !== "healthy" ? (
                   <span className="service-error">{row.error_message}</span>
                 ) : null}

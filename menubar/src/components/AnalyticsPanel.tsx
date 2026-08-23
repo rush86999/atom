@@ -7,6 +7,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from "react";
+import { panelStyles as ps } from "../styles/panelStyles";
 
 interface DashboardKPIs {
   total_executions: number;

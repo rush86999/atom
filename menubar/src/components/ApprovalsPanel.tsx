@@ -11,6 +11,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from "react";
+import { panelStyles as ps } from "../styles/panelStyles";
 
 interface PendingApproval {
   approval_id?: string;
