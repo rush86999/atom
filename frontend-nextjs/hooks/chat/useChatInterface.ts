@@ -210,7 +210,6 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 retry: false
             }) as any;
 
-            setActiveAttachments([]);
             const data = response.data;
 
             // P1.1: detect the actionable "no LLM provider" structured error and
@@ -301,6 +300,13 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 clearTimeout(processingTimeoutRef.current);
                 processingTimeoutRef.current = null;
             }
+            // Clear attachments on EVERY exit path too. Previously this only
+            // ran after a successful response, so a request rejected with 400
+            // (e.g. the backend security middleware flagging base64 image
+            // data) left the attachment stuck in state — and it was re-sent
+            // (and re-rejected) with every subsequent message, permanently
+            // breaking the chat until a page refresh.
+            setActiveAttachments([]);
             setIsProcessing(false);
         }
     };

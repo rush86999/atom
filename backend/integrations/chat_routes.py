@@ -317,6 +317,21 @@ async def send_chat_message(
             routing_overrides=routing_overrides or None,
         )
 
+        # Auto-set session title from first user message if not set
+        session_id_from_response = response.get("session_id")
+        if session_id_from_response and session_id_from_response != "unknown":
+            try:
+                from core.chat_session_manager import get_chat_session_manager
+                session_mgr = get_chat_session_manager("default")
+                session = session_mgr.get_session(session_id_from_response)
+                if session and not session.get("title") and request.message:
+                    # Use first 50 chars of user message as title
+                    title = request.message[:50].strip()
+                    if title:
+                        session_mgr.rename_session(session_id_from_response, title)
+            except Exception as e:
+                logger.debug(f"Auto-title generation skipped: {e}")
+
         # Detect the "no LLM provider configured" sentinel and surface it as a
         # structured error so the frontend shows the recovery banner (linking
         # to /settings/ai) instead of a junk assistant message. The orchestrator

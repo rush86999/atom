@@ -10,8 +10,14 @@ from enum import Enum
 import json
 import logging
 import os
+import re
 from typing import Any, Dict, List, Optional, Union
 import httpx
+
+def _strip_html(text: str) -> str:
+    if not isinstance(text, str):
+        return str(text)
+    return re.sub(r'<[^>]+>', '', text).strip()
 
 try:
     import lancedb
@@ -1824,9 +1830,9 @@ class CommunicationIngestionPipeline:
             )
             content = (
                 message_data.get("content")
-                or message_data.get("body")
-                or message_data.get("text")
                 or message_data.get("bodyPreview")
+                or _strip_html(message_data.get("body", {}).get("content", "") if isinstance(message_data.get("body"), dict) else message_data.get("body", ""))
+                or message_data.get("text")
                 or ""
             )
             return {
