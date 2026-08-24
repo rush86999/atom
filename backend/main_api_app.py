@@ -2816,7 +2816,10 @@ try:
     try:
         from api.onboarding_routes import router as onboarding_router
 
-        app.include_router(onboarding_router, prefix="/api/onboarding", tags=["Onboarding"])
+        # Router already declares prefix="/api/onboarding" — passing the same
+        # prefix here double-mounted every route under
+        # /api/onboarding/api/onboarding/* (the wizard's fetches 404'd).
+        app.include_router(onboarding_router, tags=["Onboarding"])
     except (ImportError, TypeError) as e:
         logger.warning(f"Onboarding routes not found: {e}")
 

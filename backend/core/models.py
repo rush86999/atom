@@ -495,8 +495,11 @@ class User(Base):
     # custom_role_id = Column(String, ForeignKey("custom_roles.id"), nullable=True)
     # specialty = Column(String, nullable=True)  # Domain Specialty
     # skills = Column(Text, nullable=True)  # JSON string of skills
-    # onboarding_completed = Column(Boolean, default=False)
-    # onboarding_step = Column(String, default="welcome")
+    # Onboarding progress (OnboardingWizard). On pre-existing databases these
+    # columns may be missing — api/onboarding_routes.py ensures them with an
+    # idempotent ALTER TABLE at import time.
+    onboarding_completed = Column(Boolean, default=False)
+    onboarding_step = Column(String, default="welcome")
     # metadata_json = Column(JSONColumn, nullable=True)
     # preferences = Column(JSONColumn, default={})
     # capacity_hours = Column(Float, default=40.0)  # Weekly capacity

@@ -25,6 +25,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Brain } from "lucide-react";
 import ReasoningChainViewer from "@/components/ReasoningChainViewer";
+import { useProviderStatus } from "@/hooks/useProviderStatus";
+import { ProviderRequiredBanner } from "@/components/shared/ProviderRequiredBanner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -51,6 +53,7 @@ const extractErrorMessage = (json: any, fallback: string): string => {
 
 const AgentsDashboard = () => {
     const router = useRouter();
+    const providerStatus = useProviderStatus();
     const [agents, setAgents] = useState<AgentInfo[]>([]);
     const [progressByAgent, setProgressByAgent] = useState<Record<string, GraduationProgress | null>>({});
     const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
@@ -421,9 +424,15 @@ const AgentsDashboard = () => {
                                 <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded border border-dashed border-gray-300 dark:border-gray-600">
                                     <p>No agents found. Create your first agent or spawn from a template.</p>
                                     {/* P1.5: actionable CTA so the empty state is not a dead end. */}
-                                    <div className="mt-4 flex justify-center gap-2">
+                                    <div className="mt-4 flex flex-wrap justify-center gap-2">
                                         <Link href="/marketplace">
                                             <Button size="sm">Browse templates</Button>
+                                        </Link>
+                                        <Link href="/automations">
+                                            <Button size="sm" variant="outline">Describe a workflow</Button>
+                                        </Link>
+                                        <Link href="/chat">
+                                            <Button size="sm" variant="outline">Chat with an agent</Button>
                                         </Link>
                                     </div>
                                 </div>
@@ -494,6 +503,9 @@ const AgentsDashboard = () => {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
+                        {/* Pre-flight: the run needs an LLM provider — say so
+                            before the user starts a doomed execution. */}
+                        {providerStatus.configured === false && <ProviderRequiredBanner />}
                         <Textarea
                             placeholder="e.g. Reconcile inventory for SKU-123 and SKU-999..."
                             value={runInstructions}
