@@ -174,7 +174,7 @@ await act(async () => {
 
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/api/auth/password/reset'),
+          expect.stringContaining('/api/auth/reset-password'),
           expect.objectContaining({
             method: 'POST',
             body: expect.stringContaining('test@example.com'),

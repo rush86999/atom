@@ -3058,26 +3058,11 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Agent Maturity Journey routes not found: {e}")
 
-    # 8b. HITL Approval Routes (Phase 256-06)
-    try:
-
-        logger.info("✓ HITL Approval Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"HITL approval routes not found: {e}")
-
-    # 8c. AWS SES Integration Routes
-    try:
-
-        logger.info("✓ AWS SES Integration Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"AWS SES integration routes not found: {e}")
-
-    # 8b. Graduation Exam Routes (Episodic Memory & Graduation)
-    try:
-
-        logger.info("✓ Graduation Exam Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Graduation exam routes not found: {e}")
+    # 8b. HITL approvals / graduation exams: no dedicated routers exist.
+    # R82: these blocks previously logged "✓ ... Loaded" while mounting
+    # nothing (empty try bodies) — an audit trap during journey tracing.
+    # Real surfaces: HITL approvals live under /api/agents/approvals/* and
+    # /api/agent-governance/*; graduation exams under /api/episodes/graduation/*.
 
     # 8c. Protection & Security Routes
     try:

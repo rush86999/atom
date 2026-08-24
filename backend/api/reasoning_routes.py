@@ -56,10 +56,13 @@ async def submit_step_feedback(
     This reuses the AgentFeedback model by storing step details in input_context.
     """
     
-    # Context payload describing the step being reviewed
+    # Context payload describing the step being reviewed. feedback_type is
+    # stored explicitly (R82): user_correction prefers the comment, so without
+    # this the thumbs_up/thumbs_down polarity would be lost for adjudication.
     context_payload = {
         "run_id": feedback.run_id,
         "step_index": feedback.step_index,
+        "feedback_type": feedback.feedback_type,
         "step_content": feedback.step_content
     }
 

@@ -245,7 +245,8 @@ describe('Canvas State API Contract', () => {
       const canvasTypes = Object.values(CanvasType);
 
       canvasTypes.forEach(type => {
-        expect(type).toMatch(/^(generic|docs|email|sheets|orchestration|terminal|coding)$/);
+        // R82: 'presentation' added on web (backend models.py:3774)
+        expect(type).toMatch(/^(generic|docs|email|sheets|orchestration|terminal|coding|presentation)$/);
       });
     });
   });

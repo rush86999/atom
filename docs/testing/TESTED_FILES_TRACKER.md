@@ -6285,3 +6285,31 @@ Ran every backend test file that imports my changed modules (`integrations.chat_
 **Mobile**: new `src/components/canvas/OfficeCanvas.tsx` — native read-only renderer (xlsx grid + sheet tabs + formula-cell highlight, docx paragraphs, pptx slide cards) with `isOfficeContent()` detection via content.office_file/format. Wired into `CanvasViewerScreen` ahead of the WebView/native branches (office canvases have no `components` array and previously rendered "No canvas components"). `CanvasType` enum gained PRESENTATION. Editing remains desktop/web-first by design (OfficeFileCanvas commits to file); on mobile the loop is agent-driven chat + pull-to-refresh. Tests: `src/components/canvas/__tests__/OfficeCanvas.test.tsx` (6).
 
 **Verification**: backend 121/121 office sync/route/co-editing suites; mobile canvas suites 7/7 (189 tests incl. 6 new).
+
+## Session 2026-08-23c — Full journey trace (roles × departments × UI/UX) + gap fixes (R82)
+
+Traced user journeys for all 8 roles (super_admin…guest, `core/security/rbac.py`), the agent journey (create→train→execute→feedback→graduate), frontend routes ↔ backend APIs, and mobile screens. Fixes (TDD, all RED→GREEN):
+
+**Backend**
+- `core/agent_governance_service.py::_adjudicate_feedback` — POLARITY BUG: every feedback path called `_update_confidence_score(positive=False)`; a trusted reviewer's thumbs-up LOWERED confidence by 0.10. Approval tokens (`thumbs_up/approve/approved/positive/accept`, also read from `input_context.feedback_type`) now raise (+0.05); untrusted approvals no longer penalize while pending. Locked by `tests/test_round82_journey_polarity_and_roles.py` (4 polarity tests).
+- `api/reasoning_routes.py` — stores `feedback_type` inside `input_context` so polarity survives comment override of `user_correction`. Route test asserts context payload.
+- `core/fleet_orchestration/fleet_router_automation.py::_admin_recipient` — queried UPPERCASE role literals vs lowercase DB values → fleet-router notifications silently dropped. Lowercase quartet now matches.
+- `core/budget_enforcement_service.py::_send_enforcement_notification` — filter included phantom `billing_admin`, missed bootstrap role `workspace_admin` + `super_admin`; limit(1) fallback masked it. Canonical admin quartet.
+- `core/fleet_orchestration/overage_service.py::_send_expiry_notification` — exact `"admin"` match → expiry notices went nowhere; now tenant-scoped admin quartet.
+- `main_api_app.py` — removed 3 empty try-blocks that logged "✓ … Routes Loaded" while mounting nothing (HITL/SES/Graduation-Exam audit trap); replaced with pointers to real surfaces.
+
+**Mobile**
+- `App.tsx` — mounted `AppNavigator` directly inside its own NavigationContainer; `AuthNavigator` (the ONLY auth gate + deep-link config) was dead code → login unreachable at runtime. Now renders `AuthNavigator`.
+- `src/hooks/useColorScheme.ts` — CREATED: App.tsx imported this phantom module; hooks dir did not exist (bundle-breaking).
+- `src/services/deviceSocket.ts` + `notificationService.ts` — read legacy `'auth_token'` key (never written since #6 secure-storage fix) → device WS + push-token auth always failed. Both read `'atom_access_token'`.
+- `src/screens/auth/ForgotPasswordScreen.tsx` — POSTed `/api/auth/password/reset`; backend route is `/api/auth/reset-password`; 404 swallowed by anti-enumeration branch → reset emails never sent.
+
+**Frontend**
+- `pages/settings/sessions.tsx::recordCurrentSession` — sent placeholder `'current-session-token'` for every user; proxy upserts on `session_token` so all users collided onto one row and `is_current` never matched. Sends the stored JWT now. Locked by `tests/pages/settings/sessions.test.tsx` (2).
+
+**Test-suite repairs (stale locks on buggy behavior, updated deliberately)**
+- mobile `deviceSocket.test.ts` seeds `'atom_access_token'`; `ForgotPasswordScreen.test.tsx` expects `/api/auth/reset-password`; cross-platform contract/parity tests updated to 8 canvas types incl. `presentation` (backend models.py:3774). Mobile suite now **132 suites / 4309 passed / 0 failed** (baseline had 7 failing).
+
+**Verification**: round82 8/8; governance adjudication clusters 283+473 passed (3 pre-existing order-pollution failures identical on clean HEAD); boot mounts 2/2; w77c reasoning section green (1 pre-existing unrelated failure identical on clean tree); FE tsc clean for touched files; FE sessions tests 2/2.
+
+**Known remaining (documented, not fixed here)**: SupervisionSession creation has zero production callers (supervision-complete→confidence loop unreachable); `execute_agent_chat`/GraduationExamService/AgentPromotionService dead; marketplace agent install severed (archived router); meta-agent creates no episodes; `/team-chat` static page + 15 `*_enhanced.tsx` dead-button pages + automations mock-data pages; trust-api.ts client orphaned (no admin UI page); undefined `billing_admin` role references remain only in docs; promotion allowlist lacks TEAM_LEAD/WORKSPACE_ADMIN/OWNER/VIEWER/GUEST via API.

@@ -588,7 +588,11 @@ class BudgetEnforcementService:
             try:
                 admin_users = self.db.query(User).filter(
                     User.tenant_id == tenant_id,
-                    User.role.in_(["admin", "owner", "billing_admin"]),
+                    # R82: canonical admin quartet — "billing_admin" is not a
+                    # UserRole value, and workspace_admin (the bootstrap role)
+                    # plus super_admin were missing, so the fallback
+                    # "any tenant user" branch masked this for real tenants.
+                    User.role.in_(["super_admin", "owner", "admin", "workspace_admin"]),
                 ).all()
             except Exception:
                 admin_users = []

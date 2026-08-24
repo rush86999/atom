@@ -7,11 +7,11 @@
 
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PaperProvider, MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { AuthNavigator } from './src/navigation/AuthNavigator';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { WebSocketProvider } from './src/contexts/WebSocketContext';
 import { useColorScheme } from './src/hooks/useColorScheme';
@@ -37,10 +37,12 @@ export default function App() {
         <PaperProvider theme={customTheme}>
           <AuthProvider>
             <WebSocketProvider>
-              <NavigationContainer>
-                <AppNavigator />
-                <StatusBar style="auto" />
-              </NavigationContainer>
+              {/* AuthNavigator owns the NavigationContainer (with deep-link
+                  config) and gates Login vs Main on authentication state.
+                  Round 82: it was never rendered — AppNavigator was mounted
+                  directly, making login unreachable. */}
+              <AuthNavigator />
+              <StatusBar style="auto" />
             </WebSocketProvider>
           </AuthProvider>
         </PaperProvider>

@@ -151,7 +151,9 @@ describe('deviceSocketService', () => {
     // Default mocks
     mockIo.mockClear();
     mockIo.mockReturnValue(mockSocket as any);
-    await mockSecureStore().setItemAsync('auth_token', 'test-token');
+    // R82: deviceSocket reads the canonical 'atom_access_token' key
+    // (legacy 'auth_token' is never written since the #6 storage fix).
+    await mockSecureStore().setItemAsync('atom_access_token', 'test-token');
 
     // expo-file-system mock (jest.setup) lacks copyAsync; the service imports
     // it as default, which shares the module object, so this is visible.
@@ -176,7 +178,7 @@ describe('deviceSocketService', () => {
     });
 
     test('should refuse to connect when the auth token is unavailable', async () => {
-      await mockSecureStore().deleteItemAsync('auth_token');
+      await mockSecureStore().deleteItemAsync('atom_access_token');
 
       const result = await deviceSocketService.connect();
 

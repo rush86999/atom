@@ -153,8 +153,10 @@ export const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navi
     setErrors({});
 
     try {
-      // Call password reset API
-      const response = await fetch(`${API_BASE_URL}/api/auth/password/reset`, {
+      // Call password reset API. Round 82: the backend route is
+      // /api/auth/reset-password — the previous path 404'd and was swallowed
+      // by the anti-enumeration success branch, so no email was ever sent.
+      const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

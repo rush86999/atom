@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 import logging
 from typing import Any, Dict, List, Optional, Union
 import uuid
@@ -408,6 +409,29 @@ class AgentGovernanceService:
         await self._adjudicate_feedback(feedback)
         return feedback
 
+    # R82: approval tokens for polarity-aware adjudication. A thumbs-up (or
+    # equivalent) from a reviewer is POSITIVE evidence; anything else
+    # (corrections, thumbs_down) remains negative. The reasoning route stores
+    # the original feedback_type inside input_context because a free-text
+    # comment overrides user_correction.
+    _APPROVAL_TOKENS = {"thumbs_up", "approve", "approved", "positive", "accept"}
+
+    def _feedback_is_approval(self, feedback: AgentFeedback) -> bool:
+        """Return True when feedback expresses approval rather than correction."""
+        correction = (feedback.user_correction or "").strip().lower()
+        if correction in self._APPROVAL_TOKENS:
+            return True
+        try:
+            ctx = json.loads(feedback.input_context) if feedback.input_context else {}
+            if isinstance(ctx, dict):
+                return (
+                    str(ctx.get("feedback_type", "")).strip().lower()
+                    in self._APPROVAL_TOKENS
+                )
+        except (ValueError, TypeError):
+            pass
+        return False
+
     async def _adjudicate_feedback(self, feedback: AgentFeedback) -> None:
         """Judge the validity of user feedback and update agent readiness"""
         user = self.db.query(User).filter(User.id == feedback.user_id).first()
@@ -415,19 +439,22 @@ class AgentGovernanceService:
             AgentRegistry.id == feedback.agent_id,
             self._workspace_scope_condition()
         ).first()
-        
+
         is_admin = user.role in [UserRole.WORKSPACE_ADMIN, UserRole.SUPER_ADMIN]
         # User.specialty was commented out of the model pending migration;
         # guard with getattr so adjudication never crashes on the missing column.
         specialty = getattr(user, "specialty", None)
         is_specialty_match = specialty and agent.category and specialty.lower() == agent.category.lower()
         is_trusted = is_admin or is_specialty_match
+        is_approval = self._feedback_is_approval(feedback)
 
         if is_trusted:
             feedback.status = FeedbackStatus.ACCEPTED.value
             feedback.ai_reasoning = f"Accepted by trusted {user.role}."
-            self._update_confidence_score(agent.id, positive=False, impact_level="high")
-            
+            # R82: respect polarity — a trusted reviewer's thumbs_up RAISES
+            # confidence; corrections/thumbs_down lower it (prior behavior).
+            self._update_confidence_score(agent.id, positive=is_approval, impact_level="high")
+
             try:
                 self.continuous_learning.update_from_feedback(feedback)
             except Exception as e:
@@ -435,7 +462,11 @@ class AgentGovernanceService:
         else:
             feedback.status = FeedbackStatus.PENDING.value
             feedback.ai_reasoning = "Pending specialty review."
-            self._update_confidence_score(agent.id, positive=False, impact_level="low")
+            # R82: an untrusted APPROVAL must not penalize the agent — only
+            # corrections/thumbs_down carry the low-impact penalty while
+            # pending review.
+            if not is_approval:
+                self._update_confidence_score(agent.id, positive=False, impact_level="low")
 
         feedback.adjudicated_at = datetime.now(timezone.utc)
         self.db.commit()
