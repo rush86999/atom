@@ -39,7 +39,7 @@ Legend: ✅ strong · ◐ partial / opt-in · ❌ absent · ➖ not applicable (
 | **Per-request routing overrides** | ✅ | ❌ | Atom: x-atom-tier/model/intent headers. Hermes has none. |
 | **MCP server** | ✅ | ❌ | Atom: exposes routing/compression/governance as MCP tools. Hermes has none. See [MCP Server](MCP_SERVER.md). |
 | **FTS5 lexical search** | ✅ | ✅ | Both have SQLite FTS5 session search. |
-| **Hybrid retrieval + reranker** | ❌ | ✅ | Hermes has BM25+vector fusion + cross-encoder reranker. Atom is pure vector (deferred — modest benchmark gain). |
+| **Hybrid retrieval + reranker** | ✅ (eval-gated) | ✅ | Both fuse BM25+vector. Atom: RRF live in the documents leg, cross-encoder rerank tier in memory context, and an off/rrf/linear A/B arm for the memory legs (R83 #4) gated by the P2.3 recall@k eval. |
 | **Outcome prefilter (pass/fail)** | ✅ | ❌ | Atom prefilters `WHERE outcome='failure'` BEFORE vector search (native LanceDB). Hermes relies on cosine, which can't separate near-identical success/fail snapshots. |
 | **Outcome verification** | ✅ | ❌ | Atom: tri-state `verified` flag; graduation gates on evidence. Hermes trusts tool self-report. |
 | **Tier-1 SQL recall** | ✅ | ➖ | Atom injects `DURABLE FACTS` prompt block. Hermes uses curated markdown instead. |
@@ -154,7 +154,7 @@ These are capabilities Hermes lacks or doesn't document — **not gaps to close,
 1. **Memory-provider formalism** — the 7-hook ABC is a clean, documented contract. Atom has the hooks but no ABC (deferred).
 2. **Curated markdown notes** — `MEMORY.md` / `USER.md` frozen into the system prompt is a cheap, token-efficient way to carry durable context. Atom's SQL-fetched `DURABLE FACTS` block is fresher but costs a query per turn. R72 Workstream E added a per-workspace **FieldGuide** memory snapshot injected into the agent prompt — a functional analog of Hermes' curated markdown.
 3. **Rolling summary update** — passing the previous summary and asking the LLM to update (vs. regenerate) is better than single-pass over long sessions. Atom has nothing here (deferred — see compression above).
-4. **Hybrid retrieval + cross-encoder reranker** — BM25+vector fusion with RRF/linear + 17M-param reranker. LongMemEval benchmark: 0.68 acc (hybrid+reranker) vs 0.66 (pure vector). Atom is pure vector.
+4. **Hybrid retrieval + cross-encoder reranker** — Hermes' own numbers cut both ways: hybrid+cross-encoder scored 0.68 acc vs 0.66 pure vector but **lost recall@5** (0.75 vs 0.80), and hybrid+RRF scored *below* pure vector outright (0.61). Atom now ships multi-leg fusion (documents leg: BM25+vector RRF, live; memory legs: off/rrf/linear A/B arm behind the P2.3 recall@k gate — R83 #4) plus a cross-encoder rerank tier. Rank fusion is an eval-gated A/B, not an assumed win.
 5. **Zero-latency prefetch** — Mem0 injects previous-turn cached results instantly while next-turn search runs in background. Atom's prefetch is synchronous (10-20ms).
 6. **Procedural skill authoring** — Hermes writes/refines skills from experience (Voyager-style). R72 Workstream B added Atom's `/learn` endpoint (workflow→skill distillation) and Workstream C auto-injects relevant skills at prompt time, so the remaining gap is narrower: Atom distills from executed workflows, Hermes from open-ended experience.
 
@@ -181,7 +181,7 @@ These were considered and **explicitly not built**, with the reasoning recorded 
 |---|---|
 | **Custom LLM-summary compressor** | Hermes' own has 3 documented production bugs (JSON silent drop, tool-pair 400, anti-thrashing permanent lock). Provider compaction APIs exist and are the correct abstraction. |
 | **`MemoryProvider` ABC** | Premature without a second backend (Mem0 cloud, Pinecone, etc.). The hooks are the stable surface; extract the ABC when a second implementation validates the contract. |
-| **Hybrid BM25 + cross-encoder reranker** | Modest benchmark gain (+2pts acc on LongMemEval) for a 17M-param model dependency. Defer unless retrieval quality becomes a measured problem. |
+| **Promoting rank fusion beyond the documents leg** | Hermes' own data disfavors RRF (0.61 vs 0.66 pure vector) and the cross-encoder's +0.02 acc cost recall@5 (0.75 vs 0.80). The P2.3 memory_eval gate now exists, so the rrf/linear A/B arm ships `off` and promotes only on measured recall wins (R83 #4). |
 | **Backfilling facts from historical `EpisodeSegment` rows** | Expensive, low-value. Extraction starts fresh from the next turn. |
 | **Removing Postgres / Redis-Valkey** | Evidence ambiguous. Postgres retained for prod parity; Redis for WebSocket pub-sub. Separate decision. |
 
@@ -214,6 +214,8 @@ Hermes publishes LongMemEval-S results (60-case stratified subset):
 | LanceDB pure vector | 0.66 | 0.80 |
 | LanceDB hybrid + cross-encoder | 0.68 | 0.75 |
 | LanceDB hybrid + RRF | 0.61 | — (worse than pure vector) |
+
+Read the last two rows carefully before citing them as pro-hybrid evidence: the rank-fusion leg (RRF) scored *below* pure vector, and the cross-encoder arm's +0.02 accuracy came with a recall@5 regression. The vendor data disfavors RRF specifically — it is not evidence that rank fusion wins, which is why Atom's memory-leg fusion ships as an eval-gated rrf-vs-linear A/B rather than a default (R83 #4).
 
 Atom's FTS5 + Tier-1 SQL + Tier-2 vector stack maps to Hermes' first three rows; the reranker (row 3) is deferred. Atom does not publish a directly comparable LongMemEval number because its memory is SQL-primary with vector as acceleration (a different retrieval contract than Hermes' vector-primary design), so a head-to-head on Hermes' benchmark would measure the vector layer in isolation rather than Atom's actual two-tier recall path.
 

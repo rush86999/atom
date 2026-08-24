@@ -702,6 +702,22 @@ if FeatureFlags.should_enforce_governance('form'):
     pass
 ```
 
+### Compliance Control-Mapping Registry
+
+`core.feature_flags` also carries the declarative control → framework
+registry (R83 #7): which controls implement which SOC 2 / EU AI Act /
+NIST AI RMF requirements, with live flag state and coverage gaps.
+
+```python
+from core.feature_flags import get_compliance_coverage
+
+coverage = get_compliance_coverage()   # controls + gaps, config-only
+# Also exposed at GET /api/debug/compliance-coverage (auth required).
+```
+
+Seed mappings live in `CONTROL_MAPPINGS`; framework vocabulary mirrors
+`docs/compliance/COMPLIANCE_MAPPING.md`.
+
 ---
 
 ## Best Practices

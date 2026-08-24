@@ -1021,8 +1021,15 @@ class AtomMetaAgent:
                             "_verified_kind": pr.get("verified_kind", "unverified"),
                             "_verified_evidence": pr.get("verified_evidence"),
                         }
+                        # R83 #3: datamark untrusted tool output (no-op when
+                        # ATOM_DATAMARKING=off).
+                        try:
+                            from core.prompt_datamarking import mark_observation
+                            _p_obs = mark_observation(pr["output"], source=p_tool)
+                        except Exception:
+                            _p_obs = pr["output"]
                         execution_history += f"Action: {p_tool}({json.dumps(p_params)})\n"
-                        execution_history += f"Observation: {pr['output']}\n"
+                        execution_history += f"Observation: {_p_obs}\n"
                         if pr.get("verified_kind") == "failed_verification":
                             execution_history += (
                                 f"[CRITIQUE] The action {p_tool} failed "
@@ -1099,6 +1106,13 @@ class AtomMetaAgent:
                         )
 
                         step_record["output"] = str(observation)[:500]
+                        # R83 #3: datamark untrusted tool output (no-op when
+                        # ATOM_DATAMARKING=off).
+                        try:
+                            from core.prompt_datamarking import mark_observation
+                            observation = mark_observation(observation, source=tool_name)
+                        except Exception:
+                            pass  # marking must never break the agent loop
                         execution_history += f"Observation: {observation}\n"
 
                         # Parse the tool return for a verification envelope

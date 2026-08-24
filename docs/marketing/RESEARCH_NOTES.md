@@ -92,7 +92,7 @@
 
 ## NIST AI Agent Standards Initiative (2026) — regulatory momentum
 
-- **NIST formally launched the AI Agent Standards Initiative (Feb 17, 2026) under CAISI — the first U.S. government program dedicated to secure/interoperable agentic AI, targeting agent identity, authorization, and accountability. A companion NCCoE concept paper (Feb 5, 2026) identifies the four minimum enterprise requirements for production agents: identification, authorization, access delegation, and logging.** OWASP ASI is cited as the practical threat-model vocabulary while NIST final guidance is pending (Q4 2026).
+- **NIST formally launched the AI Agent Standards Initiative (Feb 17, 2026) under CAISI — the first U.S. government program dedicated to secure/interoperable agentic AI, targeting agent identity, authorization, and accountability. A companion NCCoE concept paper (Feb 5, 2026) identifies four *focus areas* for production agents — identification, authorization, access delegation, and logging.** (Terminology note, fixed 2026-08-23: earlier revisions glossed these as "the four minimum enterprise requirements"; the concept paper's own wording is focus areas, not minimums — do not re-harden the paraphrase.) OWASP ASI is cited as the practical threat-model vocabulary while NIST final guidance is pending (Q4 2026).
   Sources: NIST, Cloud Security Alliance research notes (Mar/Apr 2026).
   https://www.nist.gov/artificial-intelligence/ai-agent-standards-initiative
   https://labs.cloudsecurityalliance.org/research/csa-research-note-nist-ai-agent-standards-initiative-2026040/

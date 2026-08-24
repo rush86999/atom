@@ -523,3 +523,209 @@ def get_feature_status() -> dict[str, Any]:
         Dictionary with feature flag statuses
     """
     return FeatureFlags.get_all_flags()
+
+
+# ============================================================================
+# Compliance Control-Mapping Registry (R83 #7)
+# ============================================================================
+# Declarative map of safety/reliability CONTROLS to the compliance-framework
+# requirements they implement, so governance can enumerate "which flags
+# satisfy which controls" instead of hand-maintaining
+# docs/compliance/COMPLIANCE_MAPPING.md. Framework vocabulary mirrors that
+# doc: SOC 2 Trust Services Criteria, EU AI Act articles, NIST AI RMF
+# functions (GOVERN/MAP/MEASURE/MANAGE), GDPR.
+#
+# Resolvers are imported lazily by dotted path so this module never pulls
+# subsystem imports at load time (feature_flags must stay leaf-safe).
+# ``flag: None`` marks always-on controls (no runtime toggle) or CI-enforced
+# gates. Mode-style resolvers (returning e.g. "off"/"shadow") are treated
+# as enabled iff the value is not "off"/empty.
+
+COMPLIANCE_FRAMEWORKS: tuple = ("soc2", "eu_ai_act", "nist_ai_rmf", "gdpr")
+
+CONTROL_MAPPINGS: dict = {
+    "llm.cascade_routing": {
+        "title": "Cascade routing on schema-validation failure",
+        "frameworks": {"soc2": ["CC7.2"], "eu_ai_act": ["art-12"], "nist_ai_rmf": ["MEASURE"]},
+        "implementation": "core/llm/byok_handler.py",
+        "flag": "ATOM_CASCADE_ROUTING",
+        "resolver": "core.hallucination_config.is_cascade_routing_enabled",
+        "evidence": "docs/compliance/COMPLIANCE_MAPPING.md",
+    },
+    "llm.self_consistency_voting": {
+        "title": "N-sample majority vote for irreversible actions",
+        "frameworks": {"soc2": ["CC7.2"], "eu_ai_act": ["art-14", "art-12"], "nist_ai_rmf": ["MEASURE"]},
+        "implementation": "core/llm/self_consistency_voter.py",
+        "flag": "ATOM_SELF_CONSISTENCY",
+        "resolver": "core.hallucination_config.is_self_consistency_enabled",
+        "evidence": "docs/architecture/SELF_CONSISTENCY_VOTER.md",
+    },
+    "llm.vote_hash_versioning": {
+        "title": "Algo-tagged vote hashes (version, don't migrate)",
+        "frameworks": {"soc2": ["CC7.2"], "eu_ai_act": ["art-12"]},
+        "implementation": "core/llm/jcs.py; SelfConsistencyVote.hash_algo",
+        "flag": None,
+        "resolver": None,
+        "evidence": "alembic/versions/20260823_scv_hash_algo.py",
+    },
+    "llm.usc_judge_fallback": {
+        "title": "Universal Self-Consistency judge on all-distinct votes",
+        "frameworks": {"nist_ai_rmf": ["MEASURE"]},
+        "implementation": "core/llm/self_consistency_voter.py::_usc_judge_pick",
+        "flag": "ATOM_SC_USC_FALLBACK",
+        "resolver": "core.hallucination_config.is_usc_fallback_enabled",
+        "evidence": "docs/agents/R83_RELIABILITY_PLAN.md",
+    },
+    "retrieval.memory_eval_gate": {
+        "title": "recall@k regression gate on the golden set (P2.3)",
+        "frameworks": {"nist_ai_rmf": ["MEASURE"], "eu_ai_act": ["art-10"]},
+        "implementation": "core/memory_eval.py",
+        "flag": None,  # CI-enforced gate, not a runtime toggle
+        "resolver": None,
+        "evidence": "tests/test_memory_eval_gate.py",
+    },
+    "retrieval.fusion_ab_arm": {
+        "title": "Multi-leg rank fusion A/B (off | rrf | linear)",
+        "frameworks": {"nist_ai_rmf": ["MEASURE"]},
+        "implementation": "core/hybrid_search/leg_fusion.py",
+        "flag": "ATOM_RETRIEVAL_FUSION",
+        "resolver": "core.hybrid_search.leg_fusion.get_fusion_mode",
+        "evidence": "docs/agents/R83_RELIABILITY_PLAN.md#4",
+    },
+    "prompt.datamarking": {
+        "title": "Datamarking/spotlighting of untrusted prompt content",
+        "frameworks": {"nist_ai_rmf": ["MAP"], "eu_ai_act": ["art-10"]},
+        "implementation": "core/prompt_datamarking.py",
+        "flag": "ATOM_DATAMARKING",
+        "resolver": "core.prompt_datamarking.get_datamarking_mode",
+        "evidence": "docs/security/PROMPT_INJECTION_DEFENSE_PLAN.md",
+    },
+    "security.token_encryption": {
+        "title": "OAuth/integration tokens encrypted at rest (Fernet)",
+        "frameworks": {"soc2": ["CC6.1"]},
+        "implementation": "core/privsec/token_encryption.py",
+        "flag": None,  # always-on; production fails closed without a key
+        "resolver": None,
+        "evidence": "docs/compliance/COMPLIANCE_MAPPING.md",
+    },
+    "security.outbound_gatekeeper": {
+        "title": "Outbound gatekeeper: rate limits, masking, taint egress blocking",
+        "frameworks": {"soc2": ["CC6.6"], "eu_ai_act": ["art-10"]},
+        "implementation": "middleware/governance_middleware.py; core/data_taint_tracker.py",
+        "flag": None,
+        "resolver": None,
+        "evidence": "docs/compliance/COMPLIANCE_MAPPING.md",
+    },
+    "governance.rbac_administration": {
+        "title": "Role-based administration + governance config surfaces",
+        "frameworks": {"nist_ai_rmf": ["GOVERN"], "soc2": ["CC6.1"]},
+        "implementation": "core/rbac_service.py; api/gatekeeper_routes.py; core/edition.py",
+        "flag": None,
+        "resolver": None,
+        "evidence": "docs/compliance/COMPLIANCE_MAPPING.md",
+    },
+    "governance.hitl_oversight": {
+        "title": "Human-in-the-loop approval gates",
+        "frameworks": {"eu_ai_act": ["art-14"], "soc2": ["CC7.3"], "nist_ai_rmf": ["MANAGE"]},
+        "implementation": "core/hitl_service.py; core/proposal_service.py",
+        "flag": None,
+        "resolver": None,
+        "evidence": "docs/agents/governance.md",
+    },
+    "ops.audit_trail": {
+        "title": "Audit trail for agent actions, tool calls, approvals",
+        "frameworks": {"eu_ai_act": ["art-12"], "soc2": ["CC7.2"]},
+        "implementation": "core/audit_service.py",
+        "flag": None,
+        "resolver": None,
+        "evidence": "docs/compliance/COMPLIANCE_MAPPING.md",
+    },
+    "ops.killrun": {
+        "title": "KillRun immediate-stop registry for live runs",
+        "frameworks": {"soc2": ["CC7.3"], "nist_ai_rmf": ["MANAGE"]},
+        "implementation": "core/sandbox_killrun.py",
+        "flag": None,
+        "resolver": None,
+        "evidence": "docs/compliance/COMPLIANCE_MAPPING.md",
+    },
+}
+
+_NIST_AI_RMF_FUNCTIONS = ("GOVERN", "MAP", "MEASURE", "MANAGE")
+
+
+def get_control_mappings() -> dict:
+    """Copy of the declarative control registry (safe to hand to callers)."""
+    return {
+        cid: {
+            **entry,
+            "frameworks": {fw: list(reqs) for fw, reqs in entry["frameworks"].items()},
+        }
+        for cid, entry in CONTROL_MAPPINGS.items()
+    }
+
+
+def _resolve_control_enabled(entry: dict):
+    """Resolve a control's live state via its dotted-path resolver.
+
+    Returns True/False, or None when there is no resolver or it cannot be
+    imported/called (audit surfaces report those separately, never guess).
+    Mode-style resolvers (returning e.g. "off"/"shadow") count as enabled
+    iff the value is not "off"/empty.
+    """
+    resolver = entry.get("resolver")
+    if not resolver:
+        return None
+    try:
+        import importlib
+
+        module_name, fn_name = resolver.rsplit(".", 1)
+        value = getattr(importlib.import_module(module_name), fn_name)()
+    except Exception:
+        return None
+    if isinstance(value, bool):
+        return value
+    return value not in ("off", "", None)
+
+
+def get_compliance_coverage() -> dict:
+    """Live control-mapping coverage + gaps (R83 #7 audit surface).
+
+    ``gaps.disabled_controls`` — controls whose resolver currently reports
+    off (deployments should review before attesting coverage).
+    ``gaps.unresolvable`` — controls with a resolver that failed to resolve.
+    ``gaps.nist_ai_rmf_unmapped_functions`` — RMF functions with no mapped
+    control at all.
+    """
+    controls: dict = {}
+    disabled: list = []
+    unresolvable: list = []
+    for cid, entry in CONTROL_MAPPINGS.items():
+        enabled = _resolve_control_enabled(entry)
+        controls[cid] = {
+            "title": entry["title"],
+            "frameworks": dict(entry["frameworks"]),
+            "implementation": entry["implementation"],
+            "flag": entry["flag"],
+            "enabled": enabled,
+        }
+        if enabled is False:
+            disabled.append(cid)
+        elif enabled is None and entry.get("resolver"):
+            unresolvable.append(cid)
+
+    mapped = {
+        fn
+        for entry in CONTROL_MAPPINGS.values()
+        for fn in entry["frameworks"].get("nist_ai_rmf", [])
+    }
+    return {
+        "frameworks": list(COMPLIANCE_FRAMEWORKS),
+        "controls": controls,
+        "gaps": {
+            "disabled_controls": sorted(disabled),
+            "unresolvable": sorted(unresolvable),
+            "nist_ai_rmf_unmapped_functions": [
+                fn for fn in _NIST_AI_RMF_FUNCTIONS if fn not in mapped
+            ],
+        },
+    }

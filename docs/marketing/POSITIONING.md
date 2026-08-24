@@ -120,10 +120,11 @@ Every piece of copy speaks from at least one pillar; every pillar carries proof.
 | **ASI09 Human-Agent Trust Exploitation** | proposal/HITL approval surface (`core/proposal_service.py`), self-consistency voter |
 | **ASI10 Rogue Agents** | hard-skip + maturity revoke, kill switch env toggles |
 
-> NIST (Agent Standards Initiative, Feb 2026) echoes the same four asks for production
-> agents — identification, authorization, access delegation, logging — all present in
-> Atom's DIDs/VCs + capability bindings + audit trail. EU AI Act Article 9 (fully in
-> force Aug 2, 2026) requires documented controls against ASI01/03/06 — Atom has them.
+> NIST (Agent Standards Initiative, Feb 2026) names the same four focus areas for
+> production agents — identification, authorization, access delegation, logging — all
+> present in Atom's DIDs/VCs + capability bindings + audit trail. EU AI Act Article 9
+> (fully in force Aug 2, 2026) requires documented controls against ASI01/03/06 —
+> Atom has them.
 
 ## 9. Proof Points (the "receipts" — each traceable to repo docs)
 

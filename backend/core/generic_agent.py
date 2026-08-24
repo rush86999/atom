@@ -346,9 +346,16 @@ class GenericAgent:
                             }
                             if step_callback:
                                 await step_callback(p_record)
+                            # R83 #3: datamark untrusted tool output (no-op
+                            # when ATOM_DATAMARKING=off).
+                            try:
+                                from core.prompt_datamarking import mark_observation
+                                _p_obs = mark_observation(pr["output"], source=p_tool)
+                            except Exception:
+                                _p_obs = pr["output"]
                             execution_history += (
                                 f"Action: {p_tool}({json.dumps(p_params)})\n"
-                                f"Observation: {pr['output']}\n"
+                                f"Observation: {_p_obs}\n"
                             )
                             try:
                                 from core.atom_meta_agent import _is_error_observation
@@ -428,6 +435,14 @@ class GenericAgent:
                                 observation = _compressed
                         except Exception:
                             pass  # compression must never break the agent loop
+                        # R83 #3: datamark untrusted tool output before it
+                        # enters the prompt (off | shadow | enforce; off =
+                        # byte-identical legacy append).
+                        try:
+                            from core.prompt_datamarking import mark_observation
+                            observation = mark_observation(observation, source=tool_name)
+                        except Exception:
+                            pass  # marking must never break the agent loop
                         execution_history += f"Observation: {str(observation)}\n"
 
                         # ── In-loop self-correction (Workstream A) ────────────
@@ -986,6 +1001,14 @@ ORCHESTRATION POWERS:
 - **IMPORTANT**: Use `save_business_fact` to store "Truths" (policies, rules). If you see a Fact in memory, VERIFY its citations (`verify_citation`) if it's critical.
 """
         
+        # R83 #3: append the datamarking preamble when active (idempotent;
+        # off → prompt unchanged).
+        try:
+            from core.prompt_datamarking import with_preamble
+            system_prompt = with_preamble(system_prompt)
+        except Exception:
+            pass
+
         # Build rich memory context for the prompt
         experiences = memory.get('experiences', [])
         knowledge = memory.get('knowledge', [])

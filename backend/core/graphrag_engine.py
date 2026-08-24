@@ -1380,13 +1380,35 @@ class GraphRAGEngine:
                     keyword_nodes = []
                 logger.info(f"Hybrid search: keyword leg found {len(keyword_nodes)} nodes")
 
-                # -- Union & deduplicate by ID --
-                seen_ids: set = set()
-                start_nodes = []
-                for n in list(vector_nodes) + list(keyword_nodes):
-                    if n.id not in seen_ids:
-                        seen_ids.add(n.id)
-                        start_nodes.append(n)
+                # -- Union & deduplicate by ID (R83 #4: fusion arm) --
+                # off (default): byte-identical legacy union (vector-first).
+                # rrf | linear: score-fuse the two legs. The arm ships off —
+                # enabling it for a deployment requires clearing the P2.3
+                # memory_eval recall@k gate for that arm vs baseline.
+                from core.hybrid_search.leg_fusion import fuse_legs, get_fusion_mode
+
+                _fusion_mode = get_fusion_mode()
+                if _fusion_mode == "off":
+                    seen_ids: set = set()
+                    start_nodes = []
+                    for n in list(vector_nodes) + list(keyword_nodes):
+                        if n.id not in seen_ids:
+                            seen_ids.add(n.id)
+                            start_nodes.append(n)
+                else:
+                    _by_id = {n.id: n for n in list(vector_nodes) + list(keyword_nodes)}
+                    _fused_ids, _leg_scores = fuse_legs(
+                        {"vector": [n.id for n in vector_nodes],
+                         "keyword": [n.id for n in keyword_nodes]},
+                        mode=_fusion_mode,
+                    )
+                    start_nodes = [_by_id[i] for i in _fused_ids if i in _by_id]
+                    logger.info(
+                        "retrieval_fusion mode=%s vector=%d keyword=%d overlap=%d top=%s",
+                        _fusion_mode, len(vector_nodes), len(keyword_nodes),
+                        len(vector_nodes) + len(keyword_nodes) - len(_by_id),
+                        [(i, round(s, 4)) for i, s in list(_leg_scores.items())[:5]],
+                    )
 
                 if not start_nodes:
                     return {

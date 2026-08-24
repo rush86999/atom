@@ -19,15 +19,20 @@ House conventions that govern every item (from the disposition):
 
 | # | Item | Status |
 |---|------|--------|
-| 8 | Algo-tagged JCS hashing | **Shipped** (`3770b3dea`) + `ATOM_SC_HASH_ALGO` kill switch + alembic migration (in tree) |
-| 2 | USC judge fallback (Chen et al., ICML 2024) | **Implemented in tree** (uncommitted): `ATOM_SC_USC_FALLBACK`, `selection` on VoteResult, tests in `tests/unit/llm/test_self_consistency_voter.py` |
-| 1 | Available-handler fan-out | **Spec below — started** |
-| 6 | Soft self-consistency (ACL 2024) | Spec below |
-| 4 | Multi-leg retrieval fusion, eval-gated | Spec below |
-| 3 | Datamarking (spotlighting) | Spec below |
-| 7 | Compliance/control-mapping registry | Spec below |
-| 9 | Blackboard | Spec below (pending original item text) |
+| 8 | Algo-tagged JCS hashing | **Shipped** (`3770b3dea` + migration): `ATOM_SC_HASH_ALGO` kill switch, vendored `core/llm/jcs.py` |
+| 2 | USC judge fallback (Chen et al., ICML 2024) | **Shipped** (`49a1120a1`): `ATOM_SC_USC_FALLBACK`, `selection` on VoteResult, R2 tests |
+| 1 | Available-handler fan-out | **Shipped** (`49a1120a1`): `ATOM_SC_FANOUT`, `get_ranked_providers` round-robin pinning, silent degradation, `fanout_targets` |
+| 6 | Soft self-consistency (ACL 2024) | Spec below — **next up** (logprob feasibility spike first) |
+| 4 | Multi-leg retrieval fusion, eval-gated | **Shipped** (R83 follow-up commit): `core/hybrid_search/leg_fusion.py` (`ATOM_RETRIEVAL_FUSION ∈ off/rrf/linear`, default off), wired into `graphrag_engine.local_search`, `tests/test_retrieval_leg_fusion.py` (incl. default-off snapshot) |
+| 3 | Datamarking (spotlighting) | **Shipped** (R83 follow-up commit): `core/prompt_datamarking.py` (`ATOM_DATAMARKING ∈ off/shadow/enforce`, default off), wired at both ReAct loops' observation appends + system-prompt preamble, `tests/test_prompt_datamarking.py`. Promotion to enforce still requires the shadow task-success A/B |
+| 7 | Compliance/control-mapping registry | **Shipped** (R83 follow-up commit): `CONTROL_MAPPINGS` + `get_compliance_coverage()` in `core/feature_flags.py`, `GET /api/debug/compliance-coverage`, `tests/test_compliance_control_registry.py`; NIST "four focus areas" gloss fixed in RESEARCH_NOTES.md + POSITIONING.md |
+| 9 | Blackboard | Spec below — **blocked on original item text** (was in the pre-compaction review thread; not recoverable from the repo). Shadow-diff rollout convention applies whenever it's specified |
 | 5 | IntentGuard | Optional; do not schedule until peer-reviewed |
+
+Also shipped in the R83 follow-up commit: HERMES_COMPARISON.md reframed
+per the disposition — the RRF row is no longer cited as pro-hybrid
+evidence (0.61 < 0.66 pure vector; cross-encoder's +0.02 cost recall@5),
+and the stale "Atom is pure vector" claims are corrected.
 
 ---
 

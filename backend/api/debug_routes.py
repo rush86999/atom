@@ -947,3 +947,26 @@ async def get_opencode_usage(
             message="Could not retrieve OpenCode Go usage",
             details={},
         )
+
+
+@router.get("/compliance-coverage")
+async def get_compliance_coverage_route(
+    current_user: User = Depends(get_current_user),
+):
+    """R83 #7: live compliance control-mapping coverage + gaps.
+
+    Config-only (no DB) — safe to hit at any time for audit walks.
+    """
+    from core.feature_flags import get_compliance_coverage
+
+    try:
+        return router.success_response(
+            data=get_compliance_coverage(),
+            message="Compliance control coverage",
+        )
+    except Exception as e:
+        logger.warning(f"Compliance coverage endpoint failed: {e}")
+        return router.success_response(
+            data={"error": str(e)},
+            message="Compliance coverage unavailable",
+        )
