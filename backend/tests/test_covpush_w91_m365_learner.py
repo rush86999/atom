@@ -79,7 +79,7 @@ class _FakeGraphEngine:
         self.ingested = []
         self.fail = False
 
-    def ingest_structured_data(self, workspace_id, entities, relationships):
+    def ingest_structured_data(self, workspace_id, entities, relationships, **kwargs):
         if self.fail:
             raise RuntimeError("graph boom")
         self.ingested.append((workspace_id, entities, relationships))
@@ -320,7 +320,7 @@ def test_build_entities_full():
     rel_types = {r["type"] for r in relationships}
     assert rel_types == {"sent", "references"}
     sender_rel = next(r for r in relationships if r["type"] == "sent")
-    assert sender_rel["source"] == "contact:v@acme.com"
+    assert sender_rel["from"] == "Vendor"
 
 
 def test_build_entities_no_sender_and_no_ids():
@@ -374,9 +374,9 @@ def test_persist_to_graph_success(monkeypatch):
     engine = _FakeGraphEngine()
     monkeypatch.setattr("core.graphrag_engine.GraphRAGEngine", lambda: engine)
     learner = m365.Microsoft365LifecycleLearner()
-    ok = _run(learner._persist_to_graph("ws1", [{"id": "e1"}], [{"source": "e1"}]))
+    ok = _run(learner._persist_to_graph("ws1", [{"id": "e1"}], [{"from": "e1", "to": "e2"}]))
     assert ok is True
-    assert engine.ingested == [("ws1", [{"id": "e1"}], [{"source": "e1"}])]
+    assert engine.ingested == [("ws1", [{"id": "e1"}], [{"from": "e1", "to": "e2"}])]
 
 
 def test_persist_to_graph_engine_failure(monkeypatch):

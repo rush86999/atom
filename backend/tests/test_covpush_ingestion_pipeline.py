@@ -304,7 +304,7 @@ class TestPipelineHelpers:
             "subject": "Subj",
             "summary": "Sum",
         }
-        entity, rel = pipeline["svc"]._extract_structured_entities(record, "salesforce", "text")
+        entity, rel, integ = pipeline["svc"]._extract_structured_entities(record, "salesforce", "text")
         assert entity["name"] == "Alice"
         assert entity["properties"]["source"] == "salesforce"
         assert entity["properties"]["doc_id"] == "c1"
@@ -314,7 +314,7 @@ class TestPipelineHelpers:
 
     def test_extract_structured_entities_fallback_name(self, pipeline):
         record = {"id": 42, "type": "thing"}
-        entity, rel = pipeline["svc"]._extract_structured_entities(record, "x", "text")
+        entity, rel, integ = pipeline["svc"]._extract_structured_entities(record, "x", "text")
         assert entity["name"] == "thing_42"
 
     def test_hash_text(self, pipeline):

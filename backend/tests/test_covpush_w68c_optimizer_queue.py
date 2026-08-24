@@ -1397,7 +1397,12 @@ class TestKnowledgeIngestionProcess:
                 settings_fn.return_value.get_settings.return_value = {"enable_integration_enrichment": True}
                 result = await manager.process_document("text", "doc1", source="gmail", user_id="u1", workspace_id="ws9")
         assert result == {"lancedb_edges": 2, "graphrag": {"entities": 2, "relationships": 3}}
-        assert manager.graphrag.ingest_structured_data.call_args[0][0] == "ws9"
+        assert manager.graphrag.ingest_structured_data.call_args.kwargs["workspace_id"] == "ws9"
+        # Round 83 arg-shift regression guard: entities/relationships must go
+        # by keyword — a positional call shifted entities into tenant_id and
+        # silently dropped every relationship.
+        assert [e["name"] for e in manager.graphrag.ingest_structured_data.call_args.kwargs["entities"]] == ["e1"]
+        assert len(manager.graphrag.ingest_structured_data.call_args.kwargs["relationships"]) == 3
         edge_calls = handler.add_knowledge_edge.call_args_list
         assert edge_calls[0].kwargs["from_id"] == "e1"
         assert "works_with" in edge_calls[0].kwargs["description"]

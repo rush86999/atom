@@ -59,7 +59,7 @@ def test_build_entities_full():
     assert contact["properties"]["email"] == "vendor@acme.com"
     rel_types = {r["type"] for r in relationships}
     assert rel_types == {"sent", "references"}
-    assert any(r["source"] == "contact:vendor@acme.com"
+    assert any(r["from"] == "Acme Billing"
                and r["type"] == "sent" for r in relationships)
 
 
@@ -168,10 +168,10 @@ async def test_persist_to_graph_success(learner):
         engine = MagicMock()
         engine_cls.return_value = engine
         ok = await learner._persist_to_graph(
-            "ws1", [{"id": "e1"}], [{"source": "e1", "target": "e2"}])
+            "ws1", [{"id": "e1"}], [{"from": "e1", "to": "e2"}])
     engine.ingest_structured_data.assert_called_once_with(
-        workspace_id="ws1", entities=[{"id": "e1"}],
-        relationships=[{"source": "e1", "target": "e2"}])
+        workspace_id="ws1", tenant_id="ws1", entities=[{"id": "e1"}],
+        relationships=[{"from": "e1", "to": "e2"}])
     assert ok is True
 
 

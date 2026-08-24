@@ -288,6 +288,7 @@ class IngestionPipelineService(HybridDataIngestionService):
 
             # Step 2: Convert records to text and prepare for GraphRAG ingestion
             entities = []
+            integration_entities = []  # anchor nodes; sent to GraphRAG, not counted
             relationships = []
 
             ingested_record_ids = []  # Track for post-ingestion idempotency recording
@@ -321,11 +322,13 @@ class IngestionPipelineService(HybridDataIngestionService):
                         )
 
                     # Extract basic structured entities and relationships
-                    entity, rel = self._extract_structured_entities(record, integration_id, text)
+                    entity, rel, integ_entity = self._extract_structured_entities(record, integration_id, text)
                     if entity:
                         entities.append(entity)
                     if rel:
                         relationships.append(rel)
+                    if integ_entity and not any(e.get("name") == integ_entity["name"] for e in integration_entities):
+                        integration_entities.append(integ_entity)
                     if record_id:
                         ingested_record_ids.append((record_id, text))
 
@@ -342,7 +345,8 @@ class IngestionPipelineService(HybridDataIngestionService):
                     f"[{job_id}] Ingesting {len(entities)} entities, {len(relationships)} relationships to GraphRAG"
                 )
                 self.graphrag.ingest_structured_data(
-                    workspace_id=self.workspace_id, entities=entities, relationships=relationships
+                    workspace_id=self.workspace_id, tenant_id=self.tenant_id,
+                    entities=entities + integration_entities, relationships=relationships,
                 )
                 results["entities_extracted"] += len(entities)
                 results["relationships_extracted"] += len(relationships)
@@ -499,7 +503,10 @@ class IngestionPipelineService(HybridDataIngestionService):
             if field in record and field not in entity.get("properties", {}):
                 entity.setdefault("properties", {})[field] = record[field]
 
-        # Create relationship to integration
+        # Create relationship to integration. The integration itself must be
+        # an entity in the same batch — ingest_structured_data resolves edge
+        # endpoints through the node map, so without it every synced_from
+        # edge dangled and was silently dropped.
         relationship = {
             "from": record_name,
             "to": integration_id,
@@ -510,8 +517,14 @@ class IngestionPipelineService(HybridDataIngestionService):
                 "doc_id": record_id,  # For idempotency/source tracking
             },
         }
+        integration_entity = {
+            "name": integration_id,
+            "type": "ExternalSystem",
+            "description": f"External integration: {integration_id}",
+            "properties": {"source": integration_id, "system_type": "integration"},
+        }
 
-        return entity, relationship
+        return entity, relationship, integration_entity
 
     @staticmethod
     def _hash_text(text: str) -> str:
@@ -1088,6 +1101,7 @@ class IngestionPipelineService(HybridDataIngestionService):
 
             # Process each record
             entities = []
+            integration_entities = []  # anchor nodes; sent to GraphRAG, not counted
             relationships = []
 
             for record in records:
@@ -1113,11 +1127,13 @@ class IngestionPipelineService(HybridDataIngestionService):
                     results["records_processed"] += 1
 
                     # Extract entities and relationships
-                    entity, rel = self._extract_structured_entities(record, integration_id, text)
+                    entity, rel, integ_entity = self._extract_structured_entities(record, integration_id, text)
                     if entity:
                         entities.append(entity)
                     if rel:
                         relationships.append(rel)
+                    if integ_entity and not any(e.get("name") == integ_entity["name"] for e in integration_entities):
+                        integration_entities.append(integ_entity)
 
                 except Exception as record_err:
                     error_msg = f"Failed to process webhook record: {record_err}"
@@ -1135,7 +1151,8 @@ class IngestionPipelineService(HybridDataIngestionService):
                     extra={"integration_id": integration_id, "tenant_id": self.tenant_id},
                 )
                 self.graphrag.ingest_structured_data(
-                    workspace_id=self.workspace_id, entities=entities, relationships=relationships
+                    workspace_id=self.workspace_id, tenant_id=self.tenant_id,
+                    entities=entities + integration_entities, relationships=relationships,
                 )
                 results["entities_extracted"] = len(entities)
                 results["relationships_extracted"] = len(relationships)
@@ -1439,6 +1456,7 @@ class IngestionPipelineService(HybridDataIngestionService):
             # Entity extraction (_extract_structured_entities) is non-LLM and cheap,
             # so we always run it for real-time data regardless of quota.
             entities = []
+            integration_entities = []  # anchor nodes; sent to GraphRAG, not counted
             relationships = []
             webhook_ingested_ids = []
 
@@ -1456,17 +1474,20 @@ class IngestionPipelineService(HybridDataIngestionService):
                         record, integration_id, text, job_id
                     )
 
-                entity, rel = self._extract_structured_entities(record, integration_id, text)
+                entity, rel, integ_entity = self._extract_structured_entities(record, integration_id, text)
                 if entity:
                     entities.append(entity)
                 if rel:
                     relationships.append(rel)
+                if integ_entity and not any(e.get("name") == integ_entity["name"] for e in integration_entities):
+                    integration_entities.append(integ_entity)
                 if record_id:
                     webhook_ingested_ids.append((record_id, text))
 
             if entities or relationships:
                 self.graphrag.ingest_structured_data(
-                    workspace_id=self.workspace_id, entities=entities, relationships=relationships
+                    workspace_id=self.workspace_id, tenant_id=self.tenant_id,
+                    entities=entities + integration_entities, relationships=relationships,
                 )
                 results["entities_extracted"] = len(entities)
                 results["relationships_extracted"] = len(relationships)

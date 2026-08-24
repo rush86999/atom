@@ -362,11 +362,14 @@ class TestGraphRAGEngineGaps:
         assert self._engine()._is_llm_available("ws1") is False
 
     @pytest.mark.asyncio
-    async def test_ingest_document_no_entities_returns_none(self):
+    async def test_ingest_document_no_entities_returns_zero_stats(self):
         engine = self._engine()
         with patch.object(engine, "_llm_extract_entities_and_relationships",
-                          new=AsyncMock(return_value=([], []))):
-            assert await engine.ingest_document(workspace_id="ws1", doc_id="d1", text="x") is None
+                          new=AsyncMock(return_value=([], []))), \
+                patch.object(engine, "_is_llm_available", return_value=True):
+            stats = await engine.ingest_document(workspace_id="ws1", doc_id="d1", text="x")
+        # R83: real stats instead of None — sync results reported 0 extracted.
+        assert stats == {"entities": 0, "relationships": 0}
 
     def test_add_entity_existing_node_updates(self):
         from core.graphrag_engine import Entity

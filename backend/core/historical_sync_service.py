@@ -297,13 +297,39 @@ class HistoricalSyncService:
             
             for res in valid_results:
                 if res["entities"] or res["relationships"]:
+                    # _llm_extract_with_handler returns Entity/Relationship
+                    # dataclass instances; ingest_structured_data expects the
+                    # plain-dict shape ({name,type,description,properties} /
+                    # {from,to,type,properties}). Passing the dataclasses made
+                    # e_data.get(...) raise AttributeError inside the engine's
+                    # catch-all, which rolled back and SILENTLY DISCARDED
+                    # every chunk's extracted data.
+                    ent_dicts = [
+                        {
+                            "name": e.name,
+                            "type": e.entity_type,
+                            "description": e.description,
+                            "properties": e.properties or {},
+                        }
+                        for e in res["entities"]
+                    ]
+                    rel_dicts = [
+                        {
+                            "from": r.from_entity,
+                            "to": r.to_entity,
+                            "type": r.rel_type,
+                            "properties": r.properties or {},
+                        }
+                        for r in res["relationships"]
+                    ]
                     shared_engine.ingest_structured_data(
                         workspace_id=workspace_id,
-                        entities=res["entities"],
-                        relationships=res["relationships"]
+                        tenant_id=workspace_id,
+                        entities=ent_dicts,
+                        relationships=rel_dicts,
                     )
-                    total_entities += len(res["entities"])
-                    total_relationships += len(res["relationships"])
+                    total_entities += len(ent_dicts)
+                    total_relationships += len(rel_dicts)
 
             _log_job_event(
                 self.db,

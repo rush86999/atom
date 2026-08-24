@@ -520,7 +520,7 @@ class GraphRAGEngine:
 
         if not entities and not relationships:
             logger.info("No entities extracted.")
-            return
+            return {"entities": 0, "relationships": 0}
 
         # Attach chunk provenance to entities (substring match is cheap and
         # deterministic; misses are simply empty provenance, not errors).
@@ -564,11 +564,11 @@ class GraphRAGEngine:
                     props["provenance"]["chunk_ids"] = endpoint_chunks[:10]
                     r.properties = props
 
-        # 2. Store
+        # 2. Store — surface the stats so callers (hybrid ingestion sync
+        # results) report real extraction counts instead of always 0.
         e_dicts = [{"name": e.name, "type": e.entity_type, "description": e.description, "properties": e.properties, "sensitivity": sensitivity} for e in entities]
         r_dicts = [{"from": r.from_entity, "to": r.to_entity, "type": r.rel_type, "properties": r.properties} for r in relationships]
-
-        self.ingest_structured_data(ws_id, tid, e_dicts, r_dicts)
+        return self.ingest_structured_data(ws_id, tid, e_dicts, r_dicts)
 
     @staticmethod
     def _raise_sensitivity(current: Optional[str], incoming: Optional[str]) -> str:
@@ -900,7 +900,24 @@ class GraphRAGEngine:
                 node_map = {}
                 node_types: Dict[str, str] = {}
                 for e_data in entities:
+                    if not isinstance(e_data, dict):
+                        # Tolerate Entity/Relationship-style dataclasses from
+                        # producers like historical_sync (their attributes map
+                        # 1:1; passing them raw used to raise AttributeError
+                        # inside the catch-all and silently drop the batch).
+                        e_data = {
+                            "name": getattr(e_data, "name", None),
+                            "type": getattr(e_data, "entity_type", None) or getattr(e_data, "type", None),
+                            "description": getattr(e_data, "description", "") or "",
+                            "properties": getattr(e_data, "properties", None) or {},
+                            "id": getattr(e_data, "id", None),
+                        }
                     name = e_data.get("name")
+                    if not name:
+                        # Some producers (LLM extractor) nest the name in
+                        # properties — fall back rather than skip.
+                        _p0 = e_data.get("properties") or {}
+                        name = _p0.get("name") or _p0.get("display_name") or _p0.get("title")
                     if not name: continue
 
                     properties = e_data.get("properties", {})
@@ -948,6 +965,12 @@ class GraphRAGEngine:
                         session.flush()
                         node_map[name] = existing.id
                         node_types[existing.id] = existing.type
+                        # Alias the producer's entity id (if any) so
+                        # id-keyed relationship endpoints resolve to this
+                        # node too (names stay authoritative on collision).
+                        _alias = e_data.get("id")
+                        if _alias and str(_alias) not in node_map:
+                            node_map[str(_alias)] = existing.id
                         continue
 
                     node = GraphNode(
@@ -964,11 +987,22 @@ class GraphRAGEngine:
                     session.flush()
                     node_map[name] = node.id
                     node_types[node.id] = node.type
+                    # See the existing-node branch: alias producer ids.
+                    _alias = e_data.get("id")
+                    if _alias and str(_alias) not in node_map:
+                        node_map[str(_alias)] = node.id
 
                 # 2. Process Edges (A1/A4/A6: ontology validation, dedup with
                 # occurrence counts, hypothesis verification states)
                 skipped_violations = 0
                 for r_data in relationships:
+                    if not isinstance(r_data, dict):
+                        r_data = {
+                            "from": getattr(r_data, "from_entity", None),
+                            "to": getattr(r_data, "to_entity", None),
+                            "type": getattr(r_data, "rel_type", None) or getattr(r_data, "type", None),
+                            "properties": getattr(r_data, "properties", None) or {},
+                        }
                     src = node_map.get(r_data.get("from"))
                     dst = node_map.get(r_data.get("to"))
                     if not (src and dst):

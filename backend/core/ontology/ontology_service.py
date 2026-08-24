@@ -491,13 +491,23 @@ class OntologyService:
             return []
 
 
-_default_service: Optional[OntologyService] = None
+_services_by_tenant: Dict[str, OntologyService] = {}
 _default_lock = threading.Lock()
 
 
 def get_ontology_service(tenant_id: str = "default") -> OntologyService:
-    global _default_service
+    """Per-tenant OntologyService cache.
+
+    The previous process-global singleton bound itself to whichever tenant
+    called first and ignored the tenant_id argument after that — in a
+    multi-tenant deployment every tenant got tenant #1's schema (custom
+    types, aliases), and the ?tenant_id= query param on the ontology routes
+    was a silent no-op.
+    """
+    key = tenant_id or "default"
     with _default_lock:
-        if _default_service is None:
-            _default_service = OntologyService(tenant_id=tenant_id)
-        return _default_service
+        svc = _services_by_tenant.get(key)
+        if svc is None:
+            svc = OntologyService(tenant_id=key)
+            _services_by_tenant[key] = svc
+        return svc
