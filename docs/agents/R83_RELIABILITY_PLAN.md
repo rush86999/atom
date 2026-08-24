@@ -140,24 +140,32 @@ column entirely.
 
 **A/B RESULT (2026-08-24, run via `backend/venv` with fastembed):**
 
-| Mode | recall | keyword | paraphrase | n |
-|------|--------|---------|------------|---|
-| off (baseline) | 1.000 | 1.000 | 1.000 | 7 |
-| rrf | 1.000 | 1.000 | 1.000 | 7 |
-| linear | 1.000 | 1.000 | 1.000 | 7 |
+Round 1 (stock golden set, 7 questions): off/rrf/linear all 1.000 — gate at
+ceiling, cannot discriminate.
 
-**Dissonant-gate finding:** the current golden set is at ceiling — baseline
-scores 7/7, so the gate CANNOT discriminate the arms (a tie here is absence
-of measurement, not evidence of parity). Combined with the external
-counter-evidence against RRF (HERMES: hybrid+RRF 0.61 < pure vector), the
-arms are **unpromotable as measured**: neither may leave `off`.
+Round 2 (better experiment — `core/memory_eval_hard.py`, built for this):
+a 28-entity distractor corpus (confusable press-brake/laser/cutter/vendor
+families with unique attribute tokens) + 23 questions in three categories
+(attribute / paraphrase / distractor) where baseline drops to 0.913
+(paraphrase 0.667). Result: **off/rrf/linear identical — same score, same
+misses, and byte-identical retrieved contexts** on the same workspace.
 
-**Disposition:** the arms stay default-`off` and are now on a clock — if a
-discriminating golden set (larger n, paraphrase/distractor questions where
-baseline < 1.0) is not built by the next roadmap review, DELETE the fusion
-arms and close #4 with this negative result. Speculative A/B apparatus with
-no experiment that can run is exactly the weight the "why implement it"
-critique objects to.
+**Mechanism (why the tie is structural, not coincidence):** both legs are
+`LIMIT 5` (fused union ≤ 10 nodes) while `get_context_for_ai` truncates to
+`entities[:15]` — the fused set ALWAYS fits the window, so fusion's
+reordering cannot change output presence. Measured leg geometry: vector=5,
+keyword=5, overlap=2 → union 8 « 15. The arms are **inert by construction**
+in the current engine geometry.
+
+**DISPOSITION — #4 CLOSED (arms deleted):** rrf also carried external
+counter-evidence (HERMES: hybrid+RRF 0.61 < pure vector). The arms were
+removed (module, engine branch, flag-registry entry, tests) with a
+regression test asserting they stay deleted. The hard suite
+(`core/memory_eval_hard.py`) is kept as permanent discriminating apparatus
+for any future retrieval change — a future fusion proposal must now show a
+geometry where fusion CAN matter (e.g. larger legs + tighter window) and
+clear this suite. This is the negative result the "why implement it"
+critique predicted.
 
 ## #3 — Datamarking / spotlighting (widely-cited preprint, ~300 cites)
 

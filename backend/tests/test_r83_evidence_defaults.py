@@ -14,10 +14,12 @@ Default ON (practical + evidence-based):
   logprobs-rejecting gateway gets one retry without logprobs.
 
 Default OFF (evidence against / precondition unmet):
-- ATOM_RETRIEVAL_FUSION — in-repo evidence AGAINST RRF; linear unevaluated
-  in-house; eval-gated per the R83 disposition.
 - ATOM_DATAMARKING — touches every untrusted prompt; promotion precondition
   (shadow task-success A/B canary) not yet built.
+
+(R83 #4 fusion arms were REMOVED 2026-08-24 after the hard-suite experiment
+showed them inert by construction — legs LIMIT 5+5 vs a 15-entity context
+window; see R83_RELIABILITY_PLAN.md #4.)
 """
 import pytest
 
@@ -55,13 +57,16 @@ class TestDefaultsOn:
 
 
 class TestDefaultsOff:
-    def test_retrieval_fusion_default_off(self):
-        from core.hybrid_search.leg_fusion import get_fusion_mode
-        assert get_fusion_mode() == "off"
-
     def test_datamarking_default_off(self):
         from core.prompt_datamarking import get_datamarking_mode
         assert get_datamarking_mode() == "off"
+
+    def test_fusion_arms_removed(self):
+        """R83 #4 closure: the inert fusion arms must stay deleted."""
+        import importlib
+
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module("core.hybrid_search.leg_fusion")
 
 
 class TestSoftSCGatewayRejection:

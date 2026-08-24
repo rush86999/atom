@@ -584,14 +584,11 @@ CONTROL_MAPPINGS: dict = {
         "resolver": None,
         "evidence": "tests/test_memory_eval_gate.py",
     },
-    "retrieval.fusion_ab_arm": {
-        "title": "Multi-leg rank fusion A/B (off | rrf | linear)",
-        "frameworks": {"nist_ai_rmf": ["MEASURE"]},
-        "implementation": "core/hybrid_search/leg_fusion.py",
-        "flag": "ATOM_RETRIEVAL_FUSION",
-        "resolver": "core.hybrid_search.leg_fusion.get_fusion_mode",
-        "evidence": "docs/agents/R83_RELIABILITY_PLAN.md#4",
-    },
+    # retrieval.fusion_ab_arm REMOVED 2026-08-24: the rrf/linear arms were
+    # measured inert by construction (legs LIMIT 5+5 vs a 15-entity context
+    # window — reordering cannot change output; byte-identical contexts
+    # verified on the hard-suite corpus). See
+    # docs/agents/R83_RELIABILITY_PLAN.md #4 for the closure record.
     "prompt.datamarking": {
         "title": "Datamarking/spotlighting of untrusted prompt content",
         "frameworks": {"nist_ai_rmf": ["MAP"], "eu_ai_act": ["art-10"]},
