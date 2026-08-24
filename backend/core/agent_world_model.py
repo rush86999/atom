@@ -1042,24 +1042,36 @@ class WorldModelService:
         degradation — role scoping is additive, never exclusive).
         """
         if agent_role:
-            safe_role = str(agent_role).lower().replace("'", "''")
-            role_hits = db.search(
+            # R83: `metadata` is a JSON *string* column in LanceDB, so a
+            # server-side `metadata.role == …` DataFusion filter always
+            # returned [] (no such nested field on utf8). Search unfiltered,
+            # then rank role-tagged hits first by parsing the JSON client-side.
+            wanted = str(agent_role).lower()
+
+            def _role_of(rec: dict) -> str:
+                import json as _json
+
+                raw = rec.get("metadata")
+                if isinstance(raw, str):
+                    try:
+                        raw = _json.loads(raw)
+                    except Exception:  # noqa: BLE001
+                        return ""
+                if not isinstance(raw, dict):
+                    return ""
+                return str(raw.get("role") or "").lower()
+
+            hits = db.search(
                 table_name="documents",
                 query=task_description,
-                limit=limit,
+                limit=max(limit * 3, limit),
                 user_id=None,
-                filter_str=f"metadata.role == '{safe_role}'",
             )
+            role_hits = [r for r in hits or [] if _role_of(r) == wanted]
             results = list(role_hits)
             if len(results) < limit:
                 included = {r.get("id") for r in results}
-                general = db.search(
-                    table_name="documents",
-                    query=task_description,
-                    limit=limit,
-                    user_id=None,
-                )
-                for r in general:
+                for r in hits or []:
                     if len(results) >= limit:
                         break
                     if r.get("id") not in included:

@@ -544,11 +544,22 @@ class HybridDataIngestionService:
                         # ingest_document is a coroutine — must be awaited, or
                         # the truthy coroutine crashes on .get() and every
                         # record is recorded as an error.
+                        #
+                        # R83 (P4): classify sensitivity per record so the
+                        # taint gates downstream (org-bundle export, recall
+                        # ceilings) have real data instead of the "internal"
+                        # default for every integration record.
+                        from core.data_taint_tracker import classify_sensitivity
+                        try:
+                            _sensitivity = classify_sensitivity(text)
+                        except Exception:  # noqa: BLE001 — classification must never block ingestion
+                            _sensitivity = "internal"
                         graphrag_result = await self.graphrag.ingest_document(
                             workspace_id=self.workspace_id,
                             doc_id=f"{integration_id}_{record.get('id', 'unknown')}",
                             text=text,
-                            source=integration_id
+                            source=integration_id,
+                            sensitivity=_sensitivity,
                         )
                         if graphrag_result:
                             results["entities_extracted"] += graphrag_result.get("entities", 0)

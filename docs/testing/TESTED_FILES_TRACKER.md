@@ -6345,3 +6345,19 @@ Traced user journeys for all 8 roles (super_admin…guest, `core/security/rbac.p
 **Tests**: `tests/test_pricing_staleness_gate.py` — 10 tests, all mocked/tmp-path'd (freshness-field passthrough, expiry-parser matrix, diff math incl. bad dates + first-refresh baseline, refresh persistence across two refreshes, summary shape, BPC behavior-pin "expired still ranked BUT counted" + unexpired-not-counted, route surface via dependency-overridden TestClient).
 
 **Verification**: suite 10/10; regression cluster 206 passed (opencode-go BPC, pricing fetcher ×2, pricing-model-match, endpoint telemetry, unit/api/test_byok_routes); byok_handler mypy baseline identical pre/post diff (65=65); fetcher mypy shows only the pre-existing curated_overrides import note.
+
+---
+
+## 2026-08-24 — Full journey trace: user / agent / data→memory repairs (R83b)
+
+**Scope**: three-way audit (user journey, agent journey, data→memory incl. integration→GraphRAG). Integration→ontology core repairs live in the parallel session's `test_integration_ontology_path.py` set; this round lands the DISJOINT half + user journey.
+
+**Fixes**:
+- Agent: `generic_agent._record_execution` now AWAITS `create_episode_from_execution` (scheduler/direct runs were dropping every episode); proposal-service episode writer fire-and-forgets properly across all 6 surfaces; specialty agents gained a durable turn-fact recall leg (Tier-2 flag-gated → Tier-1 SQL) rendered as a DURABLE FACTS prompt block.
+- Data: turn-fact Tier-2 recall binds workspace on the handler (double-filter contradiction → empty results off-"default"); role-scoped recall in assembler + world-model post-filters parsed metadata JSON (server-side `metadata.role` filter could never match a string column); hybrid ingestion classifies sensitivity per record into GraphRAG (P4 gates finally get real data); bytewax kwargs fixed (`tenant_id` TypeError + un-awaited fallback coroutine); webhook historical-sync bound to the connection's real workspace.
+- Partitions: graphrag_routes (/ingest,/build-communities,/context,/query), pm_engine, and knowledge_ingestion helpers standardize on workspace partition instead of user-id partitions agents never read.
+- User: provider-key save accepts BOTH query-param and JSON-body contracts (wizard + Settings→AI step 1 was 422-guaranteed); NEW `POST /api/ai/providers/{id}/test` route (button previously 404'd); single-word last names register cleanly (backend validator + BFF); index.tsx unwraps onboarding status envelope.
+
+**Tests**: `tests/test_round83_journey_repairs.py` (11); stale-lock update in `test_memory_context_assembler.py` (old contract pinned the broken server-side role filter). Cluster: 157 passed incl. graphrag/byok/auth suites; agent-journey smoke 12/12; mypy baseline identical pre/post.
+
+**Known remaining**: business-fact auto-extraction from integration records (no writer by design yet); canonical_type mapping from integration record types; org-bundle record section → ontology; `extract_knowledge` dead param in lancedb add_document.

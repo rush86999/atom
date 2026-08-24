@@ -27,12 +27,17 @@ logger = logging.getLogger(__name__)
 _TABLE_NAME = "turn_facts"
 
 
-def _get_handler():
+def _get_handler(workspace_id: Optional[str] = None):
     """Lazy import to avoid circular deps; returns LanceDBHandler or None."""
     try:
         from core.lancedb_handler import LanceDBHandler
 
-        return LanceDBHandler()
+        # R83: bind the caller's workspace on the handler itself. The handler
+        # unconditionally appends `workspace_id == '<self.workspace_id>'` to
+        # every search; leaving it defaulted ("default") while ALSO passing an
+        # explicit workspace filter produced contradictory double filters that
+        # returned [] for any non-default workspace.
+        return LanceDBHandler(workspace_id=workspace_id)
     except Exception as e:
         logger.debug("turn_fact vector store: LanceDB unavailable (%s)", e)
         return None
@@ -85,7 +90,7 @@ def search_relevant_fact_ids(
     Tier-2 recall. Embeds the query, searches LanceDB, returns TurnFact ids.
     Hydration is done by the caller via SQL. Returns [] on any failure.
     """
-    handler = _get_handler()
+    handler = _get_handler(workspace_id)
     if handler is None or not query or len(query.strip()) < 3:
         return []
 

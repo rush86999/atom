@@ -148,7 +148,9 @@ class AIProjectManager:
                         
                     # Query GraphRAG for progress on this specific task
                     query = f"Has the task '{task.name}' for project '{project.name}' been completed or worked on recently?"
-                    rag_result = await graphrag_engine.query(user_id, query, mode="local")
+                    # R83: query the workspace partition (where ingestion
+                    # writes), not a per-user partition recall never reads.
+                    rag_result = await graphrag_engine.query("default", query, mode="local")
                     
                     # Analyze RAG result for evidence
                     evidence = rag_result.get("answer", "").lower()

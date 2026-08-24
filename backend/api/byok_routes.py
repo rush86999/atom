@@ -12,7 +12,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from core.auth import get_current_user, User
 from core.models import Tenant, TenantSetting
@@ -942,18 +942,70 @@ async def get_ai_provider(
         raise HTTPException(status_code=404, detail="Internal error")
 
 
+@router.post("/api/ai/providers/{provider_id}/test")
+async def test_provider_key(
+    provider_id: str,
+    current_user: User = Depends(get_current_user),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: Session = Depends(get_db)
+):
+    """Probe stored credentials with a cheap models-list call.
+
+    R83: the Settings→AI "Test" button posted here but no route existed —
+    every test reported failure even for valid keys. Reuses BYOKHandler's
+    own client construction so per-provider base URLs apply.
+    """
+    try:
+        from starlette.concurrency import run_in_threadpool
+
+        def _probe() -> Dict[str, Any]:
+            from core.llm.byok_handler import BYOKHandler
+
+            handler = BYOKHandler()
+            client = handler.clients.get(provider_id)
+            if client is None:
+                return {"ok": False, "reason": "provider_not_configured"}
+            models = client.models.list()
+            return {
+                "ok": True,
+                "sample_models": [m.id for m in getattr(models, "data", [])][:5],
+            }
+
+        result = await run_in_threadpool(_probe)
+        ok = bool(result.get("ok"))
+        return ApiResponse(
+            success=ok,
+            data=result,
+            message="Key validated" if ok else "Provider not configured or probe unsupported",
+        )
+    except Exception as e:
+        logger.error(f"Provider key test failed: {e}")
+        return ApiResponse(success=False, message="Key validation failed")
+
+
 @router.post("/api/ai/providers/{provider_id}/keys")
 async def store_api_key(
     provider_id: str,
-    api_key: str,
+    api_key: Optional[str] = Query(None),
     key_name: str = "default",
     environment: str = "production",
+    body: Optional[Dict[str, Any]] = None,
     current_user: User = Depends(get_current_user),
     tenant: Tenant = Depends(get_current_tenant),
     byok_manager: BYOKManager = Depends(get_byok_manager),
     db: Session = Depends(get_db)
 ):
-    """Store an API key for a provider (tenant-specific)"""
+    """Store an API key for a provider (tenant-specific).
+
+    R83: accept BOTH contracts — the legacy query-param form and the JSON
+    body form the frontend actually sends ({api_key, key_name, environment}).
+    Body-only callers previously got a guaranteed 422 (query param missing),
+    dead-ending onboarding step 1 on both the wizard and Settings→AI.
+    """
+    if body and isinstance(body, dict):
+        api_key = api_key or body.get("api_key")
+        key_name = body.get("key_name") or key_name
+        environment = body.get("environment") or environment
     if not api_key or len(api_key) < 10:
         raise HTTPException(
             status_code=422,

@@ -510,21 +510,26 @@ async def test_integration_leg_role_scoped_first_then_general_topup(monkeypatch)
     handler = MagicMock()
     handler.db = conn
     handler._ensure_db = MagicMock()
-    handler.search = MagicMock(
-        side_effect=[
-            [{"id": "r1", "text": "finance invoice", "source": "zoho"}],   # role pass
-            [{"id": "r1", "text": "finance invoice", "source": "zoho"},    # general pass (dedup)
-             {"id": "r2", "text": "general lead", "source": "zoho"}],
-        ]
-    )
+    # R83 contract: ONE unfiltered server pass (limit headroom), role ranking
+    # client-side via parsed metadata JSON.
+    import json as _json
+    handler.search = MagicMock(return_value=[
+        {"id": "r1", "text": "finance invoice", "source": "zoho",
+         "metadata": _json.dumps({"role": "finance"})},
+        {"id": "r2", "text": "general lead", "source": "zoho"},
+    ])
 
     with patch("core.lancedb_handler.get_lancedb_handler", return_value=handler):
         lines = await mca_mod._integration_records_leg("q", "ws", agent_role="Finance")
 
+    # R83: metadata is a JSON *string* column, so a server-side
+    # `metadata.role == …` filter could never match — role scoping now happens
+    # client-side post-search. There must be NO such server filter, and the
+    # additive behavior is unchanged.
     filters = [c.kwargs.get("filter_str") for c in handler.search.call_args_list]
-    assert filters[0] == "metadata.role == 'finance'"
-    assert filters[1] is None
-    assert len(lines) == 2  # deduped: r1 once, r2 top-up
+    assert all(f != "metadata.role == 'finance'" for f in filters)
+    assert len(lines) == 2
+    assert "finance invoice" in lines[0]  # role-tagged record ranked first
 
 
 @pytest.mark.asyncio

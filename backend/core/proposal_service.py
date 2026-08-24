@@ -492,17 +492,37 @@ Please review and approve or reject this proposal.
             from core.episode_service import EpisodeService
 
             success = (execution.status or "") == "completed"
-            EpisodeService(self.db).create_episode_from_execution(
-                execution_id=execution.id,
-                task_description=f"Approved proposal {proposal.id} ({action_type})",
-                outcome=execution.status or "completed",
-                success=success,
-                metadata={"proposal_id": proposal.id, "source": "proposal"},
-            )
-            logger.info(
-                "Episode recorded for proposal execution %s (%s)",
-                execution.id, action_type,
-            )
+
+            async def _write() -> None:
+                try:
+                    await EpisodeService(self.db).create_episode_from_execution(
+                        execution_id=execution.id,
+                        task_description=f"Approved proposal {proposal.id} ({action_type})",
+                        outcome=execution.status or "completed",
+                        success=success,
+                        metadata={"proposal_id": proposal.id, "source": "proposal"},
+                    )
+                    logger.info(
+                        "Episode recorded for proposal execution %s (%s)",
+                        execution.id, action_type,
+                    )
+                except Exception as e:  # noqa: BLE001 — never break the proposal flow
+                    logger.debug("Proposal episode write failed for %s: %s", execution.id, e)
+
+            # R83: create_episode_from_execution is a coroutine — a bare call
+            # here was silently garbage-collected, so NONE of the six proposal
+            # surfaces ever persisted an episode. Fire-and-forget when a loop
+            # is running; otherwise run to completion inline.
+            import asyncio as _asyncio
+
+            try:
+                _loop = _asyncio.get_running_loop()
+            except RuntimeError:
+                _loop = None
+            if _loop is not None:
+                _loop.create_task(_write())
+            else:
+                _asyncio.run(_write())
         except Exception as e:
             logger.warning(f"Episode creation skipped for {execution.id}: {e}")
 

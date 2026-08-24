@@ -158,6 +158,34 @@ class GenericAgent:
             agent=self._get_registry_model(),
             current_task_description=task_input
         )
+
+        # R83: durable turn-fact recall leg. Specialty agents WRITE facts
+        # every run (sync_turn below) but never saw them again — only the
+        # meta-agent and chat had a facts leg. Tier-2 semantic recall
+        # (flag-gated) with Tier-1 SQL fallback, surfaced as a prompt block.
+        # Never raises.
+        try:
+            _ws = getattr(self, "workspace_id", "default")
+            _facts = []
+            from core.turn_fact_extractor import TURN_FACT_VECTOR_RECALL_ENABLED
+            if TURN_FACT_VECTOR_RECALL_ENABLED:
+                from core.turn_fact_extractor import prefetch_relevant_facts
+                _facts = prefetch_relevant_facts(
+                    workspace_id=_ws, query=task_input, limit=5
+                ) or []
+            if not _facts:
+                from core.turn_fact_extractor import get_active_facts_for_prompt
+                from core.database import SessionLocal
+                with SessionLocal() as _db:
+                    _facts = get_active_facts_for_prompt(
+                        _db, workspace_id=_ws, limit=5
+                    ) or []
+            if _facts:
+                memory_context["durable_facts"] = [
+                    getattr(f, "fact_text", None) or str(f) for f in _facts[:5]
+                ]
+        except Exception as _facts_err:  # noqa: BLE001
+            logger.debug(f"turn-fact recall skipped: {_facts_err}")
         
         # Emit initial 'starting' event for UI responsiveness
         if step_callback:
@@ -1020,6 +1048,14 @@ ORCHESTRATION POWERS:
         past_conversations = memory.get('conversations', [])
         recalled_episodes = memory.get('episodes', [])
         memory_sections = []
+        # R83: durable turn-facts leg (written by sync_turn every run —
+        # previously never rendered back into specialty-agent prompts).
+        durable_facts = memory.get('durable_facts', [])
+        if durable_facts:
+            memory_sections.append(
+                "DURABLE FACTS (from this agent's memory):\n"
+                + "\n".join(f"- {str(t)[:200]}" for t in durable_facts[:5])
+            )
         if knowledge_graph:
             graph_ctx = str(knowledge_graph).strip()
             if len(graph_ctx) > 3200:
@@ -1423,7 +1459,10 @@ What is your next step?"""
                     db.commit()
                     from core.episode_service import EpisodeService
 
-                    EpisodeService(db).create_episode_from_execution(
+                    # R83: must be awaited — this is a coroutine. The bare call
+                    # silently dropped every NON-session execution (scheduler,
+                    # direct runs take this branch) from episodic memory.
+                    await EpisodeService(db).create_episode_from_execution(
                         execution_id=_exec.id,
                         task_description=input_text[:200],
                         outcome=result["status"],

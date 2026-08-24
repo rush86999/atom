@@ -48,8 +48,9 @@ export default async function handler(
         firstName = firstName || parts[0] || '';
         lastName = lastName || parts.slice(1).join(' ');
     }
-    if (!firstName || !lastName) {
-        return res.status(400).json({ error: 'First and last name are required' });
+    // R83: last name is optional — a single-word name ("Plato") is valid.
+    if (!firstName) {
+        return res.status(400).json({ error: 'First name is required' });
     }
 
     try {
