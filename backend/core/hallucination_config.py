@@ -130,6 +130,50 @@ def get_tool_cache_ttl() -> int:
 # ---------------------------------------------------------------------------
 
 
+def get_sc_hash_algo() -> str:
+    """Hash algorithm for self-consistency vote grouping (R83 #8).
+
+    ``jcs-sha256``     — RFC 8785 JSON Canonicalization (vendored
+                         ``core/llm/jcs.py``): UTF-16 key ordering +
+                         numeric equivalence (``{"n": 1}`` ≡ ``{"n": 1.0}``).
+    ``sha256-sortkeys``— byte-identical to pre-R83 behavior
+                         (``json.dumps(sort_keys=True, default=str)``).
+
+    Default ``jcs-sha256`` (deterministic gain, R72 convention). Kill
+    switch: ``ATOM_SC_HASH_ALGO=sha256-sortkeys`` restores exact old hashes.
+    Invalid values fail closed to legacy.
+    """
+    raw = (os.getenv("ATOM_SC_HASH_ALGO") or "jcs").strip().lower()
+    if raw in ("jcs", "jcs-sha256", "rfc8785"):
+        return "jcs-sha256"
+    return "sha256-sortkeys"
+
+
+def is_usc_fallback_enabled() -> bool:
+    """Universal Self-Consistency judge fallback (R83 #2; Chen et al., ICML 2024).
+
+    When every sample in a vote is distinct, one budget-tier judge LLM call
+    picks the plan most consistent with the others instead of blindly taking
+    the lowest-temperature sample. Adds an LLM call per all-distinct vote,
+    so default OFF (same posture as ``ATOM_SANDBOX_JUDGE_ENABLED``).
+    """
+    return _flag("ATOM_SC_USC_FALLBACK")
+
+
+def is_sc_fanout_enabled() -> bool:
+    """Spread self-consistency samples across available handlers (R83 #1).
+
+    When ON, the voter resolves candidates once per vote via the handler's
+    own ranking (``get_ranked_providers``) and pins each sample round-robin
+    to a different (provider, model) — diversity across providers, not just
+    temperatures. NEVER a fixed provider list: the candidate set is whatever
+    the router says is available. Single-candidate, unrankable handler, or
+    ranking failure → all samples run unpinned (silent degradation, one INFO
+    log). Default OFF (R72 posture).
+    """
+    return _flag("ATOM_SC_FANOUT")
+
+
 def get_self_consistency_samples() -> int:
     """Number of samples drawn by the self-consistency voter (default 3)."""
     try:

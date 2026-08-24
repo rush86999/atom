@@ -103,6 +103,10 @@ class VoteResult:
     winner_hash: str | None = None
     hash_algo: str | None = None
     prompt_hash: str | None = None
+    # R83 #1 observability (runtime-only, not persisted): per-sample pin as
+    # "provider/model", or None when the sample ran through normal routing.
+    fanout_targets: list[str] | None = None
+    selection: str = "majority"  # majority | usc-judge | lowest-temp
 
     @property
     def is_high(self) -> bool:
@@ -229,6 +233,9 @@ class SelfConsistencyVoter:
         from core.hallucination_config import is_moa_diversity_enabled
         overlays = self.diversity_overlays(n, enabled=is_moa_diversity_enabled())
 
+        # R83 #1: same fan-out pins as vote_with_consensus.
+        fanout = self._resolve_fanout_targets(n)
+
         async def _one(temp: float, idx: int) -> T | None:
             overlay = overlays[idx] if idx < len(overlays) else ""
             sample_sys = f"{system_instruction}\n\n{overlay}" if overlay else system_instruction
@@ -246,6 +253,7 @@ class SelfConsistencyVoter:
                     cascade=cascade,
                     # R72 F: voter samples must never re-trigger MoA.
                     allow_moa=False,
+                    provider_model=fanout[idx],
                     **kwargs,
                 )
             except Exception as exc:
@@ -308,6 +316,11 @@ class SelfConsistencyVoter:
         from core.hallucination_config import is_moa_diversity_enabled
         overlays = self.diversity_overlays(n, enabled=is_moa_diversity_enabled())
 
+        # R83 #1: per-sample (provider, model) pins across available handlers
+        # (all-None when fan-out is off / unavailable — silent degradation).
+        fanout = self._resolve_fanout_targets(n)
+        fanout_labels = [f"{t[0]}/{t[1]}" if t else None for t in fanout]
+
         async def _one(temp: float, idx: int) -> T | None:
             overlay = overlays[idx] if idx < len(overlays) else ""
             sample_sys = f"{system_instruction}\n\n{overlay}" if overlay else system_instruction
@@ -325,6 +338,7 @@ class SelfConsistencyVoter:
                     cascade=cascade,
                     # R72 F: voter samples must never re-trigger MoA.
                     allow_moa=False,
+                    provider_model=fanout[idx],
                 )
             except Exception as exc:
                 logger.warning(f"Self-consistency sample failed at temp={temp}: {exc}")
@@ -346,6 +360,7 @@ class SelfConsistencyVoter:
                 winner_hash=None,
                 hash_algo=None,
                 prompt_hash=prompt_hash,
+                fanout_targets=fanout_labels,
             )
 
         if len(valid) == 1:
@@ -362,6 +377,7 @@ class SelfConsistencyVoter:
                 winner_hash=single_hash[:16],
                 hash_algo=self._effective_hash_algo(),
                 prompt_hash=prompt_hash,
+                fanout_targets=fanout_labels,
             )
 
         # Majority vote over hash-normalized samples.
@@ -382,11 +398,50 @@ class SelfConsistencyVoter:
         winner_idx = counts[winner_hash][0] if winner_hash is not None else 0
 
         if winner_count == 1:
-            # All samples distinct — fall back to lowest-temperature sample
-            # (samples are ordered by ascending temperature via the spread).
+            # All samples distinct. Universal Self-Consistency (Chen et al.,
+            # ICML 2024): one budget-tier judge call picks the plan most
+            # consistent with the others — recovering signal from
+            # otherwise-wasted votes. Opt-in (ATOM_SC_USC_FALLBACK); any
+            # failure degrades to the conservative lowest-temp sample.
+            judge_idx = await self._usc_judge_pick(valid, prompt)
+            if judge_idx is not None:
+                logger.info(
+                    f"Self-consistency vote: all {len(valid)} distinct; "
+                    f"USC judge picked index {judge_idx}"
+                )
+                return VoteResult(
+                    winner=valid[judge_idx],
+                    agreement_ratio=agreement,
+                    level=level,
+                    sample_count=n,
+                    valid_count=len(valid),
+                    winner_count=1,
+                    distinct_hashes=len(counts),
+                    temperatures=temps,
+                    winner_hash=(winner_hash or "")[:16] or None,
+                    prompt_hash=prompt_hash,
+                    hash_algo=self._effective_hash_algo(),
+                    selection="usc-judge",
+                    fanout_targets=fanout_labels,
+                )
             logger.warning(
                 f"Self-consistency vote: all {len(valid)} samples distinct; "
                 f"falling back to lowest-temperature sample"
+            )
+            return VoteResult(
+                winner=valid[0],
+                agreement_ratio=agreement,
+                level=level,
+                sample_count=n,
+                valid_count=len(valid),
+                winner_count=1,
+                distinct_hashes=len(counts),
+                temperatures=temps,
+                winner_hash=(winner_hash or "")[:16] or None,
+                prompt_hash=prompt_hash,
+                hash_algo=self._effective_hash_algo(),
+                selection="lowest-temp",
+                fanout_targets=fanout_labels,
             )
 
         logger.info(
@@ -406,6 +461,7 @@ class SelfConsistencyVoter:
             winner_hash=(winner_hash or "")[:16] or None,
             hash_algo=self._effective_hash_algo() if winner_hash else None,
             prompt_hash=prompt_hash,
+            fanout_targets=fanout_labels,
         )
 
     # ------------------------------------------------------------------
@@ -461,6 +517,52 @@ class SelfConsistencyVoter:
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+
+    def _resolve_fanout_targets(self, n: int) -> list[tuple | None]:
+        """R83 #1: per-sample (provider, model) pins across AVAILABLE handlers.
+
+        Candidates come from the handler's own ranking
+        (``get_ranked_providers``) — NEVER a fixed provider list. Any
+        resolution failure, a single candidate, or an unrankable handler
+        returns all-``None`` pins: every sample runs through the handler's
+        normal routing (silent single-handler degradation, one INFO log).
+        """
+        from core.hallucination_config import is_sc_fanout_enabled
+
+        if not is_sc_fanout_enabled():
+            return [None] * n
+
+        ranked = getattr(self.handler, "get_ranked_providers", None)
+        if ranked is None:
+            logger.info(
+                "SC fan-out: handler has no get_ranked_providers; "
+                "running all samples unpinned"
+            )
+            return [None] * n
+
+        try:
+            candidates = list(ranked())  # AwaitableResult is sync-iterable
+        except Exception as exc:
+            logger.info(f"SC fan-out: ranking failed ({exc}); samples unpinned")
+            return [None] * n
+
+        candidates = [
+            c for c in candidates
+            if isinstance(c, tuple) and len(c) == 2 and all(c)
+        ]
+        if len(candidates) < 2:
+            logger.info(
+                f"SC fan-out: {len(candidates)} candidate(s) available; "
+                "running all samples unpinned"
+            )
+            return [None] * n
+
+        targets = [candidates[i % len(candidates)] for i in range(n)]
+        logger.info(
+            f"SC fan-out: spreading {n} samples across {len(candidates)} "
+            f"handlers: {[f'{p}/{m}' for p, m in targets]}"
+        )
+        return targets
 
     @staticmethod
     def _temperatures_for(n: int, base: float = 0.7) -> list[float]:
@@ -561,6 +663,74 @@ class SelfConsistencyVoter:
         from core.hallucination_config import get_sc_hash_algo
 
         return get_sc_hash_algo()
+
+    # ------------------------------------------------------------------
+    # R83 #2: Universal Self-Consistency judge (Chen et al., ICML 2024,
+    # https://arxiv.org/abs/2311.17311). Fires only on all-distinct votes.
+    # One budget-tier structured call; any failure → None → caller keeps
+    # the conservative lowest-temp fallback. Never raises.
+    # ------------------------------------------------------------------
+
+    _USC_JUDGE_TIMEOUT_SECONDS = 5.0
+
+    async def _usc_judge_pick(self, valid: list[Any], prompt: str) -> int | None:
+        """Return the index of the most self-consistent plan, or ``None``.
+
+        The judge sees every distinct plan rendered as an indexed JSON list
+        plus the original task prompt, and returns ``{"best_index": int}``.
+        Out-of-range / malformed answers are treated as "no signal".
+        """
+        try:
+            from core.hallucination_config import is_usc_fallback_enabled
+
+            if not is_usc_fallback_enabled() or not valid:
+                return None
+
+            from pydantic import BaseModel
+
+            class _USCPick(BaseModel):
+                best_index: int
+
+            plans_json = json.dumps(
+                [
+                    SelfConsistencyVoter._sample_payload(s)
+                    for s in valid
+                ],
+                default=str,
+            )
+            judge_prompt = (
+                "Task that produced these candidate plans:\n"
+                f"{prompt[:2000]}\n\n"
+                "Candidate plans:\n"
+                f"{plans_json}\n\n"
+                "All candidates differ. Pick the plan that is most likely "
+                "correct and most consistent with the task requirements. "
+                'Respond with {"best_index": <integer between 0 and '
+                + str(len(valid) - 1)
+                + ">}."
+            )
+            pick = await asyncio.wait_for(
+                self.handler.generate_structured_response(
+                    prompt=judge_prompt,
+                    system_instruction="You are a strict, terse judge.",
+                    response_model=_USCPick,
+                    temperature=0.0,
+                    max_tokens=64,
+                    task_type="usc_judge",
+                    allow_moa=False,
+                ),
+                timeout=self._USC_JUDGE_TIMEOUT_SECONDS,
+            )
+            idx = getattr(pick, "best_index", None)
+            if isinstance(pick, dict):
+                idx = pick.get("best_index", idx)
+            if not isinstance(idx, int) or not (0 <= idx < len(valid)):
+                logger.warning(f"USC judge returned invalid index {idx!r}")
+                return None
+            return idx
+        except Exception as exc:
+            logger.warning(f"USC judge fallback unavailable ({exc}); using lowest-temp")
+            return None
 
     @staticmethod
     def hashes_match(
