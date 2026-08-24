@@ -79,6 +79,14 @@ class AuthPage(JourneyBase):
         return self.page.locator("[data-testid='login-password-input'], input#password")
 
     @property
+    def confirm_password_input(self) -> Locator:
+        # Register mode only — the form rejects submission when password and
+        # confirm differ, so any register journey must fill this too.
+        return self.page.locator(
+            "[data-testid='login-confirm-password-input'], input#confirm_password"
+        )
+
+    @property
     def submit_button(self) -> Locator:
         return self.page.locator("[data-testid='login-submit-button'], button[type='submit']")
 

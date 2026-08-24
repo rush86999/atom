@@ -68,6 +68,10 @@ class TestAuthJourney:
         page.locator("[data-testid='login-last-name-input'], input#last_name").first.fill("User")
         auth.email_input.first.fill(email)
         auth.password_input.first.fill(DEFAULT_PASSWORD)
+        # Register mode requires the confirm-password field — without it the
+        # form rejects submission client-side ("Passwords do not match") and
+        # no account is ever created.
+        auth.confirm_password_input.first.fill(DEFAULT_PASSWORD)
         auth.submit_button.first.click()
         # The register flow creates the account, then signs in via next-auth,
         # then redirects to /dashboard. Under load the redirect can be slow, so
