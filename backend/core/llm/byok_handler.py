@@ -346,19 +346,22 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.COMPLEX: "llama-3.3-70b-versatile",
         QueryComplexity.ADVANCED: "llama-3.3-70b-versatile",
     },
-    "openrouter": {  # OpenRouter — gateway to 300+ models via one key
-        QueryComplexity.SIMPLE: "openai/gpt-4o-mini",
-        QueryComplexity.MODERATE: "openai/gpt-4o-mini",
-        QueryComplexity.COMPLEX: "anthropic/claude-3.5-sonnet",
-        QueryComplexity.ADVANCED: "anthropic/claude-3.5-sonnet",
-    },
     "opencode-go": {  # OpenCode Go — low-cost subscription via OpenCode Zen gateway
         # https://opencode.ai/zen — tested+verified open coding models served
         # by the OpenCode team; one subscription key, no per-provider signups.
-        QueryComplexity.SIMPLE: "deepseek-v4-flash",
-        QueryComplexity.MODERATE: "deepseek-v4-flash",
-        QueryComplexity.COMPLEX: "deepseek-v4-pro",
-        QueryComplexity.ADVANCED: "kimi-k2.7-code",
+        # Use free variants first; the free→paid retry logic in
+        # generate_response_async will auto-fallback to paid siblings when
+        # the free allowance is exhausted.
+        QueryComplexity.SIMPLE: "deepseek-v4-flash-free",
+        QueryComplexity.MODERATE: "deepseek-v4-flash-free",
+        QueryComplexity.COMPLEX: "mimo-v2.5-free",
+        QueryComplexity.ADVANCED: "mimo-v2.5-free",
+    },
+    "openrouter": {  # OpenRouter — gateway with free models via :free suffix
+        QueryComplexity.SIMPLE: "openrouter/free",
+        QueryComplexity.MODERATE: "openrouter/free",
+        QueryComplexity.COMPLEX: "openrouter/free",
+        QueryComplexity.ADVANCED: "openrouter/free",
     },
 }
 

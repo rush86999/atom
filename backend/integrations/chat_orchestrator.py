@@ -669,9 +669,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 **extra_kwargs,
             )
             
-            if response_data.get("success") and response_data.get("content"):
+            content = response_data.get("content", "").strip() if response_data else ""
+            is_generic_failure = not content or "couldn't generate a response" in content.lower() or "check your api key" in content.lower()
+
+            if response_data.get("success") and content and not is_generic_failure:
                 return {
-                    "content": response_data.get("content", "").strip(),
+                    "content": content,
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,
