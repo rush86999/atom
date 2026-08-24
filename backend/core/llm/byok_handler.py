@@ -825,6 +825,28 @@ class BYOKHandler:
             return True  # Unknown providers pass through (optimistic)
         return self.health_monitor.get_health_score(provider_id) >= self._HEALTH_EXCLUDE_THRESHOLD
 
+    @staticmethod
+    def _stamp_sample_logprob(result: Any) -> None:
+        """R83 #6: attach the sample's mean token log-probability.
+
+        Reads ``choices[0].logprobs.content`` from instructor's
+        ``_raw_response`` (present when the request asked for logprobs) and
+        stamps ``_atom_mean_logprob`` on the parsed model. Best-effort:
+        no logprobs / no raw response / non-writable model ⇒ no stamp, and
+        the voter weighs that sample 1.0 (hard-vote semantics).
+        """
+        raw = getattr(result, "_raw_response", None)
+        choices = getattr(raw, "choices", None) if raw is not None else None
+        logprobs = getattr(choices, "__getitem__", lambda i: None)(0) if choices else None
+        content = getattr(getattr(logprobs, "logprobs", None), "content", None)
+        if not content:
+            return
+        try:
+            mean_lp = sum(float(getattr(c, "logprob", 0.0)) for c in content) / len(content)
+            setattr(result, "_atom_mean_logprob", mean_lp)
+        except (TypeError, ZeroDivisionError, AttributeError):
+            return
+
     def _model_supports_tools(self, model_id: str) -> bool:
         """
         Check if model supports tool calling using pricing cache (not hardcoded lists).
@@ -3322,14 +3344,34 @@ class BYOKHandler:
                         messages.append({"role": "user", "content": prompt})
 
                     _structured_start = time.time()
+                    # R83 #6: soft self-consistency — request logprobs and
+                    # stamp the parsed model with its mean token logprob so
+                    # the voter can weight samples by probability. Opt-in
+                    # (ATOM_SC_SOFT); strictly off = byte-identical request
+                    # and response handling. A gateway rejecting the kwarg
+                    # fails this attempt like any other structured failure
+                    # and the provider cascade proceeds.
+                    _soft_sc_on = False
+                    try:
+                        from core.hallucination_config import is_sc_soft_enabled
+                        _soft_sc_on = is_sc_soft_enabled()
+                    except Exception:
+                        pass
                     result = instructor_client.chat.completions.create(
                         model=model,
                         response_model=response_model,
                         messages=messages,
                         temperature=temperature,
-                        max_tokens=1000
+                        max_tokens=1000,
+                        **({"logprobs": True} if _soft_sc_on else {}),
                     )
                     _structured_latency_ms = (time.time() - _structured_start) * 1000.0
+                    if _soft_sc_on:
+                        # Best-effort — no stamp ⇒ voter weight 1.0.
+                        try:
+                            self._stamp_sample_logprob(result)
+                        except Exception:
+                            pass
                     # Instructor wraps the underlying response; finish_reason
                     # may be on the raw response. Default to "stop" only when
                     # unavailable (the API succeeded structurally).

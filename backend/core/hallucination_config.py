@@ -174,6 +174,20 @@ def is_sc_fanout_enabled() -> bool:
     return _flag("ATOM_SC_FANOUT")
 
 
+def is_sc_soft_enabled() -> bool:
+    """Soft self-consistency weighting (R83 #6; ACL 2024).
+
+    When ON, structured samples are requested with ``logprobs`` and stamped
+    with their mean token log-probability; the voter computes a
+    probability-weighted majority ALONGSIDE the hard majority. Shadow-first
+    per the R83 plan: on disagreement the vote follows the HARD winner and
+    logs ``llm_soft_sc.shadow`` — soft wins only after an eval gate
+    promotes it. Samples without probability data weigh 1.0 (hard-vote
+    semantics), so the soft path is additive, never blocking.
+    """
+    return _flag("ATOM_SC_SOFT")
+
+
 def get_self_consistency_samples() -> int:
     """Number of samples drawn by the self-consistency voter (default 3)."""
     try:

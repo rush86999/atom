@@ -393,6 +393,38 @@ class SelfConsistencyVoter:
                 winner_hash = h
                 winner_count = len(idxs)
 
+        # R83 #6: soft self-consistency (ACL 2024) — SHADOW only. Compute a
+        # probability-weighted majority alongside the hard majority; on
+        # disagreement the vote follows the HARD winner and logs
+        # ``llm_soft_sc.shadow`` (soft wins only after an eval gate promotes
+        # it, per the R83 plan). Samples without probability data weigh 1.0,
+        # so with no stamped logprobs this whole block is a no-op.
+        try:
+            from core.hallucination_config import is_sc_soft_enabled
+            if is_sc_soft_enabled() and winner_hash is not None:
+                weights = [self._sample_weight(s) for s in valid]
+                if any(w != 1.0 for w in weights):
+                    weighted = {
+                        h: sum(weights[i] for i in idxs)
+                        for h, idxs in counts.items()
+                    }
+                    soft_hash = max(weighted, key=weighted.get)
+                    soft_agreement = weighted[soft_hash] / sum(weighted.values())
+                    if soft_hash != winner_hash:
+                        logger.warning(
+                            f"llm_soft_sc.shadow: soft winner {soft_hash[:8]} "
+                            f"(weighted agreement {soft_agreement:.2f}) != hard "
+                            f"winner {winner_hash[:8]} ({winner_count}/{len(valid)}); "
+                            "following hard winner (shadow mode)"
+                        )
+                    else:
+                        logger.info(
+                            f"llm_soft_sc.shadow: soft and hard winners agree "
+                            f"({winner_hash[:8]}, weighted agreement {soft_agreement:.2f})"
+                        )
+        except Exception as exc:
+            logger.debug(f"soft self-consistency shadow skipped: {exc}")
+
         agreement = winner_count / len(valid)
         level = self._level_from_agreement(agreement)
         winner_idx = counts[winner_hash][0] if winner_hash is not None else 0
@@ -517,6 +549,25 @@ class SelfConsistencyVoter:
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _sample_weight(sample: Any) -> float:
+        """Soft-SC weight (R83 #6): exp(mean token logprob), or 1.0.
+
+        exp(mean logprob) = geometric-mean token probability — a stable
+        per-sample confidence in [0, 1]. Unstamped samples (no logprobs
+        available, non-writable model) weigh exactly 1.0, i.e. hard-vote
+        semantics.
+        """
+        import math
+
+        lp = getattr(sample, "_atom_mean_logprob", None)
+        if isinstance(lp, (int, float)):
+            try:
+                return math.exp(max(lp, -700.0))  # guard exp underflow
+            except (OverflowError, ValueError):
+                return 1.0
+        return 1.0
 
     def _resolve_fanout_targets(self, n: int) -> list[tuple | None]:
         """R83 #1: per-sample (provider, model) pins across AVAILABLE handlers.
