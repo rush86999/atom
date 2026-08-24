@@ -87,11 +87,13 @@ class TestBoxService:
         hc = await self._svc().health_check()
         assert hc["healthy"] is True and hc["service"] == "box"
 
-    async def test_authenticate(self):
+    async def test_authenticate(self, monkeypatch):
+        monkeypatch.setenv("BOX_CLIENT_ID", "box-client-1")
         res = await self._svc().authenticate("user-1")
         assert res["status"] == "success"
         assert res["state"] == "box_user-1"
         assert "account.box.com" in res["auth_url"]
+        assert "client_id=box-client-1" in res["auth_url"]
 
     async def test_execute_unknown_operation(self):
         res = await self._svc().execute_operation("nope", {})
@@ -99,27 +101,46 @@ class TestBoxService:
         assert "Unknown operation" in res["error"]
 
     async def test_execute_list_files(self):
-        res = await self._svc().execute_operation(
-            "list_files", {"access_token": "tok"})
+        svc = self._svc()
+        with patch.object(svc, "_box_get", AsyncMock(return_value={
+            "entries": [{"id": "1", "type": "file"}, {"id": "2", "type": "file"}],
+            "total_count": 2,
+        })):
+            res = await svc.execute_operation("list_files", {"access_token": "tok"})
         assert res["success"] is True
         assert res["result"]["total_count"] == 2
 
     async def test_execute_search_files(self):
-        res = await self._svc().execute_operation(
-            "search_files", {"access_token": "tok", "query": "q"})
+        svc = self._svc()
+        with patch.object(svc, "_box_get", AsyncMock(return_value={
+            "entries": [{"id": "5", "name": "Search Result: q.docx", "type": "file"}],
+            "total_count": 1,
+        })):
+            res = await svc.execute_operation(
+                "search_files", {"access_token": "tok", "query": "q"})
         assert res["success"] is True
         assert res["result"]["entries"][0]["name"].startswith("Search Result: q")
 
     async def test_get_file_metadata(self):
-        res = await self._svc().get_file_metadata("tok", "f1")
+        svc = self._svc()
+        with patch.object(svc, "_box_get", AsyncMock(return_value={"id": "f1", "type": "file"})):
+            res = await svc.get_file_metadata("tok", "f1")
         assert res["status"] == "success" and res["data"]["id"] == "f1"
 
     async def test_download_file(self):
-        res = await self._svc().download_file("tok", "f1")
+        svc = self._svc()
+        with patch.object(svc, "_box_get_bytes", AsyncMock(return_value=b"x")):
+            res = await svc.download_file("tok", "f1")
+        assert res["status"] == "success"
         assert "downloadUrl" in res["data"]
+        assert "content_b64" in res["data"]
 
     async def test_create_folder(self):
-        res = await self._svc().create_folder("tok", "0", "New Folder")
+        svc = self._svc()
+        with patch.object(svc, "_box_post", AsyncMock(return_value={
+            "id": "folder_1", "name": "New Folder", "type": "folder"})):
+            res = await svc.create_folder("tok", "0", "New Folder")
+        assert res["status"] == "success"
         assert res["data"]["name"] == "New Folder"
 
     async def test_execute_error_path(self):
@@ -136,30 +157,40 @@ class TestBoxService:
 
     async def test_sync_to_postgres_cache_new_metric(self):
         from core.models import IntegrationMetric
-        with patch("core.database.SessionLocal", return_value=_mock_db_session(first=None)) as SL:
-            res = await self._svc().sync_to_postgres_cache("ws1", "tok")
-        assert res["success"] is True and res["metrics_synced"] == 1
-        SL.return_value.add.assert_called_once()
-        assert isinstance(SL.return_value.add.call_args[0][0], IntegrationMetric)
+        svc = self._svc()
+        with patch.object(svc, "walk_files", AsyncMock(return_value=[
+            {"id": "1", "path": "/A"}, {"id": "2", "path": ""}])), \
+                patch("core.database.SessionLocal", return_value=_mock_db_session(first=None)) as SL:
+            res = await svc.sync_to_postgres_cache("ws1", "tok")
+        assert res["success"] is True and res["metrics_synced"] == 2
+        assert isinstance(SL.return_value.add.call_args_list[0][0][0], IntegrationMetric)
 
     async def test_sync_to_postgres_cache_existing_metric(self):
         existing = MagicMock()
-        with patch("core.database.SessionLocal", return_value=_mock_db_session(first=existing)):
-            res = await self._svc().sync_to_postgres_cache("ws1", "tok")
+        svc = self._svc()
+        with patch.object(svc, "walk_files", AsyncMock(return_value=[
+            {"id": "1", "path": "/A"}, {"id": "2", "path": "/A/B"}])), \
+                patch("core.database.SessionLocal", return_value=_mock_db_session(first=existing)):
+            res = await svc.sync_to_postgres_cache("ws1", "tok")
         assert res["success"] is True
-        assert existing.value == 2.0  # two mock files
+        assert existing.value == 2.0  # two walked files / two distinct folders
 
     async def test_sync_to_postgres_cache_db_error(self):
+        svc = self._svc()
         db = _mock_db_session(commit_exc=RuntimeError("db down"))
-        with patch("core.database.SessionLocal", return_value=db):
-            res = await self._svc().sync_to_postgres_cache("ws1", "tok")
+        with patch.object(svc, "walk_files", AsyncMock(return_value=[])), \
+                patch("core.database.SessionLocal", return_value=db):
+            res = await svc.sync_to_postgres_cache("ws1", "tok")
         assert res["success"] is False
         db.rollback.assert_called_once()
 
     async def test_full_sync(self):
         svc = self._svc()
-        with patch.object(svc, "sync_to_postgres_cache",
-                          AsyncMock(return_value={"success": True, "metrics_synced": 1})):
+        with patch.object(svc, "walk_files", AsyncMock(return_value=[])), \
+                patch.object(svc, "ingest_file_to_memory", AsyncMock(
+                    return_value={"success": True, "result": {"status": "ingested"}})), \
+                patch.object(svc, "sync_to_postgres_cache",
+                             AsyncMock(return_value={"success": True, "metrics_synced": 1})):
             res = await svc.full_sync("ws1", "tok")
         assert res["success"] is True and res["workspace_id"] == "ws1"
 
@@ -1312,13 +1343,16 @@ class TestBatch1GapFillers:
     async def test_box_execute_remaining_ops(self):
         from integrations.box_service import BoxService
         svc = BoxService()
-        for op, params in [
-            ("get_file_metadata", {"access_token": "t", "file_id": "f"}),
-            ("download_file", {"access_token": "t", "file_id": "f"}),
-            ("create_folder", {"access_token": "t", "parent_folder_id": "0", "folder_name": "n"}),
-        ]:
-            res = await svc.execute_operation(op, params)
-            assert res["success"] is True, op
+        with patch.object(svc, "_box_get", AsyncMock(return_value={"id": "f", "type": "file"})), \
+                patch.object(svc, "_box_get_bytes", AsyncMock(return_value=b"x")), \
+                patch.object(svc, "_box_post", AsyncMock(return_value={"id": "folder_1"})):
+            for op, params in [
+                ("get_file_metadata", {"access_token": "t", "file_id": "f"}),
+                ("download_file", {"access_token": "t", "file_id": "f"}),
+                ("create_folder", {"access_token": "t", "parent_folder_id": "0", "folder_name": "n"}),
+            ]:
+                res = await svc.execute_operation(op, params)
+                assert res["success"] is True, op
 
     async def test_fault_tolerance_open_breaker_and_no_alternative(self):
         from core.fleet_orchestration.fault_tolerance_service import FaultToleranceService
