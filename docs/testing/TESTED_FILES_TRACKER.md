@@ -6328,3 +6328,20 @@ Traced user journeys for all 8 roles (super_admin…guest, `core/security/rbac.p
 **Verification**: suite 16/16; neighbor regression cluster 206 passed (`test_opencode_go_provider`, `test_dynamic_pricing_fetcher` ×2 suites, `test_pricing_model_match`, `test_dynamic_benchmark_integration`, `test_covpush_w64_benchmarks`); mypy clean on new module.
 
 **Not shipped (descoped per plan v2)**: server-side query-param candidate path (Phases 1–4) — gated on staleness measurement (Phase M); registry sync-job revival (dormant pipeline).
+
+---
+
+## 2026-08-24 — Phase M staleness measurement gate (plan v2)
+
+**Purpose**: produce the numbers that decide whether plan-v2 Phases 1–3 (server-side OpenRouter query-param candidate path) ever get built — per the critique accepted in this session ("a plan that adds a param-keyed cache, single-flight locks, a feature flag, a fallback ladder, and a parity-test suite owes us a measurement of the cost it's eliminating").
+
+**Files changed**:
+- `core/dynamic_pricing_fetcher.py` — openrouter transform now carries `expiration_date` + `created`; module helpers `is_expiration_past` (fail-open parser) + `compute_staleness_stats` (added/removed/expired_served diff over the openrouter slice); `refresh_pricing` records a rolling history sample (cap 50) to `./data/pricing_staleness_stats.json` on every refresh incl. cold-boot baseline; instance counters `bpc_stale_seen` + `staleness_summary()`.
+- `core/llm/byok_handler.py` (`get_ranked_providers`) — MEASUREMENT-ONLY hook: candidates whose openrouter payload marks them expired increment `fetcher.bpc_stale_seen`; routing deliberately unchanged (`expiration_date` = "may be removed", not "is removed").
+- `api/byok_routes.py` — authed `GET /api/ai/pricing/staleness-stats` returning the aggregate summary.
+
+**Decision rule**: review `/api/ai/pricing/staleness-stats` after ≥1 week of traffic. If `expired_models_currently_cached` / per-refresh `expired_served` ≈ 0 and availability lag is dominated by the 24h TTL (not filter expressiveness), Phases 1–3 are **measured inert → do not build**; TTL tuning remains the whole story. Nonzero stale-serving or large add/remove churn reopens them.
+
+**Tests**: `tests/test_pricing_staleness_gate.py` — 10 tests, all mocked/tmp-path'd (freshness-field passthrough, expiry-parser matrix, diff math incl. bad dates + first-refresh baseline, refresh persistence across two refreshes, summary shape, BPC behavior-pin "expired still ranked BUT counted" + unexpired-not-counted, route surface via dependency-overridden TestClient).
+
+**Verification**: suite 10/10; regression cluster 206 passed (opencode-go BPC, pricing fetcher ×2, pricing-model-match, endpoint telemetry, unit/api/test_byok_routes); byok_handler mypy baseline identical pre/post diff (65=65); fetcher mypy shows only the pre-existing curated_overrides import note.

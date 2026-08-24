@@ -1604,6 +1604,19 @@ class BYOKHandler:
                 if context_window < min_context:
                     continue
 
+                # Phase M (measurement only): count candidates whose OpenRouter
+                # payload marks them expired. expiration_date means "may be
+                # removed", so routing is deliberately unchanged — this feeds
+                # the staleness stats that decide plan-v2 Phases 1–3.
+                _exp = pricing.get("expiration_date")
+                if _exp:
+                    try:
+                        from core.dynamic_pricing_fetcher import is_expiration_past
+                        if is_expiration_past(_exp):
+                            fetcher.record_stale_consideration(model_id)
+                    except Exception:  # noqa: BLE001 — measurement must never break routing
+                        pass
+
                 # Phase 226.4-04: Check capability filter
                 if not self._filter_by_capabilities(model_id, required_capability, capability_index):
                     continue

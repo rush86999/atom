@@ -1415,6 +1415,22 @@ async def refresh_ai_pricing(force: bool = False, current_user: User = Depends(g
         return ApiResponse(success=False, message="Failed to refresh pricing")
 
 
+@router.get("/api/ai/pricing/staleness-stats")
+async def get_pricing_staleness_stats(current_user: User = Depends(get_current_user)):
+    """Phase M measurement gate: cache staleness + availability-diff stats.
+
+    Numbers here decide whether the server-side OpenRouter query-param
+    candidate path is ever built (plan v2 Phases 1–3) — see
+    docs/testing/TESTED_FILES_TRACKER.md.
+    """
+    try:
+        from core.dynamic_pricing_fetcher import get_pricing_fetcher
+        return ApiResponse(success=True, data=get_pricing_fetcher().staleness_summary())
+    except Exception as e:
+        logger.error(f"Failed to get staleness stats: {e}")
+        return ApiResponse(success=False, message="Failed to get staleness stats")
+
+
 @router.get("/api/ai/pricing/model/{model_name:path}")
 async def get_model_pricing(model_name: str, current_user: User = Depends(get_current_user)):
     """Get pricing for a specific model"""
