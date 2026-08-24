@@ -52,6 +52,13 @@ LEVEL_HIGH = "high"
 LEVEL_PARTIAL = "partial"
 LEVEL_AMBIGUOUS = "ambiguous"
 
+# Hash-algorithm identifiers (R83 #8). Recorded on VoteResult + the
+# SelfConsistencyVote audit row. Rows written before the JCS switch have
+# NULL hash_algo and implicitly used the legacy scheme — version, don't
+# migrate: hashes under different algorithms are NOT interchangeable.
+HASH_ALGO_JCS = "jcs-sha256"  # RFC 8785 canonicalization + SHA-256
+HASH_ALGO_LEGACY = "sha256-sortkeys"  # json.dumps(sort_keys=True) — fits String(16)
+
 
 @dataclass(frozen=True)
 class VoteResult:
@@ -75,6 +82,12 @@ class VoteResult:
         temperatures: The per-sample temperature spread used.
         winner_hash: SHA-256 (truncated to 16 hex chars for log readability)
             of the modal plan, or ``None`` if no winner.
+        hash_algo: Algorithm that produced ``winner_hash`` — ``"jcs-sha256"``
+            (RFC 8785 canonicalization, current) or ``"sha256-sortkeys"``
+            (legacy pre-JCS rows persist with NULL ``hash_algo`` and must be
+            compared only against other legacy rows). Hashes from different
+            algorithms are NOT interchangeable — compare the pair
+            (hash_algo, winner_hash), never the hash alone.
         prompt_hash: SHA-256 (16 hex chars) of the input prompt — for
             audit-row correlation across the vote + execute lifecycle.
     """
@@ -88,6 +101,7 @@ class VoteResult:
     distinct_hashes: int
     temperatures: list[float] = field(default_factory=list)
     winner_hash: str | None = None
+    hash_algo: str | None = None
     prompt_hash: str | None = None
 
     @property
@@ -330,6 +344,7 @@ class SelfConsistencyVoter:
                 distinct_hashes=0,
                 temperatures=temps,
                 winner_hash=None,
+                hash_algo=None,
                 prompt_hash=prompt_hash,
             )
 
@@ -345,6 +360,7 @@ class SelfConsistencyVoter:
                 distinct_hashes=1,
                 temperatures=temps,
                 winner_hash=single_hash[:16],
+                hash_algo=self._effective_hash_algo(),
                 prompt_hash=prompt_hash,
             )
 
@@ -388,6 +404,7 @@ class SelfConsistencyVoter:
             distinct_hashes=len(counts),
             temperatures=temps,
             winner_hash=(winner_hash or "")[:16] or None,
+            hash_algo=self._effective_hash_algo() if winner_hash else None,
             prompt_hash=prompt_hash,
         )
 
@@ -489,22 +506,79 @@ class SelfConsistencyVoter:
         return [cls._DIVERSITY_PERSPECTIVES[i % len(cls._DIVERSITY_PERSPECTIVES)] for i in range(n)]
 
     @staticmethod
+    def _sample_payload(sample: Any) -> Any:
+        """Normalize a sample to a JSON-compatible payload for hashing."""
+        if hasattr(sample, "model_dump"):  # pydantic v2
+            return sample.model_dump(mode="json")
+        if hasattr(sample, "dict"):  # pydantic v1
+            return sample.dict()
+        if isinstance(sample, dict):
+            return sample
+        return {"value": str(sample)}
+
+    @staticmethod
+    def _hash_sample_legacy(sample: Any) -> str:
+        """Legacy hash: ``json.dumps(..., sort_keys=True)`` + SHA-256.
+
+        Kept ONLY for comparing against historical audit rows (their
+        ``winner_hash`` values were produced this way). Do not use for new
+        votes — see ``_hash_sample``.
+        """
+        payload = SelfConsistencyVoter._sample_payload(sample)
+        serialized = json.dumps(payload, sort_keys=True, default=str)
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+    @staticmethod
     def _hash_sample(sample: Any) -> str:
         """Stable hash of a sample for majority-vote equality.
 
-        Uses ``json.dumps(..., sort_keys=True, default=str)`` so structurally
-        equivalent plans hash identically regardless of field order.
+        Default (``ATOM_SC_HASH_ALGO`` unset / ``jcs-sha256``): RFC 8785
+        canonicalization via the vendored ``core.llm.jcs`` — structurally
+        equivalent plans hash identically regardless of field order AND
+        numeric literal form (1 ≡ 1.0 ≡ 1.00).
+
+        Kill switch ``ATOM_SC_HASH_ALGO=sha256-sortkeys`` restores the exact
+        pre-R83 hashes. Any canonicalization failure (NaN/Inf, exotic
+        payloads) falls back to the legacy serialization — hashing must
+        never raise inside a vote.
         """
-        if hasattr(sample, "model_dump"):  # pydantic v2
-            payload = sample.model_dump(mode="json")
-        elif hasattr(sample, "dict"):  # pydantic v1
-            payload = sample.dict()
-        elif isinstance(sample, dict):
-            payload = sample
-        else:
-            payload = {"value": str(sample)}
+        from core.hallucination_config import get_sc_hash_algo
+
+        payload = SelfConsistencyVoter._sample_payload(sample)
+        if get_sc_hash_algo() == HASH_ALGO_JCS:
+            try:
+                from core.llm.jcs import jcs_sha256_hex
+
+                return jcs_sha256_hex(payload)
+            except Exception as exc:  # NaN/Inf, exotic scalars → degrade
+                logger.debug(f"JCS canonicalization failed ({exc}); using legacy hash")
         serialized = json.dumps(payload, sort_keys=True, default=str)
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _effective_hash_algo() -> str:
+        """The algorithm ``_hash_sample`` will use right now (for tagging)."""
+        from core.hallucination_config import get_sc_hash_algo
+
+        return get_sc_hash_algo()
+
+    @staticmethod
+    def hashes_match(
+        row_algo: str | None,
+        row_hash: str | None,
+        vote_algo: str | None,
+        vote_hash: str | None,
+    ) -> bool:
+        """Compare a stored (algo, hash) pair against a vote's pair.
+
+        NULL ``row_algo`` means a legacy row (``sha256-sortkeys``). Hashes
+        computed under different algorithms never match — legacy rows can
+        only dedup against legacy hashes, never against new JCS hashes.
+        """
+        if not row_hash or not vote_hash:
+            return False
+        resolved_row_algo = row_algo or HASH_ALGO_LEGACY
+        return resolved_row_algo == vote_algo and row_hash == vote_hash
 
     @staticmethod
     def _level_from_agreement(agreement: float) -> str:

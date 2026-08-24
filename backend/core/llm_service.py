@@ -1046,6 +1046,7 @@ class LLMService:
             agreement_ratio=vote.agreement_ratio,
             level=vote.level,
             winner_hash=vote.winner_hash,
+            hash_algo=vote.hash_algo,
             temperatures=vote.temperatures,
             gated=False,  # gating is the caller's responsibility
             proposal_id=None,

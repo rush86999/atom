@@ -4037,6 +4037,11 @@ class SelfConsistencyVote(Base):
     agreement_ratio = Column(Float, nullable=False)
     level = Column(String(length=16), nullable=False, index=True)  # high/partial/ambiguous
     winner_hash = Column(String(length=64), nullable=True, index=True)
+    # Algorithm that produced winner_hash: "jcs-sha256" (RFC 8785, current)
+    # or NULL = legacy "sha256-sortkeys" (json.dumps sort_keys). Hashes from
+    # different algorithms are NOT comparable — version, don't migrate: old
+    # rows stay valid for dedup within legacy rows only.
+    hash_algo = Column(String(length=16), nullable=True)
     temperatures = Column(JSONColumn, nullable=True)  # list[float]
 
     # Gating outcome
