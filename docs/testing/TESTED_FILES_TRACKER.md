@@ -6361,3 +6361,5 @@ Traced user journeys for all 8 roles (super_admin…guest, `core/security/rbac.p
 **Tests**: `tests/test_round83_journey_repairs.py` (11); stale-lock update in `test_memory_context_assembler.py` (old contract pinned the broken server-side role filter). Cluster: 157 passed incl. graphrag/byok/auth suites; agent-journey smoke 12/12; mypy baseline identical pre/post.
 
 **Known remaining**: business-fact auto-extraction from integration records (no writer by design yet); canonical_type mapping from integration record types; org-bundle record section → ontology; `extract_knowledge` dead param in lancedb add_document.
+
+**Follow-up (same day)**: repaired the pre-existing `kng` fixture rot in `test_covpush_w68c_optimizer_queue.py` — stubbing `sys.modules["core.graphrag_engine"]` without binding it on the `core` package made conftest's autouse dotted-target monkeypatch AttributeError at setup, so all 9 `TestKnowledgeIngestion*` tests (incl. the R83 arg-shift regression guard) never executed. Fixture now binds/restores parent-package attributes; 9/9 pass; combined cluster 156 passed.

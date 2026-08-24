@@ -1362,17 +1362,41 @@ _STUB_MODULES = [
 @pytest.fixture(scope="module")
 def kng():
     saved = {name: sys.modules.get(name) for name in _STUB_MODULES}
+    # R83 fix: stubbing sys.modules alone breaks any autouse monkeypatch with
+    # a dotted target ("core.graphrag_engine.…") — import resolves via
+    # sys.modules, but monkeypatch then getattr()s the PARENT package and
+    # AttributeError'd at setup for all 9 KnowledgeIngestion tests. Bind each
+    # stub onto its parent package too, and restore both afterwards.
+    import core as _core_pkg
+
+    saved_parent = {
+        name: getattr(_core_pkg, name.split(".", 1)[1], None)
+        for name in _STUB_MODULES
+        if "." in name
+    }
     try:
         for name in _STUB_MODULES:
-            sys.modules[name] = MagicMock()
+            stub = MagicMock()
+            sys.modules[name] = stub
+            if "." in name:
+                setattr(_core_pkg, name.split(".", 1)[1], stub)
         import core.knowledge_ingestion as kmod
         yield kmod
     finally:
-        for name, mod in saved.items():
+        for name in _STUB_MODULES:
+            mod = saved.get(name)
             if mod is None:
                 sys.modules.pop(name, None)
             else:
                 sys.modules[name] = mod
+            if "." in name:
+                attr = name.split(".", 1)[1]
+                old = saved_parent.get(name)
+                if old is None:
+                    if hasattr(_core_pkg, attr):
+                        delattr(_core_pkg, attr)
+                else:
+                    setattr(_core_pkg, attr, old)
 
 
 class TestKnowledgeIngestionProcess:
