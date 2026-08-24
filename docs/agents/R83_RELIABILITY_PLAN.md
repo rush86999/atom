@@ -87,6 +87,34 @@ instead of hard equality, when probability data is available.
   log (`llm_taint.shadow`-style) and follow the hard winner until the eval
   gate promotes soft.
 
+**Feasibility spike — DONE (2026-08-23, read-only; implementation unblocked).**
+Findings, with the exact seam:
+
+1. The structured path calls
+   `instructor_client.chat.completions.create(...)` at
+   `core/llm/byok_handler.py:3325` (instructor 1.15.4 wrapping the
+   provider client). Instructor forwards unknown kwargs to the provider
+   call, so `logprobs=True` rides through.
+2. The raw provider response is ALREADY reachable on the result:
+   `result._raw_response` is read today for `finish_reason`
+   (`byok_handler.py:3337`). Logprobs ride the same object —
+   OpenAI-shape `choices[0].logprobs.content[*].logprob`; tool-mode and
+   non-OpenAI providers may put them elsewhere or omit them entirely.
+3. Threading plan (opt-in, never breaking): add
+   `with_metadata: bool = False` to `generate_structured_response`. When
+   True, pass `logprobs=True` to create() and return a small
+   `StructuredResponseMetadata(result=..., mean_logprob=...)` namespace
+   instead of the bare model. The mean-logprob collector must try the
+   known response shapes and yield `None` when absent — `None` → weight
+   1.0 (hard-vote semantics), which is the spec's degradation path and
+   also covers tool-mode providers that don't emit token logprobs.
+   Voter side: request metadata only when `ATOM_SC_SOFT` is on.
+4. Side-finding (pre-existing, unrelated to #6 but spotted during the
+   spike): the structured create() hardcodes `max_tokens=1000`
+   (`byok_handler.py:3329`) and ignores the caller's `max_tokens` —
+   the voter believes its cap is forwarded. File separately; do not
+   silently fix inside #6.
+
 **Open question.** Whether the ACL paper's exact weighting (mean logprob vs.
 sequence probability) matters at our sample sizes (N=3–5) — shadow data will
 answer it.
