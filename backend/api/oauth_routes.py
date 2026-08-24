@@ -27,6 +27,7 @@ from core.models import OAuthToken, User
 from core.security.auth_rate_limit import AuthRateLimiter
 from core.oauth_handler import (
     ASANA_OAUTH_CONFIG,
+    BOX_OAUTH_CONFIG,
     DROPBOX_OAUTH_CONFIG,
     GITHUB_OAUTH_CONFIG,
     GOOGLE_OAUTH_CONFIG,
@@ -369,11 +370,12 @@ async def oauth_initiate(
         "dropbox": DROPBOX_OAUTH_CONFIG,
         "whatsapp": WHATSAPP_OAUTH_CONFIG,
         "zoho": ZOHO_OAUTH_CONFIG,
+        "box": BOX_OAUTH_CONFIG,
     }
-    
+
     if provider not in configs:
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
-        
+
     handler = OAuthHandler(configs[provider])
     auth_url = handler.get_authorization_url(state=_build_state(provider, uid))
     # Round 80o: JSON variant for mobile clients — they cannot follow a 302
@@ -406,8 +408,9 @@ async def oauth_callback(
         "dropbox": DROPBOX_OAUTH_CONFIG,
         "whatsapp": WHATSAPP_OAUTH_CONFIG,
         "zoho": ZOHO_OAUTH_CONFIG,
+        "box": BOX_OAUTH_CONFIG,
     }
-    
+
     if provider not in configs:
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
 

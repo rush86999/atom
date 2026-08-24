@@ -378,6 +378,52 @@ class TestSyncToPostgres:
         assert result["timestamp"]
 
 
+# ── OAuth wiring / token resolution ─────────────────────────────────────────
+class TestOAuthTokenResolution:
+    def test_box_registered_in_unified_oauth_flow(self):
+        from core.oauth_handler import PROVIDER_CONFIGS
+
+        cfg = PROVIDER_CONFIGS["box"]
+        assert cfg.auth_url == "https://account.box.com/api/oauth2/authorize"
+        assert cfg.token_url == "https://api.box.com/oauth2/token"
+        assert cfg._client_id_env == "BOX_CLIENT_ID"
+
+    async def test_full_sync_resolves_token_from_integration_token(self, service):
+        service.access_token = None
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("BOX_ACCESS_TOKEN", None)
+            with patch.object(service, "get_access_token",
+                              new=AsyncMock(return_value="db-tok")) as mock_get, \
+                    patch.object(service, "walk_files",
+                                 new=AsyncMock(return_value=[])) as mock_walk, \
+                    patch.object(service, "ingest_file_to_memory", AsyncMock()), \
+                    patch.object(service, "sync_to_postgres_cache", AsyncMock(
+                        return_value={"success": True, "metrics_synced": 2})):
+                result = await service.full_sync("ws-96", None)
+        assert result["success"] is True
+        mock_get.assert_awaited_once_with("ws-96")
+        assert mock_walk.call_args.args[0] == "db-tok"
+
+    async def test_full_sync_without_any_token_fails_cleanly(self, service):
+        service.access_token = None
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("BOX_ACCESS_TOKEN", None)
+            with patch.object(service, "get_access_token",
+                              new=AsyncMock(return_value=None)):
+                result = await service.full_sync("ws-96", None)
+        assert result["success"] is False
+        assert "No Box access token" in result["error"]
+
+    async def test_get_access_token_none_without_record(self, service):
+        record = MagicMock()
+        record.access_token = None
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = record
+        with patch("core.database.SessionLocal", return_value=db):
+            token = await service.get_access_token("u1")
+        assert token is None
+
+
 # ── Singleton ────────────────────────────────────────────────────────────────
 class TestSingleton:
     def test_singleton_configured(self):

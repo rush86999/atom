@@ -59,6 +59,83 @@ class BoxService(IntegrationService):
     def _resolve_token(self, access_token: Optional[str]) -> Optional[str]:
         return access_token or self.access_token or os.getenv("BOX_ACCESS_TOKEN")
 
+    async def get_access_token(self, user_id: str) -> Optional[str]:
+        """Resolve a usable Box token from the stored IntegrationToken row.
+
+        The unified OAuth connect flow (/api/v1/auth/oauth/box/callback)
+        writes an encrypted IntegrationToken for provider ``box``. Mirrors the
+        Zoho WorkDrive pattern: expired tokens are refreshed with the stored
+        refresh token and persisted.
+        """
+        try:
+            from datetime import datetime, timedelta, timezone
+
+            from core.database import SessionLocal
+            from core.models import IntegrationToken
+            from core.privsec.token_encryption import decrypt_token, encrypt_token
+
+            db = SessionLocal()
+            try:
+                token_record = (
+                    db.query(IntegrationToken)
+                    .filter(
+                        IntegrationToken.user_id == user_id,
+                        IntegrationToken.provider == "box",
+                        IntegrationToken.status == "active",
+                    )
+                    .first()
+                )
+                if not token_record or not token_record.access_token:
+                    return None
+
+                expires_at = token_record.expires_at
+                if expires_at and expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+                if expires_at and expires_at < (datetime.now(timezone.utc) + timedelta(minutes=2)):
+                    refresh_plain = (
+                        decrypt_token(token_record.refresh_token, allow_plaintext=True)
+                        if token_record.refresh_token
+                        else None
+                    )
+                    new_tokens = await self._refresh(refresh_plain)
+                    if new_tokens and new_tokens.get("access_token"):
+                        token_record.access_token = encrypt_token(new_tokens["access_token"])
+                        token_record.expires_at = datetime.now(timezone.utc) + timedelta(
+                            seconds=new_tokens.get("expires_in", 3600)
+                        )
+                        db.commit()
+                        return new_tokens["access_token"]
+                    return None
+
+                return decrypt_token(token_record.access_token, allow_plaintext=True)
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Error getting Box integration token: {e}")
+            return None
+
+    async def _refresh(self, refresh_token: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Exchange a refresh token for a fresh access token (Box OAuth2)."""
+        if not refresh_token:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.base_url.replace('api.box.com/2.0', 'api.box.com')}/oauth2/token",
+                    data={
+                        "grant_type": "refresh_token",
+                        "refresh_token": refresh_token,
+                        "client_id": os.getenv("BOX_CLIENT_ID"),
+                        "client_secret": os.getenv("BOX_CLIENT_SECRET"),
+                    },
+                )
+                response.raise_for_status()
+                return response.json()
+        except Exception as e:
+            logger.error(f"Failed to refresh Box token: {e}")
+            return None
+
     def get_capabilities(self) -> Dict[str, Any]:
         """Return the capabilities of the Box service."""
         return {
@@ -193,7 +270,8 @@ class BoxService(IntegrationService):
             if not client_id:
                 return _error("BOX_CLIENT_ID not configured")
             redirect_uri = os.getenv(
-                "BOX_REDIRECT_URI", "http://localhost:8001/api/box/callback"
+                "BOX_REDIRECT_URI",
+                "http://localhost:8001/api/v1/auth/oauth/box/callback",
             )
             params = {
                 "response_type": "code",
@@ -524,8 +602,17 @@ class BoxService(IntegrationService):
         followed) into Atom memory (LanceDB + GraphRAG) with folder-path
         context stamped into the memory metadata.
         Pipeline 2: Refresh the Postgres metrics cache.
+
+        ``access_token`` may be None — the token is then resolved from the
+        stored IntegrationToken for ``workspace_id`` (unified OAuth flow).
         """
-        files = await self.walk_files(access_token)
+        token = self._resolve_token(access_token)
+        if not token:
+            token = await self.get_access_token(workspace_id)
+        if not token:
+            return {"success": False, "error": "No Box access token. Connect the integration first."}
+
+        files = await self.walk_files(token)
 
         ingested = 0
         skipped: list[str] = []
@@ -548,7 +635,7 @@ class BoxService(IntegrationService):
             except Exception as file_err:
                 errors.append(f"{name}: {file_err}")
 
-        cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
+        cache_result = await self.sync_to_postgres_cache(workspace_id, token)
         return {
             "success": True,
             "workspace_id": workspace_id,
