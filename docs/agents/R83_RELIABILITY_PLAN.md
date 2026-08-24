@@ -138,6 +138,27 @@ column entirely.
 - Telemetry: per-query leg scores logged in shadow so the A/B is analyzable
   offline.
 
+**A/B RESULT (2026-08-24, run via `backend/venv` with fastembed):**
+
+| Mode | recall | keyword | paraphrase | n |
+|------|--------|---------|------------|---|
+| off (baseline) | 1.000 | 1.000 | 1.000 | 7 |
+| rrf | 1.000 | 1.000 | 1.000 | 7 |
+| linear | 1.000 | 1.000 | 1.000 | 7 |
+
+**Dissonant-gate finding:** the current golden set is at ceiling — baseline
+scores 7/7, so the gate CANNOT discriminate the arms (a tie here is absence
+of measurement, not evidence of parity). Combined with the external
+counter-evidence against RRF (HERMES: hybrid+RRF 0.61 < pure vector), the
+arms are **unpromotable as measured**: neither may leave `off`.
+
+**Disposition:** the arms stay default-`off` and are now on a clock — if a
+discriminating golden set (larger n, paraphrase/distractor questions where
+baseline < 1.0) is not built by the next roadmap review, DELETE the fusion
+arms and close #4 with this negative result. Speculative A/B apparatus with
+no experiment that can run is exactly the weight the "why implement it"
+critique objects to.
+
 ## #3 — Datamarking / spotlighting (widely-cited preprint, ~300 cites)
 
 **Relabel (disposition):** Tier 1 by impact, NOT by venue. **Precondition
