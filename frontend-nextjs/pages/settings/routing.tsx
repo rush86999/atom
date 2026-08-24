@@ -63,7 +63,7 @@ const RoutingDashboardPage: React.FC = () => {
     const emaScores = stats?.ema_scores ?? {};
 
     return (
-        <Layout>
+        <>
             <Head>
                 <title>Routing &amp; Learning | Atom</title>
             </Head>
@@ -237,7 +237,7 @@ const RoutingDashboardPage: React.FC = () => {
                     </Link>
                 </Box>
             </Container>
-        </Layout>
+        </>
     );
 };
 

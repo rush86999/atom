@@ -7,7 +7,7 @@ import Layout from '../../components/layout/Layout';
 
 const AISettingsPage = () => {
     return (
-        <Layout>
+        <>
             <Head>
                 <title>AI Provider Settings | Atom</title>
             </Head>
@@ -38,7 +38,7 @@ const AISettingsPage = () => {
                     </Link>
                 </Box>
             </Container>
-        </Layout>
+        </>
     );
 };
 

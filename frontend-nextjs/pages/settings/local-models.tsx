@@ -109,7 +109,7 @@ const LocalModelsPage: React.FC = () => {
     };
 
     return (
-        <Layout>
+        <>
             <Head><title>Local Models | Atom</title></Head>
             <div className="container mx-auto max-w-4xl py-8">
                 <div className="mb-8">
@@ -223,7 +223,7 @@ const LocalModelsPage: React.FC = () => {
                     <Link href="/settings/ai"><p className="text-blue-500 hover:underline cursor-pointer">← Back to AI Provider Settings</p></Link>
                 </div>
             </div>
-        </Layout>
+        </>
     );
 };
 

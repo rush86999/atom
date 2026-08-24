@@ -135,38 +135,42 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
       }
       const data = await response.json();
 
-      // Transform backend response to expected state format
-      // Backend returns { providers: [{provider: {...}, usage: {...}, has_api_keys: bool, status: str}], ... }
-      if (data.providers) {
+      const rawProviders = data?.data?.providers || data?.providers;
+      if (Array.isArray(rawProviders)) {
         const statusMap: Record<string, AIProviderStatus> = {};
         let configuredCount = 0;
         let workingCount = 0;
 
-        data.providers.forEach((p: any) => {
-          statusMap[p.provider.id] = {
-            configured: p.has_api_keys,
+        rawProviders.forEach((p: any) => {
+          const providerId = p.provider?.id || p.id || p.provider_id || "unknown";
+          const providerName = p.provider?.name || p.name || providerId;
+          const isConfigured = Boolean(p.has_api_keys || p.configured || p.has_keys);
+          const isActive = p.status === "active" || Boolean(p.is_active);
+
+          statusMap[providerId] = {
+            configured: isConfigured,
             test_result: {
-              success: p.status === "active",
-              message: p.status === "active" ? "Connection successful" : "Not configured or inactive"
+              success: isActive,
+              message: isActive ? "Connection successful" : "Not configured or inactive"
             },
             provider_info: {
-              name: p.provider.name,
-              description: p.provider.description,
-              acquisition_url: p.provider.base_url || "", // Backend might not have this, default to empty
+              name: providerName,
+              description: p.provider?.description || p.description || "",
+              acquisition_url: p.provider?.base_url || p.base_url || "",
               expected_format: "sk-...",
-              capabilities: p.provider.supported_tasks,
-              models: [p.provider.model || "default"]
+              capabilities: p.provider?.supported_tasks || p.supported_tasks || ["chat"],
+              models: p.provider?.model ? [p.provider.model] : (p.models || ["default"])
             }
           };
-          if (p.has_api_keys) configuredCount++;
-          if (p.status === "active") workingCount++;
+          if (isConfigured) configuredCount++;
+          if (isActive) workingCount++;
         });
 
         setUserStatus({
           user_id: userId,
           status: statusMap,
           summary: {
-            total_available: data.total_providers,
+            total_available: data?.data?.total_providers || data?.total_providers || rawProviders.length,
             total_configured: configuredCount,
             total_working: workingCount
           }

@@ -91,7 +91,7 @@ const HarnessEvolutionPage = () => {
     const activePatches = data?.active_patches || [];
 
     return (
-        <Layout>
+        <>
             <Head>
                 <title>Self-Evolving Harness | Atom</title>
             </Head>
@@ -254,7 +254,7 @@ const HarnessEvolutionPage = () => {
                     </CardContent>
                 </Card>
             </Container>
-        </Layout>
+        </>
     );
 };
 
