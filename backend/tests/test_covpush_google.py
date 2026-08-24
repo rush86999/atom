@@ -956,8 +956,8 @@ class TestGoogleDriveServiceBasics:
         svc = _drive_svc()
         caps = svc.get_capabilities()
         assert [op["id"] for op in caps["operations"]] == [
-            "list_files", "search_files", "get_file_metadata", "download_file",
-            "sync_to_postgres_cache", "full_sync",
+            "list_files", "walk_files", "search_files", "get_file_metadata", "download_file",
+            "ingest_file_to_memory", "sync_to_postgres_cache", "full_sync",
         ]
         assert caps["required_params"] == ["access_token"]
 
@@ -1402,23 +1402,20 @@ class TestGoogleDriveServiceSync:
         db.query().filter_by().first.side_effect = first_values
         return db
 
-    async def test_sync_list_files_error(self):
+    async def test_sync_walk_error(self):
         svc = _drive_svc("tok")
-        svc.list_files = AsyncMock(return_value={"status": "error", "message": "no token"})
+        svc.walk_files = AsyncMock(side_effect=RuntimeError("no token"))
         result = await svc.sync_to_postgres_cache("ws-1", "tok")
         assert result["success"] is False
-        assert result["error"] == "no token"
+        assert "cache sync failed" in result["error"]
 
     async def test_sync_success_new_and_existing(self):
         svc = _drive_svc("tok")
-        svc.list_files = AsyncMock(return_value={
-            "status": "success",
-            "data": {"files": [
-                {"id": "d1", "mimeType": "application/vnd.google-apps.document"},
-                {"id": "s1", "mimeType": "application/vnd.google-apps.spreadsheet"},
-                {"id": "p1", "mimeType": "image/png"},
-            ]},
-        })
+        svc.walk_files = AsyncMock(return_value=[
+            {"id": "d1", "mimeType": "application/vnd.google-apps.document"},
+            {"id": "s1", "mimeType": "application/vnd.google-apps.spreadsheet"},
+            {"id": "p1", "mimeType": "image/png"},
+        ])
         existing = MagicMock()
         db = MagicMock()
         db.query().filter_by().first.side_effect = [None, existing, None]
@@ -1433,7 +1430,7 @@ class TestGoogleDriveServiceSync:
 
     async def test_sync_db_failure(self):
         svc = _drive_svc("tok")
-        svc.list_files = AsyncMock(return_value={"status": "success", "data": {"files": []}})
+        svc.walk_files = AsyncMock(return_value=[])
         db = MagicMock()
         db.commit.side_effect = RuntimeError("db down")
         with patch("core.database.SessionLocal", return_value=db):
@@ -1445,7 +1442,7 @@ class TestGoogleDriveServiceSync:
 
     async def test_sync_outer_failure(self):
         svc = _drive_svc("tok")
-        svc.list_files = AsyncMock(return_value={"status": "success", "data": {"files": []}})
+        svc.walk_files = AsyncMock(return_value=[])
         with patch("core.database.SessionLocal", side_effect=RuntimeError("no db")):
             result = await svc.sync_to_postgres_cache("ws-1", "tok")
         assert result["success"] is False

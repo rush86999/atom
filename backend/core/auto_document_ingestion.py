@@ -389,6 +389,7 @@ class AutoDocumentIngestionService:
         user_id: str = "system",
         workspace_id: Optional[str] = None,
         role: Optional[str] = None,
+        extra_metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Parse raw file bytes and ingest the extracted text into Atom memory.
 
@@ -453,6 +454,9 @@ class AutoDocumentIngestionService:
             "pg_document_id": _file_doc_id,
             "source_type": "file",
         }
+        # Connector-supplied context (e.g. WorkDrive folder path / root)
+        if extra_metadata:
+            _meta.update({k: v for k, v in extra_metadata.items() if v})
         # AI-employee relevance tag (Round 80): lets role-aware recall surface
         # this file to the employee whose role it was ingested for.
         if role:
