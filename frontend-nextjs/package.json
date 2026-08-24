@@ -193,6 +193,12 @@
       "react": "^18.3.1"
     }
   },
+  "optionalDependencies": {
+    "@next/swc-darwin-arm64": "16.2.2",
+    "@next/swc-darwin-x64": "^16.2.2",
+    "@next/swc-linux-arm64-gnu": "16.2.2",
+    "@next/swc-linux-x64-gnu": "16.2.2"
+  },
   "devDependencies": {
     "@babel/core": "^7.21.3",
     "@babel/plugin-transform-modules-commonjs": "^7.21.2",
@@ -202,6 +208,7 @@
     "@next/bundle-analyzer": "^16.1.1",
     "@percy/cli": "^1.31.8",
     "@percy/playwright": "^1.0.10",
+    "@playwright/test": "^1.40.0",
     "@stryker-mutator/core": "^9.5.1",
     "@stryker-mutator/jest-runner": "^9.5.1",
     "@tailwindcss/forms": "^0.5.3",
@@ -265,7 +272,6 @@
     "ts-jest": "^29.4.0",
     "typescript": "^5.9.2",
     "web-streams-polyfill": "^4.2.0",
-    "zustand": "^5.0.12",
-    "@playwright/test": "^1.40.0"
+    "zustand": "^5.0.12"
   }
 }

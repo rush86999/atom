@@ -2,21 +2,25 @@
 set -euo pipefail
 
 # Atom Quick Start Script
-# Run: curl -fsSL https://raw.githubusercontent.com/rush86999/atom/main/scripts/quickstart.sh | bash
-# Or:  ./scripts/quickstart.sh
-
-# Run: ./scripts/quickstart.sh
+# Run: ./scripts/quickstart.sh   (or: make setup)
 # Sets up a complete Atom dev environment from scratch.
 
-set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "🚀 Atom Quick Start"
 echo "===================="
 
 # Check prerequisites
-command -v python3 >/dev/null 2>&1 || { echo "❌ Python 3.11+ is required"; exit 1; }
-command -v node >/dev/null 2>&1 || { echo "❌ Node.js 18+ is required"; exit 1; }
+for cmd in python3 node npm git make; do
+    command -v "$cmd" >/dev/null 2>&1 || { echo "❌ '$cmd' is required but not installed"; exit 1; }
+done
+
+# Node >= 20.9 is required by Next.js 16 (the frontend framework).
+if [ "$(node -e 'const [ma,mi]=process.versions.node.split(".").map(Number); console.log(ma>20||(ma===20&&mi>=9)?1:0)')" != "1" ]; then
+    echo "❌ Node.js 20.9+ required (found $(node --version))"
+    exit 1
+fi
+echo "✅ Node $(node --version)"
 
 PY_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 if python3 -c 'import sys; assert sys.version_info >= (3,11)' 2>/dev/null; then
@@ -25,7 +29,6 @@ else
     echo "❌ Python 3.11+ required (found $PY_VERSION)"
     exit 1
 fi
-echo "✅ Node $(node --version)"
 
 # --- Backend setup ---
 echo ""
@@ -35,7 +38,7 @@ if [ ! -d "backend/venv" ]; then
     python3 -m venv backend/venv
 fi
 source backend/venv/bin/activate
-pip install -q -r backend/requirements.txt 2>/dev/null || pip install -q -r backend/requirements.txt
+pip install -q -r backend/requirements.txt
 echo "✅ Backend dependencies installed"
 
 # --- Generate .env if missing ---
@@ -75,7 +78,15 @@ echo ""
 echo "📦 Setting up frontend..."
 
 cd frontend-nextjs
-npm install --legacy-peer-deps 2>/dev/null
+npm install --legacy-peer-deps
+
+# Point the frontend at the local backend (only if no .env.local yet)
+if [ ! -f ".env.local" ]; then
+    cat > .env.local <<EOF
+NEXT_PUBLIC_API_URL=http://localhost:8001
+EOF
+    echo "✅ Generated frontend-nextjs/.env.local"
+fi
 echo "✅ Frontend dependencies installed"
 cd ..
 
@@ -84,7 +95,6 @@ echo ""
 if command -v ollama >/dev/null 2>&1; then
     echo "🦙 Ollama detected! You can run Atom fully local."
     echo "   To use: set ATOM_LOCAL_ONLY=true in backend/.env"
-    echo "   Then: ./scripts/dev.sh"
     echo "   Ollama will serve as the LLM backend (no API key needed)."
 else
     echo "💡 Tip: Install Ollama (https://ollama.ai) for free local AI."
@@ -96,7 +106,8 @@ echo "✅ Setup complete!"
 echo ""
 echo "Next steps:"
 echo "  1. Edit backend/.env — add an API key or set ATOM_LOCAL_ONLY=true"
-echo "  2. Run: ./scripts/dev.sh"
-echo "  3. Open http://localhost:3000"
+echo "  2. Run: ./scripts/dev.sh   (or: make dev)"
+echo "  3. Open http://localhost:3001"
 echo ""
-echo "Admin password will be printed on first backend startup."
+echo "On first backend startup, the admin password is generated and saved to"
+echo "backend/logs/bootstrap_admin_password.txt (sign in as admin@example.com)."

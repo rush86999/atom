@@ -4,9 +4,5 @@
   "scripts": {
     "dev": "npm --prefix frontend-nextjs run dev",
     "frontend": "npm --prefix frontend-nextjs run dev"
-  },
-  "dependencies": {
-    "@next/swc-darwin-x64": "16.2.2",
-    "next": "16.2.2"
   }
 }

@@ -48,6 +48,41 @@ jobs:
           echo "Backend failed to boot"; kill $BACKEND_PID 2>/dev/null || true; exit 1
 
   # -------------------------------------------------------------------
+  # Install path: does the documented `make setup` quickstart actually
+  # work end-to-end for a new user? (venv, deps, .env generation)
+  # -------------------------------------------------------------------
+  quickstart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run make setup (quickstart.sh)
+        run: make setup
+      - name: Verify setup artifacts
+        run: |
+          test -d backend/venv
+          test -f backend/.env
+          test -d frontend-nextjs/node_modules
+          test -f frontend-nextjs/.env.local
+          grep -q "SECRET_KEY=" backend/.env
+          echo "Quickstart artifacts OK"
+      - name: Boot the full app from the generated env
+        working-directory: backend
+        run: |
+          source venv/bin/activate
+          python -m uvicorn main_api_app:app --host 127.0.0.1 --port 8001 > /tmp/quickstart-backend.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fs http://127.0.0.1:8001/alive > /dev/null 2>&1 && { echo "Backend alive from quickstart env"; exit 0; }
+            sleep 2
+          done
+          echo "Backend failed to boot from quickstart env:"; tail -40 /tmp/quickstart-backend.log; exit 1
+
+  # -------------------------------------------------------------------
   # Backend unit tests (unchanged set, fast feedback)
   # -------------------------------------------------------------------
   backend-tests:

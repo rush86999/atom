@@ -80,11 +80,13 @@ PYTHONPATH=$PWD:$PWD/backend ./backend/venv/bin/python -m uvicorn main_api_app:a
 # — OR use the Makefile: make backend / make frontend / make dev
 ```
 
-### Method 3: Automated Installer Script
-Atom provides a one-shot shell script to automate repository cloning, dependency resolution, virtual environment creation, and initial DB migration:
+### Method 3: Quick Start Script
+After cloning, run the one-shot bootstrap script (same as `make setup`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rush86999/atom/main/scripts/install.sh | bash
+git clone https://github.com/rush86999/atom.git
+cd atom
+./scripts/quickstart.sh   # venv + backend deps + frontend deps + .env generation
 ```
 
 ### Method 4: Makefile (recommended for contributors)
