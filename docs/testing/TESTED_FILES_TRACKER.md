@@ -6313,3 +6313,18 @@ Traced user journeys for all 8 roles (super_admin…guest, `core/security/rbac.p
 **Verification**: round82 8/8; governance adjudication clusters 283+473 passed (3 pre-existing order-pollution failures identical on clean HEAD); boot mounts 2/2; w77c reasoning section green (1 pre-existing unrelated failure identical on clean tree); FE tsc clean for touched files; FE sessions tests 2/2.
 
 **Known remaining (documented, not fixed here)**: SupervisionSession creation has zero production callers (supervision-complete→confidence loop unreachable); `execute_agent_chat`/GraduationExamService/AgentPromotionService dead; marketplace agent install severed (archived router); meta-agent creates no episodes; `/team-chat` static page + 15 `*_enhanced.tsx` dead-button pages + automations mock-data pages; trust-api.ts client orphaned (no admin UI page); undefined `billing_admin` role references remain only in docs; promotion allowlist lacks TEAM_LEAD/WORKSPACE_ADMIN/OWNER/VIEWER/GUEST via API.
+
+---
+
+## 2026-08-24 — OpenRouter endpoint telemetry + AA benchmark enrichment (Phase 5')
+
+**Files changed**:
+- `core/llm/openrouter_endpoints.py` (NEW) — `OpenRouterEndpointMonitor`: TTL cache (600s default) over `GET /api/v1/models/{slug}/endpoints` measured health (`uptime_30m`, `latency_30m_ms.p50`, `throughput_30m.p50`); background-only refresh (asyncio task or daemon thread, single-flight lock); fail-open everywhere; kill switch `ATOM_OPENROUTER_ENDPOINT_TELEMETRY_ENABLED` (default ON); knobs `ATOM_OPENROUTER_MIN_UPTIME_30M` (90), `ATOM_OPENROUTER_MAX_LATENCY_P50_MS` (5000). Docstring pins the Phase-0 spike verification matrix (23 params probed live with negative controls: all whitelisted params honored server-side; unknown params silently ignored — drift hazard; `category` incompatible with limit/offset; pricing sort blends completion/request prices).
+- `core/llm/byok_handler.py` (`get_ranked_providers`) — openrouter-hosted candidates only: measured uptime below floor → candidate skipped; measured p50 latency above cap → value score × 0.75 (ordering influence only); unknown/no-data/flag-off ⇒ byte-identical prior behavior. Telemetry refresh kicked off pre-loop, never blocks.
+- `core/dynamic_benchmark_fetcher.py` — new `fetch_from_openrouter()` source: `benchmarks.artificial_analysis.intelligence_index` from the existing full-table `/models` payload (no new API surface) keyed by the exact ids BPC routes with; merged as SUPPLEMENT via `_apply_supplement` (setdefault semantics — LMSYS/existing sources always win) into all three cache-population paths of `refresh_benchmarks`; fetched concurrently with LMSYS (no added latency).
+
+**Tests**: `tests/test_openrouter_endpoint_telemetry.py` — **16 tests**, all mocked (`httpx.MockTransport`, monkeypatched singleton/pricing fetcher), zero network in CI: slug parsing (3), endpoint selection/TTL/fail-open/empty (4), kill switch (1), BPC gating (uptime exclusion, latency ordering, flag-off parity, non-openrouter isolation, no-data pass-through) (5), benchmark source (AA parse+clamp+skip-invalid, supplement-merge precedence, source-failure tolerance) (3).
+
+**Verification**: suite 16/16; neighbor regression cluster 206 passed (`test_opencode_go_provider`, `test_dynamic_pricing_fetcher` ×2 suites, `test_pricing_model_match`, `test_dynamic_benchmark_integration`, `test_covpush_w64_benchmarks`); mypy clean on new module.
+
+**Not shipped (descoped per plan v2)**: server-side query-param candidate path (Phases 1–4) — gated on staleness measurement (Phase M); registry sync-job revival (dormant pipeline).

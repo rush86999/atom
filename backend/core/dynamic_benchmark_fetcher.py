@@ -37,6 +37,14 @@ CACHE_DURATION_HOURS = 6
 ARTIFICIAL_ANALYSIS_URL = "https://artificialanalysis.ai/api/v1/models"
 BENCHMARK_MOE_URL = "https://benchmark.moe/api/v1/models"
 
+# Phase 5' enrichment source: OpenRouter's public /models payload embeds the
+# Artificial Analysis indices (intelligence/coding/agentic) per model, keyed
+# by the same ``author/slug`` ids BPC routes with. No auth required.
+# Verified live Aug 2026 (Phase 0 spike): anonymous access works and
+# benchmarks.artificial_analysis.{intelligence_index,coding_index,agentic_index}
+# are present on scored models (omitted otherwise).
+OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+
 
 class DynamicBenchmarkFetcher:
     """
@@ -249,6 +257,61 @@ class DynamicBenchmarkFetcher:
             logger.error(f"Failed to fetch Benchmark.moe data: {e}")
             return {}
 
+    async def fetch_from_openrouter(self) -> Dict[str, float]:
+        """Fetch Artificial Analysis intelligence indices from OpenRouter.
+
+        The /api/v1/models payload carries ``benchmarks.artificial_analysis``
+        per model — the same indices the (flaky) direct Artificial Analysis
+        API serves, keyed by the exact ``author/slug`` ids BPC routes with.
+        Scores are clamped to 0-100; models without benchmark data are skipped.
+
+        Returns:
+            Dict mapping model ids to quality scores (0-100)
+        """
+        client = await self._get_client()
+        try:
+            response = await client.get(OPENROUTER_MODELS_URL)
+            response.raise_for_status()
+            data = response.json()
+
+            scores: Dict[str, float] = {}
+            for model in data.get("data", []):
+                model_id = model.get("id") or ""
+                aa = ((model.get("benchmarks") or {}).get("artificial_analysis") or {})
+                raw = aa.get("intelligence_index")
+                if not model_id or raw is None:
+                    continue
+                try:
+                    score = min(100.0, max(0.0, float(raw)))
+                except (TypeError, ValueError):
+                    continue
+                scores[model_id] = score
+
+            logger.info(f"Fetched {len(scores)} benchmark scores from OpenRouter")
+            return scores
+
+        except Exception as e:
+            logger.error(f"Failed to fetch OpenRouter benchmarks: {e}")
+            return {}
+
+    @staticmethod
+    def _apply_supplement(
+        base: Dict[str, float],
+        extra: Dict[str, float],
+        source_name: str,
+    ) -> Dict[str, float]:
+        """Add ``extra`` entries missing from ``base`` (never overrides)."""
+        if not extra:
+            return base
+        added = 0
+        for model_id, score in extra.items():
+            if model_id not in base:
+                base[model_id] = score
+                added += 1
+        if added:
+            logger.info(f"Supplemented {added} scores from {source_name}")
+        return base
+
     def merge_benchmark_scores(
         self,
         sources: List[Dict[str, float]]
@@ -317,13 +380,27 @@ class DynamicBenchmarkFetcher:
             logger.info("Using cached benchmark data")
             return self.benchmark_cache
 
-        # Try LMSYS first (most reliable source)
-        logger.info("Fetching benchmarks from LMSYS...")
-        lmsys_scores = await self.fetch_from_lmsys()
+        # LMSYS first (most reliable); OpenRouter AA-indices run concurrently
+        # as a supplemental source for models LMSYS doesn't name (Phase 5').
+        logger.info("Fetching benchmarks from LMSYS + OpenRouter...")
+        lmsys_result, openrouter_result = await asyncio.gather(
+            self.fetch_from_lmsys(),
+            self.fetch_from_openrouter(),
+            return_exceptions=True,
+        )
+        if isinstance(lmsys_result, Exception):
+            logger.debug(f"LMSYS fetch raised: {lmsys_result}")
+            lmsys_scores: Dict[str, float] = {}
+        else:
+            lmsys_scores = lmsys_result
+        openrouter_scores: Dict[str, float] = (
+            {} if isinstance(openrouter_result, Exception) else openrouter_result
+        )
 
         if lmsys_scores and len(lmsys_scores) > 10:
             # LMSYS worked, use it
-            self.benchmark_cache = lmsys_scores
+            self.benchmark_cache = self._apply_supplement(
+                lmsys_scores, openrouter_scores, "openrouter")
             self.last_fetch = datetime.now()
             self._save_cache()
             logger.info(f"Successfully fetched {len(lmsys_scores)} benchmark scores from LMSYS")
@@ -348,7 +425,8 @@ class DynamicBenchmarkFetcher:
 
         # Merge results from successful alternative sources
         if sources:
-            self.benchmark_cache = self.merge_benchmark_scores(sources)
+            self.benchmark_cache = self._apply_supplement(
+                self.merge_benchmark_scores(sources), openrouter_scores, "openrouter")
             self.last_fetch = datetime.now()
             self._save_cache()
             logger.info(f"Successfully fetched {len(self.benchmark_cache)} benchmark scores from alternative sources")
@@ -358,7 +436,8 @@ class DynamicBenchmarkFetcher:
         logger.error("All external benchmark sources failed")
         if use_static_fallback:
             logger.info("Falling back to static benchmarks")
-            self.benchmark_cache = self._get_static_benchmarks()
+            self.benchmark_cache = self._apply_supplement(
+                self._get_static_benchmarks(), openrouter_scores, "openrouter")
             self.last_fetch = datetime.now()  # Mark as updated even though using static
             self._save_cache()
             return self.benchmark_cache

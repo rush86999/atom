@@ -1566,6 +1566,25 @@ class BYOKHandler:
             )
 
             # Use the entire pricing cache to discover models beyond hardcoded lists
+            # Phase 5': kick off (never block on) measured endpoint telemetry for
+            # openrouter-hosted models so subsequent calls have fresh health data.
+            _or_telemetry_ids: List[str] = []
+            if "openrouter" in self.clients:
+                try:
+                    from core.llm.openrouter_endpoints import (
+                        get_endpoint_monitor as _get_endpoint_monitor,
+                        telemetry_enabled as _or_telemetry_enabled,
+                    )
+                    if _or_telemetry_enabled():
+                        _or_telemetry_ids = [
+                            mid for mid, p in fetcher.pricing_cache.items()
+                            if (p.get("litellm_provider") or "").lower() == "openrouter"
+                        ][:50]
+                        if _or_telemetry_ids:
+                            _get_endpoint_monitor().ensure_refresh_started(_or_telemetry_ids)
+                except Exception as e:  # noqa: BLE001 — telemetry must never break routing
+                    logger.debug(f"Endpoint telemetry kickoff skipped: {e}")
+
             for model_id, pricing in fetcher.pricing_cache.items():
                 litellm_provider = pricing.get("litellm_provider", "").lower()
                 
@@ -1597,12 +1616,28 @@ class BYOKHandler:
                 if not self._filter_by_health(active_provider):
                     continue
 
+                # Phase 5': measured endpoint health for openrouter-hosted
+                # models. Unknown/no-data ⇒ untouched (fail-open). Measured
+                # uptime below floor ⇒ skip; p50 latency above cap ⇒ soft
+                # value-score penalty applied at scoring time.
+                endpoint_penalty = 1.0
+                if active_provider == "openrouter" and _or_telemetry_ids:
+                    try:
+                        from core.llm.openrouter_endpoints import (
+                            endpoint_health_gate,
+                        )
+                        gate = endpoint_health_gate(model_id)
+                    except Exception:  # noqa: BLE001
+                        gate = 1.0
+                    if gate is None:
+                        continue
+                    endpoint_penalty = gate
+
                 # Check quality score (use capability-specific score if required)
                 if required_capability:
                     quality_score = get_capability_score(model_id, required_capability)
                 else:
                     quality_score = get_quality_score(model_id)
-
                 if quality_score < min_quality or quality_score > max_quality:
                     continue
 
@@ -1627,6 +1662,7 @@ class BYOKHandler:
                     "model": model_id,
                     "quality": quality_score,
                     "cost": effective_cost,
+                    "endpoint_penalty": endpoint_penalty,
                 })
 
             # Second pass: compute value_score with a pool-relative cost floor.
@@ -1726,6 +1762,7 @@ class BYOKHandler:
                     ((c["quality"] ** 2) / (normalized_cost * 1e6))
                     * max(0.25, c["headroom"])
                     * quota_factor
+                    * c.get("endpoint_penalty", 1.0)
                 )
 
             
