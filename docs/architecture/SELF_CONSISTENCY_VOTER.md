@@ -330,9 +330,36 @@ Tracked as follow-on work, not blockers for the initial port:
 | `backend/alembic/versions/20260629_add_self_consistency_votes.py` | Guarded migration. |
 | `backend/tests/test_self_consistency_voter.py` | 24 tests — C1-C8 ported + C9-C15 new for shadow/audit. |
 
+## R83 upgrades (Aug 2026)
+
+### JCS canonicalization + algo tagging (#8)
+
+`_hash_sample` now canonicalizes via RFC 8785 (vendored `core/llm/jcs.py` — UTF-16
+key ordering, ECMAScript number formatting) before SHA-256: plans differing only
+by numeric literal form (`100` vs `100.0`) or JSON key order hash identically.
+Every `VoteResult`/`SelfConsistencyVote` row records `hash_algo`
+(`"jcs-sha256"` current, NULL = legacy rows). Versioned, not migrated — hashes
+under different algos are never compared (`SelfConsistencyVoter.hashes_match`).
+
+Kill switch: `ATOM_SC_HASH_ALGO=sha256-sortkeys` restores byte-identical legacy
+hashes. Canonicalization failures (NaN/Inf) fall back to the legacy serializer —
+hashing never raises.
+
+### Universal SC judge fallback (#2, ICML 2024)
+
+When every sample is distinct, one budget-tier judge call
+(`task_type="usc_judge"`, temp 0, 64 tok, 5 s timeout) picks the plan most
+consistent with the others instead of blindly taking lowest-temp
+(Chen et al., [Universal Self-Consistency](https://arxiv.org/abs/2311.17311)).
+Opt-in: `ATOM_SC_USC_FALLBACK=true` (adds an LLM call per all-distinct vote;
+same posture as `ATOM_SANDBOX_JUDGE_ENABLED`). Any judge failure / malformed /
+out-of-range answer degrades to exact pre-existing behavior.
+`VoteResult.selection` ∈ `majority | usc-judge | lowest-temp`.
+
 ## References
 
 - [Wang et al. 2022 — Self-Consistency Improves Chain of Thought Reasoning in Language Models](https://arxiv.org/abs/2203.11171)
+- R83 #8/#2 implementation: `core/llm/jcs.py`, `hallucination_config.get_sc_hash_algo` / `is_usc_fallback_enabled`, migration `20260823_scv_hash_algo`
 - [Universal Self-Consistency (Chen 2023, ICML 2024)](https://arxiv.org/abs/2311.17311)
 - [Soft Self-Consistency Improves Language Model Agents (ACL 2024)](https://aclanthology.org/2024.acl-short.28.pdf)
 - [Confidence Improves Self-Consistency in LLMs / CISC (arXiv 2502.06233)](https://arxiv.org/html/2502.06233v2)
