@@ -9,6 +9,13 @@ from typing import Dict, List, Optional
 # Model tier restrictions by plan
 # Format: plan_name -> list of allowed models (or "*" for all models)
 MODEL_TIER_RESTRICTIONS: Dict[str, List[str]] = {
+    # Legacy entries kept for direct-API/BYOK deployments; current-gen
+    # OpenCode Go gateway models appended so the plan gate doesn't empty
+    # the ranked candidates on gateway-only deployments (the catalog moved
+    # to opencode-go but this allowlist had none of its models — every
+    # free-plan tenant got zero ranked models).
+    # Matching is substring-based: "deepseek-v4-flash" also admits the
+    # "-free" billing variant, etc.
     "free": [
         "gpt-4o-mini",
         "claude-3-haiku",
@@ -17,6 +24,13 @@ MODEL_TIER_RESTRICTIONS: Dict[str, List[str]] = {
         "gemini-2.0-flash",
         "gemini-3.5-flash",
         "qwen-plus",
+        # OpenCode Go value models
+        "deepseek-v4-flash",
+        "gemini-3-flash",
+        "glm-5.1",
+        "kimi-k2.5",
+        "minimax-m2.7",
+        "qwen3.6-plus",
     ],
     "pro": [
         "gpt-4o",
@@ -32,12 +46,28 @@ MODEL_TIER_RESTRICTIONS: Dict[str, List[str]] = {
         "qwen-plus",
         "qwen-max",
         "xiaomi/mimo-v2.5-pro",
+        # OpenCode Go current-gen models
+        "deepseek-v4-flash",
+        "deepseek-v4-pro",
+        "gemini-3-flash",
+        "gemini-3.1-pro",
+        "glm-5.1",
+        "glm-5.2",
+        "kimi-k2.5",
+        "kimi-k2.7-code",
+        "minimax-m2.7",
+        "minimax-m3",
+        "qwen3.6-plus",
+        "claude-sonnet-4",
+        "grok-4.6",
+        "gpt-5.3-codex-spark",
     ],
     "enterprise": "*",  # All models available
     "trial": [
         "gpt-4o-mini",
         "claude-3-haiku",
         "deepseek-chat",
+        "deepseek-v4-flash",
     ],
 }
 

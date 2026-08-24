@@ -975,24 +975,33 @@ class BYOKHandler:
                     credential_type, credential_value = _run_coroutine_sync(
                         self.credential_service.get_credential(provider_id)
                     )
-                    api_key = credential_value
-                    credential_source = credential_type
+                    if isinstance(credential_value, str) and credential_value:
+                        api_key = credential_value
+                        credential_source = credential_type
                     logger.info(f"Using {credential_source.upper()} credential for {provider_id}")
                 except Exception as e:
                     logger.debug(f"Credential service not available for {provider_id}: {e}")
 
-            # Fallback to BYOK if credential service didn't provide one
+            # Fallback to BYOK if credential service didn't provide one.
+            # Guard with isinstance: a non-string value (corrupted store
+            # entry, or a test double returning Mock objects) must NOT count
+            # as "found" — otherwise the env fallback below is skipped and
+            # the provider silently loses its client entirely.
             if not api_key and self.byok_manager.is_configured(self.workspace_id, provider_id):
-                api_key = self.byok_manager.get_api_key(provider_id)
-                credential_source = "byok"
+                candidate = self.byok_manager.get_api_key(provider_id)
+                if isinstance(candidate, str) and candidate:
+                    api_key = candidate
+                    credential_source = "byok"
 
             # Special case: Gemini BYOK fallback to Google / Google Flash / Gemini Flash variants
             if not api_key and provider_id == "gemini":
                 for alt_provider in ["google", "google_flash", "google_flash_3_5", "gemini_flash", "gemini_flash_3_5"]:
                     if self.byok_manager.is_configured(self.workspace_id, alt_provider):
-                        api_key = self.byok_manager.get_api_key(alt_provider)
-                        credential_source = "byok"
-                        break
+                        candidate = self.byok_manager.get_api_key(alt_provider)
+                        if isinstance(candidate, str) and candidate:
+                            api_key = candidate
+                            credential_source = "byok"
+                            break
 
             # Final fallback to environment variables
             if not api_key:

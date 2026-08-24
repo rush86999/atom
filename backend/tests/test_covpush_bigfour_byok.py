@@ -177,7 +177,9 @@ class TestCredentialServiceInit:
                             Mock(return_value=cred))
         mgr = Mock()
         mgr.is_configured = Mock(return_value=True)
-        mgr.get_api_key = Mock(return_value="sk-byok")
+        # >= 12 chars — the placeholder-key filter in _initialize_clients
+        # discards shorter values.
+        mgr.get_api_key = Mock(return_value="sk-byok-fallback-1234")
         with patch("core.llm.byok_handler.get_byok_manager", return_value=mgr), \
              patch("core.llm.byok_handler.llm_usage_tracker", Mock()), \
              patch.dict(os.environ, {"OPENCODE_API_KEY": ""}):

@@ -99,6 +99,13 @@ def byok_handler(mock_config):
                         tenant_id="test-tenant",
                         provider_id="auto"
                     )
+                    # mock_config declares openai + anthropic — install mock
+                    # clients for them so provider-selection tests have the
+                    # providers they assert against (the mocked byok manager
+                    # provides no real credentials).
+                    for pid in ("openai", "anthropic"):
+                        handler.clients.setdefault(pid, Mock())
+                        handler.async_clients.setdefault(pid, Mock())
                     return handler
 
 
