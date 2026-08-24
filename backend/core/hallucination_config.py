@@ -154,10 +154,16 @@ def is_usc_fallback_enabled() -> bool:
 
     When every sample in a vote is distinct, one budget-tier judge LLM call
     picks the plan most consistent with the others instead of blindly taking
-    the lowest-temperature sample. Adds an LLM call per all-distinct vote,
-    so default OFF (same posture as ``ATOM_SANDBOX_JUDGE_ENABLED``).
+    the lowest-temperature sample.
+
+    Default ON (evidence-based): peer-reviewed (ICML 2024 — the strongest
+    evidence tier in the R83 framework), fires ONLY on otherwise-wasted
+    all-distinct votes, and any judge failure/malformed/out-of-range answer
+    degrades to the exact pre-existing lowest-temp behavior. The added cost
+    is one budget-tier call per degenerate vote. Kill switch:
+    ``ATOM_SC_USC_FALLBACK=false``.
     """
-    return _flag("ATOM_SC_USC_FALLBACK")
+    return _flag_default_true("ATOM_SC_USC_FALLBACK")
 
 
 def is_sc_fanout_enabled() -> bool:
@@ -167,11 +173,17 @@ def is_sc_fanout_enabled() -> bool:
     own ranking (``get_ranked_providers``) and pins each sample round-robin
     to a different (provider, model) — diversity across providers, not just
     temperatures. NEVER a fixed provider list: the candidate set is whatever
-    the router says is available. Single-candidate, unrankable handler, or
-    ranking failure → all samples run unpinned (silent degradation, one INFO
-    log). Default OFF (R72 posture).
+    the router says is available.
+
+    Default ON (evidence-based): zero added LLM cost (the same N calls),
+    samples stay comparable because ``response_model`` normalizes structure
+    across providers, per-sample failure isolation already exists, and any
+    single-candidate/ranking/handler degradation silently reverts to
+    today's behavior. Majority semantics are unchanged — cross-provider
+    agreement is the same consistency signal, measured across an extra
+    dimension. Kill switch: ``ATOM_SC_FANOUT=false``.
     """
-    return _flag("ATOM_SC_FANOUT")
+    return _flag_default_true("ATOM_SC_FANOUT")
 
 
 def is_sc_soft_enabled() -> bool:
@@ -184,8 +196,16 @@ def is_sc_soft_enabled() -> bool:
     logs ``llm_soft_sc.shadow`` — soft wins only after an eval gate
     promotes it. Samples without probability data weigh 1.0 (hard-vote
     semantics), so the soft path is additive, never blocking.
+
+    Default ON (evidence-based): the vote outcome NEVER changes while the
+    eval gate is pending (hard winner always followed), so defaulting ON is
+    pure observability — it collects exactly the shadow data the promotion
+    gate needs. A gateway that rejects the ``logprobs`` kwarg is handled by
+    a single retry without logprobs (the structured call never fails
+    because of soft-SC). Kill switch: ``ATOM_SC_SOFT=false`` restores
+    byte-identical requests.
     """
-    return _flag("ATOM_SC_SOFT")
+    return _flag_default_true("ATOM_SC_SOFT")
 
 
 def get_self_consistency_samples() -> int:

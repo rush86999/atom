@@ -795,10 +795,13 @@ def _distinct_handler(plans):
 
 @pytest.mark.unit
 def test_R2_flag_off_returns_lowest_temp(monkeypatch):
-    """Kill-switch parity: flag unset → all-distinct still returns samples[0]."""
+    """Kill-switch parity: flag false → all-distinct still returns samples[0].
+
+    (USC is default-ON as of the evidence-based defaults flip; the kill
+    switch is an explicit ``false``.)"""
     from core.llm.self_consistency_voter import SelfConsistencyVoter
 
-    monkeypatch.delenv("ATOM_SC_USC_FALLBACK", raising=False)
+    monkeypatch.setenv("ATOM_SC_USC_FALLBACK", "false")
     plans = [{"a": 1}, {"a": 2}, {"a": 3}]
 
     async def run():

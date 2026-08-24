@@ -3346,25 +3346,38 @@ class BYOKHandler:
                     _structured_start = time.time()
                     # R83 #6: soft self-consistency — request logprobs and
                     # stamp the parsed model with its mean token logprob so
-                    # the voter can weight samples by probability. Opt-in
-                    # (ATOM_SC_SOFT); strictly off = byte-identical request
-                    # and response handling. A gateway rejecting the kwarg
-                    # fails this attempt like any other structured failure
-                    # and the provider cascade proceeds.
+                    # the voter can weight samples by probability. Default ON
+                    # (shadow-only — the vote outcome never changes); strictly
+                    # off = byte-identical request and response handling.
+                    # A gateway that rejects the ``logprobs`` kwarg gets ONE
+                    # retry without it, so soft-SC can never fail a
+                    # structured call that would otherwise succeed.
                     _soft_sc_on = False
                     try:
                         from core.hallucination_config import is_sc_soft_enabled
                         _soft_sc_on = is_sc_soft_enabled()
                     except Exception:
                         pass
-                    result = instructor_client.chat.completions.create(
+                    _create_kwargs = dict(
                         model=model,
                         response_model=response_model,
                         messages=messages,
                         temperature=temperature,
                         max_tokens=1000,
-                        **({"logprobs": True} if _soft_sc_on else {}),
                     )
+                    if _soft_sc_on:
+                        _create_kwargs["logprobs"] = True
+                    try:
+                        result = instructor_client.chat.completions.create(**_create_kwargs)
+                    except Exception as _soft_exc:
+                        if not _soft_sc_on:
+                            raise
+                        _create_kwargs.pop("logprobs", None)
+                        logger.warning(
+                            f"soft-SC logprobs request failed for {provider_id}/{model} "
+                            f"({_soft_exc}); retrying once without logprobs"
+                        )
+                        result = instructor_client.chat.completions.create(**_create_kwargs)
                     _structured_latency_ms = (time.time() - _structured_start) * 1000.0
                     if _soft_sc_on:
                         # Best-effort — no stamp ⇒ voter weight 1.0.

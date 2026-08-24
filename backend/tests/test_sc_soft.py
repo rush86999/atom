@@ -77,7 +77,7 @@ class TestShadowSoftVote:
         assert not any("llm_soft_sc.shadow: soft winner" in r.message for r in caplog.records)
 
     def test_flag_off_no_soft_computation(self, monkeypatch, caplog):
-        monkeypatch.delenv("ATOM_SC_SOFT", raising=False)
+        monkeypatch.setenv("ATOM_SC_SOFT", "false")
         a1 = _sample({"plan": "A"}, -5.0)
         a2 = _sample({"plan": "A"}, -5.0)
         b1 = _sample({"plan": "B"}, -0.01)
@@ -163,7 +163,7 @@ class TestHandlerStamping:
 
         # Flag off → no logprobs kwarg, no stamp.
         captured.clear()
-        monkeypatch.delenv("ATOM_SC_SOFT")
+        monkeypatch.setenv("ATOM_SC_SOFT", "false")
         with patch_session(pro_tenant_db()):
             result2 = asyncio.run(handler.generate_structured_response(
                 prompt="p", system_instruction="s", response_model=dict,

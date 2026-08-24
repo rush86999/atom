@@ -168,11 +168,65 @@ substrate — extend it, don't build from zero.
 - Deliverables: registry schema + seed entries for existing controls, an
   audit endpoint listing coverage gaps, docs. Explicitly multi-day.
 
-## #9 — Blackboard (shadow-diff per house convention)
+## #9 — Blackboard shared working memory (own spec — original item text unrecoverable)
 
-Pending the original item text — spec slot reserved. Rollout must follow the
-shadow-diff convention (shadow the new path, diff outcomes, promote on
-parity).
+**Objective.** Give multi-agent runs a single shared, structured working
+memory (the classic blackboard pattern: Hearsay-II lineage) instead of
+today's point-to-point coordination only (`AgentHandoffProtocol` initiates
+one-to-one handoffs; `MultiAgentCanvasService` coordinates agents on a
+canvas; `AgentOrchestrator` runs single-agent ReAct loops with no cross-run
+memory beyond the memory tools).
+
+**Design (v1 substrate, additive only).**
+- Store: workspace-scoped `BlackboardEntry` table — `key` (dedupe),
+  `slot` ∈ {hypothesis, fact, task, decision, constraint},
+  `value` (JSON), `source` (agent/tool id), `confidence` (float | null),
+  `superseded_by` (soft versioning — append-only, never UPDATE).
+- Knowledge sources: the EXISTING surfaces — tools write conclusions
+  (`blackboard_post` tool wrapping `memory_tool`-style semantics), agents
+  read (`blackboard_read` with slot/key filters). No new agent
+  abstractions in v1.
+- Control shell: NONE in v1. The existing scheduler/orchestrator remains
+  the sole driver — the blackboard is a coordination SUBSTRATE, not an
+  autonomous controller. (A control-shell that scans entries to pick the
+  next action is a v2 question gated on v1 shadow data.)
+- Prompt injection: `on` mode appends a bounded "blackboard context"
+  (top-N entries by recency×confidence) to multi-agent prompts.
+
+**Rollout (house shadow-diff convention).**
+`ATOM_BLACKBOARD ∈ {off, shadow, on}`, default `off` permanently until
+promoted:
+- `shadow`: mirror every tool result + agent conclusion into the
+  blackboard (writes only, no reads, no prompt changes). Diff: task
+  success rate + token cost on the existing e2e journey suite vs control.
+- `on`: enable `blackboard_read` + prompt context injection.
+- Promotion gate: shadow shows ≥ parity on task success with ≤ +5% tokens
+  over a representative run set; only then does `on` become eligible.
+
+**Evidence basis.** Architecturally established (blackboard systems are
+textbook), but zero in-house evidence that shared memory helps THESE
+workloads — hence permanently eval-gated, unlike the default-ON items.
+
+**Tests.** Store CRUD + append-only versioning; shadow mirroring fires on
+tool results only when enabled; no behavioral change at `off`/`shadow`
+(prompt-bytes snapshot); read filtering by slot/key.
+
+## Default posture (evidence-based) — 2026-08-24 decision
+
+Defaults were re-decided on evidence, not blanket conservatism:
+
+| Flag | Default | Rationale |
+|------|---------|-----------|
+| `ATOM_SC_HASH_ALGO` | `jcs-sha256` (was already) | Deterministic gain; algo-tagged versioning covers comparability |
+| `ATOM_SC_USC_FALLBACK` | **ON** (flipped) | Peer-reviewed (ICML 2024); fires only on otherwise-wasted all-distinct votes; any judge failure degrades to exact old behavior |
+| `ATOM_SC_FANOUT` | **ON** (flipped) | Zero added LLM cost; `response_model` normalizes structure across providers so votes stay comparable; silent degradation everywhere |
+| `ATOM_SC_SOFT` | **ON** (flipped) | Shadow-only — the vote outcome NEVER changes while the eval gate is pending; defaulting ON is pure observability that collects the promotion data. Safe: logprobs-rejecting gateways get one retry without logprobs |
+| `ATOM_RETRIEVAL_FUSION` | `off` (unchanged) | In-repo evidence AGAINST RRF; linear unevaluated in-house — eval-gated |
+| `ATOM_DATAMARKING` | `off` (unchanged) | Touches every untrusted prompt; shadow task-success A/B precondition not yet built |
+
+Rule going forward: a default flips ON only with (peer-reviewed evidence OR
+zero-behavior-change observability OR zero-cost with silent degradation) AND
+a kill switch. Locked by `tests/test_r83_evidence_defaults.py`.
 
 ## #5 — IntentGuard (optional)
 

@@ -91,7 +91,7 @@ class TestFanoutEnabled:
 
 class TestSilentDegradation:
     def test_flag_off_no_pinning(self, monkeypatch):
-        monkeypatch.delenv("ATOM_SC_FANOUT", raising=False)
+        monkeypatch.setenv("ATOM_SC_FANOUT", "false")
         handler = _handler_returning(
             [dict(PLAN), dict(PLAN), dict(PLAN)],
             ranked=[("a", "m1"), ("b", "m2")],
@@ -141,7 +141,7 @@ class TestSilentDegradation:
 class TestDegradationUnderFailure:
     def test_pinned_provider_failing_is_isolated(self, monkeypatch):
         monkeypatch.setenv("ATOM_SC_FANOUT", "true")
-        monkeypatch.delenv("ATOM_SC_USC_FALLBACK", raising=False)
+        monkeypatch.setenv("ATOM_SC_USC_FALLBACK", "false")
         good = dict(PLAN)
 
         async def sample(**kwargs):
