@@ -452,6 +452,46 @@ def _opencode_paid_fallback_model(model: str) -> Optional[str]:
     return "deepseek-v4-flash"  # cheapest paid model
 
 
+# Free-usage models to retry with when the PAID tier is out of credits.
+# The subscription balance can be exhausted (CreditsError on every paid
+# model) while the "-free" allowance still works — verified live against
+# the Zen gateway: nemotron-3.5-lightning-free, laguna-s-2.1-free and
+# nemotron-3-ultra-free all complete with a zero-balance workspace.
+# Override via env: OPENCODE_FREE_TIER_MODELS='["model-a-free", ...]'
+OPCODE_FREE_TIER_FALLBACK_DEFAULTS = [
+    "nemotron-3.5-lightning-free",
+    "laguna-s-2.1-free",
+    "nemotron-3-ultra-free",
+]
+
+
+def _opencode_free_tier_fallbacks(model: str) -> list:
+    """Ordered fallback chain for an opencode model that hit a budget error.
+
+    Free model → its paid sibling first, then the verified free tier.
+    Paid model → straight to the free tier (the paid balance is gone).
+    """
+    raw = os.getenv("OPENCODE_FREE_TIER_MODELS", "").strip()
+    chain: list = []
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                chain = [m for m in parsed if isinstance(m, str)]
+            else:
+                logger.warning("OPENCODE_FREE_TIER_MODELS must be a JSON list — ignoring")
+        except (ValueError, TypeError):
+            logger.warning("OPENCODE_FREE_TIER_MODELS is not valid JSON — ignoring")
+    if not chain:
+        chain = list(OPCODE_FREE_TIER_FALLBACK_DEFAULTS)
+    chain = [m for m in chain if m != model]
+    if _is_opencode_free_model(model):
+        paid = _opencode_paid_fallback_model(model)
+        if paid and paid != model:
+            chain.insert(0, paid)
+    return chain
+
+
 # --- OpenRouter: budget-exhausted → free-model fallback (round 80w2) ---
 # OpenRouter serves many models with a ":free" variant that has no per-token
 # cost but lower rate limits. When the user's credits are exhausted on a
@@ -2367,17 +2407,21 @@ class BYOKHandler:
                     err_str = str(attempt_err)
 
                     # Round 80w2: insufficient-balance → model fallback before
-                    # skipping the provider. OpenCode Go: free → paid sibling.
-                    # OpenRouter: paid → :free variant. Both gateways serve the
-                    # same model families from one key; a budget error on one
-                    # tier shouldn't kill the request when another tier works.
+                    # skipping the provider. OpenCode Go: free → paid sibling,
+                    # then the verified free tier when the paid balance is
+                    # exhausted too. OpenRouter: paid → :free variant. Both
+                    # gateways serve the same model families from one key; a
+                    # budget error on one tier shouldn't kill the request when
+                    # another tier works.
                     if provider_id in {"opencode-go", "opencode", "zen", "openrouter"} and _is_insufficient_balance_error(attempt_err):
-                        fallback_model = (
-                            _opencode_paid_fallback_model(model)
-                            if provider_id in {"opencode-go", "opencode", "zen"}
-                            else _openrouter_free_fallback_model(model)
-                        )
-                        if fallback_model and fallback_model != model:
+                        if provider_id in {"opencode-go", "opencode", "zen"}:
+                            fallback_chain = _opencode_free_tier_fallbacks(model)
+                        else:
+                            _orf = _openrouter_free_fallback_model(model)
+                            fallback_chain = [_orf] if _orf and _orf != model else []
+                        for fallback_model in fallback_chain:
+                            if fallback_model == model:
+                                continue
                             logger.info(
                                 f"Budget exhausted on {provider_id}/{model} — "
                                 f"retrying with {fallback_model}"
@@ -2399,7 +2443,7 @@ class BYOKHandler:
                                 logger.warning(
                                     f"Fallback {fallback_model} also failed: {fb_err}"
                                 )
-                            # Both tiers exhausted — skip this provider
+                        # All tiers exhausted — skip this provider
 
                     if "401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str:
                         failed_providers.add(provider_id)

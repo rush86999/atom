@@ -27,12 +27,26 @@ def _verify_canvas_owner(db, canvas_id: str, user_id: str) -> bool:
     canvas_id only, so any authenticated user could read/modify/delete another
     user's canvas by guessing the id. The Canvas.created_by column is the
     authoritative owner (NOT NULL).
+
+    Agent-created canvases (present_markdown & friends) historically write
+    ONLY a CanvasAudit row — no Canvas row exists for them, which made every
+    agent-created canvas 404 on read/update/delete. Fall back to the audit
+    trail's user_id (the acting owner) for those; IDOR protection is
+    preserved because CanvasAudit.user_id is set by the creating user.
     """
-    from core.models import Canvas
+    from core.models import Canvas, CanvasAudit
+
     canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
-    if canvas is None:
-        return False
-    return canvas.created_by == user_id
+    if canvas is not None:
+        return canvas.created_by == user_id
+
+    audit = (
+        db.query(CanvasAudit)
+        .filter(CanvasAudit.canvas_id == canvas_id)
+        .order_by(CanvasAudit.created_at.desc())
+        .first()
+    )
+    return audit is not None and audit.user_id == user_id
 
 
 async def read_canvas(
