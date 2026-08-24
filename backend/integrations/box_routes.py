@@ -123,6 +123,25 @@ async def search_files(
         raise HTTPException(status_code=500, detail="Internal error")
 
 
+@router.post("/sync")
+async def full_sync(current_user: User = Depends(get_current_user)):
+    """Full ingestion sync: walk every Box subfolder (paginated) and ingest
+    every file type into Atom memory with folder-path context. The Box token
+    is resolved server-side from the stored OAuth connection."""
+    try:
+        result = await box_service.full_sync(
+            workspace_id=str(current_user.id), access_token=None
+        )
+        if not result.get("success") and "No Box access token" in str(result.get("error")):
+            raise HTTPException(status_code=400, detail="Box not connected")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to run Box full sync: {e}")
+        raise HTTPException(status_code=500, detail="Internal error")
+
+
 @router.get("/status")
 async def box_status(user_id: str = "test_user"):
     """Get Box integration status"""

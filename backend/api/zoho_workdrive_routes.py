@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from core.auth import get_current_user, User
+from core.auth import get_current_user, get_optional_current_user, User
 from core.base_routes import BaseAPIRouter
 from integrations.zoho_workdrive_service import ZohoWorkDriveService
 
@@ -69,6 +69,28 @@ async def ingest_file(request_body: IngestRequest, request: Request):
     except Exception as e:
         logger.error(f"Error ingesting Zoho file: {e}")
         raise router.internal_error(message=f"Error ingesting Zoho file: {e}", details={"error": str(e)})
+
+@router.post("/full-sync", summary="Full ingestion sync of the entire WorkDrive tree")
+async def full_sync(
+    http_request: Request,
+    user_id: Optional[str] = Query(None),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """Walk every subfolder of the private workspace AND all team folders
+    (paginated), attempt every file type through the parser chain, and write
+    to Atom memory (LanceDB + GraphRAG) with folder-path context. Also
+    refreshes the Postgres metrics cache."""
+    try:
+        # Proper dependency-injected user (the resolve_user_id helper calls
+        # get_current_user directly, whose Depends defaults never resolve, so
+        # it silently falls back to demo-user).
+        uid = str(current_user.id) if current_user else (user_id or "demo-user")
+        result = await zoho_service.full_sync(uid)
+        return result
+    except Exception as e:
+        logger.error(f"Error running Zoho WorkDrive full sync: {e}")
+        return {"success": False, "error": str(e)}
+
 
 @router.get("/health", summary="Zoho WorkDrive health check")
 async def health_check():

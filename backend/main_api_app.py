@@ -1547,6 +1547,39 @@ if not is_test_mode:
         except Exception as e:
             logger.error(f"  ✗ Journey registration failed for {mod}: {e}")
 
+# --- Round 83: OneDrive / Google Drive journey route repair ---------------
+# The integration panels (OneDriveIntegration.tsx / GoogleDriveIntegration.tsx)
+# call /api/onedrive/*, /api/gdrive/* and /api/ingest-gdrive-document — paths
+# no real router ever served (only a dev-script mock). Mount the real
+# journey routers at those exact paths so the panel journeys resolve. Also
+# the only HTTP surface that can trigger each provider's full ingestion
+# sync (every subfolder, every file type) for OneDrive/GDrive; Box, Dropbox
+# and Zoho WorkDrive expose theirs on their own routers.
+if not is_test_mode:
+    try:
+        from integrations.onedrive_journey_routes import (
+            auth_router as onedrive_auth_journey_router,
+            router as onedrive_journey_router,
+        )
+
+        app.include_router(onedrive_journey_router, tags=["onedrive-journey"])
+        app.include_router(onedrive_auth_journey_router, tags=["onedrive-journey"])
+        logger.info("  ✓ onedrive-journey (/api/onedrive/*, /api/auth/onedrive/*)")
+    except Exception as e:
+        logger.error(f"  ✗ onedrive-journey registration failed: {e}")
+
+    try:
+        from integrations.gdrive_journey_routes import (
+            ingest_router as gdrive_ingest_router,
+            router as gdrive_journey_router,
+        )
+
+        app.include_router(gdrive_journey_router, tags=["gdrive-journey"])
+        app.include_router(gdrive_ingest_router, tags=["gdrive-journey"])
+        logger.info("  ✓ gdrive-journey (/api/gdrive/*, /api/ingest-gdrive-document)")
+    except Exception as e:
+        logger.error(f"  ✗ gdrive-journey registration failed: {e}")
+
 
 @app.get("/api/debug/integrations")
 async def debug_integrations(current_user: User = Depends(get_current_user)):
@@ -3085,14 +3118,13 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"User preference routes failed to load: {e}")
 
-    try:
-
-        logger.info("✓ Multimodal Chat Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Multimodal chat routes failed to load: {e}")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Protection API routes not found: {e}")
-
+    # Round 83 audit-trap cleanup: the previous empty try-blocks here logged
+    # "✓ Multimodal Chat / Canvas Browser / Canvas Action / Canvas Context
+    # Routes Loaded" while mounting NOTHING (and the Multimodal block carried
+    # a duplicated except clause). Removed — a mount that mounts nothing must
+    # not log success. The real surfaces are: chat via /api/chat/*, canvas
+    # CRUD/context/history via /api/canvas/*, terminal/coding/docs/sheets via
+    # their dedicated routers below.
     # 8b. Universal Canvas Routes (Terminal, Browser, Desktop Automation)
     try:
         from api.canvas_terminal_routes import router as canvas_terminal_router
@@ -3121,23 +3153,7 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Device capabilities routes not found: {e}")
 
-    try:
-
-        logger.info("✓ Canvas Browser Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Canvas browser routes not found: {e}")
-
-    try:
-
-        logger.info("✓ Canvas Action Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Canvas action routes not found: {e}")
-
-    try:
-
-        logger.info("✓ Canvas Context Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Canvas context routes not found: {e}")
+    # (Canvas Browser/Action/Context audit traps removed — see note above.)
 
     try:
         from api.canvas_recording_routes import router as canvas_recording_router
