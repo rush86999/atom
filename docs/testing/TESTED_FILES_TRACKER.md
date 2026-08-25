@@ -6588,3 +6588,18 @@ Research note: retrieval-time pre-filtering re-validated for A-G1/A-G2 (RAG acce
 **Tests**: `backend/tests/test_promotion_evidence_gate.py` (11): one-session never promotes; 3+clean promotes; poor ratio blocks; env knobs; progress counts; system exemption ×2; playbook attach; generic-meta-doesn't-teach-Sales; meta-teaches-system; mentored pathway halves floor. Legacy suites updated where they tested confidence mechanics (env knobs preserve intent) or mocked DB aggregates (w63).
 
 **Verification**: 168 training-suite tests + 62 w79 green; main_api_app imports clean; live server restarted with gate active.
+
+## 2026-08-26e — Earned super-mentor: domain-attributed learning ledger (R86c)
+
+**Goal**: atom_main becomes "a super mentor for everyone" — EARNED per role, not assumed. Root cause of impossibility: `record_outcome("atom_main")` credits one blended row; role evidence evaporated.
+
+**Fix**:
+- `core/models.py` + migration `20260826_add_domain_experience_ledger.py`: `domain_experience_ledger(agent_id, domain, outcome, task_summary)` — exact-count SQL evidence layer (world-model AgentExperience stays the semantic layer).
+- `core/domain_attribution.py`: `resolve_domain()` keyword routing over fleet DOMAIN_ALIASES vocabulary (None when unattributable — no guessing), `record_domain_outcome()` (never raises), `count_domain_wins()`, `top_domain_cases()`.
+- `core/atom_meta_agent.py::_record_execution`: resolves domain from task text → stamps `AgentExperience.specialty` + writes ledger row alongside governance outcome.
+- `StudentTrainingService._find_mentor`: super-mentor candidacy — atom_main qualifies for role R with ≥ ATOM_SUPERMENTOR_MIN_DOMAIN_WINS (default 5) verified ledger wins in R; competes on evidence vs same-role seniors (more proven teacher wins); playbook cases for super-mentor come from ledger. Anti-laundering preserved: ledger wins qualify TEACHING only, never student confidence/episode counts.
+- Alembic CLI broken in this env (known R71) — table applied via guarded create_all reconciliation pattern.
+
+**Tests**: `backend/tests/test_super_mentor_pathway.py` (7): domain keyword resolution ×3, ledger record/count, super-mentor qualifies at threshold + playbook from ledger, below-threshold = no mentor, more-proven senior beats super-mentor.
+
+**Verification**: 119 training/governance tests green; main_api_app imports clean; live DB migrated; server restarted on :8001.

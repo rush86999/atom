@@ -165,9 +165,29 @@ class AgentContextResolver:
                         "Backfilled workspace/tenant scope on system default agent: %s",
                         agent.id,
                     )
+                # Heal pre-Round-86 rows born STUDENT: the fallback chat
+                # surface needs level-2 actions (stream_chat) to function at
+                # all. Never demotes an agent that already graduated higher.
+                if agent.status == AgentStatus.STUDENT.value:
+                    agent.status = AgentStatus.INTERN.value
+                    if (agent.confidence_score or 0) < 0.6:
+                        agent.confidence_score = 0.6
+                    self.db.commit()
+                    logger.info(
+                        "Healed system Chat Assistant %s to INTERN (fallback "
+                        "chat surface cannot run at STUDENT)", agent.id,
+                    )
                 return agent
 
-            # Create system default agent
+            # Create system default agent.
+            #
+            # Birth state rationale: the Chat Assistant is the platform's
+            # fallback interaction surface — every unmatched request lands
+            # here. STUDENT maturity would block `stream_chat` (a level-2
+            # INTERN action in the governance ladder), breaking chat before
+            # the agent ever trains. It is born INTERN (like the onboarding
+            # Demo Assistant) with the same evidence-gate exemption as all
+            # system agents; level-3+ actions still require graduation.
             logger.info("Creating system default Chat Assistant agent")
             agent = AgentRegistry(
                 name="Chat Assistant",
@@ -175,13 +195,25 @@ class AgentContextResolver:
                 category="system",
                 module_path="system",
                 class_name="ChatAssistant",
-                status=AgentStatus.STUDENT.value,
-                confidence_score=0.5,
+                status=AgentStatus.INTERN.value,
+                confidence_score=0.6,
                 workspace_id=PERSONAL_WORKSPACE_ID,
                 tenant_id=PERSONAL_TENANT_ID,
                 configuration={
                     "system_prompt": "You are a helpful assistant for business automation and integrations.",
-                    "capabilities": ["chat", "stream_chat", "present_chart", "present_markdown"]
+                    "capabilities": ["chat", "stream_chat", "present_chart", "present_markdown"],
+                    "system_agent": True,
+                    "role": "chat",
+                    # Learning contract: atom_main is the designated mentor
+                    # (fast pathway); observation runs in parallel. System
+                    # agents skip the apprenticeship evidence gate, but the
+                    # learning log still accumulates for graduation beyond
+                    # INTERN.
+                    "learning": {
+                        "teacher_agent_id": "atom_main",
+                        "pathways": ["teacher", "observation"],
+                        "curriculum": ["chat_facilitation", "canvas_presentation"],
+                    },
                 }
             )
             self.db.add(agent)

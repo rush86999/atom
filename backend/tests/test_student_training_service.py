@@ -116,6 +116,20 @@ class TestStudentTrainingServiceInit:
         assert service.db == mock_db
 
 
+def _arm_evidence_queries(db):
+    """Round-86 evidence gate: the service now counts completed sessions,
+    episodes, and success ratio, and iterates mentor candidates. Plain chain
+    mocks return Mock objects that break arithmetic/iteration — arm the
+    chains with real values that satisfy the self-directed evidence floors
+    (10 sessions, 10 episodes, ratio 1.0, no mentor playbook)."""
+    chain = db.query.return_value.filter.return_value
+    chain.count.return_value = 10
+    chain.all.return_value = []
+    chain.order_by.return_value.all.return_value = []
+    chain.order_by.return_value.limit.return_value.all.return_value = []
+    return db
+
+
 class TestTrainingProposalCreation:
     """Test training proposal creation from blocked triggers"""
 
@@ -123,7 +137,7 @@ class TestTrainingProposalCreation:
     def mock_db(self):
         """Mock database session."""
         db = Mock(spec=Session)
-        return db
+        return _arm_evidence_queries(db)
 
     @pytest.fixture
     def mock_agent(self):
@@ -314,7 +328,7 @@ class TestTrainingCompletion:
     def mock_db(self):
         """Mock database session."""
         db = Mock(spec=Session)
-        return db
+        return _arm_evidence_queries(db)
 
     @pytest.fixture
     def mock_session(self):

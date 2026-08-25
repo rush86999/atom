@@ -520,8 +520,13 @@ class TestSystemDefaultAgent:
         assert agent.category == "system"
         assert agent.module_path == "system"
         assert agent.class_name == "ChatAssistant"
-        assert agent.status == AgentStatus.STUDENT.value
-        assert agent.confidence_score == 0.5
+        # Born INTERN: the fallback chat surface needs level-2 actions
+        # (stream_chat), which STUDENT blocks. System agents skip the
+        # apprenticeship evidence gate for promotion regardless.
+        assert agent.status == AgentStatus.INTERN.value
+        assert agent.confidence_score == 0.6
+        assert agent.configuration.get("system_agent") is True
+        assert agent.configuration["learning"]["teacher_agent_id"] == "atom_main"
         assert "system_prompt" in agent.configuration
         assert "capabilities" in agent.configuration
 

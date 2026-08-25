@@ -12332,3 +12332,31 @@ class OntologyDraftAction(Base):
     __table_args__ = (
         Index("ix_ontology_draft_auto_type_created", "tenant_id", "entity_type_id", "created_at"),
     )
+
+
+class DomainExperienceLedger(Base):
+    """
+    Per-role outcome ledger for generalist agents (R86c).
+
+    The meta agent's executions all credit one blended row, which made its
+    record useless as ROLE evidence. Each row here attributes one verified
+    run to a business domain (resolved from the task text), so the meta
+    agent can EARN super-mentor status per role — see
+    ``core/domain_attribution.py`` and StudentTrainingService._find_mentor.
+
+    This is the exact-count evidence layer; the world-model AgentExperience
+    remains the semantic/vector layer for recall.
+    """
+
+    __tablename__ = "domain_experience_ledger"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id = Column(String(255), nullable=False, index=True)
+    domain = Column(String(64), nullable=False, index=True)
+    outcome = Column(String(20), nullable=False)  # success | failure | partial
+    task_summary = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    __table_args__ = (
+        Index("ix_domain_ledger_agent_domain_outcome", "agent_id", "domain", "outcome"),
+    )

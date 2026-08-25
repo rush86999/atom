@@ -5,6 +5,7 @@ The main intelligent agent that can spawn specialty agents and access all platfo
 
 import json
 import logging
+import os
 import uuid
 import asyncio
 from typing import Dict, Any, List, Optional
@@ -2417,6 +2418,48 @@ What is your next step?"""
                 reason = (decision.get("reason") if isinstance(decision, dict) else None) or "Teaching not permitted"
                 return {"status": "error", "reason": reason}
 
+            # Anti-laundering (R86c): atom_main can share what it KNOWS
+            # (world model, facts, distilled skills) with anyone, but
+            # teaching transfers what it has PROVEN — domain evidence. It
+            # teaches a business-role student only after earning
+            # super-mentor status in that domain via the attribution ledger;
+            # system/Meta students remain directly teachable. Mirrors
+            # StudentTrainingService._find_mentor.
+            from core.models import AgentRegistry as _AgentRow, DomainExperienceLedger
+            from core.domain_attribution import count_domain_wins
+            student = session.query(_AgentRow).filter(_AgentRow.id == student_agent_id).first()
+            if student is not None and student.id != "atom_main":
+                student_category = (student.category or "").lower()
+                if student_category not in {"system", "meta"}:
+                    min_wins = int(os.getenv("ATOM_SUPERMENTOR_MIN_DOMAIN_WINS", "5"))
+                    ledger_domains = [
+                        row[0] for row in session.query(DomainExperienceLedger.domain)
+                        .filter(DomainExperienceLedger.agent_id == "atom_main")
+                        .distinct().all()
+                    ]
+                    matching = [
+                        d for d in ledger_domains
+                        if d and (d in student_category or student_category in d)
+                    ]
+                    earned = any(
+                        count_domain_wins(session, "atom_main", d) >= min_wins
+                        for d in matching
+                    )
+                    if not earned:
+                        return {
+                            "status": "error",
+                            "reason": (
+                                f"atom_main has not earned mentorship in "
+                                f"'{student.category or 'this role'}' — teaching "
+                                "transfers proven domain judgment, not general "
+                                f"knowledge. It qualifies as a mentor after "
+                                f"{min_wins} verified wins on its "
+                                f"'{student_category}' domain ledger; until then "
+                                "a same-role senior should teach this student."
+                            ),
+                            "laundering_guard": True,
+                        }
+
             learning = StudentLearningService(session)
             result = learning.learn_from_teacher(
                 student_agent_id=student_agent_id,
@@ -2852,6 +2895,13 @@ Provide your Mentorship Guidance:"""
     async def _record_execution(self, request: str, result: Dict, 
                                 trigger_mode: AgentTriggerMode):
         """Record execution to World Model for future learning"""
+        # R86c: attribute this run to a business role when the task text
+        # carries one. This is what lets the generalist meta agent EARN
+        # super-mentor status per domain (see core/domain_attribution) —
+        # without it every outcome blurred into one unattributable row.
+        from core.domain_attribution import record_domain_outcome, resolve_domain
+        attributed_domain = resolve_domain(request)
+
         experience = AgentExperience(
             id=str(uuid.uuid4()),
             agent_id="atom_main",
@@ -2860,7 +2910,7 @@ Provide your Mentorship Guidance:"""
             outcome=result.get("status", "Success") if result.get("final_output") else "Partial",
             learnings=f"Trigger: {trigger_mode.value}. Steps: {len(result.get('actions_executed', []))}",
             agent_role="Meta",
-            specialty=None,
+            specialty=attributed_domain,
             timestamp=datetime.now(timezone.utc)
         )
         await self.world_model.record_experience(experience)
@@ -2871,6 +2921,11 @@ Provide your Mentorship Guidance:"""
         try:
             gov = AgentGovernanceService(db)
             await gov.record_outcome("atom_main", success=success)
+            if attributed_domain:
+                record_domain_outcome(
+                    db, "atom_main", attributed_domain,
+                    success=success, task_summary=request[:200],
+                )
         except Exception as ge:
             logger.error(f"Failed to record Atom governance outcome: {ge}")
         finally:

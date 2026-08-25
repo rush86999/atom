@@ -351,3 +351,96 @@ async def get_agent_maturity_guide(
         },
         message=f"{agent.name} is a {status.upper()} — see readiness for what comes next",
     )
+
+
+class TeachRequest(BaseModel):
+    """A mentor lesson delivered to a STUDENT agent."""
+
+    lesson: str = Field(min_length=5, max_length=4000, description="The lesson, correction, or worked example")
+    topic: Optional[str] = Field(None, max_length=200)
+    # When an AGENT delivers the lesson (vs a human supervisor). The agent
+    # must pass the teach_student governance check and be a qualified mentor
+    # for the student's role (same-category senior, or atom_main for
+    # system/Meta students).
+    acting_agent_id: Optional[str] = None
+
+
+@router.post("/{agent_id}/teach")
+async def teach_agent(
+    agent_id: str,
+    req: TeachRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Deliver a mentor lesson to a STUDENT agent (the spoon-feeding channel).
+
+    Humans (supervisors/employees) can always teach — that IS the guidance.
+    Agents must pass governance (teach_student is level-1: any active
+    maturity) AND be a qualified mentor for the student's role, mirroring
+    StudentTrainingService._find_mentor: a same-category SUPERVISED+ senior
+    with verified success episodes, or atom_main for system/Meta students.
+    """
+    workspace_id = getattr(current_user, "workspace_id", None) or "default"
+    tenant_id = getattr(current_user, "tenant_id", None) or "default"
+
+    if req.acting_agent_id:
+        governance = ServiceFactory.get_governance_service(db, workspace_id=workspace_id, tenant_id=tenant_id)
+        decision = await governance.can_perform_action_async(
+            agent_id=req.acting_agent_id,
+            action_type="teach_student",
+        )
+        allowed = decision.get("allowed", False) if isinstance(decision, dict) else bool(decision)
+        if not allowed:
+            reason = (decision.get("reason") if isinstance(decision, dict) else None) or "Teaching not permitted"
+            raise router.error_response(
+                error_code="TEACH_NOT_PERMITTED",
+                message=reason,
+                status_code=403,
+            )
+
+        # Role-specific mentorship: a mentor must have done the student's job.
+        from core.student_training_service import StudentTrainingService
+        student = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if not student:
+            raise router.error_response(
+                error_code="AGENT_NOT_FOUND", message=f"Agent {agent_id} not found", status_code=404
+            )
+        mentor = StudentTrainingService(db)._find_mentor(student)
+        if not mentor or mentor.id != req.acting_agent_id:
+            raise router.error_response(
+                error_code="NOT_A_QUALIFIED_MENTOR",
+                message=(
+                    f"Agent {req.acting_agent_id} is not a qualified mentor for a "
+                    f"{student.category or 'general'} student — mentors must be "
+                    "same-category seniors with verified success episodes "
+                    "(atom_main mentors system/Meta students)."
+                ),
+                status_code=403,
+            )
+
+    from core.student_learning_service import StudentLearningService
+    learning = StudentLearningService(db)
+    result = learning.learn_from_teacher(
+        student_agent_id=agent_id,
+        teacher_agent_id=req.acting_agent_id or "human_supervisor",
+        lesson=req.lesson,
+        topic=req.topic,
+    )
+    if result.get("status") != "ok":
+        # learn_from_teacher returns student_not_found for missing AND
+        # non-student targets — distinguish for a correct status code.
+        agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if not agent:
+            raise router.error_response(
+                error_code="AGENT_NOT_FOUND", message=f"Agent {agent_id} not found", status_code=404
+            )
+        return router.success_response(
+            data={"status": "skipped", "reason": result.get("reason"),
+                  "agent_status": agent.status},
+            message=f"{agent.name} is a {agent.status.upper()} — teaching applies to STUDENT agents",
+        )
+
+    return router.success_response(
+        data=result,
+        message="Lesson recorded — the student's confidence grew",
+    )

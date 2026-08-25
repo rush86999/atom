@@ -441,14 +441,19 @@ After completing this training, the agent will be able to handle similar tasks a
         """
         Qualified teacher for this student — ROLE-SPECIFIC by construction.
 
-        Mentoring transfers domain judgment, so the teacher must have done
-        THE STUDENT'S JOB: a same-category senior (SUPERVISED+) with verified
-        success episodes. The platform meta agent (atom_main) is a generalist
-        — its orchestration record teaches nothing about selling — so it only
-        mentors system/Meta students; business-role students learn from
-        proven peers in their own role. No qualified mentor → None (the
-        student takes the self-directed pathway instead).
+        Mentoring transfers domain judgment, so evidence must match the
+        STUDENT'S JOB. Candidates, best-evidence wins:
+          1. Same-role senior (SUPERVISED+) with verified success episodes.
+          2. SUPER-MENTOR: atom_main once it has earned
+             ATOM_SUPERMENTOR_MIN_DOMAIN_WINS verified wins attributed to
+             this role in the domain ledger (R86c). The generalist teaches
+             a role only after doing enough of that role's real work.
+
+        System/Meta students are taught by the meta agent directly. No
+        qualified mentor → None (self-directed pathway).
         """
+        from core.domain_attribution import count_domain_wins
+
         category = (agent.category or "").lower()
 
         # Platform/system agents may be taught by the meta agent itself.
@@ -459,35 +464,81 @@ After completing this training, the agent will be able to handle similar tasks a
             if meta and meta.id != agent.id:
                 return meta
 
-        # Role-specific: most confident same-role senior with verified wins.
+        min_super_wins = int(os.getenv("ATOM_SUPERMENTOR_MIN_DOMAIN_WINS", "5"))
+
+        # Candidate 1: most confident same-role senior with verified wins.
+        senior = None
         candidates = self.db.query(AgentRegistry).filter(
             AgentRegistry.category == agent.category,
             AgentRegistry.id != agent.id,
+            AgentRegistry.id != "atom_main",
             AgentRegistry.status.in_([
                 AgentStatus.SUPERVISED.value,
                 AgentStatus.AUTONOMOUS.value,
             ]),
         ).order_by(AgentRegistry.confidence_score.desc()).all()
-
         for candidate in candidates:
             has_verified_wins = self.db.query(AgentEpisode).filter(
                 AgentEpisode.agent_id == candidate.id,
                 AgentEpisode.outcome == "success",
             ).first() is not None
             if has_verified_wins:
-                return candidate
+                senior = candidate
+                break
 
-        return None
+        # Candidate 2: super-mentor (earned per-role).
+        meta = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == "atom_main"
+        ).first()
+        super_wins = (
+            count_domain_wins(self.db, "atom_main", agent.category)
+            if meta else 0
+        )
+        super_qualified = bool(meta) and super_wins >= max(1, min_super_wins)
+
+        if super_qualified:
+            if senior is None:
+                return meta
+            # Both qualified: the more proven teacher for THIS domain wins.
+            senior_wins = self.db.query(AgentEpisode).filter(
+                AgentEpisode.agent_id == senior.id,
+                AgentEpisode.outcome == "success",
+            ).count()
+            return meta if super_wins > senior_wins else senior
+
+        return senior
 
     def _build_mentor_playbook(self, agent: AgentRegistry) -> Optional[Dict[str, Any]]:
         """
         Teaching material distilled from the mentor's verified success record:
         real cases the student will train against, not synthetic curriculum.
-        Returns None when no qualified mentor or no verified cases exist.
+        Super-mentor cases come from the domain ledger (attributed work);
+        role-senior cases from verified episodes. None when no qualified
+        mentor or no verified cases exist.
         """
+        from core.domain_attribution import top_domain_cases
+
         mentor = self._find_mentor(agent)
         if not mentor or mentor.id == agent.id:
             return None
+
+        if mentor.id == "atom_main" and (mentor.category or "").lower() == "meta":
+            ledger_cases = top_domain_cases(self.db, mentor.id, agent.category)
+            if not ledger_cases:
+                return None
+            return {
+                "mentor_id": mentor.id,
+                "mentor_name": mentor.name,
+                "source": "domain_ledger",
+                "cases": [
+                    {
+                        "task": c.task_summary,
+                        "maturity_at_time": "super_mentor",
+                        "constitutional_score": 1.0,
+                    }
+                    for c in ledger_cases
+                ],
+            }
 
         cases = self.db.query(AgentEpisode).filter(
             AgentEpisode.agent_id == mentor.id,
@@ -500,6 +551,7 @@ After completing this training, the agent will be able to handle similar tasks a
         return {
             "mentor_id": mentor.id,
             "mentor_name": mentor.name,
+            "source": "role_episodes",
             "cases": [
                 {
                     "task": c.task_description,
