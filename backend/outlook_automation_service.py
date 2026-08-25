@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import datetime
+import os
 from typing import Dict, Any, List
 
 from core.database import SessionLocal
@@ -8,14 +9,84 @@ from core.models import HITLAction, HITLActionStatus
 from core.agent_governance_service import AgentGovernanceService
 from integrations.outlook_routes import outlook_service
 from core.websockets import manager
+from core.llm_service import get_llm_service
 
 logger = logging.getLogger(__name__)
 
 # Configurable CC email addresses
 DEFAULT_CC_RECIPIENTS = ["chandrakant@brennan.ca", "support@brennan.ca"]
 
+# Fallback reply used when the LLM is unavailable or the flag is off.
+DEFAULT_REPLY_TEMPLATE = (
+    "Hi,\n\nChandrakant here from Brennan Machinery. I have received a quote "
+    "request from you.\n\nHow can I assist you today?\n\nThanks"
+)
+
+# LLM-drafted replies: off restores the fixed template above.
+LLM_DRAFTS_FLAG = "ATOM_OUTLOOK_LLM_DRAFTS"
+LLM_DRAFT_TIMEOUT_SECONDS = 10
+
 # Set to track processed email message IDs during runtime to prevent double-drafting
 PROCESSED_EMAIL_IDS = set()
+
+
+def llm_drafts_enabled() -> bool:
+    return os.getenv(LLM_DRAFTS_FLAG, "true").lower() in ("1", "true", "yes", "on")
+
+
+def _build_draft_prompt(
+    sender_name: str,
+    sender_email: str,
+    subject: str,
+    body: str,
+    preview: str,
+) -> str:
+    """Build the prompt for the reply-drafting LLM call (pure, testable)."""
+    sender_name = (sender_name or "the customer").strip()
+    email_body = (body or "").strip() or (preview or "").strip()
+    subject = (subject or "(no subject)").strip()
+    return (
+        f"A customer sent a quote request to Brennan Machinery via the contact "
+        f"page (https://brennan.ca/pages/contact).\n\n"
+        f"Customer name: {sender_name}\n"
+        f"Customer email: {sender_email}\n"
+        f"Email subject: {subject}\n"
+        f"Email body:\n{email_body[:2000]}\n\n"
+        f"Write a professional, warm reply email. Do not invent prices, "
+        f"lead times, or product specs that are not in the customer's message "
+        f"— say that you will get them the details. Sign the email as "
+        f"Chandrakant from Brennan Machinery. Keep it under 150 words."
+    )
+
+
+async def _draft_reply(
+    sender_name: str,
+    sender_email: str,
+    subject: str,
+    body: str,
+    preview: str,
+) -> str:
+    """Draft a reply to a customer query email via the LLM. Never raises;
+    returns "" on any failure/timeout so the caller falls back to the template."""
+    try:
+        llm = get_llm_service()
+        draft = await asyncio.wait_for(
+            llm.generate(
+                prompt=_build_draft_prompt(sender_name, sender_email, subject, body, preview),
+                system_instruction=(
+                    "You are the email assistant for Brennan Machinery, a metal "
+                    "fabrication company. Write concise, professional customer "
+                    "replies. Never invent facts."
+                ),
+                temperature=0.7,
+                max_tokens=400,
+            ),
+            timeout=LLM_DRAFT_TIMEOUT_SECONDS,
+        )
+        return (draft or "").strip()
+    except Exception as e:
+        logger.warning(f"[Outlook Automation] LLM reply draft failed, using template: {e}")
+        return ""
 
 async def process_outlook_automation():
     """
@@ -97,14 +168,37 @@ async def process_outlook_automation():
                 
                 # Create HITL Action (Human approval required before sending email)
                 logger.info(f"[Outlook Automation] Match found in email {email_id} from {sender_email}. Requesting HITL approval...")
-                
+
+                # LLM-drafted reply (personalized) with the template as a
+                # safe fallback — the approval UI shows whichever body lands here.
+                draft_body = DEFAULT_REPLY_TEMPLATE
+                draft_subject = "Brennan Machinery"
+                if llm_drafts_enabled():
+                    sender_name = str(
+                        (from_field.get("emailAddress") or {}).get("name")
+                        or (email.get("sender") or {}).get("name")
+                        or ""
+                    )
+                    drafted = await _draft_reply(
+                        sender_name=sender_name,
+                        sender_email=str(sender_email),
+                        subject=str(email.get("subject") or ""),
+                        body=str(body_content or ""),
+                        preview=str(body_preview or ""),
+                    )
+                    if drafted:
+                        draft_body = drafted
+                        original_subject = str(email.get("subject") or "").strip()
+                        if original_subject:
+                            draft_subject = f"Re: {original_subject}"[:120]
+
                 gov_service = AgentGovernanceService(db)
                 params = {
                     "user_id": user_id,
                     "to_recipients": [sender_email],
                     "cc_recipients": DEFAULT_CC_RECIPIENTS,
-                    "subject": "Brennan Machinery",
-                    "body": "Hi,\n\nChandrakant here from Brennan Machinery. I have received a quote request from you.\n\nHow can I assist you today?\n\nThanks",
+                    "subject": draft_subject,
+                    "body": draft_body,
                     "email_id": email_id
                 }
                 

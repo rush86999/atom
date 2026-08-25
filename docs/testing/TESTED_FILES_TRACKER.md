@@ -7,6 +7,32 @@
 ---
 
 
+## Session 2026-08-25 (Outlook automation — LLM-drafted replies instead of template)
+
+**Files**: `backend/outlook_automation_service.py` (+ new
+`backend/tests/test_outlook_automation_llm_draft.py`).
+
+**Problem (README-driven feature)**: the contact-page automation loop replied
+with a fixed template ("Chandrakant here from Brennan Machinery… How can I
+assist you today?") regardless of what the customer actually asked — the
+README's design is "agents reason, not just execute; draft replies".
+
+**Fix**: when `ATOM_OUTLOOK_LLM_DRAFTS` (default ON) is set and an email
+matches the Brennan contact-page trigger, the HITL approval now carries an
+**LLM-drafted reply** (`_draft_reply` via `LLMService.generate`, 10s cap,
+never raises) grounded in the customer's name/subject/body; subject becomes
+`Re: <original>`. Empty/failed/timeout drafts degrade to the template
+(`DEFAULT_REPLY_TEMPLATE`), and the flag off restores template-only.
+`_build_draft_prompt` is a pure, tested prompt builder.
+
+**Tests**: 9 new (prompt includes sender+email; LLM text returned + trimmed;
+error → "" ; timeout → "" ; process uses draft in HITL params with `Re:`
+subject; empty draft → template; flag off → template + no LLM call; existing
+HITL still deduped). 9/9 pass.
+
+---
+
+
 ## Session 2026-08-25 (Outlook "No access token" — two-DB split fix)
 
 **Files**: `backend/scripts/migrate_outlook_token_to_root_db.py`,
