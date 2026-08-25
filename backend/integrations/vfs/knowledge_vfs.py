@@ -272,7 +272,34 @@ class KnowledgeVFSProvider(VFSProvider):
                     return ("knowledge", d)
         except Exception as e:
             logger.warning(f"[KnowledgeVFS] get {doc_id} failed: {e}")
+        # LanceDB fallback: vector-only rows (connector file ingests stamped
+        # file_<ts>, manual uploads) have no PG row. Without this, search
+        # surfaces them (bridged:false) but cat can never read them.
+        rec = await self._get_vector_doc(doc_id)
+        if rec is not None:
+            return ("vector", rec)
         return None
+
+    async def _get_vector_doc(self, doc_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch one row from the LanceDB ``documents`` table by id."""
+        import asyncio
+
+        def _fetch():
+            try:
+                from core.lancedb_handler import get_lancedb_handler
+
+                handler = get_lancedb_handler("default")
+                if handler is None:
+                    return None
+                return handler.get_document_by_id("documents", str(doc_id))
+            except Exception as e:
+                logger.debug(f"[KnowledgeVFS] vector fallback for {doc_id}: {e}")
+                return None
+
+        try:
+            return await asyncio.to_thread(_fetch)
+        except Exception:
+            return None
 
     @staticmethod
     def _doc_meta(doc) -> Dict[str, Any]:
@@ -283,6 +310,15 @@ class KnowledgeVFSProvider(VFSProvider):
                 "file_type": d.file_type, "integration_id": d.integration_id,
                 "source_url": getattr(d, "source_url", None),
                 "external_id": d.external_id,
+            }
+        if kind == "vector":
+            meta = d.get("metadata") or {}
+            return {
+                "id": d.get("id"), "source": "vector",
+                "file_name": meta.get("file_name") or meta.get("title"),
+                "integration_id": (d.get("source") or "").split(":")[0] or None,
+                "sensitivity": meta.get("sensitivity", "internal"),
+                "bridged": False,
             }
         return {
             "id": d.id, "source": "knowledge", "title": getattr(d, "title", None),
@@ -295,4 +331,6 @@ class KnowledgeVFSProvider(VFSProvider):
         kind, d = doc
         if kind == "ingested":
             return getattr(d, "content_preview", "") or ""
+        if kind == "vector":
+            return str(d.get("text") or "")
         return getattr(d, "content", "") or ""

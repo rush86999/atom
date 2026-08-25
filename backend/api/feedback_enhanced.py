@@ -270,6 +270,26 @@ async def submit_enhanced_feedback(
 
     _apply_positive_rating_signal(db, agent, str(current_user.id), request.rating, feedback)
 
+    # F2 (feedback-loop trace): route the signal into the stored experience
+    # for this run — the SQL row alone is never read by recall. Best-effort:
+    # a broken vector store must not fail a submission.
+    if request.agent_execution_id:
+        try:
+            from core.agent_world_model import WorldModelService
+
+            wm = WorldModelService(
+                workspace_id=getattr(agent, "workspace_id", None) or "default"
+            )
+            await wm.apply_feedback_for_execution(
+                agent_id=request.agent_id,
+                execution_id=request.agent_execution_id,
+                thumbs_up_down=request.thumbs_up_down,
+                rating=request.rating,
+                notes=request.user_correction or feedback_type or "",
+            )
+        except Exception as fb_err:  # noqa: BLE001
+            logger.debug(f"experience feedback sync skipped: {fb_err}")
+
     return router.success_response(
         data={
             "feedback_id": feedback.id,

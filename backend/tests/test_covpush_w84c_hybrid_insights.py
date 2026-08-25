@@ -531,6 +531,14 @@ class _NoBindSession:
 
 
 class TestDocumentsHybridSearch:
+    @pytest.fixture(autouse=True)
+    def _hermetic(self, monkeypatch):
+        # The conversations leg reads the REAL shared LanceDB comms store and
+        # appends hits + a "+conversations" label suffix — non-hermetic in a
+        # dev env with ingested communications. These tests cover the
+        # documents legs only.
+        monkeypatch.setenv("MEMORY_CONVERSATIONS_LEG", "false")
+
     async def test_short_query_no_results(self, db):
         svc = DocumentsHybridSearch(db=db)
         result = await svc.search("ab")
@@ -587,18 +595,23 @@ class TestDocumentsHybridSearch:
         assert result["hybrid"] == "lexical_only"
         assert result["stats"]["vector_hits"] == 0
 
-    async def test_unbridged_vector_hits_dropped(self, db):
+    async def test_unbridged_vector_hits_surfaced_flagged(self, db):
         _ingested(db, "doc-1", content="quarterly report figures")
         lancedb = _FakeLanceDB(
             [
                 {"id": "doc-1", "_distance": 0.1},
-                {"id": "orphan-id", "_distance": 0.2},
+                {"id": "orphan-id", "_distance": 0.2,
+                 "metadata": {"file_name": "orphan.pdf"}},
             ]
         )
         svc = DocumentsHybridSearch(db=db, lancedb=lancedb)
         result = await svc.search("quarterly report")
         assert result["stats"]["unbridged_hits"] == 1
-        assert "orphan-id" not in [r["id"] for r in result["results"]]
+        ids = [r["id"] for r in result["results"]]
+        assert "orphan-id" in ids, "unbridged hits are surfaced, not dropped"
+        orphan = next(r for r in result["results"] if r["id"] == "orphan-id")
+        assert orphan["bridged"] is False
+        assert orphan["title"] == "orphan.pdf"
 
     async def test_vector_leg_missing_id_dropped(self, db):
         _ingested(db, "doc-1", content="quarterly report figures")
@@ -650,7 +663,9 @@ class TestDocumentsHybridSearch:
         with patch("core.models.IngestedDocument", _BoomDoc):
             result = await svc.search("quarterly report")
         assert result["stats"]["unbridged_hits"] == 1
-        assert "doc-1" not in [r["id"] for r in result["results"]]
+        # Hydration failure → every vector hit is unbridged but STILL surfaced.
+        orphan = next(r for r in result["results"] if r["id"] == "doc-1")
+        assert orphan["bridged"] is False
 
     def test_fuse_rrf_lexical_only(self, db):
         svc = DocumentsHybridSearch(db=db)
@@ -668,14 +683,21 @@ class TestDocumentsHybridSearch:
             [{"id": "doc-1", "score": 0.5}, {"id": "ghost", "score": 0.9}],
         )
         assert unbridged == 1
-        assert len(fused) == 1
-        entry = fused[0]
+        assert len(fused) == 2
+        entry = next(e for e in fused if e["id"] == "doc-1")
         assert entry["source"] == "ingested"
         assert entry["title"] == "quarterly report"
         assert entry["preview"] == "x"
         assert entry["modified"] == "2026-03-03T00:00:00"
         assert entry["legs"] == ["vector"]
         assert entry["rrf"] == 1.0 / 61.0
+        ghost = next(e for e in fused if e["id"] == "ghost")
+        assert ghost["source"] == "vector"
+        assert ghost["bridged"] is False
+        # doc-1 outranks ghost despite worse vector rank (ghost has no legs tiebreak? no —
+        # ghost ranked FIRST on the vector leg so it has better rrf; sort is by rrf only)
+        ids = [e["id"] for e in fused]
+        assert set(ids) == {"doc-1", "ghost"}
 
     def test_fuse_rrf_merge_sort(self, db):
         _ingested(db, "doc-1", content="alpha beta")
@@ -695,7 +717,10 @@ class TestDocumentsHybridSearch:
         with patch.object(svc, "_get_db", side_effect=RuntimeError("boom")):
             fused, unbridged = svc._fuse_rrf([], [{"id": "ghost"}])
         assert unbridged == 1
-        assert fused == []
+        # Hydration failed → the hit is surfaced as an unbridged vector row.
+        assert len(fused) == 1
+        assert fused[0]["id"] == "ghost"
+        assert fused[0]["bridged"] is False
 
     def test_hydrate(self, db):
         svc = DocumentsHybridSearch(db=db)

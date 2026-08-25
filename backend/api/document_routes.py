@@ -2,7 +2,7 @@
 Document Routes - API endpoints for document ingestion and search
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
@@ -196,17 +196,20 @@ async def upload_document(
         # 2. Store document
         doc_id = str(uuid.uuid4())
         metadata = {
-            "source": "upload", 
+            "source": "upload",
             "size": len(content_bytes),
             "title": filename,
             "filename": filename,
             "file_type": file_ext,
             "ingested_at": datetime.now().isoformat(),
             "doc_id": doc_id,
+            # Join-key bridge: lets hybrid search + VFS resolve this vector row.
+            "pg_document_id": doc_id,
+            "source_type": "upload",
             "integration_id": "manual_upload",
             "author": current_user.email if current_user else "unknown"
         }
-        
+
         success = await asyncio.to_thread(
             lancedb_handler.add_document,
             table_name="documents",
@@ -220,6 +223,36 @@ async def upload_document(
 
         if not success:
              raise router.internal_error("Failed to store uploaded document in LanceDB")
+
+        # 3. Aligned PG row: gives the upload full journey parity with synced
+        # documents — lexical leg (FTS), VFS cat, citability. id MUST equal the
+        # LanceDB doc_id (join-key bridge).
+        try:
+            from core.database import get_db_session
+            from core.models import IngestedDocument
+
+            with get_db_session() as db:
+                db.add(IngestedDocument(
+                    id=doc_id,
+                    workspace_id=ws_id or "default",
+                    tenant_id=getattr(current_user, "tenant_id", None),
+                    file_name=filename,
+                    file_path=f"upload:{filename}",
+                    file_type=file_ext,
+                    integration_id="manual_upload",
+                    file_size_bytes=len(content_bytes),
+                    content_preview=content[:500],
+                    external_id=f"upload_{doc_id}",
+                    ingested_at=datetime.now(timezone.utc),
+                    source_content_hash=None,
+                    last_verified_at=datetime.now(timezone.utc),
+                    freshness_status="fresh",
+                ))
+                db.commit()
+        except Exception as pg_err:
+            # Vector row already stored; never fail the upload because the
+            # mirror row failed — search still finds it (bridged:false).
+            logger.warning(f"PG mirror row skipped for upload {doc_id}: {pg_err}")
         
         return DocumentResponse(
             id=doc_id,

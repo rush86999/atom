@@ -273,6 +273,9 @@ class TestAgentWorldModelCoverage:
                 }
             ])
             mock_db.add_document = Mock(return_value=True)
+            # _get_experience_by_id prefers a direct id lookup; return None so
+            # the legacy search-scan fallback runs (its window is now 200).
+            mock_db.get_document_by_id = Mock(return_value=None)
             mock_get_handler.return_value = mock_db
 
             service = WorldModelService()
@@ -286,7 +289,7 @@ class TestAgentWorldModelCoverage:
             mock_db.search.assert_called_once_with(
                 table_name="agent_experience",
                 query="",
-                limit=100
+                limit=200
             )
             # Verify confidence was updated (blended: 0.7 * 0.6 + 0.9 * 0.4)
             call_args = mock_db.add_document.call_args

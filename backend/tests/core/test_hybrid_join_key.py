@@ -130,18 +130,19 @@ def test_file_ingest_path_stamps_source_type_and_doc_id():
     src_path = Path(__file__).resolve().parents[2] / "core" / "auto_document_ingestion.py"
     src = src_path.read_text()
     # The file-ingest add_document call: source=f"{source}:{file_name}", no external_id.
-    # (Wrapped in asyncio.to_thread since the loop-thread embed guard; the
-    # kwargs — source, metadata, doc_id — are identical.)
+    # (Wrapped in asyncio.to_thread since the loop-thread embed guard; R80 made
+    # the handler workspace-aware (_handler), so match that — not memory_handler.)
     file_block = re.search(
         r'success = await asyncio\.to_thread\(\s*'
-        r'self\.memory_handler\.add_document,\s*'
+        r'_handler\.add_document,\s*'
         r'table_name="documents",\s*'
         r'text=text,\s*'
         r'source=f"\{source\}:\{file_name\}"',
         src, re.DOTALL,
     )
     assert file_block, "could not locate the file-ingest add_document call"
-    window = src[file_block.start():file_block.start() + 900]
+    # _meta (with the stamps) is defined just above the add_document call.
+    window = src[max(0, file_block.start() - 1500):file_block.start() + 900]
     assert '"source_type": "file"' in window, (
         "file-ingest path must stamp source_type:'file' so hybrid search flags bridged:false"
     )

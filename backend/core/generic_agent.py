@@ -14,7 +14,7 @@ from core.models import AgentExecution
 # atom_meta_agent) — kept referenced so they are not garbage-collected mid-run.
 _pending_extraction_tasks: set = set()
 from core.agent_world_model import AgentExperience, WorldModelService
-from core.database import get_db_session
+from core.database import get_db_session, SessionLocal
 from core.llm.byok_handler import QueryComplexity
 from core.llm_service import LLMService
 from core.models import AgentRegistry, AgentStatus, HITLActionStatus
@@ -188,20 +188,7 @@ class GenericAgent:
         # Never raises.
         try:
             _ws = getattr(self, "workspace_id", "default")
-            _facts = []
-            from core.turn_fact_extractor import TURN_FACT_VECTOR_RECALL_ENABLED
-            if TURN_FACT_VECTOR_RECALL_ENABLED:
-                from core.turn_fact_extractor import prefetch_relevant_facts
-                _facts = prefetch_relevant_facts(
-                    workspace_id=_ws, query=task_input, limit=5
-                ) or []
-            if not _facts:
-                from core.turn_fact_extractor import get_active_facts_for_prompt
-                from core.database import SessionLocal
-                with SessionLocal() as _db:
-                    _facts = get_active_facts_for_prompt(
-                        _db, workspace_id=_ws, limit=5
-                    ) or []
+            _facts = await self._recall_durable_facts(task_input, workspace_id=_ws)
             if _facts:
                 memory_context["durable_facts"] = [
                     getattr(f, "fact_text", None) or str(f) for f in _facts[:5]
@@ -796,6 +783,44 @@ class GenericAgent:
         except Exception as e:
             logger.debug(f"skill injection skipped: {e}")
             return ""
+
+    @staticmethod
+    async def _recall_durable_facts(task_input: str, workspace_id: str) -> list:
+        """Durable turn-fact recall for prompt assembly (Tier-2 → Tier-1).
+
+        A-G1 (data-journey trace): both legs MUST pass the prompt sensitivity
+        ceiling — the meta-agent already did; specialty agents leaked
+        restricted-classified facts into their prompts. Never raises.
+        """
+        try:
+            from core.turn_fact_extractor import (
+                TURN_FACT_VECTOR_RECALL_ENABLED,
+                get_active_facts_for_prompt,
+                prefetch_relevant_facts,
+                prompt_sensitivity_ceiling,
+            )
+
+            _ceiling = prompt_sensitivity_ceiling()
+            _facts: list = []
+            if TURN_FACT_VECTOR_RECALL_ENABLED:
+                _facts = prefetch_relevant_facts(
+                    workspace_id=workspace_id,
+                    query=task_input,
+                    limit=5,
+                    max_sensitivity=_ceiling,
+                ) or []
+            if not _facts:
+                with SessionLocal() as _db:
+                    _facts = get_active_facts_for_prompt(
+                        _db,
+                        workspace_id=workspace_id,
+                        limit=5,
+                        max_sensitivity=_ceiling,
+                    ) or []
+            return _facts[:5]
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"turn-fact recall skipped: {e}")
+            return []
 
     def _workspace_context_block(self) -> str:
         """Workspace-scoped curated context + assigned skill names (Phase P8).
@@ -1566,6 +1591,11 @@ What is your next step?"""
             learnings=result.get("output", "")[:500],
             confidence_score=confidence,
             step_efficiency=result.get("step_efficiency", 1.0),
+            # F1 (feedback-loop trace): the join key for the feedback loop —
+            # equals the AgentExecution row id and what POST /api/feedback
+            # submits as agent_execution_id. Without it the stored experience
+            # can never be matched to its run's user feedback.
+            agent_execution_id=(context or {}).get("execution_id"),
             metadata_trace={
                 "complexity": result.get("complexity"),
                 "step_count": len(result.get("steps", [])),

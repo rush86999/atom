@@ -388,6 +388,7 @@ class EntityTypeService:
         json_schema: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         available_skills: Optional[List[str]] = None,
+        is_active: Optional[bool] = None,
         changed_by: Optional[str] = None,
         change_summary: Optional[str] = None
     ) -> EntityTypeDefinition:
@@ -401,6 +402,8 @@ class EntityTypeService:
             json_schema: New JSON Schema definition
             description: New description
             available_skills: New available skills list
+            is_active: Activate/deactivate (promotes auto-discovered drafts);
+                activation alone does NOT bump the schema version
             changed_by: Optional user identifier who made the change
             change_summary: Optional description of what changed
 
@@ -410,7 +413,12 @@ class EntityTypeService:
         Raises:
             ValueError: If entity type not found or validation fails
         """
-        entity_type = self.get_entity_type(tenant_id, entity_type_id=entity_type_id)
+        # include_inactive: drafts (auto-discovered, is_active=False) must be
+        # updatable — otherwise activation is impossible and discovery output
+        # is permanently unreachable.
+        entity_type = self.get_entity_type(
+            tenant_id, entity_type_id=entity_type_id, include_inactive=True
+        )
 
         if not entity_type:
             raise ValueError(f"Entity type '{entity_type_id}' not found")
@@ -452,6 +460,8 @@ class EntityTypeService:
             entity_type.description = description
         if available_skills is not None:
             entity_type.available_skills = available_skills
+        if is_active is not None:
+            entity_type.is_active = is_active
 
         try:
             self.db.commit()

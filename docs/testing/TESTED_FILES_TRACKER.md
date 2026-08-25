@@ -6392,3 +6392,75 @@ Traced user journeys for all 8 roles (super_admin…guest, `core/security/rbac.p
 - `test_round83_journey_repairs::test_world_model_role_ranking_post_filters` over-mocked `db.search` (ignored filter_str) — broke when the server-side LIKE path landed mid-session. Rewritten to model BOTH real handler behaviors: filter-aware (LIKE → role row first, general tops up) and filter-less legacy (raise → client-side ranking fallback). Pins ORDER (role match first), not exclusivity — top-up is the intended graceful degradation.
 - Dev-DB `turn_facts.epistemic_type` warning root-caused: cwd-relative `sqlite:///./data/atom.db` resolves differently when pytest runs from repo root vs backend/; `.env` DB (`data/atom.db`) reconciles clean via scripts/reconcile_dev_db.py. Pre-existing env drift, no code change.
 - Final cluster: 291 passed / 6 skipped across 17 journey/audit/ontology suites.
+
+## 2026-08-25 — Data journey trace: documents-leg retrieval gap repairs
+
+**Scope**: end-to-end trace of the documents/knowledge data journey (ingest → store → index → retrieve → consume) across all 7 ingest paths. Found the retrieval half silently discarding everything the writer half stored without a PG row.
+
+**Journey map established** (7 ingest paths): sync_integration (full parity ✓), connector file_ingest (`process_file_bytes` → vector-only), `/v1/documents/upload` (vector-only, wrong join key), `/api/documents/upload` (vector-only + RAW `LanceDBHandler()` root-store mismatch), sync_integration_data / webhook pipeline (integration_{id} tables + GraphRAG + facts, by design), org-bundle import (PG row ✓ + re-embed ✓).
+
+**Gap 1 — fusion dropped unbridged vector hits**: `core/hybrid_search/documents_hybrid.py:_fuse_rrf` silently dropped every LanceDB hit with no PG `IngestedDocument` row — making connector-ingested files and manual uploads invisible to `documents.search` despite being embedded. The documented contract (writer comment + `test_hybrid_join_key.py`) says FLAG `bridged:false`, not drop. Now surfaced flagged, title/preview derived from LanceDB metadata. Module docstring updated.
+
+**Gap 2 — VFS couldn't read vector-only rows**: `integrations/vfs/knowledge_vfs.py:_get_doc` was PG-only; search hits flagged bridged:false were unconsumable. Added LanceDB fallback via `get_document_by_id("documents", id)` in `to_thread` (same bridge pattern as conversations subtree); `_doc_meta`/`_doc_text` handle the new `("vector", rec)` kind (incl. sensitivity passthrough).
+
+**Gap 3 — upload route store mismatch**: `document_ingestion_routes.upload_document` wrote through raw `LanceDBHandler()` → ROOT `./data/atom_memory` store, while search reads `get_lancedb_handler("default")` → per-workspace subdir. Uploads landed where search never looks. Now uses `get_lancedb_handler(ws_id)`, explicit uuid doc_id, join-key stamps.
+
+**Gap 4 — uploads had no PG row**: both upload routes now create the aligned `IngestedDocument` row (id == LanceDB doc_id → lexical leg via FTS triggers, VFS cat, citability) + stamp `pg_document_id`/`source_type:"upload"`; PG-mirror failure never fails an already-stored upload (logged, search still finds it bridged:false).
+
+**Stale-suite repair**: `test_hybrid_join_key.py::test_file_ingest_path_stamps_source_type_and_doc_id` regex expected `self.memory_handler.add_document` — R80 workspace-handler fix changed it to `_handler.add_document`; regex updated + window widened backwards to cover the `_meta` block. Pre-existing failure at HEAD, not caused by this round.
+
+**Hermeticity**: `TestDocumentsHybridSearch` (w84c) + `test_documents_hybrid.py` fixture now set `MEMORY_CONVERSATIONS_LEG=false` — the conversations leg reads the REAL shared comms store and appended hits + `+conversations` label suffix in dev envs with ingested communications (7 pre-existing env-dependent failures at HEAD).
+
+**Contract updates**: w84c tests `test_unbridged_vector_hits_dropped`→`..._surfaced_flagged`, `test_hydration_lookup_exception_treated_as_unbridged`, `test_fuse_rrf_vector_bridged_and_unbridged`, `test_fuse_rrf_hydration_exception` updated to the surfaced-flagged contract.
+
+**New suite**: `backend/tests/core/test_data_journey_gaps.py` (6) — fusion surfacing + metadata titles + bridged ranking + VFS LanceDB fallback + both upload routes' PG-row/join-key parity.
+
+**Verification**: 140 passed across test_data_journey_gaps + test_documents_hybrid + test_hybrid_join_key + test_knowledge_vfs + w84c + route units + conversations_leg_and_vfs; 293 passed / 1 skipped across memory_context_assembler + round21_ingestion_compliance + regtrio + w100_gaps_d + action_registry_coverage + chat_attachment_flow; imports clean.
+
+## 2026-08-25b — Data journey trace: ontology objects + agent-consumption legs
+
+**Scope**: continuation of the documents-leg trace — (a) ontology-object journey (record → schema discovery → EntityTypeDefinition; record → canonical GraphRAG types; record → business_facts; deletion), (b) the final consumption leg: stored data → agent prompts.
+
+**Ontology gaps fixed**:
+- **O1 draft dead-end**: auto-discovered entity types were created `is_active=False` and UNREACHABLE forever — API list defaulted to active-only, GET/PATCH couldn't see inactive rows (`get_entity_type` filtered them), and neither service `update_entity_type` nor any route accepted `is_active`. Now: service update accepts `is_active` (activation alone does NOT bump schema version); GET route passes `include_inactive=True`; list route gains `include_drafts` param; every response carries the flag.
+- **O2 sync-path staleness**: only org-bundle tombstones retracted derived facts (R84) — a regular FULL sync whose fetch no longer returns a record left its `intfact:{int}:{rec}` fact citable forever. Bridge gains `retract_stale_integration_facts` (scans business_facts by id prefix via `get_table().search().where(id LIKE …)`, deletes ids outside the fetched keep-set; async, never raises). Wired into `sync_integration_data` AFTER close-out, gated on clean success AND NOT partial AND NOT discovery AND `config.sync_mode == "full"` — incremental/partial keep-sets are incomplete fetches, not deletion ledgers. Result carries `facts_retracted`.
+
+**Agent-leg gaps fixed** (research-validated: retrieval-time pre-filtering is the correct control point for RAG access control — post-filtering leaks restricted text into logs/rerankers/caches):
+- **A-G1 GenericAgent ceiling parity**: the turn-fact layer's documented prompt sensitivity ceiling (`prompt_sensitivity_ceiling()`, default "confidential", env `ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING`) was enforced by the meta-agent but IGNORED by specialty agents' durable-fact recall (both Tier-2 vector prefetch and Tier-1 SQL fallback). Extracted `GenericAgent._recall_durable_facts(task_input, workspace_id)` (static, testable) passing `max_sensitivity` on both tiers.
+- **A-G2 world-model legs had no ceiling at all**: `get_relevant_business_facts` + `_recall_general_knowledge` returned any semantically-matching row regardless of classification. New module helpers `_row_sensitivity` / `_passes_prompt_ceiling`: legacy rows WITHOUT a sensitivity stamp fail OPEN as internal (pre-R83 data must not vanish from recall); present-but-invalid values fail closed as restricted; env `=none` disables filtering entirely.
+- **Bonus robustness fix**: `get_relevant_business_facts` crashed on rows lacking `reason`/`source_agent_id` (pydantic ValidationError → row silently dropped) while sibling `get_business_fact` already defended with `or ""` — readers of the same table now behave identically.
+
+**Stale-suite repair**: `test_agent_world_model_coverage.py::test_update_experience_feedback_success` asserted the pre-fix scan-based lookup (`limit=100`, no `get_document_by_id` mock) — production moved to direct-id-lookup + `limit=200` fallback earlier; test updated to current contract. Pre-existing failure at HEAD, unrelated to this round's edits.
+
+**New suites**: `backend/tests/core/test_ontology_journey_gaps.py` (8: draft activation service+routes, stale-fact GC unit + FULL/incremental/partial wiring semantics) and `backend/tests/core/test_agent_recall_sensitivity.py` (6: both GenericAgent tiers pass the ceiling; facts/knowledge recall filter above-ceiling rows; legacy-stamp fail-open; `=none` kill switch).
+
+**Verification**: 172 passed across the focused cluster (journey×3, hybrid/VFS/join-key, world-model units+coverage, entity-type units+w22, R84 fact-retraction + ontology-gap suites); full 17-suite sweep: 0 FAILED. Imports clean.
+
+## 2026-08-25c — Data journey trace: write-side parity (business facts + experiences)
+
+**Scope**: the write half of the agent-consumption leg — do agents actually WRITE memories in a form the recall/lookup paths can address? Turn-fact writes (`extract_from_turn`), episode persistence, and experience text format verified wired; found the id-alignment invariant broken on three writer paths.
+
+**Invariant**: business-fact/experience rows must keep **top-level doc_id == metadata["id"]** — `get_business_fact` filters on the TOP-LEVEL id, `_get_experience_by_id` prefers a direct `get_document_by_id`, and the R84 bridge already honored this ("keep top-level doc_id == metadata['id'] so get_business_fact lookups work"). The legacy world-model writers did not:
+
+- **B-1 `record_business_fact`** (`save_business_fact` tool path): no doc_id → LanceDB auto-generated a timestamp top-level id while metadata carried the BusinessFact uuid → agent-saved truths permanently unfindable by their own handle. Fixed: `doc_id=fact.id`.
+- **B-2 `update_fact_verification`**: found rows by metadata.id but re-added corrected versions without doc_id → second mis-aligned row + stale duplicate. Fixed: direct `get_document_by_id(fact_id)` lookup first (dict-with-metadata guard, scan fallback covers legacy mis-aligned rows + bare-Mock handlers), then delete+aligned-replace with `doc_id=fact_id`. `delete_fact` inherits the fix by delegation.
+- **B-3 `record_experience`**: same missing doc_id — feedback/boost lifecycle degraded to a bounded scan fallback (rows beyond the window could never receive feedback). Fixed: `doc_id=experience.id`.
+
+Research note: retrieval-time pre-filtering re-validated for A-G1/A-G2 (RAG access-control consensus: post-filtering leaks restricted text into logs/rerankers/caches; enforce identical filters across recall paths).
+
+**New suite**: `backend/tests/core/test_business_fact_alignment.py` (4) — save→get_business_fact roundtrip, aligned verification replace (no duplicate, same handle), bridge-written `intfact:*` rows still updatable, experience doc_id stamp + direct lookup.
+
+**Verification**: 18-suite sweep (journey×4 + hybrid/VFS/join-key + w84c + route units + world-model units/coverage/covpush + citation + entity-type units/w22 + R84 fact-retraction/ontology): **0 FAILED / 0 ERROR**.
+
+## 2026-08-25d — Data journey trace: the feedback→learning loop
+
+**Scope**: final untraced leg — does user feedback ever reach stored memories? Memory-tool journey verified coherent (`memory_remember` → TurnFact SQL → `get_active_facts_for_prompt` recall; `forget` → invalidated status excluded). The experience-feedback loop was SEVERED at both ends.
+
+**Gaps fixed**:
+- **F1 linkage never written**: `GenericAgent._record_execution` built the AgentExperience WITHOUT `agent_execution_id` — even though that value is both the AgentExecution row id (`context["run_id"]`) and what POST /api/feedback submits. No experience could ever be matched to its run. Now stamped from `context["execution_id"]`.
+- **F2 no reader wiring**: `update_experience_feedback`/`boost_experience_confidence` had ZERO production callers — user ratings/corrections landed in an SQL AgentFeedback row and died there; experiences kept pre-feedback confidence forever, so recall kept surfacing stale-quality memories and graduation inputs never saw human signal. New `WorldModelService.apply_feedback_for_execution(agent_id, execution_id, thumbs/rating, notes)`: finds the experience via a metadata JSON-LIKE needle (same trick as role-aware recall), maps rating→[-1,1] / thumbs→±1.0 (comment-only = no numeric update), routes through update_experience_feedback's aligned replace. Wired best-effort into `submit_enhanced_feedback` after the SQL persist — a broken vector store must never fail a submission.
+- Blend math pinned: confidence' = old*0.6 + ((score+1)/2)*0.4 (rating 5 on 0.5 → 0.7).
+
+**New suite**: `backend/tests/core/test_feedback_loop.py` (7) — mapping/lookup/replace unit tests incl. comment-only no-op, unmatched run, broken-store fail-soft; route wiring asserts the SQL audit row AND the world-model call both happen with the submitted execution id; F1 end-to-end harness asserting `experience.agent_execution_id == context["execution_id"]`.
+
+**Verification**: 21-suite sweep (all four journey legs + memory assembler + regtrio): **0 FAILED / 0 ERROR**.

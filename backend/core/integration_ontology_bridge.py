@@ -392,6 +392,74 @@ async def retract_integration_facts(
         return {"retracted": 0}
 
 
+async def retract_stale_integration_facts(
+    *,
+    workspace_id: Optional[str] = None,
+    integration_id: str,
+    keep_record_ids: List[str],
+    memory_handler: Any = None,
+) -> Dict[str, Any]:
+    """GC pass for a FULL sync: retract facts whose records vanished.
+
+    Complement to ``retract_integration_facts`` (explicit tombstones): a full
+    sync fetches the CURRENT universe of records — any stored fact for this
+    integration whose record id is absent from that fetch was deleted at the
+    source and must leave business_facts, or agents keep citing dead data.
+
+    Scans business_facts for ``intfact:{integration}:*`` ids and deletes every
+    id outside ``keep_record_ids``. Caller MUST only invoke this after a clean,
+    non-partial FULL sync (an incremental/partial fetch is an incomplete
+    keep-set, not a deletion ledger). Never raises.
+    """
+    import asyncio
+
+    try:
+        if not facts_enabled():
+            return {"retracted": 0}
+        if memory_handler is None:
+            return {"retracted": 0}
+
+        keep = {
+            str(rid or "").strip()
+            for rid in (keep_record_ids or [])
+            if str(rid or "").strip()
+        }
+
+        def _sync_gc() -> Dict[str, Any]:
+            table = memory_handler.get_table(FACTS_TABLE)
+            if table is None:
+                return {"retracted": 0}
+            safe_prefix = f"intfact:{integration_id}:".replace("'", "''")
+            df = (
+                table.search()
+                .where(f"id LIKE '{safe_prefix}%'")
+                .limit(_STALE_SCAN_LIMIT)
+                .to_pandas()
+            )
+            if df is None or getattr(df, "empty", True):
+                return {"retracted": 0}
+            retracted = 0
+            for rid in df["id"].tolist():
+                rid = str(rid)
+                tail = rid[len(f"intfact:{integration_id}:"):]
+                if tail in keep:
+                    continue
+                try:
+                    if memory_handler.delete_documents_by_id(FACTS_TABLE, rid):
+                        retracted += 1
+                except Exception as row_err:  # noqa: BLE001 — per-row isolation
+                    logger.warning("Stale-fact GC failed for %s: %s", rid, row_err)
+            return {"retracted": retracted}
+
+        return await asyncio.to_thread(_sync_gc)
+    except Exception as e:  # noqa: BLE001 — observation layer must never break callers
+        logger.warning(f"Stale-fact GC skipped for {integration_id}: {e}")
+        return {"retracted": 0}
+
+
+_STALE_SCAN_LIMIT = 5000
+
+
 __all__ = [
     "RECORD_TYPE_TO_ONTOLOGY",
     "FactBudget",
@@ -401,6 +469,7 @@ __all__ = [
     "map_record_type",
     "max_facts_per_run",
     "retract_integration_facts",
+    "retract_stale_integration_facts",
     "type_map_enabled",
     "write_integration_fact",
 ]
