@@ -16,7 +16,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from integrations.chat_orchestrator import ChatOrchestrator, FeatureType
 from fastapi import Depends
 from core.auth import get_current_user
-from core.security_dependencies import get_optional_current_user
 from core.llm.routing_overrides import parse_routing_overrides
 from core.models import User
 from core.personal_scope import PERSONAL_TENANT_ID as CHAT_ROUTING_TENANT_KEY
