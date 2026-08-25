@@ -37,11 +37,39 @@ async def test_extract_knowledge_dynamic_prompt():
     mock_ct.is_active = True
     mock_ct.is_system = False
 
-    with llm_patch, patch("core.knowledge_extractor.get_db_session") as mock_db:
-        mock_session = MagicMock()
-        mock_db.return_value.__enter__.return_value = mock_session
-        mock_session.query.return_value.filter.return_value.all.return_value = [mock_ct]
+    # The prompt is built from the ONTOLOGY schema (not direct DB reads of
+    # EntityTypeDefinition any more) — patch the ontology service with a
+    # schema containing the custom type plus a base type.
+    fake_schema = {
+        "entity_types": [
+            {
+                "slug": "competitor",
+                "description": "A business rival",
+                "json_schema": {
+                    "properties": {"name": {"type": "string"}, "market_share": {"type": "number"}}
+                },
+                "abstract": False,
+            },
+            {
+                "slug": "Person",
+                "fields": "name, role, organization, is_stakeholder: bool",
+                "abstract": False,
+            },
+        ],
+        "relations": [
+            {
+                "name": "COMPETES_WITH",
+                "domain": ["competitor"],
+                "range": ["competitor"],
+                "description": "rivalry between companies",
+            }
+        ],
+    }
 
+    with llm_patch, patch(
+        "core.ontology.get_ontology_service",
+        return_value=MagicMock(get_schema=lambda: fake_schema),
+    ):
         extractor = KnowledgeExtractor(tenant_id="test_tenant")
 
         # Trigger extraction
@@ -51,7 +79,7 @@ async def test_extract_knowledge_dynamic_prompt():
         assert mock_llm.generate_completion.called
         system_prompt = _capture_system_prompt(mock_llm)
 
-        assert "Competitor (A business rival)" in system_prompt
+        assert "competitor (A business rival)" in system_prompt
         assert "Fields: [name, market_share]" in system_prompt
         assert "Person (name, role, organization, is_stakeholder: bool)" in system_prompt
         assert result == {"entities": [], "relationships": []}
@@ -61,12 +89,24 @@ async def test_extract_knowledge_dynamic_prompt():
 async def test_extract_knowledge_no_tenant():
     llm_patch, mock_llm = _mock_llm_service()
 
-    with llm_patch, patch("core.knowledge_extractor.get_db_session") as mock_db:
-        mock_session = MagicMock()
-        mock_db.return_value.__enter__.return_value = mock_session
-        # No custom entity types defined
-        mock_session.query.return_value.filter.return_value.all.return_value = []
+    # Base-types-only ontology schema (no custom types).
+    fake_schema = {
+        "entity_types": [
+            {
+                "slug": "Person",
+                "fields": "name, role, organization, is_stakeholder: bool",
+                "abstract": False,
+            },
+        ],
+        "relations": [
+            {"name": "KNOWS", "domain": ["Person"], "range": ["Person"]},
+        ],
+    }
 
+    with llm_patch, patch(
+        "core.ontology.get_ontology_service",
+        return_value=MagicMock(get_schema=lambda: fake_schema),
+    ):
         extractor = KnowledgeExtractor()
         await extractor.extract_knowledge("Hello world")
 

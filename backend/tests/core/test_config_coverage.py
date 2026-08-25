@@ -778,8 +778,11 @@ class TestConfigFileOperations:
 
         assert config is not None
 
-    def test_to_file_success(self, tmp_path):
+    def test_to_file_success(self, tmp_path, monkeypatch):
         """Cover saving config to file (lines 342-354)."""
+        # ServerConfig.__post_init__ overrides the port from $PORT when set —
+        # strip it so the explicitly-passed value survives.
+        monkeypatch.delenv("PORT", raising=False)
         config = ATOMConfig(
             server=ServerConfig(port=9000)
         )
@@ -834,8 +837,9 @@ class TestGlobalConfigFunctions:
         # Should return same instance
         assert config1 is config2
 
-    def test_load_config_from_file(self, tmp_path):
+    def test_load_config_from_file(self, tmp_path, monkeypatch):
         """Cover load_config from file (lines 431-437)."""
+        monkeypatch.delenv("PORT", raising=False)  # env port would override the file
         config_file = tmp_path / "config.json"
         config_data = {'server': {'port': 7777}}
         config_file.write_text(json.dumps(config_data))

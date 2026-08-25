@@ -238,8 +238,11 @@ class TestReset:
         redis = NoScanRedis()
         rl = RateLimiter(redis_client=redis)
         await rl.is_rate_limited("a", limit=5, window=60)
-        # Should not raise even though scan_iter is missing (hasattr False)
-        with pytest.warns(None):
+        # Should not raise even though scan_iter is missing (hasattr False);
+        # any warning escalates to an error (pytest.warns(None) is gone).
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
             await rl.reset()
         # nothing deleted but no crash
         assert "rate_limit:a" in redis.store

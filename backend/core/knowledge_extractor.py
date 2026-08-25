@@ -104,7 +104,7 @@ class KnowledgeExtractor:
         You are a Knowledge Graph Extraction Agent. Your goal is to analyze the provided text and extract a structured set of Entities and Relationships.
 
         **Target Entities (constrained schema — use ONLY these types):**
-        - {chr(10).join('        - ' + l for l in lines)}
+        {chr(10).join('        - ' + l for l in lines)}
 
         **Target Relationships (only these source-type -> relation -> target-type triples are legal):**
         {chr(10).join('        ' + l for l in rel_lines)}

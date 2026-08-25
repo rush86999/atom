@@ -92,13 +92,18 @@ class TestRecordUsage:
 
     def test_disable_auto_sync(self, service):
         service.enable_auto_sync("salesforce")
-        # simulate a tracked task
-        task = asyncio.Future()
-        service._sync_tasks["salesforce"] = task
-        service.disable_auto_sync("salesforce")
-        assert service.usage_stats["salesforce"].auto_sync_enabled is False
-        assert "salesforce" not in service._sync_tasks
-        assert task.cancelled() or task.done()
+        # simulate a tracked task (Future needs an explicit loop on Py3.14 —
+        # no implicit event loop exists in sync tests)
+        _loop = asyncio.new_event_loop()
+        try:
+            task = asyncio.Future(loop=_loop)
+            service._sync_tasks["salesforce"] = task
+            service.disable_auto_sync("salesforce")
+            assert service.usage_stats["salesforce"].auto_sync_enabled is False
+            assert "salesforce" not in service._sync_tasks
+            assert task.cancelled() or task.done()
+        finally:
+            _loop.close()
 
     def test_disable_auto_sync_unknown_integration_no_crash(self, service):
         service.disable_auto_sync("never_seen")  # must not raise
@@ -300,11 +305,15 @@ class TestUsageSummary:
 
     def test_stop_sets_running_false_and_cancels_tasks(self, service):
         service._running = True
-        t = asyncio.Future()
-        service._sync_tasks["x"] = t
-        service.stop()
-        assert service._running is False
-        assert t.cancelled() or t.done()
+        _loop = asyncio.new_event_loop()
+        try:
+            t = asyncio.Future(loop=_loop)
+            service._sync_tasks["x"] = t
+            service.stop()
+            assert service._running is False
+            assert t.cancelled() or t.done()
+        finally:
+            _loop.close()
 
 
 # ============================================================================

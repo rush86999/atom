@@ -272,7 +272,9 @@ def get_package_download_count(name: str) -> int:
     """Static download count: low for known-bad names, high for legit ones."""
     for ecosystem_pkgs in TYPOSQUATTING_PACKAGES.values():
         for pkg in ecosystem_pkgs:
-            if pkg["name"] == name:
+            # Containment, matching is_typosquatting_attempt: any name
+            # embedding a known typosquat ("reqeusts-crypto") is suspicious.
+            if pkg["name"] == name or pkg["name"] in name:
                 return int(pkg["downloads"])
     for ecosystem_pkgs in DEPENDENCY_CONFUSION_PACKAGES.values():
         for pkg in ecosystem_pkgs:

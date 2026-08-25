@@ -739,7 +739,8 @@ class TestHybridFetch:
         doc_ingestor = MagicMock()
         doc_ingestor.process_file_bytes = AsyncMock()
         monkeypatch.setattr(
-            "core.auto_document_ingestion.AutoDocumentIngestionService", lambda: doc_ingestor
+            # Accepts args: the service is constructed workspace-scoped.
+            "core.auto_document_ingestion.AutoDocumentIngestionService", lambda *a, **k: doc_ingestor
         )
         config = SyncConfiguration(integration_id="google_drive")
         records = await hybrid._fetch_google_drive_data(config)
