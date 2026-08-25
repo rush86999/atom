@@ -417,7 +417,7 @@ class RetryPolicy:
         jitter: bool = True,
         retry_on: List[Type[Exception]] = None,
         stop_on: List[Type[Exception]] = None,
-        backoff_strategy: str = "exponential"  # exponential, linear, fibonacci
+        backoff_strategy: str = "exponential",  # exponential, linear, fibonacci
         timeout: Optional[float] = None
     ):
         self.max_retries = max_retries

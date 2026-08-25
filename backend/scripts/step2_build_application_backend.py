@@ -587,7 +587,7 @@ def create_oauth_integration():
     # Create OAuth integration
     oauth_file = f"{backend_dir}/oauth_integration.py"
     if not os.path.exists(oauth_file):
-        oauth_content = """import os
+        oauth_content = '''import os
 import requests
 import urllib.parse
 import secrets
@@ -752,7 +752,7 @@ class OAuthIntegration:
         ]
 
 # Global instance
-oauth_integration = OAuthIntegration()"""
+oauth_integration = OAuthIntegration()'''
         
         with open(oauth_file, 'w') as f:
             f.write(oauth_content)

@@ -1265,7 +1265,7 @@ log "📊 Backup size: $(du -sh $BACKUP_PATH | cut -f1)"
         """Setup health check endpoints"""
         print("\n🏥 Setting Up Health Checks...")
         
-        health_check_server = """
+        health_check_server = '''
 #!/usr/bin/env python3
 """
 Health Check Server for Atom Workflow Automation
@@ -1426,7 +1426,7 @@ class HealthCheckServer:
 if __name__ == '__main__':
     health_server = HealthCheckServer()
     asyncio.run(health_server.start_server())
-"""
+'''
         
         health_check_file = self.deployment_path / "health_check_server.py"
         with open(health_check_file, 'w') as f:

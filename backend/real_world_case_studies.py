@@ -55,7 +55,6 @@ class RealWorldCaseStudies:
     async def initialize(self):
         """Initialize the system"""
         try:
-        try:
             from advanced_workflow_orchestrator import get_orchestrator
             self.workflow_orchestrator = get_orchestrator()
         except Exception as e:

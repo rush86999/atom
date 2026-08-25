@@ -174,4 +174,5 @@ if __name__ == '__main__':
     else:
         test_logger.error(f"Test failed: Found monitor for non-existent app: {non_existent_monitor}")
 
-[end of atomic-docker/project/functions/agents/_linux_audio_utils.py]
+# NOTE: repaired — fragment was syntactically incomplete
+# [end of atomic-docker/project/functions/agents/_linux_audio_utils.py]
