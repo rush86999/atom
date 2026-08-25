@@ -24,7 +24,20 @@ DEFAULT_REPLY_TEMPLATE = (
 
 # LLM-drafted replies: off restores the fixed template above.
 LLM_DRAFTS_FLAG = "ATOM_OUTLOOK_LLM_DRAFTS"
-LLM_DRAFT_TIMEOUT_SECONDS = 10
+LLM_DRAFT_TIMEOUT_SECONDS = 25  # free gateway is slow when overloaded; the
+                                # 15s scan cadence tolerates a 25s draft
+
+# OpenCode Go free-usage model used for the reply draft (works without a paid
+# balance; the free allowance is separate). Override via env, e.g.
+#   ATOM_OUTLOOK_DRAFT_MODEL=mimo-v2.5-free
+OUTLOOK_DRAFT_MODEL_FLAG = "ATOM_OUTLOOK_DRAFT_MODEL"
+DEFAULT_OUTLOOK_DRAFT_MODEL = "nemotron-3-ultra-free"
+
+_EMAIL_SYSTEM_INSTRUCTION = (
+    "You are the email assistant for Brennan Machinery, a metal "
+    "fabrication company. Write concise, professional customer "
+    "replies. Never invent facts."
+)
 
 # Email trigger: the contact-page link OR any of these keywords (comma-
 # separated, case-insensitive substring match). Override via env.
@@ -97,6 +110,78 @@ def _build_draft_prompt(
     )
 
 
+def _opencode_free_model() -> str:
+    """The free opencode-go model to use for drafts (env-overridable)."""
+    model = os.getenv(OUTLOOK_DRAFT_MODEL_FLAG, DEFAULT_OUTLOOK_DRAFT_MODEL).strip()
+    return model or DEFAULT_OUTLOOK_DRAFT_MODEL
+
+
+def _opencode_free_model_chain() -> list:
+    """Free-model fallback chain: the pinned model first, then other
+    documented opencode-go free models (the free gateway is intermittently
+    overloaded / has per-model availability gaps, so trying the next free
+    model is far more reliable than giving up)."""
+    models = []
+    primary = _opencode_free_model()
+    if primary:
+        models.append(primary)
+    for m in ("mimo-v2.5-free", "laguna-s-2.1-free"):
+        if m not in models:
+            models.append(m)
+    return models
+
+
+def _call_free_model_sync(client: Any, model: str, prompt: str) -> str:
+    """Sync opencode-go chat call (run in a thread). Returns the reply text
+    or "" on any failure so the caller can fall back."""
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": _EMAIL_SYSTEM_INSTRUCTION},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.7,
+            max_tokens=400,
+        )
+        if not getattr(response, "choices", None):
+            return ""
+        return str(response.choices[0].message.content or "")
+    except Exception as e:
+        logger.debug(f"[Outlook Automation] direct free-model call failed: {e}")
+        return ""
+
+
+async def _call_free_model(llm: Any, prompt: str) -> str:
+    """Try the opencode-go client directly with the pinned free model (the
+    BPC ranker only sees paid opencode models from the pricing cache, so a
+    subscription with no balance fails before ever trying the free models).
+    The free gateway is intermittently overloaded (upstream 502) and models
+    come and go, so the call walks a fallback chain of free models (2 attempts
+    each, short backoff) before falling back to generic routing."""
+    try:
+        handler = getattr(llm, "handler", None)
+        client = (getattr(handler, "clients", None) or {}).get("opencode-go")
+        if client is not None:
+            for model in _opencode_free_model_chain():
+                for attempt in range(2):
+                    content = await asyncio.to_thread(
+                        _call_free_model_sync, client, model, prompt
+                    )
+                    if content:
+                        return content
+                    await asyncio.sleep(0.3)
+            logger.debug("[Outlook Automation] direct free-model calls empty across chain; falling back")
+    except Exception as e:
+        logger.debug(f"[Outlook Automation] direct free-model path failed: {e}; falling back")
+    return await llm.generate(
+        prompt=prompt,
+        system_instruction=_EMAIL_SYSTEM_INSTRUCTION,
+        temperature=0.7,
+        max_tokens=400,
+    )
+
+
 async def _draft_reply(
     sender_name: str,
     sender_email: str,
@@ -108,17 +193,9 @@ async def _draft_reply(
     returns "" on any failure/timeout so the caller falls back to the template."""
     try:
         llm = get_llm_service()
+        prompt = _build_draft_prompt(sender_name, sender_email, subject, body, preview)
         draft = await asyncio.wait_for(
-            llm.generate(
-                prompt=_build_draft_prompt(sender_name, sender_email, subject, body, preview),
-                system_instruction=(
-                    "You are the email assistant for Brennan Machinery, a metal "
-                    "fabrication company. Write concise, professional customer "
-                    "replies. Never invent facts."
-                ),
-                temperature=0.7,
-                max_tokens=400,
-            ),
+            _call_free_model(llm, prompt),
             timeout=LLM_DRAFT_TIMEOUT_SECONDS,
         )
         draft = (draft or "").strip()

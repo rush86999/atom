@@ -109,6 +109,190 @@ def test_build_draft_prompt_includes_email_and_sender():
 # --------------------------------------------------------------------------- #
 
 @pytest.mark.asyncio
+async def test_draft_reply_uses_free_model_direct():
+    """When the opencode-go client exists, the draft comes from the direct
+    free-model call (default nemotron-3-ultra-free), not generic routing."""
+    captured = {}
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            msg = MagicMock()
+            msg.message.content = "Direct free-model draft body"
+            choice = MagicMock()
+            choice.message = msg.message
+            resp = MagicMock()
+            resp.choices = [choice]
+            return resp
+
+    class FakeOpenAIClient:
+        def __init__(self):
+            self.chat = MagicMock()
+            self.chat.completions = FakeCompletions()
+
+    class FakeLLMWithHandler:
+        def __init__(self):
+            self.handler = MagicMock()
+            self.handler.clients = {"opencode-go": FakeOpenAIClient()}
+            self.called_generate = False
+
+        async def generate(self, *a, **k):
+            self.called_generate = True
+            return "generic fallback"
+
+    llm = FakeLLMWithHandler()
+    with patch.object(oas, "get_llm_service", return_value=llm):
+        out = await _draft_reply("Jane", "j@x.com", "S", "B", "p")
+
+    assert out == "Direct free-model draft body"
+    assert captured.get("model") == oas.DEFAULT_OUTLOOK_DRAFT_MODEL
+    assert llm.called_generate is False
+
+
+@pytest.mark.asyncio
+async def test_draft_reply_env_model_override():
+    captured = {}
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            msg = MagicMock()
+            msg.message.content = "body"
+            choice = MagicMock()
+            choice.message = msg.message
+            resp = MagicMock()
+            resp.choices = [choice]
+            return resp
+
+    class FakeLLMWithHandler:
+        def __init__(self):
+            self.handler = MagicMock()
+            client = MagicMock()
+            client.chat.completions = FakeCompletions()
+            self.handler.clients = {"opencode-go": client}
+
+        async def generate(self, *a, **k):
+            return "generic"
+
+    import os as _os
+    _os.environ["ATOM_OUTLOOK_DRAFT_MODEL"] = "mimo-v2.5-free"
+    try:
+        llm = FakeLLMWithHandler()
+        with patch.object(oas, "get_llm_service", return_value=llm):
+            out = await _draft_reply("Jane", "j@x.com", "S", "B", "p")
+        assert out == "body"
+        assert captured.get("model") == "mimo-v2.5-free"
+    finally:
+        _os.environ.pop("ATOM_OUTLOOK_DRAFT_MODEL", None)
+
+
+@pytest.mark.asyncio
+async def test_draft_reply_direct_failure_falls_back_to_generate():
+    class BoomClient:
+        def __init__(self):
+            self.chat = MagicMock()
+            self.chat.completions = MagicMock()
+            self.chat.completions.create.side_effect = RuntimeError("gateway down")
+
+    class FakeLLM:
+        def __init__(self):
+            self.handler = MagicMock()
+            self.handler.clients = {"opencode-go": BoomClient()}
+
+        async def generate(self, *a, **k):
+            return "generic fallback body"
+
+    llm = FakeLLM()
+    with patch.object(oas, "get_llm_service", return_value=llm):
+        out = await _draft_reply("Jane", "j@x.com", "S", "B", "p")
+    assert out == "generic fallback body"
+
+
+@pytest.mark.asyncio
+async def test_draft_reply_retries_direct_call_on_empty():
+    """The free gateway is intermittently overloaded (502) — a flaky first
+    attempt must be retried before falling back to generic routing."""
+    calls = {"n": 0}
+
+    class FlakyCompletions:
+        def create(self, **kwargs):
+            calls["n"] += 1
+            msg = MagicMock()
+            msg.message.content = "" if calls["n"] == 1 else "recovered body"
+            choice = MagicMock()
+            choice.message = msg.message
+            resp = MagicMock()
+            resp.choices = [choice]
+            return resp
+
+    class FakeLLM:
+        def __init__(self):
+            self.handler = MagicMock()
+            client = MagicMock()
+            client.chat.completions = FlakyCompletions()
+            self.handler.clients = {"opencode-go": client}
+            self.generate_called = False
+
+        async def generate(self, *a, **k):
+            self.generate_called = True
+            return "generic"
+
+    llm = FakeLLM()
+    with patch.object(oas, "get_llm_service", return_value=llm):
+        out = await _draft_reply("Jane", "j@x.com", "S", "B", "p")
+    assert out == "recovered body"
+    assert calls["n"] >= 2
+    assert llm.generate_called is False
+
+
+@pytest.mark.asyncio
+async def test_draft_reply_walks_free_model_chain_on_failure():
+    """When the pinned model fails every attempt, the next free model in the
+    chain is tried instead of giving up."""
+    seen = []
+
+    class ChainCompletions:
+        def create(self, **kwargs):
+            seen.append(kwargs.get("model"))
+            msg = MagicMock()
+            msg.message.content = ""  # every model returns empty on first pass
+            choice = MagicMock()
+            choice.message = msg.message
+            resp = MagicMock()
+            resp.choices = [choice]
+            return resp
+
+    class FakeLLM:
+        def __init__(self):
+            self.handler = MagicMock()
+            client = MagicMock()
+            client.chat.completions = ChainCompletions()
+            self.handler.clients = {"opencode-go": client}
+            self.generate_called = False
+
+        async def generate(self, *a, **k):
+            self.generate_called = True
+            return "generic"
+
+    llm = FakeLLM()
+    with patch.object(oas, "get_llm_service", return_value=llm):
+        out = await _draft_reply("Jane", "j@x.com", "S", "B", "p")
+    assert out == "generic"  # whole chain failed -> generic fallback
+    assert llm.generate_called is True
+    assert seen[0] == oas.DEFAULT_OUTLOOK_DRAFT_MODEL
+    assert "mimo-v2.5-free" in seen
+    assert "laguna-s-2.1-free" in seen
+
+
+@pytest.mark.asyncio
+async def test_draft_reply_without_opencode_client_uses_generic():
+    llm = FakeLLM("generic body")
+    with patch.object(oas, "get_llm_service", return_value=llm):
+        out = await _draft_reply("Jane", "j@x.com", "S", "B", "p")
+    assert out == "generic body"
+
+
+@pytest.mark.asyncio
 async def test_draft_reply_returns_llm_generated_text():
     llm = FakeLLM("Your drafted reply body")
     with patch.object(oas, "get_llm_service", return_value=llm):
@@ -139,10 +323,10 @@ async def test_draft_reply_returns_empty_on_llm_error():
 @pytest.mark.asyncio
 async def test_draft_reply_returns_empty_on_timeout():
     llm = FakeLLM()
-    llm.sleep = 30  # longer than the 5s cap
+    llm.sleep = 60  # longer than the 25s cap
     with patch.object(oas, "get_llm_service", return_value=llm):
         out = await asyncio.wait_for(
-            _draft_reply("Jane", "j@x.com", "S", "B", "p"), timeout=15
+            _draft_reply("Jane", "j@x.com", "S", "B", "p"), timeout=30
         )
     assert out == ""
 

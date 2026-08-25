@@ -24,6 +24,13 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "backend"))
 
+# Windows consoles default to cp1252, which can't encode the non-ASCII
+# characters an LLM draft may contain (e.g. non-breaking hyphens).
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 from dotenv import load_dotenv
 
 # Load the way main_api_app does: backend/.env first (wins), then root, then .env.local.
@@ -111,11 +118,15 @@ async def check_draft() -> bool:
         ),
         "preview": "Need a quote for a 100-ton press brake.",
     }
-    try:
-        draft = await oas._draft_reply(**sample)
-    except Exception as e:  # defensive — _draft_reply never raises, but stay safe
-        print(f"  FAIL: unexpected error {e!r}")
-        return False
+    draft = ""
+    for attempt in range(3):  # the free gateway is intermittently overloaded
+        try:
+            draft = await oas._draft_reply(**sample)
+        except Exception as e:  # defensive — _draft_reply never raises, but stay safe
+            print(f"  attempt {attempt + 1} raised: {e!r}")
+        if draft:
+            break
+        await asyncio.sleep(1)
     if not draft:
         print("  SKIP: LLM returned nothing (no LLM key configured? LLM down?).")
         print("        Set OPENCODE_API_KEY/OPENAI_API_KEY in backend/.env and retry.")

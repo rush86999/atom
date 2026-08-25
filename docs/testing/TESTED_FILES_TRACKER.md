@@ -7,6 +7,39 @@
 ---
 
 
+## Session 2026-08-25 (Outlook automation — free opencode models for drafts)
+
+**Files**: `backend/outlook_automation_service.py`, `backend/tests/test_outlook_automation_llm_draft.py`,
+`backend/scripts/check_outlook_automation.py`.
+
+**Problem (user request + live finding)**: the user's OpenCode subscription
+has no paid balance (CreditsError), so every LLM call failed — and the BPC
+ranker only sees PAID opencode models in its pricing cache, so the documented
+free variants (deepseek-v4-flash-free etc.) were never even tried. Direct probe
+of the gateway showed 3 free models answering with the existing key:
+`nemotron-3-ultra-free`, `mimo-v2.5-free`, `laguna-s-2.1-free`.
+
+**Fix**: `_draft_reply` now calls the opencode-go client DIRECTLY with the
+pinned free model (`ATOM_OUTLOOK_DRAFT_MODEL`, default `nemotron-3-ultra-free`)
+— bypassing the BPC ranker — and walks a fallback chain of the other working
+free models (2 attempts each, 0.3s backoff) before falling back to generic
+routing, then the template. `generate_response(model_type=…)` was verified to
+IGNORE the model param (dead in that path), hence the direct client call (sync
+OpenAI client, run via `asyncio.to_thread`, 25s cap). Retries absorb the free
+gateway's intermittent upstream 502 overloads.
+
+**Tests**: +6 (direct free-model call used + default model asserted; env model
+override; direct failure falls back to generic; no opencode client -> generic;
+flaky first attempt retried; whole chain fails -> generic + all 3 models seen).
+25/25 pass.
+
+**Live verification**: checker Check 3 now prints a real AI draft (retries x3,
+UTF-8 output) — e.g. personalized press-brake reply signed "Chandrakant,
+Brennan Machinery". 3/3 checks pass.
+
+---
+
+
 ## Session 2026-08-25 (Outlook automation — widened trigger + failure hardening + manual checker)
 
 **Files**: `backend/outlook_automation_service.py`, `backend/tests/test_outlook_automation_llm_draft.py`,
