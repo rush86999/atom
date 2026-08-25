@@ -26,11 +26,13 @@ from sqlalchemy.orm import sessionmaker
 
 from core.database import Base
 from core.domain_attribution import (
+    build_domain_vocabulary,
     count_domain_wins,
     record_domain_outcome,
     resolve_domain,
 )
 from core.models import (
+    AgentEpisode,
     AgentRegistry,
     AgentStatus,
     DomainExperienceLedger,
@@ -74,6 +76,69 @@ def test_resolve_domain_finance_keywords():
 
 def test_resolve_domain_unknown_returns_none():
     assert resolve_domain("Summarize this quarterly planning document") is None
+
+
+# ---------------------------------------------------------------------------
+# Dynamic roles: edge businesses must attribute without code changes.
+# ---------------------------------------------------------------------------
+
+def test_learned_vocabulary_attributes_edge_roles(db):
+    """A landscaping business's role emerges from its own work history."""
+    from core.domain_attribution import build_domain_vocabulary
+
+    db.add(AgentRegistry(
+        id="landscape-lead", name="Field Lead", category="Landscaping",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        status=AgentStatus.SUPERVISED.value, confidence_score=0.7,
+    ))
+    for i in range(4):
+        db.add(AgentEpisode(
+            agent_id="landscape-lead", tenant_id="t1",
+            maturity_at_time=AgentStatus.SUPERVISED.value,
+            outcome="success", success=True, status="completed",
+            task_description=f"Inspect irrigation lines zone {i} and fertilize beds",
+        ))
+    db.commit()
+
+    vocab = build_domain_vocabulary(db)
+    assert "landscaping" in {k.lower() for k in vocab}
+    assert any("irrigation" in t for t in vocab.get("landscaping", []))
+
+    # Attribution keys are lowercase-normalized for ledger consistency.
+    assert resolve_domain(
+        "Check the irrigation controller at the Henderson site",
+        vocabulary=vocab,
+    ) == "landscaping"
+
+
+@pytest.mark.asyncio
+async def test_super_mentor_works_for_edge_roles(db, monkeypatch):
+    monkeypatch.delenv("ATOM_SUPERMENTOR_MIN_DOMAIN_WINS", raising=False)
+    monkeypatch.setenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", "1")
+    monkeypatch.setenv("ATOM_PROMOTION_MIN_EPISODES", "0")
+    db.add(AgentRegistry(
+        id="atom_main", name="Atom", category="Meta",
+        module_path="core.atom_meta_agent", class_name="AtomMetaAgent",
+        status=AgentStatus.AUTONOMOUS.value, confidence_score=1.0,
+    ))
+    # Edge-role wins land under the role's own category string.
+    for i in range(5):
+        record_domain_outcome(db, "atom_main", "landscaping", True,
+                              task_summary=f"Irrigation audit {i}")
+
+    # Edge-role student: no static keywords exist for it, but ledger wins
+    # were recorded under its exact category string.
+    agent = AgentRegistry(
+        id="crew-1", name="Crew Coordinator", category="landscaping",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        status=AgentStatus.STUDENT.value, confidence_score=0.35,
+    )
+    db.add(agent)
+    db.commit()
+
+    service = StudentTrainingService(db)
+    mentor = service._find_mentor(agent)
+    assert mentor is not None and mentor.id == "atom_main"
 
 
 # ---------------------------------------------------------------------------

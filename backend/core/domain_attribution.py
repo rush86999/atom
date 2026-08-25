@@ -45,23 +45,122 @@ DOMAIN_KEYWORDS = {
 
 _WORD = re.compile(r"[a-z0-9-]+")
 
+# Tokens too common to be discriminative when mining learned vocabulary.
+_STOPWORDS = {
+    "the", "and", "for", "with", "this", "that", "from", "into", "update",
+    "check", "create", "make", "send", "draft", "review", "manage", "help",
+    "please", "about", "after", "before", "schedule", "report", "summary",
+    "status", "list", "data", "record", "records", "task", "tasks", "work",
+    "email", "customer", "team", "weekly", "daily", "monthly", "today",
+}
 
-def resolve_domain(text: Optional[str]) -> Optional[str]:
+
+def build_domain_vocabulary(db, min_docs: int = 3,
+                            max_other_ratio: float = 0.2) -> dict:
+    """
+    Mine DISTINCTIVE role terms from real work history — this is what makes
+    roles dynamic. Every business has edge roles ("landscaping",
+    "veterinary", "equipment leasing"); a fixed keyword list can never
+    attribute them.
+
+    Source pairs (task text -> role):
+      - AgentEpisode.task_description via the episode's agent category
+      - DomainExperienceLedger.task_summary (already attributed)
+
+    A term enters a role's vocabulary when it appears in >= ``min_docs``
+    documents of that role AND <= ``max_other_ratio`` of all other-role
+    documents carrying it. Callers should invoke once per execution-recording
+    pass, not per token.
+    """
+    from collections import Counter, defaultdict
+
+    rows = []
+    try:
+        from core.models import AgentEpisode, AgentRegistry
+
+        rows = (
+            db.query(
+                AgentRegistry.category,
+                AgentEpisode.task_description,
+            )
+            .join(AgentRegistry, AgentEpisode.agent_id == AgentRegistry.id)
+            .filter(AgentEpisode.task_description.isnot(None))
+            .all()
+        )
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug(f"episode vocabulary source unavailable: {e}")
+
+    docs_by_role: dict[str, Counter] = defaultdict(Counter)
+    doc_counts: Counter = Counter()
+
+    def _ingest(role: str, text: str) -> None:
+        role_l = (role or "").lower()
+        if not role_l or not text:
+            return
+        doc_counts[role_l] += 1
+        seen = set(_WORD.findall(text.lower()))
+        docs_by_role[role_l].update(w for w in seen if w not in _STOPWORDS)
+
+    for role, text in rows:
+        _ingest(role, text)
+
+    try:
+        from core.models import DomainExperienceLedger
+        for row in db.query(DomainExperienceLedger).all():
+            _ingest(row.domain, row.task_summary or "")
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug(f"ledger vocabulary source unavailable: {e}")
+
+    total_by_role = {r: c for r, c in doc_counts.items()}
+
+    vocabulary: dict[str, list[str]] = {}
+    for role, term_counter in docs_by_role.items():
+        picked = []
+        for term, in_docs in term_counter.items():
+            if in_docs < min_docs:
+                continue
+            other_docs = sum(
+                other.get(term, 0)
+                for other_role, other in docs_by_role.items()
+                if other_role != role
+            )
+            other_total = sum(n for r, n in total_by_role.items() if r != role)
+            if other_total > 0 and (other_docs / other_total) > max_other_ratio:
+                continue
+            picked.append(term)
+            if len(picked) >= 20:
+                break
+        if picked:
+            vocabulary[role] = picked
+    return vocabulary
+
+
+def resolve_domain(text: Optional[str], vocabulary: Optional[dict] = None) -> Optional[str]:
     """
     Best-effort role attribution for a task/request string.
 
-    Scores each domain by distinct keyword hits and requires at least one
-    hit; ties go to the domain with the rarer (longest) matched keyword.
-    Returns None for unattributable work — callers must not guess.
+    Matches the static keyword table MERGED with any learned ``vocabulary``
+    (build_domain_vocabulary — mined from real work history so edge roles
+    attribute without code changes). Scores each domain by distinct hits;
+    ties go to the rarer (longer) match. Returns None when nothing matches
+    — callers must not guess.
     """
     if not text:
         return None
-    words = set(_WORD.findall((text or "").lower()))
+    merged: dict[str, list[str]] = {
+        d: list(kws) for d, kws in DOMAIN_KEYWORDS.items()
+    }
+    for domain, terms in (vocabulary or {}).items():
+        merged.setdefault(domain.lower(), [])
+        merged[domain.lower()] = list(set(merged[domain.lower()]) | set(t.lower() for t in terms))
+
+    lower = (text or "").lower()
+    words = set(_WORD.findall(lower))
     best_domain: Optional[str] = None
     best_hits = 0
     best_len = 0
-    for domain, keywords in DOMAIN_KEYWORDS.items():
-        hits = [k for k in keywords if k in words or k in (text or "").lower()]
+    for domain, keywords in merged.items():
+        hits = [k for k in keywords if k in words or k in lower]
         if not hits:
             continue
         score = len(hits)

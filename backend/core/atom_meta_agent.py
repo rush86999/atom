@@ -2899,8 +2899,19 @@ Provide your Mentorship Guidance:"""
         # carries one. This is what lets the generalist meta agent EARN
         # super-mentor status per domain (see core/domain_attribution) —
         # without it every outcome blurred into one unattributable row.
-        from core.domain_attribution import record_domain_outcome, resolve_domain
-        attributed_domain = resolve_domain(request)
+        # Vocabulary is mined from real work history so edge roles (beyond
+        # the static keyword table) attribute dynamically.
+        from core.domain_attribution import (
+            build_domain_vocabulary, record_domain_outcome, resolve_domain,
+        )
+        attributed_domain = None
+        db = SessionLocal()
+        try:
+            vocabulary = build_domain_vocabulary(db)
+            attributed_domain = resolve_domain(request, vocabulary=vocabulary)
+        except Exception as ve:
+            logger.debug(f"domain vocabulary pass skipped: {ve}")
+            attributed_domain = resolve_domain(request)
 
         experience = AgentExperience(
             id=str(uuid.uuid4()),
@@ -2917,7 +2928,6 @@ Provide your Mentorship Guidance:"""
 
         # 2. Update Governance Outcome
         success = result.get("status") == "success" or (result.get("final_output") is not None and "error" not in result.get("final_output").lower())
-        db = SessionLocal()
         try:
             gov = AgentGovernanceService(db)
             await gov.record_outcome("atom_main", success=success)

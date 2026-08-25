@@ -6603,3 +6603,16 @@ Research note: retrieval-time pre-filtering re-validated for A-G1/A-G2 (RAG acce
 **Tests**: `backend/tests/test_super_mentor_pathway.py` (7): domain keyword resolution ×3, ledger record/count, super-mentor qualifies at threshold + playbook from ledger, below-threshold = no mentor, more-proven senior beats super-mentor.
 
 **Verification**: 119 training/governance tests green; main_api_app imports clean; live DB migrated; server restarted on :8001.
+
+## 2026-08-26f — Dynamic roles: learned attribution vocabulary for edge roles (R86d)
+
+**Gap**: agent roles were dynamic (free-form categories, string-matched mentors) but domain ATTRIBUTION was a fixed 6-keyword table — edge roles ("landscaping", "veterinary") could never accrue ledger evidence, so atom_main could never earn their super-mentorship.
+
+**Fix** (`core/domain_attribution.py`, `core/atom_meta_agent.py`):
+- `build_domain_vocabulary(db)` mines distinctive role terms from real history: AgentEpisode.task_description grouped by the executing agent's registry category + already-attributed ledger summaries. Term qualifies at ≥min_docs(3) in one role AND ≤20% presence across other roles; stopwords filtered; per-source try/except so a missing table can't kill the mine.
+- `resolve_domain(text, vocabulary=)` merges static + learned tables (lowercase-normalized keys for ledger consistency).
+- Meta-agent `_record_execution` builds vocabulary per recording pass before resolving.
+
+**Tests** (+2 in `test_super_mentor_pathway.py`, now 9): edge-role vocabulary mined from episodes and used for attribution; super-mentor eligibility works for an arbitrary category string via ledger wins under that exact role. Suite total 20 passed with promotion-gate suite.
+
+**Verification**: 145 training/governance tests green; imports clean; server restarted.
