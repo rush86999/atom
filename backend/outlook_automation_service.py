@@ -2,7 +2,7 @@ import asyncio
 import logging
 import datetime
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from core.database import SessionLocal
 from core.models import HITLAction, HITLActionStatus
@@ -131,14 +131,14 @@ def _opencode_free_model_chain() -> list:
     return models
 
 
-def _call_free_model_sync(client: Any, model: str, prompt: str) -> str:
+def _call_free_model_sync(client: Any, model: str, prompt: str, system_instruction: Optional[str] = None) -> str:
     """Sync opencode-go chat call (run in a thread). Returns the reply text
     or "" on any failure so the caller can fall back."""
     try:
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": _EMAIL_SYSTEM_INSTRUCTION},
+                {"role": "system", "content": system_instruction or _EMAIL_SYSTEM_INSTRUCTION},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.7,

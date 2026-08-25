@@ -7,6 +7,42 @@
 ---
 
 
+## Session 2026-08-25 (Sales decision catalog — business-discovery step)
+
+**Files**: `backend/core/sales_decision_catalog.py` (+ new
+`backend/tests/test_sales_decision_catalog.py`), `backend/scripts/build_decision_catalog.py`,
+`backend/outlook_automation_service.py` (optional `system_instruction` param),
+`docs/sales/DECISION_CATALOG.md` + `docs/sales/email_classifications.json` (generated).
+
+**Goal (manager-driven)**: "learn the business before automating it" — the
+first step of the AI sales-agent build-out. Classify real historical customer
+emails into a (Situation -> Action -> Human?) decision catalog.
+
+**Built**: `core/sales_decision_catalog.py` — `build_classification_prompt`
+(11-dimension prompt: intent, customer_question, sales_action, info_needed,
+systems_checked, people_contacted, decision_reason, exception, outcome,
+needs_human, business_rule); `parse_classification` (robust JSON: fenced,
+prose-wrapped, truncated -> regex key-value salvage); `classify_email`
+(fault-isolated, 30s cap, uses the free opencode-go chain with custom system
+instruction — `_call_free_model_sync` gained an optional system_instruction
+arg); `aggregate_catalog` (rule -> count/actions/human?/systems/exceptions/
+examples, count-desc). Script `build_decision_catalog.py` fetches the Outlook
+inbox, classifies (checkpointed JSON after every email), writes the catalog
+markdown; `--resume` rebuilds markdown from the checkpoint.
+
+**Live run**: 7 emails classified from the real inbox -> 7 rules incl.
+`credit_application_required_for_net30_terms -> ask_human (HUMAN)`,
+`standard machine + stock available -> draft_quote (HUMAN)`,
+`standard_machine_quote_request -> check_inventory (auto)`. Free gateway is
+slow (run timed out at 15 emails; checkpoint preserved progress).
+
+**Tests**: +12 (prompt fields, fenced/truncated/unparseable JSON, defaults,
+classify wrapper, aggregation grouping/sorting/empty). 37/37 across both
+suites.
+
+---
+
+
 ## Session 2026-08-25 (Outlook automation — free opencode models for drafts)
 
 **Files**: `backend/outlook_automation_service.py`, `backend/tests/test_outlook_automation_llm_draft.py`,
