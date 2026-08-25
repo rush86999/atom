@@ -18,8 +18,12 @@ Components:
 - :class:`ModelDriftDetector` — baseline map keyed ``(provider_id,
   requested_model) -> resolved`` persisted to a JSON state file. Fires a
   :class:`DriftEvent` when the echo changes under a stable requested key.
-  Missing echoes are "unknown", never "unchanged". Self-heals when the echo
-  stabilizes.
+  Missing echoes are "unknown", never "unchanged". A drifted key only heals
+  after ``ATOM_DRIFT_STABLE_ECHOES`` (default 3) consecutive echoes matching
+  the new baseline — a silent bump IS a new steady state, so a single repeat
+  observation must not re-enable patches that were never re-validated on the
+  new checkpoint. :meth:`ModelDriftDetector.mark_revalidated` clears drift
+  immediately once scoped patches have been explicitly re-validated.
 - :func:`normalize_model_family` — policy-based family collapse for patch
   scoping: strips dates/snapshots/preview/free suffixes but KEEPS variant
   tiers (deepseek-v4-flash != deepseek-v4-pro). Family governs harness-patch
@@ -47,6 +51,8 @@ from typing import Dict, Optional
 logger = logging.getLogger(__name__)
 
 _FLAG = "ATOM_MODEL_DRIFT_DETECTION_ENABLED"
+_STABLE_ECHOES_FLAG = "ATOM_DRIFT_STABLE_ECHOES"
+_DEFAULT_STABLE_ECHOES = 3
 _DEFAULT_STATE_PATH = Path("./data/model_resolution_state.json")
 
 _resolved_model_cv: ContextVar[Optional[str]] = ContextVar(
@@ -70,6 +76,14 @@ def clear_resolved_model() -> None:
 
 def _enabled() -> bool:
     return os.getenv(_FLAG, "true").lower() == "true"
+
+
+def _stable_echoes_required() -> int:
+    try:
+        n = int(os.getenv(_STABLE_ECHOES_FLAG, str(_DEFAULT_STABLE_ECHOES)))
+        return max(1, n)
+    except (TypeError, ValueError):
+        return _DEFAULT_STABLE_ECHOES
 
 
 # ── family normalization (policy, not guesswork) ──────────────────────
@@ -114,10 +128,14 @@ class ModelDriftDetector:
     """Detects provider-side checkpoint bumps under stable request aliases.
 
     State shape (JSON): ``{"baselines": {"<provider>:<requested>": "<resolved>"}}``
-    plus an in-memory set of currently-drifted keys. A key is drifted between
-    the observation that diverges and the observation where the echo
-    stabilizes on the new value (provider rollback to the ORIGINAL value also
-    heals, since the next steady state matches whatever baseline is stored).
+    plus in-memory sets of currently-drifted keys and their consecutive
+    stable-echo counts. On detection the baseline moves to the new echo and
+    the key is marked drifted — family-scoped patches for that identity are
+    suppressed. Healing is debounced: the key stays drifted until the echo has
+    matched the new baseline ``ATOM_DRIFT_STABLE_ECHOES`` times in a row
+    (default 3) OR :meth:`mark_revalidated` is called after explicit patch
+    re-validation. Rationale: a silent bump is a steady state, so one repeat
+    observation proves consistency, not that the old patches are still good.
     """
 
     def __init__(self, state_path: Optional[Path] = None):
@@ -125,6 +143,7 @@ class ModelDriftDetector:
         self._lock = threading.Lock()
         self._baselines: Dict[str, str] = {}
         self._drifted: set = set()
+        self._stable: Dict[str, int] = {}
         self._load()
 
     # ── persistence (best-effort, never raises) ──
@@ -178,10 +197,15 @@ class ModelDriftDetector:
                     return None
                 if previous == resolved_model:
                     if key in self._drifted:
-                        self._drifted.discard(key)  # healed: echo stabilized
+                        self._stable[key] = self._stable.get(key, 0) + 1
+                        if self._stable[key] >= _stable_echoes_required():
+                            # debounced heal: echo proven consistent N times
+                            self._drifted.discard(key)
+                            self._stable.pop(key, None)
                     return None
                 self._baselines[key] = resolved_model
                 self._drifted.add(key)
+                self._stable.pop(key, None)
                 self._save()
             event = DriftEvent(
                 provider_id=provider_id,
@@ -201,12 +225,26 @@ class ModelDriftDetector:
             return None
 
     def is_drifted(self, provider_id: str, requested_model: str) -> bool:
-        """True while the echo for this identity is unstable (active drift)."""
+        """True while the echo for this identity is unstable or unre-validated."""
         try:
             with self._lock:
                 return self._key(provider_id, requested_model) in self._drifted
         except Exception:
             return False
+
+    def mark_revalidated(self, provider_id: str, requested_model: str) -> None:
+        """Clear drift immediately after explicit patch re-validation.
+
+        Callers: the re-validation path (sandbox validate_mutation_in_sandbox
+        against the new checkpoint) — NOT the observe loop. Never raises.
+        """
+        try:
+            with self._lock:
+                key = self._key(provider_id, requested_model)
+                self._drifted.discard(key)
+                self._stable.pop(key, None)
+        except Exception:
+            pass
 
 
 _detector: Optional[ModelDriftDetector] = None

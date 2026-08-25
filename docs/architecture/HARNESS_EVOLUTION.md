@@ -75,14 +75,16 @@ The problem statement above notes that *different foundation models have differe
 
 ### Silent-bump drift detection
 
-CAIN-style vendor drift changes the resolved ID while the requested alias stays stable — invisible to requested-keyed consumers. `ModelDriftDetector` keeps a persisted baseline map `(provider_id, requested_model) → resolved` (`./data/model_resolution_state.json`) and fires a `DriftEvent` on divergence. Missing echoes are *unknown*, never *unchanged*; the detector self-heals when the echo stabilizes. Flag: `ATOM_MODEL_DRIFT_DETECTION_ENABLED` (default ON, detection-only, never raises).
+CAIN-style vendor drift changes the resolved ID while the requested alias stays stable — invisible to requested-keyed consumers. `ModelDriftDetector` keeps a persisted baseline map `(provider_id, requested_model) → resolved` (`./data/model_resolution_state.json`) and fires a `DriftEvent` on divergence. Missing echoes are *unknown*, never *unchanged*. Healing is **debounced**: a drifted key stays drifted until the echo has matched the new baseline `ATOM_DRIFT_STABLE_ECHOES` consecutive times (default 3) or `mark_revalidated()` is called after explicit patch re-validation — a silent bump IS a steady state, so a single repeat echo proves consistency, not that the old scoped patches are still good. Flag: `ATOM_MODEL_DRIFT_DETECTION_ENABLED` (default ON, detection-only, never raises).
 
 ### Patch scoping policy
 
 `propose_mutation` now tags by component class:
 
 - `ast_tripwire`, `context_compaction` → `"model_scope": "all"` (deterministic blast-radius controls are portable). Compaction is secretly model-sensitive via context windows — schema permits scoping later.
-- `system_prompt` → `"model_scope": "model_family"` (+ `model_family` once mining keys clusters on `requested_model`). Evidence basis is precautionary, not demonstrated: AHE's −2.3pp system-prompt result is a same-model ablation (its cross-model runs transfer the full harness), but prompt-level artifacts also fail across task surfaces (ACE playbook regressing below seed on SWE-bench) and across models (PromptBridge model-drifting measurements).
+- `system_prompt` → `"model_scope": "model_family"`. Mining clusters failures on `(model_family, step_type, tool)` via `AgentReasoningStep.requested_model` (echo `resolved_model` as fallback), so prompt patches are born with a concrete family — never `None`, never universal. Evidence basis is precautionary, not demonstrated: AHE's −2.3pp system-prompt result is a same-model ablation (its cross-model runs transfer the full harness), but prompt-level artifacts also fail across task surfaces (ACE playbook regressing below seed on SWE-bench) and across models (PromptBridge model-drifting measurements).
+
+**Composite patch identity**: family-scoped `patch_id`s embed the family (`patch_thought_shell_gpt-5.4`), and `deploy_harness_patch` upserts on `(patch_id, model_family)` — two family variants of the same logical patch coexist instead of overwriting each other. The structural validator additionally REJECTS any `system_prompt` patch whose scope isn't `model_family` (gate-enforced policy, not proposer convention).
 
 **Family granularity is policy**: `normalize_model_family()` collapses dates/snapshots (`gpt-5.4-2026-03` → `gpt-5.4`) and `free`/`preview` tags, but PRESERVES variant tiers (`deepseek-v4-flash` ≠ `-pro`). Drift detection stays keyed on the concrete ID for maximum sensitivity; families govern only patch breadth.
 
@@ -92,7 +94,7 @@ The tag alone is inert. `core/harness_evolution_service.py::applicable_patches(p
 
 1. scope match — `all` always; family-scoped only on normalized family equality;
 2. fail-safe — unknown origin family ⇒ excluded, never silently universalized;
-3. **drift expiry** — active drift on `(provider_id, current_model_id)` suppresses matching family-scoped patches IMMEDIATELY (serve-path action, not next-cycle correction), restoring when the echo stabilizes.
+3. **drift expiry** — active drift on `(provider_id, current_model_id)` suppresses matching family-scoped patches IMMEDIATELY (serve-path action, not next-cycle correction). Restoration requires `ATOM_DRIFT_STABLE_ECHOES` consecutive stable echoes (debounced — one repeat echo does not restore) or explicit `mark_revalidated()` after re-validating the patches against the new checkpoint.
 
 **Known gaps**: streaming create sites uninstrumented; `requested_model` not yet populated at the meta-agent persistence seam; no runtime consumer exists yet — the filter ships first so the invariant is inherited, not retrofitted.
 

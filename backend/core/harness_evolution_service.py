@@ -108,12 +108,22 @@ class HarnessEvolutionService:
                 except Exception:
                     pass
 
-            # Group key by step type and tool
-            key = (f.step_type, tool_name)
+            # Cluster per model family so prompt-patch proposals are born
+            # scoped (requested_model is the router-selected concrete ID;
+            # resolved_model is the provider echo — either identifies the
+            # family, prefer requested for consistency with serve-time
+            # filtering).
+            model_family = normalize_model_family(
+                getattr(f, "requested_model", None) or getattr(f, "resolved_model", None)
+            )
+
+            # Group key by model family, step type and tool
+            key = (model_family, f.step_type, tool_name)
             if key not in patterns:
                 patterns[key] = {
                     "step_type": f.step_type,
                     "tool": tool_name,
+                    "model_family": model_family or None,
                     "failure_count": 0,
                     "examples": []
                 }
@@ -153,6 +163,7 @@ class HarnessEvolutionService:
             }
             model_scope = "all"
             model_family = None
+            patch_id = f"patch_{step_type}_{tool}"
         elif step_type == "thought":
             target = "system_prompt"
             payload = {
@@ -160,6 +171,10 @@ class HarnessEvolutionService:
             }
             model_scope = "model_family"
             model_family = pattern.get("model_family")
+            # Composite identity: two families can carry variants of the same
+            # logical patch without overwriting each other on deploy.
+            family_slug = (model_family or "unknown").replace(" ", "-")
+            patch_id = f"patch_{step_type}_{tool}_{family_slug}"
         else:
             target = "context_compaction"
             payload = {
@@ -171,9 +186,10 @@ class HarnessEvolutionService:
             # scoping once mining attributes overflow failures to families.
             model_scope = "all"
             model_family = None
+            patch_id = f"patch_{step_type}_{tool}"
 
         return {
-            "patch_id": f"patch_{step_type}_{tool}",
+            "patch_id": patch_id,
             "target_component": target,
             "mutation_payload": payload,
             "model_scope": model_scope,
@@ -264,6 +280,16 @@ class HarnessEvolutionService:
         except Exception:
             pass
 
+        # Scope-policy gate (R82 adjudicated): prose-level patches must never
+        # be universal — enforce at the gate, not by proposer convention.
+        if target == "system_prompt" and patch.get("model_scope", "all") != "model_family":
+            logger.warning(
+                f"Patch {patch['patch_id']} is a system_prompt patch with "
+                f"model_scope={patch.get('model_scope')!r} — refusing: prompt "
+                "patches must be model_family-scoped"
+            )
+            return False
+
         return True
 
     async def deploy_harness_patch(self, patch: Dict[str, Any], agent_id: str) -> bool:
@@ -299,9 +325,16 @@ class HarnessEvolutionService:
         except Exception:
             pass  # rollback is best-effort; never blocks deployment
 
-        # Upsert patch configuration
+        # Upsert patch configuration. Composite key: (patch_id, model_family)
+        # — two family variants of the same logical patch coexist instead of
+        # overwriting each other.
         patches = agent.configuration["harness_patches"]
-        patches = [p for p in patches if p["patch_id"] != patch["patch_id"]]
+        def _same_variant(p: Dict[str, Any]) -> bool:
+            return (
+                p.get("patch_id") == patch["patch_id"]
+                and (p.get("model_family") or None) == (patch.get("model_family") or None)
+            )
+        patches = [p for p in patches if not _same_variant(p)]
         patches.append(patch)
         agent.configuration["harness_patches"] = patches
 
