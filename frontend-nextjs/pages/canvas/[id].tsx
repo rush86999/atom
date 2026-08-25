@@ -12,7 +12,6 @@ import { CanvasPanel } from "@/components/canvas/CanvasPanel";
 import { MiniAppHarness } from "@/components/canvas/MiniAppHarness";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
-import Layout from "@/components/layout/Layout";
 import { getCurrentUserId } from "@/lib/identity";
 
 interface CanvasMessage {
@@ -214,14 +213,14 @@ export default function CanvasDetailPage() {
         },
     } : lastMessage;
 
-    return (
-        <Layout>
+return (
+        <>
             <Head>
                 <title>{canvasData?.title || "Canvas"} | Atom</title>
             </Head>
-            <div className="h-[calc(100vh-3.5rem)] flex flex-col">
-                {/* Canvas header bar */}
-                <div className="flex items-center justify-between border-b px-4 py-2 shrink-0">
+            <div className="flex h-screen bg-background overflow-hidden">
+                {/* Top bar */}
+                <div className="flex items-center justify-between border-b px-4 py-2 shrink-0 bg-background">
                     <div className="flex items-center gap-3">
                         <Link href="/canvas">
                             <Button variant="ghost" size="sm">
@@ -366,6 +365,6 @@ export default function CanvasDetailPage() {
                     </div>
                 )}
             </div>
-        </Layout>
+        </>
     );
 }

@@ -7,6 +7,84 @@
 ---
 
 
+## Session 2026-08-25 (Zoho WorkDrive — recursive "All Files" view + recursion fix)
+
+**Files**: `backend/integrations/zoho_workdrive_service.py`,
+`frontend-nextjs/components/Settings/ZohoWorkDriveIngestion.tsx` (+ jest),
+`backend/tests/test_zoho_workdrive_service_team_folders.py`.
+
+**Problem**: team folders showed only their top level; files nested in
+subfolders were invisible without manual navigation. The pre-existing
+recursive path also had a routing bug: it re-passed `team_id`/`workspace_id`
+to subfolder recursions, so subfolders inside team folders were sent to
+`/teamfolders/{id}/files` (wrong — they are regular folders).
+
+**Fix**: recursion now drops `team_id`/`workspace_id` and recurses with plain
+`parent_id` (subfolders always hit `/files/{id}/files`). New "All Files"
+toggle in the picker calls `/files/list` with `recursive: true` and filters
+folders from the display (folders still shown in "Current Folder" mode);
+toggle re-fetches `lastParams` so it works inside team folders.
+
+**Tests**: +1 backend recursion test (teamfolder root → `/teamfolders/{id}/files`,
+subfolders → `/files/{id}/files`; 7/7 pass) and +1 frontend test (toggle
+sends `recursive: true`, folders filtered, toggle-back re-fetches; 11/11
+pass). Verified live: recursive listing works (General + deep H Drive subtree
+return files); H Drive as a whole is too large for synchronous sequential
+recursion (~minutes — one Zoho call per folder).
+
+---
+
+
+## Session 2026-08-25 (Zoho WorkDrive — team folders invisible for plain members)
+
+**Files**: `backend/integrations/zoho_workdrive_service.py` (+ new
+`backend/tests/test_zoho_workdrive_service_team_folders.py`),
+`frontend-nextjs/components/Settings/ZohoWorkDriveIngestion.tsx` (+ jest).
+
+**Problem (live-reproduced with the user's token)**: `GET /api/v1/teams`
+returns `{"data":[]}` for users who are plain members of their org's team
+(`role_id: 30`, `is_current_user_admin: false`) — so the Team Folders section
+was empty even though the org team (Brennan Machinery Inc., 57k+ files) and
+its 4 team folders (Accounting/General/H Drive/My Team) exist.
+`/api/v1/users/me` advertises them via `preferred_team_id`, and
+`GET /api/v1/teams/{id}/teamfolders` + `GET /api/v1/teamfolders/{id}/files`
+work. Team folders also carry no `workspace_id`, so the workspace listing path
+could never reach them.
+
+**Fix**: `get_teams`/`get_team_folders` fall back to `/users/me` →
+`preferred_team_id` when `/teams` is empty; `list_files` with `team_id` +
+non-root `parent_id` lists via `/teamfolders/{parent_id}/files`; frontend
+`openTeamFolder` passes `parent_id: tf.id`. 6 new service tests + frontend
+test updated (10/10). Existing `test_covpush_w38_zoho_workdrive.py` has 4
+pre-existing failures (stale assertions — verified identical with my change
+stashed).
+
+---
+
+
+## Session 2026-08-25 (Zoho WorkDrive ingestion — team-folder browsing)
+
+**Files**: `frontend-nextjs/components/Settings/ZohoWorkDriveIngestion.tsx` (+ its jest suite).
+
+**Problem**: the picker only listed the user's private workspace ("root");
+Team Folders were never shown — `teams` was fetched but unused, and the
+files call never sent `workspace_id`/`team_id` despite the backend supporting
+them (`api/zoho_workdrive_routes.py`, already covered at 87%).
+
+**Fix**: fetch `/api/zoho-workdrive/team-folders` on mount; render a Team
+Folders section at the private root; opening one lists its workspace files
+via `workspace_id`/`team_id`; breadcrumb navigation (root / team folder /
+subfolder) + Refresh now re-uses the last listing params (`lastParams`) so
+context survives refreshes. **Tests**: the suite was stale at baseline (6/7
+failing — header comment claimed no mount auto-load, contradicting `init()`)
+→ rewritten (10 tests: private-root listing, team-folder listing + open with
+`workspace_id` body assert, breadcrumb return, folder open, empty state +
+Refresh Files, ingest success/failure toasts, refresh with last params).
+All green: 10/10, `tsc` clean.
+
+---
+
+
 ## Session 2026-08-21 (Round 80 — integration user-journey audit: every app, every role, UI/UX)
 
 **Context**: walked every app integration end-to-end (discover → connect → status → use → manage) for every role including UI/UX. Findings + fixes below; full matrix in `docs/INTEGRATIONS_JOURNEY_AUDIT.md`. Backend TDD (RED first); frontend jest.

@@ -23,6 +23,29 @@ interface ZohoTeam {
     };
 }
 
+interface ZohoTeamFolder {
+    id: string;
+    name: string;
+    team_id?: string;
+    team_name?: string;
+    workspace_id?: string;
+    type?: string;
+}
+
+interface ListParams {
+    parent_id: string;
+    workspace_id?: string;
+    team_id?: string;
+    folderName?: string;
+    recursive?: boolean;
+}
+
+interface Breadcrumb {
+    id: string;
+    name: string;
+    teamFolderId?: string;
+}
+
 function extractErrorMessage(text: string, status: number): string {
     let errMsg = `Server returned ${status}`;
     try {
@@ -43,9 +66,12 @@ function extractErrorMessage(text: string, status: number): string {
 
 export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
     const [teams, setTeams] = useState<ZohoTeam[]>([]);
+    const [teamFolders, setTeamFolders] = useState<ZohoTeamFolder[]>([]);
     const [files, setFiles] = useState<ZohoFile[]>([]);
     const [currentFolderId, setCurrentFolderId] = useState<string>('root');
-    const [breadcrumbs, setBreadcrumbs] = useState<{ id: string; name: string }[]>([{ id: 'root', name: 'My WorkDrive' }]);
+    const [lastParams, setLastParams] = useState<ListParams>({ parent_id: 'root' });
+    const [showAllFiles, setShowAllFiles] = useState(false);
+    const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([{ id: 'root', name: 'My WorkDrive' }]);
     const [loading, setLoading] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const [ingesting, setIngesting] = useState<string | null>(null);
@@ -60,7 +86,7 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
     const init = async () => {
         setLoading(true);
         try {
-            await Promise.all([fetchTeams(), fetchFiles('root')]);
+            await Promise.all([fetchTeams(), fetchTeamFolders(), fetchFiles({ parent_id: 'root' })]);
         } finally {
             setLoading(false);
         }
@@ -85,25 +111,55 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
         }
     };
 
-    const fetchFiles = async (parentId: string = 'root', folderName?: string) => {
+    const fetchTeamFolders = async () => {
+        try {
+            const response = await fetch(`/api/zoho-workdrive/team-folders?user_id=${userId}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    setTeamFolders(data.data || []);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch Zoho team folders:', error);
+        }
+    };
+
+    const fetchFiles = async (params: ListParams) => {
         setLoading(true);
+        const { parent_id, workspace_id, team_id, folderName, recursive } = params;
+        const inTeamContext = Boolean(workspace_id || team_id);
         try {
             const response = await fetch('/api/zoho-workdrive/files/list', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, parent_id: parentId })
+                body: JSON.stringify({
+                    user_id: userId,
+                    parent_id,
+                    ...(workspace_id ? { workspace_id } : {}),
+                    ...(team_id ? { team_id } : {}),
+                    ...(recursive ? { recursive: true } : {}),
+                })
             });
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
                     setIsConnected(true);
                     setFiles(data.data || []);
-                    setCurrentFolderId(parentId);
-                    
-                    if (parentId === 'root') {
+                    setCurrentFolderId(parent_id);
+                    setLastParams({
+                        parent_id,
+                        workspace_id,
+                        team_id,
+                        folderName,
+                    });
+
+                    if (inTeamContext) {
+                        // Breadcrumbs for team folders are set by openTeamFolder.
+                    } else if (parent_id === 'root') {
                         setBreadcrumbs([{ id: 'root', name: 'My WorkDrive' }]);
                     } else if (folderName) {
-                        setBreadcrumbs(prev => [...prev.filter(b => b.id !== parentId), { id: parentId, name: folderName }]);
+                        setBreadcrumbs(prev => [...prev.filter(b => b.id !== parent_id), { id: parent_id, name: folderName }]);
                     }
                 }
             }
@@ -111,6 +167,31 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
             console.error('Failed to fetch Zoho files:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const toggleAllFiles = () => {
+        const next = !showAllFiles;
+        setShowAllFiles(next);
+        fetchFiles({ ...lastParams, recursive: next });
+    };
+
+    const openTeamFolder = async (tf: ZohoTeamFolder) => {
+        setBreadcrumbs([
+            { id: 'root', name: 'My WorkDrive' },
+            { id: tf.id, name: tf.name, teamFolderId: tf.id },
+        ]);
+        await fetchFiles({ parent_id: tf.id, workspace_id: tf.workspace_id, team_id: tf.team_id });
+    };
+
+    const handleBreadcrumb = (b: Breadcrumb) => {
+        if (b.id === 'root') {
+            fetchFiles({ parent_id: 'root' });
+        } else if (b.teamFolderId) {
+            const tf = teamFolders.find(t => t.id === b.teamFolderId);
+            if (tf) openTeamFolder(tf);
+        } else {
+            fetchFiles({ parent_id: b.id, folderName: b.name });
         }
     };
 
@@ -184,6 +265,8 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
     };
 
     const nonFolderFiles = files.filter(f => f.type !== 'folder');
+    const showTeamFolders = currentFolderId === 'root' && !lastParams.workspace_id && !lastParams.team_id;
+    const displayFiles = showAllFiles ? files.filter(f => f.type !== 'folder') : files;
 
     return (
         <Card className="w-full">
@@ -226,7 +309,11 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
                             <ExternalLink className="w-4 h-4 mr-2" />
                             {isConnected ? "Reconnect" : "Connect Zoho Account"}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => fetchFiles(currentFolderId)} disabled={loading}>
+                        <Button variant="outline" size="sm" onClick={toggleAllFiles} disabled={loading} className={showAllFiles ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-950 dark:text-blue-300' : ''}>
+                            <Search className={`w-4 h-4 mr-2`} />
+                            {showAllFiles ? 'Current Folder' : 'All Files'}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => fetchFiles(lastParams)} disabled={loading}>
                             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                             Refresh
                         </Button>
@@ -242,12 +329,36 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
                                 <React.Fragment key={b.id}>
                                     {idx > 0 && <span className="text-gray-400">/</span>}
                                     <button
-                                        onClick={() => fetchFiles(b.id)}
+                                        onClick={() => handleBreadcrumb(b)}
                                         className={`hover:underline ${idx === breadcrumbs.length - 1 ? 'font-semibold text-gray-800 dark:text-gray-200' : ''}`}
                                     >
                                         {b.name}
                                     </button>
                                 </React.Fragment>
+                            ))}
+                        </div>
+                    )}
+
+                    {showTeamFolders && teamFolders.length > 0 && (
+                        <div className="border rounded-md divide-y overflow-hidden">
+                            <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800">
+                                Team Folders
+                            </div>
+                            {teamFolders.map(tf => (
+                                <div key={tf.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800 transition-colors">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <Folder className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                                        <div className="min-w-0">
+                                            <p className="font-medium truncate">{tf.name}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                {tf.team_name ? `${tf.team_name} • ` : ''}Team Folder
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button variant="ghost" size="sm" onClick={() => openTeamFolder(tf)}>
+                                        Open
+                                    </Button>
+                                </div>
                             ))}
                         </div>
                     )}
@@ -271,7 +382,7 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
                                 </p>
                                 <div className="flex items-center justify-center gap-3">
                                     {isConnected ? (
-                                        <Button variant="default" size="sm" onClick={() => fetchFiles(currentFolderId)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                                        <Button variant="default" size="sm" onClick={() => fetchFiles(lastParams)} className="bg-blue-600 hover:bg-blue-700 text-white">
                                             <RefreshCw className="w-4 h-4 mr-2" />
                                             Refresh Files
                                         </Button>
@@ -282,12 +393,12 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
                                         </Button>
                                     )}
                                     {currentFolderId !== 'root' && (
-                                        <Button variant="outline" size="sm" onClick={() => fetchFiles('root')}>Go to Root</Button>
+                                        <Button variant="outline" size="sm" onClick={() => fetchFiles({ parent_id: 'root' })}>Go to Root</Button>
                                     )}
                                 </div>
                             </div>
                         ) : (
-                            files.map(file => {
+                            displayFiles.map(file => {
                                 const isIngested = ingestedFileIds.has(file.id);
                                 return (
                                     <div key={file.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800 transition-colors">
@@ -314,7 +425,7 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
 
                                         <div className="flex items-center gap-2">
                                             {file.type === 'folder' ? (
-                                                <Button variant="ghost" size="sm" onClick={() => fetchFiles(file.id, file.name)}>
+                                                <Button variant="ghost" size="sm" onClick={() => fetchFiles({ parent_id: file.id, folderName: file.name })}>
                                                     Open
                                                 </Button>
                                             ) : (
