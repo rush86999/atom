@@ -808,8 +808,8 @@ async def lifespan(app: FastAPI):
 
             # 8c-quater. Ontology draft automation loop: consent-gated
             # promotion of auto-discovered entity types (off|notify|approve|
-            # auto). Default off — no loop, no side effects.
-            if os.getenv("ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE", "off").lower() != "off":
+            # auto). Default auto — runs unless explicitly set to off.
+            if os.getenv("ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE", "auto").lower() != "off":
                 _od_interval = float(
                     os.getenv("ATOM_ONTOLOGY_DRAFT_AUTO_INTERVAL_MIN", "60")
                 )
@@ -3938,7 +3938,7 @@ try:
         logger.warning(f"Trust calibration routes failed to load: {e}")
 
     # 41b. Ontology Draft Automation routes (consent-gated promotion of
-    # auto-discovered entity types; mode off|notify|approve|auto, default off)
+    # auto-discovered entity types; mode off|notify|approve|auto, default auto)
     try:
         from api.ontology_draft_routes import router as ontology_draft_router
 

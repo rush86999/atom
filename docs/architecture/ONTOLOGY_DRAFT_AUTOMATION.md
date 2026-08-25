@@ -1,6 +1,6 @@
 # Ontology Draft Promotion Automation
 
-> **Status**: Implemented (shadow-first, consent-gated). Default mode `off`.
+> **Status**: Implemented (consent-gated). Default mode `auto`.
 > Mirrors the fleet-router / stage-router / trust-calibration automation
 > pattern: `off | notify | approve | auto`, evidence-thresholded, revocation
 > always automatic, manual decisions never overridden.
@@ -96,7 +96,7 @@ catalog under **Ontology Drafts**.
 
 | Env var | Default | Meaning |
 |---|---|---|
-| `ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE` | `off` | `off|notify|approve|auto` |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE` | `auto` | `off|notify|approve|auto` |
 | `ATOM_ONTOLOGY_DRAFT_AUTO_INTERVAL_MIN` | `60` | pass cadence |
 | `ATOM_ONTOLOGY_DRAFT_AUTO_MIN_NODES` | `3` | graph-usage evidence floor |
 | `ATOM_ONTOLOGY_DRAFT_AUTO_MIN_AGE_DAYS` | `2` | minimum draft age to promote |
@@ -104,9 +104,9 @@ catalog under **Ontology Drafts**.
 | `ATOM_ONTOLOGY_DRAFT_AUTO_REVOKE_STALE_DAYS` | `14` | unused + undiscovered → revoke |
 | `ATOM_ONTOLOGY_DRAFT_AUTO_NOTIFY_COOLDOWN_HOURS` | `24` | notify dedupe window |
 
-The background worker loop in `main_api_app` starts only when the mode is
-not `off` (default `off` = no loop, no side effects). The admin surface is
-always available.
+The background worker loop in `main_api_app` starts unless the mode is
+explicitly `off` (default `auto`; `off` = no loop, no side effects). The
+admin surface is always available.
 
 ## Tests
 

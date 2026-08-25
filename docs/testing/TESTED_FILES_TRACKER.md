@@ -6474,7 +6474,7 @@ Research note: retrieval-time pre-filtering re-validated for A-G1/A-G2 (RAG acce
 - `api/ontology_draft_routes.py` — admin-gated `/api/v1/ontology-drafts/{status,automation,run-now,pending,approve/{id},reject/{id}}`.
 - `core/models.py` `OntologyDraftAction` + `alembic/versions/20260826_add_ontology_draft_automation_actions.py`.
 - `core/entity_type_service.py` `record_manual_decision()` + `api/entity_type_routes.py` PATCH stamp (`metadata_json["manual_decisions"]`).
-- `core/settings_catalog.py` C_ONTOLOGY category (7 flags) + `main_api_app.py` router mount + background pass (env-gated, default off).
+- `core/settings_catalog.py` C_ONTOLOGY category (7 flags) + `main_api_app.py` router mount + background pass (env-gated; default `auto` — off = no pass, no loop).
 - Drive-by: `core/trust_calibration/gateway.py` — `enabled()` referenced `get_bool_setting` without import (NameError; self-provisioning test was red at HEAD).
 
 **New suite**: `backend/tests/test_ontology_draft_automation.py` (17) — off no-op, auto promote via usage + via evolution, age floor, approve queue + admin apply/reject, notify cooldown, automatic revocation (auto AND approve modes), revoked type needs NEW evolution to return, manual retirement shelved, manual decision defers auto-revoke, system types out of scope, census, sample-count floor, route 422, PATCH stamp.

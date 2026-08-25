@@ -258,7 +258,7 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     # ------------------------------------------------------------------
     # Ontology drafts
     # ------------------------------------------------------------------
-    S("ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE", "off", C_ONTOLOGY, "off|notify|approve|auto"),
+    S("ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE", "auto", C_ONTOLOGY, "off|notify|approve|auto"),
     I("ATOM_ONTOLOGY_DRAFT_AUTO_INTERVAL_MIN", 60, C_ONTOLOGY, "Automation pass cadence"),
     I("ATOM_ONTOLOGY_DRAFT_AUTO_MIN_NODES", 3, C_ONTOLOGY, "Graph-usage evidence floor"),
     I("ATOM_ONTOLOGY_DRAFT_AUTO_MIN_AGE_DAYS", 2, C_ONTOLOGY, "Min draft age to promote"),

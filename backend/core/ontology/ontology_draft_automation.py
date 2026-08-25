@@ -104,7 +104,7 @@ def automation_mode() -> str:
     global _mode
     if _mode is not None:
         return _mode
-    raw = _env_str("ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE", "off").lower()
+    raw = _env_str("ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE", "auto").lower()
     return raw if raw in ("off", "notify", "approve", "auto") else "off"
 
 

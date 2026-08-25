@@ -499,3 +499,23 @@ Certification gate: `scripts/calibrate_trust_gateway.py` (exit 0=certified,
 1=not certified, 2=setup error) — temporal holdout Brier ≤ 0.25 AND
 denial-coverage ≥ 0.7 AND n ≥ 30. See
 [TRUST_CALIBRATION_PLAN.md](../architecture/TRUST_CALIBRATION_PLAN.md).
+
+## Ontology Draft Promotion Automation (Aug 2026)
+
+Promotes auto-discovered `EntityTypeDefinition` drafts (`is_active=False` —
+integration-sync discovery, OpenIE discovery, single-entity linking) that
+were otherwise invisible until a manual `PATCH {"is_active": true}`. See
+[ONTOLOGY_DRAFT_AUTOMATION.md](../architecture/ONTOLOGY_DRAFT_AUTOMATION.md).
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE` | `auto` | Consent-gated automation: off\|notify\|approve\|auto. Auto applies evidence-eligible promotions; revocation is ALWAYS automatic; manual decisions are never overridden. `off` = no pass, no worker loop. |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_INTERVAL_MIN` | `60` | Automation pass cadence (lifespan loop). |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_MIN_NODES` | `3` | Graph-usage evidence floor (matching graph node labels). |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_MIN_AGE_DAYS` | `2` | Minimum draft age to promote (one ingestion burst is not recurrence). |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_MIN_SAMPLES` | `3` | Discovery `sample_count` floor (applied only when that metadata is present). |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_REVOKE_STALE_DAYS` | `14` | Unused + undiscovered past this → automatic revoke. |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_NOTIFY_COOLDOWN_HOURS` | `24` | Notify-mode dedupe window. |
+
+Admin surface: admin-gated `/api/v1/ontology-drafts/*` (`status`,
+`automation`, `run-now`, `pending`, `approve/{id}`, `reject/{id}`).
