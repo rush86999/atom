@@ -102,7 +102,7 @@ def _seed_student_and_meta(db, meta_wins=5, senior_wins=0):
     if meta_wins:
         for i in range(meta_wins):
             db.add(DomainExperienceLedger(
-                agent_id="atom_main", domain="Sales", outcome="success",
+                agent_id="atom_main", domain="sales", outcome="success",
                 task_summary=f"Sales case {i}",
             ))
     if senior_wins:

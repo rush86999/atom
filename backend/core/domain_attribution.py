@@ -83,7 +83,7 @@ def record_domain_outcome(db, agent_id: str, domain: Optional[str],
         from core.models import DomainExperienceLedger
         db.add(DomainExperienceLedger(
             agent_id=agent_id,
-            domain=domain,
+            domain=(domain or "").lower().strip(),
             outcome="success" if success else "failure",
             task_summary=(task_summary or "")[:500],
         ))
@@ -99,9 +99,15 @@ def record_domain_outcome(db, agent_id: str, domain: Optional[str],
 
 
 def count_domain_wins(db, agent_id: str, domain: str) -> int:
-    """Verified successes for one agent in one role (the mentor bar)."""
+    """Verified successes for one agent in one role (the mentor bar).
+
+    Callers pass student CATEGORIES, which are title-cased in the registry
+    ("Sales"), while ledger domains are lowercase ("sales") — normalize so
+    casing never silently zeroes an earned record.
+    """
     try:
         from core.models import DomainExperienceLedger
+        domain = (domain or "").lower().strip()
         return db.query(DomainExperienceLedger).filter(
             DomainExperienceLedger.agent_id == agent_id,
             DomainExperienceLedger.domain == domain,
@@ -116,6 +122,7 @@ def top_domain_cases(db, agent_id: str, domain: str, limit: int = 5):
     """Most recent verified cases for playbook construction."""
     try:
         from core.models import DomainExperienceLedger
+        domain = (domain or "").lower().strip()
         return db.query(DomainExperienceLedger).filter(
             DomainExperienceLedger.agent_id == agent_id,
             DomainExperienceLedger.domain == domain,
