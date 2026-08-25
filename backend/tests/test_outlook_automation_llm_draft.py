@@ -148,6 +148,68 @@ async def test_draft_reply_returns_empty_on_timeout():
 
 
 # --------------------------------------------------------------------------- #
+# _matches_email_trigger (widened trigger: contact URL OR quote keywords)
+# --------------------------------------------------------------------------- #
+
+def test_trigger_matches_contact_url():
+    assert oas._matches_email_trigger("please see https://brennan.ca/pages/contact thanks")
+
+
+def test_trigger_matches_quote_keyword():
+    assert oas._matches_email_trigger("Can you send me a quote for 5 sheets?")
+
+
+def test_trigger_matches_price_keyword():
+    assert oas._matches_email_trigger("What is your price on the press brake?")
+
+
+def test_trigger_matches_case_insensitive():
+    assert oas._matches_email_trigger("Please send PRICE list")
+
+
+def test_trigger_matches_pricing_and_estimate():
+    assert oas._matches_email_trigger("Need pricing and an estimate please")
+
+
+def test_trigger_ignores_unrelated_email():
+    assert not oas._matches_email_trigger("Hi, can we reschedule our meeting to Thursday?")
+
+
+def test_trigger_respects_env_keyword_override(monkeypatch):
+    monkeypatch.setenv("ATOM_OUTLOOK_TRIGGER_KEYWORDS", "catalog,brochure")
+    assert oas._matches_email_trigger("Send me your catalog")
+    assert not oas._matches_email_trigger("Send me a quote")
+
+
+# --------------------------------------------------------------------------- #
+# _looks_like_failure (reject error-shaped LLM output as a draft)
+# --------------------------------------------------------------------------- #
+
+def test_looks_like_failure_detects_known_markers():
+    assert oas._looks_like_failure(
+        "I'm sorry, I couldn't generate a response. Please check your API key configuration in Settings or try again."
+    )
+    assert oas._looks_like_failure("All providers failed. Last error: Error code: 401")
+    assert oas._looks_like_failure("Insufficient balance. Manage your billing here: ...")
+
+
+def test_looks_like_failure_ok_for_normal_draft():
+    assert not oas._looks_like_failure(
+        "Thanks for your quote request! We will send you a formal quote for the 100-ton press brake shortly."
+    )
+
+
+@pytest.mark.asyncio
+async def test_draft_reply_rejects_error_shaped_output():
+    llm = FakeLLM(
+        "I'm sorry, I couldn't generate a response. Please check your API key configuration in Settings or try again."
+    )
+    with patch.object(oas, "get_llm_service", return_value=llm):
+        out = await _draft_reply("Jane", "j@x.com", "S", "B", "p")
+    assert out == ""
+
+
+# --------------------------------------------------------------------------- #
 # process_outlook_automation wiring
 # --------------------------------------------------------------------------- #
 

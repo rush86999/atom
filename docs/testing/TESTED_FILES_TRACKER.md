@@ -7,6 +7,37 @@
 ---
 
 
+## Session 2026-08-25 (Outlook automation — widened trigger + failure hardening + manual checker)
+
+**Files**: `backend/outlook_automation_service.py`, `backend/tests/test_outlook_automation_llm_draft.py`,
+`backend/scripts/check_outlook_automation.py`.
+
+**Trigger widened** (user request): the automation loop previously fired only
+on the Brennan contact-page URL. `_matches_email_trigger()` now also fires on
+the configurable keyword list (`ATOM_OUTLOOK_TRIGGER_KEYWORDS`, default
+`quote,price,quotation,pricing,estimate`, case-insensitive substring). Reason
+strings generalized from "contains Brennan contact page" to "matches a
+quote-request trigger". +7 tests.
+
+**Failure hardening** (found by the manual checker): `BYOKHandler.generate`
+returns a polite error string ("I'm sorry, I couldn't generate a response…")
+when ALL providers fail (e.g. out-of-balance OpenCode, bad API key) instead of
+raising — the loop would have sent that apology TO A CUSTOMER. New
+`_looks_like_failure()` rejects error-shaped output (couldn't generate / check
+your API key / insufficient balance / all providers failed / …) and `_draft_reply`
+falls back to the template. +3 tests.
+
+**Manual checker**: `backend/scripts/check_outlook_automation.py` — 3 checks:
+(1) Outlook token row exists + decrypts in the canonical root DB; (2) trigger
+fires on contact-link/quote/price/pricing/estimate and ignores unrelated mail;
+(3) runs the REAL LLM draft path and prints what the AI would write (SKIPs
+cleanly when no working provider). Then prints the live end-to-end steps.
+
+**Tests**: 19/19 pass (test_outlook_automation_llm_draft.py).
+
+---
+
+
 ## Session 2026-08-25 (Outlook automation — LLM-drafted replies instead of template)
 
 **Files**: `backend/outlook_automation_service.py` (+ new

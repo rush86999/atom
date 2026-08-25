@@ -26,12 +26,50 @@ DEFAULT_REPLY_TEMPLATE = (
 LLM_DRAFTS_FLAG = "ATOM_OUTLOOK_LLM_DRAFTS"
 LLM_DRAFT_TIMEOUT_SECONDS = 10
 
+# Email trigger: the contact-page link OR any of these keywords (comma-
+# separated, case-insensitive substring match). Override via env.
+TRIGGER_KEYWORDS_FLAG = "ATOM_OUTLOOK_TRIGGER_KEYWORDS"
+DEFAULT_TRIGGER_KEYWORDS = "quote,price,quotation,pricing,estimate"
+
 # Set to track processed email message IDs during runtime to prevent double-drafting
 PROCESSED_EMAIL_IDS = set()
 
 
+def _matches_email_trigger(full_text: str) -> bool:
+    """Decide whether an email warrants a reply draft: the Brennan contact
+    page link is present, or the body contains any configured trigger keyword
+    (default: quote/price/quotation/pricing/estimate). Pure + testable."""
+    text = (full_text or "").lower()
+    if "https://brennan.ca/pages/contact" in text:
+        return True
+    raw = os.getenv(TRIGGER_KEYWORDS_FLAG, DEFAULT_TRIGGER_KEYWORDS)
+    for kw in (k.strip().lower() for k in raw.split(",")):
+        if kw and kw in text:
+            return True
+    return False
+
+
 def llm_drafts_enabled() -> bool:
     return os.getenv(LLM_DRAFTS_FLAG, "true").lower() in ("1", "true", "yes", "on")
+
+
+# Markers of a BYOKHandler failure apology (all providers failed) — the
+# handler returns a polite error string instead of raising, so treat any
+# output containing these as "no draft" and fall back to the template.
+_LLM_FAILURE_MARKERS = (
+    "couldn't generate",
+    "could not generate",
+    "check your api key",
+    "insufficient balance",
+    "all providers failed",
+    "unable to generate",
+    "no llm providers",
+)
+
+
+def _looks_like_failure(text: str) -> bool:
+    t = (text or "").lower()
+    return any(m in t for m in _LLM_FAILURE_MARKERS)
 
 
 def _build_draft_prompt(
@@ -83,7 +121,11 @@ async def _draft_reply(
             ),
             timeout=LLM_DRAFT_TIMEOUT_SECONDS,
         )
-        return (draft or "").strip()
+        draft = (draft or "").strip()
+        if _looks_like_failure(draft):
+            logger.warning("[Outlook Automation] LLM returned a failure-shaped reply, using template")
+            return ""
+        return draft
     except Exception as e:
         logger.warning(f"[Outlook Automation] LLM reply draft failed, using template: {e}")
         return ""
@@ -92,7 +134,7 @@ async def process_outlook_automation():
     """
     Background worker loop that:
     1. Reads unread emails from Outlook (simulated or real).
-    2. Scans for 'https://brennan.ca/pages/contact'.
+    2. Scans for the Brennan contact page link or quote keywords.
     3. Requests approval (HITLAction) to reply.
     4. Detects decided/approved HITLActions and sends the reply email.
     """
@@ -143,9 +185,10 @@ async def process_outlook_automation():
             body_preview = email.get("body_preview", "")
             
             full_text = (body_content + " " + body_preview).lower()
-            
-            # Check for target URL
-            if "https://brennan.ca/pages/contact" in full_text:
+
+            # Trigger: Brennan contact-page link OR a quote/price keyword
+            # (configurable via ATOM_OUTLOOK_TRIGGER_KEYWORDS).
+            if _matches_email_trigger(full_text):
                 # Extract sender email address
                 from_field = email.get("from_field") or {}
                 sender_email = from_field.get("emailAddress", {}).get("address")
@@ -206,7 +249,7 @@ async def process_outlook_automation():
                     agent_id="outlook_automation_agent",
                     action_type="outlook_automation_send_email",
                     params=params,
-                    reason=f"Email from {sender_email} contains Brennan contact page. Requesting approval to reply. Original Email ID: {email_id}"
+                    reason=f"Email from {sender_email} matches a quote-request trigger. Requesting approval to reply. Original Email ID: {email_id}"
                 )
                 
                 # Broadcast via WebSockets so the UI/Chat gets updated live!
