@@ -257,9 +257,13 @@ class ServiceFactory:
 
     @classmethod
     def get_world_model_service(cls, workspace_id: str = "default", tenant_id: str = "default") -> WorldModelService:
-        """Get or create WorldModelService instance."""
+        """Get or create WorldModelService instance.
+
+        ``tenant_id`` is accepted for API symmetry but WorldModelService is
+        workspace-scoped only — forwarding it used to raise TypeError on the
+        first call."""
         if not hasattr(cls._thread_local, 'world_model_service'):
-            cls._thread_local.world_model_service = WorldModelService(workspace_id=workspace_id, tenant_id=tenant_id)
+            cls._thread_local.world_model_service = WorldModelService(workspace_id=workspace_id)
         return cls._thread_local.world_model_service
 
     @classmethod

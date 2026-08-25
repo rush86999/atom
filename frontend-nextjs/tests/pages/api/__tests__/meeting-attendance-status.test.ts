@@ -176,7 +176,7 @@ describe("pages/api/meeting_attendance_status/[taskId]", () => {
       expect(res._getStatusCode()).toBe(200);
       expect(res._getJSONData().current_status_message).toBe("Attended");
       expect(mockFetch).toHaveBeenCalledWith(
-        "http://localhost:8000/api/meetings/attendance/task-1",
+        "http://127.0.0.1:8000/api/meetings/attendance/task-1",
         expect.objectContaining({
           headers: expect.objectContaining({ Authorization: "Bearer tok-123" }),
         }),

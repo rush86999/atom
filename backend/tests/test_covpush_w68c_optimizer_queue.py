@@ -1362,17 +1362,41 @@ _STUB_MODULES = [
 @pytest.fixture(scope="module")
 def kng():
     saved = {name: sys.modules.get(name) for name in _STUB_MODULES}
+    # R83 fix: stubbing sys.modules alone breaks any autouse monkeypatch with
+    # a dotted target ("core.graphrag_engine.…") — import resolves via
+    # sys.modules, but monkeypatch then getattr()s the PARENT package and
+    # AttributeError'd at setup for all 9 KnowledgeIngestion tests. Bind each
+    # stub onto its parent package too, and restore both afterwards.
+    import core as _core_pkg
+
+    saved_parent = {
+        name: getattr(_core_pkg, name.split(".", 1)[1], None)
+        for name in _STUB_MODULES
+        if "." in name
+    }
     try:
         for name in _STUB_MODULES:
-            sys.modules[name] = MagicMock()
+            stub = MagicMock()
+            sys.modules[name] = stub
+            if "." in name:
+                setattr(_core_pkg, name.split(".", 1)[1], stub)
         import core.knowledge_ingestion as kmod
         yield kmod
     finally:
-        for name, mod in saved.items():
+        for name in _STUB_MODULES:
+            mod = saved.get(name)
             if mod is None:
                 sys.modules.pop(name, None)
             else:
                 sys.modules[name] = mod
+            if "." in name:
+                attr = name.split(".", 1)[1]
+                old = saved_parent.get(name)
+                if old is None:
+                    if hasattr(_core_pkg, attr):
+                        delattr(_core_pkg, attr)
+                else:
+                    setattr(_core_pkg, attr, old)
 
 
 class TestKnowledgeIngestionProcess:
@@ -1397,7 +1421,12 @@ class TestKnowledgeIngestionProcess:
                 settings_fn.return_value.get_settings.return_value = {"enable_integration_enrichment": True}
                 result = await manager.process_document("text", "doc1", source="gmail", user_id="u1", workspace_id="ws9")
         assert result == {"lancedb_edges": 2, "graphrag": {"entities": 2, "relationships": 3}}
-        assert manager.graphrag.ingest_structured_data.call_args[0][0] == "ws9"
+        assert manager.graphrag.ingest_structured_data.call_args.kwargs["workspace_id"] == "ws9"
+        # Round 83 arg-shift regression guard: entities/relationships must go
+        # by keyword — a positional call shifted entities into tenant_id and
+        # silently dropped every relationship.
+        assert [e["name"] for e in manager.graphrag.ingest_structured_data.call_args.kwargs["entities"]] == ["e1"]
+        assert len(manager.graphrag.ingest_structured_data.call_args.kwargs["relationships"]) == 3
         edge_calls = handler.add_knowledge_edge.call_args_list
         assert edge_calls[0].kwargs["from_id"] == "e1"
         assert "works_with" in edge_calls[0].kwargs["description"]

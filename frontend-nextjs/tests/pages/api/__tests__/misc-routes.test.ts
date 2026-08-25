@@ -63,7 +63,7 @@ describe("pages/api/auth/nextjs/status", () => {
       last_sync: "2026-08-14T00:00:00Z",
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/auth/nextjs/status",
+      "http://127.0.0.1:8000/api/auth/nextjs/status",
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -210,7 +210,7 @@ describe("pages/api/quickbooks/reports/[reportType]", () => {
       rows: [],
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/quickbooks/reports/profitandloss",
+      "http://127.0.0.1:8000/api/quickbooks/reports/profitandloss",
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -281,7 +281,7 @@ describe("pages/api/integrations/gmail/status", () => {
     expect(body.data).toEqual({ unread_count: 3 });
     expect(body.timestamp).toBeDefined();
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/gmail/status",
+      "http://127.0.0.1:8000/api/gmail/status",
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -342,7 +342,7 @@ describe("pages/api/integrations/gmail/authorize", () => {
     const res = await invoke();
     expect(res._getStatusCode()).toBe(302);
     expect(res._getRedirectUrl()).toBe(
-      "http://localhost:5058/api/auth/google/initiate",
+      "http://127.0.0.1:8000/api/auth/google/initiate",
     );
   });
 

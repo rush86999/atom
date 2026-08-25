@@ -108,7 +108,7 @@ describe("pages/api/chat/enhanced", () => {
     expect(body.timestamp).toBeDefined();
 
     const backendCall = mockFetch.mock.calls[1];
-    expect(backendCall[0]).toBe("http://localhost:8000/api/v1/ai/chat");
+    expect(backendCall[0]).toBe("http://127.0.0.1:8000/api/v1/ai/chat");
     expect(JSON.parse(backendCall[1].body).message).toBe(
       'I understand you\'re concerned about: "nothing works". Let me help you with that.',
     );
@@ -166,7 +166,7 @@ describe("pages/api/chat/enhanced", () => {
     });
     expect(res._getStatusCode()).toBe(200);
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(mockFetch.mock.calls[0][0]).toBe("http://localhost:8000/api/v1/ai/chat");
+    expect(mockFetch.mock.calls[0][0]).toBe("http://127.0.0.1:8000/api/v1/ai/chat");
     const body = res._getJSONData();
     expect(body.type).toBe("workflow");
     expect(body.metadata.aiAnalysis).toBeUndefined();

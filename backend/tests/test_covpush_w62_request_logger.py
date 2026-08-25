@@ -14,15 +14,15 @@ import pytest
 
 from core.llm.gateway.request_logger import (
     AUTH_HEADER_KEYS,
-    GATEWAY_LOG_BODIES,
-    LOG_RETENTION_DAYS,
     MAX_LOG_BODY_CHARS,
     _drop_auth_headers,
     _redact_text,
     _sanitize_body,
     _truncate,
     estimate_cost_usd,
+    log_bodies,
     log_gateway_request,
+    log_retention_days,
     sweep_gateway_logs,
 )
 
@@ -180,7 +180,9 @@ class TestLogGatewayRequest:
 
     def test_bodies_persisted_when_enabled(self):
         db = make_db()
-        with patch("core.llm.gateway.request_logger.GATEWAY_LOG_BODIES", True):
+        # Runtime-settings migration: the module constant became the
+        # ``log_bodies()`` helper — patch the helper, not a constant.
+        with patch("core.llm.gateway.request_logger.log_bodies", return_value=True):
             log_id = log_gateway_request(
                 db, IDENTITY, request_body={"messages": [{"content": "hello"}]},
                 response_body={"choices": []},
@@ -250,4 +252,4 @@ class TestSweepGatewayLogs:
         cutoff = cutoff_clause.right.value  # BindParameter value
         assert isinstance(cutoff, datetime)
         assert cutoff <= datetime.now(timezone.utc)
-        assert cutoff >= datetime.now(timezone.utc) - timedelta(days=LOG_RETENTION_DAYS + 1)
+        assert cutoff >= datetime.now(timezone.utc) - timedelta(days=log_retention_days() + 1)

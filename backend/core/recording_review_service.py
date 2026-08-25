@@ -466,7 +466,11 @@ class RecordingReviewService:
         try:
             from core.agent_world_model import AgentExperience, WorldModelService
 
-            wm = WorldModelService()
+            # CanvasRecording has no workspace column yet — future-proof the
+            # construction so adding one fixes the scoping automatically.
+            wm = WorldModelService(
+                getattr(recording, "workspace_id", None) or "default"
+            )
 
             # Create experience from recording
             experience = AgentExperience(

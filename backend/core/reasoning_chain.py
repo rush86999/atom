@@ -299,20 +299,24 @@ class ReasoningTracker:
             with get_db_session() as db:
                 governance = AgentGovernanceService(db)
                 
-                # Convert reasoning feedback to agent feedback
+                # Convert reasoning feedback to agent feedback.
+                # R81d: previous call passed user_id positionally as
+                # `positive` plus a nonexistent `is_positive` kwarg — every
+                # approve/reject raised TypeError that this function's except
+                # swallowed, so step-level feedback NEVER updated confidence.
                 if feedback.feedback_type == FeedbackType.APPROVE:
                     # Positive feedback increases confidence
                     governance._update_confidence_score(
-                        step.agent_id, 
-                        feedback.user_id, 
-                        is_positive=True
+                        step.agent_id,
+                        positive=True,
+                        impact_level="high",
                     )
                 elif feedback.feedback_type == FeedbackType.REJECT:
                     # Negative feedback decreases confidence
                     governance._update_confidence_score(
                         step.agent_id,
-                        feedback.user_id,
-                        is_positive=False
+                        positive=False,
+                        impact_level="high",
                     )
                 
                 logger.info(f"Applied feedback to agent {step.agent_id} learning")

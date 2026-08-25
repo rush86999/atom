@@ -77,7 +77,6 @@ MODEL_QUALITY_SCORES = {
     "kimi-k2.6": 93,
     "kimi-k2-thinking": 91,
     "kimi-k2": 89,
-    "kimi-k3": 94,
 
     # Mistral (OpenAI-compatible)
     "mistral-large-latest": 90,

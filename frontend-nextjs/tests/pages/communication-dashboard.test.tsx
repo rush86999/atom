@@ -146,7 +146,11 @@ describe("UnifiedCommunicationDashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: /Settings/ }));
     expect(screen.getByText("Dashboard Settings")).toBeInTheDocument();
     expect(screen.getByText("API Configuration")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("http://localhost:8000")).toBeInTheDocument();
+    expect(
+      document.querySelector('input[placeholder="http://localhost:8000"]')
+    ).toBeInTheDocument();
+    const backendInput = document.querySelector('input[placeholder="http://localhost:8000"]');
+    expect(backendInput).toBeInTheDocument();
   });
 
   test("implementation change callback triggers delayed refresh", async () => {

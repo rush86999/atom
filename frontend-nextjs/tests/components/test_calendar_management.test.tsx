@@ -365,8 +365,13 @@ const fmtLocal = (d: Date) => {
 };
 
 describe('SharedCalendarManagement (extended coverage)', () => {
-  const todayEvent = (hour: number) => {
+  // R82: the old fixture used "today at 23:00" which is already in the past
+  // for late-night runs — the upcoming list filters `start > new Date()`,
+  // so the edit-row lookup silently broke after 23:00 local time. Pin the
+  // event to tomorrow at 10:00 instead.
+  const futureEvent = (hour: number) => {
     const d = new Date();
+    d.setDate(d.getDate() + 1);
     d.setHours(hour, 0, 0, 0);
     return d;
   };
@@ -376,8 +381,8 @@ describe('SharedCalendarManagement (extended coverage)', () => {
       id: 'e1',
       title: 'Today Standup',
       description: 'Daily',
-      start: todayEvent(23),
-      end: todayEvent(23),
+      start: futureEvent(10),
+      end: futureEvent(10),
       location: 'Zoom',
       status: 'confirmed',
       platform: 'google',
@@ -409,8 +414,7 @@ describe('SharedCalendarManagement (extended coverage)', () => {
 
     // Day view renders the single-day agenda for the current date
     fireEvent.click(screen.getByRole('button', { name: 'Day' }));
-    fireEvent.click(navButtons[0]); // prev
-    fireEvent.click(navButtons[1]); // next
+    fireEvent.click(navButtons[1]); // next -> tomorrow (where the fixture event lives)
     expect(screen.getByTestId('day-view')).toBeInTheDocument();
     expect(within(screen.getByTestId('day-view')).getByText('Today Standup')).toBeInTheDocument();
 
@@ -435,11 +439,11 @@ describe('SharedCalendarManagement (extended coverage)', () => {
     await settle();
 
     fireEvent.click(screen.getByRole('button', { name: 'Day' }));
-    // Navigate to tomorrow, which has no events
-    const nextButton = screen
+    // Navigate to yesterday, which has no events (tomorrow now holds the fixture event)
+    const prevButton = screen
       .getAllByRole('button')
-      .filter((b) => b.querySelector('svg.lucide-chevron-right'))[0];
-    fireEvent.click(nextButton);
+      .filter((b) => b.querySelector('svg.lucide-chevron-left'))[0];
+    fireEvent.click(prevButton);
 
     expect(
       screen.getByText('No events scheduled for this day.')
@@ -450,8 +454,10 @@ describe('SharedCalendarManagement (extended coverage)', () => {
     render(<SharedCalendarManagement initialEvents={initialEvents} />);
     await settle();
 
-    // Day view chip
+    // Day view chip (event lives tomorrow)
     fireEvent.click(screen.getByRole('button', { name: 'Day' }));
+    const nextBtn = screen.getAllByRole('button').filter((b) => b.querySelector('svg.lucide-chevron-right'))[0];
+    fireEvent.click(nextBtn);
     fireEvent.click(screen.getByTestId('day-view').querySelector('.font-bold.truncate')!);
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
@@ -516,10 +522,10 @@ describe('SharedCalendarManagement (extended coverage)', () => {
       target: { value: 'HQ',
     } } as any);
     fireEvent.change(within(dialog).getByTestId('event-start'), {
-      target: { value: fmtLocal(todayEvent(12)) },
+      target: { value: fmtLocal(futureEvent(12)) },
     });
     fireEvent.change(within(dialog).getByTestId('event-end'), {
-      target: { value: fmtLocal(todayEvent(13)) },
+      target: { value: fmtLocal(futureEvent(13)) },
     });
 
     // Radix selects for status + platform
@@ -577,10 +583,10 @@ describe('SharedCalendarManagement (extended coverage)', () => {
       target: { value: 'Inverted Event' },
     });
     fireEvent.change(within(dialog).getByTestId('event-start'), {
-      target: { value: fmtLocal(todayEvent(14)) },
+      target: { value: fmtLocal(futureEvent(14)) },
     });
     fireEvent.change(within(dialog).getByTestId('event-end'), {
-      target: { value: fmtLocal(todayEvent(13)) },
+      target: { value: fmtLocal(futureEvent(13)) },
     });
     fireEvent.click(within(dialog).getByTestId('event-submit'));
 

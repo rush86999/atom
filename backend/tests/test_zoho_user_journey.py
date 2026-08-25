@@ -430,19 +430,35 @@ def test_j3_ingest_journey_real_path_all_entity_types():
     )
     dbmock.commit.assert_called()
 
+    # R84: the sync now ALSO writes deterministic business facts
+    # (table business_facts, id intfact:zoho:<record>) through the same
+    # handler — separate those from document rows before asserting mixes.
+    doc_calls = [
+        call for call in handler.add_document.call_args_list
+        if call.kwargs and call.kwargs.get("table_name") != "business_facts"
+    ]
+    fact_calls = [
+        call for call in handler.add_document.call_args_list
+        if call.kwargs and call.kwargs.get("table_name") == "business_facts"
+    ]
+
     types_seen = {
         call.kwargs.get("metadata", {}).get("record_type")
-        for call in handler.add_document.call_args_list
-        if call.kwargs
+        for call in doc_calls
     }
     assert types_seen == {
         "crm_leads", "crm_deals", "books_invoices",
         "inventory_items", "inventory_sales_orders",
     }, f"wrong entity mix: {types_seen}"
 
+    # One derived fact per ingested record (idempotent per record id).
+    assert len(fact_calls) == 5, (
+        f"expected a business fact per record, got {len(fact_calls)}"
+    )
+
     # LanceDB integration_zoho table + GraphRAG both receive every record.
-    assert handler.add_document.call_count == 5
-    for call in handler.add_document.call_args_list:
+    assert len(doc_calls) == 5
+    for call in doc_calls:
         kwargs = call.kwargs or {}
         if "table_name" in kwargs:
             assert kwargs["table_name"] == "integration_zoho"
@@ -719,8 +735,10 @@ def test_j7_role_tagged_sync_stamps_metadata_role():
     finally:
         os.environ.pop("ATOM_INGESTION_PERSIST_STATE", None)
     assert result.get("records_ingested") == 5
+    # R84: fact rows (business_facts) carry no role tag — only doc rows do.
     tags = {
         (call.kwargs.get("metadata") or {}).get("role")
         for call in handler.add_document.call_args_list
+        if call.kwargs and call.kwargs.get("table_name") != "business_facts"
     }
     assert tags == {"finance"}, f"role tag not stamped on every record: {tags}"

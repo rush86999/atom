@@ -101,14 +101,31 @@ class UserCreate(BaseModel):
     # the backend is the enforcement boundary and cannot trust client-side checks.
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
-    first_name: str
-    last_name: str
+    # Names must be non-empty after stripping — whitespace-only values used to
+    # pass validation and create accounts with blank display names.
+    # R83: last_name is optional — a single-word name ("Plato") previously
+    # guaranteed a 422 with no UI hint that two words were required.
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field("", max_length=100)
     role: str = "member"
 
     @field_validator("password")
     @classmethod
     def _check_password_bytes(cls, v: str) -> str:
         return _validate_password_bytes(v)
+
+    @field_validator("first_name")
+    @classmethod
+    def _strip_names(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Name cannot be empty or whitespace-only")
+        return stripped
+
+    @field_validator("last_name")
+    @classmethod
+    def _strip_last_name(cls, v: str) -> str:
+        return (v or "").strip()
 
 class ForgotPasswordRequest(BaseModel):
     email: str

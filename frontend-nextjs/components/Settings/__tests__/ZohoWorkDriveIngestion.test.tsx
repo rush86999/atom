@@ -60,6 +60,14 @@ function mockApi({
   });
 }
 
+
+async function loadFiles() {
+  // The component auto-loads the root folder on mount (files are fetched
+  // during init, not only on user action), so wait for the listing itself.
+  await screen.findByText('quarterly-report.pdf');
+}
+
+
 describe('ZohoWorkDriveIngestion', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -72,9 +80,50 @@ describe('ZohoWorkDriveIngestion', () => {
     expect(screen.getByText(/Sync and ingest documents/)).toBeInTheDocument();
   });
 
+
   it('auto-lists the private workspace on mount, with sizes and folder Open buttons', async () => {
     render(<ZohoWorkDriveIngestion userId="u1" />);
     expect(await screen.findByText('quarterly-report.pdf')).toBeInTheDocument();
+
+  it('shows the empty state and Go to Root fetches the root folder', async () => {
+    // Stateful mock: the root folder holds files; opening Team Drive (d1)
+    // returns an empty listing so the empty state admits the Go to Root CTA
+    // (rendered only when currentFolderId !== 'root').
+    global.fetch = jest.fn().mockImplementation((url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes('/api/zoho-workdrive/files/list')) {
+        const body = JSON.parse(String(init?.body || '{}'));
+        const empty = body.parent_id === 'd1';
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true, data: empty ? [] : files }),
+        });
+      }
+      if (u.includes('/api/zoho-workdrive/teams')) {
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<ZohoWorkDriveIngestion userId="u1" />);
+    await screen.findByText('quarterly-report.pdf');
+    fireEvent.click(await screen.findByRole('button', { name: /Open/ }));
+    await screen.findByText('No files found in this folder');
+
+    const goRoot = await screen.findByRole('button', { name: /Go to Root/ });
+    fireEvent.click(goRoot);
+    await waitFor(() => {
+      const listCall = (global.fetch as jest.Mock).mock.calls
+        .filter(([u]) => String(u).includes('/files/list'))
+        .slice(-1)[0];
+      expect(JSON.parse(listCall[1].body).parent_id).toBe('root');
+    });
+  });
+
+  it('lists files after Refresh, with formatted sizes and folder Open buttons', async () => {
+    render(<ZohoWorkDriveIngestion userId="u1" />);
+    await loadFiles();
+    expect(screen.getByText('quarterly-report.pdf')).toBeInTheDocument();
     expect(screen.getByText('Budget.xlsx')).toBeInTheDocument();
     expect(screen.getByText('My Folder')).toBeInTheDocument();
     expect(screen.getByText(/PDF • 2\.5 MB/)).toBeInTheDocument();
@@ -167,11 +216,25 @@ describe('ZohoWorkDriveIngestion', () => {
 
   it('ingests a file and toasts success', async () => {
     render(<ZohoWorkDriveIngestion userId="u1" />);
+
     await screen.findByText('quarterly-report.pdf');
     fireEvent.click(screen.getAllByRole('button', { name: /^Ingest$/ })[0]);
     await waitFor(() => {
       expect(mockToast.toast).toHaveBeenCalledWith(
         expect.objectContaining({ title: 'Ingestion Successful', description: 'Loaded quarterly-report.pdf into AI Employee working memory.' })
+
+    await loadFiles();
+    // Match the per-file Ingest button exactly (the header also renders an
+    // "Ingest All Files" button that matches a loose /Ingest/ regex); the
+    // first file row is quarterly-report.pdf.
+    const ingestBtn = (await screen.findAllByRole('button', { name: /^Ingest$/ }))[0];
+    fireEvent.click(ingestBtn);
+    await waitFor(() => {
+      expect(mockToast.toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Ingestion Successful',
+          description: 'Loaded quarterly-report.pdf into AI Employee working memory.',
+        })
       );
     });
     const ingestCall = (global.fetch as jest.Mock).mock.calls.find(([u]) => String(u).includes('/ingest'));
@@ -183,6 +246,11 @@ describe('ZohoWorkDriveIngestion', () => {
     render(<ZohoWorkDriveIngestion userId="u1" />);
     await screen.findByText('quarterly-report.pdf');
     fireEvent.click(screen.getAllByRole('button', { name: /^Ingest$/ })[0]);
+
+    await loadFiles();
+    const ingestBtn = (await screen.findAllByRole('button', { name: /^Ingest$/ }))[0];
+    fireEvent.click(ingestBtn);
+
     await waitFor(() => {
       expect(mockToast.toast).toHaveBeenCalledWith(
         expect.objectContaining({ title: 'Ingestion Failed', description: 'permission denied' })
@@ -192,6 +260,10 @@ describe('ZohoWorkDriveIngestion', () => {
 
   it('refreshes the current folder via the Refresh button using the last params', async () => {
     render(<ZohoWorkDriveIngestion userId="u1" />);
+
+
+    await screen.findByText('quarterly-report.pdf');
+    fireEvent.click(screen.getByRole('button', { name: /Refresh/ }));
     await screen.findByText('quarterly-report.pdf');
     fireEvent.click(screen.getByRole('button', { name: /^Refresh$/ }));
     await waitFor(() => {

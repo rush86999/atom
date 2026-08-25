@@ -31,7 +31,7 @@ import { authOptions } from "../auth/[...nextauth]";
  * - recommendations: Actionable recommendations
  */
 
-const BACKEND_API_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "";
+const BACKEND_API_URL = process.env.BACKEND_URL || process.env.PYTHON_API_SERVICE_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 export default async function handler(
   req: NextApiRequest,

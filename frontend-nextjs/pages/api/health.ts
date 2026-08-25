@@ -22,8 +22,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         realTimeUpdates: true
       },
       dependencies: {
-        backend: 'http://localhost:8000',
-        oauth: 'http://localhost:5058'
+        backend: 'http://127.0.0.1:8000',
+        oauth: 'http://127.0.0.1:8000'
       }
     };
 

@@ -54,7 +54,7 @@ describe("pages/api/integrations/gmail/memory/sync", () => {
       message: "stream started",
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/memory/ingestion/stream/start/gmail",
+      "http://127.0.0.1:8000/api/memory/ingestion/stream/start/gmail",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -141,7 +141,7 @@ describe("pages/api/integrations/gmail/memory/stats", () => {
       message: "stats ok",
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/memory/ingestion/memory/stats",
+      "http://127.0.0.1:8000/api/memory/ingestion/memory/stats",
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },

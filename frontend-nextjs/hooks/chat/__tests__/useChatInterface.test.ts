@@ -967,7 +967,7 @@ describe('useChatInterface', () => {
       expect(result.current.isProcessing).toBe(true);
 
       act(() => {
-        jest.advanceTimersByTime(30000);
+        jest.advanceTimersByTime(120000);
       });
 
       expect(result.current.isProcessing).toBe(false);

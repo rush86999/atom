@@ -97,3 +97,18 @@ def test_graduation_progress_normalizes_unknown_status_to_student(app_with_deps)
     # Bogus tier falls back to student so the UI still renders something sane.
     assert data["current_tier"] == "student"
     assert data["next_tier"] == "intern"
+
+
+def test_graduation_progress_reports_real_episode_count(app_with_deps):
+    """R82: episodes_to_next must reflect live successful episodes, not the
+    bare threshold (the old placeholder always claimed the full gap)."""
+    app, db = app_with_deps
+    db.query.return_value.filter.return_value.first.return_value = _make_agent(status="student")
+    db.query.return_value.filter.return_value.count.return_value = 3
+
+    client = TestClient(app)
+    r = client.get("/api/agents/a-1/graduation-progress")
+    assert r.status_code == 200
+    data = r.json().get("data")
+    assert data["episode_count"] == 3
+    assert data["episodes_to_next"] == 7

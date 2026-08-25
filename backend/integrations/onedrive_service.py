@@ -77,6 +77,9 @@ def _success(data: Any) -> Dict[str, Any]:
 class OneDriveService(IntegrationService):
     """Real OneDrive service backed by the Microsoft Graph API."""
 
+    MAX_WALK_DEPTH = 25
+    MAX_WALK_ITEMS = 10000
+
     def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
         if config is None:
             config = {}
@@ -171,9 +174,11 @@ class OneDriveService(IntegrationService):
         return {
             "operations": [
                 {"id": "list_files", "description": "List files from OneDrive"},
+                {"id": "walk_files", "description": "Walk all files recursively"},
                 {"id": "search_files", "description": "Search files in OneDrive"},
                 {"id": "get_file_metadata", "description": "Get file metadata"},
                 {"id": "download_file", "description": "Get download URL for a file"},
+                {"id": "ingest_file_to_memory", "description": "Ingest file to ATOM memory"},
                 {"id": "sync_to_postgres_cache", "description": "Sync metrics to PostgreSQL"},
                 {"id": "full_sync", "description": "Full sync operation"},
             ],
@@ -202,9 +207,11 @@ class OneDriveService(IntegrationService):
         """Execute a OneDrive operation."""
         operations = {
             "list_files": self.list_files,
+            "walk_files": self.walk_files,
             "search_files": self.search_files,
             "get_file_metadata": self.get_file_metadata,
             "download_file": self.download_file,
+            "ingest_file_to_memory": self.ingest_file_to_memory,
         }
 
         if operation not in operations:
@@ -374,6 +381,10 @@ class OneDriveService(IntegrationService):
             logger.error(f"OneDrive download_file_bytes failed: {e}")
             return None
 
+    async def _download_file_bytes(self, access_token: str, file_id: str) -> Optional[bytes]:
+        """Private alias used by ingest_file_to_memory (patchable in tests)."""
+        return await self.download_file_bytes(access_token, file_id)
+
     async def upload_file(
         self, access_token: str, file_name: str, content: bytes, folder_path: str = ""
     ) -> Dict[str, Any]:
@@ -408,19 +419,118 @@ class OneDriveService(IntegrationService):
     # Sync / cache
     # -------------------------------------------------------------------------
 
+    async def walk_files(
+        self,
+        access_token: str,
+        folder_id: Optional[str] = None,
+        max_depth: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Recursively walk OneDrive and return every file with its folder path.
+
+        Descends into every subfolder up to ``max_depth`` (default
+        MAX_WALK_DEPTH), following @odata.nextLink pagination within each
+        folder so large folders are not truncated to the first page. Each
+        returned entry is a Graph drive item plus ``path`` (full folder path)
+        and ``depth``. Per-folder listing errors are logged and skipped so one
+        inaccessible folder cannot abort the whole walk.
+        """
+        max_depth = max_depth if max_depth is not None else self.MAX_WALK_DEPTH
+        token = self._resolve_token(access_token)
+        if not token:
+            return []
+
+        seen_folders: set = set()
+        out: List[Dict[str, Any]] = []
+
+        async def _list_all(item_id: Optional[str]) -> List[Dict[str, Any]]:
+            # Follow nextLink pagination until exhausted (capped by MAX_WALK_ITEMS).
+            items: List[Dict[str, Any]] = []
+            url = (
+                f"{self.base_url}/me/drive/items/{item_id}/children?$top=200"
+                if item_id
+                else f"{self.base_url}/me/drive/root/children?$top=200"
+            )
+            while url and len(items) < self.MAX_WALK_ITEMS:
+                data = await self._graph_get(token, url)
+                items.extend(data.get("value", []))
+                url = data.get("@odata.nextLink")
+            return items
+
+        async def _walk(item_id: Optional[str], path: str, depth: int) -> None:
+            if depth > max_depth:
+                return
+            key = item_id or "root"
+            if key in seen_folders:
+                return
+            seen_folders.add(key)
+            try:
+                entries = await _list_all(item_id)
+            except Exception as e:
+                logger.warning(f"OneDrive walk skipped folder {key}: {e}")
+                return
+            for entry in entries:
+                if not entry.get("id"):
+                    continue
+                if "folder" in entry:
+                    await _walk(entry["id"], f"{path}/{entry.get('name', '')}", depth + 1)
+                else:
+                    entry["path"] = path
+                    entry["depth"] = depth
+                    out.append(entry)
+
+        await _walk(folder_id, "", 0)
+        return out
+
+    async def ingest_file_to_memory(
+        self,
+        access_token: str,
+        file_id: str,
+        extra_metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Download a file and process it through the ingestion pipeline.
+
+        Every file type is attempted; the parser chain decides what is
+        extractable and skips gracefully otherwise.
+        """
+        token = self._resolve_token(access_token)
+        if not token:
+            return {"success": False, "error": "No access token provided"}
+
+        # Private alias — the single download seam (patched in tests).
+        content = await self._download_file_bytes(token, file_id)
+        if content is None:
+            return {"success": False, "error": "Failed to download file"}
+
+        try:
+            meta_res = await self.get_file_metadata(token, file_id)
+            file_name = "unknown"
+            if meta_res.get("status") == "success":
+                file_name = meta_res["data"].get("name") or "unknown"
+
+            from core.auto_document_ingestion import AutoDocumentIngestionService
+            ingestor = AutoDocumentIngestionService()
+            result = await ingestor.process_file_bytes(
+                content,
+                file_name=file_name,
+                source="onedrive",
+                user_id=self.tenant_id,
+                extra_metadata=extra_metadata,
+                external_id=file_id,
+            )
+            return {"success": True, "result": result}
+        except Exception as e:
+            logger.error(f"Failed to ingest OneDrive file {file_id}: {e}")
+            return {"success": False, "error": str(e)}
+
     async def sync_to_postgres_cache(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
         """Sync OneDrive analytics to PostgreSQL IntegrationMetric table."""
         try:
             from core.database import SessionLocal
             from core.models import IntegrationMetric
 
-            files_res = await self.list_files(access_token)
-            if files_res["status"] == "error":
-                return {"success": False, "error": files_res["message"]}
-
-            items = files_res["data"].get("value", [])
-            file_count = sum(1 for item in items if "file" in item)
-            folder_count = sum(1 for item in items if "folder" in item)
+            files = await self.walk_files(access_token)
+            file_count = len(files)
+            folder_count = len({f.get("path") or "" for f in files if f.get("path")})
 
             db = SessionLocal()
             metrics_synced = 0
@@ -468,12 +578,45 @@ class OneDriveService(IntegrationService):
             return {"success": False, "error": "OneDrive cache sync failed"}
 
     async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
-        """Trigger full dual-pipeline sync for OneDrive."""
+        """Trigger full dual-pipeline sync for OneDrive.
+
+        Pipeline 1: Ingest every file (all types, all subfolders, pagination
+        followed) into Atom memory (LanceDB + GraphRAG) with folder-path
+        context stamped into the memory metadata.
+        Pipeline 2: Refresh the Postgres metrics cache.
+        """
+        files = await self.walk_files(access_token)
+
+        ingested = 0
+        skipped: list[str] = []
+        errors: list[str] = []
+        for f in files:
+            name = f.get("name", "") or ""
+            try:
+                meta = {
+                    "folder_path": f.get("path") or "",
+                    "modified_at": f.get("lastModifiedDateTime") or "",
+                }
+                res = await self.ingest_file_to_memory(access_token, f.get("id"), extra_metadata=meta)
+                inner = res.get("result") or {}
+                if res.get("success") and inner.get("status") == "ingested":
+                    ingested += 1
+                elif res.get("error"):
+                    errors.append(f"{name}: {res['error']}")
+                else:
+                    skipped.append(f"{name} ({inner.get('reason') or 'no_text'})")
+            except Exception as file_err:
+                errors.append(f"{name}: {file_err}")
+
         cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
         return {
             "success": True,
             "workspace_id": workspace_id,
+            "files_found": len(files),
+            "files_ingested": ingested,
+            "files_skipped": skipped,
             "postgres_cache": cache_result,
+            "errors": errors,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 

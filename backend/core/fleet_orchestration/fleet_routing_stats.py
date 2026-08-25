@@ -144,6 +144,16 @@ def record_fleet_execution_outcome(
                 if actual_provider:
                     row.actual_provider = actual_provider
             db.commit()
+
+        # P4 contribution credit (AGENT_ORG_POLITICS_PLAN.md): feed bucket-
+        # brigade weights into graduation on fleet finalization. Flag-gated;
+        # never raises; no-op when no chain/links exist.
+        try:
+            from core.contribution_credit import record_chain_credit
+
+            record_chain_credit(execution_id)
+        except Exception as cc_err:
+            logger.debug("contribution credit skipped: %s", cc_err)
     except Exception as e:
         logger.warning("Fleet routing outcome join failed: %s", e)
 

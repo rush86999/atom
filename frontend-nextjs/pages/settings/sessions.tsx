@@ -39,12 +39,18 @@ export default function SessionSettings() {
 
     const recordCurrentSession = async () => {
         try {
-            // In a real app, we'd send a token or identifier
-            // For now, we just ping the endpoint to record activity
+            // R82: send the real backend JWT — the previous placeholder
+            // constant ('current-session-token') was shared by every user,
+            // so the ON CONFLICT(session_token) upsert collided all users
+            // onto one row and is_current detection never worked.
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                return;
+            }
             await fetch('/api/auth/sessions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: 'current-session-token' }), // Placeholder
+                body: JSON.stringify({ token }),
             });
         } catch (e) {
             console.error('Failed to record session', e);

@@ -2,7 +2,7 @@
 Document Routes - API endpoints for document ingestion and search
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
@@ -54,6 +54,70 @@ class SearchResponse(BaseModel):
     total_count: int
     timestamp: str
 
+
+async def _stored_chunk_count(lancedb_handler, doc_id: str, fallback_text: str) -> int:
+    """Chunk count from the STORED text (post-redaction), not the raw input.
+
+    The handler stores one row per document; the count reflects ~500-char
+    retrieval chunks of what actually landed in LanceDB."""
+    text = fallback_text
+    try:
+        stored = await asyncio.to_thread(
+            lancedb_handler.get_document_by_id, "documents", doc_id
+        )
+        if stored and stored.get("text"):
+            text = stored["text"]
+    except Exception:
+        pass
+    return max(1, -(-len(text) // 500))
+
+
+def _content_doc_key(text: str) -> str:
+    """Deterministic doc id from CONTENT (sha256), the identity that actually
+    matters for user-submitted documents with no external record id.
+
+    Same content → same id → one row (re-post skips as unchanged); different
+    content → different id (titles/filenames never merge distinct documents
+    and never collide same-named ones). This follows the standard idempotency
+    pattern: source record id when one exists, content fingerprint when it
+    doesn't."""
+    import hashlib
+
+    return "doc_" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
+
+
+async def _upsert_document(
+    lancedb_handler,
+    *,
+    text: str,
+    doc_key: str,
+    source: str,
+    metadata: Dict[str, Any],
+    user_id: str,
+    workspace_id: Optional[str] = None,
+) -> str:
+    """Content-aware upsert on a stable doc key.
+
+    Returns "skipped_unchanged" when the stored copy has the same content
+    hash; otherwise replaces (delete prior versions, then write) and
+    returns "written"."""
+    from core.vector_upsert import upsert_document
+
+    result = await upsert_document(
+        lancedb_handler,
+        table_name="documents",
+        text=text,
+        doc_id=doc_key,
+        source=source,
+        metadata=metadata,
+        user_id=user_id,
+        workspace_id=workspace_id,
+    )
+    if result == "write_failed":
+        raise RuntimeError("LanceDB add_document returned False")
+    return result
+
+
 @router.post("/ingest", response_model=DocumentResponse)
 async def ingest_document(
     request: DocumentIngestRequest,
@@ -72,13 +136,17 @@ async def ingest_document(
         if not lancedb_handler:
              raise router.internal_error("Search database not available")
 
-        doc_id = str(uuid.uuid4())
+        # Content-hash identity: no external record id exists for API-pasted
+        # text, so the content fingerprint IS the document identity (same
+        # content → same row regardless of title; different content → new
+        # row even under the same title).
         content = request.content or ""
         doc_type = request.type
-        title = request.title or f"Document {doc_id[:8]}"
+        title = request.title or "Untitled document"
 
         if not content:
             content = "(Empty document)"
+        doc_id = _content_doc_key(content)
 
         metadata = request.metadata or {}
         metadata.update({
@@ -91,19 +159,14 @@ async def ingest_document(
 
         # to_thread: add_document embeds synchronously; called directly on the
         # loop thread, embed_text's same-thread guard makes every write fail.
-        success = await asyncio.to_thread(
-            lancedb_handler.add_document,
-            table_name="documents",
+        await _upsert_document(
+            lancedb_handler,
             text=content,
+            doc_key=doc_id,
             source=f"api:{doc_id}",
             metadata=metadata,
             user_id=str(current_user.id) if current_user else "default_user",
-            extract_knowledge=True,
-            doc_id=doc_id
         )
-
-        if not success:
-             raise router.internal_error("Failed to store document in LanceDB")
 
         return DocumentResponse(
             id=doc_id,
@@ -111,7 +174,7 @@ async def ingest_document(
             type=doc_type,
             metadata=metadata,
             ingested_at=metadata["ingested_at"],
-            chunk_count=max(1, len(content) // 500)
+            chunk_count=await _stored_chunk_count(lancedb_handler, doc_id, content)
         )
     except Exception as e:
         logger.error(f"Document ingestion failed: {e}")
@@ -170,47 +233,82 @@ async def upload_document(
                 message=f"File exceeds the {MAX_UPLOAD_SIZE // (1024*1024)} MB upload limit",
                 status_code=413,
             )
-        if file_ext not in ALLOWED_EXTENSIONS:
-            raise router.error_response(
-                error_code="UNSUPPORTED_FILE_TYPE",
-                message=f"File type '{file_ext}' is not supported",
-                status_code=415,
-            )
-        
+
         # 1. Parse content using robust parser
         content = await DocumentParser.parse_document(content_bytes, file_ext, filename)
         
         if not content:
              content = f"[Empty or unparseable file: {filename}]"
 
-        # 2. Store document
-        doc_id = str(uuid.uuid4())
+        # 2. Store document — content-hash identity: same file re-uploaded →
+        # same row (skip/replace); DIFFERENT files sharing a filename → two
+        # rows (a filename is metadata, never an identity key).
+        doc_id = _content_doc_key(content)
         metadata = {
-            "source": "upload", 
+            "source": "upload",
             "size": len(content_bytes),
             "title": filename,
             "filename": filename,
             "file_type": file_ext,
             "ingested_at": datetime.now().isoformat(),
             "doc_id": doc_id,
+            # Join-key bridge: lets hybrid search + VFS resolve this vector row.
+            "pg_document_id": doc_id,
+            "source_type": "upload",
             "integration_id": "manual_upload",
             "author": current_user.email if current_user else "unknown"
         }
-        
-        success = await asyncio.to_thread(
-            lancedb_handler.add_document,
-            table_name="documents",
+
+        await _upsert_document(
+            lancedb_handler,
             text=content,
+            doc_key=doc_id,
             source=f"upload:{filename}",
             metadata=metadata,
             user_id=str(current_user.id) if current_user else "default_user",
-            extract_knowledge=True,
             workspace_id=ws_id,
-            doc_id=doc_id
         )
 
-        if not success:
-             raise router.internal_error("Failed to store uploaded document in LanceDB")
+        # 3. Aligned PG row: gives the upload full journey parity with synced
+        # documents — lexical leg (FTS), VFS cat, citability. id MUST equal the
+        # LanceDB doc_id (join-key bridge).
+        try:
+            from core.database import get_db_session
+            from core.models import IngestedDocument
+
+            with get_db_session() as db:
+                # Upsert on the stable doc key: a re-upload of the same file
+                # refreshes the mirror row instead of hitting the PK.
+                from core.doc_freshness_service import hash_text
+
+                _row = (
+                    db.query(IngestedDocument)
+                    .filter(IngestedDocument.id == doc_id)
+                    .first()
+                )
+                if _row is None:
+                    _row = IngestedDocument(
+                        id=doc_id,
+                        workspace_id=ws_id or "default",
+                        tenant_id=getattr(current_user, "tenant_id", None),
+                        external_id=f"upload_{doc_id}",
+                        integration_id="manual_upload",
+                    )
+                    db.add(_row)
+                _row.file_name = filename
+                _row.file_path = f"upload:{filename}"
+                _row.file_type = file_ext
+                _row.file_size_bytes = len(content_bytes)
+                _row.content_preview = content[:500]
+                _row.ingested_at = datetime.now(timezone.utc)
+                _row.source_content_hash = hash_text(content)
+                _row.last_verified_at = datetime.now(timezone.utc)
+                _row.freshness_status = "fresh"
+                db.commit()
+        except Exception as pg_err:
+            # Vector row already stored; never fail the upload because the
+            # mirror row failed — search still finds it (bridged:false).
+            logger.warning(f"PG mirror row skipped for upload {doc_id}: {pg_err}")
         
         return DocumentResponse(
             id=doc_id,
@@ -218,7 +316,7 @@ async def upload_document(
             type=file.content_type or "application/octet-stream",
             metadata=metadata,
             ingested_at=metadata["ingested_at"],
-            chunk_count=max(1, len(content) // 500)
+            chunk_count=await _stored_chunk_count(lancedb_handler, doc_id, content)
         )
     except Exception as e:
         # BUG-124: Previously the broad `except Exception` caught the 413/415
@@ -249,8 +347,11 @@ async def search_documents(
         if not lancedb_handler:
              raise router.internal_error("Search database not available")
         
-        # Use LanceDB vector search
-        results_data = lancedb_handler.search(
+        # Use LanceDB vector search. to_thread: search() embeds the query
+        # synchronously; on the loop thread the same-thread embed guard makes
+        # every search return [] (writes were fixed the same way).
+        results_data = await asyncio.to_thread(
+            lancedb_handler.search,
             table_name="documents",
             query=q,
             limit=limit,
@@ -269,7 +370,7 @@ async def search_documents(
                   id=str(r.get("id", uuid.uuid4())), # Fallback ID if not in result
                   title=meta.get("title") or meta.get("file_name") or "Untitled",
                   content_preview=r.get("text", "")[:200] + "...",
-                  score=r.get("_score", 0.0), # LanceDB return _score or score?
+                  score=r.get("score", r.get("_score", 0.0)),
                   metadata=meta
              ))
         
@@ -348,13 +449,19 @@ async def delete_document(
     if not lancedb_handler:
             raise router.internal_error("Search database not available")
 
-    # This is tricky with LanceDB as we usually delete by filter
-    # Assuming doc_id matches 'id' column or a metadata field 'doc_id'
-    # lancedb_handler.delete_by_metadata("doc_id", doc_id) # Hypothetical method
-    
-    # For now, implementing as a no-op or log warning as full deletion requires filter
-    logger.warning(f"Delete requested for {doc_id} - not fully implemented in LanceDB handler wrapper")
-    return router.success_response(message=f"Document '{doc_id}' deletion scheduled")
+    # 404 on unknown id, then delete by the id column (to_thread: delete may
+    # touch the sync LanceDB path). Previously a logged no-op that returned
+    # success — the document was never removed and the user was told it was.
+    doc = await asyncio.to_thread(lancedb_handler.get_document_by_id, "documents", doc_id)
+    if not doc:
+         raise router.not_found_error("Document", doc_id)
+    deleted = await asyncio.to_thread(
+        lancedb_handler.delete_documents_by_id, "documents", doc_id
+    )
+    if not deleted:
+         raise router.internal_error(message="Failed to delete document")
+
+    return router.success_response(message=f"Document '{doc_id}' deleted")
 
 @router.get("")
 async def list_documents(

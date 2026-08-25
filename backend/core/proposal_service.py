@@ -481,6 +481,51 @@ Please review and approve or reject this proposal.
                 "proposal_id": proposal.id
             }
 
+    def _record_execution_episode(
+        self, execution, proposal, action_type: str
+    ) -> None:
+        """R81f (G12): persist an episode for approved-proposal executions so
+        INTERN-supervised state changes feed episodic memory and the
+        episode-count graduation criteria — create_episode_from_execution
+        previously had zero production callers. Never raises."""
+        try:
+            from core.episode_service import EpisodeService
+
+            success = (execution.status or "") == "completed"
+
+            async def _write() -> None:
+                try:
+                    await EpisodeService(self.db).create_episode_from_execution(
+                        execution_id=execution.id,
+                        task_description=f"Approved proposal {proposal.id} ({action_type})",
+                        outcome=execution.status or "completed",
+                        success=success,
+                        metadata={"proposal_id": proposal.id, "source": "proposal"},
+                    )
+                    logger.info(
+                        "Episode recorded for proposal execution %s (%s)",
+                        execution.id, action_type,
+                    )
+                except Exception as e:  # noqa: BLE001 — never break the proposal flow
+                    logger.debug("Proposal episode write failed for %s: %s", execution.id, e)
+
+            # R83: create_episode_from_execution is a coroutine — a bare call
+            # here was silently garbage-collected, so NONE of the six proposal
+            # surfaces ever persisted an episode. Fire-and-forget when a loop
+            # is running; otherwise run to completion inline.
+            import asyncio as _asyncio
+
+            try:
+                _loop = _asyncio.get_running_loop()
+            except RuntimeError:
+                _loop = None
+            if _loop is not None:
+                _loop.create_task(_write())
+            else:
+                _asyncio.run(_write())
+        except Exception as e:
+            logger.warning(f"Episode creation skipped for {execution.id}: {e}")
+
     async def _execute_browser_action(
         self,
         proposal: AgentProposal,
@@ -518,7 +563,8 @@ Please review and approve or reject this proposal.
                     "proposal_id": proposal.id,
                     "action": action
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()
@@ -555,6 +601,8 @@ Please review and approve or reject this proposal.
             execution.output_summary = json.dumps(result) if isinstance(result, dict) else str(result)
             execution.completed_at = datetime.now()
             self.db.commit()
+            self._record_execution_episode(execution, proposal, "browser_automate")
+
 
             return {
                 "success": result.get("success", False),
@@ -606,7 +654,8 @@ Please review and approve or reject this proposal.
                     "proposal_id": proposal.id,
                     "action": action
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()
@@ -628,6 +677,8 @@ Please review and approve or reject this proposal.
             execution.output_summary = json.dumps({"canvas_id": canvas_id}) if isinstance({"canvas_id": canvas_id}, dict) else str({"canvas_id": canvas_id})
             execution.completed_at = datetime.now()
             self.db.commit()
+            self._record_execution_episode(execution, proposal, "canvas_present")
+
 
             return {
                 "success": True,
@@ -674,7 +725,8 @@ Please review and approve or reject this proposal.
                     "proposal_id": proposal.id,
                     "action": action
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()
@@ -695,6 +747,8 @@ Please review and approve or reject this proposal.
             execution.output_summary = json.dumps(result) if isinstance(result, dict) else str(result)
             execution.completed_at = datetime.now()
             self.db.commit()
+            self._record_execution_episode(execution, proposal, "integration_call")
+
 
             return {
                 "success": result.get("success", result.get("ok", False)),
@@ -744,7 +798,8 @@ Please review and approve or reject this proposal.
                     "proposal_id": proposal.id,
                     "action": action
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()
@@ -767,6 +822,8 @@ Please review and approve or reject this proposal.
             execution.output_summary = json.dumps(result) if isinstance(result, dict) else str(result)
             execution.completed_at = datetime.now()
             self.db.commit()
+            self._record_execution_episode(execution, proposal, "trigger_workflow")
+
 
             return {
                 "success": result.get("success", False),
@@ -811,7 +868,8 @@ Please review and approve or reject this proposal.
                     "proposal_id": proposal.id,
                     "action": action
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()
@@ -832,6 +890,8 @@ Please review and approve or reject this proposal.
             execution.output_summary = json.dumps(result) if isinstance(result, dict) else str(result)
             execution.completed_at = datetime.now()
             self.db.commit()
+            self._record_execution_episode(execution, proposal, "device_command")
+
 
             return {
                 "success": result.get("success", False),
@@ -878,7 +938,8 @@ Please review and approve or reject this proposal.
                     "action": action,
                     "triggered_by": agent_id
                 }),
-                triggered_by="proposal"
+                triggered_by="proposal",
+                tenant_id=proposal.tenant_id or "default",
             )
             self.db.add(execution)
             self.db.commit()
@@ -906,6 +967,8 @@ Please review and approve or reject this proposal.
             execution.output_summary = json.dumps(result) if isinstance(result, dict) else str(result)
             execution.completed_at = datetime.now()
             self.db.commit()
+            self._record_execution_episode(execution, proposal, "delegate_agent")
+
 
             return {
                 "success": result.get("success", False),

@@ -16,6 +16,8 @@ import { ReasoningChain, ReasoningStep } from '../Agents/ReasoningChain'
 import { VoiceInput } from '@/components/Voice/VoiceInput'
 import { useToast } from "@/components/ui/use-toast"
 import { useTextToSpeech } from '@/hooks/useTextToSpeech'
+import { useProviderStatus } from '@/hooks/useProviderStatus'
+import { ProviderRequiredBanner } from '@/components/shared/ProviderRequiredBanner'
 
 // Constants and Interfaces
 type AgentMaturityLevel = 'student' | 'intern' | 'supervised' | 'autonomous';
@@ -174,6 +176,7 @@ interface AgentWorkflowGeneratorProps {
 const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeployWorkflow, onWorkflowGenerated, className }) => {
     // State definitions
     const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+    const providerStatus = useProviderStatus();
     const [prompt, setPrompt] = useState('');
     const [chatHistory, setChatHistory] = useState<{ role: string; content: string }[]>([]);
     const [generatedWorkflow, setGeneratedWorkflow] = useState<Workflow | null>(null);
@@ -686,7 +689,10 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                         </ScrollArea>
 
                         {/* Input Area */}
-                        <div className="p-4 border-t bg-white">
+                        <div className="p-4 border-t bg-white space-y-3">
+                            {/* Pre-flight: tell the user they need an AI provider
+                                BEFORE they burn a failed generation. */}
+                            {providerStatus.configured === false && <ProviderRequiredBanner />}
                             <div className="flex gap-2 max-w-2xl mx-auto">
                                 <Input
                                     value={prompt}

@@ -723,6 +723,31 @@ const IntegrationsPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Deep-link support: /integrations?connect=<provider> highlights and
+  // prompts that provider's card. Readiness CTAs on imported workflow
+  // templates land here so the user lands on the exact fix.
+  const [highlightedIntegration, setHighlightedIntegration] = useState<string | null>(null);
+  useEffect(() => {
+    if (router.isReady === false) return;
+    const raw = router.query.connect;
+    const target = Array.isArray(raw) ? raw[0] : raw;
+    if (!target) return;
+    const match = integrationList.find((i) => i.id === target.toLowerCase());
+    router.replace("/integrations", undefined, { shallow: true });
+    if (!match) return;
+    setHighlightedIntegration(match.id);
+    toast({
+      title: `Connect ${match.name}`,
+      description: "Finish this connection to run your imported workflow.",
+    });
+    const scrollTimer = setTimeout(() => {
+      document
+        .getElementById(`integration-${match.id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    return () => clearTimeout(scrollTimer);
+  }, [router.isReady, router.query.connect, router, toast]);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-[1400px] mx-auto space-y-8">
@@ -863,7 +888,12 @@ const IntegrationsPage: React.FC = () => {
             return (
               <Card
                 key={integration.id}
-                className="cursor-pointer hover:shadow-md transition-all hover:-translate-y-0.5"
+                id={`integration-${integration.id}`}
+                className={cn(
+                  "cursor-pointer hover:shadow-md transition-all hover:-translate-y-0.5",
+                  highlightedIntegration === integration.id &&
+                    "ring-2 ring-amber-400 shadow-md",
+                )}
                 onClick={() => handleIntegrationClick(integration)}
               >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

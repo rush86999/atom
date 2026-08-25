@@ -32,6 +32,15 @@ export default function SignIn() {
     setIsLoading(true);
     setError("");
 
+    // Open-redirect-safe return target (same guard as /login) so users
+    // bounced from a deep link land back where they started.
+    const callbackUrl = typeof router.query.callbackUrl === "string"
+      ? router.query.callbackUrl
+      : "/dashboard";
+    const safeDest = callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
+      ? callbackUrl
+      : "/dashboard";
+
     try {
       const data = await loginWithBackend(email, password, totpCode);
       if (data.two_factor_required) {
@@ -45,7 +54,7 @@ export default function SignIn() {
         title: "Successfully signed in!",
         variant: "success",
       });
-      router.push("/dashboard");
+      router.push(safeDest);
     } catch (err: any) {
       if (err.message === "Invalid 2FA code") {
         setError("Invalid 2FA code. Please try again.");
@@ -187,7 +196,15 @@ export default function SignIn() {
           <div className="mt-4 text-center">
             <p className="text-gray-600 dark:text-gray-400 text-sm">
               Don&apos;t have an account?{" "}
-              <Link href="/auth/signup" className="text-blue-500 font-medium hover:text-blue-600 underline">
+              <Link
+                href={{
+                  pathname: "/auth/signup",
+                  query: router.query.callbackUrl
+                    ? { callbackUrl: String(router.query.callbackUrl) }
+                    : {},
+                }}
+                className="text-blue-500 font-medium hover:text-blue-600 underline"
+              >
                 Sign up
               </Link>
             </p>

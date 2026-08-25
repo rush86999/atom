@@ -169,7 +169,8 @@ class KnowledgeExtractionOperator:
     This is the CORE operator that enables agent learning and recall.
     
     Mirrors the legacy pipeline behavior from:
-    - LanceDBHandler.add_document() with extract_knowledge=True
+    - the legacy LanceDBHandler.add_document() extraction step (the
+    - handler no longer extracts; dead param removed R84)
     - KnowledgeIngestionManager.process_document()
     
     Populates:
@@ -262,7 +263,7 @@ class KnowledgeExtractionOperator:
                             doc_id=record.id,
                             source=record.app_type,
                             user_id=user_id,
-                            tenant_id=workspace_id
+                            workspace_id=workspace_id
                         ))
                         logger.info(f"[KnowledgeExtract] Triggered extraction for {record.id}")
                 except RuntimeError:
@@ -272,22 +273,33 @@ class KnowledgeExtractionOperator:
                         doc_id=record.id,
                         source=record.app_type,
                         user_id=user_id,
-                        tenant_id=workspace_id
+                        workspace_id=workspace_id
                     ))
                     logger.info(f"[KnowledgeExtract] Sync extraction for {record.id}")
             except Exception as e:
                 logger.warning(f"[KnowledgeExtract] Failed for {record.id}: {e}")
-        
+
         # 2. Direct GraphRAG ingestion (fallback if knowledge manager unavailable)
         elif self.graphrag_engine:
             try:
-                stats = self.graphrag_engine.ingest_document(
-                    tenant_id=workspace_id,
+                # R83: ingest_document is async and takes no user_id — the old
+                # call raised TypeError at kwarg binding (swallowed below) and
+                # was never awaited. Same loop-aware scheduling as branch 1.
+                coro = self.graphrag_engine.ingest_document(
+                    workspace_id=workspace_id,
                     doc_id=record.id,
                     text=record.content,
                     source=record.app_type,
-                    user_id=user_id
                 )
+                try:
+                    loop = asyncio.get_running_loop()
+                    if loop.is_running():
+                        loop.create_task(coro)
+                        logger.info(f"[KnowledgeExtract] GraphRAG scheduled for {record.id}")
+                        return
+                except RuntimeError:
+                    pass
+                stats = asyncio.run(coro)
                 logger.info(f"[KnowledgeExtract] GraphRAG ingested {record.id}: {stats}")
             except Exception as e:
                 logger.warning(f"[KnowledgeExtract] GraphRAG failed for {record.id}: {e}")
@@ -591,14 +603,13 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
                         metadata = json.loads(metadata) if metadata else {}
                     
                     # Note: We skip secrets redaction here as it's done in the pipeline operator
-                    # Note: extract_knowledge=False because Bytewax handles streaming differently
+                    # Note: no handler-level AI extraction — Bytewax operators own knowledge extraction.
                     success = self.handler.add_document(
                         table_name=self.table_name,
                         text=item.content,
                         source=item.app_type,
                         metadata=metadata,
                         user_id=metadata.get("user_id"),
-                        extract_knowledge=False
                     )
                     logger.info(f"[LanceDBSink] [CREATE] Persisted {item.id}: {success}")
                     
@@ -617,7 +628,6 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
                         text=item.content,
                         metadata=metadata,
                         user_id=metadata.get("user_id"),
-                        extract_knowledge=False,
                         doc_id=item.id,
                         skip_ai_triggers=True
                     )

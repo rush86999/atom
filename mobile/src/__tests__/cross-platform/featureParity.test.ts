@@ -204,7 +204,7 @@ describe('Agent Chat Feature Parity', () => {
 
 describe('Canvas Feature Parity', () => {
   describe('Canvas type support', () => {
-    it('should support all 7 web canvas types', () => {
+    it('should support all 8 web canvas types (incl. presentation)', () => {
       const canvasTypes = Object.values(CanvasType);
 
       expect(canvasTypes).toContain('generic');
@@ -214,7 +214,10 @@ describe('Canvas Feature Parity', () => {
       expect(canvasTypes).toContain('orchestration');
       expect(canvasTypes).toContain('terminal');
       expect(canvasTypes).toContain('coding');
-      expect(canvasTypes.length).toBe(7);
+      // R82: web added the 'presentation' canvas type (backend
+      // models.py:3774) — the mobile shared CanvasType enum includes it.
+      expect(canvasTypes).toContain('presentation');
+      expect(canvasTypes.length).toBe(8);
     });
   });
 
@@ -554,7 +557,8 @@ describe('Feature Completeness', () => {
   describe('Canvas completeness', () => {
     it('should have 100% web canvas feature parity', () => {
       const mobileCanvasFeatures = Object.values(CanvasType).length;
-      const webCanvasFeatures = 7; // Expected canvas types
+      // R82: web shipped the 'presentation' canvas type — parity target is 8.
+      const webCanvasFeatures = 8;
 
       const parityPercentage = (mobileCanvasFeatures / webCanvasFeatures) * 100;
       expect(parityPercentage).toBe(100);

@@ -112,7 +112,7 @@ class TestSubjectCandidates:
 
     def test_caps_subjects(self, monkeypatch):
         import core.memory_consolidator as mc
-        monkeypatch.setattr(mc, "LLM_REVIEW_MAX_SUBJECTS", 1)
+        monkeypatch.setattr(mc, "llm_review_max_subjects", lambda: 1)
         from core.memory_consolidator import _subject_candidates
         facts = [
             SimpleNamespace(fact_text=f"subject{i} alpha value {i}", category="exact_value")
@@ -132,14 +132,14 @@ class TestSubjectCandidates:
 @pytest.fixture
 def enable_llm(monkeypatch):
     import core.memory_consolidator as mc
-    monkeypatch.setattr(mc, "LLM_REVIEW_ENABLED", True)
+    monkeypatch.setattr(mc, "llm_review_enabled", lambda: True)
     return mc
 
 
 class TestConsolidateWithLlm:
     def test_disabled_by_default(self, monkeypatch):
         import core.memory_consolidator as mc
-        monkeypatch.setattr(mc, "LLM_REVIEW_ENABLED", False)
+        monkeypatch.setattr(mc, "llm_review_enabled", lambda: False)
         report = asyncio_run(mc.consolidate_with_llm("ws-1"))
         assert report["enabled"] is False
         assert report["ops_emitted"] == 0
@@ -289,7 +289,7 @@ class TestConsolidateWithLlm:
 
     def test_apply_caps_ops(self, enable_llm, db_session, monkeypatch):
         import core.memory_consolidator as mc
-        monkeypatch.setattr(mc, "LLM_REVIEW_MAX_OPS", 1)
+        monkeypatch.setattr(mc, "llm_review_max_ops", lambda: 1)
         ws = "ws-1"
         db_session.add(TurnFact(id="f1", workspace_id=ws, tenant_id=None,
                                 fact_text="ACME budget total is 80k dollars", category="exact_value",

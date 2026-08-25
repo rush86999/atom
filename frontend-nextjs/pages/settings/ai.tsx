@@ -3,8 +3,6 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { Box, Heading, Container, Text } from '@chakra-ui/react';
 import AIProviderSettings from '@/src/components/AIProviders/AIProviderSettings';
-import Layout from '../../components/layout/Layout';
-
 const AISettingsPage = () => {
     return (
         <>

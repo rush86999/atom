@@ -504,6 +504,10 @@ class WorkflowTemplateManager:
                     "name": step.name,
                     "description": step.description,
                     "step_type": step.step_type,
+                    # Parameters come in two shapes: declared TemplateParameter
+                    # lists, or plain dicts (visual-editor exports / shipped
+                    # starter content). Handle both — dict iteration used to
+                    # explode here ('str' has no attribute 'name').
                     "input_parameters": [
                         {
                             "name": param.name,
@@ -516,6 +520,13 @@ class WorkflowTemplateManager:
                             "validation_rules": param.validation_rules
                         }
                         for param in step.parameters
+                    ] if isinstance(step.parameters, list) else [
+                        {
+                            "name": str(key),
+                            "type": type(value).__name__,
+                            "default_value": value,
+                        }
+                        for key, value in (step.parameters or {}).items()
                     ],
                     "depends_on": step.depends_on,
                     "condition": step.condition,

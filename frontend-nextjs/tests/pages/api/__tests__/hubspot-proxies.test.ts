@@ -25,7 +25,7 @@ describe("pages/api/integrations/hubspot/deals", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ results: [{ id: "d1" }] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/deals",
+      "http://127.0.0.1:8000/api/hubspot/deals",
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-id": "current" },
@@ -74,7 +74,7 @@ describe("pages/api/integrations/hubspot/companies", () => {
     await companiesHandler(req, res);
     expect(res._getStatusCode()).toBe(200);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/companies?limit=100&offset=0&user_id=current",
+      "http://127.0.0.1:8000/api/hubspot/companies?limit=100&offset=0&user_id=current",
       {
         method: "GET",
         headers: { "Content-Type": "application/json", "x-user-id": "current" },
@@ -90,7 +90,7 @@ describe("pages/api/integrations/hubspot/companies", () => {
     }) as any;
     await companiesHandler(req, res);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/companies?limit=5&offset=10&user_id=u1",
+      "http://127.0.0.1:8000/api/hubspot/companies?limit=5&offset=10&user_id=u1",
       expect.anything(),
     );
     expect(res._getJSONData()).toEqual({ results: [{ name: "Acme" }] });
@@ -105,7 +105,7 @@ describe("pages/api/integrations/hubspot/companies", () => {
     }) as any;
     await companiesHandler(req, res);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/companies?limit=3&offset=7&user_id=u2",
+      "http://127.0.0.1:8000/api/hubspot/companies?limit=3&offset=7&user_id=u2",
       expect.anything(),
     );
   });
@@ -134,7 +134,7 @@ describe("pages/api/integrations/hubspot/contacts", () => {
     const { req, res } = createMocks({ method: "GET", query: {} }) as any;
     await contactsHandler(req, res);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/contacts?limit=100&offset=0&user_id=current",
+      "http://127.0.0.1:8000/api/hubspot/contacts?limit=100&offset=0&user_id=current",
       expect.anything(),
     );
     expect(res._getJSONData()).toEqual({ results: [{ email: "a@b.c" }] });
@@ -148,7 +148,7 @@ describe("pages/api/integrations/hubspot/contacts", () => {
     }) as any;
     await contactsHandler(req, res);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/contacts?limit=2&offset=1&user_id=x",
+      "http://127.0.0.1:8000/api/hubspot/contacts?limit=2&offset=1&user_id=x",
       expect.anything(),
     );
   });

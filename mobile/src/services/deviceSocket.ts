@@ -89,8 +89,10 @@ class DeviceSocketService {
    */
   async connect(): Promise<boolean> {
     try {
-      // Get auth token
-      const token = await secureGet('auth_token');
+      // Get auth token. Round 82: read the canonical 'atom_access_token' key
+      // (the legacy 'auth_token' key is never written — see api.ts #6 fix),
+      // so the socket could never authenticate.
+      const token = await secureGet('atom_access_token');
       if (!token) {
         console.error('[DeviceSocket] No auth token found');
         return false;

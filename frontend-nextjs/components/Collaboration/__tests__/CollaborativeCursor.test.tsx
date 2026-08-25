@@ -62,7 +62,7 @@ describe('CollaborativeCursor', () => {
   it('opens a WebSocket with the workflow session URL derived from the API base', () => {
     const { instance, wsCreated } = renderCursor({ sessionId: 'sess-1', currentUserId: 'user-1' });
     expect(wsCreated).toBe(1);
-    expect(instance._url).toBe('ws://localhost:8000/ws/sess-1/user-1');
+    expect(instance._url).toBe('/ws/sess-1/user-1');
   });
 
   it('renders a remote cursor with name, position and selection indicator', () => {

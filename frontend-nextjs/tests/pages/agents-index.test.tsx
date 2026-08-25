@@ -107,7 +107,20 @@ describe("AgentsDashboard", () => {
     localStorage.clear();
     localStorage.setItem("auth_token", "tok");
     wsState = { isConnected: false, lastMessage: null, subscribe: mockSubscribe };
-    mockFetch = jest.fn().mockResolvedValue(okJson({ success: true, data: AGENTS }));
+    const okProgress = (id: string) =>
+      okJson({ success: true, data: {
+        agent_id: id, current_tier: "student", next_tier: "intern",
+        next_threshold_episodes: 10, episodes_to_next: 10, episode_count: 0,
+        criteria: {},
+      }});
+    mockFetch = jest.fn((url: any) => {
+      const u = typeof url === 'string' ? url : String(url);
+      if (u.includes('/graduation-progress')) {
+        const id = u.split('/')[u.split('/').length - 2];
+        return Promise.resolve(okProgress(id));
+      }
+      return Promise.resolve(okJson({ success: true, data: AGENTS }));
+    });
     global.fetch = mockFetch;
   });
 
@@ -259,14 +272,13 @@ describe("AgentsDashboard", () => {
   });
 
   test("run dialog shows error toast and appends error log on failure", async () => {
-    mockFetch
-      .mockResolvedValueOnce(okJson({ success: true, data: AGENTS }))
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        statusText: "Bad Request",
-        json: async () => ({ detail: "Agent busy" }),
-      });
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.includes('/run')) {
+        return Promise.resolve({ ok: false, status: 400, statusText: "Bad Request", json: async () => ({ detail: "Agent busy" }) });
+      }
+      return Promise.resolve(okJson({ success: true, data: AGENTS }));
+    });
     render(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
@@ -281,9 +293,11 @@ describe("AgentsDashboard", () => {
   });
 
   test("run dialog handles network errors", async () => {
-    mockFetch
-      .mockResolvedValueOnce(okJson({ success: true, data: AGENTS }))
-      .mockRejectedValueOnce(new Error("offline"));
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.includes('/run')) return Promise.reject(new Error("offline"));
+      return Promise.resolve(okJson({ success: true, data: AGENTS }));
+    });
     render(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
@@ -314,14 +328,13 @@ describe("AgentsDashboard", () => {
   });
 
   test("stop agent failure path", async () => {
-    mockFetch
-      .mockResolvedValueOnce(okJson({ success: true, data: AGENTS }))
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: "Error",
-        json: async () => ({ message: "stop failed" }),
-      });
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.includes('/stop')) {
+        return Promise.resolve({ ok: false, status: 500, statusText: "Error", json: async () => ({ message: "stop failed" }) });
+      }
+      return Promise.resolve(okJson({ success: true, data: AGENTS }));
+    });
     render(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
@@ -334,9 +347,11 @@ describe("AgentsDashboard", () => {
   });
 
   test("stop agent network error path", async () => {
-    mockFetch
-      .mockResolvedValueOnce(okJson({ success: true, data: AGENTS }))
-      .mockRejectedValueOnce(new Error("offline"));
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.includes('/stop')) return Promise.reject(new Error("offline"));
+      return Promise.resolve(okJson({ success: true, data: AGENTS }));
+    });
     render(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
@@ -367,14 +382,13 @@ describe("AgentsDashboard", () => {
   });
 
   test("edit dialog surfaces backend error", async () => {
-    mockFetch
-      .mockResolvedValueOnce(okJson({ success: true, data: AGENTS }))
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        statusText: "Bad Request",
-        json: async () => ({ error: { message: "name too short" } }),
-      });
+    mockFetch.mockImplementation((url: any, opts?: any) => {
+      const u = String(url);
+      if (u.includes('/api/agents/') && opts?.method && String(opts.method).toUpperCase() !== "GET") {
+        return Promise.resolve({ ok: false, status: 400, statusText: "Bad Request", json: async () => ({ error: { message: "name too short" } }) });
+      }
+      return Promise.resolve(okJson({ success: true, data: AGENTS }));
+    });
     render(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
@@ -606,9 +620,11 @@ describe("AgentsDashboard", () => {
   });
 
   test("feedback submission network error shows error toast", async () => {
-    mockFetch
-      .mockResolvedValueOnce(okJson({ success: true, data: AGENTS }))
-      .mockRejectedValueOnce(new Error("offline"));
+    mockFetch.mockImplementation((url: any, opts?: any) => {
+      const u = String(url);
+      if (u.includes('/feedback')) return Promise.reject(new Error("offline"));
+      return Promise.resolve(okJson({ success: true, data: AGENTS }));
+    });
     render(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 
@@ -622,9 +638,13 @@ describe("AgentsDashboard", () => {
   });
 
   test("save changes network error shows error toast", async () => {
-    mockFetch
-      .mockResolvedValueOnce(okJson({ success: true, data: AGENTS }))
-      .mockRejectedValueOnce(new Error("offline"));
+    mockFetch.mockImplementation((url: any, opts?: any) => {
+      const u = String(url);
+      if (u.includes('/api/agents/') && opts?.method && String(opts.method).toUpperCase() !== "GET") {
+        return Promise.reject(new Error("offline"));
+      }
+      return Promise.resolve(okJson({ success: true, data: AGENTS }));
+    });
     render(<AgentsDashboard />);
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
 

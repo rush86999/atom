@@ -405,7 +405,7 @@ class NotificationService {
     try {
       // Import storage service
       const storageService = (await import('./storageService')).storageService;
-      return await storageService.getStringAsync('auth_token' as any);
+      return await storageService.getStringAsync('atom_access_token' as any);
     } catch (error) {
       console.error('NotificationService: Failed to get auth token:', error);
       return null;

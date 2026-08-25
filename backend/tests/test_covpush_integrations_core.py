@@ -16,6 +16,17 @@ from fastapi import HTTPException
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------
+def _q_returning(value):
+    """Query mock whose .filter(...).first() resolves to `value`, including
+    chained filters (production code re-filters by tenant before first())."""
+    f = MagicMock()
+    f.first.return_value = value
+    f.filter.return_value = f
+    q = MagicMock()
+    q.filter.return_value = f
+    return q
+
+
 def _svc():
     """Fresh MCPService-like instance without singleton state pollution."""
     import integrations.mcp_service as mod
@@ -316,14 +327,16 @@ class TestHitlPolicy:
         db.__enter__ = MagicMock(return_value=db)
         db.__exit__ = MagicMock(return_value=False)
         with patch("core.database.SessionLocal", return_value=db):
+            # R81b: fail-closed — missing workspace/tenant BLOCKS risky tools
+            # instead of the old swallow-and-allow.
             db.query.return_value.filter.return_value.first.return_value = None
             r = await svc._check_hitl_policy("nows", "send_email", {})
-            assert r is None
+            assert r and r.get("blocked_by") == "hitl_policy_error"
             ws = MagicMock()
             ws.tenant_id = "t"
             db.query.return_value.filter.return_value.first.side_effect = [ws, None]
             r = await svc._check_hitl_policy("ws", "send_email", {})
-            assert r is None
+            assert r and r.get("blocked_by") == "hitl_policy_error"
 
     async def test_hitl_intervention_required(self):
         import integrations.mcp_service as mod
@@ -351,11 +364,10 @@ class TestHitlPolicy:
 
     async def test_hitl_autonomous_agent_approved(self):
         import integrations.mcp_service as mod
+        from core.models import AgentRegistry as _AR, Tenant as _T, \
+            User as _U, Workspace as _W
 
         svc = _svc()
-        db = MagicMock()
-        db.__enter__ = MagicMock(return_value=db)
-        db.__exit__ = MagicMock(return_value=False)
         ws = MagicMock()
         ws.tenant_id = "t1"
         tenant = MagicMock()
@@ -365,16 +377,29 @@ class TestHitlPolicy:
         user.notification_preferences = {}
         agent = MagicMock()
         agent.maturity_level = 5
+        agent.status = "autonomous"  # R81e: tier-name comparison
         agent.name = "A"
-        db.query.return_value.filter.return_value.first.side_effect = [ws, tenant, user, agent]
-        with patch("core.database.SessionLocal", return_value=db), \
-             patch("core.models.AgentRegistry", new=MagicMock()):
+
+        # Per-model keyed queries — a shared filter/first chain made the
+        # lookup order ambiguous (R81b).
+        model_map = {
+            _W: _q_returning(ws),
+            _T: _q_returning(tenant),
+            _U: _q_returning(user),
+            _AR: _q_returning(agent),
+        }
+        db = MagicMock()
+        db.__enter__ = MagicMock(return_value=db)
+        db.__exit__ = MagicMock(return_value=False)
+        db.query = MagicMock(side_effect=lambda m, *a, **k: model_map[m])
+        with patch("core.database.SessionLocal", return_value=db):
             r = await svc._check_hitl_policy(
                 "ws1", "whatsapp_send_message", {}, {"user_id": "u1", "agent_id": "ag1"}
             )
         assert r is None
 
-    async def test_hitl_exception_returns_none(self):
+    async def test_hitl_exception_blocks(self):
+        """R81b: fail-closed — a policy-check failure must NOT allow."""
         import integrations.mcp_service as mod
 
         svc = _svc()
@@ -384,7 +409,7 @@ class TestHitlPolicy:
         db.query.side_effect = RuntimeError("db down")
         with patch("core.database.SessionLocal", return_value=db):
             r = await svc._check_hitl_policy("ws1", "send_email", {})
-        assert r is None
+        assert r and r.get("blocked_by") == "hitl_policy_error"
 
 
 # ---------------------------------------------------------------------------
@@ -818,8 +843,11 @@ class TestExecuteToolLocalTools:
             assert r == {"ok": 1}
             r = await _run_local(svc, "create_calendar_event", {"summary": "m"}, {"user_id": "u"})
             assert r == {"ok": 1}
-            r = await _run_local(svc, "post_channel_message", {"channel": "c", "message": "m"}, {"user_id": "u", "workspace_id": "w"})
-            assert r["error"] == "platform is required"
+            # R81b: risky tool still needs the HITL allow-mock outside the
+            # earlier context (missing workspace now blocks instead of allowing).
+            with patch.object(svc, "_check_hitl_policy", new=AsyncMock(return_value=None)):
+                r = await _run_local(svc, "post_channel_message", {"channel": "c", "message": "m"}, {"user_id": "u", "workspace_id": "w"})
+                assert r["error"] == "platform is required"
 
     async def test_send_message_no_connection(self):
         svc = _svc()
@@ -1497,6 +1525,7 @@ class TestMCPCoverageWave2:
         user.notification_preferences = {"force_agent_approval": False}
         agent = MagicMock()
         agent.maturity_level = 5
+        agent.status = "autonomous"  # R81e: tier-name comparison
         agent.name = "A"
         # tenant-scoped agent query chains a second .filter() — loop the chain
         db.query.return_value.filter.return_value.filter.return_value = db.query.return_value.filter.return_value
@@ -1510,6 +1539,7 @@ class TestMCPCoverageWave2:
         user2.notification_preferences = {"force_agent_approval": True}
         agent2 = MagicMock()
         agent2.maturity_level = 5
+        agent2.status = "autonomous"
         agent2.name = "A"
         agent2.id = "ag1"
         db.query.return_value.filter.return_value.filter.return_value = db.query.return_value.filter.return_value

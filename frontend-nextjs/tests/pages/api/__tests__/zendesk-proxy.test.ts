@@ -57,7 +57,7 @@ describe.each(routes)(
       expect(res._getStatusCode()).toBe(200);
       expect(res._getJSONData()).toEqual({ items: [{ id: "u-1" }] });
       expect(mockFetch).toHaveBeenCalledWith(
-        `http://localhost:5058${backendPath}`,
+        `http://127.0.0.1:8000${backendPath}`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -72,7 +72,7 @@ describe.each(routes)(
       expect(res._getStatusCode()).toBe(201);
       expect(res._getJSONData()).toEqual({ created: true });
       expect(mockFetch).toHaveBeenCalledWith(
-        `http://localhost:5058${backendPath}`,
+        `http://127.0.0.1:8000${backendPath}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

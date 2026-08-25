@@ -60,6 +60,7 @@ _BASELINE_EGRESS_HOSTS: Tuple[str, ...] = (
     "open.bigmodel.cn",  # Zhipu AI (GLM family)
     "api.moonshot.cn",  # Moonshot AI (Kimi)
     "openrouter.ai",  # OpenRouter gateway
+    "opencode.ai",  # OpenCode Go Zen gateway (deepseek-v4-*, kimi-*, glm-* via OPENCODE_API_KEY)
     "api.groq.com",  # Groq (ultra-fast inference)
     "api.deepinfra.com",  # DeepInfra
     "dashscope-intl.aliyuncs.com",  # Alibaba DashScope (Qwen)
@@ -87,6 +88,7 @@ _LLM_PROVIDER_HOSTS: Tuple[str, ...] = (
     "open.bigmodel.cn",
     "api.moonshot.cn",
     "openrouter.ai",
+    "opencode.ai",
     "api.groq.com",
     "api.deepinfra.com",
     "dashscope-intl.aliyuncs.com",

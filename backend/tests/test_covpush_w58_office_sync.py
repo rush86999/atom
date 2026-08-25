@@ -116,7 +116,10 @@ class TestBroadcast:
         with patch.object(s.office.renderer, "render_to_html",
                           return_value={"success": False}):
             s.broadcast_file_update("c1", str(p), "u1")
-        db.add.assert_not_called()
+        # Render failure degrades to html=None — the audit row is still
+        # written (structured snapshot is independent of the render).
+        audit = db.add.call_args[0][0]
+        assert audit.details_json["html"] is None
 
     def test_success_with_audit_and_ws(self, svc, tmp_path):
         s, db, _ = svc

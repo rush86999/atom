@@ -72,7 +72,7 @@ describe("pages/api/quickbooks/auth/store-tokens", () => {
     });
 
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe("http://localhost:5058/api/quickbooks/auth/store-tokens");
+    expect(url).toBe("http://127.0.0.1:8000/api/quickbooks/auth/store-tokens");
     expect(init.method).toBe("POST");
     expect(init.headers).toEqual({ "Content-Type": "application/json" });
     expect(JSON.parse(init.body)).toEqual(validBody);

@@ -19,6 +19,10 @@ from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
+# Strong refs for fire-and-forget post-ingestion agent-trigger tasks (a bare
+# create_task result can be garbage-collected mid-flight).
+_pending_agent_trigger_tasks: set = set()
+
 
 class FileType(str, Enum):
     """Supported file types for ingestion"""
@@ -142,7 +146,10 @@ class DocumentParser:
                     data = json.loads(file_content.decode("utf-8", errors="ignore"))
                     return json.dumps(data, indent=2)
                 except Exception:
-                    return file_content.decode("utf-8", errors="ignore")
+                    # Unparseable JSON is not raw text worth embedding —
+                    # returning the broken bytes verbatim pollutes memory
+                    # with junk rows.
+                    return ""
             
             elif file_type == "csv":
                 return DocumentParser._parse_csv(file_content)
@@ -334,17 +341,21 @@ class AutoDocumentIngestionService:
     - Ingest to Atom Memory (LanceDB + GraphRAG)
     """
     
-    def __init__(self):
-        self.workspace_id = "default"
+    def __init__(self, workspace_id: str = "default"):
+        # Per-workspace construction: settings, ingested-doc cache, LanceDB
+        # handler and durable settings rows are all workspace-scoped. The old
+        # fixed-"default" singleton meant every non-default workspace's sync
+        # read and wrote the default workspace's stores.
+        self.workspace_id = (workspace_id or "default").strip() or "default"
         self.settings: Dict[str, IngestionSettings] = {}
         self.ingested_docs: Dict[str, IngestedDocument] = {}  # key = external_id
         self.parser = DocumentParser()
         self._running = False
-        
+
         # Initialize memory handler
         try:
             from core.lancedb_handler import get_lancedb_handler
-            self.memory_handler = get_lancedb_handler("default")
+            self.memory_handler = get_lancedb_handler(self.workspace_id)
         except ImportError:
             self.memory_handler = None
             logger.warning("LanceDB handler not available")
@@ -359,11 +370,102 @@ class AutoDocumentIngestionService:
     def get_settings(self, integration_id: str) -> IngestionSettings:
         """Get or create settings for an integration"""
         if integration_id not in self.settings:
-            self.settings[integration_id] = IngestionSettings(
+            settings = IngestionSettings(
                 integration_id=integration_id,
                 workspace_id=self.workspace_id
             )
+            # Hydrate from the durable row if one exists (restart survival).
+            self._load_settings_row(integration_id, settings)
+            self.settings[integration_id] = settings
         return self.settings[integration_id]
+
+    def _settings_row_query(self, db, integration_id: str):
+        from core.models import IngestionSettings as IngestionSettingsRow
+
+        return (
+            db.query(IngestionSettingsRow)
+            .filter(
+                IngestionSettingsRow.workspace_id == self.workspace_id,
+                IngestionSettingsRow.integration_id == integration_id,
+            )
+            .first()
+        )
+
+    @staticmethod
+    def _settings_persistence_enabled() -> bool:
+        """Same kill switch as hybrid ingestion state (tests disable it)."""
+        return os.getenv("ATOM_INGESTION_PERSIST_STATE", "true").lower() in (
+            "1", "true", "yes",
+        )
+
+    def _load_settings_row(self, integration_id: str, settings: IngestionSettings) -> None:
+        """Best-effort hydration from the ``ingestion_settings`` table.
+
+        Settings previously lived only in this process's memory — a restart
+        wiped enabled flags, folders and last_sync. Never raises."""
+        if not self._settings_persistence_enabled():
+            return
+        try:
+            from core.database import get_db_session
+
+            with get_db_session() as db:
+                row = self._settings_row_query(db, integration_id)
+                if row is None:
+                    return
+                settings.enabled = bool(row.enabled)
+                settings.auto_sync_new_files = bool(row.auto_sync_new_files)
+                settings.file_types = list(row.file_types or settings.file_types)
+                settings.sync_folders = list(row.sync_folders or [])
+                settings.exclude_folders = list(row.exclude_folders or [])
+                settings.max_file_size_mb = row.max_file_size_mb or settings.max_file_size_mb
+                settings.sync_frequency_minutes = (
+                    row.sync_frequency_minutes or settings.sync_frequency_minutes
+                )
+                if row.last_sync is not None:
+                    # SQLite returns naive datetimes; sync math compares
+                    # against timezone-aware now().
+                    settings.last_sync = (
+                        row.last_sync.replace(tzinfo=timezone.utc)
+                        if row.last_sync.tzinfo is None
+                        else row.last_sync
+                    )
+        except Exception as e:
+            logger.debug(f"Ingestion settings load skipped for {integration_id}: {e}")
+
+    def _persist_settings(self, settings: IngestionSettings) -> None:
+        """Best-effort durable copy of ingestion settings. Never raises.
+
+        Only the document-ingestion columns are touched — hybrid ingestion
+        stores its pipeline state (entity_types, sync_mode, …) in the same
+        rows and must survive this upsert."""
+        if not self._settings_persistence_enabled():
+            return
+        try:
+            from core.database import get_db_session
+
+            with get_db_session() as db:
+                row = self._settings_row_query(db, settings.integration_id)
+                if row is None:
+                    from core.models import IngestionSettings as IngestionSettingsRow
+
+                    row = IngestionSettingsRow(
+                        workspace_id=self.workspace_id,
+                        integration_id=settings.integration_id,
+                    )
+                    db.add(row)
+                row.enabled = settings.enabled
+                row.auto_sync_new_files = settings.auto_sync_new_files
+                row.file_types = list(settings.file_types or [])
+                row.sync_folders = list(settings.sync_folders or [])
+                row.exclude_folders = list(settings.exclude_folders or [])
+                row.max_file_size_mb = settings.max_file_size_mb
+                row.sync_frequency_minutes = settings.sync_frequency_minutes
+                row.last_sync = settings.last_sync
+                db.commit()
+        except Exception as e:
+            logger.warning(
+                f"Failed to persist ingestion settings for {settings.integration_id}: {e}"
+            )
     
     def update_settings(
         self,
@@ -395,6 +497,7 @@ class AutoDocumentIngestionService:
             settings.sync_frequency_minutes = sync_frequency_minutes
         
         logger.info(f"Updated ingestion settings for {integration_id}: enabled={settings.enabled}")
+        self._persist_settings(settings)
         return settings
 
     async def process_file_bytes(
@@ -405,6 +508,8 @@ class AutoDocumentIngestionService:
         user_id: str = "system",
         workspace_id: Optional[str] = None,
         role: Optional[str] = None,
+        extra_metadata: Optional[Dict[str, Any]] = None,
+        external_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Parse raw file bytes and ingest the extracted text into Atom memory.
 
@@ -423,9 +528,13 @@ class AutoDocumentIngestionService:
                 the ingested file is relevant to. Tagged in the LanceDB metadata
                 so role-aware recall (WorldModelService) surfaces it to the right
                 employee's memory. None/empty = general knowledge.
+            external_id: SOURCE-NATIVE unique id (Drive fileId, OneDrive
+                driveItem id, Box file id, Dropbox path …). Preferred identity —
+                titles are not identity. Falls back to a SHA-256 of the
+                extracted text (content addressing) when absent.
 
         Returns:
-            Dict with ``status``, ``file_name``, ``chars_ingested``.
+            Dict with ``status``, ``file_name``, ``chars_ingested``, ``doc_id``.
         """
         file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
         if not file_ext:
@@ -437,7 +546,9 @@ class AutoDocumentIngestionService:
             logger.warning(f"Failed to parse {file_name} ({file_ext}): {parse_err}")
             return {"status": "error", "reason": "parse_failed", "file_name": file_name}
 
-        if not text or len(text.strip()) < 5:
+        # Blank-only text is junk; short-but-real content (e.g. "data") is a
+        # valid document and must not be dropped.
+        if not text or not text.strip():
             return {"status": "skipped", "reason": "no_text", "file_name": file_name}
 
         # Redact secrets before storage
@@ -453,12 +564,50 @@ class AutoDocumentIngestionService:
         ws_id = workspace_id or self.workspace_id
         chars_ingested = 0
 
+        # Per-workspace handler: the workspace override previously only
+        # stamped metadata — the row still landed in the default workspace's
+        # store, invisible to that workspace's recall.
+        _handler = self.memory_handler
+        if ws_id and ws_id != self.workspace_id:
+            try:
+                if not hasattr(self, "_ws_handlers"):
+                    self._ws_handlers: Dict[str, Any] = {}
+                if ws_id not in self._ws_handlers:
+                    from core.lancedb_handler import get_lancedb_handler
+
+                    self._ws_handlers[ws_id] = get_lancedb_handler(ws_id)
+                _handler = self._ws_handlers[ws_id]
+            except Exception as ws_handler_err:  # noqa: BLE001 — fall back to default
+                logger.warning(
+                    f"workspace handler unavailable for {ws_id}, using default: {ws_handler_err}"
+                )
+                _handler = self.memory_handler
+
         # Join-key bridge (hybrid search, Step 1): the file-ingest path creates
         # no PG IngestedDocument row, so vector hits from here can't resolve to
         # documents.cat. Stamp a stable doc_id + source_type:"file" so the
         # hybrid service can flag these as bridged:false (no PG row) rather
         # than silently returning unresolvable hits.
-        _file_doc_id = f"file_{datetime.now(timezone.utc).timestamp()}"
+        # Identity key (idempotency contract): prefer the SOURCE-NATIVE id the
+        # connector passes (external_id param, else extra_metadata fallback);
+        # otherwise fall back to a SHA-256 of the extracted text
+        # (content-addressing: identical content = one row, any filename).
+        # The id is SOURCE-SCOPED — two integrations may reuse the same raw
+        # external id string, and one file's refresh must never delete the
+        # other's row. Never key on file NAME.
+        import hashlib as _hashlib
+
+        from core.doc_freshness_service import hash_text
+
+        _content_hash = hash_text(text)
+        _external_id = str(
+            external_id or (extra_metadata or {}).get("external_id") or ""
+        ).strip()
+        if _external_id:
+            _identity_input = f"{source}:{_external_id}"
+            _file_doc_id = f"ext_{_hashlib.sha1(_identity_input.encode('utf-8')).hexdigest()[:24]}"
+        else:
+            _file_doc_id = "doc_" + _hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
 
         _meta: Dict[str, Any] = {
             "file_name": file_name,
@@ -468,27 +617,35 @@ class AutoDocumentIngestionService:
             "ingested_at": datetime.now(timezone.utc).isoformat(),
             "pg_document_id": _file_doc_id,
             "source_type": "file",
+            "source_content_hash": _content_hash,
+            "freshness_status": "fresh",
         }
+        if _external_id:
+            _meta["external_id"] = _external_id
+        # Connector-supplied context (e.g. WorkDrive folder path / root)
+        if extra_metadata:
+            _meta.update({k: v for k, v in extra_metadata.items() if v})
         # AI-employee relevance tag (Round 80): lets role-aware recall surface
         # this file to the employee whose role it was ingested for.
         if role:
             _meta["role"] = str(role).lower()
 
-        if self.memory_handler:
+        if _handler:
             try:
-                # to_thread: sync add_document from the loop thread can never
-                # embed (embed_text same-thread guard)
-                success = await asyncio.to_thread(
-                    self.memory_handler.add_document,
+                # Shared upsert contract (hash-skip / delete prior / write).
+                from core.vector_upsert import upsert_document
+
+                _upsert_status = await upsert_document(
+                    _handler,
                     table_name="documents",
                     text=text,
+                    doc_id=_file_doc_id,
                     source=f"{source}:{file_name}",
                     metadata=_meta,
                     user_id=user_id,
-                    extract_knowledge=True,
-                    doc_id=_file_doc_id,
+                    workspace_id=ws_id,
                 )
-                if success:
+                if _upsert_status == "written":
                     chars_ingested = len(text)
                     logger.info(f"Ingested {file_name} ({chars_ingested} chars) from {source}")
                     self._bridge_document_to_db(
@@ -501,7 +658,14 @@ class AutoDocumentIngestionService:
                         ws_id=ws_id,
                     )
                 else:
-                    logger.warning(f"memory_handler.add_document returned False for {file_name}")
+                    return {
+                        "status": "skipped",
+                        "reason": "unchanged",
+                        "file_name": file_name,
+                        "chars_ingested": 0,
+                        "source": source,
+                        "doc_id": _file_doc_id,
+                    }
             except Exception as ingest_err:
                 logger.error(f"Failed to ingest {file_name} to memory: {ingest_err}")
                 return {"status": "error", "reason": "ingest_failed", "file_name": file_name}
@@ -513,6 +677,7 @@ class AutoDocumentIngestionService:
             "file_name": file_name,
             "chars_ingested": chars_ingested,
             "source": source,
+            "doc_id": _file_doc_id,
         }
 
     def _bridge_document_to_db(
@@ -623,6 +788,7 @@ class AutoDocumentIngestionService:
                     external_id = file_info.get("id")
                     if external_id:
                         seen_external_ids.add(external_id)
+                    existing: Optional[IngestedDocument] = None
                     if external_id in self.ingested_docs:
                         existing = self.ingested_docs[external_id]
                         if file_info.get("modified_at") == existing.external_modified_at:
@@ -673,6 +839,13 @@ class AutoDocumentIngestionService:
 
                         source_modified = file_info.get("modified_at")
                         content_hash = hash_text(text)
+                        # Content-level idempotency: source modified_at can
+                        # change (touch/rename) without the bytes changing —
+                        # skip the rewrite and just refresh the cache marker.
+                        if existing and existing.source_content_hash == content_hash:
+                            existing.external_modified_at = source_modified
+                            results["files_skipped"] += 1
+                            continue
                         # Join-key bridge (hybrid search, Step 1): generate the PG
                         # row id BEFORE the LanceDB write and pass it as doc_id so
                         # the LanceDB documents row id equals the IngestedDocument
@@ -708,7 +881,6 @@ class AutoDocumentIngestionService:
                                 "source_type": "ingested",
                             },
                             user_id="system",
-                            extract_knowledge=True,
                             doc_id=new_id,
                             # Freshness columns as TOP-LEVEL filterable columns
                             # (not buried in the metadata JSON blob — see the
@@ -723,6 +895,20 @@ class AutoDocumentIngestionService:
                         )
 
                         if success:
+                            # Re-ingest of a modified file: remove the OLD
+                            # vector row so search returns exactly one (fresh)
+                            # copy instead of a stale+fresh duplicate pair.
+                            if existing and existing.id and existing.id != new_id:
+                                try:
+                                    await asyncio.to_thread(
+                                        self.memory_handler.delete_documents_by_id,
+                                        "documents",
+                                        existing.id,
+                                    )
+                                except Exception as old_del_err:  # noqa: BLE001 — best-effort cleanup
+                                    logger.warning(
+                                        f"Failed to remove superseded row {existing.id}: {old_del_err}"
+                                    )
                             # Record ingestion (in-memory cache + DB for
                             # cross-run freshness tracking).
                             self.ingested_docs[external_id] = IngestedDocument(
@@ -786,6 +972,7 @@ class AutoDocumentIngestionService:
                 results["freshness"] = {"error": str(reeval_err)}
 
             settings.last_sync = datetime.now(timezone.utc)
+            self._persist_settings(settings)
             results["completed_at"] = datetime.now(timezone.utc).isoformat()
             results["success"] = True
             
@@ -794,17 +981,24 @@ class AutoDocumentIngestionService:
                 try:
                     from core.atom_meta_agent import handle_data_event_trigger
                     logger.info(f"Triggering Atom Agent for {results['files_ingested']} new documents in {integration_id}")
-                    
-                    # Fire-and-forget (or await? sync_integration is async, so we can await)
-                    # We pass the summary of ingestion to Atom
-                    await handle_data_event_trigger(
+
+                    # Fire-and-forget (resolved: create_task, NOT await).
+                    # Awaiting ran a FULL meta-agent turn inline — sync
+                    # close-out blocked for minutes on LLM latency/retries.
+                    # Mirrors the turn-fact extraction pending-set pattern:
+                    # strong task ref prevents GC; done-callback discards.
+                    _trigger_task = asyncio.create_task(handle_data_event_trigger(
                         event_type="document_ingestion",
                         data={
                             "integration_id": integration_id,
                             "count": results["files_ingested"],
-                            "files": results["newly_ingested_files"] 
+                            "files": results["newly_ingested_files"]
                         },
                         workspace_id="default"
+                    ))
+                    _pending_agent_trigger_tasks.add(_trigger_task)
+                    _trigger_task.add_done_callback(
+                        lambda t: _pending_agent_trigger_tasks.discard(t)
                     )
                 except Exception as trigger_err:
                     logger.warning(f"Failed to trigger agent after ingestion: {trigger_err}")
@@ -1228,22 +1422,163 @@ class AutoDocumentIngestionService:
             return None
     
     async def _list_onedrive_files(self, settings: IngestionSettings) -> List[Dict]:
-        """List files from OneDrive"""
-        logger.info("OneDrive file listing not fully implemented")
-        return []
-    
+        """List files from OneDrive via the Graph-backed integration service."""
+        try:
+            import os
+
+            from integrations.onedrive_service import onedrive_service
+
+            access_token = os.getenv("ONEDRIVE_ACCESS_TOKEN")
+            if not access_token:
+                logger.warning("OneDrive access token not configured")
+                return []
+
+            result = await onedrive_service.list_files(
+                access_token=access_token,
+                page_size=getattr(settings, "max_files", 100),
+            )
+            if result.get("status") != "success":
+                logger.error(f"Failed to list OneDrive files: {result.get('message')}")
+                return []
+
+            files = []
+            for item in result.get("data", {}).get("value", []):
+                # Skip folders — only file items have a "file" facet.
+                if "file" not in (item or {}):
+                    continue
+                files.append({
+                    "id": item.get("id"),
+                    "name": item.get("name"),
+                    "path": item.get("parentReference", {}).get("path", ""),
+                    "size": item.get("size", 0),
+                    "modified_at": item.get("lastModifiedDateTime"),
+                    "url": item.get("webUrl"),
+                })
+            logger.info(f"Listed {len(files)} files from OneDrive")
+            return files
+
+        except Exception as e:
+            logger.error(f"OneDrive file listing error: {e}")
+            return []
+
     async def _download_onedrive_file(self, file_info: Dict) -> Optional[bytes]:
-        """Download from OneDrive"""
-        return None
-    
+        """Download from OneDrive via the Graph-backed integration service."""
+        try:
+            import os
+
+            from integrations.onedrive_service import onedrive_service
+
+            access_token = os.getenv("ONEDRIVE_ACCESS_TOKEN")
+            if not access_token:
+                logger.warning("OneDrive access token not configured")
+                return None
+
+            file_id = file_info.get("id")
+            if not file_id:
+                return None
+            return await onedrive_service.download_file_bytes(
+                access_token=access_token, file_id=file_id
+            )
+
+        except Exception as e:
+            logger.error(f"OneDrive download error: {e}")
+            return None
+
     async def _list_notion_pages(self, settings: IngestionSettings) -> List[Dict]:
-        """List pages from Notion"""
-        logger.info("Notion page listing not fully implemented")
-        return []
-    
+        """List pages from Notion via the search endpoint."""
+        try:
+            import os
+
+            from integrations.notion_service import NotionService
+
+            token = os.getenv("NOTION_ACCESS_TOKEN") or os.getenv("NOTION_API_KEY") or os.getenv("NOTION_TOKEN")
+            if not token:
+                logger.warning("Notion access token not configured")
+                return []
+
+            notion = NotionService(config={"access_token": token})
+            data = notion.search(page_size=getattr(settings, "max_files", 100))
+            pages = []
+            for item in data.get("results", []):
+                if item.get("object") != "page":
+                    continue
+                # Best-effort title: check common title property locations.
+                title = item.get("url", "").rsplit("/", 1)[-1] or "Untitled"
+                props = item.get("properties", {})
+                for value in props.values():
+                    if value.get("type") == "title" and value.get("title"):
+                        title = "".join(
+                            part.get("plain_text", "") for part in value["title"]
+                        )
+                        break
+                pages.append({
+                    "id": item.get("id"),
+                    "name": f"{title}.md",
+                    "path": title,
+                    "size": 0,
+                    "modified_at": item.get("last_edited_time"),
+                    "url": item.get("url"),
+                })
+            logger.info(f"Listed {len(pages)} pages from Notion")
+            return pages
+
+        except Exception as e:
+            logger.error(f"Notion page listing error: {e}")
+            return []
+
     async def _download_notion_content(self, file_info: Dict) -> Optional[bytes]:
-        """Get content from Notion page"""
-        return None
+        """Flatten a Notion page's blocks into markdown-ish text bytes."""
+        try:
+            import os
+
+            from integrations.notion_service import NotionService
+
+            token = os.getenv("NOTION_ACCESS_TOKEN") or os.getenv("NOTION_API_KEY") or os.getenv("NOTION_TOKEN")
+            if not token:
+                logger.warning("Notion access token not configured")
+                return None
+
+            page_id = file_info.get("id")
+            if not page_id:
+                return None
+
+            notion = NotionService(config={"access_token": token})
+            parts: List[str] = [f"# {file_info.get('path') or file_info.get('name') or page_id}"]
+            cursor = None
+            while True:
+                kwargs = {"page_size": 100}
+                if cursor:
+                    kwargs["start_cursor"] = cursor
+                data = notion.get_block_children(page_id, **kwargs)
+                results = data.get("results", [])
+                if not results and not cursor:
+                    break
+                for block in results:
+                    # Any rich-text-bearing sub-key of the block payload.
+                    for value in block.values():
+                        if isinstance(value, dict) and isinstance(value.get("rich_text"), list):
+                            text = "".join(
+                                rt.get("plain_text", "")
+                                for rt in value["rich_text"]
+                            )
+                            if text:
+                                prefix = "- " if block.get("type") == "bulleted_list_item" else ""
+                                parts.append(prefix + text)
+                        elif isinstance(value, dict) and isinstance(value.get("title"), list):
+                            text = "".join(
+                                rt.get("plain_text", "") for rt in value["title"]
+                            )
+                            if text:
+                                parts.append(text)
+                cursor = data.get("next_cursor")
+                if not data.get("has_more") or not cursor:
+                    break
+
+            return "\n\n".join(parts).encode("utf-8")
+
+        except Exception as e:
+            logger.error(f"Notion content download error: {e}")
+            return None
     
     def get_ingested_documents(
         self, 
@@ -1270,16 +1605,36 @@ class AutoDocumentIngestionService:
         """
         count = 0
         removed_ids = []
-        
+
         for ext_id, doc in list(self.ingested_docs.items()):
             if doc.integration_id == integration_id:
                 removed_ids.append(ext_id)
+                # Real vector cleanup: delete the stored row by its doc id.
+                if self.memory_handler and doc.id:
+                    try:
+                        await asyncio.to_thread(
+                            self.memory_handler.delete_documents_by_id,
+                            "documents",
+                            doc.id,
+                        )
+                    except Exception as del_err:  # noqa: BLE001 — removal best-effort
+                        logger.warning(f"LanceDB delete failed for {doc.id}: {del_err}")
                 del self.ingested_docs[ext_id]
                 count += 1
-        
-        # In production, also delete from LanceDB
-        # self.memory_handler.delete_by_metadata("integration_id", integration_id)
-        
+
+        # Best-effort removal of the durable freshness rows so deleted docs
+        # don't reappear in freshness reevaluations.
+        try:
+            from core.models import IngestedDocument as IngestedDocumentRow
+
+            with self._freshness_session() as db:
+                db.query(IngestedDocumentRow).filter(
+                    IngestedDocumentRow.integration_id == integration_id
+                ).delete(synchronize_session=False)
+                db.commit()
+        except Exception as db_err:  # noqa: BLE001
+            logger.warning(f"IngestedDocument cleanup skipped for {integration_id}: {db_err}")
+
         logger.info(f"Removed {count} documents from {integration_id}")
         
         return {
@@ -1306,16 +1661,38 @@ class AutoDocumentIngestionService:
         ]
 
 
-# Global internal instance for single-tenant
+# Per-workspace singleton registry (R84d). ``_doc_ingestion_service`` is kept
+# as the "default"-workspace alias for backward compatibility.
 _doc_ingestion_service: Optional[AutoDocumentIngestionService] = None
+_doc_ingestion_services: Dict[str, AutoDocumentIngestionService] = {}
 
 
-def get_document_ingestion_service() -> AutoDocumentIngestionService:
-    """Get or create the document ingestion service"""
+def get_document_ingestion_service(
+    workspace_id: str = "default",
+) -> AutoDocumentIngestionService:
+    """Get or create the document ingestion service for a workspace.
+
+    One instance per workspace: each binds its own LanceDB handler, settings
+    cache and durable ``ingestion_settings`` rows to that workspace. Callers
+    that pass no workspace get the shared "default" instance (previous
+    behavior).
+    """
     global _doc_ingestion_service
-    if _doc_ingestion_service is None:
-        _doc_ingestion_service = AutoDocumentIngestionService()
-    return _doc_ingestion_service
+    ws = (workspace_id or "default").strip() or "default"
+    service = _doc_ingestion_services.get(ws)
+    if service is None:
+        service = AutoDocumentIngestionService(workspace_id=ws)
+        _doc_ingestion_services[ws] = service
+        if ws == "default":
+            _doc_ingestion_service = service
+    return service
+
+
+def reset_document_ingestion_services() -> None:
+    """Drop all cached per-workspace instances (test isolation helper)."""
+    global _doc_ingestion_service
+    _doc_ingestion_services.clear()
+    _doc_ingestion_service = None
 
 
 # Alias for backward compatibility with tests

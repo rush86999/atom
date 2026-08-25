@@ -28,6 +28,57 @@ PRICING_CACHE_PATH = Path("./data/ai_pricing_cache.json")
 # Cache duration (24 hours)
 CACHE_DURATION_HOURS = 24
 
+# Phase M staleness gate (plan v2): rolling per-refresh diff history for the
+# openrouter slice of the cache + BPC-side expired-candidate counters.
+# Measurement ONLY — decides whether a server-side query-param candidate path
+# is ever worth building (see docs/testing/TESTED_FILES_TRACKER.md).
+STALENESS_STATS_PATH = Path("./data/pricing_staleness_stats.json")
+STALENESS_HISTORY_CAP = 50
+
+
+def is_expiration_past(value: Optional[str], now: Optional[datetime] = None) -> bool:
+    """True when an OpenRouter ``expiration_date`` is in the past.
+
+    Tolerant by design: None/empty/unparseable → False (fail-open; the date
+    semantically means "may be removed", never a hard routing signal here).
+    """
+    if not value:
+        return False
+    try:
+        exp = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if exp.tzinfo is not None:
+            exp = exp.replace(tzinfo=None)
+        return exp < (now or datetime.now())
+    except (ValueError, TypeError):
+        return False
+
+
+def compute_staleness_stats(
+    previous: Dict[str, Any],
+    current: Dict[str, Any],
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """Diff the openrouter-sourced slice of two pricing caches.
+
+    Returns added/removed model ids, ids still cached past their
+    ``expiration_date``, and the current openrouter count.
+    """
+    prev_or = {k for k, v in (previous or {}).items()
+               if isinstance(v, dict) and v.get("source") == "openrouter"}
+    curr_items = {k: v for k, v in (current or {}).items()
+                  if isinstance(v, dict) and v.get("source") == "openrouter"}
+    curr_keys = set(curr_items)
+    expired = sorted(
+        mid for mid, v in curr_items.items() if is_expiration_past(v.get("expiration_date"), now)
+    )
+    return {
+        "generated_at": (now or datetime.now()).isoformat(),
+        "added": sorted(curr_keys - prev_or),
+        "removed": sorted(prev_or - curr_keys),
+        "expired_served": expired,
+        "openrouter_count": len(curr_keys),
+    }
+
 
 class DynamicPricingFetcher:
     """
@@ -39,6 +90,9 @@ class DynamicPricingFetcher:
     def __init__(self):
         self.pricing_cache: Dict[str, Any] = {}
         self.last_fetch: Optional[datetime] = None
+        # Phase M staleness measurement (see module docstring near STALENESS_STATS_PATH)
+        self.bpc_stale_seen: Dict[str, int] = {}
+        self.staleness_history: List[Dict[str, Any]] = []
         self._load_cache()
     
     def _load_cache(self):
@@ -202,6 +256,9 @@ class DynamicPricingFetcher:
                         "name": model.get("name", model_id),
                         "description": model.get("description", ""),
                         "source": "openrouter",
+                        # Phase M freshness fields (measurement only)
+                        "expiration_date": model.get("expiration_date"),
+                        "created": model.get("created"),
                         # Critical: set litellm_provider so the BPC ranker can
                         # route these models to the openrouter client. Without
                         # this, the substring match in byok_handler.get_ranked_providers
@@ -307,6 +364,7 @@ class DynamicPricingFetcher:
             return self.pricing_cache
 
         # Fetch from all sources
+        previous_cache = dict(self.pricing_cache)
         litellm_pricing = await self.fetch_litellm_pricing()
         openrouter_pricing = await self.fetch_openrouter_pricing()
         opencode_pricing = await self.fetch_opencode_pricing()
@@ -325,10 +383,72 @@ class DynamicPricingFetcher:
 
         self.last_fetch = datetime.now()
 
+        # Phase M: per-refresh staleness diff (openrouter slice only). The
+        # first sample records the cold-boot baseline; never raises into the
+        # refresh path.
+        try:
+            self._record_staleness_stats(
+                compute_staleness_stats(previous_cache, self.pricing_cache)
+            )
+        except Exception as e:
+            logger.debug(f"Staleness accounting skipped: {e}")
+
         # Save to cache
         self._save_cache()
 
         return self.pricing_cache
+
+    def _or_entry(self, model_id: str) -> Dict[str, Any]:
+        """Canonical minimal openrouter-sourced pricing entry (tests/tools)."""
+        return {
+            "source": "openrouter",
+            "litellm_provider": "openrouter",
+            "input_cost_per_token": 0.0,
+            "output_cost_per_token": 0.0,
+            "max_tokens": 0,
+            "name": model_id,
+        }
+
+    def _record_staleness_stats(self, stats: Dict[str, Any]) -> None:
+        """Append to in-memory history + rolling JSON file (last N samples)."""
+        self.staleness_history.append(stats)
+        del self.staleness_history[:-STALENESS_HISTORY_CAP]
+        if stats.get("expired_served"):
+            logger.warning(
+                f"Pricing cache serving {len(stats['expired_served'])} expired "
+                f"openrouter models: {stats['expired_served'][:5]}"
+            )
+        try:
+            STALENESS_STATS_PATH.parent.mkdir(exist_ok=True)
+            with open(STALENESS_STATS_PATH, "w") as f:
+                json.dump({"history": self.staleness_history}, f, indent=2)
+        except Exception as e:
+            logger.debug(f"Could not persist staleness stats: {e}")
+
+    def record_stale_consideration(self, model_id: str) -> None:
+        """BPC hook: candidate considered whose expiration_date has passed.
+
+        Measurement only — never influences ranking (an expired date means
+        "may be removed", not "is removed").
+        """
+        self.bpc_stale_seen[model_id] = self.bpc_stale_seen.get(model_id, 0) + 1
+
+    def staleness_summary(self) -> Dict[str, Any]:
+        """Aggregate view for the /api/ai/pricing/staleness-stats route."""
+        currently_expired = sorted({
+            mid for mid, entry in self.pricing_cache.items()
+            if isinstance(entry, dict)
+            and entry.get("source") == "openrouter"
+            and is_expiration_past(entry.get("expiration_date"))
+        })
+        return {
+            "refresh_samples": len(self.staleness_history),
+            "latest": self.staleness_history[-1] if self.staleness_history else None,
+            "added_total": sum(len(s.get("added", [])) for s in self.staleness_history),
+            "removed_total": sum(len(s.get("removed", [])) for s in self.staleness_history),
+            "expired_models_currently_cached": currently_expired,
+            "bpc_stale_considerations": dict(self.bpc_stale_seen),
+        }
     
     def get_model_price(self, model_name: str) -> Optional[Dict[str, Any]]:
         """Get pricing for a specific model"""

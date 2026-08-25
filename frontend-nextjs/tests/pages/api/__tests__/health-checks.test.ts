@@ -50,7 +50,7 @@ describe("pages/api/integrations/zoom/health", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ status: "healthy", service: "zoom" });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5059/api/zoom/v1/health",
+      "http://127.0.0.1:8000/api/zoom/v1/health",
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -189,10 +189,10 @@ describe("pages/api/integrations/google-workspace/health", () => {
     });
     const requestedUrls = mockFetch.mock.calls.map((c: any[]) => c[0]);
     expect(requestedUrls).toEqual([
-      "http://localhost:5058/api/google-drive/health",
-      "http://localhost:5058/api/gmail/health",
-      "http://localhost:5058/api/calendar/health",
-      "http://localhost:5058/api/google-workspace/health",
+      "http://127.0.0.1:8000/api/google-drive/health",
+      "http://127.0.0.1:8000/api/gmail/health",
+      "http://127.0.0.1:8000/api/calendar/health",
+      "http://127.0.0.1:8000/api/google-workspace/health",
     ]);
   });
 
@@ -256,8 +256,9 @@ describe("pages/api/integrations/microsoft365/health", () => {
     expect(body.connected_count).toBe(3);
     expect(body.total_services).toBe(3);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5059/api/integrations/microsoft365/health",
-    );
+      "http://127.0.0.1:8000/api/integrations/microsoft365/health",
+      expect.anything(),
+      );
   });
 
   it("marks every service disconnected when the backend responds not-ok", async () => {
@@ -307,7 +308,7 @@ describe("pages/api/integrations/tableau/health", () => {
       auth: { status: "healthy", connected: true },
       api: { status: "healthy", connected: true },
     });
-    expect(mockFetch).toHaveBeenCalledWith("http://localhost:5059/api/tableau/health", {
+    expect(mockFetch).toHaveBeenCalledWith("http://127.0.0.1:8000/api/tableau/health", {
       method: "HEAD",
     });
   });
@@ -374,8 +375,9 @@ describe("pages/api/integrations/teams/health", () => {
       backend_response: { status: "connected" },
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5059/api/teams/status",
-    );
+      "http://127.0.0.1:8000/api/teams/status",
+      expect.anything(),
+      );
   });
 
   it("reports disconnected when the backend reports another status", async () => {

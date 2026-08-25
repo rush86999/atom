@@ -233,7 +233,7 @@ class TestTextsSection:
         kwargs = import_handler.add_document.call_args.kwargs
         assert kwargs["table_name"] == "business_facts"
         assert kwargs["doc_id"] == "orgbundle:fact-1"  # deterministic → idempotent
-        assert kwargs["extract_knowledge"] is False
+        assert "extract_knowledge" not in kwargs  # dead param removed (R84)
 
     async def test_restricted_fact_excluded(self, key_file, db):
         facts = [{"id": "f", "text": "salary data", "metadata": {"sensitivity": "restricted"}}]

@@ -244,7 +244,26 @@ class Gatekeeper:
                         "max_observed": taint_decision.get("max_observed"),
                     }
             except Exception as e:
-                logger.debug("taint check skipped for %s: %s", service, e)
+                # FAIL CLOSED (repo posture, cf. _check_hitl_policy): a taint
+                # tracker that cannot answer means we cannot prove the outbound
+                # is clean of restricted data — block rather than allow.
+                logger.error(
+                    "taint check unavailable for %s; failing CLOSED: %s", service, e
+                )
+                self._write_audit(
+                    service=service, action=action, agent_id=agent_id,
+                    workspace_id=workspace_id, allowed=False,
+                    reason=f"taint check error: {type(e).__name__}",
+                )
+                return {
+                    "allowed": False,
+                    "reason": (
+                        "Data-sensitivity check unavailable; action blocked "
+                        "(fail-closed). Retry once the tracker recovers."
+                    ),
+                    "violation_type": None,
+                    "max_observed": None,
+                }
 
         # 2. HITL approval for configured mutations.
         if allowed:

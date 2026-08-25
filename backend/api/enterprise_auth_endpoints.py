@@ -96,13 +96,15 @@ async def register_user(
         # Hash password
         password_hash = auth_service.hash_password(user_data.password)
 
-        # Create user
+        # SECURITY: role is hardcoded — a client-supplied role here previously
+        # allowed self-service escalation to super_admin/workspace_admin
+        # (same bug already fixed in core.auth_endpoints).
         user = User(
             email=user_data.email,
             hashed_password=password_hash,
             first_name=user_data.first_name,
             last_name=user_data.last_name,
-            role=user_data.role,
+            role="member",
             status="active",
             created_at=datetime.now(timezone.utc)
         )

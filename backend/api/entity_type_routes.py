@@ -23,12 +23,16 @@ class EntityTypeCreate(BaseModel):
     json_schema: Dict[str, Any]
     description: Optional[str] = None
     available_skills: Optional[List[str]] = None
+    is_active: Optional[bool] = None  # None → service default (True)
 
 class EntityTypeUpdate(BaseModel):
     display_name: Optional[str] = None
     json_schema: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
     available_skills: Optional[List[str]] = None
+    # Activates/deactivates — the ONLY path that promotes auto-discovered
+    # drafts (schema discovery creates types as inactive).
+    is_active: Optional[bool] = None
 
 class EntityTypeSuggestRequest(BaseModel):
     display_name: str
@@ -41,14 +45,17 @@ async def create_entity_type(workspace_id: str, request: EntityTypeCreate, curre
     """Create a new entity type."""
     service = get_entity_type_service()
     try:
-        entity_type = service.create_entity_type(
+        create_kwargs: Dict[str, Any] = dict(
             tenant_id=workspace_id,
             slug=request.slug,
             display_name=request.display_name,
             json_schema=request.json_schema,
             description=request.description,
-            available_skills=request.available_skills
+            available_skills=request.available_skills,
         )
+        if request.is_active is not None:
+            create_kwargs["is_active"] = request.is_active
+        entity_type = service.create_entity_type(**create_kwargs)
         return router.success_response(
             data={"id": entity_type.id, "slug": entity_type.slug},
             message="Entity type created successfully"
@@ -57,10 +64,20 @@ async def create_entity_type(workspace_id: str, request: EntityTypeCreate, curre
         raise router.validation_error("entity_type", str(e))
 
 @router.get("")
-async def list_entity_types(workspace_id: str, include_system: bool = False, current_user: User = Depends(get_current_user)):
-    """List entity types."""
+async def list_entity_types(
+    workspace_id: str,
+    include_system: bool = False,
+    include_drafts: bool = False,
+    current_user: User = Depends(get_current_user)
+):
+    """List entity types. Drafts (auto-discovered, inactive) are hidden by
+    default; pass ``include_drafts=true`` to review them."""
     service = get_entity_type_service()
-    entity_types = service.list_entity_types(tenant_id=workspace_id, include_system=include_system)
+    entity_types = service.list_entity_types(
+        tenant_id=workspace_id,
+        include_system=include_system,
+        is_active=None if include_drafts else True,
+    )
     return router.success_response(
         data=[
             {
@@ -70,7 +87,8 @@ async def list_entity_types(workspace_id: str, include_system: bool = False, cur
                 "description": et.description,
                 "json_schema": et.json_schema,
                 "available_skills": et.available_skills,
-                "is_system": et.is_system
+                "is_system": et.is_system,
+                "is_active": et.is_active,
             }
             for et in entity_types
         ]
@@ -78,12 +96,15 @@ async def list_entity_types(workspace_id: str, include_system: bool = False, cur
 
 @router.get("/{entity_type_id}")
 async def get_entity_type(workspace_id: str, entity_type_id: str, current_user: User = Depends(get_current_user)):
-    """Get entity type by ID."""
+    """Get entity type by ID. Auto-discovered drafts are included — an admin
+    must be able to review a draft before activating it."""
     service = get_entity_type_service()
-    entity_type = service.get_entity_type(tenant_id=workspace_id, entity_type_id=entity_type_id)
+    entity_type = service.get_entity_type(
+        tenant_id=workspace_id, entity_type_id=entity_type_id, include_inactive=True
+    )
     if not entity_type:
         raise router.not_found_error("EntityType", entity_type_id)
-    
+
     return router.success_response(data={
         "id": entity_type.id,
         "slug": entity_type.slug,
@@ -91,12 +112,14 @@ async def get_entity_type(workspace_id: str, entity_type_id: str, current_user: 
         "description": entity_type.description,
         "json_schema": entity_type.json_schema,
         "available_skills": entity_type.available_skills,
-        "is_system": entity_type.is_system
+        "is_system": entity_type.is_system,
+        "is_active": entity_type.is_active,
     })
 
 @router.patch("/{entity_type_id}")
 async def update_entity_type(workspace_id: str, entity_type_id: str, request: EntityTypeUpdate, current_user: User = Depends(get_current_user)):
-    """Update entity type."""
+    """Update entity type. Pass ``is_active`` to promote an auto-discovered
+    draft (or retire a type)."""
     service = get_entity_type_service()
     try:
         entity_type = service.update_entity_type(
@@ -105,8 +128,21 @@ async def update_entity_type(workspace_id: str, entity_type_id: str, request: En
             display_name=request.display_name,
             json_schema=request.json_schema,
             description=request.description,
-            available_skills=request.available_skills
+            available_skills=request.available_skills,
+            is_active=request.is_active,
         )
+        # Stamp the human decision so the ontology draft automation never
+        # overrides it (manual retirement stays retired; a manual promotion
+        # defers automation until it re-decides after a newer pass).
+        if request.is_active is not None:
+            actor = getattr(current_user, "id", None)
+            if actor:
+                service.record_manual_decision(
+                    tenant_id=workspace_id,
+                    entity_type_id=entity_type_id,
+                    by=f"user:{actor}",
+                    is_active=request.is_active,
+                )
         return router.success_response(
             data={"id": entity_type.id},
             message="Entity type updated successfully"

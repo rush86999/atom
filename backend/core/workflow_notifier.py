@@ -23,6 +23,9 @@ class NotificationSettings:
     enabled: bool = True
     notify_on_success: bool = True
     notify_on_failure: bool = True
+    # HITL: a paused workflow is always blocked on a human, so pause alerts
+    # default on independently of success/failure toggles.
+    notify_on_pause: bool = True
     
     # Slack settings
     slack_enabled: bool = True
@@ -161,6 +164,59 @@ class WorkflowNotifier:
                 body=message.replace("*", "").replace("`", "")
             )
     
+    async def notify_paused(
+        self,
+        workflow_id: str,
+        workflow_name: str,
+        execution_id: str,
+        reason: str,
+        step_id: str = "",
+        missing_var: Optional[str] = None,
+        hitl_action_id: Optional[str] = None,
+        settings: Optional[NotificationSettings] = None
+    ):
+        """Send notification when a workflow pauses awaiting human input (HITL).
+
+        Fired for missing-input pauses and for trust-policy/governance denials
+        where an agent is not autonomous enough to proceed unreviewed.
+        """
+        settings = settings or get_notification_settings(workflow_id)
+
+        if not settings.enabled or not settings.notify_on_pause:
+            logger.info(f"Pause notifications disabled for workflow {workflow_id}")
+            return
+
+        lines = [
+            f"⏸️ *Workflow Paused — Action Needed*",
+            f"• Name: `{workflow_name}`",
+            f"• Execution ID: `{execution_id}`",
+        ]
+        if step_id:
+            lines.append(f"• Step: `{step_id}`")
+        if missing_var:
+            lines.append(f"• Missing Input: `{missing_var}`")
+        if hitl_action_id:
+            lines.append(f"• Approval Request: `{hitl_action_id}`")
+        lines.append(f"• Reason: {reason}")
+        message = "\n".join(lines)
+
+        # Add mentions (pause always needs a human, like failure)
+        if settings.slack_mention_users:
+            mentions = " ".join([f"<@{uid}>" for uid in settings.slack_mention_users])
+            message = f"{mentions}\n{message}"
+
+        # Send Slack notification
+        if settings.slack_enabled:
+            await self._send_slack(settings.slack_channel or self.default_slack_channel, message)
+
+        # Send Email notification
+        if settings.email_enabled and settings.email_recipients:
+            await self._send_email(
+                recipients=settings.email_recipients,
+                subject=f"⏸️ Workflow Paused: {workflow_name}",
+                body=message.replace("*", "").replace("`", "")
+            )
+
     async def _send_slack(self, channel: str, message: str):
         """Send Slack message using system configuration"""
         if not self.slack_token:

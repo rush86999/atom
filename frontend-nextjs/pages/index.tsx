@@ -125,7 +125,11 @@ const Home = () => {
           }).catch(() => null);
           if (res && res.ok) {
             const data = await res.json().catch(() => null);
-            if (data && !data.onboarding_completed) {
+            // R83: unwrap the success envelope ({success, data: {...}}) — the
+            // bare read treated `undefined` as "not completed" and re-opened
+            // the wizard for users who had already finished it.
+            const status = data?.data?.onboarding_completed ?? data?.onboarding_completed;
+            if (data && !status) {
               setShowWizard(true);
               // Fetch full user details for wizard personalized greeting
               const userRes = await fetch(`${API_BASE}/api/users/me`, {

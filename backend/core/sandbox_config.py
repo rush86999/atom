@@ -37,8 +37,14 @@ import from anywhere, including the policy module.
 """
 from __future__ import annotations
 
-import os
 from typing import Tuple
+
+from core.runtime_settings import (
+    get_bool_setting,
+    get_float_setting,
+    get_int_setting,
+    get_setting,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -132,7 +138,7 @@ def get_sandbox_runtime() -> str:
     on rollout). Operators flip to ``firecracker`` (self-hosted microVM)
     or ``e2b`` (managed) after Phase D lands and the host is provisioned.
     """
-    val = os.getenv("ATOM_SANDBOX_RUNTIME", "docker").strip().lower()
+    val = str(get_setting("ATOM_SANDBOX_RUNTIME", "docker") or "docker").strip().lower()
     if val not in _VALID_RUNTIMES:
         return "docker"
     return val
@@ -149,34 +155,22 @@ def get_sandbox_max_bytes_written() -> int:
     Per-run policy may override; this is the floor for tier-floor issuance
     when the caller supplies no explicit cap.
     """
-    try:
-        return max(0, int(os.getenv("ATOM_SANDBOX_MAX_BYTES_WRITTEN", str(100 * 1024 * 1024))))
-    except (TypeError, ValueError):
-        return 100 * 1024 * 1024
+    return max(0, get_int_setting("ATOM_SANDBOX_MAX_BYTES_WRITTEN", 100 * 1024 * 1024))
 
 
 def get_sandbox_max_exec_seconds() -> int:
     """Default wall-clock cap per run, in seconds (default 600 = 10min)."""
-    try:
-        return max(1, int(os.getenv("ATOM_SANDBOX_MAX_EXEC_SECONDS", "600")))
-    except (TypeError, ValueError):
-        return 600
+    return max(1, get_int_setting("ATOM_SANDBOX_MAX_EXEC_SECONDS", 600))
 
 
 def get_sandbox_max_tool_calls() -> int:
     """Default cumulative tool-call count cap per run (default 200)."""
-    try:
-        return max(1, int(os.getenv("ATOM_SANDBOX_MAX_TOOL_CALLS", "200")))
-    except (TypeError, ValueError):
-        return 200
+    return max(1, get_int_setting("ATOM_SANDBOX_MAX_TOOL_CALLS", 200))
 
 
 def get_sandbox_max_cost_usd() -> float:
     """Default cumulative LLM spend cap per run, in USD (default 5.0)."""
-    try:
-        return max(0.0, float(os.getenv("ATOM_SANDBOX_MAX_COST_USD", "5.0")))
-    except (TypeError, ValueError):
-        return 5.0
+    return max(0.0, get_float_setting("ATOM_SANDBOX_MAX_COST_USD", 5.0))
 
 
 # ---------------------------------------------------------------------------
@@ -186,26 +180,17 @@ def get_sandbox_max_cost_usd() -> float:
 
 def get_sandbox_vm_mem_mb() -> int:
     """Per-microVM memory in MiB (default 256)."""
-    try:
-        return max(64, int(os.getenv("ATOM_SANDBOX_VM_MEM_MB", "256")))
-    except (TypeError, ValueError):
-        return 256
+    return max(64, get_int_setting("ATOM_SANDBOX_VM_MEM_MB", 256))
 
 
 def get_sandbox_vm_vcpus() -> int:
     """Per-microVM vCPU count (default 1)."""
-    try:
-        return max(1, int(os.getenv("ATOM_SANDBOX_VM_VCPUS", "1")))
-    except (TypeError, ValueError):
-        return 1
+    return max(1, get_int_setting("ATOM_SANDBOX_VM_VCPUS", 1))
 
 
 def get_sandbox_vm_boot_timeout_seconds() -> int:
     """MicroVM boot timeout in seconds (default 5)."""
-    try:
-        return max(1, int(os.getenv("ATOM_SANDBOX_VM_BOOT_TIMEOUT_SECONDS", "5")))
-    except (TypeError, ValueError):
-        return 5
+    return max(1, get_int_setting("ATOM_SANDBOX_VM_BOOT_TIMEOUT_SECONDS", 5))
 
 
 # ---------------------------------------------------------------------------
@@ -219,10 +204,7 @@ def get_sandbox_judge_timeout_seconds() -> float:
     Mirrors the ``MATCH_CONFIDENCE_TIEBREAKER_TIMEOUT`` pattern — budget
     tier, fail-open on timeout.
     """
-    try:
-        return max(0.1, float(os.getenv("ATOM_SANDBOX_JUDGE_TIMEOUT_SECONDS", "2.0")))
-    except (TypeError, ValueError):
-        return 2.0
+    return max(0.1, get_float_setting("ATOM_SANDBOX_JUDGE_TIMEOUT_SECONDS", 2.0))
 
 
 def get_sandbox_judge_circuit_threshold() -> int:
@@ -231,18 +213,12 @@ def get_sandbox_judge_circuit_threshold() -> int:
     Mirrors ``_CircuitBreaker`` in ``match_confidence_tiebreaker.py`` and
     ``turn_fact_extractor.py``.
     """
-    try:
-        return max(1, int(os.getenv("ATOM_SANDBOX_JUDGE_CIRCUIT_THRESHOLD", "5")))
-    except (TypeError, ValueError):
-        return 5
+    return max(1, get_int_setting("ATOM_SANDBOX_JUDGE_CIRCUIT_THRESHOLD", 5))
 
 
 def get_sandbox_judge_circuit_cooldown_seconds() -> int:
     """Open-circuit cooldown in seconds (default 120)."""
-    try:
-        return max(1, int(os.getenv("ATOM_SANDBOX_JUDGE_CIRCUIT_COOLDOWN_SECONDS", "120")))
-    except (TypeError, ValueError):
-        return 120
+    return max(1, get_int_setting("ATOM_SANDBOX_JUDGE_CIRCUIT_COOLDOWN_SECONDS", 120))
 
 
 # ---------------------------------------------------------------------------
@@ -261,4 +237,4 @@ def _flag(env_var: str, default: str = "false") -> bool:
     kill switch (``ATOM_SANDBOX_FORCE_ENFORCE=false`` etc.) restores the prior
     behavior instantly.
     """
-    return os.getenv(env_var, default).strip().lower() in {"1", "true", "yes", "on"}
+    return get_bool_setting(env_var, default.strip().lower() in {"1", "true", "yes", "on"})

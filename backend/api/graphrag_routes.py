@@ -42,8 +42,11 @@ async def ingest_document(request: IngestRequest, current_user: User = Depends(g
     """Ingest a document into GraphRAG"""
     from core.graphrag_engine import graphrag_engine
 
+    # R83: partition by workspace (recall sites read the workspace partition),
+    # not user_id — per-user writes were invisible to agent recall.
+    _ws = getattr(current_user, "workspace_id", None) or "default"
     await graphrag_engine.ingest_document(
-        workspace_id=request.user_id,
+        workspace_id=_ws,
         doc_id=request.doc_id,
         text=request.text,
         source=request.source
@@ -185,9 +188,11 @@ async def build_communities(user_id: str, current_user: User = Depends(get_curre
     """Build communities for a user"""
     from core.graphrag_engine import graphrag_engine
 
-    count = graphrag_engine.build_communities(user_id)
+    # R83: workspace partition, not user-id partition (see /ingest note)
+    _ws = getattr(current_user, "workspace_id", None) or "default"
+    count = graphrag_engine.build_communities(_ws)
     return router.success_response(
-        data={"user_id": user_id},
+        data={"user_id": user_id, "workspace_id": _ws},
         message=f"Built {count} communities"
     )
 
@@ -196,7 +201,9 @@ async def query_graphrag(request: QueryRequest, current_user: User = Depends(get
     """Query GraphRAG (global or local search)"""
     from core.graphrag_engine import graphrag_engine
 
-    result = await graphrag_engine.query(request.workspace_id, request.query, request.mode)
+    # R83: align with the workspace partition agents actually recall from
+    _ws = request.workspace_id or getattr(current_user, "workspace_id", None) or "default"
+    result = await graphrag_engine.query(_ws, request.query, request.mode)
     return router.success_response(
         data=result,
         message="Query executed successfully"
@@ -225,12 +232,14 @@ async def get_ai_context(user_id: str, query: str, current_user: User = Depends(
     """Get context for AI nodes"""
     from core.graphrag_engine import graphrag_engine
 
+    # R83: workspace partition (see /ingest note)
+    _ws = getattr(current_user, "workspace_id", None) or "default"
     context = await graphrag_engine.get_context_for_ai(
-        workspace_id=user_id,
+        workspace_id=_ws,
         query=query
     )
     return router.success_response(
-        data={"user_id": user_id, "context": context},
+        data={"user_id": user_id, "workspace_id": _ws, "context": context},
         message="Context retrieved successfully"
     )
 

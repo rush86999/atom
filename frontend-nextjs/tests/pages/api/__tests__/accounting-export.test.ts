@@ -89,7 +89,7 @@ describe("pages/api/accounting/export", () => {
     // node-mocks-http keeps a Buffer passed to send() in _data verbatim.
     expect(res._getData().toString()).toBe("header");
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/ai-accounting/export/gl?workspace_id=default",
+      "http://127.0.0.1:8000/api/ai-accounting/export/gl?workspace_id=default",
       { headers: { Authorization: "Bearer tok" } },
     );
   });
@@ -108,7 +108,7 @@ describe("pages/api/accounting/export", () => {
       JSON.stringify({ accounts: [{ name: "Cash", balance: 10 }] }, null, 2),
     );
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:8000/api/ai-accounting/export/trial-balance?workspace_id=default",
+      "http://127.0.0.1:8000/api/ai-accounting/export/trial-balance?workspace_id=default",
     );
   });
 

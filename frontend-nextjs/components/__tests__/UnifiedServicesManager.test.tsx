@@ -26,7 +26,10 @@ import { server } from '@/tests/mocks/server';
 
 import { UnifiedServicesManager } from '../UnifiedServicesManager';
 
-const BASE = 'http://localhost:8000';
+// The component fetches relative URLs (process.env.NEXT_PUBLIC_API_BASE_URL
+// unset in tests); MSW resolves those against the jsdom origin, so handlers
+// must be host-agnostic paths rather than absolute http://localhost:8000 URLs.
+const BASE = '';
 
 const implPayload = {
   environment: 'production',
@@ -325,7 +328,8 @@ describe('UnifiedServicesManager', () => {
 
     render(<UnifiedServicesManager />);
 
-    // network error → message from the thrown Error ("Failed to fetch")
+    // network error → fetch rejects with a plain TypeError; the component
+    // surfaces err.message ("Failed to fetch")
     expect(await screen.findByText('Failed to fetch')).toBeInTheDocument();
   });
 });

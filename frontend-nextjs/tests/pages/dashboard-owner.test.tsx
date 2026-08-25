@@ -37,8 +37,10 @@ jest.mock("sonner", () => ({
 }));
 
 const PAYLOAD = {
-  metrics: { revenue: 100 },
-  briefing: { owner_advice: "Focus on churn", priorities: ["Call Acme", "Review pricing"] },
+  data: [
+    { id: "p1", type: "GROWTH", title: "Call Acme", description: "Renewal call", priority: "HIGH", action_link: "/sales" },
+    { id: "p2", type: "RISK", title: "Review pricing", description: "Margin check", priority: "MEDIUM", action_link: "/finance" },
+  ],
 };
 
 describe("OwnerDashboard", () => {
@@ -62,13 +64,13 @@ describe("OwnerDashboard", () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => PAYLOAD });
     render(<OwnerDashboard />);
 
-    await waitFor(() => expect(screen.getByTestId("health-metrics-grid")).toBeInTheDocument());
-    expect(latestMetrics).toEqual(PAYLOAD.metrics);
+    await waitFor(() => expect(screen.getByTestId("daily-briefing-card")).toBeInTheDocument());
+    expect(screen.queryByTestId("health-metrics-grid")).not.toBeInTheDocument();
     expect(screen.getByTestId("daily-briefing-card")).toBeInTheDocument();
-    expect(latestBriefing).toEqual({
-      advice: "Focus on churn",
-      priorities: ["Call Acme", "Review pricing"],
-    });
+    expect(latestBriefing).toEqual(expect.objectContaining({
+      advice: expect.stringContaining("2 prioritized actions"),
+      priorities: expect.any(Array),
+    }));
     expect(screen.getByText("Owner Cockpit")).toBeInTheDocument();
     expect(screen.getByText("Open Simulator (Coming Soon)")).toBeDisabled();
   });
@@ -94,11 +96,11 @@ describe("OwnerDashboard", () => {
     mockFetch.mockResolvedValue({ ok: true, json: async () => PAYLOAD });
     render(<OwnerDashboard />);
     // Wait for the load to finish so the Refresh button is enabled again.
-    await waitFor(() => expect(screen.getByTestId("health-metrics-grid")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("daily-briefing-card")).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("button", { name: /Refresh/ }));
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
-    expect(mockFetch).toHaveBeenCalledWith("/api/business-health/dashboard");
+    expect(mockFetch).toHaveBeenCalledWith("/api/business-health/priorities");
   });
 
   test("refresh button is disabled while loading", async () => {

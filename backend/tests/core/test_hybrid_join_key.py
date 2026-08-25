@@ -112,9 +112,12 @@ async def test_api_ingest_document_passes_doc_id_to_lancedb():
 
     assert handler_calls, "add_document was not called"
     kwargs = handler_calls[0]
-    assert kwargs["doc_id"] == doc_id, "API ingest must pass doc_id into LanceDB"
-    assert kwargs["metadata"].get("doc_id") == doc_id
-    assert resp.id == doc_id
+    # Upsert contract: user-submitted text has no external record id, so the
+    # CONTENT hash is the document identity — same content → same row id.
+    expected_id = doc_routes._content_doc_key("Some knowledge content about revenue.")
+    assert kwargs["doc_id"] == expected_id, "API ingest must pass its stable doc_id into LanceDB"
+    assert kwargs["metadata"].get("doc_id") == expected_id
+    assert resp.id == expected_id
 
 
 def test_file_ingest_path_stamps_source_type_and_doc_id():
@@ -129,19 +132,21 @@ def test_file_ingest_path_stamps_source_type_and_doc_id():
 
     src_path = Path(__file__).resolve().parents[2] / "core" / "auto_document_ingestion.py"
     src = src_path.read_text()
-    # The file-ingest add_document call: source=f"{source}:{file_name}", no external_id.
-    # (Wrapped in asyncio.to_thread since the loop-thread embed guard; the
-    # kwargs — source, metadata, doc_id — are identical.)
+    # The file-ingest upsert call (R84f: writes funnel through the shared
+    # content-aware upsert helper; source=f"{source}:{file_name}", no
+    # external_id). Workspace-aware handler (_handler), not memory_handler.
     file_block = re.search(
-        r'success = await asyncio\.to_thread\(\s*'
-        r'self\.memory_handler\.add_document,\s*'
+        r'await upsert_document\(\s*'
+        r'_handler,\s*'
         r'table_name="documents",\s*'
         r'text=text,\s*'
+        r'doc_id=_file_doc_id,\s*'
         r'source=f"\{source\}:\{file_name\}"',
         src, re.DOTALL,
     )
-    assert file_block, "could not locate the file-ingest add_document call"
-    window = src[file_block.start():file_block.start() + 900]
+    assert file_block, "could not locate the file-ingest upsert_document call"
+    # _meta (with the stamps) is defined just above the upsert call.
+    window = src[max(0, file_block.start() - 1500):file_block.start() + 900]
     assert '"source_type": "file"' in window, (
         "file-ingest path must stamp source_type:'file' so hybrid search flags bridged:false"
     )

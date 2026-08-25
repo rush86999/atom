@@ -31,7 +31,7 @@ describe("pages/api/integrations/azure/virtual-machines", () => {
     expect(res._getJSONData()).toEqual([{ name: "vm-1" }]);
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe("http://localhost:5058/api/azure/virtual-machines");
+    expect(url).toBe("http://127.0.0.1:8000/api/azure/virtual-machines");
     expect(init.method).toBe("GET");
     expect(init.headers).toEqual({
       "Content-Type": "application/json",
@@ -45,7 +45,7 @@ describe("pages/api/integrations/azure/virtual-machines", () => {
     const res = await invoke({ method: "GET", query: { id: "vm-42" } });
     expect(res._getStatusCode()).toBe(200);
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/azure/virtual-machines/vm-42",
+      "http://127.0.0.1:8000/api/azure/virtual-machines/vm-42",
     );
   });
 
@@ -53,7 +53,7 @@ describe("pages/api/integrations/azure/virtual-machines", () => {
     mockFetch.mockResolvedValue(jsonResponse(200, []));
     await invoke({ method: "GET", query: { id: ["a", "b"] } });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/azure/virtual-machines",
+      "http://127.0.0.1:8000/api/azure/virtual-machines",
     );
   });
 
@@ -64,7 +64,7 @@ describe("pages/api/integrations/azure/virtual-machines", () => {
       query: { resourceGroup: "rg-1", status: "running" },
     });
     const url = mockFetch.mock.calls[0][0] as string;
-    expect(url.startsWith("http://localhost:5058/api/azure/virtual-machines?")).toBe(
+    expect(url.startsWith("http://127.0.0.1:8000/api/azure/virtual-machines?")).toBe(
       true,
     );
     expect(url).toContain("resourceGroup=rg-1");
@@ -91,7 +91,7 @@ describe("pages/api/integrations/azure/virtual-machines", () => {
     expect(res._getStatusCode()).toBe(201);
     expect(res._getJSONData()).toEqual({ created: true });
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe("http://localhost:5058/api/azure/virtual-machines");
+    expect(url).toBe("http://127.0.0.1:8000/api/azure/virtual-machines");
     expect(init.method).toBe("POST");
     expect(init.body).toBe(JSON.stringify({ name: "new-vm", location: "eastus" }));
   });

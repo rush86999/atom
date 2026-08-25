@@ -63,7 +63,7 @@ describe("pages/api/integrations/gitlab/projects", () => {
       total: 1,
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/integrations/gitlab/projects",
+      "http://127.0.0.1:8000/api/integrations/gitlab/projects",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -19,7 +19,7 @@ import { server } from '@/tests/mocks/server';
 
 // The component fetches with native fetch against NEXT_PUBLIC_API_URL
 // (http://localhost:8000 in the jest env) — MSW must intercept that origin.
-const historyUrl = 'http://localhost:8000/api/agents/history';
+const historyUrl = '*/api/agents/history';
 
 const jobs = [
   {
@@ -123,13 +123,13 @@ describe('AgentHistoryTable', () => {
     );
     // localStorage is a real jsdom Storage instance (setup.ts's mock assignment
     // does not survive the getter-only global) → spy on Storage.prototype.
-    const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockReturnValue('test-token-123');
+    window.localStorage.setItem('auth_token', 'test-token-123');
     render(<AgentHistoryTable />);
 
     await waitFor(() => {
       expect(authHeader).toBe('Bearer test-token-123');
     });
-    getItemSpy.mockRestore();
+    window.localStorage.removeItem('auth_token');
   });
 
   it('renders the empty state when the fetch returns a server error', async () => {

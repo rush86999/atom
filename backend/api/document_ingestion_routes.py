@@ -7,11 +7,13 @@ import asyncio
 import io
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter
+from core.lancedb_handler import get_lancedb_handler
 from core.models import User
 from core.security_dependencies import get_current_user
 
@@ -75,8 +77,18 @@ class RemoveMemoryResponse(BaseModel):
     message: str
 
 
-# Helper to get workspace_id
-def get_workspace_id() -> str:
+# Helper to get workspace_id from the authenticated user
+def get_workspace_id(current_user: Optional[User] = None) -> str:
+    """Resolve the caller's workspace (primary membership, else "default").
+
+    Previously a stub that always returned "default" — every user's ingestion
+    settings were read from/written to the default workspace's store.
+    """
+    try:
+        if current_user and current_user.workspaces:
+            return current_user.workspaces[0].id
+    except Exception:
+        pass
     return "default"
 
 
@@ -92,7 +104,7 @@ async def get_all_ingestion_settings(
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service("default")
+        service = get_document_ingestion_service(get_workspace_id(current_user))
         settings_list = service.get_all_settings()
         return [IngestionSettingsResponse(**s) for s in settings_list]
     except Exception as e:
@@ -110,7 +122,7 @@ async def get_integration_settings(
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service("default")
+        service = get_document_ingestion_service(get_workspace_id(current_user))
         settings = service.get_settings(integration_id)
         
         return IngestionSettingsResponse(
@@ -139,7 +151,7 @@ async def update_ingestion_settings(
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service("default")
+        service = get_document_ingestion_service(get_workspace_id(current_user))
         
         settings = service.update_settings(
             integration_id=request.integration_id,
@@ -177,7 +189,7 @@ async def trigger_document_sync(
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service("default")
+        service = get_document_ingestion_service(get_workspace_id(current_user))
         result = await service.sync_integration(integration_id, force=force)
         
         return SyncResultResponse(
@@ -206,7 +218,7 @@ async def remove_integration_memory(
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service("default")
+        service = get_document_ingestion_service(get_workspace_id(current_user))
         result = await service.remove_integration_documents(integration_id)
         
         return RemoveMemoryResponse(
@@ -232,7 +244,7 @@ async def list_ingested_documents(
     """
     try:
         from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service("default")
+        service = get_document_ingestion_service(get_workspace_id(current_user))
         docs = service.get_ingested_documents(integration_id, file_type)
         
         return router.success_response(
@@ -531,14 +543,31 @@ async def upload_document(
         if not text:
             raise HTTPException(status_code=400, detail="Could not extract text from document")
 
-        # 2. Add to LanceDB
-        from core.lancedb_handler import LanceDBHandler
-        db_handler = LanceDBHandler()
-        
+        # 2. Add to LanceDB via the workspace-aware handler factory: a raw
+        # LanceDBHandler() writes the ROOT ./data/atom_memory store while
+        # documents.search reads the per-workspace store — uploads were
+        # invisible to search regardless of indexing quality.
+        import uuid as _uuid
+
+        ws_id = None
+        try:
+            if current_user and getattr(current_user, "workspaces", None):
+                ws_id = current_user.workspaces[0].id
+        except Exception as ws_err:
+            logger.warning(f"Workspace resolution failed for upload: {ws_err}")
+
+        db_handler = get_lancedb_handler(ws_id)
+
         # Check connection
         if not db_handler.get_table("documents"):
              db_handler.create_table("documents")
-        
+
+        # Join-key bridge: generate the id HERE and pass it as doc_id so the
+        # LanceDB row id equals the PG IngestedDocument id created below.
+        doc_id = str(_uuid.uuid4())
+        metadata["pg_document_id"] = doc_id
+        metadata["source_type"] = "upload"
+
         # to_thread: sync add_document from the loop thread can never embed
         # (embed_text same-thread guard) — the upload would always 500.
         success = await asyncio.to_thread(
@@ -547,11 +576,39 @@ async def upload_document(
             text=text,
             source=file_name,
             metadata=metadata,
-            user_id=str(current_user.id)
+            user_id=str(current_user.id),
+            doc_id=doc_id,
+            workspace_id=ws_id,
         )
-        
+
         if not success:
             raise HTTPException(status_code=500, detail="Failed to store document in vector database")
+
+        # Aligned PG row: lexical leg (FTS) + VFS cat + citability. id equals
+        # the LanceDB doc_id (join-key bridge).
+        try:
+            from core.database import get_db_session
+            from core.models import IngestedDocument
+
+            with get_db_session() as db:
+                db.add(IngestedDocument(
+                    id=doc_id,
+                    workspace_id=ws_id or "default",
+                    tenant_id=getattr(current_user, "tenant_id", None),
+                    file_name=file_name,
+                    file_path=f"upload:{file_name}",
+                    file_type=file_ext,
+                    integration_id="manual_upload",
+                    file_size_bytes=len(content),
+                    content_preview=text[:500],
+                    external_id=f"upload_{doc_id}",
+                    ingested_at=datetime.now(timezone.utc),
+                    last_verified_at=datetime.now(timezone.utc),
+                    freshness_status="fresh",
+                ))
+                db.commit()
+        except Exception as pg_err:
+            logger.warning(f"PG mirror row skipped for upload {doc_id}: {pg_err}")
             
         return router.success_response(
             data={

@@ -231,9 +231,14 @@ class Microsoft365LifecycleLearner:
             },
         })
         if from_email or from_name:
+            # ingest_structured_data reads "from"/"to" AND resolves endpoints
+            # against the node NAME map — synthetic ids ("contact:x@y") never
+            # match a name, so edges must reference the nodes' name values.
+            sender_name = from_name or from_email
+            event_name = subject or "(no subject)"
             relationships.append({
-                "source": sender_id,
-                "target": event_id,
+                "from": sender_name,
+                "to": event_name,
                 "type": "sent",
             })
 
@@ -247,7 +252,11 @@ class Microsoft365LifecycleLearner:
                 "name": oid_norm,
                 "properties": {"order_id": oid_norm, "source": "outlook"},
             })
-            relationships.append({"source": event_id, "target": ent_id, "type": "references"})
+            relationships.append({
+                "from": subject or "(no subject)",
+                "to": oid_norm,
+                "type": "references",
+            })
 
         # Shipment / tracking entities
         for tid in tracking_ids[:5]:
@@ -259,7 +268,11 @@ class Microsoft365LifecycleLearner:
                 "name": tid_norm,
                 "properties": {"tracking_number": tid_norm, "source": "outlook"},
             })
-            relationships.append({"source": event_id, "target": ent_id, "type": "references"})
+            relationships.append({
+                "from": subject or "(no subject)",
+                "to": tid_norm,
+                "type": "references",
+            })
 
         # Monetary amounts (stored as properties on the event, not separate entities)
         if amounts:
@@ -278,9 +291,28 @@ class Microsoft365LifecycleLearner:
         try:
             from core.graphrag_engine import GraphRAGEngine
 
+            # R84: resolve the workspace's REAL tenant — this used to pass
+            # tenant_id=workspace_id, filing every Outlook-extracted node
+            # under a bogus tenant and hiding them from tenant-scoped reads.
+            tenant_id = "default"
+            try:
+                from core.database import get_db_session
+                from core.models import Workspace
+
+                with get_db_session() as db:
+                    ws = db.query(Workspace).filter(
+                        Workspace.id == workspace_id
+                    ).first()
+                    if ws is not None and ws.tenant_id:
+                        tenant_id = ws.tenant_id
+            except Exception as ws_err:  # noqa: BLE001 — fallback, never block
+                logging.getLogger(__name__).debug(
+                    f"tenant resolution fell back to default for {workspace_id}: {ws_err}"
+                )
+
             engine = GraphRAGEngine()
             engine.ingest_structured_data(
-                workspace_id=workspace_id, entities=entities, relationships=relationships
+                workspace_id=workspace_id, tenant_id=tenant_id, entities=entities, relationships=relationships
             )
             logger.info(
                 f"Ingested {len(entities)} entities / {len(relationships)} relationships from Outlook"

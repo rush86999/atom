@@ -36,7 +36,10 @@ REVIEWER_LOOP_ENABLED = os.getenv("ATOM_REVIEWER_LOOP_ENABLED", "false").lower()
 
 
 def reviewer_loop_enabled() -> bool:
-    return os.getenv("ATOM_REVIEWER_LOOP_ENABLED", "false").lower() == "true"
+    # Env wins > runtime_settings DB row (UI admin) > default.
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("ATOM_REVIEWER_LOOP_ENABLED", False)
 
 # Number of re-delegations after the initial pass (1 initial + 2 retries).
 MAX_REVIEWER_REDELEGATIONS = 2

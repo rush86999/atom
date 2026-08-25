@@ -91,7 +91,7 @@ describe("pages/api/projects/health", () => {
     expect(body.message).toBe("Project health check completed successfully");
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/v1/projects/health",
+      "http://127.0.0.1:8000/api/v1/projects/health",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({ "X-User-ID": "user-1" }),

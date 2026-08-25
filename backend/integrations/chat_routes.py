@@ -2,15 +2,24 @@
 Chat Routes - API endpoints for the ATOM chat interface
 """
 import logging
-from datetime import datetime
+import os
+from datetime import datetime, timezone
+
+# Add parent directory to path to import from backend
+import sys
 from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from core.models import User
-from core.security_dependencies import get_current_user, get_optional_current_user
-from core.llm.routing_overrides import parse_routing_overrides
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 from integrations.chat_orchestrator import ChatOrchestrator, FeatureType
+from fastapi import Depends
+from core.auth import get_current_user
+from core.security_dependencies import get_optional_current_user
+from core.llm.routing_overrides import parse_routing_overrides
+from core.models import User
+from core.personal_scope import PERSONAL_TENANT_ID as CHAT_ROUTING_TENANT_KEY
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -19,34 +28,9 @@ logger = logging.getLogger(__name__)
 # Create router
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
-# The chat orchestrator is a module-level singleton, so BYOK outcome
-# observations record feedback under this key. Explicit user feedback and
-# dashboard reads MUST use the same key, otherwise the dashboard only sees
-# thumbs feedback and misses the bulk of the signal.
-# Now imports from personal_scope (the single source of truth) instead of
-# re-declaring "default" — see TENANT_ID_STRATEGY.md.
-from core.personal_scope import PERSONAL_TENANT_ID as CHAT_ROUTING_TENANT_KEY
-
 # Initialize chat orchestrator
 chat_orchestrator = ChatOrchestrator()
 
-
-# ---------------------------------------------------------------------------
-# Legacy session ownership migration
-# ---------------------------------------------------------------------------
-# Chat session IDs are client-generated (``session_<ts>_<rand>``) and persisted
-# in browser localStorage. Before real authentication was enforced, sessions
-# were bound to placeholder user ids ("anonymous", "default_user", "default",
-# test ids, ...) that have no DB User row. Those rows are still loaded into
-# memory from chat_sessions.json at startup, so a legitimate authenticated user
-# opening one got a spurious 403 ("Access denied") instead of their history.
-# A session whose owner is one of these placeholders (or empty) has no real
-# owner to protect — reclaim it for the authenticated caller. Sessions bound to
-# a different *real* user id still return 403 (IDOR protection, see
-# tests/test_chat_idor_security.py). Reclamation is durably persisted to BOTH
-# the DB row and the startup JSON file and fails closed if it cannot be — an
-# unpersisted rebind would revert to placeholder ownership on restart and let
-# the session be claimed by a different caller.
 LEGACY_PLACEHOLDER_USER_IDS = frozenset({
     "", "default", "default_user", "anonymous", "anonymous_sales_user", "guest",
     "user", "test_user", "test_user_context", "test_user_agent", "test_user_e2e",
@@ -95,6 +79,10 @@ def _ensure_session_access(session: Dict[str, Any], current_user: User) -> bool:
     rebind is rolled back, so the session can never revert to a claimable
     placeholder after a restart.
     """
+    if current_user is None:
+        # Greptile P1 (PR #591): an unresolvable user must never pass the
+        # ownership check — previously the None case skipped this guard.
+        return False
     owner = session.get("user_id")
     if owner is not None and str(owner) != str(current_user.id):
         if _is_legacy_placeholder_owner(owner):
@@ -119,10 +107,9 @@ def _ensure_session_access(session: Dict[str, Any], current_user: User) -> bool:
         return False
     return True
 
-
 # Pydantic Models
 class ChatMessageRequest(BaseModel):
-    message: str = Field(..., max_length=32000, description="Chat message from user")
+    message: str = Field(..., description="Chat message from user")
     user_id: str = Field(..., description="User ID for context")
     session_id: Optional[str] = Field(None, description="Conversation session ID")
     context: Optional[Dict[str, Any]] = Field(None, description="Additional context data")
@@ -172,6 +159,260 @@ class RenameSessionRequest(BaseModel):
     user_id: str = Field(..., description="ID of the user performing the rename")
 
 
+@router.get("/harness-evolution")
+async def get_harness_evolution_status(
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Retrieve weakness mining patterns and active harness patches for the agent registry."""
+    from sqlalchemy.orm import Session
+    from core.database import get_db
+    from core.harness_evolution_service import HarnessEvolutionService
+    from core.models import AgentRegistry
+
+    db_gen = get_db()
+    db: Session = next(db_gen)
+    try:
+        tenant_id = current_user.tenant_id or "default"
+        service = HarnessEvolutionService(db)
+
+        try:
+            patterns = await service.mine_weaknesses(tenant_id=tenant_id, lookback_hours=48)
+        except Exception as e:
+            logger.warning(f"Failed to mine weaknesses in API: {e}")
+            patterns = []
+
+        active_patches = []
+        try:
+            agents = db.query(AgentRegistry).filter(AgentRegistry.tenant_id == tenant_id).all()
+            for a in agents:
+                if a.configuration and "harness_patches" in a.configuration:
+                    for patch in a.configuration["harness_patches"]:
+                        active_patches.append({
+                            "agent_id": a.id,
+                            "agent_name": a.name,
+                            "patch_id": patch.get("patch_id"),
+                            "target_component": patch.get("target_component"),
+                            "mutation_payload": patch.get("mutation_payload"),
+                            "model_scope": patch.get("model_scope"),
+                        })
+        except Exception as e:
+            logger.warning(f"Failed to retrieve active patches in API: {e}")
+
+        return {
+            "success": True,
+            "mined_weaknesses": patterns,
+            "active_patches": active_patches,
+        }
+    finally:
+        db.close()
+
+
+@router.get("/memory/{session_id}")
+async def get_chat_memory(
+    session_id: str,
+    user_id: Optional[str] = "demo-user",
+    current_user: User = Depends(get_current_user),
+) -> ChatMemoryResponse:
+    """
+    Get memory/context for a specific chat session (authenticated).
+
+    **Security**: requires authentication and verifies the caller owns the
+    session (or reclaims a legacy placeholder-owner session durably).
+    """
+    try:
+        logger.info(f"Retrieving memory for session {session_id} and user {current_user.id}")
+
+        if session_id not in chat_orchestrator.conversation_sessions:
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+        session = chat_orchestrator.conversation_sessions[session_id]
+        if not _ensure_session_access(session, current_user):
+            logger.warning(
+                f"Chat memory access denied: session {session_id} user mismatch "
+                f"(expected: {current_user.id}, got: {session.get('user_id')})"
+            )
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        return ChatMemoryResponse(
+            session_id=session_id,
+            memory_context=session.get("context", {}),
+            timestamp=session.get("last_updated", ""),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve chat memory: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve chat memory")
+
+
+@router.get("/history/{session_id}")
+async def get_chat_history(
+    session_id: str,
+    user_id: Optional[str] = "demo-user",
+    current_user: User = Depends(get_current_user),
+) -> ChatHistoryResponse:
+    """
+    Get chat history for a specific session (authenticated).
+
+    **Security**: requires authentication and verifies the caller owns the
+    session; an ownerless legacy session is reclaimed durably for the caller.
+    """
+    try:
+        logger.info(f"Retrieving history for session {session_id} and user {current_user.id}")
+
+        if session_id not in chat_orchestrator.conversation_sessions:
+            logger.info(
+                f"Session {session_id} not found, lazy-initializing for user {current_user.id}"
+            )
+            session = chat_orchestrator._get_or_create_session(str(current_user.id), session_id)
+        else:
+            session = chat_orchestrator.conversation_sessions[session_id]
+
+        if not _ensure_session_access(session, current_user):
+            logger.warning(
+                f"Chat history access denied: session {session_id} user mismatch "
+                f"(expected: {current_user.id}, got: {session.get('user_id')})"
+            )
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        history = session.get("history", [])
+        if not history:
+            try:
+                from core.database import get_db_session
+                from core.models import ChatMessage as ChatMessageModel
+                with get_db_session() as db:
+                    rows = db.query(ChatMessageModel).filter(
+                        ChatMessageModel.conversation_id == session_id
+                    ).order_by(ChatMessageModel.created_at).all()
+                    history = [
+                        {
+                            "message": row.content if row.role == "user" else None,
+                            "response": {"message": row.content} if row.role == "assistant" else None,
+                            "timestamp": row.created_at.isoformat() if row.created_at else None,
+                        }
+                        for row in rows
+                    ]
+                    if history:
+                        logger.info(
+                            f"Loaded {len(history)} messages from DB for session {session_id}"
+                        )
+            except Exception as db_err:
+                logger.warning(f"Could not load history from DB: {db_err}")
+
+        return ChatHistoryResponse(
+            session_id=session_id,
+            messages=history,
+            timestamp=session.get("last_updated", ""),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve chat history: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve chat history")
+
+
+@router.get("/sessions")
+async def get_user_sessions(
+    user_id: Optional[str] = "demo-user",
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Get all chat sessions for the authenticated user.
+    """
+    try:
+        logger.info(f"Retrieving sessions for user {user_id}")
+
+        user_sessions = chat_orchestrator.get_user_sessions(str(current_user.id))
+        return {
+            "user_id": str(current_user.id),
+            "sessions": user_sessions or {},
+            "total_sessions": len(user_sessions) if user_sessions else 0,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to retrieve user sessions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve user sessions")
+
+
+@router.get("/health")
+async def chat_health_check():
+    """
+    Health check for the chat system
+    """
+    try:
+        is_initialized = chat_orchestrator is not None
+        has_feature_handlers = len(chat_orchestrator.feature_handlers) > 0
+
+        status = "healthy" if is_initialized and has_feature_handlers else "degraded"
+
+        return {
+            "status": status,
+            "service": "atom_chat_system",
+            "version": "1.0.0",
+            "components": {
+                "orchestrator": "initialized" if is_initialized else "not_initialized",
+                "feature_handlers": "available" if has_feature_handlers else "unavailable",
+                "platform_connectors": f"available ({len(chat_orchestrator.platform_connectors)})",
+                "ai_engines": f"available ({len(chat_orchestrator.ai_engines)})",
+            },
+            "metrics": {
+                "total_sessions": len(chat_orchestrator.conversation_sessions),
+                "active_features": len(chat_orchestrator.feature_handlers),
+                "connected_platforms": len(chat_orchestrator.platform_connectors),
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Chat health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "service": "atom_chat_system",
+            "error": str(e),
+        }
+
+
+@router.get("/")
+async def chat_root():
+    """
+    Chat integration root endpoint
+    """
+    return {
+        "service": "chat_integration",
+        "status": "active",
+        "version": "1.0.0",
+        "description": "ATOM Chat Interface - Conversational Automation System",
+        "endpoints": {
+            "chat": {
+                "/chat/message": "Send a chat message",
+                "/chat/memory/{session_id}": "Get chat memory/context",
+                "/chat/history/{session_id}": "Get chat history",
+                "/chat/sessions": "Get user sessions",
+            },
+            "system": {
+                "/chat/health": "Health check",
+                "/chat/": "This endpoint",
+            },
+        },
+    }
+
+
+def _learning_router_enabled() -> bool:
+    """Whether the learning router is enabled (flag-gated)."""
+    from core.llm.learning_router_registry import learning_router_enabled
+    return learning_router_enabled()
+
+def _get_learning_router():
+    """Return the process-wide learning router singleton (or None).
+
+    Uses the singleton registry so predictors accumulate across requests
+    instead of being trained into throwaway instances.
+    """
+    from core.llm.learning_router_registry import get_learning_router_instance
+    return get_learning_router_instance()
+
+
 class ChatFeedbackRequest(BaseModel):
     """User feedback on a chat response (the previously-dead feedback loop)."""
     message_id: str = Field(..., description="The message the feedback is about")
@@ -187,7 +428,7 @@ class ChatFeedbackRequest(BaseModel):
 async def rename_session(
     session_id: str,
     request: RenameSessionRequest,
-    current_user: Optional[User] = Depends(get_optional_current_user)
+    current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
     Rename a chat session (authenticated with dev fallback)
@@ -210,8 +451,16 @@ async def rename_session(
              logger.warning(f"Rename denied: Owner {session.get('user_id')} != Requestor {current_user.id}")
              raise HTTPException(status_code=403, detail="Access denied")
 
-        success = chat_orchestrator.rename_session(session_id, request.title)
-        
+        # The rename logic lives on the session manager (DB + file sync) — the
+        # orchestrator has no rename_session method. Update the in-memory
+        # session cache AND the durable store.
+        session["title"] = request.title
+        success = True
+        if chat_orchestrator.session_manager is not None:
+            success = bool(
+                chat_orchestrator.session_manager.rename_session(session_id, request.title)
+            )
+
         if not success:
              raise HTTPException(status_code=404, detail="Session not found or upgrade failed")
              
@@ -232,50 +481,41 @@ async def rename_session(
 async def get_session_details(
     session_id: str,
     user_id: Optional[str] = "demo-user",
-    current_user: Optional[User] = Depends(get_optional_current_user)
+    current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
-    Get details for a specific session (authenticated with dev fallback)
+    Get details for a specific session (authenticated).
     """
     try:
-        active_user_id = str(current_user.id) if current_user else (user_id or "demo-user")
-
-        # We can use orchestrator's memory or fetch from session manager
-        # Since orchestrator has get_user_sessions, let's use a direct get_session
         session = chat_orchestrator.conversation_sessions.get(session_id)
 
         if not session:
-             # Let's peek into manager
              managed_session = chat_orchestrator.session_manager.get_session(session_id)
              if managed_session:
                  session = managed_session
 
         if not session:
-            return {
-                "success": True,
-                "session_id": session_id,
-                "title": "New Chat",
-                "created_at": datetime.now().isoformat(),
-                "user_id": active_user_id
-            }
+             raise HTTPException(status_code=404, detail="Session not found")
+
+        if not _ensure_session_access(session, current_user):
+             logger.warning(
+                 f"Session details denied: Owner {session.get('user_id')} != Requestor {current_user.id}"
+             )
+             raise HTTPException(status_code=403, detail="Access denied")
 
         return {
             "success": True,
             "session_id": session.get("id") or session.get("session_id") or session_id,
             "title": session.get("title") or "New Chat",
             "created_at": session.get("created_at") or datetime.now().isoformat(),
-            "user_id": session.get("user_id") or active_user_id
+            "user_id": session.get("user_id") or str(current_user.id)
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.warning(f"Failed to get session details: {str(e)}")
-        return {
-            "success": True,
-            "session_id": session_id,
-            "title": "New Chat",
-            "created_at": datetime.now().isoformat(),
-            "user_id": user_id or "demo-user"
-        }
+        logger.error(f"Failed to get session details: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get session details")
 
 
 
@@ -284,7 +524,7 @@ async def get_session_details(
 async def send_chat_message(
     request: ChatMessageRequest,
     http_request: Request,
-    current_user: Optional[User] = Depends(get_optional_current_user)
+    current_user: User = Depends(get_current_user)
 ) -> ChatMessageResponse:
     """
     Send a chat message to the ATOM chat orchestrator (authenticated with optional dev fallback)
@@ -543,268 +783,3 @@ async def get_routing_stats(
     except Exception as e:
         logger.warning(f"Failed to get routing stats: {e}")
         return {"enabled": enabled, "ema_enabled": ema_enabled, "stats": {"error": str(e)}}
-
-
-@router.get("/harness-evolution")
-async def get_harness_evolution_status(
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, Any]:
-    """Retrieve weakness mining patterns and active harness patches for the agent registry."""
-    from sqlalchemy.orm import Session
-    from core.database import get_db
-    from core.harness_evolution_service import HarnessEvolutionService
-    from core.models import AgentRegistry
-    
-    # Resolve DB session
-    db_gen = get_db()
-    db: Session = next(db_gen)
-    
-    tenant_id = current_user.tenant_id or "default"
-    service = HarnessEvolutionService(db)
-    
-    # 1. Mine weaknesses dynamically (last 48 hours)
-    try:
-        patterns = await service.mine_weaknesses(tenant_id=tenant_id, lookback_hours=48)
-    except Exception as e:
-        logger.warning(f"Failed to mine weaknesses in API: {e}")
-        patterns = []
-        
-    # 2. Get active deployed patches from Agent Registry
-    active_patches = []
-    try:
-        agents = db.query(AgentRegistry).filter(AgentRegistry.tenant_id == tenant_id).all()
-        for a in agents:
-            if a.configuration and "harness_patches" in a.configuration:
-                for patch in a.configuration["harness_patches"]:
-                    active_patches.append({
-                        "agent_id": a.id,
-                        "agent_name": a.name,
-                        "patch_id": patch.get("patch_id"),
-                        "target_component": patch.get("target_component"),
-                        "mutation_payload": patch.get("mutation_payload"),
-                        "model_scope": patch.get("model_scope")
-                    })
-    except Exception as e:
-        logger.warning(f"Failed to retrieve active patches in API: {e}")
-        
-    return {
-        "success": True,
-        "mined_weaknesses": patterns,
-        "active_patches": active_patches
-    }
-
-
-
-async def get_chat_memory(
-    session_id: str,
-    user_id: str,
-    current_user: User = Depends(get_current_user)
-) -> ChatMemoryResponse:
-    """
-    Get memory/context for a specific chat session (authenticated)
-
-    **Security**: Requires authentication and verifies user owns the session
-    """
-    try:
-        # Override query-param user_id with the authenticated user's ID.
-        user_id = str(current_user.id)
-
-        logger.info(f"Retrieving memory for session {session_id} and user {current_user.id}")
-
-        # Check if session exists
-        if session_id not in chat_orchestrator.conversation_sessions:
-            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
-
-        session = chat_orchestrator.conversation_sessions[session_id]
-        # Verify session belongs to authenticated user
-        if not _ensure_session_access(session, current_user):
-            logger.warning(
-                f"Chat memory access denied: session {session_id} user mismatch "
-                f"(expected: {current_user.id}, got: {session.get('user_id')})"
-            )
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        return ChatMemoryResponse(
-            session_id=session_id,
-            memory_context=session.get("context", {}),
-            timestamp=session.get("last_updated", "")
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to retrieve chat memory: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve chat memory")
-
-
-@router.get("/history/{session_id}")
-async def get_chat_history(
-    session_id: str,
-    user_id: Optional[str] = "demo-user",
-    current_user: Optional[User] = Depends(get_optional_current_user)
-) -> ChatHistoryResponse:
-    """
-    Get chat history for a specific session (authenticated with dev fallback)
-    """
-    try:
-        active_user_id = str(current_user.id) if current_user else (user_id or "demo-user")
-
-        logger.info(f"Retrieving history for session {session_id} and user {active_user_id}")
-
-        # Lazy-load session if it doesn't exist
-        if session_id not in chat_orchestrator.conversation_sessions:
-            logger.info(f"Session {session_id} not found, lazy-initializing for user {active_user_id}")
-            session = chat_orchestrator._get_or_create_session(active_user_id, session_id)
-        else:
-            session = chat_orchestrator.conversation_sessions[session_id]
-
-        # Verify session belongs to authenticated user (prevents IDOR)
-        if current_user and not _ensure_session_access(session, current_user):
-            logger.warning(
-                f"Chat history access denied: session {session_id} user mismatch "
-                f"(expected: {current_user.id}, got: {session.get('user_id')})"
-            )
-            raise HTTPException(status_code=403, detail="Access denied")
-
-        # Get history. Prefer in-memory; fall back to DB if empty (e.g. after
-        # a restart where in-memory state is lost but ChatMessage rows persist).
-        history = session.get("history", [])
-        if not history:
-            try:
-                from core.database import get_db_session
-                from core.models import ChatMessage as ChatMessageModel
-                with get_db_session() as db:
-                    rows = db.query(ChatMessageModel).filter(
-                        ChatMessageModel.conversation_id == session_id
-                    ).order_by(ChatMessageModel.created_at).all()
-                    # Convert DB rows to the in-memory history shape the frontend expects.
-                    history = [
-                        {
-                            "message": row.content if row.role == "user" else None,
-                            "response": {"message": row.content} if row.role == "assistant" else None,
-                            "timestamp": row.created_at.isoformat() if row.created_at else None,
-                        }
-                        for row in rows
-                    ]
-                    if history:
-                        logger.info(f"Loaded {len(history)} messages from DB for session {session_id}")
-            except Exception as db_err:
-                logger.warning(f"Could not load history from DB: {db_err}")
-
-        return ChatHistoryResponse(
-            session_id=session_id,
-            messages=history,
-            timestamp=session.get("last_updated", "")
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to retrieve chat history: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve chat history")
-
-
-@router.get("/sessions")
-async def get_user_sessions(
-    request: Request,
-    user_id: Optional[str] = "demo-user",
-) -> Dict[str, Any]:
-    """
-    Get all chat sessions for a user (with optional auth).
-    """
-    try:
-        active_user_id = user_id or "demo-user"
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            try:
-                from core.auth import decode_token
-                payload = decode_token(auth_header.split(" ")[1])
-                if payload and payload.get("sub"):
-                    active_user_id = str(payload.get("sub"))
-            except Exception:
-                pass
-
-        user_sessions = chat_orchestrator.get_user_sessions(active_user_id)
-        return {
-            "user_id": active_user_id,
-            "sessions": user_sessions or {},
-            "total_sessions": len(user_sessions) if user_sessions else 0
-        }
-    except Exception as e:
-        logger.warning(f"Failed to retrieve user sessions: {str(e)}")
-        return {
-            "user_id": user_id or "demo-user",
-            "sessions": {},
-            "total_sessions": 0
-        }
-
-
-
-
-
-
-
-@router.get("/health")
-async def chat_health_check():
-    """
-    Health check for the chat system
-    """
-    try:
-        # Test basic functionality
-        test_session_id = "health_test"
-        
-        # Verify orchestrator is initialized
-        is_initialized = chat_orchestrator is not None
-        has_feature_handlers = len(chat_orchestrator.feature_handlers) > 0
-        
-        status = "healthy" if is_initialized and has_feature_handlers else "degraded"
-
-        return {
-            "status": status,
-            "service": "atom_chat_system",
-            "version": "1.0.0",
-            "components": {
-                "orchestrator": "initialized" if is_initialized else "not_initialized",
-                "feature_handlers": "available" if has_feature_handlers else "unavailable",
-                "platform_connectors": f"available ({len(chat_orchestrator.platform_connectors)})",
-                "ai_engines": f"available ({len(chat_orchestrator.ai_engines)})"
-            },
-            "metrics": {
-                "total_sessions": len(chat_orchestrator.conversation_sessions),
-                "active_features": len(chat_orchestrator.feature_handlers),
-                "connected_platforms": len(chat_orchestrator.platform_connectors)
-            }
-        }
-
-    except Exception as e:
-        logger.error(f"Chat health check failed: {str(e)}")
-        return {
-            "status": "unhealthy",
-            "service": "atom_chat_system",
-            "error": str(e)
-        }
-
-
-@router.get("/")
-async def chat_root():
-    """
-    Chat integration root endpoint
-    """
-    return {
-        "service": "chat_integration",
-        "status": "active",
-        "version": "1.0.0",
-        "description": "ATOM Chat Interface - Conversational Automation System",
-        "endpoints": {
-            "chat": {
-                "/chat/message": "Send a chat message",
-                "/chat/memory/{session_id}": "Get chat memory/context",
-                "/chat/history/{session_id}": "Get chat history",
-                "/chat/sessions": "Get user sessions",
-            },
-            "system": {
-                "/chat/health": "Health check",
-                "/chat/": "This endpoint"
-            }
-        }
-    }

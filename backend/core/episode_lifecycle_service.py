@@ -26,6 +26,39 @@ class EpisodeLifecycleService:
         self.db = db
         self.lancedb = get_lancedb_handler()
 
+    async def run_daily_maintenance(
+        self,
+        agents: list,
+        days_threshold: int = 90,
+    ) -> dict:
+        """R81j (G15): one-shot daily hygiene pass — recency decay for stale
+        episodes plus similarity consolidation per agent. Memory-hygiene is
+        the standard production concern (tiered HOT/WARM/COLD with scheduled
+        decay/consolidation); this makes the existing primitives callable as
+        a single turnkey job. Per-step failures never block the other step.
+        Opt-in via ATOM_EPISODE_LIFECYCLE_MAINTENANCE_ENABLED in the app
+        lifespan; also invocable via POST /lifecycle/{decay,consolidate}.
+        """
+        results: dict = {"decayed": 0, "consolidated": 0}
+        try:
+            decayed = await self.decay_old_episodes(days_threshold)
+            results["decayed"] = int(decayed.get("decayed", 0)) if isinstance(decayed, dict) else 0
+        except Exception as e:
+            logger.warning(f"daily maintenance: decay failed: {e}")
+
+        for agent_id in agents or []:
+            try:
+                consolidated = await self.consolidate_similar_episodes(agent_id)
+                if isinstance(consolidated, dict):
+                    results["consolidated"] += int(
+                        consolidated.get("consolidated", 0)
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"daily maintenance: consolidate failed for {agent_id}: {e}"
+                )
+        return results
+
     async def decay_old_episodes(self, days_threshold: int = 90) -> Dict[str, int]:
         """
         Apply decay scores to episodes older than threshold.

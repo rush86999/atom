@@ -33,7 +33,7 @@ export default async function handler(
     const realmId = token.realmId;
 
     // Save tokens to backend
-    const backendResponse = await fetch(`${process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058'}/api/quickbooks/auth/store-tokens`, {
+    const backendResponse = await fetch(`${process.env.PYTHON_API_SERVICE_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/quickbooks/auth/store-tokens`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -30,9 +30,27 @@ from core.models import User
 
 logger = logging.getLogger(__name__)
 
-GATEWAY_ENABLED = os.getenv("ATOM_GATEWAY_ENABLED", "true").lower() == "true"
-PREFER_COST = os.getenv("ATOM_GATEWAY_PREFER_COST", "true").lower() == "true"
-DEFAULT_MAX_TOKENS = int(os.getenv("ATOM_GATEWAY_DEFAULT_MAX_TOKENS", "1000"))
+def gateway_enabled() -> bool:
+    """Env wins > runtime_settings DB row (UI admin) > default."""
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("ATOM_GATEWAY_ENABLED", True)
+
+
+def prefer_cost() -> bool:
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("ATOM_GATEWAY_PREFER_COST", True)
+
+
+def default_max_tokens() -> int:
+    from core.runtime_settings import get_int_setting
+
+    return get_int_setting("ATOM_GATEWAY_DEFAULT_MAX_TOKENS", 1000)
+
+GATEWAY_ENABLED = gateway_enabled()
+PREFER_COST = prefer_cost()
+DEFAULT_MAX_TOKENS = default_max_tokens()
 
 _KNOWN_TIER_VALUES = {t.value for t in CognitiveTier}
 
@@ -82,7 +100,7 @@ class GatewayService:
         forced_intent = overrides.get("intent")
 
         complexity = self.handler.analyze_query_complexity(prompt, "chat")
-        prefer_cost = PREFER_COST
+        prefer_cost = prefer_cost()
 
         if forced_tier:
             tier = _parse_tier(forced_tier)
@@ -126,7 +144,7 @@ class GatewayService:
             return self.handler.get_optimal_provider(
                 self.handler.analyze_query_complexity("", "chat"),
                 "chat",
-                prefer_cost=PREFER_COST,
+                prefer_cost=prefer_cost(),
             )
         except NoProvidersConfiguredError:
             raise
@@ -342,12 +360,12 @@ def _parse_tier(value: str) -> Optional[CognitiveTier]:
 
 def get_gateway_enabled() -> bool:
     """Central master-switch check for the gateway surface."""
-    return GATEWAY_ENABLED
+    return gateway_enabled()
 
 
 def require_gateway_enabled() -> None:
     """Raise 404 when the gateway master switch is off."""
-    if not GATEWAY_ENABLED:
+    if not gateway_enabled():
         raise HTTPException(status_code=404, detail="Gateway disabled")
 
 

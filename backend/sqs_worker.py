@@ -179,11 +179,14 @@ async def handle_document_ingestion_sync(payload: Dict[str, Any]) -> Dict[str, A
     tenant_id = payload.get('tenant_id', 'default')
     integration_id = payload.get('integration_id')
     force = payload.get('force', False)
-    
+
     if not integration_id:
         return {'success': False, 'error': 'No integration_id provided'}
-        
-    service = get_document_ingestion_service(tenant_id)
+
+    # The service is WORKSPACE-scoped — the dispatch payload carries the
+    # workspace (periodic_tasks sends ws.id); tenant_id is not a workspace id.
+    workspace_id = payload.get('workspace_id') or 'default'
+    service = get_document_ingestion_service(workspace_id)
     result = await service.sync_integration(integration_id, force=force)
     
     return {'success': True, 'result': result}

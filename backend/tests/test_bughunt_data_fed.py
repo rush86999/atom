@@ -178,8 +178,15 @@ class TestHistoricalSyncChunkIngestion:
         assert len(fake_engine.calls) == 2, "ingest_structured_data must be called per extracted chunk"
         method, kwargs = fake_engine.calls[0]
         assert method == "ingest_structured_data"
-        assert kwargs["entities"] == fake_entities
-        assert kwargs["relationships"] == fake_rels
+        # R83: dataclass Entity/Relationship objects must be serialized to the
+        # plain-dict shape — raw dataclasses raised AttributeError inside the
+        # engine's catch-all and silently discarded the whole chunk.
+        assert kwargs["entities"] == [
+            {"name": "Alice", "type": "person", "description": "", "properties": {}}
+        ]
+        assert kwargs["relationships"] == [
+            {"from": "x", "to": "y", "type": "works_at", "properties": {}}
+        ]
 
     @pytest.mark.asyncio
     async def test_extract_chunk_failure_propagates(self):

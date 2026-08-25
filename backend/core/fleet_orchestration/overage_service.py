@@ -291,10 +291,13 @@ To extend, please submit a new scaling proposal before expiration.""",
     ) -> None:
         """Send notification when overage expires."""
         try:
-            # Get tenant owner for notification
+            # Get tenant admin for notification. R82: exact-match "admin"
+            # missed the bootstrap workspace_admin role (and owner/
+            # super_admin); scope to the tenant instead of any tenant.
             from core.models import User
             owner = self.db.query(User).filter(
-                User.role == "admin"
+                User.tenant_id == tenant_id,
+                User.role.in_(["super_admin", "owner", "admin", "workspace_admin"]),
             ).first()
 
             if owner:

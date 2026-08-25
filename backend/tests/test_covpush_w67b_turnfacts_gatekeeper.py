@@ -38,6 +38,7 @@ service, monkeypatched env for the reload/development branches).
 """
 import asyncio
 import os
+import pathlib
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -377,7 +378,7 @@ class TestVectorStore:
         assert kwargs["user_id"] == "u1"
         assert kwargs["workspace_id"] == "ws1"
         assert kwargs["doc_id"] == "f9"
-        assert kwargs["extract_knowledge"] is False
+        assert "extract_knowledge" not in kwargs  # dead param removed (R84)
         assert kwargs["skip_ai_triggers"] is True
 
     def test_write_user_id_none_falls_back(self):
@@ -716,7 +717,10 @@ class TestCheckActionRisk:
         }
         assert audits and audits[0]["allowed"] is False
 
-    async def test_taint_exception_is_skipped(self):
+    async def test_taint_exception_fails_closed(self):
+        """A taint tracker that cannot answer means restricted data cannot be
+        ruled out — the gate must BLOCK (fail-closed), matching the repo-wide
+        posture (cf. _check_hitl_policy). Previously this failed OPEN."""
         from middleware.governance_middleware import Gatekeeper
         gk = Gatekeeper()
         tracker = MagicMock()
@@ -726,7 +730,8 @@ class TestCheckActionRisk:
             new=AsyncMock(return_value=(False, 10)),
         ):
             result = await gk.check_action_risk("svc", action="send", taint_tracker=tracker)
-        assert result["allowed"] is True
+        assert result["allowed"] is False
+        assert "unavailable" in result["reason"].lower()
 
     async def test_hitl_required_and_approved_pauses(self):
         from middleware.governance_middleware import Gatekeeper
@@ -1217,9 +1222,14 @@ class TestAtomExceptionsAvailability:
     # InvoiceError, Result, ...), breaking class identity for every other
     # suite that imported them at collection time.
     def _run_subprocess_probe(self, body):
+        # The child `python -c` process has no cwd on sys.path unless pytest
+        # itself was started from backend/ — pass the backend root explicitly
+        # so the probe works from any invocation directory.
+        backend_root = str(pathlib.Path(__file__).resolve().parents[1])
+        env = {**os.environ, "PYTHONPATH": backend_root + os.pathsep + os.environ.get("PYTHONPATH", "")}
         proc = subprocess.run(
             [sys.executable, "-c", body],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True, text=True, timeout=120, env=env,
         )
         assert proc.returncode == 0, proc.stderr + proc.stdout
         return proc.stdout

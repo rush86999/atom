@@ -10,6 +10,11 @@ jest.mock("react-hot-toast", () => ({
   },
 }));
 
+const mockPush = jest.fn();
+jest.mock("next/router", () => ({
+  useRouter: () => ({ push: mockPush, query: {}, pathname: "/marketplace" }),
+}));
+
 const okResponse = (body: any) => ({
   ok: true,
   status: 200,
@@ -300,6 +305,120 @@ describe("MarketplacePage", () => {
     await waitFor(() => {
       expect(gridToggle.className).toContain("bg-secondary");
       expect(listToggle.className).not.toContain("bg-secondary");
+    });
+  });
+
+  describe("personal starter readiness", () => {
+    const PERSONAL_TEMPLATES = [
+      {
+        template_id: "template_personal_invoice_chase",
+        name: "Personal: Invoice Chase (Freelancer)",
+        description: "Chase unpaid invoices with approval gates",
+        category: "business",
+        author: "Atom",
+        version: "1.0.0",
+        tags: ["gmail"],
+        usage_count: 0,
+        rating: 0,
+        complexity: "beginner",
+        steps: [],
+        input_schema: {},
+      },
+    ];
+
+    it("shows a Connect CTA when an integration is missing", async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url.includes("/readiness")) {
+          return Promise.resolve(
+            okResponse({
+              success: true,
+              ready: false,
+              connected: [],
+              missing: ["gmail"],
+              connect_urls: ["/settings/integrations?connect=gmail"],
+            }),
+          );
+        }
+        return Promise.resolve(okResponse(PERSONAL_TEMPLATES));
+      });
+
+      render(<MarketplacePage />);
+      expect(
+        await screen.findByText("Personal: Invoice Chase (Freelancer)"),
+      ).toBeInTheDocument();
+
+      const cta = await screen.findByText(
+        "Setup needed: connect gmail",
+      );
+      expect(cta.closest("a")).toHaveAttribute(
+        "href",
+        "/settings/integrations?connect=gmail",
+      );
+    });
+
+    it("shows no setup badge when readiness reports ready", async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url.includes("/readiness")) {
+          return Promise.resolve(
+            okResponse({
+              success: true,
+              ready: true,
+              connected: ["gmail"],
+              missing: [],
+              connect_urls: [],
+            }),
+          );
+        }
+        return Promise.resolve(okResponse(PERSONAL_TEMPLATES));
+      });
+
+      render(<MarketplacePage />);
+      await screen.findByText("Personal: Invoice Chase (Freelancer)");
+      await waitFor(() => {
+        expect(screen.queryByText(/Setup needed/i)).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("post-import handoff", () => {
+    it("navigates to the editor when import returns an editor_url", async () => {
+      mockFetch.mockImplementation((url: string) =>
+        url.includes("/import")
+          ? Promise.resolve(
+              okResponse({
+                status: "success",
+                workflow_id: "workflow_abc123",
+                editor_url: "/workflows/editor/workflow_abc123",
+              }),
+            )
+          : Promise.resolve(okResponse(TEMPLATES)),
+      );
+
+      render(<MarketplacePage />);
+      await screen.findByText("Lead Enrichment");
+
+      fireEvent.click(screen.getAllByRole("button", { name: /^Import$/i })[0]);
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith(
+          "/workflows/editor/workflow_abc123",
+        );
+        expect(toast.success).toHaveBeenCalledWith(
+          "Workflow imported — opening the editor…",
+        );
+      });
+    });
+
+    it("falls back to a plain success toast when no editor_url is returned", async () => {
+      render(<MarketplacePage />);
+      await screen.findByText("Lead Enrichment");
+
+      fireEvent.click(screen.getAllByRole("button", { name: /^Import$/i })[0]);
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          "Workflow imported successfully!",
+        );
+      });
+      expect(mockPush).not.toHaveBeenCalled();
     });
   });
 });

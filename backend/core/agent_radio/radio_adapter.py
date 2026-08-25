@@ -56,6 +56,26 @@ def attach_thread_for_chain(
     )
     logger.info(f"radio: fleet thread {thread.id} attached to chain {chain_id}")
 
+    # P0 org telemetry (write-only; never raises) — rides the caller's
+    # transaction: _recruit_fleet commits moments later when propagating
+    # radio_thread_id onto the ChainLinks.
+    try:
+        from core.org_telemetry_service import emit_org_event
+
+        emit_org_event(
+            db,
+            "radio_thread_attach",
+            actor_agent_id=created_by_agent_id,
+            target_agent_id=chain_id,
+            chain_id=chain_id,
+            execution_id=execution_id,
+            tenant_id=tenant_id,
+            payload={"thread_id": thread.id, "team": list(team_agent_ids)},
+            commit=False,
+        )
+    except Exception as e:  # noqa: BLE001 — telemetry must never raise
+        logger.debug(f"org telemetry attach emit skipped: {e}")
+
     if execution_id:
         execution = (
             db.query(AgentExecution)

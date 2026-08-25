@@ -60,7 +60,7 @@ class TestShopifyHealthCheck:
         svc = ShopifyService(config={"api_key": "test_key"})
         import asyncio
 
-        result = asyncio.get_event_loop().run_until_complete(svc.health_check())
+        result = asyncio.run(svc.health_check())
         # Should execute without NameError and report health based on api_key presence.
         assert result["healthy"] is True
         assert result["message"] == "Connected"
@@ -71,7 +71,7 @@ class TestShopifyHealthCheck:
         svc = ShopifyService(config={})
         import asyncio
 
-        result = asyncio.get_event_loop().run_until_complete(svc.health_check())
+        result = asyncio.run(svc.health_check())
         assert result["healthy"] is False
 
 
@@ -135,29 +135,77 @@ class TestZohoWorkDrive:
         assert teams[0]["name"] == "Sales Folder"
 
     @pytest.mark.asyncio
-    async def test_full_sync_ingests_parseable_files(self):
-        """full_sync should iterate files and ingest parseable ones into memory."""
+    async def test_full_sync_ingests_all_file_types(self):
+        """full_sync should walk all folders and attempt every file type —
+        no extension allowlist; unparseable files are skipped downstream."""
         from integrations.zoho_workdrive_service import ZohoWorkDriveService
 
         svc = ZohoWorkDriveService("default", {})
         files = [
-            {"id": "f1", "name": "Quote.docx"},
-            {"id": "f2", "name": "PriceList.xlsx"},
-            {"id": "f3", "name": "readme.md"},
-            {"id": "f4", "name": "image.png"},  # should be skipped
+            {"id": "f1", "name": "Quote.docx", "path": "/Sales"},
+            {"id": "f2", "name": "PriceList.xlsx", "path": "/Sales"},
+            {"id": "f3", "name": "readme.md", "path": ""},
+            {"id": "f4", "name": "image.png", "path": "/Design"},
+            {"id": "f5", "name": "script.py", "path": "/Engineering/Sub"},
         ]
-        with patch.object(svc, "list_files", AsyncMock(return_value=files)), \
+        with patch.object(svc, "walk_files", AsyncMock(return_value=files)), \
              patch.object(svc, "ingest_file_to_memory", AsyncMock(
-                 return_value={"success": True})) as mock_ingest, \
+                 return_value={"success": True, "result": {"status": "ingested"}})) as mock_ingest, \
              patch.object(svc, "sync_to_postgres_cache", AsyncMock(
                  return_value={"success": True, "metrics_synced": 1})):
             result = await svc.full_sync("user1")
 
         assert result["success"] is True
-        assert result["files_found"] == 4
-        # 3 parseable files ingested, png skipped.
-        assert result["files_ingested"] == 3
-        assert mock_ingest.call_count == 3
+        assert result["files_found"] == 5
+        assert result["files_ingested"] == 5
+        assert mock_ingest.call_count == 5
+        # Folder path context is threaded into memory metadata.
+        assert mock_ingest.call_args_list[0].kwargs["extra_metadata"]["folder_path"] == "/Sales"
+
+    @pytest.mark.asyncio
+    async def test_full_sync_reports_skips_without_error(self):
+        """Files that parse to no text are reported as skipped, not errors."""
+        from integrations.zoho_workdrive_service import ZohoWorkDriveService
+
+        svc = ZohoWorkDriveService("default", {})
+        files = [{"id": "f1", "name": "logo.png", "path": ""}]
+        with patch.object(svc, "walk_files", AsyncMock(return_value=files)), \
+             patch.object(svc, "ingest_file_to_memory", AsyncMock(
+                 return_value={"success": True, "result": {"status": "skipped", "reason": "no_text"}})), \
+             patch.object(svc, "sync_to_postgres_cache", AsyncMock(
+                 return_value={"success": True, "metrics_synced": 1})):
+            result = await svc.full_sync("user1")
+
+        assert result["files_ingested"] == 0
+        assert result["files_skipped"] == ["logo.png (no_text)"]
+        assert result["errors"] == []
+
+    @pytest.mark.asyncio
+    async def test_walk_files_recurses_subfolders(self):
+        """walk_files must descend into subfolders and stamp folder paths."""
+        from integrations.zoho_workdrive_service import ZohoWorkDriveService
+
+        svc = ZohoWorkDriveService("default", {})
+        top_level = [
+            {"id": "d1", "name": "Projects", "type": "folder"},
+            {"id": "f1", "name": "notes.md", "type": "file"},
+        ]
+        nested = [
+            {"id": "d2", "name": "2026", "type": "folder"},
+            {"id": "f2", "name": "spec.docx", "type": "file"},
+        ]
+        deeper = [{"id": "f3", "name": "data.csv", "type": "file"}]
+        listing = {"root": top_level, "d1": nested, "d2": deeper}
+        with patch.object(svc, "get_team_folder_ids", AsyncMock(return_value=[])), \
+             patch.object(svc, "list_files", AsyncMock(
+                 side_effect=lambda uid, parent="root": listing.get(parent, []))):
+            walked = await svc.walk_files("user1")
+
+        by_id = {f["id"]: f for f in walked}
+        assert set(by_id) == {"f1", "f2", "f3"}
+        assert by_id["f2"]["path"] == "/Projects"
+        assert by_id["f3"]["path"] == "/Projects/2026"
+        assert by_id["f1"]["path"] == ""
 
 
 # ---------------------------------------------------------------------------
@@ -364,9 +412,9 @@ class TestProcessFileBytes:
         assert result["status"] == "ingested"
         assert result["chars_ingested"] > 0
         svc.memory_handler.add_document.assert_called_once()
-        # Verify extract_knowledge=True is passed.
+        # Dead extract_knowledge param removed (R84) — must not be passed.
         _, kwargs = svc.memory_handler.add_document.call_args
-        assert kwargs.get("extract_knowledge") is True
+        assert "extract_knowledge" not in kwargs
 
 
 # ---------------------------------------------------------------------------

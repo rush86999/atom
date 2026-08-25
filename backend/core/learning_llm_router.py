@@ -465,11 +465,16 @@ class LearningBasedRouter:
             ),
         })
 
-        # DeepSeek V4 Flash (2026, uses international API) - 284B MoE, 13B active
+        # DeepSeek V4 Flash (2026) — served via the OpenCode Go Zen gateway
+        # (https://opencode.ai/zen/v1); the bare gateway ID does not exist on
+        # DeepSeek's direct API. Cost = blended input+output per 1M from the
+        # gateway catalog ($0.14 + $0.28). No prompt-cache support: the
+        # CacheAwareRouter treats deepseek and opencode-go as no-cache
+        # providers, so the registry must not claim cache savings.
         self._model_registry.update({
             "deepseek-v4-flash": ModelSpec(
                 model_id="deepseek-v4-flash",
-                provider="deepseek",
+                provider="opencode-go",
                 model_name="deepseek-v4-flash",
                 capabilities={
                     ModelCapability.CODE_GENERATION,
@@ -479,21 +484,20 @@ class LearningBasedRouter:
                     ModelCapability.FAST_RESPONSE,
                     ModelCapability.CHEAP,
                 },
-                cost_per_million=0.28,
+                cost_per_million=0.42,
                 quality_score=0.88,
                 speed_score=0.92,
-                context_window=1000000,
-                supports_cache=True,
+                context_window=200000,
+                supports_cache=False,
                 tier="standard",
-                api_region="international",  # Use international API endpoint
             ),
         })
 
-        # DeepSeek V4 Pro (2026, uses international API)
+        # DeepSeek V4 Pro (2026) — Zen-gateway ID; blended $1.74 + $3.48 per 1M.
         self._model_registry.update({
             "deepseek-v4-pro": ModelSpec(
                 model_id="deepseek-v4-pro",
-                provider="deepseek",
+                provider="opencode-go",
                 model_name="deepseek-v4-pro",
                 capabilities={
                     ModelCapability.CODE_GENERATION,
@@ -502,13 +506,77 @@ class LearningBasedRouter:
                     ModelCapability.LONG_CONTEXT,
                     ModelCapability.HIGH_QUALITY,
                 },
-                cost_per_million=0.50,
+                cost_per_million=5.22,
                 quality_score=0.95,
                 speed_score=0.70,
-                context_window=1000000,
-                supports_cache=True,
+                context_window=200000,
+                supports_cache=False,
                 tier="premium",
-                api_region="international",  # Use international API endpoint
+            ),
+        })
+
+        # OpenCode Zen gateway catalog companions (Aug 2026). Without these,
+        # the rule-scoring path can only rank the two DeepSeek IDs even though
+        # BPC routinely routes to kimi/glm/minimax/qwen on the same gateway.
+        # Costs are blended (input+output) from dynamic_pricing_fetcher's
+        # static Zen table; quality scores from core/benchmarks.py.
+        self._model_registry.update({
+            "kimi-k2.7-code": ModelSpec(
+                model_id="kimi-k2.7-code",
+                provider="opencode-go",
+                model_name="kimi-k2.7-code",
+                capabilities={
+                    ModelCapability.CODE_GENERATION,
+                    ModelCapability.REASONING,
+                    ModelCapability.TOOL_USE,
+                    ModelCapability.LONG_CONTEXT,
+                    ModelCapability.HIGH_QUALITY,
+                },
+                cost_per_million=4.95,   # 0.95 + 4.00
+                quality_score=0.97,      # benchmarks.py: 97
+                speed_score=0.75,
+                context_window=200000,
+                supports_cache=False,
+                tier="premium",
+            ),
+        })
+        # NOTE: "minimax-m3" already sits in this registry against MiniMax's
+        # direct API (provider="minimax", sg region). The registry is keyed by
+        # bare gateway ID, so we do NOT add an opencode-go twin here.
+        self._model_registry.update({
+            "glm-5.1": ModelSpec(
+                model_id="glm-5.1",
+                provider="opencode-go",
+                model_name="glm-5.1",
+                capabilities={
+                    ModelCapability.CODE_GENERATION,
+                    ModelCapability.REASONING,
+                    ModelCapability.LONG_CONTEXT,
+                    ModelCapability.HIGH_QUALITY,
+                },
+                cost_per_million=5.80,   # 1.40 + 4.40
+                quality_score=0.96,      # partial-match glm-5: 96
+                speed_score=0.72,
+                context_window=200000,
+                supports_cache=False,
+                tier="premium",
+            ),
+        })
+        self._model_registry.update({
+            "qwen3.7-plus": ModelSpec(
+                model_id="qwen3.7-plus",
+                provider="opencode-go",
+                model_name="qwen3.7-plus",
+                capabilities={
+                    ModelCapability.FAST_RESPONSE,
+                    ModelCapability.CHEAP,
+                },
+                cost_per_million=2.00,   # 0.40 + 1.60
+                quality_score=0.75,      # no benchmark entry; conservative floor
+                speed_score=0.82,
+                context_window=200000,
+                supports_cache=False,
+                tier="standard",
             ),
         })
 

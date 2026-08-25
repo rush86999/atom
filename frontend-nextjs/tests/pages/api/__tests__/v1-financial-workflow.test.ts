@@ -50,7 +50,7 @@ describe("pages/api/accounting/transactions", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ queue: [] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/ai-accounting/review-queue",
+      "http://127.0.0.1:8000/api/ai-accounting/review-queue",
       {
         headers: { "Content-Type": "application/json" },
       },
@@ -65,7 +65,7 @@ describe("pages/api/accounting/transactions", () => {
     }) as any;
     await accountingHandler(req, res);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/ai-accounting/review-queue",
+      "http://127.0.0.1:8000/api/ai-accounting/review-queue",
       {
         headers: { Authorization: "Bearer tok", "Content-Type": "application/json" },
       },
@@ -88,7 +88,7 @@ describe("pages/api/accounting/transactions", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/ai-accounting/transactions",
+      "http://127.0.0.1:8000/api/ai-accounting/transactions",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -431,7 +431,7 @@ describe("pages/api/zendesk/tickets", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ tickets: [] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/zendesk/tickets?status=open",
+      "http://127.0.0.1:8000/api/zendesk/tickets?status=open",
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -444,7 +444,7 @@ describe("pages/api/zendesk/tickets", () => {
     mockFetch.mockResolvedValue(httpResponse(true, 200, { ticket: {} }));
     const { req, res } = createMocks({ method: "GET", query: { id: "42" } }) as any;
     await zendeskHandler(req, res);
-    expect(mockFetch.mock.calls[0][0]).toBe("http://localhost:5058/api/zendesk/tickets/42");
+    expect(mockFetch.mock.calls[0][0]).toBe("http://127.0.0.1:8000/api/zendesk/tickets/42");
   });
 
   it("sends the body for non-GET methods", async () => {
@@ -453,7 +453,7 @@ describe("pages/api/zendesk/tickets", () => {
     const { req, res } = createMocks({ method: "POST", body }) as any;
     await zendeskHandler(req, res);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/zendesk/tickets",
+      "http://127.0.0.1:8000/api/zendesk/tickets",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -9,6 +9,54 @@ from core.lancedb_handler import get_lancedb_handler
 
 logger = logging.getLogger(__name__)
 
+
+def _normalize_extractor_output(
+    entities: Optional[List[Dict[str, Any]]],
+    relationships: Optional[List[Dict[str, Any]]],
+):
+    """Normalize KnowledgeExtractor output to the ingest_structured_data shape.
+
+    The LLM extractor emits entities as ``{id, type, properties: {name, ...}}``
+    and relationships with **id-keyed** endpoints, while GraphRAGEngine keys
+    nodes by top-level ``name`` and resolves edges through that same map.
+    Without this, entities have no name (skipped) and every edge dangles.
+    """
+    id_to_name: Dict[str, str] = {}
+    out_entities: List[Dict[str, Any]] = []
+    for e in entities or []:
+        if not isinstance(e, dict):
+            continue
+        props = dict(e.get("properties") or {})
+        name = e.get("name") or props.get("name") or e.get("id")
+        if not name:
+            continue
+        name = str(name)
+        if e.get("id"):
+            id_to_name[str(e["id"])] = name
+        out_entities.append({
+            "name": name,
+            "type": e.get("type") or "unknown",
+            "description": e.get("description", ""),
+            "properties": props,
+        })
+
+    out_relationships: List[Dict[str, Any]] = []
+    for r in relationships or []:
+        if not isinstance(r, dict):
+            continue
+        src = id_to_name.get(str(r.get("from")), r.get("from"))
+        dst = id_to_name.get(str(r.get("to")), r.get("to"))
+        if not src or not dst or not r.get("type"):
+            continue
+        out_relationships.append({
+            "from": str(src),
+            "to": str(dst),
+            "type": r["type"],
+            "properties": r.get("properties") or {},
+        })
+    return out_entities, out_relationships
+
+
 class KnowledgeIngestionManager:
     """
     Coordinates the extraction of knowledge from documents and 
@@ -38,11 +86,17 @@ class KnowledgeIngestionManager:
         
         # 1. Extract knowledge
         knowledge = await self.extractor.extract_knowledge(text, tenant_id=ws_id, source=source)
-        
+
         # 2. Store entities and relationships in LanceDB
         entities = knowledge.get("entities", [])
         relationships = knowledge.get("relationships", [])
-        
+
+        # R83: normalize extractor output to the shape ingest_structured_data
+        # expects — the LLM extractor emits nested names (properties.name) and
+        # id-keyed relationship endpoints, while the engine keys nodes by
+        # top-level `name` and resolves edges through that same map.
+        entities, relationships = _normalize_extractor_output(entities, relationships)
+
         success_count = 0
         for rel in relationships:
             from_id = rel.get("from")
@@ -74,8 +128,15 @@ class KnowledgeIngestionManager:
         graphrag_stats = {"entities": 0, "relationships": 0}
         if self.graphrag:
             try:
-                # Use the new structured ingestion method
-                graphrag_stats = self.graphrag.ingest_structured_data(ws_id, entities, relationships)
+                # Use the new structured ingestion method. NOTE: must be
+                # keyword arguments — a positional call shifted entities into
+                # tenant_id and silently dropped every relationship.
+                graphrag_stats = self.graphrag.ingest_structured_data(
+                    workspace_id=ws_id,
+                    tenant_id=ws_id,
+                    entities=entities,
+                    relationships=relationships,
+                )
                 logger.info(f"GraphRAG ingested {graphrag_stats['entities']} entities and {graphrag_stats['relationships']} relationships for workspace {ws_id}")
             except Exception as e:
                 logger.warning(f"GraphRAG structured ingestion failed: {e}")
@@ -109,19 +170,21 @@ class KnowledgeIngestionManager:
     def build_user_communities(self, user_id: str) -> int:
         """Build GraphRAG communities for a user after ingestion"""
         if self.graphrag:
-            return self.graphrag.build_communities(user_id)
+            # R83: partition by WORKSPACE (engine convention), not user id —
+            # recall sites query the workspace partition.
+            return self.graphrag.build_communities(self.workspace_id or "default")
         return 0
-    
+
     def query_graphrag(self, user_id: str, query: str, mode: str = "auto") -> Dict[str, Any]:
         """Query GraphRAG for a user - used by AI nodes and chat"""
         if self.graphrag:
-            return self.graphrag.query(user_id, query, mode)
+            return self.graphrag.query(self.workspace_id or "default", query, mode)
         return {"error": "GraphRAG not available"}
     
     def get_ai_context(self, user_id: str, query: str) -> str:
         """Get context for AI nodes from GraphRAG"""
         if self.graphrag:
-            return self.graphrag.get_context_for_ai(user_id, query)
+            return self.graphrag.get_context_for_ai(self.workspace_id or "default", query)
         return ""
 
 # Global instance

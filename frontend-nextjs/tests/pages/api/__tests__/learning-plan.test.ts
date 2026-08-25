@@ -97,7 +97,7 @@ describe("pages/api/projects/learning-plan", () => {
     expect(body.message).toBe("Learning plan generated successfully");
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/v1/learning/plans",
+      "http://127.0.0.1:8000/api/v1/learning/plans",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({

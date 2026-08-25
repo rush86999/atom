@@ -70,8 +70,13 @@ def _compile(pattern: str) -> "re.Pattern[str]":
 # Broadened the command prefix to a group of common file-read tools.
 _CRED_READ_CMDS = r"(?:cat|head|tail|less|more|cp|od|strings|xxd|sort|tac|nl|cut|dd|base64|hexdump|bat)"
 
-# Hosts exfil-creating curl/wget calls are allowed to target (kept aligned
-# with sandbox_egress_proxy baseline LLM/provider + package-mirror hosts).
+# Hosts exfil-creating curl/wget calls are allowed to target. This is a
+# DELIBERATE SUBSET of the sandbox_egress_proxy baseline: LLM-provider hosts
+# are egress-allowed because inference is host-mediated (byok_handler runs on
+# the host, credentials never enter the guest) — but a process *inside* a
+# sandbox VM contacting an LLM API directly means either smuggled credentials
+# or an exfil channel, so those hosts are NOT exempt here (KillRun fires).
+# Only package mirrors / code hosts are exempt (legitimate installs lookups).
 _EXFIL_EXTERNAL_HOSTS_RE = (
     r"api\.anthropic\.com|"
     r"api\.openai\.com|"

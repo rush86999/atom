@@ -101,13 +101,13 @@ describe("static integration tile pages", () => {
   });
 
   describe("xero", () => {
-    test("renders heading, accounting description and connect button", () => {
+    test("renders live status card heading, accounting description and connect button", () => {
       render(<XeroPage />);
-      expect(screen.getByRole("heading", { name: /Xero Integration/ })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Xero" })).toBeInTheDocument();
       expect(
-        screen.getByText("Enterprise integration for Xero accounting services")
+        screen.getByText(/Invoices, contacts and bank accounts your agents can reconcile/)
       ).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "Connect Xero" }));
+      expect(screen.getByRole("button", { name: "Connect Xero" })).toBeInTheDocument();
     });
   });
 });

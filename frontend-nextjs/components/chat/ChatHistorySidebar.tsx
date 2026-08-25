@@ -35,11 +35,18 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
             setLoading(true);
             const { apiClient } = await import('../../lib/api-client');
             // Use correct backend endpoint for sessions
-            const response = await apiClient.get(`/api/chat/sessions?user_id=${getCurrentUserId()}`, {
-                timeout: 5000,
-                // @ts-ignore
-                retry: false
-            }).catch(() => ({ status: 200, data: { sessions: [] } })) as any;
+            let response: any;
+            try {
+                response = await apiClient.get(`/api/chat/sessions?user_id=${getCurrentUserId()}`, {
+                    timeout: 5000,
+                    // @ts-ignore
+                    retry: false
+                });
+            } catch (error) {
+                console.error("Error fetching chat history:", error);
+                setHistory([]);
+                return;
+            }
             
             const data = response?.data || { sessions: [] };
             // Backend can return sessions as array OR dict
@@ -82,6 +89,7 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
                     };
                 }));
             } else {
+                console.error("Error fetching chat history:", new Error(`Unexpected status ${response?.status}`));
                 setHistory([]);
             }
         } catch (error) {

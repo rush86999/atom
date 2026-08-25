@@ -27,6 +27,7 @@ from core.models import OAuthToken, User
 from core.security.auth_rate_limit import AuthRateLimiter
 from core.oauth_handler import (
     ASANA_OAUTH_CONFIG,
+    BOX_OAUTH_CONFIG,
     DROPBOX_OAUTH_CONFIG,
     GITHUB_OAUTH_CONFIG,
     GOOGLE_OAUTH_CONFIG,
@@ -342,13 +343,26 @@ async def oauth_initiate(
     provider: str,
     request: Request = None,
     user_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
 ):
-    """Initiate OAuth flow for a specific provider."""
+    """Initiate OAuth flow for a specific provider.
+
+    Round 86: browser navigations cannot send an Authorization header, so the
+    frontend passes ``?token=<JWT>``. get_current_user reads it from query
+    params — but only resolves the user when given a db session, which this
+    route previously never passed (silent demo-user fallback mis-bound the
+    consent state and stored tokens under the wrong user).
+    """
     uid = "demo-user"
     if request:
         try:
             from core.auth import get_current_user
-            u = await get_current_user(request=request)
+            # Round 86: pass the query-param token explicitly. Called
+            # manually, get_current_user's token default is the Depends
+            # sentinel (truthy), so its own query/cookie fallback never ran
+            # and every ?token= navigation silently degraded to demo-user.
+            browser_token = request.query_params.get("token")
+            u = await get_current_user(request=request, token=browser_token, db=db)
             if u and u.id:
                 uid = u.id
         except Exception:
@@ -369,13 +383,19 @@ async def oauth_initiate(
         "dropbox": DROPBOX_OAUTH_CONFIG,
         "whatsapp": WHATSAPP_OAUTH_CONFIG,
         "zoho": ZOHO_OAUTH_CONFIG,
+        "box": BOX_OAUTH_CONFIG,
     }
-    
+
     if provider not in configs:
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
-        
+
     handler = OAuthHandler(configs[provider])
     auth_url = handler.get_authorization_url(state=_build_state(provider, uid))
+    # Round 80o: JSON variant for mobile clients — they cannot follow a 302
+    # into the provider consent page; hand them the URL as data instead.
+    from fastapi import Query
+    if request is not None and "json" == request.query_params.get("format"):
+        return {"url": auth_url}
     return RedirectResponse(url=auth_url)
 
 @router.get("/{provider}/callback")
@@ -401,8 +421,9 @@ async def oauth_callback(
         "dropbox": DROPBOX_OAUTH_CONFIG,
         "whatsapp": WHATSAPP_OAUTH_CONFIG,
         "zoho": ZOHO_OAUTH_CONFIG,
+        "box": BOX_OAUTH_CONFIG,
     }
-    
+
     if provider not in configs:
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
 

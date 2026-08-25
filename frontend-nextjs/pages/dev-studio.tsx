@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import AgentConsole from "@/components/DevStudio/AgentConsole";
 import SkillRunner from "@/components/DevStudio/SkillRunner";
+import BYOKManager from "@/components/DevStudio/BYOKManager";
 
 // Tauri imports for desktop functionality
 const { invoke } =
@@ -345,7 +346,16 @@ const DevStudio = () => {
                             <Monitor className="h-4 w-4" />
                             Agent
                         </TabsTrigger>
+                        <TabsTrigger value="byok" className="flex items-center gap-2">
+                            <Settings className="h-4 w-4" />
+                            API Keys
+                        </TabsTrigger>
                     </TabsList>
+
+                    {/* BYOK Manager (round 80: was an orphaned component) */}
+                    <TabsContent value="byok" className="space-y-6">
+                        <BYOKManager />
+                    </TabsContent>
 
                     {/* System Info Panel */}
                     <TabsContent value="system" className="space-y-6">

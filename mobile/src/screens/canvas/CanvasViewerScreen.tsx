@@ -31,6 +31,7 @@ import { CanvasChart } from '../../components/canvas/CanvasChart';
 import { CanvasForm } from '../../components/canvas/CanvasForm';
 import { CanvasSheet } from '../../components/canvas/CanvasSheet';
 import { CanvasTerminal } from '../../components/canvas/CanvasTerminal';
+import { OfficeCanvas, isOfficeContent } from '../../components/canvas/OfficeCanvas';
 
 type RouteParams = {
   CanvasViewer: {
@@ -541,7 +542,12 @@ export function CanvasViewerScreen() {
 
       {/* Canvas content */}
       <ScrollView style={styles.canvasContent} showsVerticalScrollIndicator={true}>
-        {isWebCanvas ? (
+        {isOfficeContent(canvasData?.content) ? (
+          // File-backed office canvas (.xlsx/.docx/.pptx): native render of
+          // the structured snapshot. With the canvas binding present, edits
+          // commit to the real file via /sync-update (same loop as web).
+          <OfficeCanvas content={canvasData.content} canvasId={canvasId} />
+        ) : isWebCanvas ? (
           <CanvasWebView
             ref={webViewRef}
             canvasId={canvasId}

@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
+import { GettingStartedCard } from "@/components/Onboarding/GettingStartedCard";
 import {
   ArrowRight,
   Settings,
@@ -210,6 +211,10 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-[1400px] mx-auto space-y-8">
+        {/* First-job guidance (provider → first agent → first run).
+            Auto-hides when all steps are done; dismissible + restorable. */}
+        <GettingStartedCard />
+
         {/* Header */}
         <div className="space-y-2">
           <h1 data-testid="dashboard-welcome-message" className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100">

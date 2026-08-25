@@ -222,6 +222,22 @@ describe('BYOKManager', () => {
     await waitFor(() => expect(providerFetchCount).toBeGreaterThanOrEqual(2));
   });
 
+  it('sends the stored JWT on BYOK calls (round 80)', async () => {
+    let authHeader: string | undefined;
+    window.localStorage.setItem('auth_token', 'jwt-byok-token');
+    server.use(
+      rest.get('/api/ai/providers', (req, res, ctx) => {
+        authHeader = req.headers.get('authorization') ?? undefined;
+        providerFetchCount += 1;
+        return res(ctx.status(200), ctx.json({ providers: [openaiProvider, anthropicProvider] }));
+      })
+    );
+
+    render(<BYOKManager />);
+    await screen.findByText('AI Providers (BYOK)');
+    await waitFor(() => expect(authHeader).toBe('Bearer jwt-byok-token'));
+  });
+
   it('cancels the modal without posting', async () => {
     render(<BYOKManager />);
 

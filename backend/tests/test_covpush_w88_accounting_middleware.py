@@ -51,7 +51,17 @@ for _entry in _REUSE_MODULES:
         if _name.startswith('_'):
             continue
         _obj = getattr(_mod, _name)
-        if hasattr(_obj, '_pytestfixturefunction'):
+        # Fixture detection across pytest generations: legacy exposes
+        # _pytestfixturefunction, newer wraps in __pytest_wrapped__, and the
+        # newest exposes FixtureFunctionDefinition directly. Without all
+        # three, every cross-module fixture (memory_db, mw, …) silently
+        # disappears and reused test classes error at setup.
+        _is_fixture = (
+            hasattr(_obj, '_pytestfixturefunction')
+            or hasattr(getattr(_obj, '__pytest_wrapped__', None), '_pytestfixturefunction')
+            or type(_obj).__name__ in ('FixtureFunctionDefinition', 'pytest_fixture')
+        )
+        if _is_fixture:
             # module-level fixture: register under original name, first wins
             globals().setdefault(_name, _obj)
         elif _name.startswith(('test_', 'Test')):
@@ -263,11 +273,16 @@ class TestGatekeeperW88:
         assert res['max_observed'] == 'restricted'
 
     async def test_taint_tracker_exception_tolerated(self, gk):
+        # W88 fail-closed policy: an unavailable taint tracker BLOCKS the
+        # action (previously tolerated open — an exception in the sensitivity
+        # check would let restricted data flow). The block is a structured
+        # denial naming the tracker outage, not an exception.
         taint = MagicMock()
         taint.check_outbound.side_effect = RuntimeError('boom')
         res = await gk.check_action_risk('slack', 'post_message',
                                          taint_tracker=taint)
-        assert res == {'allowed': True}
+        assert res['allowed'] is False
+        assert 'Data-sensitivity check unavailable' in res['reason']
 
     async def test_hitl_intervention_created_pauses(self, gk):
         gk.configure('jira', {'require_approval_for': {'delete_issue'}})

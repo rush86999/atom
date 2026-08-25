@@ -61,11 +61,14 @@ class DropboxService(IntegrationService):
         return {
             "operations": [
                 {"id": "list_files", "name": "List Files"},
+                {"id": "walk_files", "name": "Walk All Files (Recursive)"},
                 {"id": "search_files", "name": "Search Files"},
                 {"id": "download_file", "name": "Download File"},
                 {"id": "upload_file", "name": "Upload File"},
                 {"id": "create_folder", "name": "Create Folder"},
                 {"id": "delete_item", "name": "Delete Item"},
+                {"id": "ingest_file_to_memory", "name": "Ingest File to ATOM Memory"},
+                {"id": "full_sync", "name": "Full Sync"},
                 {"id": "get_space_usage", "name": "Get Space Usage"}
             ],
             "required_params": [],
@@ -154,6 +157,9 @@ class DropboxService(IntegrationService):
         if _dbx_mod and isinstance(entry, _dbx_mod.files.FolderMetadata):
             data[".tag"] = "folder"
             data["shared_folder_id"] = getattr(entry, "shared_folder_id", None)
+        elif "FolderMetadata" in type(entry).__name__:
+            # SDK-less environments (tests, partial installs) still tag folders.
+            data[".tag"] = "folder"
         else:
             data[".tag"] = "file"
             data["size"] = getattr(entry, "size", None)
@@ -169,10 +175,116 @@ class DropboxService(IntegrationService):
         recursive: bool = False,
         limit: int = 100,
     ) -> List[Dict[str, Any]]:
-        """List files and folders in a path (wave 93)."""
+        """List files and folders in a path (wave 93).
+
+        Follows the list_folder cursor until has_more is False so large
+        folders are not truncated to the first page.
+        """
         dbx = self._get_dropbox_client(access_token)
+        entries: List[Any] = []
         result = dbx.files_list_folder(path, recursive=recursive, limit=limit)
-        return [self._metadata_to_dict(e) for e in result.entries]
+        entries.extend(result.entries)
+        while result.has_more:
+            result = dbx.files_list_folder_continue(result.cursor)
+            entries.extend(result.entries)
+        return [self._metadata_to_dict(e) for e in entries]
+
+    async def walk_files(
+        self,
+        access_token: Optional[str] = None,
+        path: str = "",
+        max_depth: int = 25,
+    ) -> List[Dict[str, Any]]:
+        """Recursively list every file under ``path`` with its folder path.
+
+        Uses Dropbox's native recursive listing (server-side recursion), then
+        stamps ``folder_path`` from each entry's own path_display. Depth is
+        enforced locally as a safety cap.
+        """
+        entries = await self.list_folder(
+            path=path, access_token=access_token, recursive=True, limit=500
+        )
+        out: List[Dict[str, Any]] = []
+        for entry in entries:
+            if entry.get(".tag") != "file":
+                continue
+            full = entry.get("path") or f"/{entry.get('name', '')}"
+            if full.count("/") - 1 > max_depth:
+                continue
+            entry["folder_path"] = full.rsplit("/", 1)[0]
+            out.append(entry)
+        return out
+
+    async def ingest_file_to_memory(
+        self,
+        path: str,
+        access_token: Optional[str] = None,
+        extra_metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Download a file and process it through the ingestion pipeline.
+
+        Every file type is attempted; the parser chain decides what is
+        extractable and skips gracefully otherwise.
+        """
+        try:
+            content = await self.download_file(path, access_token)
+        except Exception as e:
+            return {"success": False, "error": f"Failed to download file: {e}"}
+
+        try:
+            file_name = path.rsplit("/", 1)[-1] or "unknown"
+            from core.auto_document_ingestion import AutoDocumentIngestionService
+            ingestor = AutoDocumentIngestionService()
+            result = await ingestor.process_file_bytes(
+                content,
+                file_name=file_name,
+                source="dropbox",
+                user_id=self.tenant_id,
+                extra_metadata=extra_metadata,
+                external_id=path,  # Dropbox identity: full path
+            )
+            return {"success": True, "result": result}
+        except Exception as e:
+            logger.error(f"Failed to ingest Dropbox file {path}: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_id: str, access_token: Optional[str] = None) -> Dict[str, Any]:
+        """Ingest every file (all types, all subfolders) into Atom memory.
+
+        Mirrors the OneDrive/Google Drive/Zoho WorkDrive full syncs: walk the
+        full tree, attempt every file, stamp folder-path context into the
+        memory metadata.
+        """
+        files = await self.walk_files(access_token=access_token)
+
+        ingested = 0
+        skipped: list[str] = []
+        errors: list[str] = []
+        for f in files:
+            name = f.get("name", "") or ""
+            path = f.get("path") or f"/{name}"
+            try:
+                meta = {"folder_path": f.get("folder_path") or ""}
+                res = await self.ingest_file_to_memory(path, access_token, extra_metadata=meta)
+                inner = res.get("result") or {}
+                if res.get("success") and inner.get("status") == "ingested":
+                    ingested += 1
+                elif res.get("error"):
+                    errors.append(f"{name}: {res['error']}")
+                else:
+                    skipped.append(f"{name} ({inner.get('reason') or 'no_text'})")
+            except Exception as file_err:
+                errors.append(f"{name}: {file_err}")
+
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "files_found": len(files),
+            "files_ingested": ingested,
+            "files_skipped": skipped,
+            "errors": errors,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
 
     async def upload_file(
         self,

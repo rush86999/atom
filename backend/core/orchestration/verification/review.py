@@ -97,6 +97,26 @@ class ReviewerVerifier(Verifier):
 
         accepted = bool(verdict.get("accept", True))
         feedback = verdict.get("feedback", "")
+
+        # P0 org telemetry (write-only; never raises) — reviewer accept/reject
+        # rates per specialist feed the favoritism baseline report.
+        try:
+            from core.org_telemetry_service import emit_org_event
+
+            emit_org_event(
+                None,
+                "review_verdict",
+                target_agent_id=self._candidate_agent_id(winner, step),
+                payload={
+                    "accepted": accepted,
+                    "score": verdict.get("score"),
+                    "domain": str(domain),
+                    "step_id": getattr(step, "step_id", None),
+                },
+            )
+        except Exception as exc:  # noqa: BLE001 — telemetry must never raise
+            logger.debug(f"org telemetry review emit skipped: {exc}")
+
         return VerificationResult(
             winner=winner if accepted else None,  # None → orchestrator can re-delegate
             strategy=self.strategy, domain=domain,
@@ -107,6 +127,19 @@ class ReviewerVerifier(Verifier):
             },
             reason=("review accepted" if accepted else f"review rejected — re-delegate: {feedback}"),
         )
+
+    @staticmethod
+    def _candidate_agent_id(candidate: Any, step: Any) -> str:
+        """Best-effort identity of the reviewed specialist (for telemetry)."""
+        for src, key in ((candidate, "agent_id"), (step, "agent_id")):
+            val = (
+                src.get(key)
+                if isinstance(src, dict) and key in src
+                else getattr(src, key, None)
+            )
+            if val:
+                return str(val)
+        return f"step:{getattr(step, 'step_id', 'unknown')}"
 
     async def _review(self, candidate: Any, task_desc: str) -> dict:
         """Ask the reviewer LLM to accept/reject the candidate."""

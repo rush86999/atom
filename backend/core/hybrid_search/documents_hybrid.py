@@ -9,7 +9,9 @@ Vector leg: LanceDB ``documents`` table (1536-dim, via ``LanceDBHandler.search``
 which embeds with the write-path embedder). Lexical leg: FTS5/tsvector BM25
 (``search_documents_lexical``). Join-key bridge: a vector hit whose ``id``
 resolves to an ``IngestedDocument`` row is hydrated from PG (VFS-citable path);
-unresolvable (legacy/vector-only) hits are dropped and counted.
+unresolvable (vector-only: connector file ingests, manual uploads) hits are
+STILL RETURNED flagged ``bridged:false`` (title from LanceDB metadata) so
+ingested-but-PG-less data stays searchable.
 
 Degradation ladder: ``bm25_vector_rrf`` | ``lexical_only`` | ``semantic_only`` |
 ``no_results``. Never raises.
@@ -218,8 +220,14 @@ class DocumentsHybridSearch:
         lexical: List[Dict[str, Any]],
         vector: List[Dict[str, Any]],
     ) -> tuple[List[Dict[str, Any]], int]:
-        """RRF over both legs, keyed by (source, id). Vector ids that do not
-        resolve to a PG row are unbridged → dropped and counted."""
+        """RRF over both legs, keyed by (source, id).
+
+        Vector ids that resolve to an ``IngestedDocument`` row are hydrated
+        from PG and flagged ``bridged:true``. Vector-only rows (connector file
+        ingests, manual uploads — no PG row) are STILL RETURNED, flagged
+        ``bridged:false``, with title/preview derived from LanceDB metadata —
+        dropping them made every vector-only ingest invisible to search.
+        Returns ``(fused, unbridged_count)``."""
         scores: Dict[tuple, Dict[str, Any]] = {}
         unbridged = 0
 
@@ -262,6 +270,25 @@ class DocumentsHybridSearch:
             doc = pg_rows.get(hit["id"])
             if doc is None:
                 unbridged += 1
+                meta = hit.get("metadata") or {}
+                title = (
+                    meta.get("file_name")
+                    or meta.get("title")
+                    or meta.get("filename")
+                    or str(hit["id"])
+                )
+                preview = str(meta.get("preview") or meta.get("content") or "")[:200]
+                entry = {
+                    "source": "vector",
+                    "id": hit["id"],
+                    "title": title,
+                    "preview": preview,
+                    "modified": None,
+                    "bridged": False,
+                    "rrf": 1.0 / (RRF_K + rank),
+                    "legs": ["vector"],
+                }
+                scores.setdefault(("vector", hit["id"]), entry)
                 continue
             key = ("ingested", hit["id"])
             entry = scores.setdefault(

@@ -388,6 +388,7 @@ class EntityTypeService:
         json_schema: Optional[Dict[str, Any]] = None,
         description: Optional[str] = None,
         available_skills: Optional[List[str]] = None,
+        is_active: Optional[bool] = None,
         changed_by: Optional[str] = None,
         change_summary: Optional[str] = None
     ) -> EntityTypeDefinition:
@@ -401,6 +402,8 @@ class EntityTypeService:
             json_schema: New JSON Schema definition
             description: New description
             available_skills: New available skills list
+            is_active: Activate/deactivate (promotes auto-discovered drafts);
+                activation alone does NOT bump the schema version
             changed_by: Optional user identifier who made the change
             change_summary: Optional description of what changed
 
@@ -410,7 +413,12 @@ class EntityTypeService:
         Raises:
             ValueError: If entity type not found or validation fails
         """
-        entity_type = self.get_entity_type(tenant_id, entity_type_id=entity_type_id)
+        # include_inactive: drafts (auto-discovered, is_active=False) must be
+        # updatable — otherwise activation is impossible and discovery output
+        # is permanently unreachable.
+        entity_type = self.get_entity_type(
+            tenant_id, entity_type_id=entity_type_id, include_inactive=True
+        )
 
         if not entity_type:
             raise ValueError(f"Entity type '{entity_type_id}' not found")
@@ -452,6 +460,8 @@ class EntityTypeService:
             entity_type.description = description
         if available_skills is not None:
             entity_type.available_skills = available_skills
+        if is_active is not None:
+            entity_type.is_active = is_active
 
         try:
             self.db.commit()
@@ -462,6 +472,47 @@ class EntityTypeService:
             self.db.rollback()
             logger.error(f"Failed to update entity type {entity_type_id}: {e}")
             raise
+
+    def record_manual_decision(
+        self,
+        tenant_id: str,
+        entity_type_id: str,
+        by: str,
+        is_active: bool
+    ) -> bool:
+        """Stamp a human is_active decision on the type's metadata.
+
+        The ontology draft automation
+        (``core/ontology/ontology_draft_automation``) reads
+        ``metadata_json["manual_decisions"]`` (oldest→newest) to guarantee it
+        never overrides a manual retirement or promotion. Called by the PATCH
+        route whenever ``is_active`` is passed explicitly.
+        """
+        entity_type = self.get_entity_type(
+            tenant_id, entity_type_id=entity_type_id, include_inactive=True
+        )
+        if not entity_type:
+            return False
+        meta = dict(entity_type.metadata_json or {})
+        decisions = list(meta.get("manual_decisions") or [])
+        decisions.append({
+            "is_active": bool(is_active),
+            "at": datetime.now(timezone.utc).isoformat(),
+            "by": by,
+        })
+        meta["manual_decisions"] = decisions
+        entity_type.metadata_json = meta
+        try:
+            self.db.commit()
+            logger.info(
+                f"Recorded manual is_active={is_active} decision for "
+                f"{tenant_id}/{entity_type.slug} by {by}"
+            )
+            return True
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Failed to record manual decision for {entity_type_id}: {e}")
+            return False
 
     def delete_entity_type(
         self,

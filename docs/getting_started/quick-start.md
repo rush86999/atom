@@ -11,7 +11,7 @@
 | Tool | Version | Why |
 |------|---------|-----|
 | Python | 3.11+ | Backend runtime |
-| Node.js | 22+ | Frontend runtime (Next.js 16.2.2) |
+| Node.js | 20.9+ | Frontend runtime (Next.js 16.2.2) |
 | npm | 9+ | Frontend deps |
 | git | any | Clone the repo |
 
@@ -107,9 +107,8 @@ create test users freely; remove it for any shared/production deployment.
 
 > **Minimal app (smoke only):** `minimal_app.py` boots a ~125-route subset for
 > fast checks (`uvicorn minimal_app:app --port 8000`). It lacks skills,
-> marketplace, workflows, canvas, integrations, etc. Use `main_api_app:app`
-> (above) to actually use Atom. The `scripts/dev.sh` helper launches
-> `minimal_app:app` — use `make backend` for the full app (v8.0.0).
+> marketplace, workflows, canvas, integrations, etc. `scripts/dev.sh` and
+> `make backend` both launch the full app (`main_api_app:app`, v8.0.0).
 
 ### Where's my admin password?
 

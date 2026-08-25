@@ -29,6 +29,11 @@ jest.mock('@/components/ui/use-toast', () => ({
 
 import TaskManagementWrapper from '../TaskManagement';
 
+// Upcoming Tasks only shows tasks with dueDate > now — keep fixtures future-dated
+// (a fixed date turns into a stale fixture that silently breaks the suite).
+const DAY = 24 * 60 * 60 * 1000;
+const future = (days: number) => new Date(Date.now() + days * DAY).toISOString();
+
 const tasks = [
   {
     id: 't-1',
@@ -36,7 +41,7 @@ const tasks = [
     description: 'Draft the announcement',
     status: 'todo',
     priority: 'high',
-    dueDate: '2026-08-20T00:00:00.000Z',
+    dueDate: future(5),
     createdAt: '2026-08-01T00:00:00.000Z',
     updatedAt: '2026-08-01T00:00:00.000Z',
     platform: 'local',
@@ -47,7 +52,7 @@ const tasks = [
     description: 'Resolve auth error',
     status: 'in-progress',
     priority: 'medium',
-    dueDate: '2026-08-25T00:00:00.000Z',
+    dueDate: future(10),
     createdAt: '2026-08-02T00:00:00.000Z',
     updatedAt: '2026-08-02T00:00:00.000Z',
     platform: 'local',

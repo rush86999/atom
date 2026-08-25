@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import IntegrationsPanel from "./IntegrationsPanel";
+import WorkflowsPanel from "./WorkflowsPanel";
+import AnalyticsPanel from "./AnalyticsPanel";
+import ApprovalsPanel from "./ApprovalsPanel";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -247,6 +251,38 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
                 Play notification sound
               </label>
             </div>
+          </div>
+
+          {/* Integrations (round 80r: desktop parity with web/mobile) */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
+              INTEGRATIONS
+            </div>
+            <IntegrationsPanel serverUrl={settings.serverUrl || undefined} />
+          </div>
+
+          {/* Workflows (round 80u: desktop parity) */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
+              WORKFLOWS
+            </div>
+            <WorkflowsPanel serverUrl={settings.serverUrl || undefined} />
+          </div>
+
+          {/* Analytics (round 80v: desktop parity — last matrix gap) */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
+              ANALYTICS
+            </div>
+            <AnalyticsPanel serverUrl={settings.serverUrl || undefined} />
+          </div>
+
+          {/* Approvals (round 80t2: HITL parity — last surface) */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#888", marginBottom: 6 }}>
+              APPROVALS
+            </div>
+            <ApprovalsPanel serverUrl={settings.serverUrl || undefined} />
           </div>
 
           {/* Appearance */}

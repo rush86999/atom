@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 import logging
 from typing import Any, Dict, List, Optional, Union
 import uuid
@@ -174,6 +175,7 @@ class AgentGovernanceService:
         "list_emails": 1,
         "shell_read": 1,
         "shell_network": 1,
+        "memory_search": 1,       # fact recall is read-only (STUDENT+)
         "present_chart": 1,       # presentations are LOW complexity (STUDENT+)
         "present_markdown": 1,
 
@@ -209,6 +211,20 @@ class AgentGovernanceService:
         "device_get_location": 2,       # location (INTERN+)
         "device_send_notification": 2,  # notifications (INTERN+)
         "update_canvas": 2,             # canvas state moderation
+        # Memory tools (tools/memory_tool.py contracts): storing durable facts
+        # is MODERATE (INTERN+); destroying them is HIGH (SUPERVISED+).
+        # Without exact keys both resolved to the level-2 default, letting an
+        # INTERN agent invalidate facts at the governance layer.
+        "memory_remember": 2,           # store durable fact (INTERN+)
+        "memory_forget": 3,             # invalidate durable fact (SUPERVISED+)
+        # Teaching (Level 1): teaching is the mechanism that CREATES trust, so
+        # it must never be gated above the teacher's own maturity. The Atom
+        # meta agent is the primary interaction surface and teacher — it needs
+        # only INTERN maturity to suggest (level 2 above), and must be able to
+        # teach STUDENT agents at any maturity, including its own INTERN floor.
+        "teach_student": 1,
+        "mentor_student": 1,
+        "train_student": 1,
 
         # Level 3: EXECUTE (Supervised) - Supervised Agents
         "create": 3,
@@ -401,6 +417,29 @@ class AgentGovernanceService:
         await self._adjudicate_feedback(feedback)
         return feedback
 
+    # R82: approval tokens for polarity-aware adjudication. A thumbs-up (or
+    # equivalent) from a reviewer is POSITIVE evidence; anything else
+    # (corrections, thumbs_down) remains negative. The reasoning route stores
+    # the original feedback_type inside input_context because a free-text
+    # comment overrides user_correction.
+    _APPROVAL_TOKENS = {"thumbs_up", "approve", "approved", "positive", "accept"}
+
+    def _feedback_is_approval(self, feedback: AgentFeedback) -> bool:
+        """Return True when feedback expresses approval rather than correction."""
+        correction = (feedback.user_correction or "").strip().lower()
+        if correction in self._APPROVAL_TOKENS:
+            return True
+        try:
+            ctx = json.loads(feedback.input_context) if feedback.input_context else {}
+            if isinstance(ctx, dict):
+                return (
+                    str(ctx.get("feedback_type", "")).strip().lower()
+                    in self._APPROVAL_TOKENS
+                )
+        except (ValueError, TypeError):
+            pass
+        return False
+
     async def _adjudicate_feedback(self, feedback: AgentFeedback) -> None:
         """Judge the validity of user feedback and update agent readiness"""
         user = self.db.query(User).filter(User.id == feedback.user_id).first()
@@ -408,19 +447,22 @@ class AgentGovernanceService:
             AgentRegistry.id == feedback.agent_id,
             self._workspace_scope_condition()
         ).first()
-        
+
         is_admin = user.role in [UserRole.WORKSPACE_ADMIN, UserRole.SUPER_ADMIN]
         # User.specialty was commented out of the model pending migration;
         # guard with getattr so adjudication never crashes on the missing column.
         specialty = getattr(user, "specialty", None)
         is_specialty_match = specialty and agent.category and specialty.lower() == agent.category.lower()
         is_trusted = is_admin or is_specialty_match
+        is_approval = self._feedback_is_approval(feedback)
 
         if is_trusted:
             feedback.status = FeedbackStatus.ACCEPTED.value
             feedback.ai_reasoning = f"Accepted by trusted {user.role}."
-            self._update_confidence_score(agent.id, positive=False, impact_level="high")
-            
+            # R82: respect polarity — a trusted reviewer's thumbs_up RAISES
+            # confidence; corrections/thumbs_down lower it (prior behavior).
+            self._update_confidence_score(agent.id, positive=is_approval, impact_level="high")
+
             try:
                 self.continuous_learning.update_from_feedback(feedback)
             except Exception as e:
@@ -428,13 +470,28 @@ class AgentGovernanceService:
         else:
             feedback.status = FeedbackStatus.PENDING.value
             feedback.ai_reasoning = "Pending specialty review."
-            self._update_confidence_score(agent.id, positive=False, impact_level="low")
+            # R82: an untrusted APPROVAL must not penalize the agent — only
+            # corrections/thumbs_down carry the low-impact penalty while
+            # pending review.
+            if not is_approval:
+                self._update_confidence_score(agent.id, positive=False, impact_level="low")
 
         feedback.adjudicated_at = datetime.now(timezone.utc)
         self.db.commit()
 
-    def _update_confidence_score(self, agent_id: str, positive: bool, impact_level: str = "high") -> None:
-        """Update confidence and manage maturity transitions"""
+    def _update_confidence_score(
+        self,
+        agent_id: str,
+        positive: bool,
+        impact_level: str = "high",
+        magnitude: Optional[float] = None,
+    ) -> None:
+        """Update confidence and manage maturity transitions.
+
+        ``magnitude`` optionally overrides the impact-table step size (used by
+        the research-informed positive-rating signal, R81j: explicit ratings
+        are high-precision but noisy, so they nudge at half the outcome drip).
+        """
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id,
             self._workspace_scope_condition()
@@ -442,8 +499,11 @@ class AgentGovernanceService:
         if not agent: return
 
         current = agent.confidence_score or 0.5
-        boost = 0.05 if impact_level == "high" else 0.01
-        penalty = 0.1 if impact_level == "high" else 0.02
+        if magnitude is not None:
+            boost = penalty = abs(magnitude)
+        else:
+            boost = 0.05 if impact_level == "high" else 0.01
+            penalty = 0.1 if impact_level == "high" else 0.02
         
         new_score = min(1.0, current + boost) if positive else max(0.0, current - penalty)
         # Round to 4dp: repeated increments accumulate binary noise
@@ -728,7 +788,16 @@ class AgentGovernanceService:
         check = self.can_perform_action(agent_id, action_type, chain_id=chain_id)
 
         if not check["allowed"]:
-            return {"proceed": False, "status": "BLOCKED", "reason": check["reason"], "action_required": "HUMAN_APPROVAL"}
+            # Round 80: carry the governance fields through — consumers
+            # (Agent Control Center) read required_status/agent_status from
+            # this documented contract, and the old subset dropped them.
+            return {
+                "proceed": False,
+                "status": "BLOCKED",
+                "reason": check["reason"],
+                "action_required": "HUMAN_APPROVAL",
+                **{k: check[k] for k in ("agent_status", "action_complexity", "required_status") if k in check},
+            }
 
         if check["requires_human_approval"]:
             return {"proceed": True, "status": "PENDING_APPROVAL", "reason": "Requires oversight", "action_required": "WAIT_FOR_APPROVAL"}
@@ -785,7 +854,13 @@ class AgentGovernanceService:
                     gr.handle_violation(agent_id, gr_check["violation_type"], gr_check["reason"])
                 return {"proceed": False, "status": "BLOCKED_BY_GUARDRAIL", "reason": gr_check["reason"], "action_required": "HUMAN_APPROVAL"}
 
-        return {"proceed": True, "status": "APPROVED", "reason": check["reason"], "action_required": None}
+        return {
+            "proceed": True,
+            "status": "APPROVED",
+            "reason": check["reason"],
+            "action_required": None,
+            **{k: check[k] for k in ("agent_status", "action_complexity", "required_status", "confidence") if k in check},
+        }
 
     # Policy Discovery
     async def find_relevant_policies(self, context: str, domain: Optional[str] = None, limit: int = 5) -> List[Dict]:

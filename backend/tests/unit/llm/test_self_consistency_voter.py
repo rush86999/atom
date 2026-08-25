@@ -641,3 +641,293 @@ def test_C16_self_consistency_vote_model_exists():
     }
     missing = expected - cols
     assert not missing, f"SelfConsistencyVote missing columns: {missing}"
+
+
+# ---------------------------------------------------------------------------
+# R83 #8: JCS (RFC 8785) canonicalization + hash-algo tagging
+#
+# Problem: json.dumps(sort_keys=True) does NOT give numeric equivalence
+# ({"n": 1} != {"n": 1.0}) and sorts keys by code point, not UTF-16 units.
+# RFC 8785 JCS fixes both. Historical rows hashed with the legacy algo are
+# preserved: every new audit row records which algo produced its hashes so
+# old/new rows stay interpretable without a data migration.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_R8_jcs_numeric_equivalence(monkeypatch):
+    """1 vs 1.0 must collide under jcs hashing (the core RFC 8785 win)."""
+    from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+    monkeypatch.setenv("ATOM_SC_HASH_ALGO", "jcs-sha256")
+    h1 = SelfConsistencyVoter._hash_sample({"amount": 1})
+    h2 = SelfConsistencyVoter._hash_sample({"amount": 1.0})
+    assert h1 == h2
+
+
+@pytest.mark.unit
+def test_R8_legacy_algo_preserves_old_behavior(monkeypatch):
+    """Kill switch ATOM_SC_HASH_ALGO=legacy restores byte-identical old hashes."""
+    import hashlib
+    import json as _json
+
+    from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+    monkeypatch.setenv("ATOM_SC_HASH_ALGO", "sha256-sortkeys")
+    plan = {"b": 2, "a": 1.0}
+    expected = hashlib.sha256(
+        _json.dumps(plan, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+    assert SelfConsistencyVoter._hash_sample(plan) == expected
+
+
+@pytest.mark.unit
+def test_R8_invalid_algo_falls_back_to_legacy(monkeypatch):
+    """Invalid ATOM_SC_HASH_ALGO value degrades to legacy (safe default)."""
+    import hashlib
+    import json as _json
+
+    from core.hallucination_config import get_sc_hash_algo
+    from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+    monkeypatch.setenv("ATOM_SC_HASH_ALGO", "bogus")
+    assert get_sc_hash_algo() == "sha256-sortkeys"
+    plan = {"a": 1}
+    expected = hashlib.sha256(
+        _json.dumps(plan, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+    assert SelfConsistencyVoter._hash_sample(plan) == expected
+
+
+@pytest.mark.unit
+def test_R8_hash_sample_never_raises_on_unserializable(monkeypatch):
+    """Canonicalization failure falls back to legacy path instead of raising."""
+    from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+    monkeypatch.setenv("ATOM_SC_HASH_ALGO", "jcs-sha256")
+    weird = {"x": float("nan")}  # rfc8785 raises FloatDomainError on NaN
+    h = SelfConsistencyVoter._hash_sample(weird)
+    assert isinstance(h, str) and len(h) == 64
+
+
+@pytest.mark.unit
+def test_R8_vote_result_carries_hash_algo(monkeypatch):
+    """VoteResult must record which hash algorithm grouped the samples."""
+    from core.llm.self_consistency_voter import (
+        LEVEL_HIGH,
+        SelfConsistencyVoter,
+        VoteResult,
+    )
+
+    class _Handler:
+        async def generate_structured_response(self, **kw):
+            return {"action": "noop", "amount": kw.get("_marker", 1)}
+
+    monkeypatch.setenv("ATOM_SC_HASH_ALGO", "jcs-sha256")
+
+    async def _run():
+        voter = SelfConsistencyVoter(handler=_Handler())
+        return await voter.vote_with_consensus(
+            prompt="p",
+            response_model=dict,
+            sample_count=3,
+            system_instruction="s",
+        )
+
+    import asyncio
+
+    result = asyncio.run(_run())
+    assert result.hash_algo == "jcs-sha256"
+    assert result.level in {LEVEL_HIGH, "partial", "ambiguous"}
+
+
+@pytest.mark.unit
+def test_R8_jcs_groups_plans_legacy_fragments(monkeypatch):
+    """Same plans differing only by int/float literal group as ONE under jcs."""
+    from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+    monkeypatch.setenv("ATOM_SC_HASH_ALGO", "jcs-sha256")
+    plans = [{"amount": 100}, {"amount": 100.0}, {"amount": 100.00}]
+    hashes = {SelfConsistencyVoter._hash_sample(p) for p in plans}
+    assert len(hashes) == 1
+
+
+@pytest.mark.unit
+def test_R17_scv_model_has_hash_algo_column():
+    """SelfConsistencyVote audit model carries hash_algo (R83 #8)."""
+    from core.models import SelfConsistencyVote
+
+    cols = {c.name for c in SelfConsistencyVote.__table__.columns}
+    assert "hash_algo" in cols
+
+
+# ---------------------------------------------------------------------------
+# R83 #2: Universal Self-Consistency judge fallback (Chen et al., ICML 2024)
+#
+# When every sample is distinct, the current path returns the lowest-temp
+# sample. USC feeds all plans to a cheap judge and asks which is most
+# consistent — recovering signal from otherwise-wasted votes. Opt-in via
+# ATOM_SC_USC_FALLBACK (adds an LLM call; default off like
+# ATOM_SANDBOX_JUDGE_ENABLED). Any judge failure degrades to the exact
+# pre-existing lowest-temp behavior.
+# ---------------------------------------------------------------------------
+
+
+import asyncio
+
+
+def _distinct_handler(plans):
+    """Handler instance returning plan[i] on sample-call i (then repeating)."""
+
+    class _H:
+        def __init__(self):
+            self.calls = 0
+
+        async def generate_structured_response(self, **kw):
+            self.calls += 1
+            if kw.get("task_type") == "usc_judge":
+                return {"best_index": kw.get("_usc_pick", 0)}
+            idx = min(self.calls - 1, len(plans) - 1)
+            return plans[idx]
+
+    return _H()
+
+
+@pytest.mark.unit
+def test_R2_flag_off_returns_lowest_temp(monkeypatch):
+    """Kill-switch parity: flag false → all-distinct still returns samples[0].
+
+    (USC is default-ON as of the evidence-based defaults flip; the kill
+    switch is an explicit ``false``.)"""
+    from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+    monkeypatch.setenv("ATOM_SC_USC_FALLBACK", "false")
+    plans = [{"a": 1}, {"a": 2}, {"a": 3}]
+
+    async def run():
+        return await SelfConsistencyVoter(handler=_distinct_handler(plans)).vote_with_consensus(
+            prompt="p", response_model=dict, sample_count=3, system_instruction="s"
+        )
+
+    result = asyncio.run(run())
+    assert result.winner == plans[0]
+    assert result.selection == "lowest-temp"
+
+
+@pytest.mark.unit
+def test_R2_flag_on_judge_picks_winner(monkeypatch):
+    """Flag on → judge's best_index selects among the distinct plans."""
+    from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+    monkeypatch.setenv("ATOM_SC_USC_FALLBACK", "true")
+    plans = [{"a": 1}, {"a": 2}, {"a": 3}]
+
+    async def run():
+        h = _distinct_handler(plans)
+        orig = h.generate_structured_response
+
+        async def patched(**kw):
+            if kw.get("task_type") == "usc_judge":
+                return {"best_index": 1}
+            return await orig(**kw)
+
+        h.generate_structured_response = patched
+        return await SelfConsistencyVoter(handler=h).vote_with_consensus(
+            prompt="p", response_model=dict, sample_count=3, system_instruction="s"
+        )
+
+    result = asyncio.run(run())
+    assert result.winner == plans[1]
+    assert result.selection == "usc-judge"
+
+
+@pytest.mark.unit
+def test_R2_judge_failure_falls_back_lowest_temp(monkeypatch):
+    """Judge raising / timing out must degrade to lowest-temp, never raise."""
+    from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+    monkeypatch.setenv("ATOM_SC_USC_FALLBACK", "true")
+    plans = [{"a": 1}, {"a": 2}, {"a": 3}]
+
+    async def run():
+        h = _distinct_handler(plans)
+        orig = h.generate_structured_response
+
+        async def boom(**kw):
+            if kw.get("task_type") == "usc_judge":
+                raise RuntimeError("provider down")
+            return await orig(**kw)
+
+        h.generate_structured_response = boom
+        return await SelfConsistencyVoter(handler=h).vote_with_consensus(
+            prompt="p", response_model=dict, sample_count=3, system_instruction="s"
+        )
+
+    result = asyncio.run(run())
+    assert result.winner == plans[0]
+    assert result.selection == "lowest-temp"
+
+
+@pytest.mark.unit
+def test_R2_judge_out_of_range_index_ignored(monkeypatch):
+    """best_index outside [0, n) is invalid → lowest-temp fallback."""
+    from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+    monkeypatch.setenv("ATOM_SC_USC_FALLBACK", "true")
+    plans = [{"a": 1}, {"a": 2}, {"a": 3}]
+
+    async def run():
+        h = _distinct_handler(plans)
+        orig = h.generate_structured_response
+
+        async def bad(**kw):
+            if kw.get("task_type") == "usc_judge":
+                return {"best_index": 99}
+            return await orig(**kw)
+
+        h.generate_structured_response = bad
+        return await SelfConsistencyVoter(handler=h).vote_with_consensus(
+            prompt="p", response_model=dict, sample_count=3, system_instruction="s"
+        )
+
+    result = asyncio.run(run())
+    assert result.winner == plans[0]
+    assert result.selection == "lowest-temp"
+
+
+@pytest.mark.unit
+def test_R2_no_judge_call_on_majority(monkeypatch):
+    """Flag on but majority exists → zero judge invocations."""
+    from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+    monkeypatch.setenv("ATOM_SC_USC_FALLBACK", "true")
+    plans = [{"a": 1}, {"a": 1}, {"a": 2}]
+    judge_calls = {"n": 0}
+
+    class _Maj:
+        async def generate_structured_response(self, **kw):
+            if kw.get("task_type") == "usc_judge":
+                judge_calls["n"] += 1
+                return {"best_index": 0}
+            return plans[min(getattr(_Maj, "calls", 0), 2)]
+
+    # simple rotating handler
+    state = {"i": 0}
+
+    class _Rot:
+        async def generate_structured_response(self, **kw):
+            if kw.get("task_type") == "usc_judge":
+                judge_calls["n"] += 1
+                return {"best_index": 0}
+            i = state["i"]
+            state["i"] += 1
+            return plans[min(i % 3, 2)]
+
+    async def run():
+        return await SelfConsistencyVoter(handler=_Rot()).vote_with_consensus(
+            prompt="p", response_model=dict, sample_count=3, system_instruction="s"
+        )
+
+    result = asyncio.run(run())
+    assert judge_calls["n"] == 0
+    assert result.selection == "majority"

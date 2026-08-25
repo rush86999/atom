@@ -466,6 +466,56 @@ and stay dormant until you configure them.
 > [DATA_PROTECTION.md](../security/DATA_PROTECTION.md) and
 > [SANDBOX_LAYER.md](../architecture/SANDBOX_LAYER.md).
 
+## Agent journey learning knobs (R81j, Aug 2026)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ATOM_POSITIVE_RATING_BOOST_ENABLED` | `true` | Trusted-user star ratings ≥4 give a tiny confidence nudge to the rated agent. Explicit ratings are a high-precision but low-volume/extremes-biased signal, so the nudge is half the outcome drip and promotions remain gated on outcome evidence + exams. |
+| `ATOM_POSITIVE_RATING_BOOST_MAGNITUDE` | `0.005` | Confidence delta per applied rating boost. |
+| `ATOM_POSITIVE_RATING_BOOST_DAILY_CAP` | `3` | Max boosts per (agent, user) per day — anti-farming / diminishing returns. Ledger is written into `AgentFeedback.ai_reasoning` (`[rating_boost_applied]` / `[rating_boost_skipped_daily_cap]`). |
+| `ATOM_EPISODE_LIFECYCLE_MAINTENANCE_ENABLED` | `false` | Opt-in daily worker: episode recency decay (`days_threshold=90`) + per-agent similarity consolidation via `EpisodeLifecycleService.run_daily_maintenance`. Manual alternatives: `POST /api/episodes/lifecycle/{decay,consolidate}`. |
+
+
 ---
 
-*Last Updated: August 5, 2026*
+*Last Updated: August 21, 2026*
+
+## Trust Calibration Gateway (R81l–p, Aug 2026)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ATOM_TRUST_CALIBRATION_ENABLED` | `false` | Master switch; true = SHADOW recording at both ask-paths (`_step_act` HITL pauses + `_check_hitl_policy` interventions). Routes answer 503 when off. |
+| `ATOM_TRUST_CALIBRATION_AUTO_ENFORCE` | `off` | Consent-gated automation: off\|notify\|approve\|auto. Auto applies certified enable verdicts and ALWAYS auto-revokes on regression. |
+| `ATOM_TRUST_CALIBRATION_AUTO_INTERVAL_MIN` | `60` | Automation worker cadence (lifespan loop). |
+| `ATOM_TRUST_CALIBRATION_FORCE_ENFORCE` | `false` | Env hard-switch overriding the action ledger for `resolved_trust_enforce()`. |
+| `ATOM_TRUST_CALIBRATION_HALF_LIFE_DAYS` | `30` | k_time decay half-life (stale decisions down-weighted + noisier). |
+| `ATOM_TRUST_CALIBRATION_MAX_OBS` | `400` | Most-recent decisions per posterior refit. |
+| `ATOM_TRUST_CALIBRATION_REFIT_TTL` | `300` | Posterior cache seconds between refits. |
+| `ATOM_TRUST_CALIBRATION_TAU_LOW` | `0.35` | p_approve below → **block** (confident denial, don't ask). |
+| `ATOM_TRUST_CALIBRATION_TAU_UNCERTAIN` | `0.15` | σ² above → **ask** (ASK band entry). |
+| `ATOM_TRUST_CALIBRATION_MIN_OBS` | `10` | Resolved observations before any non-ask recommendation. |
+
+Certification gate: `scripts/calibrate_trust_gateway.py` (exit 0=certified,
+1=not certified, 2=setup error) — temporal holdout Brier ≤ 0.25 AND
+denial-coverage ≥ 0.7 AND n ≥ 30. See
+[TRUST_CALIBRATION_PLAN.md](../architecture/TRUST_CALIBRATION_PLAN.md).
+
+## Ontology Draft Promotion Automation (Aug 2026)
+
+Promotes auto-discovered `EntityTypeDefinition` drafts (`is_active=False` —
+integration-sync discovery, OpenIE discovery, single-entity linking) that
+were otherwise invisible until a manual `PATCH {"is_active": true}`. See
+[ONTOLOGY_DRAFT_AUTOMATION.md](../architecture/ONTOLOGY_DRAFT_AUTOMATION.md).
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE` | `auto` | Consent-gated automation: off\|notify\|approve\|auto. Auto applies evidence-eligible promotions; revocation is ALWAYS automatic; manual decisions are never overridden. `off` = no pass, no worker loop. |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_INTERVAL_MIN` | `60` | Automation pass cadence (lifespan loop). |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_MIN_NODES` | `3` | Graph-usage evidence floor (matching graph node labels). |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_MIN_AGE_DAYS` | `2` | Minimum draft age to promote (one ingestion burst is not recurrence). |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_MIN_SAMPLES` | `3` | Discovery `sample_count` floor (applied only when that metadata is present). |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_REVOKE_STALE_DAYS` | `14` | Unused + undiscovered past this → automatic revoke. |
+| `ATOM_ONTOLOGY_DRAFT_AUTO_NOTIFY_COOLDOWN_HOURS` | `24` | Notify-mode dedupe window. |
+
+Admin surface: admin-gated `/api/v1/ontology-drafts/*` (`status`,
+`automation`, `run-now`, `pending`, `approve/{id}`, `reject/{id}`).

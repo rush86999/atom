@@ -24,7 +24,11 @@ class FakeLanceDB:
 
 
 @pytest.fixture
-def db():
+def db(monkeypatch):
+    # Hermetic: the conversations leg reads the REAL shared LanceDB comms
+    # store and appends hits + a "+conversations" label suffix when a dev
+    # store has ingested communications. These tests cover documents legs.
+    monkeypatch.setenv("MEMORY_CONVERSATIONS_LEG", "false")
     from core.models import Base, IngestedDocument, KnowledgeDocument
 
     engine = create_engine(
@@ -171,7 +175,7 @@ async def test_no_results_label(db):
 
 
 @pytest.mark.asyncio
-async def test_unbridged_vector_hits_dropped_and_counted(db):
+async def test_unbridged_vector_hits_flagged_not_dropped(db):
     from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
     lancedb = FakeLanceDB([legacy_row("1789123456.123"), bridged_row("doc_a", 0.1)])
@@ -180,7 +184,9 @@ async def test_unbridged_vector_hits_dropped_and_counted(db):
     res = await svc.search("revenue growth")
 
     ids = [r["id"] for r in res["results"]]
-    assert "1789123456.123" not in ids, "unbridged hits must be dropped"
+    assert "1789123456.123" in ids, "unbridged hits must be surfaced, not dropped"
+    hit = next(r for r in res["results"] if r["id"] == "1789123456.123")
+    assert hit["bridged"] is False
     assert res["stats"]["unbridged_hits"] == 1
 
 

@@ -183,7 +183,7 @@ async function checkPhase3Service(): Promise<any> {
 async function checkMainChatAPI(): Promise<any> {
   const startTime = Date.now();
   try {
-    const response = await fetch("http://localhost:8000/health", {
+    const response = await fetch("http://127.0.0.1:8000/health", {
       method: "GET",
       timeout: 5000,
     } as any);

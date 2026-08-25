@@ -125,7 +125,7 @@ describe("pages/api/social/post", () => {
     expect(body.message).toBe("Successfully posted to 1 platform");
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/v1/social/post",
+      "http://127.0.0.1:8000/api/v1/social/post",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({

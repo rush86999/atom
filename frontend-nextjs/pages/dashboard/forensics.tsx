@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
-import { Layout } from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +21,9 @@ export default function ForensicsDashboard() {
         async function fetchData() {
             try {
                 const [d, p, w] = await Promise.all([
-                    fetch("/api/business-health/forensics/vendor-drift").then(r => r.json()),
-                    fetch("/api/business-health/forensics/pricing-opportunities").then(r => r.json()),
-                    fetch("/api/business-health/forensics/subscription-waste").then(r => r.json())
+                    fetch("/api/forensics/vendor-drift").then(r => r.json()),
+                    fetch("/api/forensics/pricing-opportunities").then(r => r.json()),
+                    fetch("/api/forensics/subscription-waste").then(r => r.json())
                 ]);
                 setDrift(d.data || []);
                 setPricing(p.data || []);
@@ -39,7 +38,7 @@ export default function ForensicsDashboard() {
     }, []);
 
     return (
-        <Layout>
+        <>
             <Head>
                 <title>Financial Forensics - ATOM</title>
             </Head>
@@ -183,6 +182,6 @@ export default function ForensicsDashboard() {
                     </TabsContent>
                 </Tabs>
             </div>
-        </Layout>
+        </>
     );
 }

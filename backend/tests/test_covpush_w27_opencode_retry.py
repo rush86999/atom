@@ -129,18 +129,44 @@ class TestFreeToPaidRetry:
         assert "couldn't generate" in result.lower()
         assert client.chat.completions.create.call_count == 1
 
-    def test_paid_model_balance_error_no_self_retry(self, handler):
+    def test_paid_model_balance_error_retries_free_tier_no_self_retry(self, handler):
+        """R83: an exhausted paid balance now retries the verified free tier —
+        but must never re-try the SAME paid model."""
+        handler.get_ranked_providers = lambda *a, **k: AwaitableResult(
+            [("opencode-go", "deepseek-v4-flash")]
+        )
+        client = handler.clients["opencode-go"]
+
+        def _always_credits(*a, **kw):
+            raise Exception(CREDITS_ERROR)
+
+        client.chat.completions.create.side_effect = _always_credits
+        result = asyncio.run(handler.generate_response(
+            prompt="test",
+            system_instruction="You are helpful",
+        ))
+        assert "couldn't generate" in result.lower()
+        calls = client.chat.completions.create.call_args_list
+        models_tried = [c.kwargs.get("model") for c in calls]
+        assert models_tried[0] == "deepseek-v4-flash"
+        # Retries happen only on free-tier models — never a self-retry.
+        assert all(m != "deepseek-v4-flash" for m in models_tried[1:])
+        assert len(models_tried) > 1
+
+    def test_paid_model_balance_error_free_tier_succeeds(self, handler):
+        """Paid balance exhausted → the free tier answers the request."""
         handler.get_ranked_providers = lambda *a, **k: AwaitableResult(
             [("opencode-go", "deepseek-v4-flash")]
         )
         client = handler.clients["opencode-go"]
         client.chat.completions.create.side_effect = [
             Exception(CREDITS_ERROR),
-            _response("should not happen"),
+            _response("free tier answer"),
         ]
         result = asyncio.run(handler.generate_response(
             prompt="test",
             system_instruction="You are helpful",
         ))
-        assert "couldn't generate" in result.lower()
-        assert client.chat.completions.create.call_count == 1
+        assert result == "free tier answer"
+        calls = client.chat.completions.create.call_args_list
+        assert calls[1].kwargs["model"].endswith("-free")

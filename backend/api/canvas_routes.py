@@ -328,10 +328,11 @@ async def get_canvas_history(
         with get_db_session() as db:
             # BUG-071: Verify ownership before returning audit history.
             # Previously any authenticated user could read another user's
-            # canvas edit history by supplying the canvas_id.
-            from core.models import Canvas
-            canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
-            if canvas is None or canvas.created_by != str(current_user.id):
+            # canvas edit history by supplying the canvas_id. Uses the
+            # audit-aware owner check so agent-created canvases (audit-trail
+            # only, no Canvas row) resolve their owner from CanvasAudit.
+            from tools.canvas_crud_tool import _verify_canvas_owner
+            if not _verify_canvas_owner(db, canvas_id, str(current_user.id)):
                 raise HTTPException(status_code=404, detail="Canvas not found")
 
             audits = db.query(CanvasAudit).filter(
@@ -696,11 +697,13 @@ async def canvas_state_websocket(canvas_id: str, websocket: WebSocket):
     # Fail-closed: a NONEXISTENT canvas_id is also rejected (the original
     # `if canvas and ...` guard short-circuited on None and accepted unknown
     # ids, letting a user hold an authorized WS for an id that doesn't exist).
-    from core.models import Canvas
+    from tools.canvas_crud_tool import _verify_canvas_owner
     db = SessionLocal()
     try:
-        canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
-        if canvas is None or canvas.created_by != user.id:
+        # Audit-aware owner check: agent-created canvases (present_* tools)
+        # have no Canvas row — their owner lives on CanvasAudit. Still
+        # fail-closed for unknown ids and non-owners.
+        if not _verify_canvas_owner(db, canvas_id, str(user.id)):
             await websocket.close(code=1008, reason="Not authorized for this canvas")
             return
     finally:

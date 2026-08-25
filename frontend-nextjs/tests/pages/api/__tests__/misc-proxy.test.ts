@@ -44,7 +44,7 @@ describe("pages/api/search/[...path]", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ hits: [{ id: "h1" }] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:8000/api/search/emails/query",
+      "http://127.0.0.1:8000/api/search/emails/query",
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -57,14 +57,14 @@ describe("pages/api/search/[...path]", () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, {}));
     await invoke({ path: "documents" });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:8000/api/search/documents",
+      "http://127.0.0.1:8000/api/search/documents",
     );
   });
 
   it("proxies to the bare search root when no path is provided", async () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, {}));
     await invoke({});
-    expect(mockFetch.mock.calls[0][0]).toBe("http://localhost:8000/api/search/");
+    expect(mockFetch.mock.calls[0][0]).toBe("http://127.0.0.1:8000/api/search/");
   });
 
   it("forwards the Authorization header when present", async () => {
@@ -202,7 +202,7 @@ describe("pages/api/zendesk/tickets", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ tickets: [{ id: 1 }] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/zendesk/tickets",
+      "http://127.0.0.1:8000/api/zendesk/tickets",
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -215,7 +215,7 @@ describe("pages/api/zendesk/tickets", () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, { id: 1 }));
     await invoke("GET", { id: "42", status: "open" });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/zendesk/tickets/42?status=open",
+      "http://127.0.0.1:8000/api/zendesk/tickets/42?status=open",
     );
   });
 
@@ -223,7 +223,7 @@ describe("pages/api/zendesk/tickets", () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, {}));
     await invoke("GET", { id: ["1", "2"], sort: "updated" });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/zendesk/tickets?sort=updated",
+      "http://127.0.0.1:8000/api/zendesk/tickets?sort=updated",
     );
   });
 
@@ -232,7 +232,7 @@ describe("pages/api/zendesk/tickets", () => {
     const res = await invoke("POST", {}, { subject: "New ticket" });
     expect(res._getStatusCode()).toBe(201);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/zendesk/tickets",
+      "http://127.0.0.1:8000/api/zendesk/tickets",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -363,7 +363,7 @@ describe("pages/api/integrations/slack/files", () => {
     const res = await invoke("GET");
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ files: [{ id: "F1" }] });
-    expect(mockFetch).toHaveBeenCalledWith("http://localhost:5058/api/slack/files", {
+    expect(mockFetch).toHaveBeenCalledWith("http://127.0.0.1:8000/api/slack/files", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -377,7 +377,7 @@ describe("pages/api/integrations/slack/files", () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, { id: "F1" }));
     await invoke("GET", { id: "F1", channel: "C1" });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/slack/files/F1?channel=C1",
+      "http://127.0.0.1:8000/api/slack/files/F1?channel=C1",
     );
   });
 
@@ -385,7 +385,7 @@ describe("pages/api/integrations/slack/files", () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, {}));
     await invoke("GET", { id: ["F1", "F2"], limit: "10" });
     expect(mockFetch.mock.calls[0][0]).toBe(
-      "http://localhost:5058/api/slack/files?limit=10",
+      "http://127.0.0.1:8000/api/slack/files?limit=10",
     );
   });
 
@@ -394,7 +394,7 @@ describe("pages/api/integrations/slack/files", () => {
     const res = await invoke("POST", {}, { name: "upload.txt" });
     expect(res._getStatusCode()).toBe(201);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/slack/files",
+      "http://127.0.0.1:8000/api/slack/files",
       {
         method: "POST",
         headers: {

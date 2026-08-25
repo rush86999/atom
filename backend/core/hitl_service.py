@@ -58,6 +58,19 @@ class HITLService:
                 action.resolved_at = datetime.now(timezone.utc)
                 db.commit()
                 logger.info(f"HITL Action {action_id} REJECTED by {user.email}")
+
+                # Student agents learn from corrections: a human rejection is
+                # the strongest "don't do this" signal in the workspace.
+                import asyncio
+                from core.student_learning_service import auto_observe
+                asyncio.create_task(auto_observe(
+                    workspace_id=action.workspace_id or "default",
+                    observation_type="hitl_rejection",
+                    summary=f"A human rejected '{action.action_type}'"
+                            + (f": {action.reason}" if action.reason else ""),
+                    details={"action_type": action.action_type},
+                    action_type=action.action_type,
+                ))
                 return {"status": "rejected"}
 
             # 2. Check for 2FA Enforcement (Phase 5)
@@ -83,6 +96,19 @@ class HITLService:
             db.commit()
             
             logger.info(f"HITL Action {action_id} APPROVED by {user.email}")
+
+            # Student agents learn from approvals: what humans keep
+            # green-lighting defines trusted behavior patterns.
+            import asyncio
+            from core.student_learning_service import auto_observe
+            asyncio.create_task(auto_observe(
+                workspace_id=action.workspace_id or "default",
+                observation_type="hitl_approval",
+                summary=f"A human approved '{action.action_type}'"
+                        + (f": {action.reason}" if action.reason else ""),
+                details={"action_type": action.action_type},
+                action_type=action.action_type,
+            ))
 
             # 4. Resume Workflow (Phase 4)
             # This would typically notify the waiting agent or trigger a QStash callback

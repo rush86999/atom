@@ -267,8 +267,14 @@ class CognitiveClassifier:
             except Exception:
                 pass  # Fall through to defaults.
 
+        # Hardcoded tier defaults. DeepSeek v4 entries are Zen-gateway IDs
+        # (served via opencode-go) so an opencode-go-only deployment still
+        # resolves every tier; legacy direct-API names are kept for
+        # deployments holding a DEEPSEEK_API_KEY.
         TIER_MODELS = {
             CognitiveTier.MICRO: [
+                "deepseek-v4-flash",
+                "minimax-m3",
                 "deepseek-chat",
                 "qwen-3-7b",
                 "gemini-3-flash",
@@ -277,14 +283,17 @@ class CognitiveClassifier:
                 "ollama/llama3:8b",
             ],
             CognitiveTier.STANDARD: [
+                "deepseek-v4-flash",
                 "gemini-3-flash",
                 "gemini-3.5-flash",
+                "minimax-m3",
                 "deepseek-chat",
                 "gpt-4o-mini",
                 "claude-3-haiku-20240307",
                 "ollama/llama3:8b",
             ],
             CognitiveTier.VERSATILE: [
+                "deepseek-v4-flash",
                 "gemini-3-flash",
                 "gemini-3.5-flash",
                 "gpt-4o-mini",
@@ -293,6 +302,7 @@ class CognitiveClassifier:
                 "ollama/llama3:8b",
             ],
             CognitiveTier.HEAVY: [
+                "deepseek-v4-pro",
                 "gpt-4o",
                 "claude-3-5-sonnet",
                 "gemini-3-pro",
@@ -300,6 +310,8 @@ class CognitiveClassifier:
                 "ollama/mixtral:8x7b",
             ],
             CognitiveTier.COMPLEX: [
+                "kimi-k2.7-code",
+                "glm-5.2",
                 "gpt-5",
                 "gpt-5.6-sol",
                 "o3",

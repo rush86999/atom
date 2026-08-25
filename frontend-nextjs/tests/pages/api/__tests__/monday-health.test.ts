@@ -47,7 +47,7 @@ describe("pages/api/integrations/monday/health", () => {
     expect(res._getJSONData()).toEqual({ status: "healthy", boards: 3 });
 
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe("http://localhost:5059/api/monday/status?user_id=test_user");
+    expect(url).toBe("http://127.0.0.1:8000/api/monday/status?user_id=test_user");
     expect(init.method).toBe("GET");
     expect(init.headers).toEqual({
       Authorization: "Bearer monday-tok",

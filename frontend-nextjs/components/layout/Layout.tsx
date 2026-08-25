@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import Sidebar from './Sidebar';
 import NotificationsBell from './NotificationsBell';
 import GraduationCelebration from '../notifications/GraduationCelebration';
+import { OnboardingWizardHost } from '../Onboarding/OnboardingWizardHost';
 import { cn } from '../../lib/utils';
 
 export interface LayoutProps {
@@ -39,6 +40,10 @@ const Layout: React.FC<LayoutProps> = ({ children, className = '' }) => {
       {/* P2.3 — graduation celebration toast. Mounts globally via Layout so a
           promotion triggered on any page surfaces on the next app mount. */}
       <GraduationCelebration />
+
+      {/* First-run onboarding wizard (welcome → profile → AI provider →
+          ready). Self-hosted; renders nothing when not applicable. */}
+      <OnboardingWizardHost />
     </div>
   );
 };

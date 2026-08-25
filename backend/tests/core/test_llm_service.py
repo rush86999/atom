@@ -491,7 +491,8 @@ def _make_vote(winner="winner-obj"):
     return SimpleNamespace(
         winner=winner, prompt_hash="hash-abc", sample_count=3, valid_count=3,
         winner_count=2, distinct_hashes=2, agreement_ratio=0.67,
-        level="high", winner_hash="wh-1", temperatures=[0.2, 0.3, 0.4],
+        level="high", winner_hash="wh-1", hash_algo="sha256",
+        temperatures=[0.2, 0.3, 0.4],
     )
 
 

@@ -87,14 +87,15 @@ async def get_integration_usage(current_user: User = Depends(get_current_user)):
 @require_governance(
     action_complexity=ActionComplexity.MODERATE,
     action_name="enable_auto_sync",
-    feature="data_ingestion"
+    feature="data_ingestion",
+    agent_id_is_scope=True  # ?agent_id= scopes memory, not the actor
 )
 async def enable_auto_sync(
     request: EnableSyncRequest,
     http_request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    agent_id: Optional[str] = None
+    agent_id: Optional[str] = Query(None, description="Optional AI-employee id to scope auto-sync to; its role is persisted so scheduled runs tag records for that employee's memory"),
 ):
     """
     Enable automatic data sync for an integration.
@@ -102,11 +103,29 @@ async def enable_auto_sync(
     **Governance**: Requires INTERN+ maturity (MODERATE complexity).
     - Data sync configuration is a moderate action
     - Requires INTERN maturity or higher
+
+    Round 80s: when ``agent_id`` is provided, the AI employee's role
+    (``AgentRegistry.category``, lowercased) is resolved and persisted on the
+    SyncConfiguration — every scheduled auto-sync then tags new records with
+    it.
     """
     try:
         from core.hybrid_data_ingestion import SyncConfiguration, get_hybrid_ingestion_service
 
         service = get_hybrid_ingestion_service(get_workspace_id(current_user))
+
+        # Round 80s: agent_id -> role persisted on the config so every
+        # scheduled auto-sync tags records for this employee's memory.
+        role = None
+        if agent_id:
+            try:
+                from core.models import AgentRegistry
+                reg_agent = db.query(AgentRegistry).filter(
+                    AgentRegistry.id == agent_id).first()
+                if reg_agent and getattr(reg_agent, "category", None):
+                    role = str(reg_agent.category).lower()
+            except Exception as resolve_err:
+                logger.debug(f"agent_id role resolution failed: {resolve_err}")
 
         config = None
         if request.entity_types:
@@ -114,6 +133,7 @@ async def enable_auto_sync(
                 integration_id=request.integration_id,
                 entity_types=request.entity_types,
                 sync_last_n_days=request.sync_last_n_days or 30,
+                role=role,
             )
 
         service.enable_auto_sync(request.integration_id, config)
@@ -173,7 +193,8 @@ async def disable_auto_sync(
 @require_governance(
     action_complexity=ActionComplexity.MODERATE,
     action_name="trigger_sync",
-    feature="data_ingestion"
+    feature="data_ingestion",
+    agent_id_is_scope=True  # ?agent_id= scopes memory, not the actor
 )
 async def trigger_sync(
     integration_id: str,

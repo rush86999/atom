@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 
-const PYTHON_API_BASE_URL = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://127.0.0.1:8000';
+const PYTHON_API_BASE_URL = process.env.PYTHON_API_SERVICE_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Round 80: forward the caller's Authorization header to the backend

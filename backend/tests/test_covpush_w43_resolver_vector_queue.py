@@ -186,7 +186,7 @@ class TestVectorStore:
         _, kwargs = handler.add_document.call_args
         assert kwargs["table_name"] == "turn_facts"
         assert kwargs["doc_id"] == "f1"
-        assert kwargs["extract_knowledge"] is False
+        assert "extract_knowledge" not in kwargs  # dead param removed (R84)
         assert kwargs["metadata"]["category"] == "exact_value"
 
     def test_search_empty_results(self):

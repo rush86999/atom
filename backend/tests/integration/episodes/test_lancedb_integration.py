@@ -214,7 +214,11 @@ class TestLanceDBConnection:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
@@ -236,7 +240,11 @@ class TestLanceDBConnection:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
@@ -261,7 +269,11 @@ class TestLanceDBConnection:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
@@ -291,7 +303,7 @@ Topics: {', '.join(episode.metadata_json.get('topics', []))}
                 handler.add_document,
 
 
-                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user",
 
 
             )
@@ -324,7 +336,11 @@ class TestEmbeddingGeneration:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
@@ -353,7 +369,11 @@ class TestEmbeddingGeneration:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
@@ -387,7 +407,11 @@ class TestEmbeddingGeneration:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
@@ -420,7 +444,11 @@ class TestEmbeddingGeneration:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
@@ -469,7 +497,11 @@ class TestSemanticSearch:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
@@ -486,7 +518,7 @@ class TestSemanticSearch:
 
                 handler.add_document,
 
-                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user",
 
             )
 
@@ -518,7 +550,11 @@ class TestSemanticSearch:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
@@ -535,7 +571,7 @@ class TestSemanticSearch:
 
                 handler.add_document,
 
-                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user",
 
             )
 
@@ -570,7 +606,11 @@ class TestSemanticSearch:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
@@ -587,7 +627,7 @@ class TestSemanticSearch:
 
                 handler.add_document,
 
-                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user",
 
             )
 
@@ -632,7 +672,11 @@ class TestHybridSearch:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
@@ -649,7 +693,7 @@ class TestHybridSearch:
 
                 handler.add_document,
 
-                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user",
 
             )
 
@@ -686,7 +730,11 @@ class TestHybridSearch:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
@@ -703,7 +751,7 @@ class TestHybridSearch:
 
                 handler.add_document,
 
-                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user",
 
             )
 
@@ -746,7 +794,11 @@ class TestQueryPerformance:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
@@ -764,7 +816,7 @@ class TestQueryPerformance:
 
                 handler.add_document,
 
-                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user",
 
             )
 
@@ -800,7 +852,11 @@ class TestQueryPerformance:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
@@ -817,7 +873,7 @@ class TestQueryPerformance:
 
                 handler.add_document,
 
-                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user",
 
             )
 
@@ -860,7 +916,11 @@ class TestLanceDBEdgeCases:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "test_table"
@@ -891,7 +951,11 @@ class TestLanceDBEdgeCases:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
 
@@ -925,7 +989,11 @@ class TestLanceDBEdgeCases:
         async def _gen(t):
             if t not in _emb:
                 seed = (sum(ord(c) for c in t) % 97) + 1
-                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(1536)]
+                # Vector dims must match the handler's active provider —
+                # fastembed is 384-dim, and a 1536 mock can't be cast into a
+                # 384 FixedSizeList column (Lance/Arrow cast error).
+                _dims = 1536 if getattr(handler, "embedding_provider", "openai") == "openai" else 384
+                _emb[t] = [((i * seed) % 100) / 100.0 for i in range(_dims)]
             return _emb[t]
         handler.embedding_service = SimpleNamespace(generate_embedding=_gen)
         table_name = "episodes"
@@ -942,7 +1010,7 @@ class TestLanceDBEdgeCases:
 
                 handler.add_document,
 
-                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user", extract_knowledge=False,
+                table_name=table_name, text=content, source=f"episode:{episode.id}", metadata=metadata, user_id="default_user",
 
             )
 

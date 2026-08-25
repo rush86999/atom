@@ -10,8 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Trash2, RefreshCw, Cable, Settings2 } from 'lucide-react';
-import Layout from '../../components/layout/Layout';
-
 interface Provider {
     id: string;
     name: string;

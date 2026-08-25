@@ -261,6 +261,25 @@ async def download_file(
         )
 
 
+@router.post("/files/sync", summary="Full ingestion sync of the entire Dropbox tree")
+async def full_sync(
+    current_user: User = Depends(get_current_user)
+):
+    """Walk every subfolder (cursor pagination followed) and ingest every file
+    type into Atom memory with folder-path context. Requires authentication."""
+    try:
+        token = await dropbox_auth_handler.ensure_valid_token()
+        result = await dropbox_service.full_sync(
+            workspace_id=str(current_user.id), access_token=token
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error running Dropbox full sync: {e}")
+        raise HTTPException(status_code=500, detail="Internal error")
+
+
 @router.post("/files/search", summary="Search files")
 async def search_files(
     request: FileSearchRequest,

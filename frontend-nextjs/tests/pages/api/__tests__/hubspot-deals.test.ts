@@ -34,7 +34,7 @@ describe("pages/api/hubspot/deals", () => {
     const res = await invoke("GET");
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ results: [{ id: "dl-1" }] });
-    expect(mockFetch).toHaveBeenCalledWith("http://localhost:5058/api/hubspot/deals", {
+    expect(mockFetch).toHaveBeenCalledWith("http://127.0.0.1:8000/api/hubspot/deals", {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       body: undefined,
@@ -45,7 +45,7 @@ describe("pages/api/hubspot/deals", () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, { id: "dl-1" }));
     await invoke("GET", { id: "dl-1" });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/deals/dl-1",
+      "http://127.0.0.1:8000/api/hubspot/deals/dl-1",
       expect.anything(),
     );
   });
@@ -55,7 +55,7 @@ describe("pages/api/hubspot/deals", () => {
     await invoke("GET", { id: ["1", "2"], limit: "5" });
     const [url] = mockFetch.mock.calls[0];
     expect(url).toContain("/api/hubspot/deals");
-    expect(url).not.toContain("/1");
+    expect(url).not.toMatch(/\/1(\?|$)/);
     expect(url).not.toContain("id=");
     expect(url).toContain("limit=5");
   });
@@ -65,7 +65,7 @@ describe("pages/api/hubspot/deals", () => {
     const res = await invoke("POST", {}, { dealname: "Big deal" });
     expect(res._getStatusCode()).toBe(201);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/deals",
+      "http://127.0.0.1:8000/api/hubspot/deals",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -18,8 +18,17 @@ from core.models import GatewayRequestLog
 
 logger = logging.getLogger(__name__)
 
-GATEWAY_LOG_BODIES = os.getenv("ATOM_GATEWAY_LOG_BODIES", "false").lower() == "true"
-LOG_RETENTION_DAYS = int(os.getenv("ATOM_GATEWAY_LOG_RETENTION_DAYS", "30"))
+def log_bodies() -> bool:
+    """Env wins > runtime_settings DB row (UI admin) > default."""
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("ATOM_GATEWAY_LOG_BODIES", False)
+
+
+def log_retention_days() -> int:
+    from core.runtime_settings import get_int_setting
+
+    return get_int_setting("ATOM_GATEWAY_LOG_RETENTION_DAYS", 30)
 MAX_LOG_BODY_CHARS = 64 * 1024  # 64 KB truncation
 
 # Headers that must never be persisted (secrets / session material).
@@ -112,8 +121,8 @@ def log_gateway_request(
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             cost_usd=cost_usd,
-            request_json=_sanitize_body(request_body, GATEWAY_LOG_BODIES),
-            response_json=_sanitize_body(response_body, GATEWAY_LOG_BODIES),
+            request_json=_sanitize_body(request_body, log_bodies()),
+            response_json=_sanitize_body(response_body, log_bodies()),
         )
         db.add(row)
         db.commit()
@@ -130,7 +139,7 @@ def log_gateway_request(
 
 def sweep_gateway_logs(db) -> int:
     """Delete log rows older than the retention window; returns count deleted."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=LOG_RETENTION_DAYS)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=log_retention_days())
     try:
         deleted = db.query(GatewayRequestLog).filter(GatewayRequestLog.created_at < cutoff).delete()
         db.commit()

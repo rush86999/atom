@@ -24,13 +24,17 @@ class TestChatOrchestrator:
         orchestrator.ai_engines = {} # Disable AI engines to force fallback analysis
         await self._no_ai_response(orchestrator)
         
-        # Helper to bypass _analyze_intent natural language processing
+        # Helper to bypass _analyze_intent natural language processing.
+        # NOTE (R82): agent dispatch is intentionally scoped to explicit
+        # AGENT_REQUEST intents — SEARCH_REQUEST no longer falls back to
+        # ComputerUseAgent (the feature handlers own that intent; the pre-2026
+        # blanket fallback was removed to avoid recursive agent spend).
         orchestrator._analyze_intent = AsyncMock(return_value={
-            "primary_intent": ChatIntent.SEARCH_REQUEST, # Intent that might be handled by search
+            "primary_intent": ChatIntent.AGENT_REQUEST,
             "confidence": 0.5,
             "entities": [],
             "platforms": [],
-            "command_type": "search"
+            "command_type": "agent_request"
         })
         
         # Mock feature handlers to fail or return nothing, triggering fallback
@@ -55,7 +59,7 @@ class TestChatOrchestrator:
             
             mock_execute.assert_called_once()
             assert response["success"] is True
-            assert "Task ID: task_123" in response["message"]
+            assert "task_123" in response["message"]  # R82: message copy now "Task initiated. ID: <id>"
             
     async def test_explicit_agent_request(self):
         """Test explicit agent request routing"""

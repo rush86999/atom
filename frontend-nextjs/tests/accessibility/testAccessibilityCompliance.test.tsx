@@ -81,9 +81,10 @@ describe('WCAG 2.1 AA Compliance Tests', () => {
     it('should have accessible submit button on login page', async () => {
       renderWithProviders(<LoginPage />);
 
-      // Submit button should be accessible by role and text
-      const submitButton = screen.getByRole('button', { name: /sign in|login|log in/i }) ||
-                          screen.getByRole('button', { name: /submit/i });
+      // Submit button should be accessible by role and text. The current
+      // login page renders two sign-in buttons (Sign In + Sign in with SSO),
+      // so target the submit-typed one via its testid.
+      const submitButton = screen.getByTestId('login-submit-button');
       expect(submitButton).toBeInTheDocument();
     });
   });

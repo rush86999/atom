@@ -36,7 +36,7 @@ describe("pages/api/integrations/azure/health", () => {
     expect(body.connected_count).toBe(2);
     expect(body.total_services).toBe(2);
     expect(typeof body.timestamp).toBe("string");
-    expect(mockFetch).toHaveBeenCalledWith("http://localhost:5059/health");
+    expect(mockFetch).toHaveBeenCalledWith("http://127.0.0.1:8000/health", { headers: {} });
   });
 
   it("reports disconnected when the backend infra check fails", async () => {
@@ -58,7 +58,7 @@ describe("pages/api/integrations/azure/health", () => {
     process.env.PYTHON_API_SERVICE_BASE_URL = "http://python:6000";
     mockFetch.mockResolvedValue({ ok: true });
     await invoke();
-    expect(mockFetch).toHaveBeenCalledWith("http://python:6000/health");
+    expect(mockFetch).toHaveBeenCalledWith("http://python:6000/health", { headers: {} });
   });
 
   it("returns 503 unhealthy when the health fetch throws", async () => {

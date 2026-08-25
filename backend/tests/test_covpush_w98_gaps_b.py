@@ -644,7 +644,8 @@ def _dropbox_env():
 class TestDropboxServiceGaps:
     def test_capabilities(self):
         caps = _dbx()().get_capabilities()
-        assert len(caps["operations"]) == 7
+        op_ids = [op["id"] for op in caps["operations"]]
+        assert {"walk_files", "ingest_file_to_memory", "full_sync"} <= set(op_ids)
 
     def test_health_check(self):
         healthy = _dbx()(config={"access_token": "t"}).health_check()

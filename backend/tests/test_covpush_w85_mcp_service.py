@@ -579,17 +579,22 @@ async def test_shopify_no_store(svc, base_env):
 
 
 async def test_shopify_create_product_and_inventory(svc, base_env):
-    _shopify_env(base_env)
-    base_env.setattr(
-        mcp_mod.httpx, "AsyncClient",
-        fake_httpx_client(post_resp=http_response(201, {"product": {"id": 9}})))
-    assert "Product created successfully: 9" == await svc.execute_tool(
+    # Current contract: create_product delegates to ShopifyService (async);
+    # update_inventory still uses the inline httpx client.
+    shopify = _shopify_env(base_env)
+    shopify.create_product = AsyncMock(
+        return_value={"id": 9, "title": "Widget", "handle": "widget"}
+    )
+    res = await svc.execute_tool(
         "local-tools", "shopify_create_product", {}, {"workspace_id": "w"})
-    base_env.setattr(
-        mcp_mod.httpx, "AsyncClient",
-        fake_httpx_client(post_resp=http_response(500, text="err")))
-    assert "Failed to create product" in await svc.execute_tool(
-        "local-tools", "shopify_create_product", {}, {"workspace_id": "w"})
+    assert "Product created successfully" in res
+    assert "id=9" in res
+    assert "title=Widget" in res
+    assert "handle=widget" in res
+    shopify.create_product = AsyncMock(side_effect=RuntimeError("shopify 500"))
+    with pytest.raises(RuntimeError, match="shopify 500"):
+        await svc.execute_tool(
+            "local-tools", "shopify_create_product", {}, {"workspace_id": "w"})
     base_env.setattr(
         mcp_mod.httpx, "AsyncClient",
         fake_httpx_client(post_resp=http_response(200)))
@@ -869,8 +874,8 @@ async def test_project_tools(svc, uis, base_env):
 
 
 async def test_communication_tools(svc, uis, base_env):
-    # _check_hitl_policy: default mocked session finds no workspace -> raises
-    # inside -> caught -> None (allowed)
+    # R81b: healthy-policy path — HITL allows (None) so tool execution proceeds.
+    svc._check_hitl_policy = AsyncMock(return_value=None)
     assert await svc.execute_tool("local-tools", "post_channel_message",
                                   {"platform": "slack", "channel": "c",
                                    "message": "m"}, {"workspace_id": "w"})
@@ -1065,6 +1070,8 @@ async def test_search_dashboards(svc, uis):
 
 
 async def test_whatsapp_send_message(svc, base_env):
+    # R81b: allow via healthy HITL mock (whatsapp_send_message is risky-gated).
+    svc._check_hitl_policy = AsyncMock(return_value=None)
     mgr = MagicMock()
     mgr.status = "connected"
     mgr.integration = MagicMock()
@@ -1441,13 +1448,16 @@ def _hitl_db(workspace, tenant, user=None, agent=None):
 
 async def test_hitl_policy_paths(svc, base_env):
     from core.models import Tenant, Workspace
-    # no workspace found -> error caught -> returns None
+    # R81b: fail-closed — missing workspace/tenant now BLOCKS risky tools
+    # instead of the old swallow-and-allow.
     base_env.setattr("core.database.SessionLocal", mk_session(first=None))
-    assert await svc._check_hitl_policy("w", "send_email", {}) is None
+    blocked = await svc._check_hitl_policy("w", "send_email", {})
+    assert blocked and blocked.get("blocked_by") == "hitl_policy_error"
     # workspace but no tenant
     base_env.setattr("core.database.SessionLocal",
                      _hitl_db(SimpleNamespace(tenant_id="t"), None))
-    assert await svc._check_hitl_policy("w", "send_email", {}) is None
+    blocked = await svc._check_hitl_policy("w", "send_email", {})
+    assert blocked and blocked.get("blocked_by") == "hitl_policy_error"
     # no governance requirement -> None
     base_env.setattr("core.database.SessionLocal",
                      _hitl_db(SimpleNamespace(tenant_id="t"),
@@ -1488,7 +1498,7 @@ async def test_hitl_interception_and_autonomy(svc, base_env):
                                   tenant_id="t",
                                   notification_preferences={
                                       "force_agent_approval": True}),
-                              agent=SimpleNamespace(maturity_level=5,
+                              agent=SimpleNamespace(maturity_level=5, status="autonomous",
                                                      name="A")))
     with patch.object(intervention_service, "request_intervention",
                       AsyncMock(return_value={"paused": True})):
@@ -1500,7 +1510,7 @@ async def test_hitl_interception_and_autonomy(svc, base_env):
                      _hitl_db(SimpleNamespace(tenant_id="t"), gov_force,
                               user=SimpleNamespace(tenant_id="t",
                                                    notification_preferences={}),
-                              agent=SimpleNamespace(maturity_level=5,
+                              agent=SimpleNamespace(maturity_level=5, status="autonomous",
                                                      name="A")))
     assert await svc._check_hitl_policy("w", "send_email", {},
                                         {"user_id": "u", "agent_id": "a"}) is None

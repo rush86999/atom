@@ -22,7 +22,7 @@ from core.agent_governance_service import AgentGovernanceService
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import AgentExecution, AgentFeedback, AgentRegistry
+from core.models import AgentExecution, AgentFeedback, AgentRegistry, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,70 @@ class FeedbackTrend(BaseModel):
 
 
 # ============================================================================
+def _apply_positive_rating_signal(
+    db: Session, agent, user_id: str, rating, feedback: AgentFeedback
+) -> None:
+    """R81j (G14): research-informed positive-rating confidence nudge.
+
+    Explicit ratings are high-precision but low-volume and extremes-biased
+    (<10% participation; robust-RLHF treats such rewards as noisy). So a
+    trusted-user rating >= 4 nudges confidence by ATOM_POSITIVE_RATING_BOOST_
+    MAGNITUDE (default 0.005 — half the outcome drip), capped per day per
+    (agent, user). Promotions remain gated on outcome evidence and exams.
+    The AgentFeedback.ai_reasoning field doubles as the zero-migration ledger
+    marker ("[rating_boost_applied]" / "[rating_boost_skipped_daily_cap]").
+    Never raises.
+    """
+    try:
+        import os
+
+        if rating is None or rating < 4:
+            return
+        if os.getenv("ATOM_POSITIVE_RATING_BOOST_ENABLED", "true").lower() != "true":
+            return
+
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return
+        specialty = getattr(user, "specialty", None)
+        trusted = user.role in [UserRole.WORKSPACE_ADMIN.value, UserRole.SUPER_ADMIN.value] or (
+            bool(specialty)
+            and bool(agent.category)
+            and str(specialty).lower() == str(agent.category).lower()
+        )
+        if not trusted:
+            return
+
+        start_of_day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        cap = int(os.getenv("ATOM_POSITIVE_RATING_BOOST_DAILY_CAP", "3"))
+        applied_today = db.query(AgentFeedback).filter(
+            AgentFeedback.agent_id == agent.id,
+            AgentFeedback.user_id == user_id,
+            AgentFeedback.rating >= 4,
+            AgentFeedback.created_at >= start_of_day,
+            AgentFeedback.ai_reasoning.like("%[rating_boost_applied]%"),
+        ).count()
+        if applied_today >= cap:
+            feedback.ai_reasoning = "[rating_boost_skipped_daily_cap]"
+            db.commit()
+            return
+
+        from core.agent_governance_service import AgentGovernanceService
+
+        magnitude = float(os.getenv("ATOM_POSITIVE_RATING_BOOST_MAGNITUDE", "0.005"))
+        before = agent.confidence_score or 0.5
+        AgentGovernanceService(db)._update_confidence_score(
+            agent.id, positive=True, impact_level="low", magnitude=magnitude
+        )
+        db.refresh(agent)
+        feedback.ai_reasoning = (
+            f"[rating_boost_applied]{before:.4f}->{agent.confidence_score:.4f}"
+        )
+        db.commit()
+    except Exception as e:  # noqa: BLE001 — feedback must never 500 on the nudge
+        logging.getLogger(__name__).warning(f"positive rating signal skipped: {e}")
+
+
 # Endpoints
 # ============================================================================
 
@@ -203,6 +267,28 @@ async def submit_enhanced_feedback(
         f"type={feedback_type}, thumbs={request.thumbs_up_down}, "
         f"rating={request.rating}, user={request.user_id}"
     )
+
+    _apply_positive_rating_signal(db, agent, str(current_user.id), request.rating, feedback)
+
+    # F2 (feedback-loop trace): route the signal into the stored experience
+    # for this run — the SQL row alone is never read by recall. Best-effort:
+    # a broken vector store must not fail a submission.
+    if request.agent_execution_id:
+        try:
+            from core.agent_world_model import WorldModelService
+
+            wm = WorldModelService(
+                workspace_id=getattr(agent, "workspace_id", None) or "default"
+            )
+            await wm.apply_feedback_for_execution(
+                agent_id=request.agent_id,
+                execution_id=request.agent_execution_id,
+                thumbs_up_down=request.thumbs_up_down,
+                rating=request.rating,
+                notes=request.user_correction or feedback_type or "",
+            )
+        except Exception as fb_err:  # noqa: BLE001
+            logger.debug(f"experience feedback sync skipped: {fb_err}")
 
     return router.success_response(
         data={

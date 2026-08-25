@@ -208,6 +208,40 @@ async def get_template(template_id: str, current_user: User = Depends(get_curren
     
     return template.dict()
 
+@router.get("/{template_id}/readiness")
+async def get_template_readiness(
+    template_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """First-run friction killer: can this starter run *right now*?
+
+    Personal starters declare integrations (``template.dependencies``); this
+    checks them against the user's actual OAuth tokens so the UI can render a
+    single "Connect Gmail" CTA instead of failing mid-workflow.
+    """
+    from core.models import IntegrationToken
+    from core.workflow_ui_endpoints import _compute_readiness
+
+    template = get_template_manager().get_template(template_id)
+    if not template:
+        raise router.not_found_error("Template", template_id)
+
+    dependencies = list(template.dependencies or [])
+    if not dependencies:
+        return {"success": True, **_compute_readiness([], set())}
+
+    token_query = db.query(IntegrationToken.provider).filter(
+        IntegrationToken.user_id == current_user.id
+    )
+    if getattr(current_user, "tenant_id", None):
+        token_query = token_query.filter(
+            IntegrationToken.tenant_id == str(current_user.tenant_id)
+        )
+    connected = {p.lower() for (p,) in token_query.distinct().all()}
+    return {"success": True, **_compute_readiness(dependencies, connected)}
+
+
 @router.put("/{template_id}")
 async def update_template_endpoint(template_id: str, request: UpdateTemplateRequest, current_user: User = Depends(get_current_user)):
     """Update an existing workflow template"""
@@ -310,6 +344,60 @@ async def instantiate_template(template_id: str, request: InstantiateRequest, cu
             message="Failed to instantiate template"
         )
 
+def _persist_imported_workflow(
+    manager,
+    *,
+    template,
+    workflow_name: str,
+    author_email: Optional[str],
+) -> Dict[str, Any]:
+    """Instantiate a template AND persist it as a private editable template copy.
+
+    Previously ``import_template`` generated a workflow definition and threw it
+    away — ``workflow_id`` pointed at nothing queryable, so the editor's
+    ``GET /{template_id}`` 404'd and the post-import deep link dead-ended.
+    Persisting through ``create_template`` makes the imported id resolvable by
+    the same surface the editor reads (file-backed, survives restarts).
+    """
+    result = manager.create_workflow_from_template(
+        template_id=template.template_id,
+        workflow_name=workflow_name,
+        template_parameters={},
+    )
+    workflow_def = result.get("workflow_definition") or {}
+
+    # Generated steps carry parameters under "input_parameters"; the
+    # TemplateStep model expects "parameters". Remap so edits keep param data.
+    steps = []
+    for step in workflow_def.get("steps", []):
+        step = dict(step)
+        params = step.pop("input_parameters", None)
+        if params is not None:
+            step["parameters"] = params
+        steps.append(step)
+
+    def _enum_value(value):
+        return value.value if hasattr(value, "value") else str(value)
+
+    imported = manager.create_template({
+        "template_id": result["workflow_id"],
+        "name": workflow_name,
+        "description": template.description,
+        "category": _enum_value(template.category),
+        "complexity": _enum_value(template.complexity),
+        "tags": ["imported"] + list(template.tags or []),
+        "author": author_email or "import",
+        "is_public": False,
+        "steps": steps,
+        "inputs": [p.model_dump() for p in template.inputs],
+    })
+    return {
+        "workflow_id": imported.template_id,
+        "workflow_name": imported.name,
+        "editor_url": f"/workflows/editor/{imported.template_id}",
+    }
+
+
 @router.post("/{template_id}/import")
 @require_governance(ActionComplexity.LOW, "import_template", "workflow")
 async def import_template(
@@ -326,16 +414,18 @@ async def import_template(
         if not template:
              raise router.not_found_error("Template", template_id)
 
-        result = manager.create_workflow_from_template(
-            template_id=template_id,
+        result = _persist_imported_workflow(
+            manager,
+            template=template,
             workflow_name=f"Imported {template.name}",
-            template_parameters={}
+            author_email=getattr(current_user, "email", None),
         )
-        
+
         return {
             "status": "success",
             "message": f"Template imported as '{result.get('workflow_name')}'",
-            "workflow_id": result.get("workflow_id")
+            "workflow_id": result.get("workflow_id"),
+            "editor_url": result.get("editor_url")
         }
         
     except ValueError as e:
@@ -353,6 +443,109 @@ async def import_template(
         raise router.internal_error(
             message="Failed to import template"
         )
+
+@router.get("/executions/{execution_id}/status")
+async def get_execution_status(
+    execution_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Post-run loop closure: did the execution I just started work?
+
+    Matches either the persisted ``execution_id`` or the ``workflow_id`` the
+    execute endpoint hands back, so callers can poll with whatever they got.
+    """
+    from core.models import WorkflowExecution
+
+    row = (
+        db.query(WorkflowExecution)
+        .filter(
+            (WorkflowExecution.execution_id == execution_id)
+            | (WorkflowExecution.workflow_id == execution_id)
+        )
+        .order_by(WorkflowExecution.created_at.desc())
+        .first()
+    )
+    if not row:
+        raise router.not_found_error("Execution", execution_id)
+
+    return {
+        "success": True,
+        "execution_id": row.execution_id,
+        "workflow_id": row.workflow_id,
+        "status": row.status,
+        "error": row.error,
+        "started_at": row.created_at.isoformat() if row.created_at else None,
+        "completed_at": row.completed_at.isoformat() if row.completed_at else None,
+    }
+
+
+def _safe_json_loads(raw):
+    """Parse a JSON Text column defensively — legacy rows may hold anything."""
+    import json as _json
+
+    if not raw:
+        return None
+    if isinstance(raw, (dict, list)):
+        return raw
+    try:
+        return _json.loads(raw)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+@router.get("/executions/{execution_id}/results")
+async def get_execution_results(
+    execution_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Step-level results for a finished/running execution.
+
+    Reads the orchestrator-persisted ``context`` blob (variables + results +
+    execution_history). Capped so a runaway run can't blow up the response.
+    """
+    from core.models import WorkflowExecution
+
+    row = (
+        db.query(WorkflowExecution)
+        .filter(
+            (WorkflowExecution.execution_id == execution_id)
+            | (WorkflowExecution.workflow_id == execution_id)
+        )
+        .order_by(WorkflowExecution.created_at.desc())
+        .first()
+    )
+    if not row:
+        raise router.not_found_error("Execution", execution_id)
+
+    context = _safe_json_loads(row.context) or {}
+    raw_history = context.get("execution_history") or []
+    steps = []
+    for entry in raw_history[:100]:
+        if not isinstance(entry, dict):
+            continue
+        steps.append({
+            "step_id": entry.get("step_id") or entry.get("step"),
+            "step_type": entry.get("step_type"),
+            "status": entry.get("status"),
+            "notes": (str(entry.get("notes"))[:200] if entry.get("notes") else None),
+        })
+
+    raw_outputs = context.get("results")
+    outputs = raw_outputs if isinstance(raw_outputs, dict) else None
+    if outputs and len(outputs) > 50:
+        outputs = dict(list(outputs.items())[:50])
+
+    return {
+        "success": True,
+        "execution_id": row.execution_id,
+        "status": row.status,
+        "error": row.error,
+        "steps": steps,
+        "outputs": outputs,
+    }
+
 
 @router.post("/{template_id}/execute")
 @require_governance(

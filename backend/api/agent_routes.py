@@ -267,14 +267,30 @@ async def get_agent_graduation_progress(
     next_tier_upper = next_tier.upper() if next_tier else None
     episodes_to_next = None
     next_threshold = None
+    # Real episode count (R82): count successful episodes so the UI progress
+    # bar reflects actual progress, not the bare threshold. The old
+    # placeholder claimed "X episodes to next tier" regardless of progress —
+    # the AgentCard badge and dashboard bar both render this live.
+    episode_count = 0
+    try:
+        from core.models import AgentEpisode
+        raw_count = (
+            db.query(AgentEpisode)
+            .filter(
+                AgentEpisode.agent_id == agent_id,
+                AgentEpisode.outcome == "success",
+            )
+            .count()
+        )
+        if isinstance(raw_count, int) and raw_count >= 0:
+            episode_count = raw_count
+    except Exception:
+        episode_count = 0
+
     if next_tier_upper and next_tier_upper in criteria:
         next_threshold = criteria[next_tier_upper].get("min_episodes")
-        # We don't always have a real episode count handy here without
-        # hitting the graduation service; the dashboard's activity feed
-        # surfaces the live count separately. Leave episodes_to_next null
-        # when next_threshold is unknown.
         if isinstance(next_threshold, int):
-            episodes_to_next = max(0, next_threshold)  # placeholder; UI shows "X to next tier"
+            episodes_to_next = max(0, next_threshold - episode_count)
 
     return router.success_response(
         data={
@@ -283,6 +299,7 @@ async def get_agent_graduation_progress(
             "next_tier": next_tier,
             "next_threshold_episodes": next_threshold,
             "episodes_to_next": episodes_to_next,
+            "episode_count": episode_count,
             "criteria": criteria,
         },
         message="Graduation progress retrieved successfully"
@@ -578,8 +595,12 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
 
             logger.info(f"Starting agent {agent.name} (ID: {agent_id})...")
 
-            # 1. World Model Retrieval
-            wm_service = WorldModelService()
+            # 1. World Model Retrieval — scope to the agent's own workspace
+            # (AgentRegistry carries workspace_id; the bare constructor
+            # silently read the "default" workspace's memory).
+            wm_service = WorldModelService(
+                getattr(agent, "workspace_id", None) or "default"
+            )
 
             # Build a context string from params to query memory
             task_context = f"Execute {agent.name} with params: {str(params)}"

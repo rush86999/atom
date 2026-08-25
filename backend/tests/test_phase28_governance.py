@@ -98,20 +98,34 @@ class TestAgentGovernance(unittest.TestCase):
         self.assertAlmostEqual(mock_agent.confidence_score, 0.51)
         
     def test_manual_promotion_rbac(self):
-        mock_agent = AgentRegistry(id="a3", status=AgentStatus.STUDENT.value)
-        self.mock_db.query.return_value.filter.return_value.first.return_value = mock_agent
-        
-        # 1. Member (No permission) -> Should Fail
-        member = User(role=UserRole.MEMBER)
+        """R82: manual promotion moved from the (never-shipped) service method
+        to POST /api/agents/{id}/promote, gated by AGENT_MANAGE permission."""
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        import api.agent_routes as ar
+
+        app = FastAPI()
+        app.include_router(ar.router)
+
+        user = User(id="u1", role=UserRole.MEMBER)
+
+        # 1. Member (No permission) -> 403
         with patch("core.rbac_service.RBACService.check_permission", return_value=False):
-            with self.assertRaises(Exception): # HTTPException in real app
-                self.service.promote_to_autonomous("a3", member)
-                
-        # 2. Admin (Has permission) -> Should Success
-        admin = User(role=UserRole.WORKSPACE_ADMIN)
+            app.dependency_overrides[ar.get_current_user] = lambda: user
+            app.dependency_overrides[ar.get_db] = lambda: self.mock_db
+            client = TestClient(app)
+            r = client.post("/api/agents/a3/promote")
+            self.assertEqual(r.status_code, 403)
+
+        # 2. Admin (Has permission) -> 200 + AUTONOMOUS
+        self.mock_db.query.return_value.filter.return_value.first.return_value = AgentRegistry(
+            id="a3", status=AgentStatus.STUDENT.value
+        )
         with patch("core.rbac_service.RBACService.check_permission", return_value=True):
-            self.service.promote_to_autonomous("a3", admin)
-            self.assertEqual(mock_agent.status, AgentStatus.AUTONOMOUS.value) # Note: promote_to_autonomous sets ACTIVE, need to check if we want that or AUTONOMOUS enum
+            r = client.post("/api/agents/a3/promote")
+            self.assertEqual(r.status_code, 200)
+            agent = self.mock_db.query.return_value.filter.return_value.first.return_value
+            self.assertEqual(agent.status, AgentStatus.AUTONOMOUS.value)
 
 
 if __name__ == "__main__":

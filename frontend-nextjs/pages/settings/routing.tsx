@@ -7,8 +7,6 @@ import { Box, Heading, Container, Text, Button } from '@chakra-ui/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Activity, RefreshCw, AlertCircle, TrendingUp, Database } from 'lucide-react';
-import Layout from '../../components/layout/Layout';
-
 interface EmaModelScore {
     score: number;
     success_rate: number;

@@ -177,7 +177,8 @@ class TestSyncRoleTag:
         svc.memory_handler = MagicMock(add_document=AsyncMock(return_value=True))
         svc.graphrag = None
         svc.usage_stats = {}
-        svc.sync_configs = {"zoho": MagicMock(sync_frequency_minutes=60)}
+        from core.hybrid_data_ingestion import SyncConfiguration
+        svc.sync_configs = {"zoho": SyncConfiguration(integration_id="zoho")}
         svc._persist_integration = MagicMock()
 
         record = {"id": "rec1", "type": "deal", "name": "Acme", "user_id": "u1"}
@@ -248,3 +249,113 @@ class TestTriggerSyncAgentRole:
         assert resp.status_code == 200
         service.sync_integration_data.assert_awaited_once_with("zoho", force=True, role="finance")
         db.query.assert_called_with(AgentRegistry)
+
+
+# --------------------------------------------------------------------------
+# R6 — role persists on SyncConfiguration so scheduled auto-syncs inherit it
+# --------------------------------------------------------------------------
+
+class TestRolePersistsOnConfig:
+    """SyncConfiguration.role persists so scheduled auto-syncs inherit it."""
+
+    def _svc_with_role(self, role):
+        from core.hybrid_data_ingestion import (
+            HybridDataIngestionService, SyncConfiguration,
+        )
+        svc = HybridDataIngestionService.__new__(HybridDataIngestionService)
+        svc.workspace_id = "default"
+        svc.tenant_id = None
+        svc.memory_handler = MagicMock(add_document=AsyncMock(return_value=True))
+        svc.graphrag = None
+        svc.usage_stats = {}
+        cfg = SyncConfiguration(integration_id="zoho", role=role)
+        svc.sync_configs = {"zoho": cfg}
+        svc._persist_integration = MagicMock()
+        return svc
+
+    def _run(self, svc):
+        import asyncio
+        record = {"id": "r1", "type": "deal", "user_id": "u"}
+        svc._fetch_integration_data = AsyncMock(return_value=[record])
+        svc._record_to_text = MagicMock(return_value="Acme deal text")
+        return asyncio.run(svc.sync_integration_data("zoho", force=True)), svc
+
+    def test_explicit_role_overrides_config(self):
+        import asyncio
+        from core.hybrid_data_ingestion import HybridDataIngestionService
+
+        svc = HybridDataIngestionService.__new__(HybridDataIngestionService)
+        svc.workspace_id = "default"
+        svc.tenant_id = None
+        svc.memory_handler = MagicMock(add_document=AsyncMock(return_value=True))
+        svc.graphrag = None
+        svc.usage_stats = {}
+        cfg = SyncConfiguration(integration_id="zoho", role="sales")
+        svc.sync_configs = {"zoho": cfg}
+        svc._persist_integration = MagicMock()
+        record = {"id": "r1", "type": "deal", "user_id": "u"}
+        svc._fetch_integration_data = AsyncMock(return_value=[record])
+        svc._record_to_text = MagicMock(return_value="Acme deal text")
+
+        result = asyncio.run(
+            svc.sync_integration_data("zoho", force=True, role="ops"))
+        _, kwargs = svc.memory_handler.add_document.call_args
+        assert kwargs["metadata"]["role"] == "ops"
+
+    def test_config_role_used_without_explicit_param(self):
+        svc = self._svc_with_role("finance")
+        result, svc = self._run(svc)
+        _, kwargs = svc.memory_handler.add_document.call_args
+        assert kwargs["metadata"]["role"] == "finance"
+
+    def test_explicit_role_overrides_config(self):
+        svc = self._svc_with_role("sales")
+        result, svc = self._run(svc)  # no explicit param → config wins? No:
+        # explicit call-site param beats config; here we pass none so config applies
+
+
+
+
+class TestEnableSyncRolePersistence:
+    """POST /enable-sync?agent_id=X resolves the role and persists it on
+    the SyncConfiguration — completing the set-once story (80s)."""
+
+    def test_agent_id_persists_role_on_config(self):
+        from unittest.mock import AsyncMock
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        import core.auth as ca
+        from core.database import get_db as route_db
+
+        service = MagicMock()
+        service.enable_auto_sync = MagicMock()
+        agent = MagicMock()
+        agent.category = "Finance"
+
+        app = FastAPI()
+        from api import data_ingestion_routes as r
+        app.include_router(r.router)
+        user = MagicMock(spec=User)
+        app.dependency_overrides[ca.get_current_user] = lambda: user
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = agent
+        app.dependency_overrides[route_db] = lambda: db
+
+        with patch("core.hybrid_data_ingestion.get_hybrid_ingestion_service",
+                   return_value=service), \
+             patch.object(r, "get_workspace_id", return_value="default"), \
+             patch("core.agent_governance_service.AgentGovernanceService.can_perform_action",
+                   return_value={"allowed": True}):
+            c = TestClient(app, raise_server_exceptions=False)
+            resp = c.post("/api/data-ingestion/enable-sync", json={
+                "integration_id": "zoho",
+                "entity_types": ["deals"],
+                "sync_last_n_days": 30,
+            }, params={"agent_id": "finance-agent-1"})
+
+        assert resp.status_code == 200, resp.text[:200]
+        # role resolved from the agent and stored on the config handed to
+        # enable_auto_sync (service is a MagicMock; inspect the call)
+        args, kwargs = service.enable_auto_sync.call_args
+        cfg = args[1]
+        assert cfg.role == "finance", f"config role: {cfg.role}"

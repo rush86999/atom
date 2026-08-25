@@ -251,7 +251,11 @@ class TestHybridSync:
     @pytest.mark.asyncio
     async def test_sync_record_error_partial(self, hybrid, hybrid_factory):
         hybrid.enable_auto_sync("slack")
-        hybrid_factory["memory"].add_document.side_effect = [Exception("boom"), True]
+        # R84: two writes per record now — index row + business_facts row.
+        hybrid_factory["memory"].add_document.side_effect = [
+            Exception("boom"), True,   # record 1: index fails, fact ok
+            True, True,                # record 2: both ok
+        ]
         records = [
             {"id": "1", "type": "message", "text": "some long enough message text here"},
             {"id": "2", "type": "message", "text": "another long enough message here"},
@@ -735,7 +739,8 @@ class TestHybridFetch:
         doc_ingestor = MagicMock()
         doc_ingestor.process_file_bytes = AsyncMock()
         monkeypatch.setattr(
-            "core.auto_document_ingestion.AutoDocumentIngestionService", lambda: doc_ingestor
+            # Accepts args: the service is constructed workspace-scoped.
+            "core.auto_document_ingestion.AutoDocumentIngestionService", lambda *a, **k: doc_ingestor
         )
         config = SyncConfiguration(integration_id="google_drive")
         records = await hybrid._fetch_google_drive_data(config)

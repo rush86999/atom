@@ -81,7 +81,7 @@ describe("pages/api/integrations/gitlab/project", () => {
       stats: { stars: 3 },
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/integrations/gitlab/project",
+      "http://127.0.0.1:8000/api/integrations/gitlab/project",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -236,7 +236,7 @@ describe("pages/api/integrations/gitlab/status", () => {
       success: true,
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/integrations/gitlab/status",
+      "http://127.0.0.1:8000/api/integrations/gitlab/status",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -332,7 +332,7 @@ describe("pages/api/integrations/gitlab/trigger-pipeline", () => {
       message: "Pipeline triggered for project proj-1 on branch feature/x",
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/integrations/gitlab/trigger-pipeline",
+      "http://127.0.0.1:8000/api/integrations/gitlab/trigger-pipeline",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

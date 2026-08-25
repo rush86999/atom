@@ -31,7 +31,7 @@ from core.llm.gateway import (
 )
 from core.llm.gateway.auth import GatewayIdentity
 from core.llm.gateway.budget_alerts import record_gateway_spend
-from core.llm.gateway.gateway_service import DEFAULT_MAX_TOKENS
+from core.llm.gateway.gateway_service import default_max_tokens
 from core.llm.gateway.request_logger import estimate_cost_usd, log_gateway_request
 from core.llm.gateway.wire_formats import (
     anthropic_request_to_openai,
@@ -73,7 +73,7 @@ class AnthropicMessagesRequest(BaseModel):
     model: Optional[str] = "auto"
     messages: List[Dict[str, Any]] = Field(..., min_length=1)
     system: Optional[Union[str, List[Dict[str, Any]]]] = None
-    max_tokens: int = Field(default_factory=lambda: DEFAULT_MAX_TOKENS)
+    max_tokens: int = Field(default_factory=default_max_tokens)
     temperature: float = 0.7
     stop_sequences: Optional[List[str]] = None
     top_p: Optional[float] = None
@@ -152,7 +152,7 @@ async def chat_completions(
 ):
     require_gateway_enabled()
     service = GatewayService(identity, db)
-    max_tokens = body.max_tokens or DEFAULT_MAX_TOKENS
+    max_tokens = body.max_tokens or default_max_tokens()
     try:
         provider, model = await service._resolve_route(
             body.messages, body.model, dict(request.headers)

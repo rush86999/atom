@@ -34,7 +34,7 @@ describe('PreferencesTab', () => {
       if (init?.method === 'POST') {
         return Promise.resolve({ ok: true, json: async () => ({}) });
       }
-      if (u.includes('/api/v1/preferences?user_id=default_user')) {
+      if (u.includes('/api/v1/preferences?user_id=me')) {
         return Promise.resolve({
           ok: true,
           json: async () => ({ theme: 'dark', notifications_enabled: false, email_frequency: 'weekly' }),

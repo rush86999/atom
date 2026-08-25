@@ -37,12 +37,49 @@ from core.turn_fact_categories import ALL_FACT_CATEGORIES as _FACT_CATEGORIES
 
 logger = logging.getLogger(__name__)
 
-LLM_REVIEW_ENABLED = os.getenv("ATOM_MEMORY_CONSOLIDATION_LLM", "false").lower() == "true"
-LLM_REVIEW_MAX_SUBJECTS = int(os.getenv("ATOM_MEMORY_CONSOLIDATION_LLM_MAX_SUBJECTS", "5"))
-LLM_REVIEW_FACTS_PER_SUBJECT = int(os.getenv("ATOM_MEMORY_CONSOLIDATION_LLM_FACTS_PER_SUBJECT", "6"))
-LLM_REVIEW_MAX_OPS = int(os.getenv("ATOM_MEMORY_CONSOLIDATION_LLM_MAX_OPS", "20"))
-LLM_REVIEW_TIMEOUT_S = float(os.getenv("ATOM_MEMORY_CONSOLIDATION_LLM_TIMEOUT_S", "20"))
-LLM_REVIEW_LOOKBACK_DAYS = int(os.getenv("ATOM_MEMORY_CONSOLIDATION_LLM_LOOKBACK_DAYS", "7"))
+def llm_review_enabled() -> bool:
+    """Env wins > runtime_settings DB row (UI admin) > default."""
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("ATOM_MEMORY_CONSOLIDATION_LLM", False)
+
+
+def llm_review_max_subjects() -> int:
+    from core.runtime_settings import get_int_setting
+
+    return get_int_setting("ATOM_MEMORY_CONSOLIDATION_LLM_MAX_SUBJECTS", 5)
+
+
+def llm_review_facts_per_subject() -> int:
+    from core.runtime_settings import get_int_setting
+
+    return get_int_setting("ATOM_MEMORY_CONSOLIDATION_LLM_FACTS_PER_SUBJECT", 6)
+
+
+def llm_review_max_ops() -> int:
+    from core.runtime_settings import get_int_setting
+
+    return get_int_setting("ATOM_MEMORY_CONSOLIDATION_LLM_MAX_OPS", 20)
+
+
+def llm_review_timeout_s() -> float:
+    from core.runtime_settings import get_float_setting
+
+    return get_float_setting("ATOM_MEMORY_CONSOLIDATION_LLM_TIMEOUT_S", 20.0)
+
+
+def llm_review_lookback_days() -> int:
+    from core.runtime_settings import get_int_setting
+
+    return get_int_setting("ATOM_MEMORY_CONSOLIDATION_LLM_LOOKBACK_DAYS", 7)
+
+
+LLM_REVIEW_ENABLED = llm_review_enabled()
+LLM_REVIEW_MAX_SUBJECTS = llm_review_max_subjects()
+LLM_REVIEW_FACTS_PER_SUBJECT = llm_review_facts_per_subject()
+LLM_REVIEW_MAX_OPS = llm_review_max_ops()
+LLM_REVIEW_TIMEOUT_S = llm_review_timeout_s()
+LLM_REVIEW_LOOKBACK_DAYS = llm_review_lookback_days()
 
 _ALLOWED_FACT_CATEGORIES = frozenset(_FACT_CATEGORIES)
 
@@ -300,14 +337,14 @@ def _gather_review_evidence(workspace_id: str) -> Tuple[List[Any], List[Any]]:
     facts: List[Any] = []
     edges: List[Any] = []
     try:
-        cutoff = datetime.utcnow() - timedelta(days=LLM_REVIEW_LOOKBACK_DAYS)
+        cutoff = datetime.utcnow() - timedelta(days=llm_review_lookback_days())
         with get_db_session() as session:
             facts = session.query(TurnFact).filter(
                 TurnFact.workspace_id == workspace_id,
                 TurnFact.status == "active",
                 TurnFact.created_at >= cutoff,
             ).order_by(TurnFact.created_at.desc()).limit(
-                LLM_REVIEW_MAX_SUBJECTS * LLM_REVIEW_FACTS_PER_SUBJECT
+                llm_review_max_subjects() * llm_review_facts_per_subject()
             ).all()
             edge_rows = session.query(GraphEdge).filter(
                 GraphEdge.workspace_id == workspace_id,
@@ -339,12 +376,12 @@ def _subject_candidates(facts: List[Any]) -> List[Tuple[str, List[Any]]]:
         if subj:
             by_subject[subj].append(f)
     candidates = [
-        (subj, items[:LLM_REVIEW_FACTS_PER_SUBJECT])
+        (subj, items[: llm_review_facts_per_subject()])
         for subj, items in by_subject.items()
         if len(items) >= 2
     ]
     candidates.sort(key=lambda c: len(c[1]), reverse=True)
-    return candidates[:LLM_REVIEW_MAX_SUBJECTS]
+    return candidates[: llm_review_max_subjects()]
 
 
 def _parse_ops(raw: str) -> List[Dict[str, Any]]:
@@ -389,7 +426,7 @@ def _apply_ops(
     applied = 0
     try:
         with get_db_session() as session:
-            for op in ops[:LLM_REVIEW_MAX_OPS]:
+            for op in ops[: llm_review_max_ops()]:
                 op_type = op.get("op")
                 if op_type not in counts:
                     skipped.append(f"unknown op: {op_type!r}")
@@ -487,7 +524,7 @@ async def consolidate_with_llm(workspace_id: str = "default", tenant_id: str = "
     (default false). Never raises."""
     report: Dict[str, Any] = {
         "workspace": workspace_id,
-        "enabled": LLM_REVIEW_ENABLED,
+        "enabled": llm_review_enabled(),
         "subjects_reviewed": 0,
         "ops_emitted": 0,
         "ops_applied": 0,
@@ -496,7 +533,7 @@ async def consolidate_with_llm(workspace_id: str = "default", tenant_id: str = "
         "audit": [],
         "ran_at": datetime.utcnow().isoformat(),
     }
-    if not LLM_REVIEW_ENABLED:
+    if not llm_review_enabled():
         return report
     try:
         facts, edges = _gather_review_evidence(workspace_id)
@@ -534,7 +571,7 @@ async def consolidate_with_llm(workspace_id: str = "default", tenant_id: str = "
                         temperature=0.0,
                         max_tokens=800,
                     ),
-                    timeout=LLM_REVIEW_TIMEOUT_S,
+                    timeout=llm_review_timeout_s(),
                 )
             except Exception as e:
                 logger.debug("memory_consolidator LLM review skipped (%s): %s", subj, e)

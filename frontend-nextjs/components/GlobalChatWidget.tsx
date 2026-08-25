@@ -76,7 +76,9 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     setPendingApproval(null);
                 }
             } catch (err) {
-                // Background polling check - silent fallback if backend is unreachable
+                // Background polling check - graceful empty state if backend is unreachable,
+                // but surface the failure server-side via console for diagnostics.
+                console.error("Failed to fetch pending approvals:", err);
                 if (process.env.NODE_ENV === 'development') {
                     console.debug("Pending approvals unavailable (backend unreachable)");
                 }

@@ -11,8 +11,9 @@
  *   projects/issues from resource discovery) -> onIntegrationComplete
  *
  * Uses the shared MSW server (tests/mocks/server.ts) registered in
- * tests/setup.ts. The component builds absolute URLs against
- * http://localhost:8000 (NEXT_PUBLIC_API_BASE_URL unset in tests).
+ * tests/setup.ts. The component builds relative URLs
+ * (process.env.NEXT_PUBLIC_API_BASE_URL unset in tests), so handlers match
+ * host-agnostic paths (e.g. '/api/auth/jira/start').
  */
 
 import React from 'react';
@@ -42,7 +43,7 @@ const resources = [
 ];
 
 const startHandler = rest.get(
-  'http://localhost:8000/api/auth/jira/start',
+  '/api/auth/jira/start',
   (req, res, ctx) => {
     return res(
       ctx.status(200),
@@ -54,14 +55,14 @@ const startHandler = rest.get(
 );
 
 const resourcesHandler = rest.get(
-  'http://localhost:8000/api/auth/jira/resources',
+  '/api/auth/jira/resources',
   (req, res, ctx) => {
     return res(ctx.status(200), ctx.json({ resources }));
   }
 );
 
 const projectsHandler = rest.get(
-  'http://localhost:8000/api/auth/jira/CLOUD1/projects',
+  '/api/auth/jira/CLOUD1/projects',
   (req, res, ctx) => {
     return res(
       ctx.status(200),
@@ -140,7 +141,7 @@ describe('JiraOAuthFlow', () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     server.use(
-      rest.get('http://localhost:8000/api/auth/jira/start', (req, res, ctx) => {
+      rest.get('/api/auth/jira/start', (req, res, ctx) => {
         return res(ctx.status(500), ctx.json({ error: 'oauth misconfigured' }));
       })
     );
@@ -172,7 +173,7 @@ describe('JiraOAuthFlow', () => {
     let healthy = false;
 
     server.use(
-      rest.get('http://localhost:8000/api/auth/jira/start', (req, res, ctx) => {
+      rest.get('/api/auth/jira/start', (req, res, ctx) => {
         if (!healthy) {
           return res(ctx.status(503), ctx.json({ error: 'unavailable' }));
         }
@@ -297,7 +298,7 @@ describe('JiraOAuthFlow', () => {
     const onError = jest.fn();
 
     server.use(
-      rest.get('http://localhost:8000/api/auth/jira/resources', (req, res, ctx) => {
+      rest.get('/api/auth/jira/resources', (req, res, ctx) => {
         return res(ctx.status(403), ctx.json({ error: 'forbidden' }));
       })
     );
@@ -374,7 +375,7 @@ describe('JiraOAuthFlow', () => {
 
     server.use(
       resourcesHandler,
-      rest.get('http://localhost:8000/api/auth/jira/CLOUD1/projects', (req, res, ctx) => {
+      rest.get('/api/auth/jira/CLOUD1/projects', (req, res, ctx) => {
         return res(ctx.status(500), ctx.json({ error: 'projects unavailable' }));
       })
     );
@@ -456,7 +457,7 @@ describe('JiraOAuthFlow', () => {
     }));
 
     server.use(
-      rest.get('http://localhost:8000/api/auth/jira/resources', (req, res, ctx) =>
+      rest.get('/api/auth/jira/resources', (req, res, ctx) =>
         res(ctx.status(200), ctx.json({
           resources: [
             {

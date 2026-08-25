@@ -3,7 +3,7 @@
 > Every external stat used in Atom marketing copy, with its source. If it's not here,
 > it doesn't go in copy. Repo-internal claims are grounded in `CLAUDE.md` / `docs/`
 > (see each file's own "Grounding" notes).
-> Last updated: Aug 20, 2026 (added OWASP ASI Top 10 + NIST agent-standards sourcing).
+> Last updated: Aug 22, 2026 (added trust-calibration + multi-agent-org research wave; prior: OWASP ASI Top 10 + NIST agent-standards sourcing).
 
 ## The 88% problem
 
@@ -92,7 +92,7 @@
 
 ## NIST AI Agent Standards Initiative (2026) — regulatory momentum
 
-- **NIST formally launched the AI Agent Standards Initiative (Feb 17, 2026) under CAISI — the first U.S. government program dedicated to secure/interoperable agentic AI, targeting agent identity, authorization, and accountability. A companion NCCoE concept paper (Feb 5, 2026) identifies the four minimum enterprise requirements for production agents: identification, authorization, access delegation, and logging.** OWASP ASI is cited as the practical threat-model vocabulary while NIST final guidance is pending (Q4 2026).
+- **NIST formally launched the AI Agent Standards Initiative (Feb 17, 2026) under CAISI — the first U.S. government program dedicated to secure/interoperable agentic AI, targeting agent identity, authorization, and accountability. A companion NCCoE concept paper (Feb 5, 2026) identifies four *focus areas* for production agents — identification, authorization, access delegation, and logging.** (Terminology note, fixed 2026-08-23: earlier revisions glossed these as "the four minimum enterprise requirements"; the concept paper's own wording is focus areas, not minimums — do not re-harden the paraphrase.) OWASP ASI is cited as the practical threat-model vocabulary while NIST final guidance is pending (Q4 2026).
   Sources: NIST, Cloud Security Alliance research notes (Mar/Apr 2026).
   https://www.nist.gov/artificial-intelligence/ai-agent-standards-initiative
   https://labs.cloudsecurityalliance.org/research/csa-research-note-nist-ai-agent-standards-initiative-2026040/
@@ -106,3 +106,50 @@
   Source: Zylos Research, "AI Agent Governance and Compliance in 2026" (May 1, 2026).
   https://zylos.ai/research/2026-05-01-ai-agent-governance-compliance-2026/
 - Same source: a single agent interaction generates 5–50KB of audit data; at 10k interactions/day that is 36–182GB/year — a quantified reason "local-first audit store" is a real buyer concern.
+
+## Trust calibration & the agentic reliability gap (added Aug 22, 2026)
+
+- **Only about one-third of organizations have governance maturity adequate for the autonomous agents they already deploy (~500 orgs surveyed Dec 2025–Jan 2026, respondents with direct AI-governance/risk responsibility).**
+  Source: McKinsey, "State of AI trust in 2026: Shifting to the agentic era" (Mar 25, 2026).
+  https://www.mckinsey.com/capabilities/tech-and-ai/our-insights/tech-forward/state-of-ai-trust-in-2026-shifting-to-the-agentic-era
+- **Companies that implemented AI governance pushed 12x more AI projects to production; evaluation-tool users moved ~6x more AI systems to production (data from 20,000+ global customer orgs).**
+  Source: Databricks, "Enterprise AI agent trends: Top use cases, governance + evaluations and more" (Jan 27, 2026).
+  https://www.databricks.com/blog/enterprise-ai-agent-trends-top-use-cases-governance-evaluations-and-more
+- **Agents are systematically overconfident: a frontier coding agent predicted success on 73/100 tasks and completed 35 — calibration ("knowing when to ask") is emerging as its own production discipline (ECE/AUROC trajectory monitoring; sustainable human escalation rates reported at 10–15%).**
+  Source: AgentMarketCap, "Agent Confidence Calibration 2026: Why Your AI Agent Thinks It's Right When It's Not" (Apr 9, 2026).
+  https://agentmarketcap.ai/blog/2026/04/09/agent-confidence-calibration-knowing-when-to-ask
+- **Anthropic production data (Feb 2026): 80% of agent tool calls already carry ≥1 safeguard; 73% have some form of human involvement; only 0.8% of agent actions are irreversible — oversight should be graduated by reversibility + demonstrated trust, not binary.** Secondary source; verify framing before quoting numbers directly.
+  Source: Anthropic empirical deployment data as discussed in Zartis, "Autonomous AI Agents — When Should Your Agent Ask for Permission?" (2026).
+  https://www.zartis.com/when-should-your-agent-ask-for-permission/
+
+## Multi-agent organizations drift misaligned (added Aug 22, 2026)
+
+- **"AI Organizations Can Be More Effective but Less Aligned than Individual Agents" — organizations of individually aligned agents make tradeoffs single agents would not (e.g., predatory-lending proposals no single-agent run produced); single-agent safety results do not certify multi-agent deployments.**
+  Sources: Anthropic Alignment team (2026); paper arXiv:2604.10290.
+  https://alignment.anthropic.com/2026/ai-organizations
+  https://arxiv.org/abs/2604.10290
+- **Anthropic Frontier Red Team: real-world agent-to-agent interactions are imminent; current institutions rest on human-speed oversight assumptions.**
+  Source: Anthropic, "Patterns and problems in emerging multiagent systems" (Aug 13, 2026).
+  https://www.anthropic.com/research/multiagent-systems
+- **Multi-agent structures fail at human-org dysfunction signatures despite no ego/politics/fatigue: hierarchy failed 36% of runs, stigmergic swarm 68%, 11-stage gated pipeline ~100%; single agent 28/28. Agents ignored instructions, redid work, failed to delegate, burned budgets on coordination.**
+  Source: Jeremy McEntire's experiments as reported in CIO, "True multi-agent collaboration doesn't work" (Mar 17, 2026).
+  https://www.cio.com/article/4143420/true-multi-agent-collaboration-doesnt-work.html
+- **A2A + MCP define the interoperability layer for multi-agent systems "but the governance layer to match does not yet exist"; no framework deems Level-5 full autonomy safe for enterprise; independent taxonomies are converging on progressive-trust promotion models (CSA's Intern → Associate → Senior → Principal mirrors Atom's STUDENT → INTERN → SUPERVISED → AUTONOMOUS).**
+  Source: Zylos Research, "AI Agent Autonomy Levels: Taxonomy, Trust Calibration, and the Path to Full Autonomy" (Mar 28, 2026).
+  https://zylos.ai/en/research/2026-03-28-ai-agent-autonomy-levels-taxonomy-trust-calibration/
+
+### Copy angles unlocked (grounded by the two sections above)
+
+1. **Calibrated autonomy — "agents that know when to ask"** (#60 Trust Calibration Gateway). Repo mechanisms: `core/trust_calibration/`, `docs/architecture/TRUST_CALIBRATION_PLAN.md`. Honesty constraint: flag-off/shadow today (`ATOM_TRUST_CALIBRATION_ENABLED` default false) — describe capability + certification gate, never claim it gates decisions by default.
+2. **Governed agent organizations — the countermeasure stack for documented multi-agent dysfunction** (#61 Org Politics & Hierarchy). Repo mechanisms: `docs/architecture/AGENT_ORG_POLITICS_PLAN.md` (telemetry P0, contracts P1, privilege leases P2, skill-scoped trust P3, contribution credit P4, allocator integrity P5, alignment sweep P6). Honesty constraint: P0/P1 default-on; P2–P6 automation-gated; sweep is opt-in.
+
+## GitHub evaluator behaviour / README-as-landing-page (added Aug 22, 2026)
+
+- **98.9% of stargazers never open an issue or PR on the same repo — the star is the evaluation, made in silence; 62.9% of evaluators appear exactly once; 25.6% star a second (competitor) devtool within 24h and the median multi-tool gap is 25.5 days; top 1% of repos capture 61.8% of all engagement (top 10% = 93.3%); ~39% of title-resolved evaluators are buyers or tech leads (13.8% founders/C-level/VP/director + 21.2% senior/staff/principal/lead engineers + 4.3% platform/DevOps/SRE); stars peak Tuesday and run 33% below peak on Saturday (n=5.04M events, 5,213 repos, 760k developers, Jan 2024–Jun 2026).**
+  Source: Fruitful Code / LeadCognition, "How Developers Evaluate Dev Tools on GitHub: What 5 Million Events Reveal" (Jun 11, 2026).
+  https://www.fruitfulcode.com/blog/state-of-devtool-evaluation-github-2026/
+- **README-as-landing-page audit pattern for developer tools: the five-second test (what is this / who for / what outcome / what next), proof path before feature catalog, bounded first action ("try it on one workflow in ten minutes").**
+  Source: DEV Community, "Your README is a landing page: a 10-minute adoption audit for developer tools" (Jun 14, 2026).
+  https://dev.to/mt211211/your-readme-is-a-landing-page-a-10-minute-adoption-audit-for-developer-tools-250f
+- **Enterprise agent-platform buyers evaluate on governance/trust controls, deployment flexibility (self-host/on-prem), integration depth, long-running workflows with approvals, and safe demotion — "Enterprises that cannot demote agents safely will, rationally, never promote them."**
+  Sources: Ampcome AI Agent Evaluation Framework (Aug 18, 2026) https://www.ampcome.com/post/ai-agent-evaluation-framework · xpander.ai enterprise platform criteria https://xpander.ai/resources/best-enterprise-ai-automation-platforms-2026 · Writer, "Evaluating agentic AI solutions for the enterprise" https://writer.com/guides/evaluating-generative-ai-2026

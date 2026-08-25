@@ -348,6 +348,15 @@ ZOHO_OAUTH_CONFIG = OAuthConfig(
     scopes=_ZOHO_SCOPES,
 )
 
+BOX_OAUTH_CONFIG = OAuthConfig(
+    client_id_env="BOX_CLIENT_ID",
+    client_secret_env="BOX_CLIENT_SECRET",
+    redirect_uri_env="BOX_REDIRECT_URI",
+    auth_url="https://account.box.com/api/oauth2/authorize",
+    token_url="https://api.box.com/oauth2/token",
+    scopes=["root_readonly", "manage_app_users", "manage_webhook"],
+)
+
 
 # Provider → OAuthConfig map. Consumed by core/oauth_user_context for
 # automatic token refresh. Configs snapshot the environment at import time,
@@ -365,6 +374,7 @@ PROVIDER_CONFIGS: Dict[str, OAuthConfig] = {
     "linkedin": LINKEDIN_OAUTH_CONFIG,
     "whatsapp": WHATSAPP_OAUTH_CONFIG,
     "zoho": ZOHO_OAUTH_CONFIG,
+    "box": BOX_OAUTH_CONFIG,
 }
 
 

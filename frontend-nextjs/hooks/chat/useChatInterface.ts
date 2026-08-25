@@ -52,11 +52,34 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             setIsProcessing(true);
             setStatusMessage("Loading history...");
             const { apiClient } = await import('../../lib/api-client');
-            const response = await apiClient.get(`/api/chat/history/${sid}?user_id=${getCurrentUserId()}`, {
-                timeout: 8000,
-                // @ts-ignore
-                retry: false
-            }).catch(() => ({ status: 200, data: { messages: [] } })) as any;
+            let response: any;
+            try {
+                response = await apiClient.get(`/api/chat/history/${sid}?user_id=${getCurrentUserId()}`, {
+                    timeout: 8000,
+                    // @ts-ignore
+                    retry: false
+                });
+            } catch (error: any) {
+                // The backend tolerates most history failures (200 + empty)
+                // so this catch only runs on transport/403/5xx.
+                console.error("Failed to load history:", error);
+                if (error?.response?.status === 403) {
+                    // 403 = this session id belongs to another account (a stale id
+                    // persisted in localStorage from an earlier login/test run).
+                    // Drop the stale pointer and switch to a fresh session so the
+                    // error doesn't recur on every load.
+                    if (typeof window !== "undefined") {
+                        window.localStorage.removeItem("atom_chat_session_id");
+                    }
+                    onSessionCreated?.("new");
+                }
+                toast({
+                    title: "Could not load history",
+                    description: "Failed to load conversation history. Starting fresh.",
+                    variant: "warning",
+                });
+                return;
+            }
 
             if (response && response.status === 200) {
                 const data = response.data || {};

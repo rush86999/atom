@@ -88,6 +88,62 @@ class WorkflowEngine:
         except Exception as e:
             logger.debug(f"Orchestration event publish skipped (non-fatal): {e}")
 
+    def _notify_workflow_paused(self, workflow: Dict[str, Any], execution_id: str,
+                                step_id: str, user_id: str, reason: str,
+                                missing_var: Optional[str] = None,
+                                hitl_action_id: Optional[str] = None) -> None:
+        """Fan out a pause notification on every channel when a workflow pauses
+        awaiting human input (HITL).
+
+        Publishes the ``WORKFLOW_PAUSED`` EventBus event (event-driven triggers),
+        fires the Slack/email workflow-notifier, and persists an in-app
+        notification. All best-effort — a notification failure must never
+        affect the (already paused) execution.
+        """
+        workflow_id = workflow.get("id", "unknown")
+        self._publish_orchestration_event(
+            "WORKFLOW_PAUSED", workflow_id, execution_id, step_id,
+            data={"reason": reason, **({"missing_var": missing_var} if missing_var else {}),
+                  **({"hitl_action_id": hitl_action_id} if hitl_action_id else {})},
+        )
+
+        workflow_name = workflow.get("name", "Untitled Workflow")
+        try:
+            asyncio.create_task(notifier.notify_paused(
+                workflow_id=workflow_id,
+                workflow_name=workflow_name,
+                execution_id=execution_id,
+                reason=reason,
+                step_id=step_id,
+                missing_var=missing_var,
+                hitl_action_id=hitl_action_id,
+            ))
+        except Exception as e:
+            logger.debug(f"Slack/email pause notification skipped (non-fatal): {e}")
+
+        async def _in_app_notification() -> None:
+            try:
+                from core.notification_service import NotificationService
+                await NotificationService().send_notification(
+                    user_id,
+                    "workflow_paused",
+                    {
+                        "title": f"Workflow paused: {workflow_name}",
+                        "message": reason,
+                        "workspace_id": workflow.get("workspace_id", "default"),
+                        "tenant_id": workflow.get("tenant_id", "default"),
+                        "action_url": f"/workflows/executions/{execution_id}",
+                        "action_label": "Review paused workflow",
+                    },
+                )
+            except Exception as e:
+                logger.debug(f"In-app pause notification skipped (non-fatal): {e}")
+
+        try:
+            asyncio.create_task(_in_app_notification())
+        except Exception as e:
+            logger.debug(f"In-app pause notification dispatch skipped (non-fatal): {e}")
+
     async def start_workflow(self, workflow: Dict[str, Any], input_data: Dict[str, Any], background_tasks: Any = None) -> str:
         """Start a new workflow execution"""
         # Convert graph to steps if needed
@@ -346,6 +402,11 @@ class WorkflowEngine:
                                     user_id, execution_id, "PAUSED",
                                     {"reason": "missing_input", "missing_var": e.missing_var, "step_id": step_id}
                                 )
+                                self._notify_workflow_paused(
+                                    workflow, execution_id, step_id, user_id,
+                                    reason=f"Missing input: {e.missing_var}",
+                                    missing_var=e.missing_var,
+                                )
                             raise  # Re-raise to stop parallel execution
 
                         # Validate input schema
@@ -478,6 +539,16 @@ class WorkflowEngine:
                     results=state.get("outputs", {})
                 ))
 
+                # Students observe successful workflow outcomes (automated
+                # observation trigger — fire-and-forget, best-effort).
+                from core.student_learning_service import auto_observe
+                asyncio.create_task(auto_observe(
+                    workspace_id=workspace_id,
+                    observation_type="workflow_execution",
+                    summary=f"Workflow '{workflow.get('name', workflow.get('id', 'unknown'))}' completed successfully",
+                    details={"workflow_id": workflow.get("id"), "execution_id": execution_id},
+                ))
+
                 # Track success
                 duration = (datetime.now(timezone.utc) - start_time).total_seconds()
                 analytics.track_workflow_execution(
@@ -533,6 +604,13 @@ class WorkflowEngine:
         # Update state with new inputs
         await self.state_manager.update_execution_inputs(execution_id, new_inputs)
         await self.state_manager.update_execution_status(execution_id, "RUNNING")
+
+        # Phase 5: publish WORKFLOW_RESUMED for EventBus observability
+        # (e.g. clearing HITL alert state, downstream triggers).
+        self._publish_orchestration_event(
+            "WORKFLOW_RESUMED", workflow.get("id", "unknown"), execution_id,
+            data={"resumed_with_inputs": sorted(new_inputs.keys())},
+        )
 
         # Resume execution — strong ref to prevent GC cancellation
         task = asyncio.create_task(self._run_execution(execution_id, workflow))
@@ -646,14 +724,19 @@ class WorkflowEngine:
                     await self.state_manager.update_execution_status(execution_id, "PAUSED", error=f"Missing input: {e.missing_var}")
                     
                     await ws_manager.notify_workflow_status(
-                        user_id, 
-                        execution_id, 
-                        "PAUSED", 
+                        user_id,
+                        execution_id,
+                        "PAUSED",
                         {
                             "reason": "missing_input",
                             "missing_var": e.missing_var,
                             "step_id": step_id
                         }
+                    )
+                    self._notify_workflow_paused(
+                        workflow, execution_id, step_id, user_id,
+                        reason=f"Missing input: {e.missing_var}",
+                        missing_var=e.missing_var,
                     )
                     return
 
@@ -702,10 +785,41 @@ class WorkflowEngine:
                                 else ""
                             )
                             if not can_perform:
-                                logger.warning(f"🚫 Governance block for execution {execution_id} at step {step_id}: {message}")
-                                await self.state_manager.update_step_status(execution_id, step_id, "FAILED", error=f"Governance Block: {message}")
-                                await self.state_manager.update_execution_status(execution_id, "FAILED", error=f"Governance Block: {message}")
-                                await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": f"Governance Block: {message}", "step_id": step_id})
+                                # Trust policy / maturity gate: the agent is not
+                                # autonomous enough for this action, so pause the
+                                # workflow for human-in-the-loop review instead of
+                                # failing it. A HITLAction record is created so the
+                                # standard approval flow (approve/reject + resume)
+                                # applies.
+                                logger.warning(f"🚫 Governance pause for execution {execution_id} at step {step_id}: {message}")
+                                hitl_action_id = None
+                                try:
+                                    hitl_action_id = governance.request_approval(
+                                        agent_id=agent_id,
+                                        action_type=step.get("action", "default"),
+                                        params={
+                                            "execution_id": execution_id,
+                                            "workflow_id": workflow.get("id", "unknown"),
+                                            "step_id": step_id,
+                                            "parameters": resolved_params,
+                                            "tenant_id": tenant_id,
+                                        },
+                                        reason=message,
+                                    )
+                                except Exception as hitl_error:
+                                    logger.error(f"Failed to create HITL action for paused execution {execution_id}: {hitl_error}")
+                                await self.state_manager.update_step_status(execution_id, step_id, "PAUSED", error=f"Governance approval required: {message}")
+                                await self.state_manager.update_execution_status(execution_id, "PAUSED", error=f"Governance approval required: {message}")
+                                await ws_manager.notify_workflow_status(
+                                    user_id, execution_id, "PAUSED",
+                                    {"reason": "hitl_required", "hitl_action_id": hitl_action_id,
+                                     "step_id": step_id, "error": message}
+                                )
+                                self._notify_workflow_paused(
+                                    workflow, execution_id, step_id, user_id,
+                                    reason=f"Governance approval required: {message}",
+                                    hitl_action_id=hitl_action_id,
+                                )
                                 return
                 except Exception as gov_error:
                     logger.error(f"Governance check failed, failing open for safety but logging error: {gov_error}")
@@ -880,6 +994,16 @@ class WorkflowEngine:
                 workflow_name=workflow.get("name", "Untitled Workflow"),
                 execution_id=execution_id,
                 results=state.get("outputs", {})
+            ))
+
+            # Students observe successful workflow outcomes (automated
+            # observation trigger — fire-and-forget, best-effort).
+            from core.student_learning_service import auto_observe
+            asyncio.create_task(auto_observe(
+                workspace_id=workspace_id,
+                observation_type="workflow_execution",
+                summary=f"Workflow '{workflow.get('name', workflow.get('id', 'unknown'))}' completed successfully",
+                details={"workflow_id": workflow.get("id"), "execution_id": execution_id},
             ))
             
             # Track success

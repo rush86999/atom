@@ -78,8 +78,13 @@ class WebhookBridge:
                         f"Webhook Bridge: Active connection found (ID: {conn.id}). "
                         f"Scheduling background polling sync job..."
                     )
-                    # Initialize the historical sync service
-                    sync_service = HistoricalSyncService(tenant_id=tenant_id, db=db)
+                    # Initialize the historical sync service.
+                    # R83: bind the connection's real workspace — the old
+                    # no-workspace construction landed fallback-synced entities
+                    # in the engine's "default" partition where agent recall
+                    # (which queries the actual workspace) never looks.
+                    _sync_ws = str(conn.workspace_id) if getattr(conn, "workspace_id", None) else tenant_id
+                    sync_service = HistoricalSyncService(tenant_id=tenant_id, db=db, workspace_id=_sync_ws)
 
                     # Sync the last 24 hours to cover any potential downtime/gaps
                     start_date = datetime.now(timezone.utc) - timedelta(days=1)

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
 from core.database import get_db
-from core.models import User, WorkflowTemplate
+from core.models import IntegrationToken, User, WorkflowTemplate
 from core.rbac_service import Permission
 from core.security_dependencies import require_permission
 from core.workflow_security import require_workflow_executor_orchestrator
@@ -315,6 +315,73 @@ async def import_template(template_id: str, db: Session = Depends(get_db)):
         "workflow_id": new_template.id,
         "message": "Template imported successfully"
     }
+
+# Provider aliases: users think "Gmail", tokens may be stored under the
+# Google OAuth provider name. Kept small and explicit.
+_PROVIDER_ALIASES: Dict[str, set] = {
+    "gmail": {"gmail", "google", "google_workspace"},
+    "google_calendar": {"google_calendar", "google"},
+}
+
+
+def _compute_readiness(dependencies: List[str], connected_providers: set) -> Dict[str, Any]:
+    """Pure readiness mapping: which template dependencies are connected?"""
+    def _connected(dep: str) -> bool:
+        names = {dep.lower()} | _PROVIDER_ALIASES.get(dep.lower(), set())
+        return bool(connected_providers & names)
+
+    missing = [d for d in dependencies if not _connected(d)]
+    return {
+        "ready": not missing,
+        "connected": [d for d in dependencies if _connected(d)],
+        "missing": missing,
+        # Deep link into the Integrations Hub, which handles ?connect=<id>
+        # by highlighting and prompting that provider's card.
+        "connect_urls": [
+            f"/integrations?connect={m}" for m in missing
+        ],
+    }
+
+
+@router.get("/templates/{template_id}/readiness")
+async def get_template_readiness(
+    template_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """First-run friction killer: is this starter template runnable *right now*?
+
+    Returns per-dependency connection status so the UI can show a single
+    "Connect Gmail" CTA instead of failing mid-workflow. Personal starters
+    declare their integrations in ``input_schema.dependencies``.
+    """
+    try:
+        template = db.query(WorkflowTemplate).filter(
+            WorkflowTemplate.id == template_id
+        ).first()
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+
+        schema = template.input_schema or {}
+        dependencies = list(schema.get("dependencies") or [])
+        if not dependencies:
+            return {"success": True, **_compute_readiness([], set())}
+
+        tenant_id = current_user.tenant_id if hasattr(current_user, "tenant_id") else None
+        token_query = db.query(IntegrationToken.provider).filter(
+            IntegrationToken.user_id == current_user.id
+        )
+        if tenant_id:
+            token_query = token_query.filter(IntegrationToken.tenant_id == str(tenant_id))
+        connected = {p.lower() for (p,) in token_query.distinct().all()}
+
+        return {"success": True, **_compute_readiness(dependencies, connected)}
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001 - never leak internals (repo error policy)
+        logger.error(f"Readiness check failed for {template_id}: {e}")
+        raise HTTPException(status_code=500, detail="Unable to compute template readiness")
+
 
 @router.get("/services")
 async def get_services():

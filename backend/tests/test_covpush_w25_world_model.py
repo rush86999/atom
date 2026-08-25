@@ -532,8 +532,12 @@ class TestRecallExperiences:
                 _exp_result(experience_id="failed-high", agent_id="agent_1", agent_role="marketing", outcome="failed", confidence=0.9, score=0.8),
                 _exp_result(experience_id="outside", agent_id="other", agent_role="sales", score=0.6),
             ],
-            # documents knowledge
+            # knowledge leg, call 1: role LIKE filter — no role-tagged hits
+            [],
+            # knowledge leg, call 2: untagged top-up — returns the general doc
             [{"id": "doc-1", "text": "General knowledge", "metadata": {}}],
+            # remaining legs (business facts, episode mirror, canonical episodes)
+            [], [], [],
         ]
         agent = self._agent(category="Finance")
         with patch("core.graphrag_engine.graphrag_engine") as ge:
@@ -553,7 +557,8 @@ class TestRecallExperiences:
     async def test_recall_experiences_graphrag_failure_swallowed(self, svc):
         svc.db.search.side_effect = [
             [_exp_result(experience_id="own", agent_id="agent_1", agent_role="finance")],
-            [],
+            # knowledge LIKE + top-up, then facts / episode legs
+            [], [], [], [], [],
         ]
         agent = self._agent()
         with patch("core.graphrag_engine.graphrag_engine") as ge:
@@ -564,7 +569,8 @@ class TestRecallExperiences:
     async def test_recall_experiences_formula_and_conversation(self, svc):
         svc.db.search.side_effect = [
             [_exp_result(experience_id="own", agent_id="agent_1", agent_role="finance")],
-            [],
+            # knowledge LIKE + top-up, then facts / episode legs
+            [], [], [], [], [],
         ]
         agent = self._agent()
         formula_manager = Mock()

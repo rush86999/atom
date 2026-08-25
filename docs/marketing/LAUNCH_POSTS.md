@@ -2,6 +2,10 @@
 
 > Posting order: **Show HN** first (security/engineering story), then Reddit adapts.
 > Titles are the highest-leverage copy on earth — variants included.
+>
+> **Timing**: publish Mon–Tue morning ET. GitHub evaluation activity peaks on Tuesday
+> (168k star events) and drops 33% by Saturday — evaluation is a workday activity
+> (FruitfulCode/LeadCognition 2026, n=5.04M events; sourced in `RESEARCH_NOTES.md`).
 
 ---
 

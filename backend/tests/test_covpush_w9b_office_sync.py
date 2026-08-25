@@ -118,7 +118,11 @@ class TestBroadcastFileUpdate:
         svc = make_service()
         svc.broadcast_file_update("c1", str(office_dir.parent / "evil.docx"), "u1")
 
-    def test_render_failure_silent(self, office_dir):
+    def test_render_failure_degrades_to_html_none(self, office_dir):
+        # A failed HTML render (e.g. mammoth missing for docx) must NOT abort
+        # the broadcast — the structured snapshot is independent of the render,
+        # and aborting left the canvas with no audit row (so /api/canvas/{id}
+        # 404'd) and no WS update. The audit is still written, with html=None.
         f = office_dir / "d.docx"
         f.write_bytes(b"x")
         svc = make_service()
@@ -127,7 +131,9 @@ class TestBroadcastFileUpdate:
             return_value={"success": False, "error": "no"},
         ):
             svc.broadcast_file_update("c1", str(f), "u1")
-        svc.db.add.assert_not_called()
+        svc.db.add.assert_called_once()
+        audit = svc.db.add.call_args[0][0]
+        assert audit.details_json["html"] is None
 
     def test_success_audits_and_broadcasts(self, office_dir):
         f = office_dir / "d.docx"
@@ -156,7 +162,11 @@ class TestBroadcastFileUpdate:
         assert added[0].details_json["html"] == "<p>hi</p>"
         db.commit.assert_called_once()
         ingest.assert_awaited_once()
-        broadcast.assert_awaited_once()
+        # Office co-editing now delivers on BOTH canvas:{id} and user:{uid}
+        # channels (the user-channel leg fixed the dead-lettered delivery).
+        assert broadcast.await_count == 2
+        channels = {c.args[0] for c in broadcast.call_args_list}
+        assert channels == {"canvas:c1", "user:u1"}
 
     def test_no_running_loop_uses_sync_fallback(self, office_dir):
         """RED (bug 1): sync caller must fall back to the sync ingestion AND

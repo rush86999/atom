@@ -1159,6 +1159,19 @@ class MCPService(IntegrationService):
         except Exception as cap_err:  # pragma: no cover - defensive fail-open
             logger.debug("capability gate skipped: %s", cap_err)
 
+        # P2b: org-privilege gate (AGENT_ORG_POLITICS_PLAN.md Phase 2).
+        # Permission ≠ Privilege — org-state-changing actions additionally
+        # require an explicit, default-deny privilege lease. Fail-CLOSED on
+        # check errors for privileged actions; flag off = exact prior behavior.
+        try:
+            from core.org_privileges import check_action_privilege
+
+            privilege_denial = check_action_privilege(tool_name, context)
+            if privilege_denial is not None:
+                return privilege_denial
+        except Exception as priv_err:  # pragma: no cover - defensive
+            logger.debug("privilege gate skipped: %s", priv_err)
+
         # P9: shared sandbox gate. Routes the legacy dispatch (generic agents,
         # fleet, workflow, business agents — everything that goes through this
         # call_tool) through the same sandbox evaluation as atom_meta_agent, so
@@ -1291,8 +1304,18 @@ class MCPService(IntegrationService):
                                  query = query.filter(AgentRegistry.tenant_id == tenant_id)
                              agent = query.first()
                              
-                             # Logic: Allow IF (High Maturity) AND (Tenant Allows) AND (User Doesn't Force)
-                             if agent and agent.maturity_level >= 5:
+                             # Logic: Allow IF (Autonomous maturity) AND (Tenant Allows) AND (User Doesn't Force)
+                             # R81e: AgentRegistry.maturity_level is a property
+                             # returning the status STRING — `>= 5` always
+                             # raised TypeError, which the old swallow-and-
+                             # allow catch turned into "auto-approve never
+                             # worked + policy silently bypassed". Compare
+                             # the tier name instead; auto-approval now
+                             # actually works, and HITL-required sends reach
+                             # intervention instead of a hard block.
+                             if agent and str(
+                                 getattr(agent, "status", "") or ""
+                             ).strip().lower() == "autonomous":
                                  if allow_autonomous and not user_force_hitl:
                                      should_intercept = False
                                      logger.info(f"Auto-approving external action for Autonomous Agent {agent.name} (Maturity 5)")
@@ -1319,10 +1342,47 @@ class MCPService(IntegrationService):
                                 user_id=user_id,
                                 workspace_id=workspace_id  # Optional workspace context
                             )
+
+                             # R81l P1: shadow trust-calibration assessment
+                             # for this ask moment (decision_ref -> the
+                             # created HITLAction). Flag-gated, never raises.
+                             try:
+                                 from core.trust_calibration.gateway import (
+                                     TrustCalibrationGateway as _TCG,
+                                 )
+
+                                 _TCG(db=db).assess_and_record(
+                                     db=db,
+                                     action_type=tool_name,
+                                     platform=str(
+                                         (arguments or {}).get("platform")
+                                         or "internal"
+                                     ),
+                                     agent_id=(context.get("agent_id") if context else None),
+                                     source_path="governance_hitl_policy",
+                                     decision_ref=(
+                                         result.get("action_id")
+                                         if isinstance(result, dict) else None
+                                     ),
+                                 )
+                             except Exception as _tc_err:
+                                 logger.debug(f"trust calibration skipped: {_tc_err}")
+
                              return result
         except Exception as e:
-            logger.error(f"HITL Policy Check Failed: {e}")
-            return None 
+            # R81b (G8): fail CLOSED. The previous catch-all returned None
+            # (= proceed) on ANY failure — including this method's own
+            # security ValueErrors for missing workspace/tenant — so a DB
+            # outage silently bypassed the tenant HITL gate on send_email /
+            # whatsapp / send_message. Callers treat any truthy return as
+            # "do not execute the tool".
+            logger.error(f"HITL Policy Check Failed ({type(e).__name__}): {e}")
+            return {
+                "error": "Governance policy check unavailable; action blocked pending approval",
+                "blocked_by": "hitl_policy_error",
+                "status": "BLOCKED",
+                "requires_approval": True,
+            }
 
     async def execute_tool(self, server_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """Executes a tool on a specific MCP server."""

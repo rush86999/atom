@@ -195,7 +195,10 @@ def _admin_recipient() -> Optional[str]:
         with SessionLocal() as db:
             user = (
                 db.query(User)
-                .filter(User.role.in_(["SUPER_ADMIN", "OWNER", "ADMIN", "WORKSPACE_ADMIN"]))
+                # R82: UserRole enum VALUES are lowercase — the previous
+                # uppercase literals matched nothing, so notifications were
+                # silently dropped.
+                .filter(User.role.in_(["super_admin", "owner", "admin", "workspace_admin"]))
                 .order_by(User.created_at.asc())
                 .first()
             )

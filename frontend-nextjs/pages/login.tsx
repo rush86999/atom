@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { loginWithBackend, persistBackendToken } from '../lib/backendAuth';
+import { registerWithBackend } from '../lib/registration';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -9,6 +10,7 @@ export default function LoginPage() {
     const router = useRouter();
     const [isLogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [ssoLoading, setSsoLoading] = useState(false);
     const [ssoError, setSsoError] = useState('');
@@ -71,21 +73,19 @@ export default function LoginPage() {
                 persistBackendToken(data.access_token);
                 router.push(safeDest);
             } else {
-                // Register
-                const response = await fetch(`${API_BASE}/api/auth/register`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formData)
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Registration failed');
+                // Register — same rules and error mapping as /auth/signup.
+                if (formData.password.length < 8) {
+                    throw new Error('Password must be at least 8 characters long');
                 }
-
-                const data = await response.json();
+                if (formData.password !== confirmPassword) {
+                    throw new Error('Passwords do not match');
+                }
+                const data = await registerWithBackend({
+                    email: formData.email,
+                    password: formData.password,
+                    first_name: formData.first_name,
+                    last_name: formData.last_name,
+                });
                 // #7 fix: was logging the full JWT to console — capturable by
                 // browser extensions, shared screens, forwarded logs.
                 persistBackendToken(data.access_token);
@@ -200,7 +200,39 @@ export default function LoginPage() {
                                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                 </button>
                             </div>
+                            {!isLogin && (
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {formData.password.length === 0
+                                        ? 'Must be at least 8 characters'
+                                        : formData.password.length < 8
+                                            ? 'Password must be at least 8 characters'
+                                            : confirmPassword.length > 0 && confirmPassword !== formData.password
+                                                ? 'Passwords do not match'
+                                                : '✓ Password looks good'}
+                                </p>
+                            )}
                         </div>
+
+                        {!isLogin && (
+                            <div>
+                                <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Confirm Password
+                                </label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input
+                                        id="confirm_password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        required
+                                        data-testid="login-confirm-password-input"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         <button
                             type="submit"
@@ -247,6 +279,7 @@ export default function LoginPage() {
                             onClick={() => {
                                 setIsLogin(!isLogin);
                                 setError('');
+                                setConfirmPassword('');
                             }}
                             className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                         >

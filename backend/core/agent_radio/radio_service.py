@@ -207,6 +207,23 @@ def send_message(
         db.commit()
     db.refresh(message)
     logger.info(f"radio: {from_agent_id} -> {mentions} on {thread_id}")
+
+    # P0 org telemetry (write-only; never raises) — social-contact edges for
+    # the radio→recruitment conflict-of-interest report.
+    try:
+        from core.org_telemetry_service import emit_org_event
+
+        for recipient in mentions or ([to_agent_id] if to_agent_id else []):
+            emit_org_event(
+                db,
+                "radio_message",
+                actor_agent_id=from_agent_id,
+                target_agent_id=recipient,
+                chain_id=thread_id,
+                payload={"message_id": message.id},
+            )
+    except Exception as e:  # noqa: BLE001 — telemetry must never raise
+        logger.debug(f"org telemetry message emit skipped: {e}")
     return message
 
 

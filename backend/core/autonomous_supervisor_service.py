@@ -168,7 +168,11 @@ class AutonomousSupervisorService:
         # Perform LLM-based analysis with PPI-lite (context filtering)
         # Select relevant diverse experiences to include in context
         from core.agent_world_model import WorldModelService
-        world_model = WorldModelService()
+        # Prefer the proposal's own workspace; fall back to default rather
+        # than silently always reading the default workspace's memory.
+        world_model = WorldModelService(
+            getattr(proposal, "workspace_id", None) or "default"
+        )
         
         # Fetch diverse experiences (successes and failures) to guide cooperation
         # Note: In upstream, get_experience_statistics is async

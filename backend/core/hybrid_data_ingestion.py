@@ -46,6 +46,10 @@ class SyncConfiguration:
     include_metadata: bool = True
     sync_mode: str = "incremental"  # "incremental", "discovery"
     discovery_frequency_hours: int = 168  # Weekly by default
+    # Round 80s: AI-employee role (AgentRegistry.category, lowercased) this
+    # integration's records are relevant to. Persisted so SCHEDULED auto-syncs
+    # keep tagging new records with the role, not just one-shot triggers.
+    role: Optional[str] = None
 
 
 # Default sync configurations for popular integrations
@@ -236,6 +240,7 @@ class HybridDataIngestionService:
                             max_records_per_sync=row.max_records_per_sync or 1000,
                             include_metadata=True,
                             sync_mode=row.sync_mode or "incremental",
+                            role=usage.get("sync_role"),
                         )
                 if self.usage_stats:
                     logger.info(
@@ -282,6 +287,7 @@ class HybridDataIngestionService:
                     "last_synced": stats.last_synced.isoformat() if stats.last_synced else None,
                     "auto_sync_enabled": stats.auto_sync_enabled,
                     "sync_frequency_minutes": stats.sync_frequency_minutes,
+                    **({"sync_role": config.role} if config and config.role else {}),
                 }
 
             db = SessionLocal()
@@ -308,6 +314,8 @@ class HybridDataIngestionService:
                     row.sync_last_n_days = config.sync_last_n_days
                     row.max_records_per_sync = config.max_records_per_sync
                     row.sync_mode = config.sync_mode
+                    if config.role:
+                        usage_json["sync_role"] = config.role
                 db.commit()
             finally:
                 db.close()
@@ -420,7 +428,6 @@ class HybridDataIngestionService:
         Returns:
             Dict with sync results: records_synced, entities_extracted, etc.
         """
-        _role = str(role).lower() if role else None
         stats = self.usage_stats.get(integration_id)
         config = self.sync_configs.get(integration_id)
         if not config:
@@ -434,7 +441,14 @@ class HybridDataIngestionService:
         
         if not config:
             return {"error": f"No sync config for {integration_id}"}
-        
+
+        # Explicit role param wins; else inherit the persistent config role
+        # (set via enable-sync/trigger with agent_id) so scheduled auto-syncs
+        # keep tagging records for the right AI employee.
+        _role = str(role).lower() if role else (
+            str(getattr(config, "role", None)).lower()
+            if getattr(config, "role", None) else None)
+
         # Check if sync is needed (unless forced)
         if not force and stats and stats.last_synced:
             minutes_since_sync = (datetime.now(timezone.utc) - stats.last_synced).total_seconds() / 60
@@ -458,9 +472,18 @@ class HybridDataIngestionService:
             # Fetch data from integration
             records = await self._fetch_integration_data(integration_id, config, discovery_mode=discovery_mode, role=_role)
             results["records_fetched"] = len(records)
-            
+
+            # Keep-set for the FULL-sync stale-fact GC (O2): every fetched id
+            # still exists at the source, even if its ingest is skipped below.
+            fetched_record_ids = [
+                str(r.get("id") or "").strip() for r in records if r.get("id")
+            ]
+
             # Ingest each record into Atom Memory
             seen_types = set()
+            # R84: one fact budget per sync run caps total fact writes.
+            from core.integration_ontology_bridge import FactBudget
+            fact_budget = FactBudget()
             for record in records:
                 try:
                     record_type = record.get("type", "unknown")
@@ -501,6 +524,16 @@ class HybridDataIngestionService:
                     if not text or len(text) < 10:
                         continue
                     
+                    # R83 (P4): classify sensitivity per record so the taint
+                    # gates downstream (org-bundle export, recall ceilings,
+                    # R84 fact metadata, and the raw vector row below) have
+                    # real data instead of the "internal" default.
+                    from core.data_taint_tracker import classify_sensitivity
+                    try:
+                        _sensitivity = classify_sensitivity(text)
+                    except Exception:  # noqa: BLE001 — classification must never block ingestion
+                        _sensitivity = "internal"
+
                     # Ingest into LanceDB (to_thread: sync add_document from
                     # the loop thread can never embed — same-thread guard)
                     if self.memory_handler:
@@ -508,23 +541,34 @@ class HybridDataIngestionService:
                             "integration_id": integration_id,
                             "record_id": record.get("id", "unknown"),
                             "record_type": record.get("type", "unknown"),
+                            "sensitivity": _sensitivity,
                             "synced_at": datetime.now(timezone.utc).isoformat()
                         }
                         # AI-employee relevance tag (Round 80)
                         if _role:
                             _meta["role"] = _role
-                        success = await asyncio.to_thread(
-                            self.memory_handler.add_document,
+                        # Upsert on a stable per-record id: re-syncing updates
+                        # the row in place instead of appending a duplicate
+                        # per run (skip when unchanged, replace when changed).
+                        from core.vector_upsert import upsert_document
+
+                        _record_key = f"rec_{integration_id}:{record.get('id', 'unknown')}"
+                        _upsert_status = await upsert_document(
+                            self.memory_handler,
                             table_name=f"integration_{integration_id}",
                             text=text,
+                            doc_id=_record_key,
                             source=integration_id,
                             metadata=_meta,
                             user_id=record.get("user_id", "system"),
-                            extract_knowledge=True
                         )
-                        if success:
+                        if _upsert_status == "written":
                             results["records_ingested"] += 1
-                    
+                        else:
+                            results["records_unchanged"] = (
+                                results.get("records_unchanged", 0) + 1
+                            )
+
                     # Also ingest into GraphRAG for entity/relationship extraction
                     if self.graphrag:
                         # ingest_document is a coroutine — must be awaited, or
@@ -532,13 +576,50 @@ class HybridDataIngestionService:
                         # record is recorded as an error.
                         graphrag_result = await self.graphrag.ingest_document(
                             workspace_id=self.workspace_id,
+                            # tenant_id must be explicit: the engine's own
+                            # default is "default", which filed every node from
+                            # this path under the wrong tenant.
+                            tenant_id=self.tenant_id,
                             doc_id=f"{integration_id}_{record.get('id', 'unknown')}",
                             text=text,
-                            source=integration_id
+                            source=integration_id,
+                            sensitivity=_sensitivity,
                         )
                         if graphrag_result:
                             results["entities_extracted"] += graphrag_result.get("entities", 0)
                             results["relationships_extracted"] += graphrag_result.get("relationships", 0)
+
+                    # R84: deterministic business-fact auto-extraction
+                    # (LLM-free; unverified observations, idempotent per
+                    # record via DocumentIngestion markers). Budget caps the
+                    # whole sync run.
+                    try:
+                        from core.integration_ontology_bridge import write_integration_fact
+                        fact_stats = await write_integration_fact(
+                            workspace_id=self.workspace_id,
+                            tenant_id=self.tenant_id,
+                            integration_id=integration_id,
+                            record_type=record_type,
+                            record=record,
+                            text=text,
+                            sensitivity=_sensitivity,
+                            memory_handler=self.memory_handler,
+                            budget=fact_budget,
+                        )
+                        results["facts_written"] = results.get("facts_written", 0) + fact_stats.get("written", 0)
+                        _skip_reason = fact_stats.get("skipped")
+                        if _skip_reason:
+                            # Surfaced, not swallowed: a persistent "no_handler"
+                            # here means the fact layer is silently OFF for the
+                            # whole workspace — visible in sync results instead
+                            # of an eternal zero.
+                            results["facts_skipped"] = (
+                                results.get("facts_skipped", 0) + 1
+                            )
+                            if _skip_reason == "no_handler":
+                                results.setdefault("facts_skip_reason", "no_handler")
+                    except Exception as fact_err:  # noqa: BLE001 — observation layer never blocks ingestion
+                        logger.warning(f"Fact extraction skipped for {integration_id}: {fact_err}")
                 
                 except Exception as record_err:
                     results["errors"].append(str(record_err))
@@ -571,6 +652,36 @@ class HybridDataIngestionService:
                     stats.last_synced = datetime.now(timezone.utc)
             if stats:
                 self._persist_integration(integration_id)
+
+            # O2 stale-fact GC: only after a CLEAN, non-partial FULL sync is
+            # the fetched keep-set a complete deletion ledger. Incremental
+            # fetches (recent-only) and partial failures must NEVER GC —
+            # a small keep-set there would destroy live facts.
+            if (
+                results["success"]
+                and not results.get("partial")
+                and not discovery_mode
+                and str(getattr(config, "sync_mode", "incremental")).lower() == "full"
+            ):
+                try:
+                    from core.integration_ontology_bridge import (
+                        retract_stale_integration_facts,
+                    )
+
+                    gc = await retract_stale_integration_facts(
+                        workspace_id=self.workspace_id,
+                        integration_id=integration_id,
+                        keep_record_ids=fetched_record_ids,
+                        memory_handler=self.memory_handler,
+                    )
+                    if gc.get("retracted"):
+                        results["facts_retracted"] = gc["retracted"]
+                        logger.info(
+                            f"Stale-fact GC for {integration_id}: "
+                            f"{gc['retracted']} facts retracted (FULL sync)"
+                        )
+                except Exception as gc_err:  # noqa: BLE001 — never blocks close-out
+                    logger.warning(f"Stale-fact GC skipped for {integration_id}: {gc_err}")
 
             results["completed_at"] = datetime.now(timezone.utc).isoformat()
             
@@ -1286,7 +1397,11 @@ class HybridDataIngestionService:
             try:
                 from core.auto_document_ingestion import AutoDocumentIngestionService
 
-                doc_ingestor = AutoDocumentIngestionService()
+                # Workspace-scoped ingestor: parses/writes into THIS
+                # workspace's stores, not the default singleton's.
+                doc_ingestor = AutoDocumentIngestionService(
+                    workspace_id=self.workspace_id
+                )
             except Exception:
                 doc_ingestor = None
                 logger.warning("AutoDocumentIngestionService unavailable; Google Drive content not parsed")

@@ -22,6 +22,7 @@ import asyncio
 # -*- coding: utf-8 -*-
 # Reload trigger
 import os
+from sqlalchemy import text as _sa_text
 import sys
 from typing import ClassVar, Union
 
@@ -445,6 +446,16 @@ async def lifespan(app: FastAPI):
                 logger.info("Bootstrapping essential data (admin, tenants)...")
                 ensure_admin_user()
                 logger.info("✓ Bootstrap complete")
+
+                # Personal→Team wedge: surface solo-operator starter templates in
+                # the DB-backed template UI (idempotent, fail-soft).
+                from core.database import SessionLocal
+                from core.personal_template_seeder import seed_personal_templates
+
+                with SessionLocal() as _seed_db:
+                    _seeded = seed_personal_templates(_seed_db)
+                    if _seeded:
+                        logger.info(f"✓ Seeded {_seeded} personal starter template(s)")
             else:
                 logger.info("⊘ Skipping admin bootstrap in test mode (fixture managed)")
         except Exception as e:
@@ -727,6 +738,110 @@ async def lifespan(app: FastAPI):
                     logger.info("✓ Discord Gateway client running (real-time message ingestion)")
             except Exception as dg_err:
                 logger.warning(f"Discord Gateway start skipped: {dg_err}")
+
+            # 8c-bis. Episode lifecycle maintenance (R81j G15): opt-in daily
+            # hygiene pass — recency decay + similarity consolidation.
+            if os.getenv("ATOM_EPISODE_LIFECYCLE_MAINTENANCE_ENABLED", "false").lower() == "true":
+                async def _episode_lifecycle_maintenance():
+                    from core.database import SessionLocal as _SL
+                    from core.episode_lifecycle_service import EpisodeLifecycleService
+
+                    while True:
+                        try:
+                            await asyncio.sleep(24 * 3600)
+                            with _SL() as _db:
+                                agent_ids = [
+                                    row[0]
+                                    for row in _db.execute(
+                                        _sa_text("SELECT id FROM agent_registry")
+                                    ).fetchall()
+                                ]
+                                svc = EpisodeLifecycleService(_db)
+                                await svc.run_daily_maintenance(agents=agent_ids)
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as _maint_err:
+                            logger.warning(
+                                f"Episode lifecycle maintenance pass failed: {_maint_err}"
+                            )
+
+                _spawn_background_task(_episode_lifecycle_maintenance())
+                logger.info(
+                    "✓ Episode lifecycle maintenance enabled "
+                    "(ATOM_EPISODE_LIFECYCLE_MAINTENANCE_ENABLED)"
+                )
+
+            # 8c-ter. Trust calibration automation loop (R81o P3): consent-
+            # gated certify->notify/approve/auto dispatch. Default off.
+            if os.getenv("ATOM_TRUST_CALIBRATION_AUTO_ENFORCE", "off").lower() != "off":
+                _tc_interval = float(
+                    os.getenv("ATOM_TRUST_CALIBRATION_AUTO_INTERVAL_MIN", "60")
+                )
+
+                async def _trust_calibration_automation():
+                    from core.trust_calibration import automation as _tca
+                    from core.database import SessionLocal as _TSL
+
+                    while True:
+                        try:
+                            await asyncio.sleep(max(_tc_interval, 1.0) * 60)
+                            with _TSL() as _tc_db:
+                                result = _tca.run_automation_pass(_tc_db)
+                            if result.get("ran"):
+                                logger.info(
+                                    "Trust calibration automation: %s",
+                                    {k: v for k, v in result.items() if k != "stats"},
+                                )
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as _tc_err:
+                            logger.warning(
+                                f"Trust calibration automation failed: {_tc_err}"
+                            )
+
+                _spawn_background_task(_trust_calibration_automation())
+                logger.info(
+                    f"✓ Trust calibration automation enabled "
+                    f"(mode={os.getenv('ATOM_TRUST_CALIBRATION_AUTO_ENFORCE')}, "
+                    f"interval={_tc_interval}min)"
+                )
+
+            # 8c-quater. Ontology draft automation loop: consent-gated
+            # promotion of auto-discovered entity types (off|notify|approve|
+            # auto). Default auto — runs unless explicitly set to off.
+            if os.getenv("ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE", "auto").lower() != "off":
+                _od_interval = float(
+                    os.getenv("ATOM_ONTOLOGY_DRAFT_AUTO_INTERVAL_MIN", "60")
+                )
+
+                async def _ontology_draft_automation():
+                    from core.ontology import ontology_draft_automation as _oda
+                    from core.database import SessionLocal as _ODSL
+
+                    while True:
+                        try:
+                            await asyncio.sleep(max(_od_interval, 1.0) * 60)
+                            with _ODSL() as _od_db:
+                                result = _oda.run_automation_pass(_od_db)
+                            if result.get("ran"):
+                                logger.info(
+                                    "Ontology draft automation: %s",
+                                    {k: v for k, v in result.items()
+                                     if k not in ("promoted", "queued", "revoked")},
+                                )
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as _od_err:
+                            logger.warning(
+                                f"Ontology draft automation failed: {_od_err}"
+                            )
+
+                _spawn_background_task(_ontology_draft_automation())
+                logger.info(
+                    f"✓ Ontology draft automation enabled "
+                    f"(mode={os.getenv('ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE')}, "
+                    f"interval={_od_interval}min)"
+                )
 
             # 8d. Memory consolidation worker (P2.1): nightly rule-based
             # consolidation — contradiction sweeps + supersede — always off
@@ -1469,6 +1584,39 @@ if not is_test_mode:
         except Exception as e:
             logger.error(f"  ✗ Journey registration failed for {mod}: {e}")
 
+# --- Round 83: OneDrive / Google Drive journey route repair ---------------
+# The integration panels (OneDriveIntegration.tsx / GoogleDriveIntegration.tsx)
+# call /api/onedrive/*, /api/gdrive/* and /api/ingest-gdrive-document — paths
+# no real router ever served (only a dev-script mock). Mount the real
+# journey routers at those exact paths so the panel journeys resolve. Also
+# the only HTTP surface that can trigger each provider's full ingestion
+# sync (every subfolder, every file type) for OneDrive/GDrive; Box, Dropbox
+# and Zoho WorkDrive expose theirs on their own routers.
+if not is_test_mode:
+    try:
+        from integrations.onedrive_journey_routes import (
+            auth_router as onedrive_auth_journey_router,
+            router as onedrive_journey_router,
+        )
+
+        app.include_router(onedrive_journey_router, tags=["onedrive-journey"])
+        app.include_router(onedrive_auth_journey_router, tags=["onedrive-journey"])
+        logger.info("  ✓ onedrive-journey (/api/onedrive/*, /api/auth/onedrive/*)")
+    except Exception as e:
+        logger.error(f"  ✗ onedrive-journey registration failed: {e}")
+
+    try:
+        from integrations.gdrive_journey_routes import (
+            ingest_router as gdrive_ingest_router,
+            router as gdrive_journey_router,
+        )
+
+        app.include_router(gdrive_journey_router, tags=["gdrive-journey"])
+        app.include_router(gdrive_ingest_router, tags=["gdrive-journey"])
+        logger.info("  ✓ gdrive-journey (/api/gdrive/*, /api/ingest-gdrive-document)")
+    except Exception as e:
+        logger.error(f"  ✗ gdrive-journey registration failed: {e}")
+
 
 @app.get("/api/debug/integrations")
 async def debug_integrations(current_user: User = Depends(get_current_user)):
@@ -1522,6 +1670,16 @@ app.include_router(user_templates_router)
 board_router = safe_import_router("api.board_routes")
 app.include_router(board_router)
 
+# Audit trail (per-decision agent audit) — api/audit_routes.py declares its
+# own /api/audit prefix, so include BARE. Previously never mounted: every
+# auditAPI.* call from the /audit-trail frontend page 404'd.
+try:
+    from api.audit_routes import router as audit_trail_router
+    app.include_router(audit_trail_router, tags=["audit"])
+    logger.info("✓ Agent audit trail mounted at /api/audit")
+except Exception as e:  # pragma: no cover - boot resilience
+    logger.error(f"Failed to mount audit trail router: {e}")
+
 # Nav stub routes — endpoints for sidebar nav items that had no backend
 # endpoint (tasks, support tickets, communication analytics, integration health).
 nav_stub_router = safe_import_router("api.nav_stub_routes")
@@ -1539,6 +1697,11 @@ app.include_router(office_router, prefix="/api/v1/office", tags=["office"])
 # (e.g. /api/v1/agents/api/agents/...).
 if agent_router:
     app.include_router(agent_router, tags=["agents"])
+# Employee self-serve onboarding: guided agent creation + history-mined
+# automation suggestions. Declares its own /api/agents prefix — include BARE.
+agent_onboarding_router = safe_import_router("api.agent_onboarding_routes")
+if agent_onboarding_router:
+    app.include_router(agent_onboarding_router, tags=["agent-onboarding"])
 # episode_routes.py declares its own /api/episodes prefix — include BARE.
 # (Previously never mounted: the whole episodes API 404'd, incl. feedback submit.)
 episode_router = safe_import_router("api.episode_routes")
@@ -2738,7 +2901,10 @@ try:
     try:
         from api.onboarding_routes import router as onboarding_router
 
-        app.include_router(onboarding_router, prefix="/api/onboarding", tags=["Onboarding"])
+        # Router already declares prefix="/api/onboarding" — passing the same
+        # prefix here double-mounted every route under
+        # /api/onboarding/api/onboarding/* (the wizard's fetches 404'd).
+        app.include_router(onboarding_router, tags=["Onboarding"])
     except (ImportError, TypeError) as e:
         logger.warning(f"Onboarding routes not found: {e}")
 
@@ -2968,26 +3134,23 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Agent Governance routes not found: {e}")
 
-    # 8b. HITL Approval Routes (Phase 256-06)
+    # 8a. Agent Maturity Journey Routes (R81) — training proposals/sessions
+    # (STUDENT→INTERN) + action-proposal review/execute (INTERN HITL). The
+    # original /api/maturity surface was archived with zero replacements,
+    # severing training approval → confidence boost → promotion.
     try:
+        from api.agent_maturity_routes import router as maturity_router
 
-        logger.info("✓ HITL Approval Routes Loaded")
+        app.include_router(maturity_router)
+        logger.info("✓ Agent Maturity Journey Routes Loaded (/api/maturity)")
     except (ImportError, TypeError) as e:
-        logger.warning(f"HITL approval routes not found: {e}")
+        logger.warning(f"Agent Maturity Journey routes not found: {e}")
 
-    # 8c. AWS SES Integration Routes
-    try:
-
-        logger.info("✓ AWS SES Integration Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"AWS SES integration routes not found: {e}")
-
-    # 8b. Graduation Exam Routes (Episodic Memory & Graduation)
-    try:
-
-        logger.info("✓ Graduation Exam Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Graduation exam routes not found: {e}")
+    # 8b. HITL approvals / graduation exams: no dedicated routers exist.
+    # R82: these blocks previously logged "✓ ... Loaded" while mounting
+    # nothing (empty try bodies) — an audit trap during journey tracing.
+    # Real surfaces: HITL approvals live under /api/agents/approvals/* and
+    # /api/agent-governance/*; graduation exams under /api/episodes/graduation/*.
 
     # 8c. Protection & Security Routes
     try:
@@ -3007,14 +3170,13 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"User preference routes failed to load: {e}")
 
-    try:
-
-        logger.info("✓ Multimodal Chat Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Multimodal chat routes failed to load: {e}")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Protection API routes not found: {e}")
-
+    # Round 83 audit-trap cleanup: the previous empty try-blocks here logged
+    # "✓ Multimodal Chat / Canvas Browser / Canvas Action / Canvas Context
+    # Routes Loaded" while mounting NOTHING (and the Multimodal block carried
+    # a duplicated except clause). Removed — a mount that mounts nothing must
+    # not log success. The real surfaces are: chat via /api/chat/*, canvas
+    # CRUD/context/history via /api/canvas/*, terminal/coding/docs/sheets via
+    # their dedicated routers below.
     # 8b. Universal Canvas Routes (Terminal, Browser, Desktop Automation)
     try:
         from api.canvas_terminal_routes import router as canvas_terminal_router
@@ -3043,23 +3205,7 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Device capabilities routes not found: {e}")
 
-    try:
-
-        logger.info("✓ Canvas Browser Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Canvas browser routes not found: {e}")
-
-    try:
-
-        logger.info("✓ Canvas Action Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Canvas action routes not found: {e}")
-
-    try:
-
-        logger.info("✓ Canvas Context Routes Loaded")
-    except (ImportError, TypeError) as e:
-        logger.warning(f"Canvas context routes not found: {e}")
+    # (Canvas Browser/Action/Context audit traps removed — see note above.)
 
     try:
         from api.canvas_recording_routes import router as canvas_recording_router
@@ -3744,6 +3890,15 @@ try:
     except (ImportError, NameError) as e:
         logger.warning(f"Stage router management routes failed to load: {e}")
 
+    # 38b. Admin Runtime Settings Routes (env vars as UI admin settings)
+    try:
+        from api.admin_runtime_settings_routes import router as admin_settings_router
+
+        app.include_router(admin_settings_router)
+        logger.info("✓ Admin Runtime Settings Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Admin runtime settings routes failed to load: {e}")
+
     # 40. Fleet Router Management Routes (validation + approval queue)
     try:
         from api.fleet_router_routes import router as fleet_router_mgmt_router
@@ -3752,6 +3907,45 @@ try:
         logger.info("✓ Fleet Router Management Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Fleet router management routes failed to load: {e}")
+
+    # 40b. Org-Politics Management Routes (consent-gated lifecycle automation)
+    try:
+        from api.org_politics_routes import router as org_politics_mgmt_router
+
+        app.include_router(org_politics_mgmt_router)
+        logger.info("✓ Org-Politics Management Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Org-politics management routes failed to load: {e}")
+
+    # Start the consent-gated org-politics lifecycle loop (no-op when off).
+    try:
+        from core.org_politics_automation import ensure_automation_task
+
+        ensure_automation_task()
+        logger.info("✓ Org-Politics Automation Loop Scheduled (mode=%s)",
+                    os.getenv("ATOM_ORG_AUTO_ENFORCE", "auto"))
+    except Exception as e:
+        logger.warning(f"Org-politics automation scheduling failed: {e}")
+
+    # 41. Trust Calibration Gateway routes (R81l P0 spike — shadow-only,
+    # flag-gated: ATOM_TRUST_CALIBRATION_ENABLED, default false -> 503)
+    try:
+        from api.trust_calibration_routes import router as trust_cal_router
+
+        app.include_router(trust_cal_router)
+        logger.info("✓ Trust Calibration Routes Loaded (shadow, flag-gated)")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Trust calibration routes failed to load: {e}")
+
+    # 41b. Ontology Draft Automation routes (consent-gated promotion of
+    # auto-discovered entity types; mode off|notify|approve|auto, default auto)
+    try:
+        from api.ontology_draft_routes import router as ontology_draft_router
+
+        app.include_router(ontology_draft_router)
+        logger.info("✓ Ontology Draft Automation Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Ontology draft automation routes failed to load: {e}")
 
     logger.info("✓ Core Routes Loaded Successfully")
 

@@ -608,8 +608,8 @@ class TestStageRouterStatus:
     def test_off_phase_guides_enable(self, monkeypatch) -> None:
         import core.llm.stage_router as sr
 
-        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", False)
-        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", False)
+        monkeypatch.setattr(sr, "stage_router_enabled", lambda: False)
+        monkeypatch.setattr(sr, "stage_routing_force_enforce", lambda: False)
         self._patch_arms(monkeypatch, {})
         status = sr.stage_router_status()
         assert status["phase"] == "off"
@@ -619,8 +619,8 @@ class TestStageRouterStatus:
     def test_collecting_until_both_arms_observed(self, monkeypatch) -> None:
         import core.llm.stage_router as sr
 
-        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", True)
-        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", False)
+        monkeypatch.setattr(sr, "stage_router_enabled", lambda: True)
+        monkeypatch.setattr(sr, "stage_routing_force_enforce", lambda: False)
         # one workload, but only the efficient arm has outcome rows
         self._patch_arms(monkeypatch, {"agent-1": {"efficient": 200, "capable": 0}})
         status = sr.stage_router_status()
@@ -630,8 +630,8 @@ class TestStageRouterStatus:
     def test_collecting_when_volume_too_low_for_target_gap(self, monkeypatch) -> None:
         import core.llm.stage_router as sr
 
-        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", True)
-        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", False)
+        monkeypatch.setattr(sr, "stage_router_enabled", lambda: True)
+        monkeypatch.setattr(sr, "stage_routing_force_enforce", lambda: False)
         self._patch_arms(monkeypatch, {"agent-1": {"efficient": 5, "capable": 5}})
         status = sr.stage_router_status()
         assert status["phase"] == "collecting"
@@ -641,8 +641,8 @@ class TestStageRouterStatus:
     def test_ready_when_workload_has_both_arms_above_floor(self, monkeypatch) -> None:
         import core.llm.stage_router as sr
 
-        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", True)
-        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", False)
+        monkeypatch.setattr(sr, "stage_router_enabled", lambda: True)
+        monkeypatch.setattr(sr, "stage_routing_force_enforce", lambda: False)
         self._patch_arms(
             monkeypatch,
             {"agent-1": {"efficient": 40, "capable": 35}, "agent-2": {"efficient": 2, "capable": 2}},
@@ -655,8 +655,8 @@ class TestStageRouterStatus:
     def test_enforced_phase_mentions_recertification(self, monkeypatch) -> None:
         import core.llm.stage_router as sr
 
-        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", True)
-        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", True)
+        monkeypatch.setattr(sr, "stage_router_enabled", lambda: True)
+        monkeypatch.setattr(sr, "stage_routing_force_enforce", lambda: True)
         self._patch_arms(monkeypatch, {"agent-1": {"efficient": 40, "capable": 35}})
         status = sr.stage_router_status()
         assert status["phase"] == "enforced"
@@ -665,8 +665,8 @@ class TestStageRouterStatus:
     def test_error_phase_on_db_failure(self, monkeypatch) -> None:
         import core.llm.stage_router as sr
 
-        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", True)
-        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", False)
+        monkeypatch.setattr(sr, "stage_router_enabled", lambda: True)
+        monkeypatch.setattr(sr, "stage_routing_force_enforce", lambda: False)
 
         def broken_read():
             raise RuntimeError("db down")

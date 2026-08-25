@@ -55,7 +55,7 @@ describe("pages/api/integrations/slack/channels/create", () => {
     });
 
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe("http://localhost:5058/api/slack/channels");
+    expect(url).toBe("http://127.0.0.1:8000/api/slack/channels");
     expect(init.method).toBe("POST");
     expect(init.headers).toEqual({ "Content-Type": "application/json" });
     expect(JSON.parse(init.body)).toEqual({

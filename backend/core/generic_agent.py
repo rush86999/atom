@@ -7,8 +7,14 @@ from typing import Any, Dict, List, Optional
 import uuid
 
 from core.agent_governance_service import AgentGovernanceService
+from core.episode_integration import trigger_episode_creation
+from core.models import AgentExecution
+
+# In-flight fire-and-forget turn-fact extraction tasks (R81b G7 parity with
+# atom_meta_agent) — kept referenced so they are not garbage-collected mid-run.
+_pending_extraction_tasks: set = set()
 from core.agent_world_model import AgentExperience, WorldModelService
-from core.database import get_db_session
+from core.database import get_db_session, SessionLocal
 from core.llm.byok_handler import QueryComplexity
 from core.llm_service import LLMService
 from core.models import AgentRegistry, AgentStatus, HITLActionStatus
@@ -119,14 +125,76 @@ class GenericAgent:
         Accommodates timeouts and streaming callbacks.
         """
         context = context or {}
+
+        # R81c (G9): stamp run identity + tier into the dispatch context so
+        # the shared P2 capability gate and P9 sandbox gate engage on this
+        # surface too. Both gates return None ("no policy in scope") without
+        # run_id/tier_at_issuance, so every specialty-agent tool call
+        # previously ran ungated — contradicting P9's default-on contract.
+        # Mirrors atom_meta_agent.execute(); setdefault keeps caller-supplied
+        # values authoritative.
+        _run_uuid = str(uuid.uuid4())
+        context.setdefault("run_id", _run_uuid)
+        context.setdefault("execution_id", _run_uuid)
+        context.setdefault("agent_id", self.id)
+        try:
+            from core.database import get_db_session as _get_db_session_local
+            with _get_db_session_local() as _tier_db:
+                _tier_row = (
+                    _tier_db.query(AgentRegistry)
+                    .filter(AgentRegistry.id == self.id)
+                    .first()
+                )
+            _tier = str((_tier_row.status if _tier_row else None) or "student").lower()
+        except Exception:
+            _tier = "student"
+        context.setdefault("tier_at_issuance", _tier)
+
         start_time = datetime.now(timezone.utc)
         logger.info(f"Agent {self.name} ({self.id}) starting task: {task_input[:50]}")
-        
+
+        # R84c: bind the run to the per-decision audit trail. All log_agent_action /
+        # log_llm_call calls on this context (tool invocations below, LLM ledgering
+        # in _react_step) thread their audit rows to this execution; the trail is
+        # closed out with execution_complete + a completeness gate before returning.
+        # Never raises into the agent loop.
+        try:
+            from core.agent_action_audit import bind_audit_context, log_agent_action
+            _audit_token = bind_audit_context(
+                agent_id=self.id,
+                execution_id=_run_uuid,
+                user_id=(context or {}).get("user_id"),
+                workspace_id=getattr(self, "workspace_id", None),
+            )
+            log_agent_action(
+                action="execution_start",
+                description=f"Agent {self.name} starting task",
+                metadata={"task_input": task_input[:2000]},
+            )
+        except Exception as audit_bind_err:  # noqa: BLE001
+            _audit_token = None
+            logger.debug(f"audit context bind skipped: {audit_bind_err}")
+
         # 1. Recall Memory
         memory_context = await self.world_model.recall_experiences(
             agent=self._get_registry_model(),
             current_task_description=task_input
         )
+
+        # R83: durable turn-fact recall leg. Specialty agents WRITE facts
+        # every run (sync_turn below) but never saw them again — only the
+        # meta-agent and chat had a facts leg. Tier-2 semantic recall
+        # (flag-gated) with Tier-1 SQL fallback, surfaced as a prompt block.
+        # Never raises.
+        try:
+            _ws = getattr(self, "workspace_id", "default")
+            _facts = await self._recall_durable_facts(task_input, workspace_id=_ws)
+            if _facts:
+                memory_context["durable_facts"] = [
+                    getattr(f, "fact_text", None) or str(f) for f in _facts[:5]
+                ]
+        except Exception as _facts_err:  # noqa: BLE001
+            logger.debug(f"turn-fact recall skipped: {_facts_err}")
         
         # Emit initial 'starting' event for UI responsiveness
         if step_callback:
@@ -306,6 +374,16 @@ class GenericAgent:
                         for pr in parallel_results:
                             p_tool = pr["tool_name"]
                             p_params = pr.get("params") or {}
+                            # R84c: ledger each parallel tool decision too.
+                            try:
+                                from core.agent_action_audit import log_agent_action
+                                log_agent_action(
+                                    action=f"tool:{p_tool}",
+                                    description=f"Tool {p_tool} invoked (parallel batch)",
+                                    metadata={"params": p_params},
+                                )
+                            except Exception:  # noqa: BLE001
+                                pass
                             p_record = {
                                 "step": current_step,
                                 "thought": thought,
@@ -315,9 +393,16 @@ class GenericAgent:
                             }
                             if step_callback:
                                 await step_callback(p_record)
+                            # R83 #3: datamark untrusted tool output (no-op
+                            # when ATOM_DATAMARKING=off).
+                            try:
+                                from core.prompt_datamarking import mark_observation
+                                _p_obs = mark_observation(pr["output"], source=p_tool)
+                            except Exception:
+                                _p_obs = pr["output"]
                             execution_history += (
                                 f"Action: {p_tool}({json.dumps(p_params)})\n"
-                                f"Observation: {pr['output']}\n"
+                                f"Observation: {_p_obs}\n"
                             )
                             try:
                                 from core.atom_meta_agent import _is_error_observation
@@ -397,6 +482,14 @@ class GenericAgent:
                                 observation = _compressed
                         except Exception:
                             pass  # compression must never break the agent loop
+                        # R83 #3: datamark untrusted tool output before it
+                        # enters the prompt (off | shadow | enforce; off =
+                        # byte-identical legacy append).
+                        try:
+                            from core.prompt_datamarking import mark_observation
+                            observation = mark_observation(observation, source=tool_name)
+                        except Exception:
+                            pass  # marking must never break the agent loop
                         execution_history += f"Observation: {str(observation)}\n"
 
                         # ── In-loop self-correction (Workstream A) ────────────
@@ -563,8 +656,107 @@ class GenericAgent:
             "timestamp": start_time.isoformat()
         }
         
-        await self._record_execution(task_input, execution_result)
-        
+        await self._record_execution(task_input, execution_result, context)
+
+        # R81 (G5): persist an episode for session-linked runs so workflow/
+        # scheduler-driven specialty agents accumulate episodic memory too —
+        # previously only the chat endpoint created episodes, which starved
+        # the episode-count graduation criteria for non-chat runs.
+        _session_id = (context or {}).get("session_id")
+        if _session_id:
+            try:
+                trigger_episode_creation(
+                    session_id=_session_id,
+                    agent_id=self.id,
+                    title=task_input[:50],
+                    user_id=(context or {}).get("user_id"),
+                    workspace_id=getattr(self, "workspace_id", None),
+                )
+            except Exception as ep_err:
+                logger.debug(f"episode trigger skipped: {ep_err}")
+
+        # R81b (G7 parity): per-run durable-fact extraction (sync_turn hook) —
+        # mirrors the meta-agent's session-end digest pass so specialty agents
+        # accumulate turn facts too, not just chat/meta runs. Flag-gated,
+        # fire-and-forget, never raises.
+        if steps and final_answer:
+            try:
+                from core.turn_fact_extractor import (
+                    TURN_FACT_EXTRACTION_ENABLED,
+                    get_turn_fact_extractor,
+                )
+                if TURN_FACT_EXTRACTION_ENABLED:
+                    extractor = get_turn_fact_extractor(
+                        workspace_id=getattr(self, "workspace_id", None),
+                        tenant_id=getattr(self, "tenant_id", None),
+                    )
+                    digest_parts = [f"REQUEST: {task_input}"]
+                    for _s in steps[-6:]:
+                        _t = (str(_s.get("thought") or ""))[:200]
+                        _o = (str(_s.get("output") or ""))[:200]
+                        if _t:
+                            digest_parts.append(f"THOUGHT: {_t}")
+                        if _o:
+                            digest_parts.append(f"OBSERVATION: {_o}")
+                    digest_parts.append(f"FINAL ANSWER: {final_answer}")
+                    _tf_task = asyncio.create_task(
+                        extractor.extract_from_turn(
+                            user_request=task_input,
+                            thought="\n".join(digest_parts),
+                            final_answer=final_answer,
+                            execution_id=(context or {}).get("execution_id"),
+                            session_id=(context or {}).get("session_id"),
+                            user_id=(context or {}).get("user_id"),
+                            maturity=None,
+                        )
+                    )
+                    _pending_extraction_tasks.add(_tf_task)
+                    _tf_task.add_done_callback(
+                        lambda t: _pending_extraction_tasks.discard(t)
+                    )
+            except Exception as tf_err:
+                logger.debug(f"turn-fact extraction dispatch failed: {tf_err}")
+
+        # R84c: close out the audit trail for this run — execution_complete
+        # bracket + completeness gate (expected = tool steps + one LLM call
+        # per ReAct step). A shortfall means part of the run escaped the
+        # audit trail and is surfaced as an ERROR, never an exception.
+        if _audit_token is not None:
+            try:
+                from core.agent_action_audit import (
+                    check_execution_audit_completeness,
+                    log_agent_action,
+                    unbind_audit_context,
+                )
+                log_agent_action(
+                    action="execution_complete",
+                    description=f"Agent {self.name} finished with status {status}",
+                    metadata={
+                        "status": status,
+                        "steps": len(steps),
+                        "task_input": task_input[:2000],
+                    },
+                    success=(status == "success"),
+                )
+                _tool_steps = sum(1 for s in steps if s.get("action"))
+                _completeness = check_execution_audit_completeness(
+                    _run_uuid,
+                    expected_tool_calls=_tool_steps,
+                    expected_llm_calls=len(steps),
+                )
+                if not _completeness.get("complete"):
+                    logger.error(
+                        "AUDIT GAP for execution %s: %s", _run_uuid, _completeness
+                    )
+                unbind_audit_context(_audit_token)
+            except Exception as audit_close_err:  # noqa: BLE001
+                logger.debug(f"audit close-out skipped: {audit_close_err}")
+                try:
+                    from core.agent_action_audit import unbind_audit_context
+                    unbind_audit_context(_audit_token)
+                except Exception:
+                    pass
+
         return execution_result
 
     def _retrieve_skill_instructions(self, task_input: str) -> str:
@@ -591,6 +783,44 @@ class GenericAgent:
         except Exception as e:
             logger.debug(f"skill injection skipped: {e}")
             return ""
+
+    @staticmethod
+    async def _recall_durable_facts(task_input: str, workspace_id: str) -> list:
+        """Durable turn-fact recall for prompt assembly (Tier-2 → Tier-1).
+
+        A-G1 (data-journey trace): both legs MUST pass the prompt sensitivity
+        ceiling — the meta-agent already did; specialty agents leaked
+        restricted-classified facts into their prompts. Never raises.
+        """
+        try:
+            from core.turn_fact_extractor import (
+                TURN_FACT_VECTOR_RECALL_ENABLED,
+                get_active_facts_for_prompt,
+                prefetch_relevant_facts,
+                prompt_sensitivity_ceiling,
+            )
+
+            _ceiling = prompt_sensitivity_ceiling()
+            _facts: list = []
+            if TURN_FACT_VECTOR_RECALL_ENABLED:
+                _facts = prefetch_relevant_facts(
+                    workspace_id=workspace_id,
+                    query=task_input,
+                    limit=5,
+                    max_sensitivity=_ceiling,
+                ) or []
+            if not _facts:
+                with SessionLocal() as _db:
+                    _facts = get_active_facts_for_prompt(
+                        _db,
+                        workspace_id=workspace_id,
+                        limit=5,
+                        max_sensitivity=_ceiling,
+                    ) or []
+            return _facts[:5]
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"turn-fact recall skipped: {e}")
+            return []
 
     def _workspace_context_block(self) -> str:
         """Workspace-scoped curated context + assigned skill names (Phase P8).
@@ -896,6 +1126,14 @@ ORCHESTRATION POWERS:
 - **IMPORTANT**: Use `save_business_fact` to store "Truths" (policies, rules). If you see a Fact in memory, VERIFY its citations (`verify_citation`) if it's critical.
 """
         
+        # R83 #3: append the datamarking preamble when active (idempotent;
+        # off → prompt unchanged).
+        try:
+            from core.prompt_datamarking import with_preamble
+            system_prompt = with_preamble(system_prompt)
+        except Exception:
+            pass
+
         # Build rich memory context for the prompt
         experiences = memory.get('experiences', [])
         knowledge = memory.get('knowledge', [])
@@ -907,6 +1145,14 @@ ORCHESTRATION POWERS:
         past_conversations = memory.get('conversations', [])
         recalled_episodes = memory.get('episodes', [])
         memory_sections = []
+        # R83: durable turn-facts leg (written by sync_turn every run —
+        # previously never rendered back into specialty-agent prompts).
+        durable_facts = memory.get('durable_facts', [])
+        if durable_facts:
+            memory_sections.append(
+                "DURABLE FACTS (from this agent's memory):\n"
+                + "\n".join(f"- {str(t)[:200]}" for t in durable_facts[:5])
+            )
         if knowledge_graph:
             graph_ctx = str(knowledge_graph).strip()
             if len(graph_ctx) > 3200:
@@ -1033,7 +1279,25 @@ What is your next step?"""
         # Consume the screenshot after one use to prevent stale visual context
         self.last_screenshot = None
         
+        # R84c: ledger this ReAct LLM decision into the audit trail. No-op
+        # outside an agent run (no bound context), so platform traffic is
+        # not flooded. Never raises into the loop.
+        def _audit_llm(response: Any) -> None:
+            # R84c: ledger this ReAct LLM decision into the audit trail.
+            # No-op outside an agent run (no bound context). Never raises.
+            try:
+                from core.agent_action_audit import log_llm_call
+                log_llm_call(
+                    model=str(agent_model_tier or "auto"),
+                    prompt=user_prompt,
+                    response=response,
+                    provider="llm_service",
+                )
+            except Exception:  # noqa: BLE001
+                pass
+
         if structured_result:
+            _audit_llm(structured_result.model_dump())
             return structured_result
         
         # Fallback: Use LLMService for raw response
@@ -1047,6 +1311,7 @@ What is your next step?"""
         
         # Handle error responses
         if not raw_response or "not initialized" in str(raw_response).lower():
+            _audit_llm(raw_response)
             return ReActStep(
                 thought="LLM not available",
                 final_answer=raw_response if raw_response else "Unable to process - LLM not configured."
@@ -1058,6 +1323,7 @@ What is your next step?"""
         # didn't contain the word "answer". Now checks for structured markers.
         raw_lower = (raw_response or "").lower().strip()
         has_final_marker = raw_lower.startswith("final answer:") or raw_lower.startswith("answer:")
+        _audit_llm(raw_response)
         return ReActStep(
             thought=raw_response[:200] if raw_response else "Unable to reason",
             final_answer=raw_response if has_final_marker else None
@@ -1135,6 +1401,57 @@ What is your next step?"""
             return result
 
     async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False) -> Any:
+        """Auditing wrapper around every tool invocation (R84c).
+
+        Ledgers success, error-string results, and exceptions into the
+        per-decision audit trail; the audit write itself is guarded so a
+        downed audit store never breaks the tool call. Delegates to
+        ``_step_act_unaudited`` for the actual governance + MCP dispatch.
+        """
+        import time as _time
+
+        _start = _time.monotonic()
+        try:
+            result = await self._step_act_unaudited(
+                tool_name, args, context, step_callback, pre_approved
+            )
+        except Exception as tool_err:
+            try:
+                from core.agent_action_audit import log_agent_action
+                log_agent_action(
+                    action=f"tool:{tool_name}",
+                    description=f"Tool {tool_name} raised",
+                    metadata={
+                        "tool": tool_name,
+                        "params": args,
+                        "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                    },
+                    success=False,
+                    error_message=str(tool_err)[:2000],
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            raise
+
+        _is_err = isinstance(result, str) and "error" in result.lower()
+        try:
+            from core.agent_action_audit import log_agent_action
+            log_agent_action(
+                action=f"tool:{tool_name}",
+                description=f"Tool {tool_name} invoked",
+                metadata={
+                    "tool": tool_name,
+                    "params": args,
+                    "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                },
+                success=not _is_err,
+                error_message=result[:2000] if _is_err else None,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return result
+
+    async def _step_act_unaudited(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False) -> Any:
         """Execute a tool via MCP with Governance Check
 
         ``pre_approved`` (Workstream G): when True, the governance/HITL check is
@@ -1170,6 +1487,26 @@ What is your next step?"""
                             params=args,
                             reason=auth_check["reason"]
                         )
+
+                        # R81l P1: shadow trust-calibration assessment for
+                        # this ask-the-human moment (joined to the outcome
+                        # via decision_ref=action_id). Flag-gated, never
+                        # raises, never alters the pause.
+                        try:
+                            from core.trust_calibration.gateway import (
+                                TrustCalibrationGateway as _TCG,
+                            )
+
+                            _TCG(db=db).assess_and_record(
+                                db=db,
+                                action_type=tool_name,
+                                platform="internal",
+                                agent_id=self.id,
+                                source_path="hitl_step_act",
+                                decision_ref=action_id,
+                            )
+                        except Exception as _tc_err:
+                            logger.debug(f"trust calibration skipped: {_tc_err}")
 
                         logger.info(f"Action {tool_name} requires approval. Pausing agent...")
 
@@ -1232,7 +1569,7 @@ What is your next step?"""
             
             return f"Tool Execution Failed: {error_msg}. You can try to correct parameters or move to next step."
 
-    async def _record_execution(self, input_text: str, result: Dict):
+    async def _record_execution(self, input_text: str, result: Dict, context: Dict = None):
         """Save result to World Model and update Governance maturity"""
         # 1. Save to World Model
         success = result["status"] == "success"
@@ -1254,6 +1591,11 @@ What is your next step?"""
             learnings=result.get("output", "")[:500],
             confidence_score=confidence,
             step_efficiency=result.get("step_efficiency", 1.0),
+            # F1 (feedback-loop trace): the join key for the feedback loop —
+            # equals the AgentExecution row id and what POST /api/feedback
+            # submits as agent_execution_id. Without it the stored experience
+            # can never be matched to its run's user feedback.
+            agent_execution_id=(context or {}).get("execution_id"),
             metadata_trace={
                 "complexity": result.get("complexity"),
                 "step_count": len(result.get("steps", [])),
@@ -1266,6 +1608,41 @@ What is your next step?"""
             timestamp=datetime.now(timezone.utc)
         )
         await self.world_model.record_experience(experience)
+
+        # 2b. Persist the execution + episode for NON-session runs (R81g).
+        # Scheduler / direct-execute runs previously left no AgentExecution
+        # row and no episode — only chat-linked runs were remembered. Exactly
+        # once: proposal-owned runs record their own execution+episode, and
+        # session-linked runs use trigger_episode_creation above.
+        _proposal_owned = bool((context or {}).get("proposal_id"))
+        if not _proposal_owned and not (context or {}).get("session_id"):
+            try:
+                with get_db_session() as db:
+                    _exec = AgentExecution(
+                        id=(context or {}).get("run_id") or str(uuid.uuid4()),
+                        agent_id=self.id,
+                        workspace_id=getattr(self, "workspace_id", "default"),
+                        tenant_id=getattr(self, "tenant_id", None) or "default",
+                        status=result["status"],
+                        input_summary=input_text[:200],
+                        output_summary=str(result.get("output", ""))[:500],
+                        triggered_by=(context or {}).get("trigger", "agent_loop"),
+                    )
+                    db.add(_exec)
+                    db.commit()
+                    from core.episode_service import EpisodeService
+
+                    # R83: must be awaited — this is a coroutine. The bare call
+                    # silently dropped every NON-session execution (scheduler,
+                    # direct runs take this branch) from episodic memory.
+                    await EpisodeService(db).create_episode_from_execution(
+                        execution_id=_exec.id,
+                        task_description=input_text[:200],
+                        outcome=result["status"],
+                        success=success,
+                    )
+            except Exception as exec_err:
+                logger.debug(f"execution persistence skipped: {exec_err}")
 
         # 2. Update Governance Maturity
         success = result["status"] == "success"

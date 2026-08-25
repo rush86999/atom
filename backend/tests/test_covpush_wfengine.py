@@ -775,13 +775,14 @@ class TestRunExecutionLinear:
             assert state["status"] == "COMPLETED"
         asyncio.run(run())
 
-    def test_governance_block_fails_workflow(self, engine_env, monkeypatch):
+    def test_governance_block_pauses_workflow_for_hitl(self, engine_env, monkeypatch):
         async def run():
             engine = engine_env["engine"]
             blocked = MagicMock()
             blocked.can_perform_action_async = AsyncMock(
                 return_value={"allowed": False, "reason": "not allowed"}
             )
+            blocked.request_approval = MagicMock(return_value="hitl-1")
 
             class BlockedFactory:
                 @staticmethod
@@ -811,8 +812,10 @@ class TestRunExecutionLinear:
                 eid = await engine.start_workflow(wf, {})
                 await asyncio.gather(*list(engine._background_tasks))
                 state = await engine.state_manager.get_execution_state(eid)
-                assert state["status"] == "FAILED"
-                assert "Governance Block" in (state["error"] or "")
+                # Trust-policy denial pauses for HITL review instead of failing
+                assert state["status"] == "PAUSED"
+                assert "Governance approval required" in (state["error"] or "")
+                blocked.request_approval.assert_called_once()
             finally:
                 wfmod.ServiceFactory = old
         asyncio.run(run())

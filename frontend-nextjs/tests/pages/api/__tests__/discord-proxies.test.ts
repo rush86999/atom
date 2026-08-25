@@ -33,7 +33,7 @@ describe("pages/api/integrations/discord (GET proxies)", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ success: true, user: name });
     expect(mockFetch).toHaveBeenCalledWith(
-      `http://localhost:${port}${endpoint}`,
+      `http://127.0.0.1:8000${endpoint}`,
       { method: "GET", headers: { "Content-Type": "application/json" } },
     );
   });
@@ -87,7 +87,7 @@ describe("pages/api/integrations/discord (POST proxies)", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true });
     expect(mockFetch).toHaveBeenCalledWith(
-      `http://localhost:5058${endpoint}`,
+      `http://127.0.0.1:8000${endpoint}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

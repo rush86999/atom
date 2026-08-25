@@ -35,7 +35,7 @@ describe("pages/api/hubspot/contacts", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ results: [{ id: "ct-1" }] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/contacts",
+      "http://127.0.0.1:8000/api/hubspot/contacts",
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -48,7 +48,7 @@ describe("pages/api/hubspot/contacts", () => {
     mockFetch.mockResolvedValue(jsonResponse(true, 200, { id: "ct-1" }));
     await invoke("GET", { id: "ct-1" });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/contacts/ct-1",
+      "http://127.0.0.1:8000/api/hubspot/contacts/ct-1",
       expect.anything(),
     );
   });
@@ -58,7 +58,7 @@ describe("pages/api/hubspot/contacts", () => {
     await invoke("GET", { id: ["1", "2"], limit: "5" });
     const [url] = mockFetch.mock.calls[0];
     expect(url).toContain("/api/hubspot/contacts");
-    expect(url).not.toContain("/1");
+    expect(url).not.toMatch(/\/1(\?|$)/);
     expect(url).not.toContain("id=");
     expect(url).toContain("limit=5");
   });
@@ -68,7 +68,7 @@ describe("pages/api/hubspot/contacts", () => {
     const res = await invoke("POST", {}, { email: "new@example.com" });
     expect(res._getStatusCode()).toBe(201);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/hubspot/contacts",
+      "http://127.0.0.1:8000/api/hubspot/contacts",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

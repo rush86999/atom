@@ -1564,10 +1564,11 @@ class TestRunExecution:
                 failed.append(_a)
         assert failed
 
-    async def test_governance_block_fails_execution(self):
+    async def test_governance_block_pauses_execution_for_hitl(self):
         engine = make_engine()
         sm, ws, analytics, db, governance = self._env()
         governance.can_perform_action_async = AsyncMock(return_value={"allowed": False, "reason": "maturity too low"})
+        governance.request_approval = MagicMock(return_value="hitl-1")
         step = step_dict()
         sm.get_execution_state = AsyncMock(return_value={"steps": {}, "input_data": {}, "outputs": {}})
         engine.state_manager = sm
@@ -1579,9 +1580,11 @@ class TestRunExecution:
             mock_session.return_value.__enter__.return_value = db
             await engine._run_execution(
                 "ex-1", {"id": "wf-1", "agent_id": "ag-1", "steps": [step]})
-        failed = [c for c in sm.update_execution_status.call_args_list if c.args[1] == "FAILED"]
-        assert failed
-        assert any("Governance" in c.kwargs.get("error", "") for c in failed)
+        # Trust-policy denial now pauses for human-in-the-loop review
+        paused = [c for c in sm.update_execution_status.call_args_list if c.args[1] == "PAUSED"]
+        assert paused
+        assert any("Governance approval required" in (c.kwargs.get("error") or "") for c in paused)
+        governance.request_approval.assert_called_once()
 
     async def test_completed_step_skipped(self):
         engine = make_engine()

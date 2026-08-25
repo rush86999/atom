@@ -158,7 +158,7 @@ class TestExtractStructuredEntities:
             "status": "open",
             "amount": "5000",
         }
-        entity, rel = svc._extract_structured_entities(record, "salesforce", "Alice the contact")
+        entity, rel, _anchor = svc._extract_structured_entities(record, "salesforce", "Alice the contact")
         assert entity["name"] == "Alice"
         assert entity["type"] == "contact"
         assert entity["properties"]["source"] == "salesforce"
@@ -172,28 +172,28 @@ class TestExtractStructuredEntities:
 
     def test_name_falls_back_through_title_subject(self, pipeline):
         svc = pipeline["svc"]
-        e, _ = svc._extract_structured_entities({"id": 1, "type": "x", "title": "T"}, "i", "txt")
+        e, _, _anchor = svc._extract_structured_entities({"id": 1, "type": "x", "title": "T"}, "i", "txt")
         assert e["name"] == "T"
-        e, _ = svc._extract_structured_entities({"id": 1, "type": "x", "subject": "S"}, "i", "txt")
+        e, _, _anchor = svc._extract_structured_entities({"id": 1, "type": "x", "subject": "S"}, "i", "txt")
         assert e["name"] == "S"
-        e, _ = svc._extract_structured_entities({"id": 1, "type": "x"}, "i", "txt")
+        e, _, _anchor = svc._extract_structured_entities({"id": 1, "type": "x"}, "i", "txt")
         assert e["name"] == "x_1"
 
     def test_id_converted_to_string(self, pipeline):
         svc = pipeline["svc"]
         uid = uuid.uuid4()
-        e, _ = svc._extract_structured_entities({"id": uid, "type": "t"}, "i", "txt")
+        e, _, _anchor = svc._extract_structured_entities({"id": uid, "type": "t"}, "i", "txt")
         assert e["properties"]["record_id"] == str(uid)
 
     def test_description_truncated_to_500(self, pipeline):
         svc = pipeline["svc"]
         long = "x" * 2000
-        e, _ = svc._extract_structured_entities({"id": 1, "type": "t"}, "i", long)
+        e, _, _anchor = svc._extract_structured_entities({"id": 1, "type": "t"}, "i", long)
         assert len(e["description"]) == 500
 
     def test_promotes_subject_content_summary_description_fields(self, pipeline):
         svc = pipeline["svc"]
-        e, _ = svc._extract_structured_entities(
+        e, _, _anchor = svc._extract_structured_entities(
             {"id": 1, "type": "t", "subject": "S", "content": "C", "summary": "Su", "description": "D"},
             "i", "txt",
         )

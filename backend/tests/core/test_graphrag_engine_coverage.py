@@ -550,7 +550,9 @@ class TestIngestDocument:
             result = await eng.ingest_document(workspace_id="ws1", doc_id="d1",
                                                 text="nothing", source="s")
         ingest.assert_not_called()
-        assert result is None
+        # R83: no-extraction returns surfaced zero stats (previously None) so
+        # hybrid sync results report real counts.
+        assert result == {"entities": 0, "relationships": 0}
 
     @pytest.mark.asyncio
     async def test_llm_path_ingests(self, monkeypatch):
@@ -693,7 +695,9 @@ class TestAddRelationship:
         sess = _mock_session()
         src = MagicMock()
         tgt = MagicMock()
-        results = [src, tgt]
+        # Three .first() lookups in order: source node, target node, then the
+        # existing-edge dedup probe (None → fresh insert).
+        results = [src, tgt, None]
 
         def first_side():
             return results.pop(0)
@@ -723,7 +727,8 @@ class TestIngestStructuredData:
         sess = _mock_session()
         with _patch_session(sess):
             result = engine.ingest_structured_data(workspace_id="ws1", tenant_id="t1")
-        assert result == {"entities": 0, "relationships": 0}
+        assert result["entities"] == 0
+        assert result["relationships"] == 0
 
     def test_ingests_entities_and_edges(self, engine):
         sess = _mock_session()

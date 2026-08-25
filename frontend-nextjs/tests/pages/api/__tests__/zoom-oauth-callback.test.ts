@@ -40,7 +40,7 @@ describe("pages/api/zoom/oauth/callback", () => {
     mockGetServerSession.mockResolvedValue(
       opts.session === undefined ? mockSession : opts.session,
     );
-    const { req, res } = createMocks({ method: opts.method ?? "POST", body }) as any;
+    const { req, res } = createMocks({ method: (opts.method ?? "POST") as any, body }) as any;
     await handler(req, res);
     return res;
   };
@@ -127,7 +127,7 @@ describe("pages/api/zoom/oauth/callback", () => {
       "/integrations/zoom?success=true&connected=true",
     );
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/integrations/zoom/oauth/callback",
+      "http://127.0.0.1:8000/api/integrations/zoom/oauth/callback",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({

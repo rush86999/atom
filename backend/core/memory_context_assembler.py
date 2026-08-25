@@ -279,17 +279,32 @@ async def _integration_records_leg(
             return []
         lines: List[str] = []
         seen_ids: set = set()
+
+        def _hit_role(rec: dict) -> str:
+            """Role tag for a hit. `metadata` is a JSON *string* column in
+            LanceDB, so a server-side `metadata.role == …` filter can never
+            match (R83) — parse client-side instead."""
+            import json as _json
+
+            raw = rec.get("metadata")
+            if isinstance(raw, str):
+                try:
+                    raw = _json.loads(raw)
+                except Exception:  # noqa: BLE001
+                    return ""
+            if not isinstance(raw, dict):
+                return ""
+            return str(raw.get("role") or "").lower()
+
         for table_name in tables[:6]:  # bounded: newest common integrations
             # Pass 1 (role-scoped): records synced FOR this employee's role.
+            #   R83: role matching is done post-search (see _hit_role) — the
+            #   old `metadata.role == '…'` DataFusion filter always returned []
+            #   against the string-typed column, silently disabling the pass.
             # Pass 2 (general): untagged top-up so a role with few tagged
             # records never starves — additive, never exclusive.
-            passes = []
-            if safe_role:
-                passes.append(
-                    f"metadata.role == '{safe_role}'"
-                )
-            passes.append(None)
-            per_pass_limit = 2 if not safe_role else 1  # same total per table
+            passes = [None]
+            per_pass_limit = 2 if not safe_role else 3  # extra headroom for post-filter
             for filter_str in passes:
                 try:
                     results = handler.search(
@@ -309,6 +324,11 @@ async def _integration_records_leg(
                         f"(filter={filter_str or 'none'}): {e}"
                     )
                     continue
+                if safe_role and results:
+                    role_first = [r for r in results if _hit_role(r) == safe_role]
+                    results = role_first + [
+                        r for r in results if _hit_role(r) != safe_role
+                    ]
                 for rec in results or []:
                     if rec.get("id") in seen_ids:
                         continue

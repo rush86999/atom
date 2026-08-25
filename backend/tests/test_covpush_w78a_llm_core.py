@@ -1600,7 +1600,7 @@ class TestResolveAgentPolicy:
 
     def test_window_ignored_when_non_positive(self) -> None:
         policy = sr.resolve_agent_policy({"stage_routing": {"window": -2}})
-        assert policy.window == sr.STAGE_ROUTING_WINDOW
+        assert policy.window == sr.stage_routing_window()
 
     def test_non_dict_block_ignored(self) -> None:
         policy = sr.resolve_agent_policy({"stage_routing": "yes"})
@@ -2051,22 +2051,22 @@ class TestStageRouterStatus:
         )
 
     def test_off_phase(self, monkeypatch) -> None:
-        monkeypatch.setattr(sr, "STAGE_ROUTING_ENABLED", False)
+        monkeypatch.setattr(sr, "stage_router_enabled", lambda: False)
         self._patch_automation(monkeypatch, {})
         monkeypatch.setattr(sr, "_read_arm_counts", lambda: {})
         status = sr.stage_router_status()
         assert status["phase"] == "off"
 
     def test_enforced_phase(self, monkeypatch) -> None:
-        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", True)
+        monkeypatch.setattr(sr, "stage_routing_force_enforce", lambda: True)
         self._patch_automation(monkeypatch, {})
         monkeypatch.setattr(sr, "_read_arm_counts", lambda: {})
         status = sr.stage_router_status()
         assert status["phase"] == "enforced"
 
     def test_enforced_with_harness_note(self, monkeypatch) -> None:
-        monkeypatch.setattr(sr, "STAGE_ROUTING_FORCE_ENFORCE", True)
-        monkeypatch.setattr(sr, "_STAGE_ROUTING_SPLIT_RAW", '{"efficient": 1.0}')
+        monkeypatch.setattr(sr, "stage_routing_force_enforce", lambda: True)
+        monkeypatch.setattr(sr, "_stage_routing_split_raw", lambda: '{"efficient": 1.0}')
         self._patch_automation(monkeypatch, {})
         monkeypatch.setattr(sr, "_read_arm_counts", lambda: {})
         status = sr.stage_router_status()
@@ -2125,7 +2125,7 @@ class TestStageRouterStatus:
 class TestGetStageRouter:
     def test_singleton_and_picker_capable(self, monkeypatch) -> None:
         monkeypatch.setattr(sr, "_stage_router", None)
-        monkeypatch.setattr(sr, "STAGE_ROUTING_PICKER", "capable_first")
+        monkeypatch.setattr(sr, "stage_routing_picker", lambda: "capable_first")
         monkeypatch.setattr(
             "core.llm.routing.traffic_split.get_traffic_split", lambda: None
         )
@@ -2140,7 +2140,7 @@ class TestGetStageRouter:
 
     def test_invalid_picker_warns_efficient(self, monkeypatch) -> None:
         monkeypatch.setattr(sr, "_stage_router", None)
-        monkeypatch.setattr(sr, "STAGE_ROUTING_PICKER", "bogus")
+        monkeypatch.setattr(sr, "stage_routing_picker", lambda: "bogus")
         monkeypatch.setattr(
             "core.llm.routing.traffic_split.get_traffic_split", lambda: None
         )
@@ -2154,7 +2154,7 @@ class TestGetStageRouter:
 
     def test_traffic_split_attached(self, monkeypatch) -> None:
         monkeypatch.setattr(sr, "_stage_router", None)
-        monkeypatch.setattr(sr, "STAGE_ROUTING_PICKER", "efficient_first")
+        monkeypatch.setattr(sr, "stage_routing_picker", lambda: "efficient_first")
         split = sr.WeightedRandomSplit({"efficient": 1.0}, seed=1)
         monkeypatch.setattr(
             "core.llm.routing.traffic_split.get_traffic_split", lambda: split

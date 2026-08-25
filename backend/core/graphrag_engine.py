@@ -520,7 +520,7 @@ class GraphRAGEngine:
 
         if not entities and not relationships:
             logger.info("No entities extracted.")
-            return
+            return {"entities": 0, "relationships": 0}
 
         # Attach chunk provenance to entities (substring match is cheap and
         # deterministic; misses are simply empty provenance, not errors).
@@ -564,11 +564,11 @@ class GraphRAGEngine:
                     props["provenance"]["chunk_ids"] = endpoint_chunks[:10]
                     r.properties = props
 
-        # 2. Store
+        # 2. Store — surface the stats so callers (hybrid ingestion sync
+        # results) report real extraction counts instead of always 0.
         e_dicts = [{"name": e.name, "type": e.entity_type, "description": e.description, "properties": e.properties, "sensitivity": sensitivity} for e in entities]
         r_dicts = [{"from": r.from_entity, "to": r.to_entity, "type": r.rel_type, "properties": r.properties} for r in relationships]
-
-        self.ingest_structured_data(ws_id, tid, e_dicts, r_dicts)
+        return self.ingest_structured_data(ws_id, tid, e_dicts, r_dicts)
 
     @staticmethod
     def _raise_sensitivity(current: Optional[str], incoming: Optional[str]) -> str:
@@ -683,15 +683,27 @@ class GraphRAGEngine:
             try:
                 # Bug #12: verify both endpoint nodes exist before inserting the
                 # edge — prevents orphaned relationships that pollute traversals.
+                # Endpoints may be node IDs OR names: the batch ingestion path
+                # (ingest_document et al.) remaps relationship endpoints to
+                # entity NAMES, so an id-only lookup made every external
+                # add_relationship call from those producers fail with
+                # "source node not found".
+                from sqlalchemy import or_
+
                 from core.models import GraphNode
-                src = session.query(GraphNode).filter(
-                    GraphNode.id == rel.from_entity,
-                    GraphNode.workspace_id == ws_id
-                ).first()
-                tgt = session.query(GraphNode).filter(
-                    GraphNode.id == rel.to_entity,
-                    GraphNode.workspace_id == ws_id
-                ).first()
+
+                def _find_node(endpoint: str):
+                    return (
+                        session.query(GraphNode)
+                        .filter(
+                            or_(GraphNode.id == endpoint, GraphNode.name == endpoint),
+                            GraphNode.workspace_id == ws_id,
+                        )
+                        .first()
+                    )
+
+                src = _find_node(rel.from_entity)
+                tgt = _find_node(rel.to_entity)
                 if not src:
                     logger.warning(f"add_relationship: source node '{rel.from_entity}' not found — skipping")
                     return None
@@ -718,10 +730,12 @@ class GraphRAGEngine:
                     logger.debug(f"ontology validation skipped: {onto_err}")
 
                 # Dedup with occurrence counts (A5) — same triple upserts.
+                # Resolve to the found nodes' canonical IDs (endpoints may
+                # have been passed as names).
                 existing_edge = session.query(GraphEdge).filter(
                     GraphEdge.workspace_id == ws_id,
-                    GraphEdge.source_node_id == rel.from_entity,
-                    GraphEdge.target_node_id == rel.to_entity,
+                    GraphEdge.source_node_id == src.id,
+                    GraphEdge.target_node_id == tgt.id,
                     GraphEdge.relationship_type == rel.rel_type,
                 ).first()
                 if existing_edge:
@@ -743,8 +757,8 @@ class GraphRAGEngine:
                     id=rel.id,
                     tenant_id=tid,
                     workspace_id=ws_id,
-                    source_node_id=rel.from_entity,
-                    target_node_id=rel.to_entity,
+                    source_node_id=src.id,
+                    target_node_id=tgt.id,
                     relationship_type=rel.rel_type,
                     properties=props
                 )
@@ -900,7 +914,24 @@ class GraphRAGEngine:
                 node_map = {}
                 node_types: Dict[str, str] = {}
                 for e_data in entities:
+                    if not isinstance(e_data, dict):
+                        # Tolerate Entity/Relationship-style dataclasses from
+                        # producers like historical_sync (their attributes map
+                        # 1:1; passing them raw used to raise AttributeError
+                        # inside the catch-all and silently drop the batch).
+                        e_data = {
+                            "name": getattr(e_data, "name", None),
+                            "type": getattr(e_data, "entity_type", None) or getattr(e_data, "type", None),
+                            "description": getattr(e_data, "description", "") or "",
+                            "properties": getattr(e_data, "properties", None) or {},
+                            "id": getattr(e_data, "id", None),
+                        }
                     name = e_data.get("name")
+                    if not name:
+                        # Some producers (LLM extractor) nest the name in
+                        # properties — fall back rather than skip.
+                        _p0 = e_data.get("properties") or {}
+                        name = _p0.get("name") or _p0.get("display_name") or _p0.get("title")
                     if not name: continue
 
                     properties = e_data.get("properties", {})
@@ -917,11 +948,23 @@ class GraphRAGEngine:
                     node_type = e_data.get("type", "unknown")
                     # A2/A5: canonicalize the type label through the ontology
                     # (alias resolution — "org" == "Organization") so upserts
-                    # dedupe across alias spellings.
-                    if onto:
-                        resolved = onto.resolve_entity_type(node_type)
-                        if resolved:
-                            node_type = resolved
+                    # dedupe across alias spellings. R84: integration record
+                    # types (crm_leads, books_invoices, onedrive_file …) map
+                    # through the ontology bridge when the raw label isn't
+                    # already resolvable — one funnel, every producer.
+                    resolved = onto.resolve_entity_type(node_type) if onto else None
+                    if not resolved:
+                        try:
+                            from core.integration_ontology_bridge import (
+                                map_record_type,
+                                type_map_enabled,
+                            )
+                            if type_map_enabled():
+                                resolved = map_record_type(node_type)
+                        except Exception:  # noqa: BLE001 — mapping must never block ingestion
+                            resolved = None
+                    if resolved:
+                        node_type = resolved
 
                     # Upsert on (workspace, name, type): re-ingesting the same
                     # entity (or importing an org bundle) must merge, not
@@ -948,6 +991,12 @@ class GraphRAGEngine:
                         session.flush()
                         node_map[name] = existing.id
                         node_types[existing.id] = existing.type
+                        # Alias the producer's entity id (if any) so
+                        # id-keyed relationship endpoints resolve to this
+                        # node too (names stay authoritative on collision).
+                        _alias = e_data.get("id")
+                        if _alias and str(_alias) not in node_map:
+                            node_map[str(_alias)] = existing.id
                         continue
 
                     node = GraphNode(
@@ -964,11 +1013,22 @@ class GraphRAGEngine:
                     session.flush()
                     node_map[name] = node.id
                     node_types[node.id] = node.type
+                    # See the existing-node branch: alias producer ids.
+                    _alias = e_data.get("id")
+                    if _alias and str(_alias) not in node_map:
+                        node_map[str(_alias)] = node.id
 
                 # 2. Process Edges (A1/A4/A6: ontology validation, dedup with
                 # occurrence counts, hypothesis verification states)
                 skipped_violations = 0
                 for r_data in relationships:
+                    if not isinstance(r_data, dict):
+                        r_data = {
+                            "from": getattr(r_data, "from_entity", None),
+                            "to": getattr(r_data, "to_entity", None),
+                            "type": getattr(r_data, "rel_type", None) or getattr(r_data, "type", None),
+                            "properties": getattr(r_data, "properties", None) or {},
+                        }
                     src = node_map.get(r_data.get("from"))
                     dst = node_map.get(r_data.get("to"))
                     if not (src and dst):
@@ -1380,7 +1440,14 @@ class GraphRAGEngine:
                     keyword_nodes = []
                 logger.info(f"Hybrid search: keyword leg found {len(keyword_nodes)} nodes")
 
-                # -- Union & deduplicate by ID --
+                # -- Union & deduplicate by ID (vector-first) --
+                # R83 #4 fusion arms (rrf/linear) were removed 2026-08-24:
+                # measured inert by construction — legs are LIMIT 5 each
+                # (≤10 fused nodes) while the context window is 15 entities,
+                # so reordering the union cannot change retrieval output.
+                # Verified empirically: byte-identical contexts across
+                # off/rrf/linear on a 28-entity discriminating corpus
+                # (core/memory_eval_hard.py). See R83_RELIABILITY_PLAN.md #4.
                 seen_ids: set = set()
                 start_nodes = []
                 for n in list(vector_nodes) + list(keyword_nodes):

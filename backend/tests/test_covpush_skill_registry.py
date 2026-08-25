@@ -454,7 +454,7 @@ class TestExecuteHelpers:
 class TestLifecycle:
     def test_promote_skill(self, db_session):
         svc = _make_service(db_session)
-        res = asyncio.get_event_loop().run_until_complete(_import(svc, PROMPT_SKILL))
+        res = asyncio.run(_import(svc, PROMPT_SKILL))
         out = svc.promote_skill(res["skill_id"])
         assert out["status"] == "Active" and out["message"] == "Skill is already Active"
         with pytest.raises(ValueError, match="Skill not found"):
@@ -463,7 +463,7 @@ class TestLifecycle:
     def test_promote_flow(self, db_session):
         svc = _make_service(db_session)
         svc._scanner.scan_skill = AsyncMock(return_value={"safe": False, "risk_level": "HIGH", "findings": []})
-        res = asyncio.get_event_loop().run_until_complete(_import(svc, PY_SKILL))
+        res = asyncio.run(_import(svc, PY_SKILL))
         out = svc.promote_skill(res["skill_id"])
         assert out["status"] == "Active" and out["previous_status"] == "Untrusted"
         row = db_session.query(SkillExecution).filter(SkillExecution.id == res["skill_id"]).first()
@@ -471,7 +471,7 @@ class TestLifecycle:
 
     def test_delete_skill(self, db_session):
         svc = _make_service(db_session)
-        res = asyncio.get_event_loop().run_until_complete(_import(svc, PROMPT_SKILL))
+        res = asyncio.run(_import(svc, PROMPT_SKILL))
         out = svc.delete_skill(res["skill_id"])
         assert out["deleted"] is True and out["skill_name"] == "Greeter"
         assert db_session.query(SkillExecution).filter(SkillExecution.id == res["skill_id"]).count() == 0
@@ -506,7 +506,7 @@ class TestLifecycle:
     def test_create_execution_episode_failure_returns_none(self, db_session, monkeypatch):
         svc = _make_service(db_session)
         monkeypatch.setattr("core.skill_registry_service.EpisodeSegment", MagicMock())
-        seg_id = asyncio.get_event_loop().run_until_complete(
+        seg_id = asyncio.run(
             svc._create_execution_episode("S", "agent-1", {}, "res", None, 1.0)
         )
         assert seg_id is None

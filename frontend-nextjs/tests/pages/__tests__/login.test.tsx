@@ -89,7 +89,7 @@ describe('LoginPage', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/dashboard'));
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/api/auth/login',
+      '/api/auth/login',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ username: 'user@example.com', password: 'secret123' }),
@@ -206,7 +206,7 @@ describe('LoginPage', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/dashboard'));
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/api/auth/register',
+      '/api/auth/register',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({

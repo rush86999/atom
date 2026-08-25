@@ -9,11 +9,10 @@ export default async function handler(
     ? { Authorization: req.headers.authorization as string }
     : {};
 
-  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || "";
+  const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
   try {
     // Start OAuth flow
-    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || "";
     const response = await fetch(`${backendUrl}/api/slack/auth/url`, { headers: { ...fwdAuth } });
 
     if (response.ok) {

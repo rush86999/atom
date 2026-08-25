@@ -14,7 +14,6 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useRouter } from 'next/router';
-import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
@@ -261,7 +260,7 @@ export default function WorkflowBuilder() {
     };
 
     return (
-        <Layout>
+        <>
             <div className="h-[calc(100vh-80px)] flex">
                 {/* Sidebar */}
                 <div className="w-64 bg-gray-900 border-r border-gray-800 p-4 space-y-4 overflow-y-auto">
@@ -343,6 +342,6 @@ export default function WorkflowBuilder() {
                     </ReactFlow>
                 </div>
             </div>
-        </Layout>
+        </>
     );
 }

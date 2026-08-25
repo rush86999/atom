@@ -2,6 +2,38 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import IntegrationsPage from "@/pages/integrations/index";
 
+// File-local router mock with mutable query/isReady so deep-link tests can
+// simulate landing on /integrations?connect=gmail.
+jest.mock("next/router", () => {
+  const state: { query: Record<string, any>; isReady: boolean } = {
+    query: {},
+    isReady: true,
+  };
+  const router = {
+    get query() {
+      return state.query;
+    },
+    get isReady() {
+      return state.isReady;
+    },
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+    back: jest.fn(),
+    reload: jest.fn(),
+    pathname: "/integrations",
+    asPath: "/integrations",
+    events: { on: jest.fn(), off: jest.fn(), emit: jest.fn() },
+  };
+  return {
+    __esModule: true,
+    __routerState: state,
+    useRouter: () => router,
+  };
+});
+
+const { __routerState } = jest.requireMock("next/router") as any;
+
 const okResponse = (body: any) => ({
   ok: true,
   status: 200,
@@ -164,6 +196,31 @@ describe("IntegrationsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /Refresh Status/i }));
     await waitFor(() => {
       expect(mockFetch.mock.calls.length).toBeGreaterThan(callsAfterMount);
+    });
+  });
+
+  it("deep-links ?connect=<provider> to a highlighted card", async () => {
+    __routerState.query = { connect: "gmail" };
+    mockFetch.mockImplementation(() => Promise.resolve(okResponse({})));
+
+    render(<IntegrationsPage />);
+    await screen.findByRole("heading", { name: /ATOM Integrations Hub/i });
+
+    await waitFor(() => {
+      const el = document.getElementById("integration-gmail");
+      expect(el).not.toBeNull();
+      expect(el!.className).toContain("ring-2");
+    });
+  });
+
+  it("clears unknown ?connect targets without crashing", async () => {
+    __routerState.query = { connect: "nonexistent-provider" };
+    mockFetch.mockImplementation(() => Promise.resolve(okResponse({})));
+
+    render(<IntegrationsPage />);
+    await screen.findByRole("heading", { name: /ATOM Integrations Hub/i });
+    await waitFor(() => {
+      expect(screen.getByText(/\d+ of \d+ Connected/)).toBeInTheDocument();
     });
   });
 });

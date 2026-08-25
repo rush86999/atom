@@ -25,7 +25,7 @@ describe("pages/api/integrations/figma/analytics", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ ok: true });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/figma/analytics",
+      "http://127.0.0.1:8000/api/figma/analytics",
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
     );
   });
@@ -69,7 +69,7 @@ describe("pages/api/integrations/figma/files", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ nodes: [] });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/figma/files",
+      "http://127.0.0.1:8000/api/figma/files",
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
     );
   });
@@ -112,7 +112,7 @@ describe("pages/api/integrations/figma/profile", () => {
     expect(res._getStatusCode()).toBe(200);
     expect(res._getJSONData()).toEqual({ handle: "designer" });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/figma/user",
+      "http://127.0.0.1:8000/api/figma/user",
       { method: "GET", headers: { "Content-Type": "application/json" } },
     );
   });

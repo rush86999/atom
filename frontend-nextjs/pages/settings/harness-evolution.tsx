@@ -14,8 +14,6 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Cpu, Activity, ShieldAlert, CheckCircle2, RefreshCw, Layers } from 'lucide-react';
-import Layout from '../../components/layout/Layout';
-
 interface WeaknessExample {
     id: string;
     thought: string;

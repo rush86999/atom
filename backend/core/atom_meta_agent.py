@@ -343,6 +343,37 @@ class SpecialtyAgentTemplate:
 # Uses LLMService for unified LLM interactions (BYOK key resolution, cost tracking, observability).
 # All LLM calls (generate_completion, generate_structured_response) go through self.llm.
 
+
+def ensure_atom_registry_persisted(db) -> "AgentRegistry":
+    """Get-or-create the persisted ``atom_main`` registry row (R81b G6).
+
+    ``_get_atom_registry()`` builds an ephemeral in-memory row that is never
+    committed, so ``record_outcome("atom_main")`` found no DB row and silently
+    no-op'd — the meta-agent's confidence-based learning loop never advanced,
+    and governance lookups for the id returned "Agent not found". Idempotent:
+    returns the existing row when present.
+    """
+    row = db.query(AgentRegistry).filter(AgentRegistry.id == "atom_main").first()
+    if row:
+        return row
+    row = AgentRegistry(
+        id="atom_main",
+        name="Atom",
+        category="Meta",  # Special category for the main agent
+        description="Central orchestrator agent",
+        # NOT NULL without defaults — the in-memory _get_atom_registry()
+        # template omits these, which only surfaces when persisting.
+        module_path="core.atom_meta_agent",
+        class_name="AtomMetaAgent",
+        status=AgentStatus.AUTONOMOUS.value,
+        confidence_score=1.0,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
 class AtomMetaAgent:
     """
     The central Atom agent that orchestrates all platform capabilities.
@@ -416,11 +447,127 @@ class AtomMetaAgent:
         self._stage_group: Optional[str] = None
 
         
-    async def execute(self, request: str, context: Dict[str, Any] = None, 
+    async def execute(self, request: str, context: Dict[str, Any] = None,
                       trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL,
                       step_callback: Optional[callable] = None,
                       execution_id: str = None,
                       canvas_context: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        """Auditing bracket around the meta-agent run (R84c parity).
+
+        Binds run identity (agent_id='atom_main', execution_id) for every
+        log_agent_action / log_llm_call inside the loop, brackets the run
+        with execution_start / execution_complete events, and runs the
+        audit-completeness gate on close-out. Unbind is guaranteed on both
+        success and exception paths; audit failures never break the run.
+        Delegates to ``execute_unaudited`` (the ReAct body).
+        """
+        context = context or {}
+        from core.agent_action_audit import bind_audit_context, log_agent_action
+
+        exec_uuid = execution_id or str(uuid.uuid4())
+        _audit_token = None
+        try:
+            _audit_token = bind_audit_context(
+                "atom_main",
+                exec_uuid,
+                user_id=context.get("user_id"),
+                workspace_id=self.workspace_id,
+            )
+            log_agent_action(
+                action="execution_start",
+                description=f"Meta-agent run started: {request[:200]}",
+                metadata={"task_input": request[:2000],
+                          "trigger_mode": trigger_mode.value},
+                success=True,
+            )
+        except Exception:  # noqa: BLE001 — auditing must never block runs
+            _audit_token = None
+
+        try:
+            result = await self.execute_unaudited(
+                request, context=context, trigger_mode=trigger_mode,
+                step_callback=step_callback, execution_id=execution_id,
+                canvas_context=canvas_context,
+            )
+        except Exception as run_err:
+            self._close_audit_bracket(
+                exec_uuid, status="failed", actions_executed=[],
+                success=False, error_message=str(run_err)[:2000],
+                token=_audit_token,
+            )
+            raise
+
+        steps = result.get("actions_executed") or []
+        status = result.get("status", "success")
+        self._close_audit_bracket(
+            exec_uuid, status=status, actions_executed=steps,
+            success=(status == "success"),
+            error_message=None, token=_audit_token,
+        )
+        return result
+
+    def _close_audit_bracket(self, exec_uuid: str, status: Any,
+                             actions_executed: list, success: bool,
+                             error_message: Optional[str], token) -> None:
+        """Write execution_complete + completeness gate + unbind. Never raises."""
+        try:
+            from core.agent_action_audit import (
+                check_execution_audit_completeness,
+                log_agent_action,
+                unbind_audit_context,
+            )
+            log_agent_action(
+                action="execution_complete",
+                description=f"Meta-agent run finished with status {status}",
+                metadata={
+                    "status": status,
+                    "steps": len(actions_executed),
+                    "task_input": None,
+                },
+                success=success,
+                error_message=error_message,
+            )
+            tool_steps = sum(1 for s in actions_executed if s.get("action"))
+            completeness = check_execution_audit_completeness(
+                exec_uuid,
+                expected_tool_calls=tool_steps,
+                expected_llm_calls=len(actions_executed),
+            )
+            if not completeness.get("complete"):
+                logger.error("AUDIT GAP for execution %s: %s", exec_uuid, completeness)
+        except Exception as audit_close_err:  # noqa: BLE001
+            logger.debug(f"audit close-out skipped: {audit_close_err}")
+        finally:
+            if token is not None:
+                try:
+                    from core.agent_action_audit import unbind_audit_context
+                    unbind_audit_context(token)
+                except Exception:  # noqa: BLE001
+                    pass
+
+    def _ledger_llm_decision(self, model: str, prompt: Any, response: Any,
+                             provider: str = "llm_service") -> None:
+        """Ledger one ReAct LLM decision into the per-decision audit trail.
+
+        No-op outside an agent run (no bound context — log_llm_call returns
+        None), so platform traffic is not flooded. Never raises into the loop.
+        """
+        try:
+            from core.agent_action_audit import log_llm_call
+            log_llm_call(
+                model=str(model or "auto"),
+                prompt=prompt,
+                response=response,
+                provider=provider,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+    async def execute_unaudited(self, request: str, context: Dict[str, Any] = None,
+                                trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL,
+                                step_callback: Optional[callable] = None,
+                                execution_id: str = None,
+                                canvas_context: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """
         Main entry point for Atom. Uses Robust ReAct Loop with Pydantic validation.
         Based on 2025 Architecture: PydanticAI wraps each step in a validation layer.
@@ -457,6 +604,15 @@ class AtomMetaAgent:
         
         start_time = datetime.now(timezone.utc)
         execution_id = execution_id or str(uuid.uuid4())
+
+        # R81b (G6): make sure the atom_main registry row actually exists so
+        # governance checks and the end-of-run record_outcome() hit a real DB
+        # row instead of silently no-op'ing. Never raises.
+        try:
+            with SessionLocal() as _reg_db:
+                ensure_atom_registry_persisted(_reg_db)
+        except Exception as _reg_err:
+            logger.debug(f"atom_main registry ensure skipped: {_reg_err}")
 
         # P9: thread the run identity + tier into the dispatch context. Without
         # run_id/tier, the shared sandbox gate (and _meta_agent_sandbox_check)
@@ -981,8 +1137,15 @@ class AtomMetaAgent:
                             "_verified_kind": pr.get("verified_kind", "unverified"),
                             "_verified_evidence": pr.get("verified_evidence"),
                         }
+                        # R83 #3: datamark untrusted tool output (no-op when
+                        # ATOM_DATAMARKING=off).
+                        try:
+                            from core.prompt_datamarking import mark_observation
+                            _p_obs = mark_observation(pr["output"], source=p_tool)
+                        except Exception:
+                            _p_obs = pr["output"]
                         execution_history += f"Action: {p_tool}({json.dumps(p_params)})\n"
-                        execution_history += f"Observation: {pr['output']}\n"
+                        execution_history += f"Observation: {_p_obs}\n"
                         if pr.get("verified_kind") == "failed_verification":
                             execution_history += (
                                 f"[CRITIQUE] The action {p_tool} failed "
@@ -1059,6 +1222,13 @@ class AtomMetaAgent:
                         )
 
                         step_record["output"] = str(observation)[:500]
+                        # R83 #3: datamark untrusted tool output (no-op when
+                        # ATOM_DATAMARKING=off).
+                        try:
+                            from core.prompt_datamarking import mark_observation
+                            observation = mark_observation(observation, source=tool_name)
+                        except Exception:
+                            pass  # marking must never break the agent loop
                         execution_history += f"Observation: {observation}\n"
 
                         # Parse the tool return for a verification envelope
@@ -1589,8 +1759,15 @@ What is your next step?"""
         )
         
         if structured_result:
+            self._ledger_llm_decision(
+                model=_stage_model or "auto",
+                prompt=user_prompt,
+                response=structured_result.model_dump()
+                if hasattr(structured_result, "model_dump")
+                else structured_result,
+            )
             return structured_result
-        
+
         # Fallback: Use LLMService for completion
         response_data = await self.llm.generate_completion(
             messages=[
@@ -1600,8 +1777,9 @@ What is your next step?"""
             model="fast",
             temperature=0.2
         )
-        
+
         raw_response = response_data.get("content")
+        self._ledger_llm_decision(model="fast", prompt=user_prompt, response=raw_response)
         
         # Handle None, empty, or error responses
         is_error = not raw_response or any(kw in str(raw_response).lower() for kw in ["not initialized", "error", "restriction", "budget", "expired", "failed", "no eligible"])
@@ -1642,8 +1820,63 @@ What is your next step?"""
             return f"Error triggering workflow {workflow_id}: {e}"
 
     async def _execute_tool_with_governance(self, tool_name: str, args: Dict,
-                                            context: Dict, step_callback: Optional[callable],
+                                            context: Dict, step_callback: Optional[callable] = None,
                                             pre_approved: bool = False) -> str:
+        """Auditing wrapper around every meta-agent tool invocation (R84c parity).
+
+        Mirrors GenericAgent._step_act: ledgers success, error-string results,
+        and exceptions into the per-decision audit trail. The audit write is
+        guarded so a downed audit store never breaks the tool call; KillRun
+        aborts still audit (success=False) before re-raising. Delegates to
+        ``_execute_tool_with_governance_unaudited`` for the actual work.
+        """
+        import time as _time
+        from core.agent_action_audit import is_error_result
+
+        _start = _time.monotonic()
+        try:
+            result = await self._execute_tool_with_governance_unaudited(
+                tool_name, args, context, step_callback, pre_approved
+            )
+        except Exception as tool_err:
+            try:
+                from core.agent_action_audit import log_agent_action
+                log_agent_action(
+                    action=f"tool:{tool_name}",
+                    description=f"Meta-agent tool {tool_name} raised",
+                    metadata={
+                        "tool": tool_name,
+                        "params": args,
+                        "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                    },
+                    success=False,
+                    error_message=str(tool_err)[:2000],
+                )
+            except Exception:  # noqa: BLE001 — audit must never mask the tool error
+                pass
+            raise
+
+        _is_err = is_error_result(result)
+        try:
+            from core.agent_action_audit import log_agent_action
+            log_agent_action(
+                action=f"tool:{tool_name}",
+                description=f"Meta-agent tool {tool_name} invoked",
+                metadata={
+                    "tool": tool_name,
+                    "params": args,
+                    "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                },
+                success=not _is_err,
+                error_message=result[:2000] if _is_err else None,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return result
+
+    async def _execute_tool_with_governance_unaudited(self, tool_name: str, args: Dict,
+                                                      context: Dict, step_callback: Optional[callable] = None,
+                                                      pre_approved: bool = False) -> str:
         """Execute a tool via MCP with governance checks
 
         ``pre_approved`` (Workstream G): when True, the governance/HITL check is
@@ -1875,16 +2108,63 @@ What is your next step?"""
                         )
                         logger.info(f"Optimization for {domain}: {optimization_metadata['optimization_reason']}")
 
-                    # 2. Recruit the specialist
+                    # 3. Recruit the specialist
                     agent = get_specialized_agent(domain, self.workspace_id)
+
+                    # P5 integrity: self-dealing block — an agent cannot
+                    # recruit itself onto the fleet it controls.
+                    _child_id = agent.id if agent else f"specialist_{domain}"
+                    try:
+                        from core.org_integrity import self_recruitment_blocked
+
+                        if self_recruitment_blocked("atom_main", _child_id):
+                            logger.warning(
+                                "Allocator integrity: self-recruitment blocked (%s)",
+                                _child_id,
+                            )
+                            continue
+                    except Exception:
+                        pass
+
+                    # P5 COI signal (shadow): prior radio contact between the
+                    # coordinator and this candidate, recorded on the link.
+                    _coi = False
+                    try:
+                        from core.org_integrity import has_radio_contact
+
+                        _coi = has_radio_contact(db, "atom_main", _child_id)
+                    except Exception:
+                        pass
                     
                     # 3. Create the Link
+                    # P1 delegation contract: typed handoff (objective/format/
+                    # guidance/boundaries/effort) stored on the link so any
+                    # executor of this task receives the full contract.
+                    _contract = None
+                    try:
+                        from core.fleet_orchestration.delegation_contracts import (
+                            maybe_contract_for_link,
+                        )
+
+                        _contract = maybe_contract_for_link(
+                            goal=goal, sub_task=st
+                        )
+                    except Exception as ce:
+                        logger.debug(f"delegation contract skipped: {ce}")
+
+                    _link_ctx = {"fleet_goal": goal, "domain": domain}
+                    if _contract is not None:
+                        _link_ctx["delegation_contract"] = _contract.to_dict()
+                    if _coi:
+                        # Shadow signal only — informs Phase 5 calibration.
+                        _link_ctx["coi_signal"] = True
+
                     link = fleet_service.recruit_member(
                         chain_id=chain.id,
                         parent_agent_id="atom_main",
                         child_agent_id=agent.id if agent else f"specialist_{domain}",
                         task_description=task_desc,
-                        context_json={"fleet_goal": goal, "domain": domain},
+                        context_json=_link_ctx,
                         link_order=i,
                         optimization_metadata=optimization_metadata
                     )
@@ -1901,7 +2181,62 @@ What is your next step?"""
                         "type": "fleet_recruited",
                         "chain_id": chain.id,
                         "members": fleet_members
-                    })
+                })
+
+                # P5 diversity floor (shadow): teams of >=3 spanning a single
+                # declared model family are flagged (R6/R12 — homogeneous
+                # pools entrench incumbents). Never blocks; telemetry only.
+                try:
+                    from core.org_integrity import (
+                        allocator_integrity_enabled,
+                        enforce_diversity_floor,
+                    )
+                    from core.models import AgentRegistry as _AR
+
+                    if allocator_integrity_enabled() and len(fleet_members) >= 3:
+                        _ids = [m["agent_id"] for m in fleet_members]
+                        _rows = {
+                            r.id: (r.diversity_profile or {})
+                            for r in db.query(_AR).filter(_AR.id.in_(_ids)).all()
+                            if r is not None
+                        }
+
+                        def _family_of(aid: str):
+                            prof = _rows.get(aid) or {}
+                            fam = prof.get("model_family") or prof.get("family")
+                            return str(fam) if fam else None
+
+                        _div = enforce_diversity_floor(_ids, _family_of)
+                        if not _div.get("ok"):
+                            logger.warning(
+                                "Allocator integrity: diversity floor violated "
+                                "for chain %s: %s",
+                                chain.id, _div,
+                            )
+                            AgentOrgTelemetryService(db).emit(
+                                "diversity_violation",
+                                actor_agent_id="atom_main",
+                                target_agent_id=chain.id,
+                                payload=_div,
+                            )
+                except Exception as de:
+                    logger.debug(f"diversity floor check skipped: {de}")
+
+                # P0 org telemetry: coordinator→specialist recruit pairs
+                # (incumbency baseline; write-only, never raises)
+                try:
+                    from core.org_telemetry_service import AgentOrgTelemetryService
+
+                    AgentOrgTelemetryService(db).emit_fleet_recruit(
+                        coordinator_agent_id="atom_main",
+                        members=fleet_members,
+                        chain_id=chain.id,
+                        execution_id=context.get("execution_id"),
+                        workspace_id=self.workspace_id,
+                        tenant_id=tenant_id,
+                    )
+                except Exception as te:
+                    logger.debug(f"org telemetry recruit emit skipped: {te}")
 
                 # AgentRadio bridge: attach a lateral thread for the team —
                 # ONLY when the task crosses responsibility breakpoints
@@ -2043,9 +2378,59 @@ What is your next step?"""
             # Ephemeral agent - just keep in memory
             self.spawned_agents[agent_id] = agent
             logger.info(f"Created ephemeral agent: {agent_id}")
-        
+
         return agent
-    
+
+    async def teach_student(
+        self,
+        student_agent_id: str,
+        lesson: str,
+        topic: Optional[str] = None,
+        db: Optional[Session] = None,
+    ) -> Dict[str, Any]:
+        """Teach a STUDENT agent directly (the fast learning pathway).
+
+        The meta agent is the primary interaction surface and the designated
+        teacher, but teaching is a level-1 governance action — it is never
+        blocked by the teacher's own maturity (an INTERN meta agent can
+        still teach), and it only ACCELERATES learning: students also learn
+        from observation via StudentLearningService.observe_workspace, and
+        maturity promotion still goes through the training/graduation
+        system regardless of how much was taught.
+        """
+        from core.student_learning_service import StudentLearningService
+
+        session = db or SessionLocal()
+        owns_session = db is None
+        try:
+            governance = AgentGovernanceService(
+                session,
+                workspace_id=self.workspace_id,
+                tenant_id=self.tenant_id,
+            )
+            decision = await governance.can_perform_action_async(
+                agent_id="atom_main",
+                action_type="teach_student",
+            )
+            allowed = decision.get("allowed", False) if isinstance(decision, dict) else bool(decision)
+            if not allowed:
+                reason = (decision.get("reason") if isinstance(decision, dict) else None) or "Teaching not permitted"
+                return {"status": "error", "reason": reason}
+
+            learning = StudentLearningService(session)
+            result = learning.learn_from_teacher(
+                student_agent_id=student_agent_id,
+                teacher_agent_id="atom_main",
+                lesson=lesson,
+                topic=topic,
+            )
+            if result.get("status") == "ok":
+                logger.info(f"atom_main taught student {student_agent_id} (topic={topic or 'general'})")
+            return result
+        finally:
+            if owns_session:
+                session.close()
+
     async def query_memory(self, query: str, scope: str = "all") -> Dict[str, Any]:
         """
         Query the World Model for experiences and knowledge.

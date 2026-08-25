@@ -64,8 +64,14 @@ def _run_coroutine_sync(coro, timeout: float = 15.0):
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        # No running loop on this thread: drive the coroutine directly.
-        return asyncio.get_event_loop().run_until_complete(coro)
+        # No running loop on this thread: drive the coroutine on a fresh
+        # loop — asyncio.get_event_loop() no longer creates one implicitly
+        # on Python 3.14+, so that call raised RuntimeError here.
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
     # A loop IS running here — schedule on the dedicated background loop.
     global _CREDENTIAL_LOOP
     with _CREDENTIAL_LOOP_LOCK:
@@ -173,6 +179,15 @@ from core.llm_credential_service import LLMCredentialService
 
 logger = logging.getLogger(__name__)
 
+# --- P4 prompt-taint gate (shadow by default) -------------------------------
+# The prompt IS the exfil payload on the LLM path: the full text leaves for a
+# third-party processor. When the head of the outbound prompt classifies as
+# restricted-sensitivity (PII/credential patterns), shadow mode logs a
+# structured warning; ATOM_LLM_TAINT_ENFORCE additionally blocks the dispatch.
+# Ordinary confidential business text is never flagged.
+_LLM_TAINT_SHADOW = os.getenv("ATOM_LLM_TAINT_SHADOW", "true").lower() == "true"
+_LLM_TAINT_ENFORCE = os.getenv("ATOM_LLM_TAINT_ENFORCE", "false").lower() == "true"
+
 # Bounded per-request timeout for provider clients (seconds). The OpenAI SDK
 # defaults to 600s; with multi-provider fallback + self-heal retries a wedged
 # provider (dead key, hanging endpoint) could hold a request — and the
@@ -180,6 +195,21 @@ logger = logging.getLogger(__name__)
 # POST /api/v1/ai/nlu froze the whole server). httpx applies this as a
 # per-read timeout, so legitimately long streaming responses are unaffected.
 LLM_REQUEST_TIMEOUT_DEFAULT_SECONDS = 120
+
+
+def _last_user_text(messages: List[Dict]) -> str:
+    """Extract the most recent user message's text for the taint gate."""
+    for _m in reversed(messages or []):
+        if isinstance(_m, dict) and _m.get("role") == "user":
+            content = _m.get("content", "")
+            if isinstance(content, list):
+                # Multimodal form: keep only text parts.
+                content = " ".join(
+                    p.get("text", "") for p in content
+                    if isinstance(p, dict) and p.get("type") == "text"
+                )
+            return content if isinstance(content, str) else str(content)
+    return ""
 
 
 def _llm_request_timeout() -> float:
@@ -443,6 +473,97 @@ def _opencode_paid_fallback_model(model: str) -> Optional[str]:
     return "deepseek-v4-flash"  # cheapest paid model
 
 
+# Free-usage models to retry with when the PAID tier is out of credits.
+# The subscription balance can be exhausted (CreditsError on every paid
+# model) while the "-free" allowance still works — verified live against
+# the Zen gateway: nemotron-3.5-lightning-free, laguna-s-2.1-free and
+# nemotron-3-ultra-free all complete with a zero-balance workspace.
+# Override via env: OPENCODE_FREE_TIER_MODELS='["model-a-free", ...]'
+OPCODE_FREE_TIER_FALLBACK_DEFAULTS = [
+    "nemotron-3.5-lightning-free",
+    "laguna-s-2.1-free",
+    "nemotron-3-ultra-free",
+]
+
+
+def _opencode_free_tier_fallbacks(model: str) -> list:
+    """Ordered fallback chain for an opencode model that hit a budget error.
+
+    Free model → its paid sibling first, then the verified free tier.
+    Paid model → straight to the free tier (the paid balance is gone).
+    """
+    raw = os.getenv("OPENCODE_FREE_TIER_MODELS", "").strip()
+    chain: list = []
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                chain = [m for m in parsed if isinstance(m, str)]
+            else:
+                logger.warning("OPENCODE_FREE_TIER_MODELS must be a JSON list — ignoring")
+        except (ValueError, TypeError):
+            logger.warning("OPENCODE_FREE_TIER_MODELS is not valid JSON — ignoring")
+    if not chain:
+        chain = list(OPCODE_FREE_TIER_FALLBACK_DEFAULTS)
+    chain = [m for m in chain if m != model]
+    if _is_opencode_free_model(model):
+        paid = _opencode_paid_fallback_model(model)
+        if paid and paid != model:
+            chain.insert(0, paid)
+    return chain
+
+
+# --- OpenRouter: budget-exhausted → free-model fallback (round 80w2) ---
+# OpenRouter serves many models with a ":free" variant that has no per-token
+# cost but lower rate limits. When the user's credits are exhausted on a
+# paid model, retry on the :free sibling before skipping the provider.
+OPENROUTER_PAID_FREE_FALLBACK_DEFAULTS = {
+    "openai/gpt-4o-mini": "google/gemma-2-9b-it:free",
+    "anthropic/claude-3.5-sonnet": "meta-llama/llama-3.1-8b-instruct:free",
+    "anthropic/claude-3-sonnet": "meta-llama/llama-3.1-8b-instruct:free",
+    "openai/gpt-4o": "google/gemma-2-9b-it:free",
+    "google/gemini-flash-1.5": "google/gemma-2-9b-it:free",
+}
+
+_openrouter_free_fallback_cache: dict | None = None
+
+
+def _openrouter_free_fallback() -> dict:
+    """Read OPENROUTER_FREE_FALLBACK env override or return defaults."""
+    global _openrouter_free_fallback_cache
+    if _openrouter_free_fallback_cache is not None:
+        return _openrouter_free_fallback_cache
+    raw = os.getenv("OPENROUTER_FREE_FALLBACK", "").strip()
+    if raw:
+        try:
+            overrides = json.loads(raw)
+            if isinstance(overrides, dict):
+                result = {k: v for k, v in overrides.items() if isinstance(v, str)}
+                _openrouter_free_fallback_cache = result
+                return result
+            logger.warning("OPENROUTER_FREE_FALLBACK must be a JSON object — ignoring")
+        except (ValueError, TypeError):
+            logger.warning("OPENROUTER_FREE_FALLBACK is not valid JSON — ignoring")
+    _openrouter_free_fallback_cache = dict(OPENROUTER_PAID_FREE_FALLBACK_DEFAULTS)
+    return _openrouter_free_fallback_cache
+
+
+def _openrouter_free_fallback_model(model: str) -> Optional[str]:
+    """Map an OpenRouter paid model to its :free fallback variant.
+
+    Returns None if the model already ends with ":free" (nothing to fall
+    back to) or no mapping exists and no default free model is available.
+    """
+    if model.endswith(":free"):
+        return None
+    fallbacks = _openrouter_free_fallback()
+    free = fallbacks.get(model)
+    if free:
+        return free
+    # Default: use a known-good free model
+    return "google/gemma-2-9b-it:free"
+
+
 def _is_insufficient_balance_error(err: Exception) -> bool:
     """True when an LLM error means the gateway's free/credit allowance is gone.
 
@@ -456,7 +577,9 @@ def _is_insufficient_balance_error(err: Exception) -> bool:
         "insufficient balance" in text
         or "creditserror" in text
         or "credit limit" in text
-        or "billing" in text and "401" in text
+        or "insufficient credit" in text
+        or "payment required" in text
+        or ("billing" in text and "401" in text)
     )
 
 
@@ -763,6 +886,28 @@ class BYOKHandler:
             return True  # Unknown providers pass through (optimistic)
         return self.health_monitor.get_health_score(provider_id) >= self._HEALTH_EXCLUDE_THRESHOLD
 
+    @staticmethod
+    def _stamp_sample_logprob(result: Any) -> None:
+        """R83 #6: attach the sample's mean token log-probability.
+
+        Reads ``choices[0].logprobs.content`` from instructor's
+        ``_raw_response`` (present when the request asked for logprobs) and
+        stamps ``_atom_mean_logprob`` on the parsed model. Best-effort:
+        no logprobs / no raw response / non-writable model ⇒ no stamp, and
+        the voter weighs that sample 1.0 (hard-vote semantics).
+        """
+        raw = getattr(result, "_raw_response", None)
+        choices = getattr(raw, "choices", None) if raw is not None else None
+        logprobs = getattr(choices, "__getitem__", lambda i: None)(0) if choices else None
+        content = getattr(getattr(logprobs, "logprobs", None), "content", None)
+        if not content:
+            return
+        try:
+            mean_lp = sum(float(getattr(c, "logprob", 0.0)) for c in content) / len(content)
+            setattr(result, "_atom_mean_logprob", mean_lp)
+        except (TypeError, ZeroDivisionError, AttributeError):
+            return
+
     def _model_supports_tools(self, model_id: str) -> bool:
         """
         Check if model supports tool calling using pricing cache (not hardcoded lists).
@@ -913,24 +1058,33 @@ class BYOKHandler:
                     credential_type, credential_value = _run_coroutine_sync(
                         self.credential_service.get_credential(provider_id)
                     )
-                    api_key = credential_value
-                    credential_source = credential_type
+                    if isinstance(credential_value, str) and credential_value:
+                        api_key = credential_value
+                        credential_source = credential_type
                     logger.info(f"Using {credential_source.upper()} credential for {provider_id}")
                 except Exception as e:
                     logger.debug(f"Credential service not available for {provider_id}: {e}")
 
-            # Fallback to BYOK if credential service didn't provide one
+            # Fallback to BYOK if credential service didn't provide one.
+            # Guard with isinstance: a non-string value (corrupted store
+            # entry, or a test double returning Mock objects) must NOT count
+            # as "found" — otherwise the env fallback below is skipped and
+            # the provider silently loses its client entirely.
             if not api_key and self.byok_manager.is_configured(self.workspace_id, provider_id):
-                api_key = self.byok_manager.get_api_key(provider_id)
-                credential_source = "byok"
+                candidate = self.byok_manager.get_api_key(provider_id)
+                if isinstance(candidate, str) and candidate:
+                    api_key = candidate
+                    credential_source = "byok"
 
             # Special case: Gemini BYOK fallback to Google / Google Flash / Gemini Flash variants
             if not api_key and provider_id == "gemini":
                 for alt_provider in ["google", "google_flash", "google_flash_3_5", "gemini_flash", "gemini_flash_3_5"]:
                     if self.byok_manager.is_configured(self.workspace_id, alt_provider):
-                        api_key = self.byok_manager.get_api_key(alt_provider)
-                        credential_source = "byok"
-                        break
+                        candidate = self.byok_manager.get_api_key(alt_provider)
+                        if isinstance(candidate, str) and candidate:
+                            api_key = candidate
+                            credential_source = "byok"
+                            break
 
             # Final fallback to environment variables
             if not api_key:
@@ -1372,6 +1526,7 @@ class BYOKHandler:
         estimated_tokens: int = 1000, # Cache-aware routing
         workspace_id: str = "default", # Cache-aware routing
         cognitive_tier: Optional[CognitiveTier] = None,  # Phase 68: Cognitive tier system
+        max_quality: Optional[int] = None,  # Stage-router "fast" steering: upper quality bound
         required_capability: Optional[str] = None,  # Phase 226.4-04: Capability-based routing
         turn_index: int = 0 # NEW: Deterministic BPC
     ) -> List[tuple[str, str]]:
@@ -1460,13 +1615,19 @@ class BYOKHandler:
             # Also exclude o-series models — they don't reliably return
             # message.content (reasoning goes to a separate field).
             if task_type == "extraction":
-                max_quality = 90
+                max_quality = min(90, max_quality) if max_quality is not None else 90
                 # Adjust min_quality down if it exceeds the cap
                 min_quality = min(min_quality, 90)
                 _excluded_models = {"o1", "o1-mini", "o1-pro", "o3", "o3-mini", "o4", "o4-mini"}
             else:
-                max_quality = 100
+                max_quality = min(100, max_quality) if max_quality is not None else 100
                 _excluded_models = set()
+
+            # A caller-supplied cap ("fast" steering) can sit below a raised
+            # min floor (e.g. ADVANCED=94 vs cap 89) — clamp so the window
+            # stays non-empty instead of filtering every candidate out.
+            if max_quality is not None:
+                min_quality = min(min_quality, max_quality)
             
             available_providers = list(self.clients.keys())
             candidates = []
@@ -1480,6 +1641,25 @@ class BYOKHandler:
             )
 
             # Use the entire pricing cache to discover models beyond hardcoded lists
+            # Phase 5': kick off (never block on) measured endpoint telemetry for
+            # openrouter-hosted models so subsequent calls have fresh health data.
+            _or_telemetry_ids: List[str] = []
+            if "openrouter" in self.clients:
+                try:
+                    from core.llm.openrouter_endpoints import (
+                        get_endpoint_monitor as _get_endpoint_monitor,
+                        telemetry_enabled as _or_telemetry_enabled,
+                    )
+                    if _or_telemetry_enabled():
+                        _or_telemetry_ids = [
+                            mid for mid, p in fetcher.pricing_cache.items()
+                            if (p.get("litellm_provider") or "").lower() == "openrouter"
+                        ][:50]
+                        if _or_telemetry_ids:
+                            _get_endpoint_monitor().ensure_refresh_started(_or_telemetry_ids)
+                except Exception as e:  # noqa: BLE001 — telemetry must never break routing
+                    logger.debug(f"Endpoint telemetry kickoff skipped: {e}")
+
             for model_id, pricing in fetcher.pricing_cache.items():
                 litellm_provider = pricing.get("litellm_provider", "").lower()
                 
@@ -1499,6 +1679,19 @@ class BYOKHandler:
                 if context_window < min_context:
                     continue
 
+                # Phase M (measurement only): count candidates whose OpenRouter
+                # payload marks them expired. expiration_date means "may be
+                # removed", so routing is deliberately unchanged — this feeds
+                # the staleness stats that decide plan-v2 Phases 1–3.
+                _exp = pricing.get("expiration_date")
+                if _exp:
+                    try:
+                        from core.dynamic_pricing_fetcher import is_expiration_past
+                        if is_expiration_past(_exp):
+                            fetcher.record_stale_consideration(model_id)
+                    except Exception:  # noqa: BLE001 — measurement must never break routing
+                        pass
+
                 # Phase 226.4-04: Check capability filter
                 if not self._filter_by_capabilities(model_id, required_capability, capability_index):
                     continue
@@ -1511,12 +1704,28 @@ class BYOKHandler:
                 if not self._filter_by_health(active_provider):
                     continue
 
+                # Phase 5': measured endpoint health for openrouter-hosted
+                # models. Unknown/no-data ⇒ untouched (fail-open). Measured
+                # uptime below floor ⇒ skip; p50 latency above cap ⇒ soft
+                # value-score penalty applied at scoring time.
+                endpoint_penalty = 1.0
+                if active_provider == "openrouter" and _or_telemetry_ids:
+                    try:
+                        from core.llm.openrouter_endpoints import (
+                            endpoint_health_gate,
+                        )
+                        gate = endpoint_health_gate(model_id)
+                    except Exception:  # noqa: BLE001
+                        gate = 1.0
+                    if gate is None:
+                        continue
+                    endpoint_penalty = gate
+
                 # Check quality score (use capability-specific score if required)
                 if required_capability:
                     quality_score = get_capability_score(model_id, required_capability)
                 else:
                     quality_score = get_quality_score(model_id)
-
                 if quality_score < min_quality or quality_score > max_quality:
                     continue
 
@@ -1541,6 +1750,7 @@ class BYOKHandler:
                     "model": model_id,
                     "quality": quality_score,
                     "cost": effective_cost,
+                    "endpoint_penalty": endpoint_penalty,
                 })
 
             # Second pass: compute value_score with a pool-relative cost floor.
@@ -1640,6 +1850,7 @@ class BYOKHandler:
                     ((c["quality"] ** 2) / (normalized_cost * 1e6))
                     * max(0.25, c["headroom"])
                     * quota_factor
+                    * c.get("endpoint_penalty", 1.0)
                 )
 
             
@@ -1729,6 +1940,34 @@ class BYOKHandler:
                 ranked_options.insert(0, qwen_option)
 
         return AwaitableResult(ranked_options)
+
+    def _llm_taint_check(self, text: str, provider_id: str, model: str) -> Optional[str]:
+        """P4 prompt-taint gate. Returns a block reason under enforce mode,
+        None when the call may proceed. Shadow mode logs only. Never raises."""
+        if not (_LLM_TAINT_SHADOW or _LLM_TAINT_ENFORCE):
+            return None
+        try:
+            from core.data_taint_tracker import assess_prompt_outbound
+
+            decision = assess_prompt_outbound(text or "", provider_id, model)
+        except Exception:
+            return None
+        if decision is None:
+            return None
+        if _LLM_TAINT_SHADOW:
+            logger.warning(
+                "llm_taint.shadow provider=%s model=%s max_observed=%s — %s "
+                "(set ATOM_LLM_TAINT_ENFORCE=true to block)",
+                provider_id, model, decision.get("max_observed"),
+                decision.get("reason"),
+            )
+        if _LLM_TAINT_ENFORCE:
+            return (
+                "[LLM CALL BLOCKED] Prompt classified restricted-sensitivity "
+                f"(potential PII/secrets); dispatch to {provider_id}/{model} "
+                "denied by taint policy (ATOM_LLM_TAINT_ENFORCE)."
+            )
+        return None
 
     async def generate_response(
         self,
@@ -1860,6 +2099,24 @@ class BYOKHandler:
             else:
                 complexity = self.analyze_query_complexity(prompt, task_type)
 
+            # --- Stage-router / caller model-type steering ---
+            # Documented vocabulary: "auto", "fast", "quality", or a concrete
+            # model name (stage_router.map_decision_to_model_type emits the
+            # first three; the tier-escalation loop passes concrete models).
+            # Previously this parameter was accepted and DROPPED, so an
+            # enforced stage-router decision changed audit rows but never the
+            # actual model selection. An explicit x-atom-tier override
+            # (cognitive_tier) always wins over the soft steering.
+            max_quality_override: Optional[int] = None
+            pinned_model: Optional[str] = None
+            if cognitive_tier is None and model_type and model_type != "auto":
+                if model_type == "quality":
+                    forced_tier_enum = CognitiveTier.HEAVY
+                elif model_type == "fast":
+                    max_quality_override = 89
+                else:
+                    pinned_model = model_type
+
             # Identify tool/structured requirements (Phase 6.6)
             requires_tools = agent_id is not None or task_type == "agentic"
 
@@ -1875,6 +2132,7 @@ class BYOKHandler:
                 requires_tools=requires_tools, requires_structured=False,
                 turn_index=turn_index,
                 cognitive_tier=forced_tier_enum,
+                max_quality=max_quality_override,
             )
 
             # --- LKGP (Last-Known-Good-Path) sticky boost ---
@@ -1917,6 +2175,18 @@ class BYOKHandler:
             # start (no predictor) leaves BPC order untouched. Best-effort: any
             # error falls back to BPC order so the hot path never breaks.
             options = await self._rerank_with_learning(options, prompt, task_type, intent=detected_intent)
+
+            # --- Concrete-model pinning (model_type = specific model) ---
+            # Hoist every candidate serving the requested concrete model to the
+            # front (provider order preserved) so the tier-escalation loop's
+            # explicit choice is attempted first; the remaining ranked
+            # candidates stay available as fallback.
+            if pinned_model:
+                pinned_opts = [(p, m) for p, m in options if m == pinned_model]
+                if pinned_opts:
+                    rest_opts = [(p, m) for p, m in options if m != pinned_model]
+                    options = pinned_opts + rest_opts
+                    logger.debug(f"[model-type] pinned '{pinned_model}' candidates to front")
 
             # Capture the decision id minted by _rerank_with_learning (if any) in
             # a local so EVERY provider attempt in the fallback loop below can
@@ -1979,6 +2249,16 @@ class BYOKHandler:
             
             if not options:
                 return "No eligible LLM providers found for your current plan."
+
+            # P4 prompt-taint gate (single check — the prompt text is
+            # identical for every candidate provider).
+            _taint_block = self._llm_taint_check(
+                prompt,
+                options[0][0] if options else "",
+                options[0][1] if options else "",
+            )
+            if _taint_block:
+                return _taint_block
 
             last_error = None
             primary_provider = options[0][0] if options else None
@@ -2051,33 +2331,35 @@ class BYOKHandler:
                         try:
                             fetcher = get_pricing_fetcher()
                             cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
-                            
+
                             # Calculate Reference Cost (gpt-4o) for savings tracking (Phase 58)
                             reference_cost = fetcher.estimate_cost("gpt-4o", input_tokens, output_tokens)
-                            savings_usd = max(0, reference_cost - cost) if reference_cost and cost is not None else 0.0
-                            
+
                             # Fallback to static pricing if dynamic not available
                             if cost is None:
                                 cost = get_llm_cost(model, input_tokens, output_tokens)
-                                # Static reference cost fallback
-                                ref_cost_static = get_llm_cost("gpt-4o", input_tokens, output_tokens)
-                                savings_usd = max(0, ref_cost_static - cost)
-                            
-                            if cost and cost > 0:
-                                # Record to LLM Usage Tracker
-                                llm_usage_tracker.record(
-                                    workspace_id=self.workspace_id,
-                                    provider=provider_id,
-                                    model=model,
-                                    input_tokens=input_tokens,
-                                    output_tokens=output_tokens,
-                                    cost_usd=cost,
-                                    savings_usd=savings_usd,
-                                    agent_id=agent_id,
-                                    chain_id=chain_id, # Phase 11
-                                    complexity=complexity.value, # Phase 6.6
-                                    is_managed_service=is_managed
-                                )
+                                reference_cost = get_llm_cost("gpt-4o", input_tokens, output_tokens)
+
+                            savings_usd = max(0, reference_cost - cost) if (reference_cost is not None and cost is not None) else 0.0
+
+                            # Record even when the cost resolves to 0/None
+                            # (unpriced model) — the budget guard enforces from
+                            # recorded usage, so skipping would be
+                            # unattributed spend.
+                            llm_usage_tracker.record(
+                                workspace_id=self.workspace_id,
+                                provider=provider_id,
+                                model=model,
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                cost_usd=cost or 0.0,
+                                savings_usd=savings_usd,
+                                agent_id=agent_id,
+                                chain_id=chain_id, # Phase 11
+                                complexity=complexity.value, # Phase 6.6
+                                is_managed_service=is_managed
+                            )
+                            if cost:
                                 logger.info(f"LLM Cost Attributed ({'Managed' if is_managed else 'BYOK'}): {model} - ${cost:.6f} (Saved: ${savings_usd:.6f})")
                             observed_cost = cost
                         except Exception as cost_err:
@@ -2158,6 +2440,46 @@ class BYOKHandler:
                     last_error = attempt_err
 
                     err_str = str(attempt_err)
+
+                    # Round 80w2: insufficient-balance → model fallback before
+                    # skipping the provider. OpenCode Go: free → paid sibling,
+                    # then the verified free tier when the paid balance is
+                    # exhausted too. OpenRouter: paid → :free variant. Both
+                    # gateways serve the same model families from one key; a
+                    # budget error on one tier shouldn't kill the request when
+                    # another tier works.
+                    if provider_id in {"opencode-go", "opencode", "zen", "openrouter"} and _is_insufficient_balance_error(attempt_err):
+                        if provider_id in {"opencode-go", "opencode", "zen"}:
+                            fallback_chain = _opencode_free_tier_fallbacks(model)
+                        else:
+                            _orf = _openrouter_free_fallback_model(model)
+                            fallback_chain = [_orf] if _orf and _orf != model else []
+                        for fallback_model in fallback_chain:
+                            if fallback_model == model:
+                                continue
+                            logger.info(
+                                f"Budget exhausted on {provider_id}/{model} — "
+                                f"retrying with {fallback_model}"
+                            )
+                            try:
+                                response = client.chat.completions.create(
+                                    model=fallback_model,
+                                    messages=messages,
+                                    temperature=temperature
+                                )
+                                result = response.choices[0].message.content
+                                self._last_used_model = fallback_model
+                                self._last_used_provider = provider_id
+                                logger.info(
+                                    f"Fallback succeeded: {provider_id}/{fallback_model}"
+                                )
+                                return result
+                            except Exception as fb_err:
+                                logger.warning(
+                                    f"Fallback {fallback_model} also failed: {fb_err}"
+                                )
+                        # All tiers exhausted — skip this provider
+
                     if "401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str:
                         failed_providers.add(provider_id)
                         continue
@@ -3151,14 +3473,47 @@ class BYOKHandler:
                         messages.append({"role": "user", "content": prompt})
 
                     _structured_start = time.time()
-                    result = instructor_client.chat.completions.create(
+                    # R83 #6: soft self-consistency — request logprobs and
+                    # stamp the parsed model with its mean token logprob so
+                    # the voter can weight samples by probability. Default ON
+                    # (shadow-only — the vote outcome never changes); strictly
+                    # off = byte-identical request and response handling.
+                    # A gateway that rejects the ``logprobs`` kwarg gets ONE
+                    # retry without it, so soft-SC can never fail a
+                    # structured call that would otherwise succeed.
+                    _soft_sc_on = False
+                    try:
+                        from core.hallucination_config import is_sc_soft_enabled
+                        _soft_sc_on = is_sc_soft_enabled()
+                    except Exception:
+                        pass
+                    _create_kwargs = dict(
                         model=model,
                         response_model=response_model,
                         messages=messages,
                         temperature=temperature,
-                        max_tokens=1000
+                        max_tokens=1000,
                     )
+                    if _soft_sc_on:
+                        _create_kwargs["logprobs"] = True
+                    try:
+                        result = instructor_client.chat.completions.create(**_create_kwargs)
+                    except Exception as _soft_exc:
+                        if not _soft_sc_on:
+                            raise
+                        _create_kwargs.pop("logprobs", None)
+                        logger.warning(
+                            f"soft-SC logprobs request failed for {provider_id}/{model} "
+                            f"({_soft_exc}); retrying once without logprobs"
+                        )
+                        result = instructor_client.chat.completions.create(**_create_kwargs)
                     _structured_latency_ms = (time.time() - _structured_start) * 1000.0
+                    if _soft_sc_on:
+                        # Best-effort — no stamp ⇒ voter weight 1.0.
+                        try:
+                            self._stamp_sample_logprob(result)
+                        except Exception:
+                            pass
                     # Instructor wraps the underlying response; finish_reason
                     # may be on the raw response. Default to "stop" only when
                     # unavailable (the API succeeded structurally).
@@ -3196,21 +3551,26 @@ class BYOKHandler:
 
                             fetcher = get_pricing_fetcher()
                             cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
+                            if cost is None:
+                                cost = get_llm_cost(model, input_tokens, output_tokens)
                             _structured_cost = cost
 
-                            if cost and cost > 0:
-                                llm_usage_tracker.record(
-                                    workspace_id=self.workspace_id,
-                                    provider=provider_id,
-                                    model=model,
-                                    input_tokens=input_tokens,
-                                    output_tokens=output_tokens,
-                                    cost_usd=cost,
-                                    agent_id=agent_id,
-                                    chain_id=chain_id, # Phase 11
-                                    complexity=complexity.value,
-                                    is_managed_service=is_managed
-                                )
+                            # Record even when the cost resolves to 0/None
+                            # (unpriced model) — the budget guard enforces
+                            # from recorded usage, so skipping would be
+                            # unattributed spend.
+                            llm_usage_tracker.record(
+                                workspace_id=self.workspace_id,
+                                provider=provider_id,
+                                model=model,
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                cost_usd=cost or 0.0,
+                                agent_id=agent_id,
+                                chain_id=chain_id, # Phase 11
+                                complexity=complexity.value,
+                                is_managed_service=is_managed
+                            )
                     except Exception as cost_err:
                         logger.warning(f"Could not attribute structured LLM cost: {cost_err}")
 
@@ -3748,6 +4108,14 @@ class BYOKHandler:
                 break
         stream_decision_id = self._stash_decision_features(stream_prompt, task_type)
 
+        # P4 prompt-taint gate (shadow by default; blocks under enforce).
+        _taint_block = self._llm_taint_check(
+            stream_prompt, primary_provider or "", model
+        )
+        if _taint_block:
+            yield f"Error: {_taint_block}"
+            return
+
         # Governance tracking
         governance_enabled = os.getenv("STREAMING_GOVERNANCE_ENABLED", "true").lower() == "true"
         agent_execution = None
@@ -4210,6 +4578,14 @@ class BYOKHandler:
                 break
         decision_id = self._stash_decision_features(prompt_str, task_type)
 
+        # P4 prompt-taint gate (shadow by default; GatewayBlockedError maps to
+        # a 4xx by the gateway's error mapping).
+        _taint_block = self._llm_taint_check(
+            prompt_str, provider_id, model
+        )
+        if _taint_block:
+            raise GatewayBlockedError("taint_blocked", _taint_block)
+
         base_kwargs: Dict[str, Any] = {
             "model": model,
             "messages": messages,
@@ -4263,20 +4639,27 @@ class BYOKHandler:
                     cost = fetcher.estimate_cost(model, prompt_tokens or 0, completion_tokens or 0)
                     if cost is None:
                         cost = get_llm_cost(model, prompt_tokens or 0, completion_tokens or 0)
-                    if cost and cost > 0:
+                except Exception as cost_err:
+                    logger.warning(f"Could not attribute LLM cost: {cost_err}")
+                else:
+                    # Record even when the cost resolves to 0/None (unpriced
+                    # model) — the budget guard enforces from recorded usage,
+                    # so skipping would be unattributed spend. Only a FAILED
+                    # resolution skips recording.
+                    try:
                         llm_usage_tracker.record(
                             workspace_id=self.workspace_id,
                             provider=attempt_provider_id,
                             model=model,
                             input_tokens=prompt_tokens or 0,
                             output_tokens=completion_tokens or 0,
-                            cost_usd=cost,
+                            cost_usd=cost or 0.0,
                             savings_usd=0.0,
                             agent_id=agent_id,
                             complexity=str(getattr(self.analyze_query_complexity(prompt_str, task_type), "value", "moderate")),
                         )
-                except Exception as cost_err:
-                    logger.warning(f"Could not attribute LLM cost: {cost_err}")
+                    except Exception as cost_err:
+                        logger.warning(f"Could not record LLM usage: {cost_err}")
 
                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
                 self._track_rate_usage(
@@ -4411,6 +4794,122 @@ class BYOKHandler:
                                 last_error = retry_err
                     except Exception:
                         logger.debug("[SelfHeal] healer raised; skipping", exc_info=True)
+
+                # --- OpenCode Go free-usage → paid retry ---
+                # Mirrors generate_response/stream_completion: a free-usage
+                # model (gateway ID ends in "-free") draws from the account's
+                # FREE allowance, which can be exhausted even with an ACTIVE
+                # subscription — the gateway then answers CreditsError /
+                # "Insufficient balance" while paid models would complete
+                # fine. Re-issue the SAME request on the subscription-paid
+                # fallback model before falling back to the next provider.
+                # The gateway path (chat_completion backs the inbound LLM
+                # Gateway and workflow engine) previously lacked this retry
+                # entirely, so free-tier exhaustion surfaced as hard failures.
+                if (
+                    attempt_provider_id == "opencode-go"
+                    and _is_opencode_free_model(model)
+                    and _is_insufficient_balance_error(e)
+                ):
+                    paid_model = _opencode_paid_fallback_model(model)
+                    if paid_model and paid_model != model:
+                        try:
+                            retry_kwargs: Dict[str, Any] = {
+                                k: v for k, v in base_kwargs.items() if k != "model"
+                            }
+                            retry_kwargs["model"] = paid_model
+                            paid_response = await client.chat.completions.create(**retry_kwargs)
+                            p_choice = (
+                                paid_response.choices[0]
+                                if getattr(paid_response, "choices", None)
+                                else None
+                            )
+                            p_content = ""
+                            if p_choice is not None:
+                                p_content = getattr(p_choice.message, "content", "") or ""
+                            p_finish = getattr(p_choice, "finish_reason", None) or "stop"
+                            p_usage = getattr(paid_response, "usage", None)
+                            pp = getattr(p_usage, "prompt_tokens", 0) if p_usage else 0
+                            pc = getattr(p_usage, "completion_tokens", 0) if p_usage else 0
+                            latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
+                            self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+                            self._track_rate_usage(
+                                attempt_provider_id,
+                                input_tokens=pp,
+                                output_tokens=pc,
+                                model_id=paid_model,
+                            )
+                            self._track_llm_call(
+                                provider=attempt_provider_id, model=paid_model, success=True,
+                                latency_ms=latency_ms, input_tokens=pp, output_tokens=pc,
+                                fallback=attempt_provider_id != primary_provider,
+                                fallback_provider=primary_provider if attempt_provider_id != primary_provider else None,
+                            )
+                            # Usage attribution: the gateway enforces budgets
+                            # from recorded usage — an unattributed retry would
+                            # be unbounded spend on this path. Record even when
+                            # the cost resolves to 0/None (unpriced model);
+                            # only a FAILED resolution skips recording.
+                            paid_cost: Optional[float] = None
+                            try:
+                                fetcher = get_pricing_fetcher()
+                                paid_cost = fetcher.estimate_cost(paid_model, pp or 0, pc or 0)
+                                if paid_cost is None:
+                                    paid_cost = get_llm_cost(paid_model, pp or 0, pc or 0)
+                            except Exception as cost_err:
+                                logger.warning(f"Could not attribute LLM cost: {cost_err}")
+                            else:
+                                try:
+                                    llm_usage_tracker.record(
+                                        workspace_id=self.workspace_id,
+                                        provider=attempt_provider_id,
+                                        model=paid_model,
+                                        input_tokens=pp or 0,
+                                        output_tokens=pc or 0,
+                                        cost_usd=paid_cost or 0.0,
+                                        savings_usd=0.0,
+                                        agent_id=agent_id,
+                                        complexity=str(getattr(self.analyze_query_complexity(prompt_str, task_type), "value", "moderate")),
+                                    )
+                                except Exception as cost_err:
+                                    logger.warning(f"Could not record LLM usage: {cost_err}")
+                            await self._record_outcome_feedback(
+                                model=paid_model, provider_id=attempt_provider_id, task_type=task_type,
+                                content=p_content, finish_reason=p_finish,
+                                success=True, cost=paid_cost, latency_ms=latency_ms,
+                                routing_result_id=decision_id,
+                            )
+                            self._last_used_model = paid_model
+                            self._last_used_provider = attempt_provider_id
+                            logger.info(
+                                f"OpenCode Go free-model retry SUCCEEDED on paid model "
+                                f"{paid_model} (free {model} hit credit limit)"
+                            )
+                            return {
+                                "id": f"chatcmpl_atom_{uuid.uuid4().hex}",
+                                "object": "chat.completion",
+                                "created": int(datetime.now().timestamp()),
+                                "model": paid_model,
+                                "provider": attempt_provider_id,
+                                "choices": [
+                                    {
+                                        "index": 0,
+                                        "message": {"role": "assistant", "content": p_content},
+                                        "finish_reason": p_finish,
+                                        "logprobs": None,
+                                    }
+                                ],
+                                "usage": {
+                                    "prompt_tokens": pp or 0,
+                                    "completion_tokens": pc or 0,
+                                    "total_tokens": (pp or 0) + (pc or 0),
+                                },
+                            }
+                        except Exception as paid_err:
+                            logger.warning(
+                                f"OpenCode Go paid retry FAILED for {paid_model}: {paid_err}"
+                            )
+                            last_error = paid_err
 
                 await self._record_outcome_feedback(
                     model=model, provider_id=attempt_provider_id, task_type=task_type,

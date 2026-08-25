@@ -16,7 +16,7 @@ export default async function handler(
 
   try {
     // Exchange authorization code for tokens
-    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || 'http://localhost:5058';
+    const backendUrl = process.env.PYTHON_API_SERVICE_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
     const response = await fetch(`${backendUrl}/api/zendesk/auth/callback`, {
       method: 'POST',
       headers: {

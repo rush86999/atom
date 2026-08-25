@@ -1,0 +1,143 @@
+{
+  "template_id": "template_personal_candidate_pipeline",
+  "name": "Personal: Candidate Pipeline (Solo Recruiter)",
+  "description": "Solo-operator starter: when a candidate applies, enrich their profile from public sources, score them against your role requirements, and get a Slack/Email digest — outreach drafts always wait for your approval. Built for Personal Edition (BYOK or fully local).",
+  "category": "business",
+  "complexity": "beginner",
+  "tags": [
+    "personal-edition",
+    "solo-operator",
+    "recruiting",
+    "enrichment",
+    "scoring",
+    "hitl"
+  ],
+  "version": "1.0.0",
+  "author": "Atom",
+  "inputs": [
+    {
+      "name": "role_requirements",
+      "label": "Role requirements",
+      "description": "Plain-language must-haves for the role, e.g. '5y Python, fintech background, remote EU'.",
+      "type": "string",
+      "required": true,
+      "example_value": "Senior backend engineer: Python/FastAPI, Postgres, prior startup experience"
+    },
+    {
+      "name": "notify_channel",
+      "label": "Notify via",
+      "description": "Where to send the daily digest.",
+      "type": "select",
+      "required": false,
+      "options": ["slack", "email"],
+      "default_value": "slack"
+    }
+  ],
+  "steps": [
+    {
+      "id": "watch_applications",
+      "name": "Watch for new applications",
+      "description": "Trigger on new application/email containing a resume or profile link.",
+      "step_type": "trigger",
+      "service": "workflow",
+      "action": "on_new_application",
+      "parameters": {
+        "sources": ["email", "form"]
+      },
+      "estimated_duration": 0,
+      "depends_on": []
+    },
+    {
+      "id": "enrich_profile",
+      "name": "Enrich public profile",
+      "description": "Collect public professional info (site, open source, publications) relevant to the role requirements.",
+      "step_type": "ai_task",
+      "service": "agent",
+      "action": "research_person",
+      "parameters": {
+        "public_sources_only": true,
+        "respect_robots": true
+      },
+      "estimated_duration": 90,
+      "depends_on": ["watch_applications"]
+    },
+    {
+      "id": "score_candidate",
+      "name": "Score against requirements",
+      "description": "Score fit 0-100 against the role requirements with cited evidence for each criterion.",
+      "step_type": "ai_task",
+      "service": "agent",
+      "action": "score_fit",
+      "parameters": {
+        "requirements_input": "role_requirements",
+        "require_citations": true
+      },
+      "estimated_duration": 45,
+      "depends_on": ["enrich_profile"]
+    },
+    {
+      "id": "log_pipeline_row",
+      "name": "Log to pipeline tracker",
+      "description": "Append candidate, score, and evidence summary to your tracking sheet/notion database.",
+      "step_type": "action",
+      "service": "notion",
+      "action": "append_row",
+      "parameters": {
+        "database": "Candidates"
+      },
+      "estimated_duration": 15,
+      "depends_on": ["score_candidate"]
+    },
+    {
+      "id": "daily_digest",
+      "name": "Daily digest",
+      "description": "One message summarizing new candidates ranked by score.",
+      "step_type": "action",
+      "service": "slack",
+      "action": "send_message",
+      "parameters": {
+        "channel_input": "notify_channel",
+        "schedule": "daily_09:00",
+        "audience": "self"
+      },
+      "estimated_duration": 15,
+      "depends_on": ["log_pipeline_row"]
+    },
+    {
+      "id": "draft_outreach_gate",
+      "name": "Outreach needs your OK (HITL)",
+      "description": "For candidates above your score bar, draft outreach messages — held at an approval gate. You edit/approve; nothing reaches a candidate unreviewed.",
+      "step_type": "approval",
+      "service": "governance",
+      "action": "request_approval",
+      "parameters": {
+        "mode": "per_item",
+        "condition": "score >= 75",
+        "timeout_action": "keep_draft"
+      },
+      "estimated_duration": 0,
+      "depends_on": ["score_candidate"]
+    }
+  ],
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "candidates_processed": {"type": "integer"},
+      "avg_score": {"type": "number"},
+      "outreach_drafts_pending": {"type": "integer"}
+    }
+  },
+  "usage_count": 0,
+  "rating": 0.0,
+  "review_count": 0,
+  "estimated_total_duration": 165,
+  "prerequisites": [
+    "Gmail connected (applications arrive by email) and Slack or email for digest",
+    "Optional: Notion for pipeline tracking"
+  ],
+  "dependencies": ["gmail", "slack", "notion"],
+  "permissions": ["email.read", "message.send"],
+  "is_public": true,
+  "is_featured": false,
+  "license": "MIT"
+}

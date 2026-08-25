@@ -44,7 +44,7 @@ const trajectories = [
     step_efficiency: 0.2,
     timestamp: '2024-01-15T10:00:00Z',
     summary: 'Found the competitor pricing page',
-    learnings: 'Always check the footer for pricing links',
+    learnings: ['Always check the footer for pricing links'],
     confidence_score: 0.9,
   },
   {
@@ -59,7 +59,7 @@ const trajectories = [
   },
 ];
 
-const trajectoriesUrl = 'http://localhost/api/governance/analytics/trajectories';
+const trajectoriesUrl = '*/api/episodes/trajectories';
 
 describe('MemoryRecallFeed', () => {
   beforeEach(() => {

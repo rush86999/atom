@@ -74,7 +74,7 @@ describe("pages/api/integrations/gitlab/create-issue", () => {
       message: "Issue created: Bug",
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:5058/api/integrations/gitlab/create-issue",
+      "http://127.0.0.1:8000/api/integrations/gitlab/create-issue",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

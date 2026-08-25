@@ -495,8 +495,11 @@ class User(Base):
     # custom_role_id = Column(String, ForeignKey("custom_roles.id"), nullable=True)
     # specialty = Column(String, nullable=True)  # Domain Specialty
     # skills = Column(Text, nullable=True)  # JSON string of skills
-    # onboarding_completed = Column(Boolean, default=False)
-    # onboarding_step = Column(String, default="welcome")
+    # Onboarding progress (OnboardingWizard). On pre-existing databases these
+    # columns may be missing — api/onboarding_routes.py ensures them with an
+    # idempotent ALTER TABLE at import time.
+    onboarding_completed = Column(Boolean, default=False)
+    onboarding_step = Column(String, default="welcome")
     # metadata_json = Column(JSONColumn, nullable=True)
     # preferences = Column(JSONColumn, default={})
     # capacity_hours = Column(Float, default=40.0)  # Weekly capacity
@@ -2924,6 +2927,33 @@ class SystemSettings(Base):
     global_budget_limit = Column(Integer, default=0)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
+class RuntimeSetting(Base):
+    """UI-administrable runtime setting (one row per env-var override).
+
+    Resolution order lives in ``core/runtime_settings.py``:
+    explicit env var WINS > this row > catalog default. Rows are written
+    by the admin settings API (``api/admin_runtime_settings_routes.py``).
+    """
+
+    __tablename__ = "runtime_settings"
+    key = Column(String(128), primary_key=True)
+    value_json = Column(JSONColumn, nullable=True)
+    updated_by = Column(String, nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class SettingChangeAudit(Base):
+    """Append-only audit trail for runtime-setting changes (who/when/what)."""
+
+    __tablename__ = "setting_change_audit"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    setting_key = Column(String(128), nullable=False, index=True)
+    old_value_json = Column(JSONColumn, nullable=True)
+    new_value_json = Column(JSONColumn, nullable=True)
+    changed_by = Column(String, nullable=True)
+    changed_at = Column(DateTime(timezone=True), server_default=func.now())
+
 class Intervention(Base):
     __tablename__ = "interventions"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -4037,6 +4067,11 @@ class SelfConsistencyVote(Base):
     agreement_ratio = Column(Float, nullable=False)
     level = Column(String(length=16), nullable=False, index=True)  # high/partial/ambiguous
     winner_hash = Column(String(length=64), nullable=True, index=True)
+    # Algorithm that produced winner_hash: "jcs-sha256" (RFC 8785, current)
+    # or NULL = legacy "sha256-sortkeys" (json.dumps sort_keys). Hashes from
+    # different algorithms are NOT comparable — version, don't migrate: old
+    # rows stay valid for dedup within legacy rows only.
+    hash_algo = Column(String(length=16), nullable=True)
     temperatures = Column(JSONColumn, nullable=True)  # list[float]
 
     # Gating outcome
@@ -12152,6 +12187,7 @@ class FleetRouterAutomationAction(Base):
     )
 
 
+
 class SalesCaseStatus(str, enum.Enum):
     """Statuses for the AI sales-agent case lifecycle (dynamic state, not a
     hardcoded workflow). The valid transitions live in core/sales_case.py."""
@@ -12213,4 +12249,150 @@ class SalesCase(Base):
 
     __table_args__ = (
         Index("ix_sales_cases_status_updated", "status", "updated_at"),
+
+class TrustCalibrationAssessment(Base):
+    """One shadow assessment per ask-the-human moment (R81l P1).
+
+    Written at HITL pause time by the trust-calibration gateway; the outcome
+    is joined live from HITLAction via decision_ref at /stats read time, so
+    there is exactly one writer and no second process to keep in sync.
+    See docs/architecture/TRUST_CALIBRATION_PLAN.md.
+    """
+
+    __tablename__ = "trust_calibration_assessments"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    agent_id = Column(String, nullable=True, index=True)
+    action_type = Column(String, nullable=False, index=True)
+    platform = Column(String, default="internal")
+
+    features_json = Column(JSONColumn, nullable=True)
+
+    p_approve = Column(Float, nullable=False)
+    uncertainty = Column(Float, nullable=False)
+    recommendation = Column(String, nullable=False)  # allow | ask | block
+
+    source_path = Column(String, nullable=False, index=True)  # hitl_step_act | governance_hitl_policy
+    decision_ref = Column(String, nullable=True, index=True)  # -> HITLAction.id
+
+    half_life_days = Column(Float, nullable=True)
+    n_obs = Column(Integer, nullable=True)
+
+
+class AgentOrgEvent(Base):
+    """One append-only org-dynamics observation (org-politics plan Phase 0).
+
+    Written by ``core/org_telemetry_service`` at three wire-in points — fleet
+    recruitment (who recruited whom), Agent Radio (thread attach + message
+    send), and reviewer verdicts — so the org_dynamics report can measure
+    incumbency, reviewer favoritism, and radio→recruitment conflict-of-interest
+    signals WITHOUT influencing any runtime decision (pure telemetry).
+    See docs/architecture/AGENT_ORG_POLITICS_PLAN.md.
+    """
+
+    __tablename__ = "agent_org_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    event_type = Column(String(length=32), nullable=False, index=True)
+    # fleet_recruit / radio_thread_attach: actor recruited/targeted the chain
+    # or member; radio_message: sender→recipient; review_verdict: the
+    # reviewed specialist's output (actor is the reviewer, may be null).
+    actor_agent_id = Column(String, nullable=True, index=True)
+    target_agent_id = Column(String, nullable=True, index=True)
+
+    execution_id = Column(String, nullable=True, index=True)
+    chain_id = Column(String, nullable=True, index=True)
+    workspace_id = Column(String, nullable=True, index=True)
+    tenant_id = Column(String, nullable=True, index=True)
+
+    payload_json = Column(JSONColumn, nullable=True)
+
+    __table_args__ = (
+        Index("ix_org_events_pair_created", "actor_agent_id", "target_agent_id", "created_at"),
+        Index("ix_org_events_type_created", "event_type", "created_at"),
+    )
+
+
+class OrgPoliticsAction(Base):
+    """One consent-gated org-politics automation action (approval queue +
+    audit trail), mirroring FleetRouterAutomationAction / StageRouterAutomationAction.
+
+    Written by ``core/org_politics_automation``: escalation (enable) requires
+    consent per mode (notify|approve|auto); revocation is ALWAYS automatic
+    when the alignment sweep goes red or COI signals explode. Enforcement
+    flags resolve env kill-switch > latest applied/revoked row > default off,
+    so flips take effect without restarts.
+    """
+
+    __tablename__ = "org_politics_actions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    flag_key = Column(String(length=32), nullable=False, default="__global__", index=True)
+    verdict = Column(String(length=24), nullable=False)  # enable | revoke
+    mode = Column(String(length=16), nullable=False)  # notify | approve | auto
+    state = Column(String(length=16), nullable=False, default="approval")  # approval|applied|rejected|revoked
+    stats_json = Column(JSONColumn, nullable=True)  # readiness snapshot at decision time
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_org_politics_actions_flag_created", "flag_key", "created_at"),
+    )
+
+
+class TrustCalibrationAction(Base):
+    """Consent-gated automation ledger for the trust gateway (R81o).
+
+    Mirrors FleetRouterAutomationAction: certification verdicts become
+    recorded actions whose ``state`` drives (future) relaxation consumers
+    via resolved_trust_enforce(). Revocation is always automatic.
+    """
+
+    __tablename__ = "trust_calibration_actions"
+
+    # Monotonic integer PK: created_at alone has second granularity on
+    # SQLite, making applied/revoked rows order-ambiguous.
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    workload_key = Column(String(length=32), nullable=False, default="__global__", index=True)
+    verdict = Column(String(length=16), nullable=False)  # enable | revoke | collecting | blocked
+    mode = Column(String(length=16), nullable=False)     # notify | approve | auto | off
+    state = Column(String(length=16), nullable=False, default="approval")  # approval|applied|rejected|revoked
+    stats_json = Column(JSONColumn, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class OntologyDraftAction(Base):
+    """Consent-gated automation ledger for ontology draft promotion.
+
+    Mirrors TrustCalibrationAction: one row per automation decision about an
+    auto-discovered ``EntityTypeDefinition`` draft (``is_active=False``).
+    The row is both the approval queue (state ``approval`` waits for admin
+    approve/reject via the management API) and the audit trail
+    (``applied``/``rejected``/``revoked``/``notified``) with the exact
+    evidence the verdict was computed from. Revocation is ALWAYS automatic;
+    promotion never overrides a human decision (see
+    ``core/ontology/ontology_draft_automation.py``).
+    """
+
+    __tablename__ = "ontology_draft_actions"
+
+    # Monotonic integer PK (second-granularity created_at is order-ambiguous).
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(String(length=64), nullable=False, index=True)
+    entity_type_id = Column(String(length=64), nullable=False, index=True)
+    slug = Column(String(length=100), nullable=False)
+    verdict = Column(String(length=16), nullable=False)  # promote | revoke
+    mode = Column(String(length=16), nullable=False)     # notify | approve | auto | off
+    state = Column(String(length=16), nullable=False, default="approval")  # approval|applied|rejected|revoked|notified
+    evidence_json = Column(JSONColumn, nullable=True)    # evidence snapshot at decision time
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_ontology_draft_auto_type_created", "tenant_id", "entity_type_id", "created_at"),
+
     )

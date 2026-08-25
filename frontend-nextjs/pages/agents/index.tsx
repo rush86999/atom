@@ -1,14 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useToast } from "@/components/ui/use-toast";
-import AgentCard, { AgentInfo } from "@/components/Agents/AgentCard";
+import AgentCard, { AgentInfo, GraduationProgress } from "@/components/Agents/AgentCard";
 import AgentTerminal from "@/components/Agents/AgentTerminal";
 import { MaturityProgression } from "@/components/Agents/MaturityProgression";
+import MaturityApprovalPanel from "@/components/Agents/MaturityApprovalPanel";
 import { EmployeeOnboardingGuide } from "@/components/Agents/EmployeeOnboardingGuide";
+import AgentLaunchGuide from "@/components/Agents/AgentLaunchGuide";
+import { GuidedAgentCreator } from "@/components/Agents/GuidedAgentCreator";
+import { AutomationSuggestionsPanel } from "@/components/Agents/AutomationSuggestionsPanel";
+import { AgentMaturityGuideDialog } from "@/components/Agents/AgentMaturityGuide";
 import { Badge } from "@/components/ui/badge";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Sparkles, GraduationCap } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import {
     Dialog,
@@ -24,6 +29,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Brain } from "lucide-react";
 import ReasoningChainViewer from "@/components/ReasoningChainViewer";
+import { useProviderStatus } from "@/hooks/useProviderStatus";
+import { ProviderRequiredBanner } from "@/components/shared/ProviderRequiredBanner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -50,7 +57,9 @@ const extractErrorMessage = (json: any, fallback: string): string => {
 
 const AgentsDashboard = () => {
     const router = useRouter();
+    const providerStatus = useProviderStatus();
     const [agents, setAgents] = useState<AgentInfo[]>([]);
+    const [progressByAgent, setProgressByAgent] = useState<Record<string, GraduationProgress | null>>({});
     const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
     const [logs, setLogs] = useState<string[]>([]);
     const { toast } = useToast();
@@ -68,6 +77,11 @@ const AgentsDashboard = () => {
     // Reasoning Modal State
     const [isReasoningModalOpen, setIsReasoningModalOpen] = useState(false);
     const [selectedReasoningId, setSelectedReasoningId] = useState<string | null>(null);
+
+    // Guided agent creation (employee self-serve) + maturity guide state
+    const [isGuidedCreatorOpen, setIsGuidedCreatorOpen] = useState(false);
+    const [guidedPresetGoal, setGuidedPresetGoal] = useState<string | null>(null);
+    const [isMaturityGuideOpen, setIsMaturityGuideOpen] = useState(false);
 
     // WebSocket Integration
     const { isConnected, lastMessage, subscribe } = useWebSocket();
@@ -168,6 +182,37 @@ const AgentsDashboard = () => {
         const interval = setInterval(fetchAgents, 5000); // Poll every 5s
         return () => clearInterval(interval);
     }, []);
+
+    // R82: fetch real graduation progress (episode counts) per agent so the
+    // card renders live progress instead of the static threshold text. Best
+    // effort — failures keep the card's static fallback.
+    const fetchGraduationProgress = useCallback(async () => {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+        const map: Record<string, GraduationProgress | null> = {};
+        await Promise.allSettled(
+            agents.map(async (a) => {
+                try {
+                    const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(a.id)}/graduation-progress`, {
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        map[a.id] = (json?.data ?? json) as GraduationProgress;
+                    }
+                } catch {
+                    map[a.id] = null;
+                }
+            })
+        );
+        setProgressByAgent(map);
+    }, [agents]);
+
+    useEffect(() => {
+        if (agents.length > 0) {
+            fetchGraduationProgress();
+        }
+    }, [agents, fetchGraduationProgress]);
 
     const handleRunAgent = (id: string) => {
         setSelectedAgentId(id);
@@ -352,9 +397,27 @@ const AgentsDashboard = () => {
                         Agent Control Center
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400">Monitor and orchestrate your autonomous workforce.</p>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                            size="sm"
+                            data-testid="describe-job-button"
+                            onClick={() => { setGuidedPresetGoal(null); setIsGuidedCreatorOpen(true); }}
+                        >
+                            <Sparkles className="mr-1.5 h-4 w-4" />
+                            Describe a job — we&apos;ll build the agent
+                        </Button>
+                        <span className="text-xs text-gray-400">
+                            No setup forms. The agent starts as a Student and learns on the job.
+                        </span>
+                    </div>
                 </div>
 
                 <EmployeeOnboardingGuide />
+
+                {/* Guided journey: connect Zoho/Outlook -> create sales agent ->
+                    ingest scoped data -> training. Hides itself once the core
+                    setup (both connections + a Sales-category agent) is done. */}
+                <AgentLaunchGuide agents={agents} onAgentsChanged={fetchAgents} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
@@ -388,9 +451,15 @@ const AgentsDashboard = () => {
                                 <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded border border-dashed border-gray-300 dark:border-gray-600">
                                     <p>No agents found. Create your first agent or spawn from a template.</p>
                                     {/* P1.5: actionable CTA so the empty state is not a dead end. */}
-                                    <div className="mt-4 flex justify-center gap-2">
+                                    <div className="mt-4 flex flex-wrap justify-center gap-2">
                                         <Link href="/marketplace">
                                             <Button size="sm">Browse templates</Button>
+                                        </Link>
+                                        <Link href="/automations">
+                                            <Button size="sm" variant="outline">Describe a workflow</Button>
+                                        </Link>
+                                        <Link href="/chat">
+                                            <Button size="sm" variant="outline">Chat with an agent</Button>
                                         </Link>
                                     </div>
                                 </div>
@@ -407,6 +476,7 @@ const AgentsDashboard = () => {
                                 <AgentCard
                                     key={agent.id}
                                     agent={agent}
+                                    progress={progressByAgent[agent.id]}
                                     onRun={handleRunAgent}
                                     onStop={handleStopAgent}
                                     onChat={handleChat}
@@ -425,10 +495,34 @@ const AgentsDashboard = () => {
                                 {isConnected ? "Live Connection" : "Offline"}
                             </Badge>
                         </div>
-                        <MaturityProgression 
-                            currentLevel={activeAgentMaturity} 
+                        <MaturityProgression
+                            currentLevel={activeAgentMaturity}
                             className="mb-4"
                         />
+                        <div className="mb-4">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                data-testid="active-agent-maturity-guide-button"
+                                disabled={!activeAgentId}
+                                onClick={() => setIsMaturityGuideOpen(true)}
+                            >
+                                <GraduationCap className="mr-1.5 h-4 w-4" />
+                                When will {activeAgentName === "Terminal" ? "this agent" : activeAgentName} be useful?
+                            </Button>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mb-4">
+                            <AutomationSuggestionsPanel
+                                onCreateAgent={(goal) => {
+                                    setGuidedPresetGoal(goal);
+                                    setIsGuidedCreatorOpen(true);
+                                }}
+                            />
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mb-4">
+                            <MaturityApprovalPanel />
+                        </div>
                         <AgentTerminal
                             agentName={activeAgentName}
                             logs={logs}
@@ -447,6 +541,21 @@ const AgentsDashboard = () => {
             </div>
 
 
+            {/* Employee self-serve guided agent creation */}
+            <GuidedAgentCreator
+                open={isGuidedCreatorOpen}
+                onOpenChange={setIsGuidedCreatorOpen}
+                onAgentCreated={fetchAgents}
+                initialGoal={guidedPresetGoal}
+            />
+
+            {/* Per-agent readiness report */}
+            <AgentMaturityGuideDialog
+                agentId={activeAgentId}
+                open={isMaturityGuideOpen}
+                onOpenChange={setIsMaturityGuideOpen}
+            />
+
             {/* Run Agent Dialog */}
             <Dialog open={isRunDialogOpen} onOpenChange={setIsRunDialogOpen}>
                 <DialogContent>
@@ -457,6 +566,9 @@ const AgentsDashboard = () => {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
+                        {/* Pre-flight: the run needs an LLM provider — say so
+                            before the user starts a doomed execution. */}
+                        {providerStatus.configured === false && <ProviderRequiredBanner />}
                         <Textarea
                             placeholder="e.g. Reconcile inventory for SKU-123 and SKU-999..."
                             value={runInstructions}

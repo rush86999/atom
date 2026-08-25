@@ -21,9 +21,15 @@ import from anywhere, including the voter module.
 """
 from __future__ import annotations
 
-import os
 import re
 from typing import Any
+
+from core.runtime_settings import (
+    get_bool_setting,
+    get_float_setting,
+    get_int_setting,
+    get_setting,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -33,12 +39,12 @@ from typing import Any
 
 def is_cascade_routing_enabled() -> bool:
     """Cascade routing on schema-validation failure (Workstream B)."""
-    return _flag("ATOM_CASCADE_ROUTING")
+    return get_bool_setting("ATOM_CASCADE_ROUTING", False)
 
 
 def is_self_consistency_enabled() -> bool:
     """Self-consistency voting for irreversible actions (Workstream C)."""
-    return _flag("ATOM_SELF_CONSISTENCY")
+    return get_bool_setting("ATOM_SELF_CONSISTENCY", False)
 
 
 def is_self_consistency_force_proposal_enabled() -> bool:
@@ -54,16 +60,17 @@ def is_self_consistency_force_proposal_enabled() -> bool:
     ``MATCH_CONFIDENCE_FORCE_PROPOSAL`` pattern from
     ``core/selector_confidence_service.py``.
     """
-    return _flag("ATOM_SELF_CONSISTENCY_FORCE_PROPOSAL")
+    return get_bool_setting("ATOM_SELF_CONSISTENCY_FORCE_PROPOSAL", False)
 
 
-def _flag(env_var: str) -> bool:
-    return os.getenv(env_var, "false").strip().lower() in {"1", "true", "yes", "on"}
+def _flag(env_var: str, default: bool = False) -> bool:
+    """Legacy helper — routed through runtime_settings (env wins > DB > default)."""
+    return get_bool_setting(env_var, default)
 
 
 def _flag_default_true(env_var: str) -> bool:
     """Env-var flag that defaults to ON (R72 default-ON decisions)."""
-    return os.getenv(env_var, "true").strip().lower() not in {"0", "false", "no", "off"}
+    return get_bool_setting(env_var, True)
 
 
 # ---------------------------------------------------------------------------
@@ -83,18 +90,14 @@ def is_moa_enabled() -> bool:
 
 def get_moa_samples() -> int:
     """Number of MoA samples drawn (Workstream F). Default 3, min 2."""
-    try:
-        n = int(os.getenv("ATOM_MOA_SAMPLES", "3"))
-    except (TypeError, ValueError):
-        n = 3
-    return max(2, n)
+    return max(2, get_int_setting("ATOM_MOA_SAMPLES", 3))
 
 
 def is_moa_diversity_enabled() -> bool:
     """Diversity-aware init (W3/P4a, arXiv 2601.19921): rotate per-sample
     perspective overlays in MoA + self-consistency sampling. Default OFF
     (shadow-first — zero behavior change until enabled)."""
-    return os.getenv("ATOM_MOA_DIVERSITY_ENABLED", "false").lower() in ("1", "true", "yes", "on")
+    return get_bool_setting("ATOM_MOA_DIVERSITY_ENABLED", False)
 
 
 def is_parallel_tools_enabled() -> bool:
@@ -104,11 +107,7 @@ def is_parallel_tools_enabled() -> bool:
 
 def get_max_parallel_tools() -> int:
     """Max tools in a single parallel batch (Workstream G). Default 4."""
-    try:
-        n = int(os.getenv("ATOM_MAX_PARALLEL_TOOLS", "4"))
-    except (TypeError, ValueError):
-        n = 4
-    return max(1, n)
+    return max(1, get_int_setting("ATOM_MAX_PARALLEL_TOOLS", 4))
 
 
 def is_tool_cache_enabled() -> bool:
@@ -118,11 +117,7 @@ def is_tool_cache_enabled() -> bool:
 
 def get_tool_cache_ttl() -> int:
     """TTL for cached tool results in seconds (Workstream H). Default 30."""
-    try:
-        n = int(os.getenv("ATOM_TOOL_CACHE_TTL", "30"))
-    except (TypeError, ValueError):
-        n = 30
-    return max(0, n)
+    return max(0, get_int_setting("ATOM_TOOL_CACHE_TTL", 30))
 
 
 # ---------------------------------------------------------------------------
@@ -130,13 +125,87 @@ def get_tool_cache_ttl() -> int:
 # ---------------------------------------------------------------------------
 
 
+def get_sc_hash_algo() -> str:
+    """Hash algorithm for self-consistency vote grouping (R83 #8).
+
+    ``jcs-sha256``     — RFC 8785 JSON Canonicalization (vendored
+                         ``core/llm/jcs.py``): UTF-16 key ordering +
+                         numeric equivalence (``{"n": 1}`` ≡ ``{"n": 1.0}``).
+    ``sha256-sortkeys``— byte-identical to pre-R83 behavior
+                         (``json.dumps(sort_keys=True, default=str)``).
+
+    Default ``jcs-sha256`` (deterministic gain, R72 convention). Kill
+    switch: ``ATOM_SC_HASH_ALGO=sha256-sortkeys`` restores exact old hashes.
+    Invalid values fail closed to legacy.
+    """
+    raw = str(get_setting("ATOM_SC_HASH_ALGO", "jcs") or "jcs").strip().lower()
+    if raw in ("jcs", "jcs-sha256", "rfc8785"):
+        return "jcs-sha256"
+    return "sha256-sortkeys"
+
+
+def is_usc_fallback_enabled() -> bool:
+    """Universal Self-Consistency judge fallback (R83 #2; Chen et al., ICML 2024).
+
+    When every sample in a vote is distinct, one budget-tier judge LLM call
+    picks the plan most consistent with the others instead of blindly taking
+    the lowest-temperature sample.
+
+    Default ON (evidence-based): peer-reviewed (ICML 2024 — the strongest
+    evidence tier in the R83 framework), fires ONLY on otherwise-wasted
+    all-distinct votes, and any judge failure/malformed/out-of-range answer
+    degrades to the exact pre-existing lowest-temp behavior. The added cost
+    is one budget-tier call per degenerate vote. Kill switch:
+    ``ATOM_SC_USC_FALLBACK=false``.
+    """
+    return _flag_default_true("ATOM_SC_USC_FALLBACK")
+
+
+def is_sc_fanout_enabled() -> bool:
+    """Spread self-consistency samples across available handlers (R83 #1).
+
+    When ON, the voter resolves candidates once per vote via the handler's
+    own ranking (``get_ranked_providers``) and pins each sample round-robin
+    to a different (provider, model) — diversity across providers, not just
+    temperatures. NEVER a fixed provider list: the candidate set is whatever
+    the router says is available.
+
+    Default ON (evidence-based): zero added LLM cost (the same N calls),
+    samples stay comparable because ``response_model`` normalizes structure
+    across providers, per-sample failure isolation already exists, and any
+    single-candidate/ranking/handler degradation silently reverts to
+    today's behavior. Majority semantics are unchanged — cross-provider
+    agreement is the same consistency signal, measured across an extra
+    dimension. Kill switch: ``ATOM_SC_FANOUT=false``.
+    """
+    return _flag_default_true("ATOM_SC_FANOUT")
+
+
+def is_sc_soft_enabled() -> bool:
+    """Soft self-consistency weighting (R83 #6; ACL 2024).
+
+    When ON, structured samples are requested with ``logprobs`` and stamped
+    with their mean token log-probability; the voter computes a
+    probability-weighted majority ALONGSIDE the hard majority. Shadow-first
+    per the R83 plan: on disagreement the vote follows the HARD winner and
+    logs ``llm_soft_sc.shadow`` — soft wins only after an eval gate
+    promotes it. Samples without probability data weigh 1.0 (hard-vote
+    semantics), so the soft path is additive, never blocking.
+
+    Default ON (evidence-based): the vote outcome NEVER changes while the
+    eval gate is pending (hard winner always followed), so defaulting ON is
+    pure observability — it collects exactly the shadow data the promotion
+    gate needs. A gateway that rejects the ``logprobs`` kwarg is handled by
+    a single retry without logprobs (the structured call never fails
+    because of soft-SC). Kill switch: ``ATOM_SC_SOFT=false`` restores
+    byte-identical requests.
+    """
+    return _flag_default_true("ATOM_SC_SOFT")
+
+
 def get_self_consistency_samples() -> int:
     """Number of samples drawn by the self-consistency voter (default 3)."""
-    try:
-        n = int(os.getenv("ATOM_SELF_CONSISTENCY_SAMPLES", "3"))
-    except (TypeError, ValueError):
-        n = 3
-    return max(1, n)
+    return max(1, get_int_setting("ATOM_SELF_CONSISTENCY_SAMPLES", 3))
 
 
 def get_self_consistency_high_threshold() -> float:
@@ -146,10 +215,7 @@ def get_self_consistency_high_threshold() -> float:
     layer. At N=3 this threshold is only reached by unanimous 3/3 votes;
     at N=5 it's reached by 5/5 = 1.0 (4/5 = 0.8 falls just under).
     """
-    try:
-        return float(os.getenv("ATOM_SELF_CONSISTENCY_HIGH_THRESHOLD", "0.85"))
-    except (TypeError, ValueError):
-        return 0.85
+    return get_float_setting("ATOM_SELF_CONSISTENCY_HIGH_THRESHOLD", 0.85)
 
 
 def get_self_consistency_partial_threshold() -> float:
@@ -157,10 +223,7 @@ def get_self_consistency_partial_threshold() -> float:
 
     Below this is ``ambiguous``. Mirrors ``MATCH_CONFIDENCE_PARTIAL_THRESHOLD``.
     """
-    try:
-        return float(os.getenv("ATOM_SELF_CONSISTENCY_PARTIAL_THRESHOLD", "0.50"))
-    except (TypeError, ValueError):
-        return 0.50
+    return get_float_setting("ATOM_SELF_CONSISTENCY_PARTIAL_THRESHOLD", 0.50)
 
 
 def get_temperature_spread(n: int) -> list[float]:

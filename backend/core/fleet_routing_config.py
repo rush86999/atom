@@ -12,7 +12,7 @@ exact pre-P1a behavior (parity covered by ``tests/unit/test_fleet_routing_wire.p
 Mirrors the ``agent_radio/radio_config.py`` convention.
 """
 
-import os
+from core.runtime_settings import get_bool_setting
 
 # Canonical env-var name for the master switch (exposed for flag-sanity
 # checks and docs cross-reference; the live value is read via
@@ -21,10 +21,14 @@ ATOM_FLEET_ROUTING_ENABLED = "ATOM_FLEET_ROUTING_ENABLED"
 
 
 def _env_bool(name: str, default: bool) -> bool:
+    # Raw env parse FIRST (legacy contract incl. uncataloged keys), then
+    # runtime_settings DB row (UI admin), then default.
+    import os
+
     raw = os.getenv(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in ("1", "true", "yes", "on")
+    if raw is not None:
+        return raw.strip().lower() in ("1", "true", "yes", "on")
+    return get_bool_setting(name, default)
 
 
 def fleet_routing_enabled() -> bool:

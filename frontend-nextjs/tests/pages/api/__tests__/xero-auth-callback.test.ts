@@ -61,7 +61,7 @@ describe("pages/api/integrations/xero/auth/callback", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe("http://localhost:5058/api/auth/xero/callback");
+    expect(url).toBe("http://127.0.0.1:8000/api/auth/xero/callback");
     expect(init.method).toBe("POST");
     expect(init.headers).toEqual({ "Content-Type": "application/json" });
     expect(JSON.parse(init.body)).toEqual({

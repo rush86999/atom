@@ -430,6 +430,17 @@ class OrgDataBundleService:
         ingested = 0
         skipped = 0
         errors: List[str] = []
+        # R84: records now also derive deterministic business facts locally
+        # (LLM-free — importing 100k records must never bill). One budget
+        # per import caps total fact rows; unchanged re-imports skip via
+        # the bridge's DocumentIngestion markers.
+        try:
+            from core.integration_ontology_bridge import FactBudget, write_integration_fact
+            record_fact_budget = FactBudget()
+        except Exception as e:  # noqa: BLE001 — fact layer must never block import
+            logger.warning(f"Fact bridge unavailable for bundle import: {e}")
+            record_fact_budget = None
+        facts_written = 0
         for record in records:
             integration_id = record.get("integration_id")
             external_id = record.get("external_id")
@@ -488,10 +499,15 @@ class OrgDataBundleService:
 
                 if memory_handler and record.get("content_preview"):
                     try:
-                        await asyncio.to_thread(
-                            memory_handler.add_document,
+                        # Upsert on the bundle record's external id — a
+                        # re-imported bundle refreshes rows in place.
+                        from core.vector_upsert import upsert_document
+
+                        await upsert_document(
+                            memory_handler,
                             table_name=f"integration_{integration_id}",
                             text=str(record["content_preview"]),
+                            doc_id=f"rec_{integration_id}:{external_id}",
                             source=f"org_bundle:{integration_id}",
                             metadata={
                                 "integration_id": integration_id,
@@ -503,11 +519,39 @@ class OrgDataBundleService:
                         )
                     except Exception as embed_err:
                         errors.append(f"embed:{doc_id}:{embed_err}")
+
+                # R84: derive the deterministic business fact for this
+                # newly-ingested record (bundle records carry no record
+                # type → generic template; sensitivity comes from the
+                # bundle row, never reclassified).
+                if record_fact_budget is not None and record.get("content_preview"):
+                    try:
+                        fact_stats = await write_integration_fact(
+                            workspace_id=workspace_id,
+                            tenant_id=tenant_id,
+                            integration_id=str(integration_id),
+                            record_type=None,
+                            record={
+                                "id": str(external_id),
+                                "title": record.get("file_name"),
+                            },
+                            text=str(record["content_preview"]),
+                            sensitivity=record.get("sensitivity", "internal"),
+                            memory_handler=memory_handler,
+                            budget=record_fact_budget,
+                        )
+                        facts_written += fact_stats.get("written", 0)
+                    except Exception as fact_err:  # noqa: BLE001
+                        errors.append(f"fact:{doc_id}:{fact_err}")
             except Exception as record_err:
                 errors.append(str(record_err))
                 logger.warning(f"Bundle record import failed for {integration_id}/{external_id}: {record_err}")
 
         tombstones_applied = 0
+        # R84: group tombstoned records by integration so each derived
+        # business fact (intfact:{integration}:{record}) can be retracted
+        # — a removed record's observation is no longer citable.
+        _tombstoned_by_integration: Dict[str, List[str]] = {}
         for external_id in tombstones:
             doc = db.query(IngestedDocument).filter(
                 IngestedDocument.workspace_id == workspace_id,
@@ -515,8 +559,29 @@ class OrgDataBundleService:
             ).first()
             if doc:
                 doc.freshness_status = "removed"
+                if getattr(doc, "integration_id", None):
+                    _tombstoned_by_integration.setdefault(
+                        str(doc.integration_id), []
+                    ).append(str(external_id))
                 tombstones_applied += 1
         db.commit()
+
+        facts_retracted = 0
+        for _tomb_integration, _tomb_records in _tombstoned_by_integration.items():
+            try:
+                from core.integration_ontology_bridge import (
+                    retract_integration_facts,
+                )
+
+                retract_result = await retract_integration_facts(
+                    workspace_id=workspace_id,
+                    integration_id=_tomb_integration,
+                    record_ids=_tomb_records,
+                    memory_handler=memory_handler,
+                )
+                facts_retracted += int(retract_result.get("retracted", 0))
+            except Exception as e:  # noqa: BLE001 — retraction never blocks import
+                logger.warning(f"Fact retraction after tombstones failed: {e}")
 
         # --- Phase 2b sections ---
         graph_result = {"nodes_ingested": 0, "nodes_skipped": 0, "edges_ingested": 0,
@@ -543,7 +608,8 @@ class OrgDataBundleService:
                 logger.warning(f"Community recompute after bundle import failed: {e}")
 
         section_counts = {
-            "records": {"ingested": ingested, "skipped": skipped},
+            "records": {"ingested": ingested, "skipped": skipped,
+                        "facts_written": facts_written},
             **{k: v for k, v in graph_result.items()},
             **{k: v for k, v in texts_result.items()},
         }
@@ -565,6 +631,8 @@ class OrgDataBundleService:
             "records_total": len(records),
             "records_ingested": ingested,
             "records_skipped": skipped,
+            "facts_written": facts_written,
+            "facts_retracted": facts_retracted,
             "tombstones_applied": tombstones_applied,
             "graph": graph_result,
             "texts": texts_result,
@@ -739,19 +807,21 @@ class OrgDataBundleService:
                     if not fact_text:
                         stats["facts_skipped"] += 1
                         continue
-                    # Deterministic doc id → idempotent import.
+                    # Deterministic doc id → idempotent import (upsert so a
+                    # re-imported bundle replaces rather than re-appends).
                     fact_id = fact.get("fact_id") or hashlib.sha256(
                         fact_text.encode("utf-8")).hexdigest()[:32]
                     doc_id = f"orgbundle:{fact_id}"
-                    await asyncio.to_thread(
-                        memory_handler.add_document,
+                    from core.vector_upsert import upsert_document
+
+                    await upsert_document(
+                        memory_handler,
                         table_name="business_facts",
                         text=fact_text,
+                        doc_id=doc_id,
                         source="org_data_bundle",
                         metadata=dict(fact.get("metadata") or {}),
                         user_id="org_import",
-                        extract_knowledge=False,
-                        doc_id=doc_id,
                         skip_ai_triggers=True,
                     )
                     stats["facts_ingested"] += 1

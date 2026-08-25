@@ -67,6 +67,11 @@ export default function CanvasIndexPage() {
     }, {} as Record<string, number>);
 
     return (
+
+
+        // _app.tsx already wraps every non-standalone page in <Layout> — a
+        // second wrapper here rendered a duplicate navigation sidebar.
+
         <>
             <Head><title>Canvases | Atom</title></Head>
             <div className="container mx-auto max-w-5xl py-8">
