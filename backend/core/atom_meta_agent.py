@@ -2378,9 +2378,59 @@ What is your next step?"""
             # Ephemeral agent - just keep in memory
             self.spawned_agents[agent_id] = agent
             logger.info(f"Created ephemeral agent: {agent_id}")
-        
+
         return agent
-    
+
+    async def teach_student(
+        self,
+        student_agent_id: str,
+        lesson: str,
+        topic: Optional[str] = None,
+        db: Optional[Session] = None,
+    ) -> Dict[str, Any]:
+        """Teach a STUDENT agent directly (the fast learning pathway).
+
+        The meta agent is the primary interaction surface and the designated
+        teacher, but teaching is a level-1 governance action — it is never
+        blocked by the teacher's own maturity (an INTERN meta agent can
+        still teach), and it only ACCELERATES learning: students also learn
+        from observation via StudentLearningService.observe_workspace, and
+        maturity promotion still goes through the training/graduation
+        system regardless of how much was taught.
+        """
+        from core.student_learning_service import StudentLearningService
+
+        session = db or SessionLocal()
+        owns_session = db is None
+        try:
+            governance = AgentGovernanceService(
+                session,
+                workspace_id=self.workspace_id,
+                tenant_id=self.tenant_id,
+            )
+            decision = await governance.can_perform_action_async(
+                agent_id="atom_main",
+                action_type="teach_student",
+            )
+            allowed = decision.get("allowed", False) if isinstance(decision, dict) else bool(decision)
+            if not allowed:
+                reason = (decision.get("reason") if isinstance(decision, dict) else None) or "Teaching not permitted"
+                return {"status": "error", "reason": reason}
+
+            learning = StudentLearningService(session)
+            result = learning.learn_from_teacher(
+                student_agent_id=student_agent_id,
+                teacher_agent_id="atom_main",
+                lesson=lesson,
+                topic=topic,
+            )
+            if result.get("status") == "ok":
+                logger.info(f"atom_main taught student {student_agent_id} (topic={topic or 'general'})")
+            return result
+        finally:
+            if owns_session:
+                session.close()
+
     async def query_memory(self, query: str, scope: str = "all") -> Dict[str, Any]:
         """
         Query the World Model for experiences and knowledge.

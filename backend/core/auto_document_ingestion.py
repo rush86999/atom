@@ -489,6 +489,7 @@ class AutoDocumentIngestionService:
         workspace_id: Optional[str] = None,
         role: Optional[str] = None,
         extra_metadata: Optional[Dict[str, Any]] = None,
+        external_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Parse raw file bytes and ingest the extracted text into Atom memory.
 
@@ -507,9 +508,13 @@ class AutoDocumentIngestionService:
                 the ingested file is relevant to. Tagged in the LanceDB metadata
                 so role-aware recall (WorldModelService) surfaces it to the right
                 employee's memory. None/empty = general knowledge.
+            external_id: SOURCE-NATIVE unique id (Drive fileId, OneDrive
+                driveItem id, Box file id, Dropbox path …). Preferred identity —
+                titles are not identity. Falls back to a SHA-256 of the
+                extracted text (content addressing) when absent.
 
         Returns:
-            Dict with ``status``, ``file_name``, ``chars_ingested``.
+            Dict with ``status``, ``file_name``, ``chars_ingested``, ``doc_id``.
         """
         file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
         if not file_ext:
@@ -561,38 +566,26 @@ class AutoDocumentIngestionService:
         # documents.cat. Stamp a stable doc_id + source_type:"file" so the
         # hybrid service can flag these as bridged:false (no PG row) rather
         # than silently returning unresolvable hits.
-        # The id is STABLE per (source, file_name): re-ingesting the same file
-        # updates it in place (skip when unchanged, replace when changed)
-        # instead of accumulating timestamp-suffixed duplicates.
+        # Identity key (idempotency contract): prefer the SOURCE-NATIVE id the
+        # connector passes (external_id param, else extra_metadata fallback);
+        # otherwise fall back to a SHA-256 of the extracted text
+        # (content-addressing: identical content = one row, any filename).
+        # The id is SOURCE-SCOPED — two integrations may reuse the same raw
+        # external id string, and one file's refresh must never delete the
+        # other's row. Never key on file NAME.
         import hashlib as _hashlib
 
         from core.doc_freshness_service import hash_text
 
         _content_hash = hash_text(text)
-        _file_doc_id = (
-            "file_" + _hashlib.sha1(f"{source}:{file_name}".encode("utf-8")).hexdigest()[:24]
-        )
-
-        # Content-level idempotency on the stable key.
-        if _handler is not None:
-            try:
-                _prior = await asyncio.to_thread(
-                    _handler.get_document_by_id, "documents", _file_doc_id
-                )
-                if isinstance(_prior, dict):
-                    _prior_meta = _prior.get("metadata") or {}
-                    if not isinstance(_prior_meta, dict):
-                        _prior_meta = {}
-                    if _prior_meta.get("source_content_hash") == _content_hash:
-                        return {
-                            "status": "skipped",
-                            "reason": "unchanged",
-                            "file_name": file_name,
-                            "chars_ingested": 0,
-                            "source": source,
-                        }
-            except Exception as probe_err:  # noqa: BLE001 — probe failures must not block writes
-                logger.debug(f"unchanged-probe failed for {file_name}: {probe_err}")
+        _external_id = str(
+            external_id or (extra_metadata or {}).get("external_id") or ""
+        ).strip()
+        if _external_id:
+            _identity_input = f"{source}:{_external_id}"
+            _file_doc_id = f"ext_{_hashlib.sha1(_identity_input.encode('utf-8')).hexdigest()[:24]}"
+        else:
+            _file_doc_id = "doc_" + _hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
 
         _meta: Dict[str, Any] = {
             "file_name": file_name,
@@ -605,6 +598,8 @@ class AutoDocumentIngestionService:
             "source_content_hash": _content_hash,
             "freshness_status": "fresh",
         }
+        if _external_id:
+            _meta["external_id"] = _external_id
         # Connector-supplied context (e.g. WorkDrive folder path / root)
         if extra_metadata:
             _meta.update({k: v for k, v in extra_metadata.items() if v})
@@ -615,32 +610,31 @@ class AutoDocumentIngestionService:
 
         if _handler:
             try:
-                # Replace, not append: remove any prior version of this file
-                # under the stable key before writing the fresh copy.
-                if hasattr(_handler, "delete_documents_by_id"):
-                    try:
-                        await asyncio.to_thread(
-                            _handler.delete_documents_by_id, "documents", _file_doc_id
-                        )
-                    except Exception as del_err:  # noqa: BLE001 — best-effort cleanup
-                        logger.debug(f"prior-version cleanup skipped for {file_name}: {del_err}")
-                # to_thread: sync add_document from the loop thread can never
-                # embed (embed_text same-thread guard)
-                success = await asyncio.to_thread(
-                    _handler.add_document,
+                # Shared upsert contract (hash-skip / delete prior / write).
+                from core.vector_upsert import upsert_document
+
+                _upsert_status = await upsert_document(
+                    _handler,
                     table_name="documents",
                     text=text,
+                    doc_id=_file_doc_id,
                     source=f"{source}:{file_name}",
                     metadata=_meta,
                     user_id=user_id,
                     workspace_id=ws_id,
-                    doc_id=_file_doc_id,
                 )
-                if success:
+                if _upsert_status == "written":
                     chars_ingested = len(text)
                     logger.info(f"Ingested {file_name} ({chars_ingested} chars) from {source}")
                 else:
-                    logger.warning(f"memory_handler.add_document returned False for {file_name}")
+                    return {
+                        "status": "skipped",
+                        "reason": "unchanged",
+                        "file_name": file_name,
+                        "chars_ingested": 0,
+                        "source": source,
+                        "doc_id": _file_doc_id,
+                    }
             except Exception as ingest_err:
                 logger.error(f"Failed to ingest {file_name} to memory: {ingest_err}")
                 return {"status": "error", "reason": "ingest_failed", "file_name": file_name}
@@ -652,6 +646,7 @@ class AutoDocumentIngestionService:
             "file_name": file_name,
             "chars_ingested": chars_ingested,
             "source": source,
+            "doc_id": _file_doc_id,
         }
 
     async def sync_integration(

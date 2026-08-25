@@ -334,10 +334,15 @@ class IngestionPipelineService(HybridDataIngestionService):
                         _sensitivity = "internal"
 
                     try:
-                        await asyncio.to_thread(
-                            self.lancedb.add_document,
+                        # Upsert on a stable per-record id (same contract as
+                        # hybrid sync — skip unchanged, replace changed).
+                        from core.vector_upsert import upsert_document
+
+                        _upsert_status = await upsert_document(
+                            self.lancedb,
                             table_name=f"integration_{integration_id}",
                             text=text,
+                            doc_id=f"rec_{integration_id}:{record.get('id', 'unknown')}",
                             source=integration_id,
                             metadata={
                                 "integration_id": integration_id,
@@ -350,7 +355,8 @@ class IngestionPipelineService(HybridDataIngestionService):
                             workspace_id=self.workspace_id,
                             skip_ai_triggers=True,
                         )
-                        results["records_indexed"] = results.get("records_indexed", 0) + 1
+                        if _upsert_status == "written":
+                            results["records_indexed"] = results.get("records_indexed", 0) + 1
                     except Exception as vector_err:  # noqa: BLE001 — vector mirror never blocks graph ingestion
                         logger.warning(f"[{job_id}] LanceDB index skipped for record {record.get('id')}: {vector_err}")
 
@@ -1362,17 +1368,20 @@ class IngestionPipelineService(HybridDataIngestionService):
                                 metadata["to"] = record.get("to")
                                 metadata["subject"] = record.get("subject")
 
-                            # to_thread: sync add_document from the loop thread
-                            # can never embed (same-thread guard)
-                            await asyncio.to_thread(
-                                lancedb.add_document,
+                            # Upsert on the record id: webhook redelivery
+                            # refreshes the row instead of appending a
+                            # duplicate under the same doc_id.
+                            from core.vector_upsert import upsert_document
+
+                            await upsert_document(
+                                lancedb,
                                 table_name="atom_communications",
                                 text=text,
+                                doc_id=doc_id,
                                 source=source,
                                 metadata=metadata,
                                 user_id=self.tenant_id,
                                 workspace_id=self.workspace_id,
-                                doc_id=doc_id,
                                 skip_ai_triggers=True,  # Prevent loops
                             )
 
@@ -1536,16 +1545,19 @@ class IngestionPipelineService(HybridDataIngestionService):
                 # 3.2. Standard Indexing for all other integration types (or fallback)
                 if text and len(text) >= 10:
                     results["records_processed"] += 1
-                    # Index in LanceDB for searchability (Lite mode)
-                    # (to_thread: sync add_document from the loop thread can
-                    # never embed — same-thread guard)
-                    await asyncio.to_thread(
-                        self.lancedb.add_document,
+                    # Upsert on a stable per-record id: webhook redelivery
+                    # refreshes the row instead of appending a duplicate.
+                    from core.vector_upsert import upsert_document
+
+                    await upsert_document(
+                        self.lancedb,
                         table_name=f"tenant_{self.tenant_id}_messages",
                         text=text,
+                        doc_id=f"msg_{integration_id}:{record.get('id', 'unknown')}",
                         source=f"{integration_id}_webhook",
                         metadata={
                             "integration_id": integration_id,
+                            "record_id": record.get("id", "unknown"),
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                             "sender_id": record.get("sender_id", "unknown"),
                             "direction": record.get("direction", "inbound"),

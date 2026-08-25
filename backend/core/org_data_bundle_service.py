@@ -499,10 +499,15 @@ class OrgDataBundleService:
 
                 if memory_handler and record.get("content_preview"):
                     try:
-                        await asyncio.to_thread(
-                            memory_handler.add_document,
+                        # Upsert on the bundle record's external id — a
+                        # re-imported bundle refreshes rows in place.
+                        from core.vector_upsert import upsert_document
+
+                        await upsert_document(
+                            memory_handler,
                             table_name=f"integration_{integration_id}",
                             text=str(record["content_preview"]),
+                            doc_id=f"rec_{integration_id}:{external_id}",
                             source=f"org_bundle:{integration_id}",
                             metadata={
                                 "integration_id": integration_id,
@@ -802,18 +807,21 @@ class OrgDataBundleService:
                     if not fact_text:
                         stats["facts_skipped"] += 1
                         continue
-                    # Deterministic doc id → idempotent import.
+                    # Deterministic doc id → idempotent import (upsert so a
+                    # re-imported bundle replaces rather than re-appends).
                     fact_id = fact.get("fact_id") or hashlib.sha256(
                         fact_text.encode("utf-8")).hexdigest()[:32]
                     doc_id = f"orgbundle:{fact_id}"
-                    await asyncio.to_thread(
-                        memory_handler.add_document,
+                    from core.vector_upsert import upsert_document
+
+                    await upsert_document(
+                        memory_handler,
                         table_name="business_facts",
                         text=fact_text,
+                        doc_id=doc_id,
                         source="org_data_bundle",
                         metadata=dict(fact.get("metadata") or {}),
                         user_id="org_import",
-                        doc_id=doc_id,
                         skip_ai_triggers=True,
                     )
                     stats["facts_ingested"] += 1

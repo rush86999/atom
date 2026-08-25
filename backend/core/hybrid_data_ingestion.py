@@ -547,16 +547,27 @@ class HybridDataIngestionService:
                         # AI-employee relevance tag (Round 80)
                         if _role:
                             _meta["role"] = _role
-                        success = await asyncio.to_thread(
-                            self.memory_handler.add_document,
+                        # Upsert on a stable per-record id: re-syncing updates
+                        # the row in place instead of appending a duplicate
+                        # per run (skip when unchanged, replace when changed).
+                        from core.vector_upsert import upsert_document
+
+                        _record_key = f"rec_{integration_id}:{record.get('id', 'unknown')}"
+                        _upsert_status = await upsert_document(
+                            self.memory_handler,
                             table_name=f"integration_{integration_id}",
                             text=text,
+                            doc_id=_record_key,
                             source=integration_id,
                             metadata=_meta,
                             user_id=record.get("user_id", "system"),
                         )
-                        if success:
+                        if _upsert_status == "written":
                             results["records_ingested"] += 1
+                        else:
+                            results["records_unchanged"] = (
+                                results.get("records_unchanged", 0) + 1
+                            )
 
                     # Also ingest into GraphRAG for entity/relationship extraction
                     if self.graphrag:

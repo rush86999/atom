@@ -131,6 +131,16 @@ async def update_entity_type(workspace_id: str, entity_type_id: str, request: En
             available_skills=request.available_skills,
             is_active=request.is_active,
         )
+        # Stamp the human decision so the ontology draft automation never
+        # overrides it (manual retirement stays retired; a manual promotion
+        # defers automation until it re-decides after a newer pass).
+        if request.is_active is not None:
+            service.record_manual_decision(
+                tenant_id=workspace_id,
+                entity_type_id=entity_type_id,
+                by=f"user:{current_user.id}",
+                is_active=request.is_active,
+            )
         return router.success_response(
             data={"id": entity_type.id},
             message="Entity type updated successfully"

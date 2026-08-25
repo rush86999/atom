@@ -8,6 +8,7 @@ import AgentTerminal from "@/components/Agents/AgentTerminal";
 import { MaturityProgression } from "@/components/Agents/MaturityProgression";
 import MaturityApprovalPanel from "@/components/Agents/MaturityApprovalPanel";
 import { EmployeeOnboardingGuide } from "@/components/Agents/EmployeeOnboardingGuide";
+import AgentLaunchGuide from "@/components/Agents/AgentLaunchGuide";
 import { Badge } from "@/components/ui/badge";
 import { LayoutDashboard } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -391,6 +392,11 @@ const AgentsDashboard = () => {
                 </div>
 
                 <EmployeeOnboardingGuide />
+
+                {/* Guided journey: connect Zoho/Outlook -> create sales agent ->
+                    ingest scoped data -> training. Hides itself once the core
+                    setup (both connections + a Sales-category agent) is done. */}
+                <AgentLaunchGuide agents={agents} onAgentsChanged={fetchAgents} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 

@@ -536,6 +536,7 @@ class BoxService(IntegrationService):
                 source="box",
                 user_id=self.tenant_id,
                 extra_metadata=extra_metadata,
+                external_id=file_id,
             )
             return {"success": True, "result": result}
         except Exception as e:

@@ -806,6 +806,43 @@ async def lifespan(app: FastAPI):
                     f"interval={_tc_interval}min)"
                 )
 
+            # 8c-quater. Ontology draft automation loop: consent-gated
+            # promotion of auto-discovered entity types (off|notify|approve|
+            # auto). Default off — no loop, no side effects.
+            if os.getenv("ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE", "off").lower() != "off":
+                _od_interval = float(
+                    os.getenv("ATOM_ONTOLOGY_DRAFT_AUTO_INTERVAL_MIN", "60")
+                )
+
+                async def _ontology_draft_automation():
+                    from core.ontology import ontology_draft_automation as _oda
+                    from core.database import SessionLocal as _ODSL
+
+                    while True:
+                        try:
+                            await asyncio.sleep(max(_od_interval, 1.0) * 60)
+                            with _ODSL() as _od_db:
+                                result = _oda.run_automation_pass(_od_db)
+                            if result.get("ran"):
+                                logger.info(
+                                    "Ontology draft automation: %s",
+                                    {k: v for k, v in result.items()
+                                     if k not in ("promoted", "queued", "revoked")},
+                                )
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as _od_err:
+                            logger.warning(
+                                f"Ontology draft automation failed: {_od_err}"
+                            )
+
+                _spawn_background_task(_ontology_draft_automation())
+                logger.info(
+                    f"✓ Ontology draft automation enabled "
+                    f"(mode={os.getenv('ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE')}, "
+                    f"interval={_od_interval}min)"
+                )
+
             # 8d. Memory consolidation worker (P2.1): nightly rule-based
             # consolidation — contradiction sweeps + supersede — always off
             # the user-facing turn (sleep-time principle).
@@ -1660,6 +1697,11 @@ app.include_router(office_router, prefix="/api/v1/office", tags=["office"])
 # (e.g. /api/v1/agents/api/agents/...).
 if agent_router:
     app.include_router(agent_router, tags=["agents"])
+# Employee self-serve onboarding: guided agent creation + history-mined
+# automation suggestions. Declares its own /api/agents prefix — include BARE.
+agent_onboarding_router = safe_import_router("api.agent_onboarding_routes")
+if agent_onboarding_router:
+    app.include_router(agent_onboarding_router, tags=["agent-onboarding"])
 # episode_routes.py declares its own /api/episodes prefix — include BARE.
 # (Previously never mounted: the whole episodes API 404'd, incl. feedback submit.)
 episode_router = safe_import_router("api.episode_routes")
@@ -3894,6 +3936,16 @@ try:
         logger.info("✓ Trust Calibration Routes Loaded (shadow, flag-gated)")
     except (ImportError, NameError) as e:
         logger.warning(f"Trust calibration routes failed to load: {e}")
+
+    # 41b. Ontology Draft Automation routes (consent-gated promotion of
+    # auto-discovered entity types; mode off|notify|approve|auto, default off)
+    try:
+        from api.ontology_draft_routes import router as ontology_draft_router
+
+        app.include_router(ontology_draft_router)
+        logger.info("✓ Ontology Draft Automation Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Ontology draft automation routes failed to load: {e}")
 
     logger.info("✓ Core Routes Loaded Successfully")
 

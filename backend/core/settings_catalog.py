@@ -69,6 +69,7 @@ C_STAGE = "Stage Router"
 C_FLEET = "Fleet Router"
 C_RADIO = "Agent Radio"
 C_TRUST = "Trust Calibration"
+C_ONTOLOGY = "Ontology Drafts"
 C_ORG = "Org Politics"
 C_GATEWAY = "LLM Gateway"
 C_SEC = "Security & Webhooks"
@@ -254,6 +255,16 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     I("ATOM_TRUST_CALIBRATION_REFIT_TTL", 300, C_TRUST, "Posterior cache seconds"),
     F("ATOM_TRUST_CALIBRATION_TAU_LOW", 0.35, C_TRUST, "p below → block"),
     F("ATOM_TRUST_CALIBRATION_TAU_UNCERTAIN", 0.15, C_TRUST, "Variance above → ask"),
+    # ------------------------------------------------------------------
+    # Ontology drafts
+    # ------------------------------------------------------------------
+    S("ATOM_ONTOLOGY_DRAFT_AUTO_ENFORCE", "off", C_ONTOLOGY, "off|notify|approve|auto"),
+    I("ATOM_ONTOLOGY_DRAFT_AUTO_INTERVAL_MIN", 60, C_ONTOLOGY, "Automation pass cadence"),
+    I("ATOM_ONTOLOGY_DRAFT_AUTO_MIN_NODES", 3, C_ONTOLOGY, "Graph-usage evidence floor"),
+    I("ATOM_ONTOLOGY_DRAFT_AUTO_MIN_AGE_DAYS", 2, C_ONTOLOGY, "Min draft age to promote"),
+    I("ATOM_ONTOLOGY_DRAFT_AUTO_MIN_SAMPLES", 3, C_ONTOLOGY, "Sample-count floor (when present)"),
+    I("ATOM_ONTOLOGY_DRAFT_AUTO_REVOKE_STALE_DAYS", 14, C_ONTOLOGY, "Unused+undiscovered → revoke"),
+    F("ATOM_ONTOLOGY_DRAFT_AUTO_NOTIFY_COOLDOWN_HOURS", 24.0, C_ONTOLOGY, "Notify dedupe window"),
     # ------------------------------------------------------------------
     # Org politics
     # ------------------------------------------------------------------

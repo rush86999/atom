@@ -217,6 +217,14 @@ class AgentGovernanceService:
         # INTERN agent invalidate facts at the governance layer.
         "memory_remember": 2,           # store durable fact (INTERN+)
         "memory_forget": 3,             # invalidate durable fact (SUPERVISED+)
+        # Teaching (Level 1): teaching is the mechanism that CREATES trust, so
+        # it must never be gated above the teacher's own maturity. The Atom
+        # meta agent is the primary interaction surface and teacher — it needs
+        # only INTERN maturity to suggest (level 2 above), and must be able to
+        # teach STUDENT agents at any maturity, including its own INTERN floor.
+        "teach_student": 1,
+        "mentor_student": 1,
+        "train_student": 1,
 
         # Level 3: EXECUTE (Supervised) - Supervised Agents
         "create": 3,

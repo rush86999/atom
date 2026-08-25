@@ -12300,3 +12300,35 @@ class TrustCalibrationAction(Base):
     state = Column(String(length=16), nullable=False, default="approval")  # approval|applied|rejected|revoked
     stats_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class OntologyDraftAction(Base):
+    """Consent-gated automation ledger for ontology draft promotion.
+
+    Mirrors TrustCalibrationAction: one row per automation decision about an
+    auto-discovered ``EntityTypeDefinition`` draft (``is_active=False``).
+    The row is both the approval queue (state ``approval`` waits for admin
+    approve/reject via the management API) and the audit trail
+    (``applied``/``rejected``/``revoked``/``notified``) with the exact
+    evidence the verdict was computed from. Revocation is ALWAYS automatic;
+    promotion never overrides a human decision (see
+    ``core/ontology/ontology_draft_automation.py``).
+    """
+
+    __tablename__ = "ontology_draft_actions"
+
+    # Monotonic integer PK (second-granularity created_at is order-ambiguous).
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(String(length=64), nullable=False, index=True)
+    entity_type_id = Column(String(length=64), nullable=False, index=True)
+    slug = Column(String(length=100), nullable=False)
+    verdict = Column(String(length=16), nullable=False)  # promote | revoke
+    mode = Column(String(length=16), nullable=False)     # notify | approve | auto | off
+    state = Column(String(length=16), nullable=False, default="approval")  # approval|applied|rejected|revoked|notified
+    evidence_json = Column(JSONColumn, nullable=True)    # evidence snapshot at decision time
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    decided_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_ontology_draft_auto_type_created", "tenant_id", "entity_type_id", "created_at"),
+    )

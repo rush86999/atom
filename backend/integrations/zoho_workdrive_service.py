@@ -437,6 +437,7 @@ class ZohoWorkDriveService(IntegrationService):
                 source="zoho_workdrive",
                 user_id=user_id,
                 extra_metadata=extra_metadata,
+                external_id=file_id,
             )
 
             return {"success": True, "result": result}

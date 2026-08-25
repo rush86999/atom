@@ -72,15 +72,18 @@ async def _stored_chunk_count(lancedb_handler, doc_id: str, fallback_text: str) 
     return max(1, -(-len(text) // 500))
 
 
-def _stable_doc_key(namespace: str, name: str) -> str:
-    """Deterministic doc id per (namespace, file/title).
+def _content_doc_key(text: str) -> str:
+    """Deterministic doc id from CONTENT (sha256), the identity that actually
+    matters for user-submitted documents with no external record id.
 
-    Re-ingesting the same file updates it in place instead of piling up
-    UUID-suffixed duplicates (stale + fresh both matching in search)."""
+    Same content → same id → one row (re-post skips as unchanged); different
+    content → different id (titles/filenames never merge distinct documents
+    and never collide same-named ones). This follows the standard idempotency
+    pattern: source record id when one exists, content fingerprint when it
+    doesn't."""
     import hashlib
 
-    digest = hashlib.sha1(f"{namespace}:{name}".encode("utf-8")).hexdigest()[:24]
-    return f"{namespace}_{digest}"
+    return "doc_" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
 
 
 async def _upsert_document(
@@ -98,39 +101,21 @@ async def _upsert_document(
     Returns "skipped_unchanged" when the stored copy has the same content
     hash; otherwise replaces (delete prior versions, then write) and
     returns "written"."""
-    from core.doc_freshness_service import hash_text
+    from core.vector_upsert import upsert_document
 
-    content_hash = hash_text(text)
-    try:
-        prior = await asyncio.to_thread(
-            lancedb_handler.get_document_by_id, "documents", doc_key
-        )
-        if isinstance(prior, dict):
-            prior_meta = prior.get("metadata") or {}
-            if isinstance(prior_meta, dict) and prior_meta.get("source_content_hash") == content_hash:
-                return "skipped_unchanged"
-    except Exception:
-        pass
-
-    metadata["source_content_hash"] = content_hash
-    if hasattr(lancedb_handler, "delete_documents_by_id"):
-        try:
-            await asyncio.to_thread(lancedb_handler.delete_documents_by_id, "documents", doc_key)
-        except Exception:
-            pass
-    success = await asyncio.to_thread(
-        lancedb_handler.add_document,
+    result = await upsert_document(
+        lancedb_handler,
         table_name="documents",
         text=text,
+        doc_id=doc_key,
         source=source,
         metadata=metadata,
         user_id=user_id,
         workspace_id=workspace_id,
-        doc_id=doc_key,
     )
-    if not success:
+    if result == "write_failed":
         raise RuntimeError("LanceDB add_document returned False")
-    return "written"
+    return result
 
 
 @router.post("/ingest", response_model=DocumentResponse)
@@ -151,15 +136,17 @@ async def ingest_document(
         if not lancedb_handler:
              raise router.internal_error("Search database not available")
 
-        # Stable key per title: re-ingesting the same document updates it in
-        # place (content-hash skip / replace) instead of duplicating.
-        doc_id = _stable_doc_key("api", request.title or f"untitled_{str(uuid.uuid4())[:8]}")
+        # Content-hash identity: no external record id exists for API-pasted
+        # text, so the content fingerprint IS the document identity (same
+        # content → same row regardless of title; different content → new
+        # row even under the same title).
         content = request.content or ""
         doc_type = request.type
-        title = request.title or f"Document {doc_id[:8]}"
+        title = request.title or "Untitled document"
 
         if not content:
             content = "(Empty document)"
+        doc_id = _content_doc_key(content)
 
         metadata = request.metadata or {}
         metadata.update({
@@ -253,11 +240,10 @@ async def upload_document(
         if not content:
              content = f"[Empty or unparseable file: {filename}]"
 
-        # 2. Store document — stable key per (author, filename) so
-        # re-uploading the same file updates it in place.
-        doc_id = _stable_doc_key(
-            "upload", f"{current_user.email if current_user else 'unknown'}:{filename}"
-        )
+        # 2. Store document — content-hash identity: same file re-uploaded →
+        # same row (skip/replace); DIFFERENT files sharing a filename → two
+        # rows (a filename is metadata, never an identity key).
+        doc_id = _content_doc_key(content)
         metadata = {
             "source": "upload",
             "size": len(content_bytes),

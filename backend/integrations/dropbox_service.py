@@ -241,6 +241,7 @@ class DropboxService(IntegrationService):
                 source="dropbox",
                 user_id=self.tenant_id,
                 extra_metadata=extra_metadata,
+                external_id=path,  # Dropbox identity: full path
             )
             return {"success": True, "result": result}
         except Exception as e:

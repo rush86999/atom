@@ -473,6 +473,47 @@ class EntityTypeService:
             logger.error(f"Failed to update entity type {entity_type_id}: {e}")
             raise
 
+    def record_manual_decision(
+        self,
+        tenant_id: str,
+        entity_type_id: str,
+        by: str,
+        is_active: bool
+    ) -> bool:
+        """Stamp a human is_active decision on the type's metadata.
+
+        The ontology draft automation
+        (``core/ontology/ontology_draft_automation``) reads
+        ``metadata_json["manual_decisions"]`` (oldest→newest) to guarantee it
+        never overrides a manual retirement or promotion. Called by the PATCH
+        route whenever ``is_active`` is passed explicitly.
+        """
+        entity_type = self.get_entity_type(
+            tenant_id, entity_type_id=entity_type_id, include_inactive=True
+        )
+        if not entity_type:
+            return False
+        meta = dict(entity_type.metadata_json or {})
+        decisions = list(meta.get("manual_decisions") or [])
+        decisions.append({
+            "is_active": bool(is_active),
+            "at": datetime.now(timezone.utc).isoformat(),
+            "by": by,
+        })
+        meta["manual_decisions"] = decisions
+        entity_type.metadata_json = meta
+        try:
+            self.db.commit()
+            logger.info(
+                f"Recorded manual is_active={is_active} decision for "
+                f"{tenant_id}/{entity_type.slug} by {by}"
+            )
+            return True
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Failed to record manual decision for {entity_type_id}: {e}")
+            return False
+
     def delete_entity_type(
         self,
         tenant_id: str,
