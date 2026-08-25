@@ -472,7 +472,13 @@ class HybridDataIngestionService:
             # Fetch data from integration
             records = await self._fetch_integration_data(integration_id, config, discovery_mode=discovery_mode, role=_role)
             results["records_fetched"] = len(records)
-            
+
+            # Keep-set for the FULL-sync stale-fact GC (O2): every fetched id
+            # still exists at the source, even if its ingest is skipped below.
+            fetched_record_ids = [
+                str(r.get("id") or "").strip() for r in records if r.get("id")
+            ]
+
             # Ingest each record into Atom Memory
             seen_types = set()
             # R84: one fact budget per sync run caps total fact writes.
@@ -635,6 +641,36 @@ class HybridDataIngestionService:
                     stats.last_synced = datetime.now(timezone.utc)
             if stats:
                 self._persist_integration(integration_id)
+
+            # O2 stale-fact GC: only after a CLEAN, non-partial FULL sync is
+            # the fetched keep-set a complete deletion ledger. Incremental
+            # fetches (recent-only) and partial failures must NEVER GC —
+            # a small keep-set there would destroy live facts.
+            if (
+                results["success"]
+                and not results.get("partial")
+                and not discovery_mode
+                and str(getattr(config, "sync_mode", "incremental")).lower() == "full"
+            ):
+                try:
+                    from core.integration_ontology_bridge import (
+                        retract_stale_integration_facts,
+                    )
+
+                    gc = await retract_stale_integration_facts(
+                        workspace_id=self.workspace_id,
+                        integration_id=integration_id,
+                        keep_record_ids=fetched_record_ids,
+                        memory_handler=self.memory_handler,
+                    )
+                    if gc.get("retracted"):
+                        results["facts_retracted"] = gc["retracted"]
+                        logger.info(
+                            f"Stale-fact GC for {integration_id}: "
+                            f"{gc['retracted']} facts retracted (FULL sync)"
+                        )
+                except Exception as gc_err:  # noqa: BLE001 — never blocks close-out
+                    logger.warning(f"Stale-fact GC skipped for {integration_id}: {gc_err}")
 
             results["completed_at"] = datetime.now(timezone.utc).isoformat()
             
@@ -1350,7 +1386,11 @@ class HybridDataIngestionService:
             try:
                 from core.auto_document_ingestion import AutoDocumentIngestionService
 
-                doc_ingestor = AutoDocumentIngestionService()
+                # Workspace-scoped ingestor: parses/writes into THIS
+                # workspace's stores, not the default singleton's.
+                doc_ingestor = AutoDocumentIngestionService(
+                    workspace_id=self.workspace_id
+                )
             except Exception:
                 doc_ingestor = None
                 logger.warning("AutoDocumentIngestionService unavailable; Google Drive content not parsed")

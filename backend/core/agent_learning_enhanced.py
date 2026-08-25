@@ -41,15 +41,18 @@ class AgentLearningEnhanced:
     into agent confidence scoring and world model learning.
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, workspace_id: str = "default"):
         """
         Initialize enhanced learning service.
 
         Args:
             db: Database session
+            workspace_id: Workspace whose world model to read/write
+                (the bare default silently scoped to the "default" workspace).
         """
         self.db = db
-        self.world_model = WorldModelService()
+        self.workspace_id = workspace_id or "default"
+        self.world_model = WorldModelService(self.workspace_id)
         self.continuous_learning = ContinuousLearningService(db)
 
     def adjust_confidence_with_feedback(

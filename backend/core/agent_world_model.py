@@ -67,9 +67,58 @@ class BusinessFact(BaseModel):
     verification_status: str = "unverified" # unverified, verified, outdated
     metadata: Dict[str, Any] = {}
 
+
+# ---------------------------------------------------------------------------
+# A-G2 (data-journey trace): prompt sensitivity ceiling for recall legs.
+# The turn-fact layer documents the posture ("restricted facts never enter
+# prompts", ATOM_MEMORY_PROMPT_SENSITIVITY_CEILING); these helpers extend the
+# SAME ceiling to the world-model recall legs (business_facts + general
+# knowledge). Retrieval-time pre-filter per RAG access-control practice —
+# above-ceiling rows never become prompt candidates.
+# ---------------------------------------------------------------------------
+def _row_sensitivity(rec: Dict[str, Any]) -> str:
+    """Sensitivity label for a LanceDB row. Legacy rows carry NO stamp →
+    'internal' (fail-open: pre-R83 data must not vanish from recall);
+    present-but-invalid values rank as 'restricted' (fail-closed)."""
+    meta = rec.get("metadata") if isinstance(rec, dict) else None
+    if isinstance(meta, str):
+        try:
+            import json as _json
+            meta = _json.loads(meta)
+        except Exception:  # noqa: BLE001 — unparseable JSON blob
+            return "restricted"
+    raw = meta.get("sensitivity") if isinstance(meta, dict) else None
+    if raw is None or str(raw).strip() == "":
+        return "internal"
+    return str(raw).strip().lower()
+
+
+def _passes_prompt_ceiling(rec: Dict[str, Any], ceiling: Optional[str]) -> bool:
+    """True when the row may enter prompt assembly (or ceiling disabled)."""
+    if not ceiling:
+        return True
+    from core.turn_fact_extractor import SENSITIVITY_RANK
+
+    def _rank(v: Optional[str]) -> int:
+        return SENSITIVITY_RANK.get((v or "").strip().lower(), 3)
+
+    return _rank(_row_sensitivity(rec)) <= _rank(ceiling)
+
+
 class WorldModelService:
     def __init__(self, workspace_id: Optional[str] = None):
-        self.db = get_lancedb_handler(workspace_id or "default")
+        # Workspace scoping is load-bearing: every read/write (experiences,
+        # business facts, episode recall) goes through the handler bound
+        # here, and all stores are per-workspace. Callers should always pass
+        # their workspace; "default" remains only as a legacy fallback and is
+        # logged so silent cross-workspace leaks surface during debugging.
+        self.workspace_id = workspace_id or "default"
+        if not workspace_id:
+            logger.debug(
+                "WorldModelService constructed without workspace_id — "
+                "defaulting to 'default' workspace stores"
+            )
+        self.db = get_lancedb_handler(self.workspace_id)
         self.table_name = "agent_experience"
         self.facts_table_name = "business_facts"
         self._ensure_tables()
@@ -128,6 +177,7 @@ class WorldModelService:
             source=f"agent_{experience.agent_id}",
             metadata=metadata,
             user_id="agent_system", # System owned
+            doc_id=experience.id,  # id-addressable: feedback/boost lookups
         )
 
     async def record_formula_usage(
@@ -283,6 +333,69 @@ class WorldModelService:
             logger.error(f"Failed to update experience feedback: {e}")
             return False
 
+    async def apply_feedback_for_execution(
+        self,
+        agent_id: str,
+        execution_id: str,
+        thumbs_up_down: Optional[bool] = None,
+        rating: Optional[int] = None,
+        notes: str = "",
+    ) -> bool:
+        """F2 (feedback-loop trace): route user feedback to the stored
+        experience for a run.
+
+        Finds the AgentExperience whose ``metadata.agent_execution_id``
+        matches (JSON-LIKE needle — same trick as role-aware recall), maps
+        the feedback signal numerically, and applies it through
+        ``update_experience_feedback``'s aligned replace:
+
+        - rating 1–5 → score ``(rating - 3) / 2`` clamped to [-1, 1]
+        - else thumbs → +1.0 / -1.0
+        - comment-only → no numeric update (returns False)
+
+        Never raises: a broken vector store must not fail a submission.
+        """
+        try:
+            if not execution_id:
+                return False
+
+            score: Optional[float] = None
+            if rating is not None:
+                try:
+                    score = max(-1.0, min(1.0, (int(rating) - 3) / 2.0))
+                except (TypeError, ValueError):
+                    score = None
+            if score is None and thumbs_up_down is not None:
+                score = 1.0 if thumbs_up_down else -1.0
+            if score is None:
+                return False
+
+            table = await asyncio.to_thread(self.db.get_table, self.table_name)
+            if table is None:
+                return False
+            safe_exec = str(execution_id).replace("'", "''")
+            needle = f'"agent_execution_id": "{safe_exec}"'
+            df = await asyncio.to_thread(
+                lambda: (
+                    table.search()
+                    .where(f"metadata LIKE '%{needle}%'")
+                    .limit(5)
+                    .to_pandas()
+                )
+            )
+            if df is None or getattr(df, "empty", True):
+                return False
+
+            exp_id = str(df.iloc[0]["id"])
+            return await self.update_experience_feedback(
+                experience_id=exp_id,
+                feedback_score=score,
+                feedback_notes=notes or "",
+            )
+        except Exception as e:
+            logger.warning(f"apply_feedback_for_execution failed: {e}")
+            return False
+
     async def boost_experience_confidence(
         self,
         experience_id: str,
@@ -417,56 +530,107 @@ class WorldModelService:
             source=f"fact_agent_{fact.source_agent_id}",
             metadata=metadata,
             user_id="fact_system",
+            # B-1 (data-journey trace): top-level doc_id MUST equal
+            # metadata["id"] — get_business_fact filters on the TOP-LEVEL id.
+            # Without this the auto-generated timestamp id made every
+            # tool-saved fact unfindable by its own handle.
+            doc_id=fact.id,
         )
 
     async def update_fact_verification(self, fact_id: str, status: str) -> bool:
-        """Update the verification status of a business fact"""
-        try:
-            results = self.db.search(
-                table_name=self.facts_table_name,
-                query="", 
-                limit=100
-            ) 
-            
-            for res in results:
-                if res.get("metadata", {}).get("id") == fact_id:
-                    meta = res.get("metadata", {})
-                    # Bug #5: capture OLD status BEFORE setting the new one.
-                    # Previously meta["verification_status"] was set to the new
-                    # status before the replace(), so it searched for and
-                    # replaced the new string with itself (a no-op).
-                    old_status = meta.get("verification_status", "unverified")
-                    meta["verification_status"] = status
-                    meta["last_verified"] = datetime.now(timezone.utc).isoformat()
+        """Update the verification status of a business fact.
 
-                    new_text = res["text"].replace(f"Status: {old_status}", f"Status: {status}")
-                    
+        B-2 (data-journey trace): aligned replace — the corrected version is
+        written back under doc_id == fact_id and prior versions are removed
+        (append-only store would otherwise leave a stale duplicate whose
+        top-level id matches nothing)."""
+        try:
+            res = None
+            try:
+                raw = await asyncio.to_thread(
+                    self.db.get_document_by_id, self.facts_table_name, fact_id
+                )
+                # Accept only a real hit (dict with metadata) — anything else
+                # (miss, mocked handler) falls back to the metadata-id scan,
+                # which also covers legacy mis-aligned rows.
+                if isinstance(raw, dict) and raw.get("metadata"):
+                    res = raw
+            except Exception as lookup_err:  # noqa: BLE001 — fall back to scan
+                logger.debug(f"direct fact lookup failed for {fact_id}: {lookup_err}")
+
+            if res is None:
+                results = await asyncio.to_thread(
+                    self.db.search,
+                    table_name=self.facts_table_name,
+                    query="",
+                    limit=100,
+                )
+                for row in results or []:
+                    if row.get("metadata", {}).get("id") == fact_id:
+                        res = row
+                        break
+            if not res:
+                return False
+
+            meta = dict(res.get("metadata") or {})
+            meta["id"] = fact_id
+            # Bug #5: capture OLD status BEFORE setting the new one.
+            # Previously meta["verification_status"] was set to the new
+            # status before the replace(), so it searched for and
+            # replaced the new string with itself (a no-op).
+            old_status = meta.get("verification_status", "unverified")
+            meta["verification_status"] = status
+            meta["last_verified"] = datetime.now(timezone.utc).isoformat()
+
+            new_text = (res.get("text") or "").replace(
+                f"Status: {old_status}", f"Status: {status}"
+            )
+
+            if hasattr(self.db, "delete_documents_by_id"):
+                try:
                     await asyncio.to_thread(
-                        self.db.add_document,
-                        table_name=self.facts_table_name,
-                        text=new_text,
-                        source=res.get("source"),
-                        metadata=meta,
-                        user_id="fact_system"
+                        self.db.delete_documents_by_id, self.facts_table_name, fact_id
                     )
-                    logger.info(f"Updated fact {fact_id} status to {status}")
-                    return True
-            return False
+                except Exception:  # noqa: BLE001 — best-effort cleanup
+                    pass
+
+            await asyncio.to_thread(
+                self.db.add_document,
+                table_name=self.facts_table_name,
+                text=new_text,
+                source=res.get("source"),
+                metadata=meta,
+                user_id="fact_system",
+                doc_id=fact_id,
+            )
+            logger.info(f"Updated fact {fact_id} status to {status}")
+            return True
         except Exception as e:
             logger.error(f"Failed to update fact verification: {e}")
             return False
 
     async def get_relevant_business_facts(self, query: str, limit: int = 5) -> List[BusinessFact]:
-        """Search for verifiable business facts related to the task"""
+        """Search for verifiable business facts related to the task.
+
+        A-G2: enforces the prompt sensitivity ceiling (default "confidential")
+        — restricted-classified facts are filtered at recall time and never
+        become prompt candidates."""
         try:
+            from core.turn_fact_extractor import prompt_sensitivity_ceiling
+
+            _ceiling = prompt_sensitivity_ceiling()
             results = self.db.search(
                 table_name=self.facts_table_name,
                 query=query,
                 limit=limit
             )
-            
+
             facts = []
             for res in results:
+                # A-G2: above-ceiling rows are skipped BEFORE parsing — they
+                # must not become prompt candidates.
+                if not _passes_prompt_ceiling(res, _ceiling):
+                    continue
                 # Isolate per-row failures: one legacy/corrupt row (missing
                 # metadata, unparseable timestamp) must not nuke the whole
                 # result set for the query.
@@ -484,8 +648,11 @@ class WorldModelService:
                         id=row_id,
                         fact=row_fact,
                         citations=meta.get("citations", []),
-                        reason=meta.get("reason"),
-                        source_agent_id=meta.get("source_agent_id"),
+                        # `or ""` mirrors get_business_fact below — legacy /
+                        # hand-written rows may lack these keys and must not
+                        # nuke recall with a pydantic ValidationError.
+                        reason=meta.get("reason") or "",
+                        source_agent_id=meta.get("source_agent_id") or "",
                         created_at=datetime.fromisoformat(meta["created_at"]) if meta.get("created_at") else datetime.now(timezone.utc),
                         last_verified=datetime.fromisoformat(meta["last_verified"]) if meta.get("last_verified") else datetime.now(timezone.utc),
                         verification_status=meta.get("verification_status", "unverified"),
@@ -1066,8 +1233,7 @@ class WorldModelService:
         HybridDataIngestionService / AutoDocumentIngestionService) are recalled
         FIRST; untagged general knowledge always tops up the remaining slots so
         a role with few tagged docs never gets an empty recall (graceful
-        degradation — role scoping is additive, never exclusive).
-        """
+        degradation — role scoping is additive, never exclusive).        """
         if agent_role:
             # R83: `metadata` is a JSON *string* column in Lance, so a nested
             # `metadata.role == …` DataFusion filter always returned []. Two
@@ -1116,7 +1282,13 @@ class WorldModelService:
                 )
                 role_hits = [r for r in hits or [] if _role_of(r) == wanted]
 
-            results = list(role_hits or [])[:limit]
+            from core.turn_fact_extractor import prompt_sensitivity_ceiling
+
+            _ceiling = prompt_sensitivity_ceiling()
+            results = [
+                r for r in (role_hits or [])[:limit]
+                if _passes_prompt_ceiling(r, _ceiling)
+            ]
             if len(results) < limit:
                 hits = db.search(
                     table_name="documents",
@@ -1128,15 +1300,23 @@ class WorldModelService:
                 for r in hits or []:
                     if len(results) >= limit:
                         break
-                    if r.get("id") not in included and _role_of(r) != wanted:
+                    if (
+                        r.get("id") not in included
+                        and _role_of(r) != wanted
+                        and _passes_prompt_ceiling(r, _ceiling)
+                    ):
                         results.append(r)
             return results
-        return db.search(
+        from core.turn_fact_extractor import prompt_sensitivity_ceiling
+
+        _ceiling = prompt_sensitivity_ceiling()
+        hits = db.search(
             table_name="documents",
             query=task_description,
             limit=limit,
             user_id=None,
         )
+        return [r for r in hits or [] if _passes_prompt_ceiling(r, _ceiling)]
 
     async def recall_experiences(
         self, 

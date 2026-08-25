@@ -1542,7 +1542,13 @@ class EpisodeService:
         try:
             from core.agent_world_model import WorldModelService
 
-            world_model = WorldModelService(episode.tenant_id)
+            # WorldModelService is WORKSPACE-scoped; a tenant id is not a
+            # workspace id. Fall back through workspace → tenant → default.
+            world_model = WorldModelService(
+                getattr(episode, "workspace_id", None)
+                or getattr(episode, "tenant_id", None)
+                or "default"
+            )
 
             # Build learnings string that includes feedback
             learnings = episode.metadata_json.get("learnings", "")

@@ -142,7 +142,10 @@ class DocumentParser:
                     data = json.loads(file_content.decode("utf-8", errors="ignore"))
                     return json.dumps(data, indent=2)
                 except Exception:
-                    return file_content.decode("utf-8", errors="ignore")
+                    # Unparseable JSON is not raw text worth embedding —
+                    # returning the broken bytes verbatim pollutes memory
+                    # with junk rows.
+                    return ""
             
             elif file_type == "csv":
                 return DocumentParser._parse_csv(file_content)
@@ -318,17 +321,21 @@ class AutoDocumentIngestionService:
     - Ingest to Atom Memory (LanceDB + GraphRAG)
     """
     
-    def __init__(self):
-        self.workspace_id = "default"
+    def __init__(self, workspace_id: str = "default"):
+        # Per-workspace construction: settings, ingested-doc cache, LanceDB
+        # handler and durable settings rows are all workspace-scoped. The old
+        # fixed-"default" singleton meant every non-default workspace's sync
+        # read and wrote the default workspace's stores.
+        self.workspace_id = (workspace_id or "default").strip() or "default"
         self.settings: Dict[str, IngestionSettings] = {}
         self.ingested_docs: Dict[str, IngestedDocument] = {}  # key = external_id
         self.parser = DocumentParser()
         self._running = False
-        
+
         # Initialize memory handler
         try:
             from core.lancedb_handler import get_lancedb_handler
-            self.memory_handler = get_lancedb_handler("default")
+            self.memory_handler = get_lancedb_handler(self.workspace_id)
         except ImportError:
             self.memory_handler = None
             logger.warning("LanceDB handler not available")
@@ -364,11 +371,20 @@ class AutoDocumentIngestionService:
             .first()
         )
 
+    @staticmethod
+    def _settings_persistence_enabled() -> bool:
+        """Same kill switch as hybrid ingestion state (tests disable it)."""
+        return os.getenv("ATOM_INGESTION_PERSIST_STATE", "true").lower() in (
+            "1", "true", "yes",
+        )
+
     def _load_settings_row(self, integration_id: str, settings: IngestionSettings) -> None:
         """Best-effort hydration from the ``ingestion_settings`` table.
 
         Settings previously lived only in this process's memory — a restart
         wiped enabled flags, folders and last_sync. Never raises."""
+        if not self._settings_persistence_enabled():
+            return
         try:
             from core.database import get_db_session
 
@@ -385,7 +401,14 @@ class AutoDocumentIngestionService:
                 settings.sync_frequency_minutes = (
                     row.sync_frequency_minutes or settings.sync_frequency_minutes
                 )
-                settings.last_sync = row.last_sync
+                if row.last_sync is not None:
+                    # SQLite returns naive datetimes; sync math compares
+                    # against timezone-aware now().
+                    settings.last_sync = (
+                        row.last_sync.replace(tzinfo=timezone.utc)
+                        if row.last_sync.tzinfo is None
+                        else row.last_sync
+                    )
         except Exception as e:
             logger.debug(f"Ingestion settings load skipped for {integration_id}: {e}")
 
@@ -395,6 +418,8 @@ class AutoDocumentIngestionService:
         Only the document-ingestion columns are touched — hybrid ingestion
         stores its pipeline state (entity_types, sync_mode, …) in the same
         rows and must survive this upsert."""
+        if not self._settings_persistence_enabled():
+            return
         try:
             from core.database import get_db_session
 
@@ -1486,26 +1511,38 @@ class AutoDocumentIngestionService:
         ]
 
 
-# Global internal instance for single-tenant
+# Per-workspace singleton registry (R84d). ``_doc_ingestion_service`` is kept
+# as the "default"-workspace alias for backward compatibility.
 _doc_ingestion_service: Optional[AutoDocumentIngestionService] = None
+_doc_ingestion_services: Dict[str, AutoDocumentIngestionService] = {}
 
 
 def get_document_ingestion_service(
     workspace_id: str = "default",
 ) -> AutoDocumentIngestionService:
-    """Get or create the document ingestion service.
+    """Get or create the document ingestion service for a workspace.
 
-    ``workspace_id`` is accepted (and ignored beyond first init) because every
-    caller — document_ingestion_routes.py, sqs_worker.py — passes one; the old
-    zero-arg signature made each of those calls raise TypeError inside a broad
-    except and surface as a 500.
+    One instance per workspace: each binds its own LanceDB handler, settings
+    cache and durable ``ingestion_settings`` rows to that workspace. Callers
+    that pass no workspace get the shared "default" instance (previous
+    behavior).
     """
     global _doc_ingestion_service
-    if _doc_ingestion_service is None:
-        # The service is a fixed-"default"-workspace singleton; the arg is
-        # accepted for caller compatibility only.
-        _doc_ingestion_service = AutoDocumentIngestionService()
-    return _doc_ingestion_service
+    ws = (workspace_id or "default").strip() or "default"
+    service = _doc_ingestion_services.get(ws)
+    if service is None:
+        service = AutoDocumentIngestionService(workspace_id=ws)
+        _doc_ingestion_services[ws] = service
+        if ws == "default":
+            _doc_ingestion_service = service
+    return service
+
+
+def reset_document_ingestion_services() -> None:
+    """Drop all cached per-workspace instances (test isolation helper)."""
+    global _doc_ingestion_service
+    _doc_ingestion_services.clear()
+    _doc_ingestion_service = None
 
 
 # Alias for backward compatibility with tests

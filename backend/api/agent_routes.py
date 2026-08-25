@@ -595,8 +595,12 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
 
             logger.info(f"Starting agent {agent.name} (ID: {agent_id})...")
 
-            # 1. World Model Retrieval
-            wm_service = WorldModelService()
+            # 1. World Model Retrieval — scope to the agent's own workspace
+            # (AgentRegistry carries workspace_id; the bare constructor
+            # silently read the "default" workspace's memory).
+            wm_service = WorldModelService(
+                getattr(agent, "workspace_id", None) or "default"
+            )
 
             # Build a context string from params to query memory
             task_context = f"Execute {agent.name} with params: {str(params)}"

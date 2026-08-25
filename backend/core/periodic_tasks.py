@@ -58,8 +58,10 @@ async def run_global_ingestion_pulse():
             total_dispatched = 0
 
             for ws in workspaces:
-                # Get service for this workspace
-                service = get_document_ingestion_service()
+                # Get service for this workspace (R80 intent restored: the
+                # per-workspace service reads THAT workspace's settings and
+                # handlers, not the default singleton's).
+                service = get_document_ingestion_service(ws.id)
                 settings_list = service.get_all_settings()
 
                 for settings in settings_list:
