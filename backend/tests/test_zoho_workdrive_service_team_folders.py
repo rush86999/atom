@@ -172,3 +172,61 @@ async def test_list_files_recursive_subfolders_use_files_endpoint():
     urls = [c.args[0] for c in client.get.await_args_list]
     assert urls[0] == f"{svc.base_url}/teamfolders/tf1/files"
     assert urls[1] == f"{svc.base_url}/files/sub1/files"
+
+
+async def test_download_file_uses_fresh_redirect_following_client():
+    """download_file must not reuse the shared pool (stale keep-alive hangs)
+    and must follow the signed-URL redirect."""
+    from unittest.mock import patch as _patch
+
+    svc = ZohoWorkDriveService(
+        tenant_id="default",
+        config={"client_id": "cid", "client_secret": "cs", "redirect_uri": "uri"},
+    )
+    svc.get_access_token = AsyncMock(return_value="tok")
+
+    fake_resp = _FakeResponse(200, {})
+    fake_resp.content = b"%PDF-1.6 fake-content"
+    fake_client = MagicMock()
+    fake_client.get = AsyncMock(return_value=fake_resp)
+
+    class _FakeAsyncClient:
+        last_kwargs = None
+
+        def __init__(self, **kwargs):
+            _FakeAsyncClient.last_kwargs = kwargs
+
+        async def __aenter__(self):
+            return fake_client
+
+        async def __aexit__(self, *args):
+            return False
+
+    with _patch("integrations.zoho_workdrive_service.httpx.AsyncClient", _FakeAsyncClient):
+        content = await svc.download_file("u1", "f1")
+
+    assert content == b"%PDF-1.6 fake-content"
+    assert fake_client.get.await_args_list[0].args[0] == f"{svc.base_url}/download/f1"
+    assert _FakeAsyncClient.last_kwargs.get("follow_redirects") is True
+
+
+async def test_download_file_returns_none_on_failure():
+    from unittest.mock import patch as _patch
+
+    svc = ZohoWorkDriveService(
+        tenant_id="default",
+        config={"client_id": "cid", "client_secret": "cs", "redirect_uri": "uri"},
+    )
+    svc.get_access_token = AsyncMock(return_value="tok")
+
+    class _FakeAsyncClient:
+        async def __aenter__(self):
+            return MagicMock(get=AsyncMock(side_effect=RuntimeError("download failed")))
+
+        async def __aexit__(self, *args):
+            return False
+
+    with _patch("integrations.zoho_workdrive_service.httpx.AsyncClient", _FakeAsyncClient):
+        content = await svc.download_file("u1", "f1")
+
+    assert content is None

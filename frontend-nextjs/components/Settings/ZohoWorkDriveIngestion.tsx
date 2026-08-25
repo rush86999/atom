@@ -345,7 +345,11 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
                                 Team Folders
                             </div>
                             {teamFolders.map(tf => (
-                                <div key={tf.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800 transition-colors">
+                                <div
+                                    key={tf.id}
+                                    onDoubleClick={() => openTeamFolder(tf)}
+                                    className="flex items-center justify-between p-3 hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                                >
                                     <div className="flex items-center gap-3 min-w-0">
                                         <Folder className="w-5 h-5 text-yellow-500 flex-shrink-0" />
                                         <div className="min-w-0">
@@ -401,7 +405,11 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
                             displayFiles.map(file => {
                                 const isIngested = ingestedFileIds.has(file.id);
                                 return (
-                                    <div key={file.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800 transition-colors">
+                                    <div
+                                        key={file.id}
+                                        onDoubleClick={file.type === 'folder' ? () => fetchFiles({ parent_id: file.id, folderName: file.name }) : undefined}
+                                        className={`flex items-center justify-between p-3 hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800 transition-colors${file.type === 'folder' ? ' cursor-pointer' : ''}`}
+                                    >
                                         <div className="flex items-center gap-3 min-w-0">
                                             {file.type === 'folder' ? (
                                                 <Folder className="w-5 h-5 text-yellow-500 flex-shrink-0" />

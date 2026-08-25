@@ -124,6 +124,38 @@ describe('ZohoWorkDriveIngestion', () => {
     });
   });
 
+  it('opens a folder row on double-click', async () => {
+    mockApi({ teamFolderList: [] });
+    render(<ZohoWorkDriveIngestion userId="u1" />);
+    await screen.findByText('My Folder');
+    fireEvent.dblClick(screen.getByText('My Folder'));
+    await waitFor(() => {
+      const listCalls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).includes('/files/list'));
+      const openCall = listCalls[listCalls.length - 1];
+      expect(JSON.parse(openCall[1].body)).toEqual({ user_id: 'u1', parent_id: 'd1' });
+    });
+  });
+
+  it('opens a team folder row on double-click', async () => {
+    render(<ZohoWorkDriveIngestion userId="u1" />);
+    await screen.findByText('Marketing Assets');
+    fireEvent.dblClick(screen.getByText('Marketing Assets'));
+    await waitFor(() => {
+      const listCalls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).includes('/files/list'));
+      const openCall = listCalls[listCalls.length - 1];
+      expect(JSON.parse(openCall[1].body)).toEqual({ user_id: 'u1', parent_id: 'tf1', workspace_id: 'ws1', team_id: 't1' });
+    });
+  });
+
+  it('does not open anything when double-clicking a file row', async () => {
+    render(<ZohoWorkDriveIngestion userId="u1" />);
+    await screen.findByText('quarterly-report.pdf');
+    fireEvent.dblClick(screen.getByText('quarterly-report.pdf'));
+    // No extra /files/list call beyond the mount-time fetch.
+    const listCalls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).includes('/files/list'));
+    expect(listCalls.length).toBe(1);
+  });
+
   it('shows the empty state with Refresh Files while still listing team folders', async () => {
     mockApi({ fileList: [] });
     render(<ZohoWorkDriveIngestion userId="u1" />);

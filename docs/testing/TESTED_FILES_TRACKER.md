@@ -7,6 +7,43 @@
 ---
 
 
+## Session 2026-08-25 (Zoho WorkDrive — ingest 500 / hang on download)
+
+**Files**: `backend/integrations/zoho_workdrive_service.py` (+ service tests),
+`backend/tests/test_zoho_workdrive_service_team_folders.py`.
+
+**Problem (live-reproduced)**: clicking Ingest on a team-folder PDF returned
+"Server returned 500". The real chain: `download_file` hits
+`GET /api/v1/download/{file_id}` on the long-lived shared httpx client; Zoho's
+download endpoint redirects to a signed URL and can stall on a stale keep-alive
+pooled connection (bytes trickle just often enough to defeat httpx's per-read
+timeout) → the handler hangs → the Next.js proxy gives up at ~30s and returns
+its own plain-text 500 (which is why the UI showed the generic message).
+Verified: metadata endpoint fast (200); download via a fresh process/client
+returns the PDF (3.4 MB, `%PDF-1.6`); via the live server it hung >90s.
+
+**Fix**: `download_file` now uses a short-lived `httpx.AsyncClient` per call
+(fresh connection — no stale pool), `follow_redirects=True` (signed URL), and
+a hard 60s `asyncio.wait_for` cap so the worst case is a clean
+"Failed to download file" 200 response instead of an indefinite hang/500.
++2 service tests (fresh redirect-following client used; None on failure) —
+9/9 pass.
+
+---
+
+
+## Session 2026-08-25 (Zoho WorkDrive — double-click to open folder rows)
+
+**Files**: `frontend-nextjs/components/Settings/ZohoWorkDriveIngestion.tsx` (+ jest).
+
+Folder/team-folder rows now open on double-click (same action as the Open
+button); file rows stay inert (no handler). Rows get `cursor-pointer`.
++3 jest tests (folder dblclick body, team-folder dblclick body, file dblclick
+no-op) — 14/14 pass.
+
+---
+
+
 ## Session 2026-08-25 (Zoho WorkDrive — recursive "All Files" view + recursion fix)
 
 **Files**: `backend/integrations/zoho_workdrive_service.py`,

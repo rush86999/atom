@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 import logging
 import httpx
 from typing import Dict, List, Optional, Any, Tuple
@@ -534,15 +535,29 @@ class ZohoWorkDriveService(IntegrationService):
             return {"id": "root", "name": "Root", "type": "folder", "children": [], "error": str(e)}
 
     async def download_file(self, user_id: str, file_id: str) -> Optional[bytes]:
-        """Download file content from WorkDrive"""
+        """Download file content from WorkDrive.
+
+        Uses a short-lived client instead of the shared pool: Zoho's
+        /download/{id} endpoint redirects to a signed URL and can stall
+        indefinitely on a stale keep-alive pooled connection (bytes trickle
+        just often enough to defeat httpx's per-read timeout). A fresh
+        connection, redirect-following, and a hard total-time cap keep this
+        from hanging the request (which previously surfaced as a proxy 500).
+        """
         token = await self.get_access_token(user_id)
         if not token:
             return None
-        
+
         try:
             headers = {"Authorization": f"Zoho-oauthtoken {token}"}
             url = f"{self.base_url}/download/{file_id}"
-            response = await self.client.get(url, headers=headers)
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(30.0, connect=10.0),
+                follow_redirects=True,
+            ) as client:
+                response = await asyncio.wait_for(
+                    client.get(url, headers=headers), timeout=60.0
+                )
             response.raise_for_status()
             return response.content
         except Exception as e:
