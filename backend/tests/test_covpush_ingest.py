@@ -2254,9 +2254,18 @@ class TestAutoDocumentIngestionService:
 
     @pytest.mark.asyncio
     async def test_process_file_bytes_short_text(self, service):
+        # Threshold is blank-only now (R84f): short-but-real content ingests;
+        # only empty/whitespace text is dropped.
         service.parser.parse_document = AsyncMock(return_value="ab")
         result = await service.process_file_bytes(b"x", "a.txt")
+        assert result["status"] == "ingested"
+
+    @pytest.mark.asyncio
+    async def test_process_file_bytes_blank_text(self, service):
+        service.parser.parse_document = AsyncMock(return_value="   ")
+        result = await service.process_file_bytes(b"x", "a.txt")
         assert result["status"] == "skipped"
+        assert result["reason"] == "no_text"
 
     @pytest.mark.asyncio
     async def test_process_file_bytes_redacts(self, service):

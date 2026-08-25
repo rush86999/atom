@@ -381,6 +381,10 @@ class OneDriveService(IntegrationService):
             logger.error(f"OneDrive download_file_bytes failed: {e}")
             return None
 
+    async def _download_file_bytes(self, access_token: str, file_id: str) -> Optional[bytes]:
+        """Private alias used by ingest_file_to_memory (patchable in tests)."""
+        return await self.download_file_bytes(access_token, file_id)
+
     async def upload_file(
         self, access_token: str, file_name: str, content: bytes, folder_path: str = ""
     ) -> Dict[str, Any]:
@@ -492,7 +496,8 @@ class OneDriveService(IntegrationService):
         if not token:
             return {"success": False, "error": "No access token provided"}
 
-        content = await self.download_file_bytes(token, file_id)
+        # Private alias — the single download seam (patched in tests).
+        content = await self._download_file_bytes(token, file_id)
         if content is None:
             return {"success": False, "error": "Failed to download file"}
 

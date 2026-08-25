@@ -6464,3 +6464,30 @@ Research note: retrieval-time pre-filtering re-validated for A-G1/A-G2 (RAG acce
 **New suite**: `backend/tests/core/test_feedback_loop.py` (7) — mapping/lookup/replace unit tests incl. comment-only no-op, unmatched run, broken-store fail-soft; route wiring asserts the SQL audit row AND the world-model call both happen with the submitted execution id; F1 end-to-end harness asserting `experience.agent_execution_id == context["execution_id"]`.
 
 **Verification**: 21-suite sweep (all four journey legs + memory assembler + regtrio): **0 FAILED / 0 ERROR**.
+
+## 2026-08-26 — Ontology draft promotion automation (consent-gated)
+
+**Scope**: close the O1 dead-end the journey trace pinned — auto-discovered `EntityTypeDefinition` drafts (`is_active=False` from schema discovery on integration syncs, OpenIE discovery, single-entity linking) rot invisibly until a human PATCHes `{"is_active": true}`. New automation follows the repo's fleet/stage-router/trust-calibration consent-gated pattern: `off|notify|approve|auto`, evidence-thresholded, revocation always automatic, never overrides manual decisions.
+
+**Files**:
+- `core/ontology/ontology_draft_automation.py` — evidence collection (graph-usage node labels incl. `{workspace}_{integration}_{type}` suffix matching, re-discovery = `version>=2` since last decision, optional `sample_count`, age floor), promote/revoke certification, consent dispatch, per-type ledger, manual-decision guard, notifications.
+- `api/ontology_draft_routes.py` — admin-gated `/api/v1/ontology-drafts/{status,automation,run-now,pending,approve/{id},reject/{id}}`.
+- `core/models.py` `OntologyDraftAction` + `alembic/versions/20260826_add_ontology_draft_automation_actions.py`.
+- `core/entity_type_service.py` `record_manual_decision()` + `api/entity_type_routes.py` PATCH stamp (`metadata_json["manual_decisions"]`).
+- `core/settings_catalog.py` C_ONTOLOGY category (7 flags) + `main_api_app.py` router mount + background pass (env-gated, default off).
+- Drive-by: `core/trust_calibration/gateway.py` — `enabled()` referenced `get_bool_setting` without import (NameError; self-provisioning test was red at HEAD).
+
+**New suite**: `backend/tests/test_ontology_draft_automation.py` (17) — off no-op, auto promote via usage + via evolution, age floor, approve queue + admin apply/reject, notify cooldown, automatic revocation (auto AND approve modes), revoked type needs NEW evolution to return, manual retirement shelved, manual decision defers auto-revoke, system types out of scope, census, sample-count floor, route 422, PATCH stamp.
+
+**Verification**: new suite 17 passed; adjacent suites green — `test_ontology_journey_gaps` (6), `test_round81g_trust_automation` (10, incl. previously-red self-provisioning), `test_runtime_settings_wiring`, `unit/test_entity_type_service` (21) — 48 passed focused; `main_api_app` imports clean ("Ontology Draft Automation Routes Loaded").
+
+## 2026-08-26 — Sales-agent launch journey UI (connect → ingest → train)
+
+**Files**:
+- `frontend-nextjs/components/Agents/AgentLaunchGuide.tsx` (NEW) — guided 5-step journey card: connect Zoho (`/api/v1/auth/oauth/zoho/initiate`) + Outlook (`/microsoft/initiate`), create Sales agent (`POST /api/agents/custom`, STUDENT), scoped ingestion (Zoho `POST /api/data-ingestion/sync/zoho?agent_id=` + enable-sync; Outlook `POST /api/integrations/outlook/memory/backfill` + status polling), training guidance with live pending-proposal count via `lib/maturity-api`. Connection state from `/api/v1/auth/oauth/tokens`; unconfigured providers surface env-var hints instead of doomed consent redirects. Auto-hides when both connected + a Sales-category agent exists; dismiss/restore persisted.
+- `frontend-nextjs/pages/agents/index.tsx` — mounted `<AgentLaunchGuide agents={agents} onAgentsChanged={fetchAgents} />` under EmployeeOnboardingGuide.
+- `frontend-nextjs/components/Agents/__tests__/AgentLaunchGuide.test.tsx` (NEW, 6 tests).
+
+**Verification**: new suite 6/6 passed; adjacent suites green — components/Agents (12 suites, 129 tests incl. MaturityApprovalPanel), ingestion-scoping, maturity-api client, approvals-page. `tsc --noEmit`: 0 errors in touched files.
+
+**Backend contracts locked by tests**: `/api/v1/auth/oauth/{tokens,config-status}`, `/api/agents/custom` category=Sales, `/api/data-ingestion/sync/zoho?agent_id=&force=true`, `/api/integrations/outlook/memory/backfill{,/status/{job_id}}`.

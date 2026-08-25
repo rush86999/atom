@@ -416,6 +416,12 @@ class BoxService(IntegrationService):
             logger.error(f"Box download_file_bytes failed: {e}")
             return None
 
+    async def _download_file_bytes(
+        self, access_token: str, file_id: str
+    ) -> Optional[bytes]:
+        """Private alias used by ingest_file_to_memory (patchable in tests)."""
+        return await self.download_file_bytes(access_token, file_id)
+
     async def create_folder(
         self, access_token: str, parent_folder_id: str, folder_name: str
     ) -> Dict[str, Any]:
@@ -518,7 +524,8 @@ class BoxService(IntegrationService):
         if not token:
             return {"success": False, "error": "No access token provided"}
 
-        content = await self.download_file_bytes(token, file_id)
+        # Private alias — the single download seam (patched in tests).
+        content = await self._download_file_bytes(token, file_id)
         if content is None:
             return {"success": False, "error": "Failed to download file"}
 

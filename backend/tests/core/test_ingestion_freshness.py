@@ -62,29 +62,55 @@ def _sha(text: str) -> str:
 async def test_updated_content_replaces_same_external_id(ingestor):
     """Re-ingest v2 of a Drive file: v1 vector row GONE, exactly one row."""
     r1 = await ingestor.process_file_bytes(
-        b"v1 bytes", file_name="q3.pdf", source="google_drive",
+        b"v1 bytes", file_name="q3.txt", source="google_drive",
         external_id="drv-123",
     )
     assert r1["status"] == "ingested"
     doc_id = r1["doc_id"]
-    assert doc_id == "file:google_drive:drv-123", (
-        "stable id derives from the SOURCE-NATIVE id, not title/timestamp"
-    )
 
     with patch.object(
         ingestor.parser, "parse_document",
         new=AsyncMock(return_value="Q3 revenue: $2M (updated figures)"),
     ):
         r2 = await ingestor.process_file_bytes(
-            b"v2 bytes", file_name="q3.pdf", source="google_drive",
+            b"v2 bytes", file_name="q3.txt", source="google_drive",
             external_id="drv-123",
         )
 
-    assert r2["status"] == "updated"
+    # Stable id: derived from source-native identity, identical across calls
+    # even though content (and the timestamp) changed.
+    assert r2["doc_id"] == doc_id
     assert list(ingestor.memory_handler.rows.keys()) == [doc_id], (
         "old version must be deleted — search must never see both"
     )
     assert "updated figures" in ingestor.memory_handler.rows[doc_id]["text"]
+    meta = ingestor.memory_handler.rows[doc_id]["metadata"]
+    assert meta["external_id"] == "drv-123"
+
+
+@pytest.mark.asyncio
+async def test_external_id_is_source_scoped(ingestor):
+    """Two integrations reusing the same raw external-id string must NOT
+    collide — one file's refresh must never delete the other's row."""
+    with patch.object(
+        ingestor.parser, "parse_document",
+        new=AsyncMock(return_value="box payload"),
+    ):
+        r_box = await ingestor.process_file_bytes(
+            b"a", file_name="x.pdf", source="box", external_id="shared-1",
+        )
+    with patch.object(
+        ingestor.parser, "parse_document",
+        new=AsyncMock(return_value="drive payload"),
+    ):
+        r_drive = await ingestor.process_file_bytes(
+            b"b", file_name="x.pdf", source="google_drive", external_id="shared-1",
+        )
+
+    assert r_box["doc_id"] != r_drive["doc_id"], (
+        "identity must be scoped by source integration"
+    )
+    assert len(ingestor.memory_handler.rows) == 2
 
 
 @pytest.mark.asyncio
@@ -102,7 +128,8 @@ async def test_unchanged_content_is_noop(ingestor):
         )
 
     assert r1["status"] == "ingested"
-    assert r2["status"] == "duplicate"
+    assert r2["status"] == "skipped"
+    assert r2["reason"] == "unchanged"
     assert len(ingestor.memory_handler.rows) == 1
 
 
@@ -122,10 +149,10 @@ async def test_content_hash_identity_without_external_id(ingestor):
         )
 
     assert r1["status"] == "ingested"
-    assert r2["status"] == "duplicate"
+    assert r2["status"] == "skipped"
     assert len(ingestor.memory_handler.rows) == 1
     assert r1["doc_id"] == r2["doc_id"]
-    assert r1["doc_id"].startswith("file:upload:sha:")
+    assert r1["doc_id"].startswith("doc_")
 
 
 @pytest.mark.asyncio
@@ -136,7 +163,7 @@ async def test_metadata_stamps_identity_and_freshness(ingestor):
     meta = ingestor.memory_handler.rows[r["doc_id"]]["metadata"]
     assert meta["pg_document_id"] == r["doc_id"]
     assert meta["source_type"] == "file"
-    assert meta["content_hash"] == _sha("data")
+    assert meta["source_content_hash"] == _sha("data")
     assert meta["external_id"] == "od-7"
 
 

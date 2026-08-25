@@ -526,7 +526,9 @@ class AutoDocumentIngestionService:
             logger.warning(f"Failed to parse {file_name} ({file_ext}): {parse_err}")
             return {"status": "error", "reason": "parse_failed", "file_name": file_name}
 
-        if not text or len(text.strip()) < 5:
+        # Blank-only text is junk; short-but-real content (e.g. "data") is a
+        # valid document and must not be dropped.
+        if not text or not text.strip():
             return {"status": "skipped", "reason": "no_text", "file_name": file_name}
 
         # Redact secrets before storage

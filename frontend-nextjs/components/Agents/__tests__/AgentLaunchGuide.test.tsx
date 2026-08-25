@@ -48,7 +48,7 @@ const connectedBoth = {
 };
 
 const configuredBoth = { data: { zoho: true, microsoft: true } };
-const nothingConnected = { data: { integrations: [] } };
+const nothingConnected = { data: { integrations: [] as Array<{ provider: string; status: string }> } };
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -82,6 +82,12 @@ describe('AgentLaunchGuide', () => {
   });
 
   test('auto-hides when both providers are connected and a Sales agent exists', async () => {
+    mockApiClient.get.mockImplementation((url: string) => {
+      if (url.includes('/oauth/tokens')) return Promise.resolve(connectedBoth);
+      if (url.includes('/config-status')) return Promise.resolve(configuredBoth);
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+
     render(
       <AgentLaunchGuide
         agents={[{ id: 'a1', name: 'Closer', category: 'Sales' }]}

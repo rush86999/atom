@@ -38,7 +38,7 @@ API keys (`OPENAI_API_KEY`, …), webhook shared secrets (`*_WEBHOOK_SECRET`), a
 
 ## Where edits apply today
 
-Subsystems whose config resolvers read through `core/runtime_settings.py` observe UI edits immediately. As of this writing that includes: hallucination mitigation (self-consistency, MoA, cascade, tool cache…), execution sandbox, stage router (+ automation), fleet routing, agent radio, knowledge VFS, trust calibration knobs, org politics automation, LLM gateway, turn facts, doc freshness, memory consolidation, reviewer loop, contribution credit. Settings for not-yet-converted subsystems still resolve from env/default only — their rows are inert until the module adopts the resolver (one-line-per-flag change).
+Subsystems whose config resolvers read through `core/runtime_settings.py` observe UI edits immediately. As of this writing that includes: hallucination mitigation (self-consistency, MoA, cascade, tool cache…), execution sandbox, stage router (+ automation), fleet routing, agent radio, knowledge VFS, trust calibration knobs, org politics automation, ontology draft automation, LLM gateway, turn facts, doc freshness, memory consolidation, reviewer loop, contribution credit. Settings for not-yet-converted subsystems still resolve from env/default only — their rows are inert until the module adopts the resolver (one-line-per-flag change).
 
 ## API surface
 

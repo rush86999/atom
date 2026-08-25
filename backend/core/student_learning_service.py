@@ -166,6 +166,49 @@ class StudentLearningService:
         return {"status": "ok", "observations_absorbed": absorbed}
 
     # ------------------------------------------------------------------
+    # Automated observation triggers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def relevant_to(student: AgentRegistry, action_type: str) -> bool:
+        """Whether an action type overlaps the student's capabilities."""
+        capabilities = set(student.capabilities or [])
+        if not capabilities:
+            return True  # generalist students observe everything
+        action = (action_type or "").lower()
+        return any(action in cap.lower() or cap.lower() in action for cap in capabilities)
+
+    def dispatch_observation_event(
+        self,
+        workspace_id: str,
+        observation_type: str,
+        summary: str,
+        details: Optional[Dict[str, Any]] = None,
+        action_type: Optional[str] = None,
+    ) -> int:
+        """Fan a single workspace event out to every STUDENT agent that
+        should observe it (relevance-filtered by capability overlap).
+
+        Returns how many students learned. Synchronous and cheap — designed
+        to be called from event hooks (HITL resolution, workflow completion).
+        """
+        students = self.db.query(AgentRegistry).filter(
+            AgentRegistry.status == AgentStatus.STUDENT.value,
+            AgentRegistry.workspace_id == workspace_id,
+        ).all()
+
+        count = 0
+        for student in students:
+            if action_type and not self.relevant_to(student, action_type):
+                continue
+            result = self.learn_from_observation(
+                student.id, observation_type, summary, details=details
+            )
+            if result.get("status") == "ok":
+                count += 1
+        return count
+
+    # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
 
@@ -217,3 +260,37 @@ class StudentLearningService:
                 "graduation exam to advance maturity"
             ) if student.confidence_score >= _CONFIDENCE_CEILING else None,
         }
+
+
+async def auto_observe(
+    workspace_id: str,
+    observation_type: str,
+    summary: str,
+    details: Optional[Dict[str, Any]] = None,
+    action_type: Optional[str] = None,
+) -> None:
+    """Fire-and-forget event hook: opens its own DB session and feeds the
+    event to all observing STUDENT agents in the workspace.
+
+    Use from event paths (HITL resolution, workflow completion) via
+    ``asyncio.create_task(auto_observe(...))`` — best-effort, never raises
+    into the caller's flow.
+    """
+    try:
+        from core.database import SessionLocal
+
+        session = SessionLocal()
+        try:
+            count = StudentLearningService(session).dispatch_observation_event(
+                workspace_id=workspace_id,
+                observation_type=observation_type,
+                summary=summary,
+                details=details,
+                action_type=action_type,
+            )
+            if count:
+                logger.info(f"Observation event '{observation_type}' learned by {count} student(s) in {workspace_id}")
+        finally:
+            session.close()
+    except Exception as e:
+        logger.debug(f"Auto-observation skipped (non-fatal): {e}")

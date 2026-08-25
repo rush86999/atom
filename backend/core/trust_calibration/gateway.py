@@ -30,6 +30,8 @@ def _env_float(name: str, default: float) -> float:
 
 
 def enabled() -> bool:
+    from core.runtime_settings import get_bool_setting
+
     return get_bool_setting("ATOM_TRUST_CALIBRATION_ENABLED", False)
 
 

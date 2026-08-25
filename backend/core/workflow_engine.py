@@ -539,6 +539,16 @@ class WorkflowEngine:
                     results=state.get("outputs", {})
                 ))
 
+                # Students observe successful workflow outcomes (automated
+                # observation trigger — fire-and-forget, best-effort).
+                from core.student_learning_service import auto_observe
+                asyncio.create_task(auto_observe(
+                    workspace_id=workspace_id,
+                    observation_type="workflow_execution",
+                    summary=f"Workflow '{workflow.get('name', workflow.get('id', 'unknown'))}' completed successfully",
+                    details={"workflow_id": workflow.get("id"), "execution_id": execution_id},
+                ))
+
                 # Track success
                 duration = (datetime.now(timezone.utc) - start_time).total_seconds()
                 analytics.track_workflow_execution(
@@ -984,6 +994,16 @@ class WorkflowEngine:
                 workflow_name=workflow.get("name", "Untitled Workflow"),
                 execution_id=execution_id,
                 results=state.get("outputs", {})
+            ))
+
+            # Students observe successful workflow outcomes (automated
+            # observation trigger — fire-and-forget, best-effort).
+            from core.student_learning_service import auto_observe
+            asyncio.create_task(auto_observe(
+                workspace_id=workspace_id,
+                observation_type="workflow_execution",
+                summary=f"Workflow '{workflow.get('name', workflow.get('id', 'unknown'))}' completed successfully",
+                details={"workflow_id": workflow.get("id"), "execution_id": execution_id},
             ))
             
             # Track success
