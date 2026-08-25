@@ -7,6 +7,35 @@
 ---
 
 
+## Session 2026-08-25 (approvals/pending 500 — stale-server root cause, route proven healthy)
+
+**Files**: `backend/api/agent_routes.py` (inspected — no change needed),
+`backend/tests/test_agent_routes_coverage.py` (`TestHITLApprovalEndpoints`, 5 tests already
+present, all GREEN), `backend/scripts/check_approvals_endpoint.py` (new manual checker).
+
+**Symptom (user)**: browser console `Unexpected token 'I', "Internal S"... is not valid JSON`
+from `GlobalChatWidget.tsx:64` → `GET /api/agents/approvals/pending` — axios tried to
+JSON-parse FastAPI's plain-text `Internal Server Error` 500 body.
+
+**Root cause**: NOT a code bug. Live TestClient repro with the real `admin@example.com`
+(workspace_admin, has `AGENT_MANAGE`) and a super-admin user both return 200 + JSON list
+(11 pending rows in the live root `atom_dev.db`). The route's imports
+(`HITLAction`, `HITLActionStatus`, `Permission`, `require_permission`) have been present for
+many commits. The 500 was served by a STALE uvicorn process — the one squatting on port
+8000 that produced `WinError 10013` on the user's next `uvicorn` start — running older
+code (pre-absolute-path pinning `a9006ff1e`, pointing at `backend/atom_dev.db`).
+
+**Manual check**: `python backend/scripts/check_approvals_endpoint.py` → expects
+`STATUS 200` + `OK: endpoint returned JSON list with N pending approval(s)`. Confirmed
+passing. HITL suite 5/5.
+
+**Fix for the user (ops, not code)**: kill any stale `uvicorn` on port 8000
+(`netstat -ano | findstr :8000` → `taskkill /PID <pid> /F`), then start fresh from repo
+root. Restart required because `uvicorn --reload` does not reload `.env` changes.
+
+---
+
+
 ## Session 2026-08-25 (AI sales agent — Sales Case scaffold + forced free-model)
 
 **Files**: `backend/core/models.py` (SalesCase + SalesCaseStatus), `backend/core/sales_case.py`,
