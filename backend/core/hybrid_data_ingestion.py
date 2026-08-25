@@ -590,6 +590,17 @@ class HybridDataIngestionService:
                             budget=fact_budget,
                         )
                         results["facts_written"] = results.get("facts_written", 0) + fact_stats.get("written", 0)
+                        _skip_reason = fact_stats.get("skipped")
+                        if _skip_reason:
+                            # Surfaced, not swallowed: a persistent "no_handler"
+                            # here means the fact layer is silently OFF for the
+                            # whole workspace — visible in sync results instead
+                            # of an eternal zero.
+                            results["facts_skipped"] = (
+                                results.get("facts_skipped", 0) + 1
+                            )
+                            if _skip_reason == "no_handler":
+                                results.setdefault("facts_skip_reason", "no_handler")
                     except Exception as fact_err:  # noqa: BLE001 — observation layer never blocks ingestion
                         logger.warning(f"Fact extraction skipped for {integration_id}: {fact_err}")
                 

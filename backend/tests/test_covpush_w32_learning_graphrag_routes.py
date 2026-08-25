@@ -94,8 +94,10 @@ class TestGraphRAGRoutes:
         })
         assert r.status_code == 200
         assert r.json()["success"] is True
+        # R83: routes partition by the caller's workspace (mock user has none
+        # → "default"), not by user id.
         _engine.ingest_document.assert_awaited_once_with(
-            workspace_id="default_user", doc_id="d1",
+            workspace_id="default", doc_id="d1",
             text="John works at Acme", source="api",
         )
 
@@ -288,7 +290,8 @@ class TestGraphRAGRoutes:
         r = client.post("/api/graphrag/build-communities", params={"user_id": "u-1"})
         assert r.status_code == 200
         assert r.json()["data"]["user_id"] == "u-1"
-        _engine.build_communities.assert_called_once_with("u-1")
+        # R83: workspace partition — mock user has no workspace → "default".
+        _engine.build_communities.assert_called_once_with("default")
 
     # ---- POST /api/graphrag/query ----------------------------------------
     def test_query_awaits_async_engine(self, client, _engine):
@@ -340,8 +343,10 @@ class TestGraphRAGRoutes:
         assert r.status_code == 200
         assert r.json()["data"]["user_id"] == "ws1"
         assert r.json()["data"]["context"] == "context text"
+        # R83: workspace partition — mock user has no workspace → "default"
+        # (the user_id param is echoed in the response, not used for routing).
         _engine.get_context_for_ai.assert_awaited_once_with(
-            workspace_id="ws1", query="hello"
+            workspace_id="default", query="hello"
         )
 
     # ---- GET /api/graphrag/stats -----------------------------------------
