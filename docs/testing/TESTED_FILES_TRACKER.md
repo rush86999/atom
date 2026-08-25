@@ -7,6 +7,65 @@
 ---
 
 
+## Session 2026-08-25 (Chat shows full content for named files — specific-file leg)
+
+**Files**: `backend/core/memory_context_assembler.py` (+ 3 tests in
+`backend/tests/test_memory_context_assembler.py`).
+
+**Problem (user-observed)**: asking the chat "what is inside fly.toml"
+rendered the generic `RELATED KNOWLEDGE & CONVERSATIONS` preview list (220-char
+snippets of every loosely-matched ingested doc, incl. unrelated costs CSVs)
+instead of the named file's full content.
+
+**Fix**: new `_specific_file_leg` — a regex extracts file-name tokens
+(`.toml/.pdf/.csv/.xls/.docx/...`) from the message, matches them against
+`ingested_documents` (`file_name ILIKE`), and fetches the FULL `text` from
+LanceDB (`get_document_by_id`, run in a thread; falls back to
+`content_preview`). When a specific file is named, `assemble_memory_context`
+renders a `REQUESTED FILE CONTENT:` block (capped 6000 chars/file, 8000 total)
+and skips the generic preview list + rerank phase entirely. Never raises.
+
+**Tests**: +3 (full content returned + not the 500-char preview; no token →
+empty; named file suppresses the generic knowledge list). Full suite: 34/34
+`test_memory_context_assembler.py`, plus 51/51 with
+`test_chat_document_search.py` + `test_zoho_workdrive_ingest_xls.py` +
+`test_zoho_workdrive_service_team_folders.py`.
+
+---
+
+
+## Session 2026-08-25 (Ingested files invisible to chat/document search)
+
+**Files**: `backend/core/auto_document_ingestion.py`,
+`backend/integrations/chat_orchestrator.py` (+ new `backend/tests/test_chat_document_search.py`),
+env: installed `fastembed`.
+
+**Problem (user-observed)**: after ingesting a WorkDrive file, the chat
+answered "I found 0 results". Three root causes, all verified live:
+1. `ChatOrchestrator._handle_search_request` only queried
+   `DataIntelligenceEngine.search_unified_entities` (in-memory platform
+   entity registry) — it never touched the LanceDB documents store.
+2. `DocumentsHybridSearch` drops LanceDB vector hits with no matching PG
+   `IngestedDocument` row ("unbridged"), and the file-ingest path created no
+   PG row — so file docs were invisible to every search consumer.
+3. `fastembed` was in requirements.txt but never installed — the vector
+   (semantic) leg failed at query time ("FastEmbed package not installed").
+
+**Fix**: `process_file_bytes` now creates the `IngestedDocument` row with the
+same id stamped on the vector row (FTS5 trigger indexes it; `_bridge_document_to_db`
+helper, never raises); `_handle_search_request` adds a `DocumentsHybridSearch`
+document leg (isolated — never breaks the entity search) and
+`_generate_main_message` counts `document_results`. Installed fastembed.
+Verified live: backfilled existing zoho docs (names parsed from the source
+column — the LanceDB file_name column is empty) → `DocumentsHybridSearch`
+returns `visa payment 1-17-25.pdf` bridged for query "visa payment"
+(hybrid=bm25_vector_rrf). 5 new tests (bridge row, process_file_bytes calls
+bridge, chat includes docs, doc-leg failure isolated, message counts) — 17
+related tests pass.
+
+---
+
+
 ## Session 2026-08-25 (Zoho WorkDrive — ingest 500 / hang on download)
 
 **Files**: `backend/integrations/zoho_workdrive_service.py` (+ service tests),

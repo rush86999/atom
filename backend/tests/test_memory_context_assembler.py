@@ -79,6 +79,81 @@ async def test_all_legs_rendered(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_specific_file_leg_returns_full_content(monkeypatch):
+    """A message naming a file returns its full text, not the preview list."""
+    class FakeDoc:
+        id = "file_1787659703.197399"
+        file_name = "visa payment 1-17-25.pdf"
+        content_preview = "short preview"
+
+    class FakeQuery:
+        def filter(self, *a, **k):
+            return self
+
+        def order_by(self, *a, **k):
+            return self
+
+        def first(self):
+            return FakeDoc()
+
+    class FakeSession:
+        def query(self, *a, **k):
+            return FakeQuery()
+
+        def close(self):
+            pass
+
+    fake_lancedb = MagicMock()
+    fake_lancedb.get_document_by_id = MagicMock(
+        return_value={"text": "Between My TD Accounts — Transfer Funds\nStep 3 of 3"}
+    )
+
+    with patch("core.database.SessionLocal", return_value=FakeSession()), \
+         patch("core.lancedb_handler.get_lancedb_handler", return_value=fake_lancedb):
+        lines = await mca._specific_file_leg(
+            "what is inside the visa payment 1-17-25.pdf", "default"
+        )
+
+    assert len(lines) == 1
+    assert lines[0].startswith("[ingested: visa payment 1-17-25.pdf]")
+    assert "Between My TD Accounts" in lines[0]
+    assert "short preview" not in lines[0]  # full text, not the 500-char preview
+
+
+@pytest.mark.asyncio
+async def test_specific_file_leg_no_token_returns_empty():
+    assert await mca._specific_file_leg("hello there", "default") == []
+
+
+@pytest.mark.asyncio
+async def test_specific_file_suppresses_generic_knowledge_list(monkeypatch):
+    """Naming a file renders REQUESTED FILE CONTENT and drops the preview list."""
+    monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
+
+    async def fake_specific(message, ws):
+        return ["[ingested: fly.toml]\n# fly.toml full content\napp = \"atom-saas\""]
+
+    async def fake_graph(message, ws, tn):
+        return ""
+
+    async def fake_knowledge(message, ws):
+        return ["[ingested: costs (1).csv] some preview", "[ingested: fly.toml] preview"]
+
+    with patch.object(mca, "_specific_file_leg", fake_specific), \
+         patch.object(mca, "_graph_leg", fake_graph), \
+         patch.object(mca, "_knowledge_leg", fake_knowledge), \
+         patch.object(mca, "_integration_records_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_episodes_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_facts_leg", AsyncMock(return_value=[])):
+        block = await assemble_memory_context("what is inside fly.toml")
+
+    assert block is not None
+    assert "REQUESTED FILE CONTENT" in block
+    assert "# fly.toml full content" in block
+    assert "RELATED KNOWLEDGE & CONVERSATIONS" not in block
+
+
+@pytest.mark.asyncio
 async def test_leg_failure_isolated(monkeypatch):
     """A raising leg yields an empty block, others still render."""
     monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")

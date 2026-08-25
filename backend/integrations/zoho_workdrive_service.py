@@ -592,6 +592,13 @@ class ZohoWorkDriveService(IntegrationService):
                 user_id=user_id,
             )
 
+            if result.get("status") != "ingested":
+                # Don't mask skipped/errored parses as success — the UI must
+                # tell the user nothing was stored (e.g. unsupported format).
+                reason = result.get("reason") or result.get("status") or "unknown"
+                logger.warning(f"Ingest skipped for {file_name}: {reason}")
+                return {"success": False, "error": f"File not ingested ({reason})"}
+
             return {"success": True, "result": result}
         except Exception as e:
             logger.error(f"Failed to ingest Zoho WorkDrive file: {e}")
