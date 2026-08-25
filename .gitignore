@@ -32,7 +32,7 @@ pids
 *.pid.lock
 
 # Chat session runtime state (regenerated on every server run)
-backend/chat_sessions.json
+backend/chat_sessions*.json
 
 # Coverage directory used by tools like istanbul
 coverage/
