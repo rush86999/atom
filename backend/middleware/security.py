@@ -141,10 +141,7 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         self.malicious_patterns = [
             r'<script[^>]*>.*?</script>',  # XSS
             r'javascript:',               # JS protocol
-            # Word boundary required: a bare on\w+\s*= also matched mid-word
-            # occurrences like c[on]tent= in benign email HTML, 400-ing chat
-            # requests whose history quoted ingested emails.
-            r'\bon\w+\s*=',               # Event handlers
+            r'on\w+\s*=',               # Event handlers
             r'union\s+select',          # SQL injection
             r'drop\s+table',            # SQL injection
             r'exec\(',                  # Code execution
@@ -293,7 +290,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             # server-to-server callbacks that carry their own signature
             # verification (e.g. X-Telegram-Bot-Api-Secret-Token, fail-closed).
             # There is no browser session to forge, so CSRF does not apply.
-            if request.url.path.startswith("/api/") or request.url.path.endswith("/webhook"):
+            if request.url.path.endswith("/webhook"):
                 return await call_next(request)
 
             csrf_token = request.headers.get("X-CSRF-Token")

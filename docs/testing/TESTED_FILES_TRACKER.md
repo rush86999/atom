@@ -6,414 +6,6 @@
 
 ---
 
-
-## Session 2026-08-25 (approvals/pending 500 — stale-server root cause, route proven healthy)
-
-**Files**: `backend/api/agent_routes.py` (inspected — no change needed),
-`backend/tests/test_agent_routes_coverage.py` (`TestHITLApprovalEndpoints`, 5 tests already
-present, all GREEN), `backend/scripts/check_approvals_endpoint.py` (new manual checker).
-
-**Symptom (user)**: browser console `Unexpected token 'I', "Internal S"... is not valid JSON`
-from `GlobalChatWidget.tsx:64` → `GET /api/agents/approvals/pending` — axios tried to
-JSON-parse FastAPI's plain-text `Internal Server Error` 500 body.
-
-**Root cause**: NOT a code bug. Live TestClient repro with the real `admin@example.com`
-(workspace_admin, has `AGENT_MANAGE`) and a super-admin user both return 200 + JSON list
-(11 pending rows in the live root `atom_dev.db`). The route's imports
-(`HITLAction`, `HITLActionStatus`, `Permission`, `require_permission`) have been present for
-many commits. The 500 was served by a STALE uvicorn process — the one squatting on port
-8000 that produced `WinError 10013` on the user's next `uvicorn` start — running older
-code (pre-absolute-path pinning `a9006ff1e`, pointing at `backend/atom_dev.db`).
-
-**Manual check**: `python backend/scripts/check_approvals_endpoint.py` → expects
-`STATUS 200` + `OK: endpoint returned JSON list with N pending approval(s)`. Confirmed
-passing. HITL suite 5/5.
-
-**Fix for the user (ops, not code)**: kill any stale `uvicorn` on port 8000
-(`netstat -ano | findstr :8000` → `taskkill /PID <pid> /F`), then start fresh from repo
-root. Restart required because `uvicorn --reload` does not reload `.env` changes.
-
----
-
-
-## Session 2026-08-25 (AI sales agent — Sales Case scaffold + forced free-model)
-
-**Files**: `backend/core/models.py` (SalesCase + SalesCaseStatus), `backend/core/sales_case.py`,
-`backend/tools/sales_tool.py`, `backend/core/action_registry.py` (sales.* tools),
-`backend/core/llm/byok_handler.py` (`ATOM_FORCED_LLM_MODEL`),
-`backend/tests/test_sales_case.py` (new), `backend/tests/test_byok_forced_model.py` (new).
-
-**Context**: the Sales Case scaffold (model + validated status machine +
-ask-human HITL + 5 tools wired through the action registry) existed as
-UNCOMMITTED WIP from a previous session — this session verified it, added the
-missing piece, and committed it all.
-
-**Verified**: `core/sales_case.py` (create/get/list/transition/ask_human with
-validated state machine + HITLAction pause), `tools/sales_tool.py`
-(case CRUD, ask_human, inventory-check + quote-calc over ingested knowledge,
-honest about not being authoritative). New `find_case_by_email()` — vendor/customer
-reply -> case correlation (by customer_email/email_id/conversation_id, open-only
-by default) — the manager's "vendor email → identify related case" step.
-
-**ATOM_FORCED_LLM_MODEL** (implemented the pre-existing RED test suite):
-`_forced_model_override()` + `get_ranked_providers` short-circuit — operator
-pins one (provider, model) pair (plain model = opencode-go; `provider:model` =
-explicit) and BPC is skipped; a forced provider without a client falls through
-to BPC. Lets the user force `nemotron-3-ultra-free` GLOBALLY (chat + agents),
-not just the Outlook drafts.
-
-**Tests**: +16 sales_case/tools (create/get/find incl. open-only exclusion,
-list filter, valid+invalid+unknown transitions, ask_human pauses + HITL id,
-registry has all 7 sales tools, tool roundtrips) — isolated on the worker DB
-(session-scoped, wiped per test). +6 forced-model. 49/49 across the 4 suites.
-
----
-
-
-## Session 2026-08-25 (Sales decision catalog — business-discovery step)
-
-**Files**: `backend/core/sales_decision_catalog.py` (+ new
-`backend/tests/test_sales_decision_catalog.py`), `backend/scripts/build_decision_catalog.py`,
-`backend/outlook_automation_service.py` (optional `system_instruction` param),
-`docs/sales/DECISION_CATALOG.md` + `docs/sales/email_classifications.json` (generated).
-
-**Goal (manager-driven)**: "learn the business before automating it" — the
-first step of the AI sales-agent build-out. Classify real historical customer
-emails into a (Situation -> Action -> Human?) decision catalog.
-
-**Built**: `core/sales_decision_catalog.py` — `build_classification_prompt`
-(11-dimension prompt: intent, customer_question, sales_action, info_needed,
-systems_checked, people_contacted, decision_reason, exception, outcome,
-needs_human, business_rule); `parse_classification` (robust JSON: fenced,
-prose-wrapped, truncated -> regex key-value salvage); `classify_email`
-(fault-isolated, 30s cap, uses the free opencode-go chain with custom system
-instruction — `_call_free_model_sync` gained an optional system_instruction
-arg); `aggregate_catalog` (rule -> count/actions/human?/systems/exceptions/
-examples, count-desc). Script `build_decision_catalog.py` fetches the Outlook
-inbox, classifies (checkpointed JSON after every email), writes the catalog
-markdown; `--resume` rebuilds markdown from the checkpoint.
-
-**Live run**: 7 emails classified from the real inbox -> 7 rules incl.
-`credit_application_required_for_net30_terms -> ask_human (HUMAN)`,
-`standard machine + stock available -> draft_quote (HUMAN)`,
-`standard_machine_quote_request -> check_inventory (auto)`. Free gateway is
-slow (run timed out at 15 emails; checkpoint preserved progress).
-
-**Tests**: +12 (prompt fields, fenced/truncated/unparseable JSON, defaults,
-classify wrapper, aggregation grouping/sorting/empty). 37/37 across both
-suites.
-
----
-
-
-## Session 2026-08-25 (Outlook automation — free opencode models for drafts)
-
-**Files**: `backend/outlook_automation_service.py`, `backend/tests/test_outlook_automation_llm_draft.py`,
-`backend/scripts/check_outlook_automation.py`.
-
-**Problem (user request + live finding)**: the user's OpenCode subscription
-has no paid balance (CreditsError), so every LLM call failed — and the BPC
-ranker only sees PAID opencode models in its pricing cache, so the documented
-free variants (deepseek-v4-flash-free etc.) were never even tried. Direct probe
-of the gateway showed 3 free models answering with the existing key:
-`nemotron-3-ultra-free`, `mimo-v2.5-free`, `laguna-s-2.1-free`.
-
-**Fix**: `_draft_reply` now calls the opencode-go client DIRECTLY with the
-pinned free model (`ATOM_OUTLOOK_DRAFT_MODEL`, default `nemotron-3-ultra-free`)
-— bypassing the BPC ranker — and walks a fallback chain of the other working
-free models (2 attempts each, 0.3s backoff) before falling back to generic
-routing, then the template. `generate_response(model_type=…)` was verified to
-IGNORE the model param (dead in that path), hence the direct client call (sync
-OpenAI client, run via `asyncio.to_thread`, 25s cap). Retries absorb the free
-gateway's intermittent upstream 502 overloads.
-
-**Tests**: +6 (direct free-model call used + default model asserted; env model
-override; direct failure falls back to generic; no opencode client -> generic;
-flaky first attempt retried; whole chain fails -> generic + all 3 models seen).
-25/25 pass.
-
-**Live verification**: checker Check 3 now prints a real AI draft (retries x3,
-UTF-8 output) — e.g. personalized press-brake reply signed "Chandrakant,
-Brennan Machinery". 3/3 checks pass.
-
----
-
-
-## Session 2026-08-25 (Outlook automation — widened trigger + failure hardening + manual checker)
-
-**Files**: `backend/outlook_automation_service.py`, `backend/tests/test_outlook_automation_llm_draft.py`,
-`backend/scripts/check_outlook_automation.py`.
-
-**Trigger widened** (user request): the automation loop previously fired only
-on the Brennan contact-page URL. `_matches_email_trigger()` now also fires on
-the configurable keyword list (`ATOM_OUTLOOK_TRIGGER_KEYWORDS`, default
-`quote,price,quotation,pricing,estimate`, case-insensitive substring). Reason
-strings generalized from "contains Brennan contact page" to "matches a
-quote-request trigger". +7 tests.
-
-**Failure hardening** (found by the manual checker): `BYOKHandler.generate`
-returns a polite error string ("I'm sorry, I couldn't generate a response…")
-when ALL providers fail (e.g. out-of-balance OpenCode, bad API key) instead of
-raising — the loop would have sent that apology TO A CUSTOMER. New
-`_looks_like_failure()` rejects error-shaped output (couldn't generate / check
-your API key / insufficient balance / all providers failed / …) and `_draft_reply`
-falls back to the template. +3 tests.
-
-**Manual checker**: `backend/scripts/check_outlook_automation.py` — 3 checks:
-(1) Outlook token row exists + decrypts in the canonical root DB; (2) trigger
-fires on contact-link/quote/price/pricing/estimate and ignores unrelated mail;
-(3) runs the REAL LLM draft path and prints what the AI would write (SKIPs
-cleanly when no working provider). Then prints the live end-to-end steps.
-
-**Tests**: 19/19 pass (test_outlook_automation_llm_draft.py).
-
----
-
-
-## Session 2026-08-25 (Outlook automation — LLM-drafted replies instead of template)
-
-**Files**: `backend/outlook_automation_service.py` (+ new
-`backend/tests/test_outlook_automation_llm_draft.py`).
-
-**Problem (README-driven feature)**: the contact-page automation loop replied
-with a fixed template ("Chandrakant here from Brennan Machinery… How can I
-assist you today?") regardless of what the customer actually asked — the
-README's design is "agents reason, not just execute; draft replies".
-
-**Fix**: when `ATOM_OUTLOOK_LLM_DRAFTS` (default ON) is set and an email
-matches the Brennan contact-page trigger, the HITL approval now carries an
-**LLM-drafted reply** (`_draft_reply` via `LLMService.generate`, 10s cap,
-never raises) grounded in the customer's name/subject/body; subject becomes
-`Re: <original>`. Empty/failed/timeout drafts degrade to the template
-(`DEFAULT_REPLY_TEMPLATE`), and the flag off restores template-only.
-`_build_draft_prompt` is a pure, tested prompt builder.
-
-**Tests**: 9 new (prompt includes sender+email; LLM text returned + trimmed;
-error → "" ; timeout → "" ; process uses draft in HITL params with `Re:`
-subject; empty draft → template; flag off → template + no LLM call; existing
-HITL still deduped). 9/9 pass.
-
----
-
-
-## Session 2026-08-25 (Outlook "No access token" — two-DB split fix)
-
-**Files**: `backend/scripts/migrate_outlook_token_to_root_db.py`,
-`backend/scripts/verify_outlook_token.py`, `backend/scripts/pin_storage_paths.py`,
-`.env` / `backend/.env` (gitignored, 4 keys pinned to absolute paths).
-
-**Problem (user-observed)**: recurring
-`ERROR:integrations.outlook_service:No access token available for user
-default_user` — so the email-reply flow could never reach Microsoft Graph.
-
-**Root cause**: `DATABASE_URL=sqlite:///./atom_dev.db` (and LanceDB +
-BYOK key-file paths) are CWD-relative. The server had been launched from both
-repo root and `backend/` over time, silently creating TWO databases:
-- `atom_dev.db` (root) — live user `67e0bae3…`, Zoho tokens, NO Outlook
-- `backend/atom_dev.db` — stale user `7d405d22…`, but it held the ONLY
-  Outlook/Microsoft OAuth token
-
-Each DB's tokens are Fernet-encrypted with a per-CWD key file
-(`data/byok_encryption_key` vs `backend/data/byok_encryption_key`), so a raw
-row copy would be undecryptable.
-
-**Fix**:
-1. `migrate_outlook_token_to_root_db.py` — decrypt the outlook/microsoft rows
-   from `backend/atom_dev.db` with the backend key, re-encrypt with the root
-   key, upsert into root `atom_dev.db` under the live user (id preserved,
-   `status=active`).
-2. `verify_outlook_token.py` — the migrated access token had expired (401);
-   refreshed it with the stored refresh_token via the standard
-   `login.microsoftonline.com/{tenant}/oauth2/v2.0/token` flow and persisted
-   the fresh pair. Verified live: `GET /v1.0/me` → `vishal@brennan.ca`.
-3. `pin_storage_paths.py` — rewrote `DATABASE_URL`/`LANCEDB_URI`/
-   `LANCEDB_PATH`/`BYOK_ENC_KEY_FILE` in BOTH `.env` files to absolute
-   repo-root paths so the split cannot recur regardless of launch CWD
-   (`main_api_app` loads `backend/.env` first — it wins).
-
-**Verification**: `OutlookService._get_access_token('default_user')` returns
-the token and `_make_graph_request('default_user', '/me')` returns
-`vishal@brennan.ca` — the exact call that previously logged the error.
-Both outlook+microsoft rows active with the fresh token; poller will
-auto-refresh on expiry (client id/secret configured).
-
----
-
-
-## Session 2026-08-25 (Chat shows full content for named files — specific-file leg)
-
-**Files**: `backend/core/memory_context_assembler.py` (+ 3 tests in
-`backend/tests/test_memory_context_assembler.py`).
-
-**Problem (user-observed)**: asking the chat "what is inside fly.toml"
-rendered the generic `RELATED KNOWLEDGE & CONVERSATIONS` preview list (220-char
-snippets of every loosely-matched ingested doc, incl. unrelated costs CSVs)
-instead of the named file's full content.
-
-**Fix**: new `_specific_file_leg` — a regex extracts file-name tokens
-(`.toml/.pdf/.csv/.xls/.docx/...`) from the message, matches them against
-`ingested_documents` (`file_name ILIKE`), and fetches the FULL `text` from
-LanceDB (`get_document_by_id`, run in a thread; falls back to
-`content_preview`). When a specific file is named, `assemble_memory_context`
-renders a `REQUESTED FILE CONTENT:` block (capped 6000 chars/file, 8000 total)
-and skips the generic preview list + rerank phase entirely. Never raises.
-
-**Tests**: +3 (full content returned + not the 500-char preview; no token →
-empty; named file suppresses the generic knowledge list). Full suite: 34/34
-`test_memory_context_assembler.py`, plus 51/51 with
-`test_chat_document_search.py` + `test_zoho_workdrive_ingest_xls.py` +
-`test_zoho_workdrive_service_team_folders.py`.
-
----
-
-
-## Session 2026-08-25 (Ingested files invisible to chat/document search)
-
-**Files**: `backend/core/auto_document_ingestion.py`,
-`backend/integrations/chat_orchestrator.py` (+ new `backend/tests/test_chat_document_search.py`),
-env: installed `fastembed`.
-
-**Problem (user-observed)**: after ingesting a WorkDrive file, the chat
-answered "I found 0 results". Three root causes, all verified live:
-1. `ChatOrchestrator._handle_search_request` only queried
-   `DataIntelligenceEngine.search_unified_entities` (in-memory platform
-   entity registry) — it never touched the LanceDB documents store.
-2. `DocumentsHybridSearch` drops LanceDB vector hits with no matching PG
-   `IngestedDocument` row ("unbridged"), and the file-ingest path created no
-   PG row — so file docs were invisible to every search consumer.
-3. `fastembed` was in requirements.txt but never installed — the vector
-   (semantic) leg failed at query time ("FastEmbed package not installed").
-
-**Fix**: `process_file_bytes` now creates the `IngestedDocument` row with the
-same id stamped on the vector row (FTS5 trigger indexes it; `_bridge_document_to_db`
-helper, never raises); `_handle_search_request` adds a `DocumentsHybridSearch`
-document leg (isolated — never breaks the entity search) and
-`_generate_main_message` counts `document_results`. Installed fastembed.
-Verified live: backfilled existing zoho docs (names parsed from the source
-column — the LanceDB file_name column is empty) → `DocumentsHybridSearch`
-returns `visa payment 1-17-25.pdf` bridged for query "visa payment"
-(hybrid=bm25_vector_rrf). 5 new tests (bridge row, process_file_bytes calls
-bridge, chat includes docs, doc-leg failure isolated, message counts) — 17
-related tests pass.
-
----
-
-
-## Session 2026-08-25 (Zoho WorkDrive — ingest 500 / hang on download)
-
-**Files**: `backend/integrations/zoho_workdrive_service.py` (+ service tests),
-`backend/tests/test_zoho_workdrive_service_team_folders.py`.
-
-**Problem (live-reproduced)**: clicking Ingest on a team-folder PDF returned
-"Server returned 500". The real chain: `download_file` hits
-`GET /api/v1/download/{file_id}` on the long-lived shared httpx client; Zoho's
-download endpoint redirects to a signed URL and can stall on a stale keep-alive
-pooled connection (bytes trickle just often enough to defeat httpx's per-read
-timeout) → the handler hangs → the Next.js proxy gives up at ~30s and returns
-its own plain-text 500 (which is why the UI showed the generic message).
-Verified: metadata endpoint fast (200); download via a fresh process/client
-returns the PDF (3.4 MB, `%PDF-1.6`); via the live server it hung >90s.
-
-**Fix**: `download_file` now uses a short-lived `httpx.AsyncClient` per call
-(fresh connection — no stale pool), `follow_redirects=True` (signed URL), and
-a hard 60s `asyncio.wait_for` cap so the worst case is a clean
-"Failed to download file" 200 response instead of an indefinite hang/500.
-+2 service tests (fresh redirect-following client used; None on failure) —
-9/9 pass.
-
----
-
-
-## Session 2026-08-25 (Zoho WorkDrive — double-click to open folder rows)
-
-**Files**: `frontend-nextjs/components/Settings/ZohoWorkDriveIngestion.tsx` (+ jest).
-
-Folder/team-folder rows now open on double-click (same action as the Open
-button); file rows stay inert (no handler). Rows get `cursor-pointer`.
-+3 jest tests (folder dblclick body, team-folder dblclick body, file dblclick
-no-op) — 14/14 pass.
-
----
-
-
-## Session 2026-08-25 (Zoho WorkDrive — recursive "All Files" view + recursion fix)
-
-**Files**: `backend/integrations/zoho_workdrive_service.py`,
-`frontend-nextjs/components/Settings/ZohoWorkDriveIngestion.tsx` (+ jest),
-`backend/tests/test_zoho_workdrive_service_team_folders.py`.
-
-**Problem**: team folders showed only their top level; files nested in
-subfolders were invisible without manual navigation. The pre-existing
-recursive path also had a routing bug: it re-passed `team_id`/`workspace_id`
-to subfolder recursions, so subfolders inside team folders were sent to
-`/teamfolders/{id}/files` (wrong — they are regular folders).
-
-**Fix**: recursion now drops `team_id`/`workspace_id` and recurses with plain
-`parent_id` (subfolders always hit `/files/{id}/files`). New "All Files"
-toggle in the picker calls `/files/list` with `recursive: true` and filters
-folders from the display (folders still shown in "Current Folder" mode);
-toggle re-fetches `lastParams` so it works inside team folders.
-
-**Tests**: +1 backend recursion test (teamfolder root → `/teamfolders/{id}/files`,
-subfolders → `/files/{id}/files`; 7/7 pass) and +1 frontend test (toggle
-sends `recursive: true`, folders filtered, toggle-back re-fetches; 11/11
-pass). Verified live: recursive listing works (General + deep H Drive subtree
-return files); H Drive as a whole is too large for synchronous sequential
-recursion (~minutes — one Zoho call per folder).
-
----
-
-
-## Session 2026-08-25 (Zoho WorkDrive — team folders invisible for plain members)
-
-**Files**: `backend/integrations/zoho_workdrive_service.py` (+ new
-`backend/tests/test_zoho_workdrive_service_team_folders.py`),
-`frontend-nextjs/components/Settings/ZohoWorkDriveIngestion.tsx` (+ jest).
-
-**Problem (live-reproduced with the user's token)**: `GET /api/v1/teams`
-returns `{"data":[]}` for users who are plain members of their org's team
-(`role_id: 30`, `is_current_user_admin: false`) — so the Team Folders section
-was empty even though the org team (Brennan Machinery Inc., 57k+ files) and
-its 4 team folders (Accounting/General/H Drive/My Team) exist.
-`/api/v1/users/me` advertises them via `preferred_team_id`, and
-`GET /api/v1/teams/{id}/teamfolders` + `GET /api/v1/teamfolders/{id}/files`
-work. Team folders also carry no `workspace_id`, so the workspace listing path
-could never reach them.
-
-**Fix**: `get_teams`/`get_team_folders` fall back to `/users/me` →
-`preferred_team_id` when `/teams` is empty; `list_files` with `team_id` +
-non-root `parent_id` lists via `/teamfolders/{parent_id}/files`; frontend
-`openTeamFolder` passes `parent_id: tf.id`. 6 new service tests + frontend
-test updated (10/10). Existing `test_covpush_w38_zoho_workdrive.py` has 4
-pre-existing failures (stale assertions — verified identical with my change
-stashed).
-
----
-
-
-## Session 2026-08-25 (Zoho WorkDrive ingestion — team-folder browsing)
-
-**Files**: `frontend-nextjs/components/Settings/ZohoWorkDriveIngestion.tsx` (+ its jest suite).
-
-**Problem**: the picker only listed the user's private workspace ("root");
-Team Folders were never shown — `teams` was fetched but unused, and the
-files call never sent `workspace_id`/`team_id` despite the backend supporting
-them (`api/zoho_workdrive_routes.py`, already covered at 87%).
-
-**Fix**: fetch `/api/zoho-workdrive/team-folders` on mount; render a Team
-Folders section at the private root; opening one lists its workspace files
-via `workspace_id`/`team_id`; breadcrumb navigation (root / team folder /
-subfolder) + Refresh now re-uses the last listing params (`lastParams`) so
-context survives refreshes. **Tests**: the suite was stale at baseline (6/7
-failing — header comment claimed no mount auto-load, contradicting `init()`)
-→ rewritten (10 tests: private-root listing, team-folder listing + open with
-`workspace_id` body assert, breadcrumb return, folder open, empty state +
-Refresh Files, ingest success/failure toasts, refresh with last params).
-All green: 10/10, `tsc` clean.
-
----
-
-
 ## Session 2026-08-21 (Round 80 — integration user-journey audit: every app, every role, UI/UX)
 
 **Context**: walked every app integration end-to-end (discover → connect → status → use → manage) for every role including UI/UX. Findings + fixes below; full matrix in `docs/INTEGRATIONS_JOURNEY_AUDIT.md`. Backend TDD (RED first); frontend jest.
@@ -493,7 +85,6 @@ All green: 10/10, `tsc` clean.
 **Open items (documented, not fixed this round)**: ~120 Next proxy handlers → dead `:5058/5059` + no Authorization forwarding; discord double-prefix mount; registry-on-demand routers still bare when loaded (linear/tableau/freshdesk/intercom/twilio/linkedin/obsidian/okta/workday/webex/deepgram/email/sendgrid); orphan `api/integration_dashboard_routes.py` never mounted; `@require_governance` kwarg drift. `TestZohoMultiAppFetcher` failures belong to the in-flight Zoho org-id WIP lane (verified: pristine code passes).
 
 ---
-
 
 ## Session 2026-08-16 (w110 — Org Ingestion Sharing implementation verified + test suite: ORG_INGESTION_SHARING_PLAN.md Phases 0–2)
 
@@ -6166,11 +5757,55 @@ No source changes needed this wave (no genuine bugs found in the 6 modules — t
 
 **Verification**: `test_round71_oauth_routes_auth.py` 4/4 (B14/B15/B16/B17); regression cluster `test_oauth_authentication.py` + `test_oauth_status_routes_auth.py` + `test_round70_llm_oauth_connect.py` + `test_oauth_token_storage.py` → 64 passed; `test_bughunt_20260809_oauth.py::TestOauthRoutesStateCsrf` 3 pre-existing failures (state-signature tests) — verified identical to pre-fix tree via `git stash`.
 
+## Session 2026-08-20 (backend) — Zoho automatic OAuth flow wiring
+
+Registered Zoho in the existing generic OAuth flow (`/initiate` → consent → `/callback` auto-stores encrypted IntegrationToken), matching how Outlook connects:
+
+1. `ZOHO_OAUTH_CONFIG` added to `core/oauth_handler.py` + `PROVIDER_CONFIGS["zoho"]` — server-based app flow (Self Client has no redirect URI, can't run automatic); auth/token URLs derive from `ZOHO_ACCOUNTS_BASE` env (default `accounts.zoho.com`, swap for `.eu`/`.ca`/etc.); scopes = Books/Inventory/CRM fullaccess + WorkDrive reads; `access_type=offline` via the handler default.
+2. `zoho` added to both inline config dicts in `api/oauth_routes.py` (initiate + callback) + import; `_KNOWN_PROVIDERS` in `oauth_status_routes.py` (B16 parity upheld).
+3. `.env`: `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET` (user-provided), `ZOHO_REDIRECT_URI=http://localhost:8001/api/v1/auth/oauth/zoho/callback`, `ZOHO_ACCOUNTS_BASE`.
+4. Pilot doc §2 Zoho section rewritten: server-based app registration → paste creds → open initiate URL → Accept (no grant codes).
+
+**Files**: `backend/core/oauth_handler.py`, `backend/api/oauth_routes.py`, `backend/oauth_status_routes.py`, `docs/operations/atom-self-hosted-pilot-instructions.md`, `.env` (git-ignored).
+
+**Verification**: config load + `is_configured(): True` under dotenv; B16 parity + B17 tests pass; live on :8001 — `GET /api/v1/auth/oauth/zoho/initiate` now 307s to a correct Zoho auth URL (both services scopes, signed state). Note: exchange only succeeds after the user creates the Server-based app (Self Client rejects redirect_uri).
+
+## Session 2026-08-20 (backend) — Zoho callback token fan-out for all four services
+
+**TDD red→green** (`tests/test_zoho_oauth_provider_keys.py`, 4 tests; observed `providers ['zoho']` only before fix):
+
+1. **Zoho connect flow would connect nothing but WorkDrive** — `_handle_callback_logic` wrote a single IntegrationToken row with provider `"zoho"` (microsoft→outlook was the only fan-out). But `zoho_books_service` (`provider == "zoho_books"`), `zoho_crm_service` (`"zoho_crm"`), `zoho_inventory_service` (`"zoho_inventory"`) resolve their token rows by exact provider name and run fail-closed (401/500) with no row; only `zoho_workdrive_service` survives via its generic-"zoho" fallback. The pilot doc's §2 claim ("callback stores refresh tokens automatically for all four services") was false while §4 verification (`tokens` page shows `zoho` active) would pass — a silent three-of-four-services outage. Fixed by fanning the same encrypted credentials out to `zoho_books`/`zoho_inventory`/`zoho_crm`/`zoho_workdrive` alongside the generic `zoho` row in `api/oauth_routes.py`.
+
+**Files**: `backend/api/oauth_routes.py` (zoho provider-key fan-out in `_handle_callback_logic`), `backend/tests/test_zoho_oauth_provider_keys.py` (new — 4 tests: fan-out set, shared encrypted creds, microsoft→outlook regression guard, OAuthToken row still written).
+
+**Verification**: new suite 4/4; OAuth regression cluster (`test_round71_oauth_routes_auth.py`, `test_oauth_token_storage.py`, `unit/api/test_oauth_routes.py`, `test_round69_unauth_sweep.py`) 45 passed, 1 failed (`test_versions_authed_200`) — verified pre-existing via `git stash` (fails identically at HEAD). `test_oauth_validation.py` (21) + `test_open_redirect_bugs.py` (2) failures pre-existing at HEAD, verified via stash. mypy `oauth_routes.py` clean (`--follow-imports=skip`). Live on :8001: Bearer-authed `GET /api/v1/auth/oauth/zoho/initiate` 307s to `accounts.zoho.com/oauth/v2/auth` with Books/Inventory/CRM/WorkDrive scopes + signed state. Next step for the operator: complete the interactive consent flow, then check `/api/v1/auth/oauth/tokens` shows `zoho` (all four services now get rows).
+
+## Session 2026-08-20 (backend) — Experience Marketplace MVP (feature #59-adjacent)
+
+**Files**: `backend/core/experience_marketplace/sanitizer.py` (new), `backend/core/experience_marketplace/pack_service.py` (new), `backend/core/experience_marketplace/__init__.py` (new), `backend/core/models.py` (+ExperienceItem/ExperienceRoleRegistry/ExperienceExport/ExperienceImport), `backend/api/experience_marketplace_routes.py` (new), `backend/main_api_app.py` (11c mount), `backend/alembic/versions/20260820_experience_marketplace.py` (new), `backend/tests/test_experience_marketplace.py` (new), `docs/architecture/EXPERIENCE_MARKETPLACE.md` (new).
+
+**TDD red→green** (24 tests): signed `atom_experience_pack` v1 with sections patterns/canvas_lessons (feature #7 LLM canvas summaries from `EpisodeSegment.canvas_context`)/facts/ontology/skills; role-token sanitizer (per-name `{type}_{nnn}` tokens), PII redaction, bucket envelopes, leak-scan abort; delta cursor via `ingestion_settings.usage_stats_json["experience_cursor"]`; import = verify-before-parse (hash + Ed25519), credential fail-closed, tombstones, no stub edges, raised-never-lowered; reputation tiers from verified steps; export CRITICAL / import HIGH governance + audit rows.
+
+**Key fixes during the loop**: `GraphEdge` has no `sensitivity`/`updated_at` (edge sensitivity = max of endpoint token sensitivities; delta on `created_at`); `strip_credentials` strips any key named `token` → exported key renamed to `role`; ontology import merges onto token-named rows only (destination's own real-name graph stays untouched); tombstone section keys are plural (`patterns_tombstones`); credential fail-closed tested by mocking `strip_credentials` to pass through (same convention as org bundle); `test_import_tombstones` re-signs the envelope after mutation.
+
+**Verification**: `pytest backend/tests/test_experience_marketplace.py` 24/24; mypy clean (4 files, `--follow-imports=skip`); `main_api_app` imports clean (11c mount verified). Flag `ATOM_EXPERIENCE_MARKETPLACE_ENABLED` default off (routes 503 + service refuses otherwise). Migration guarded (`_table_exists`); pending: alembic upgrade on a live dev DB + route smoke via HTTP.
+
+## Session 2026-08-20 (backend) — Temporal Normalization P0 (Temporal Evolution: A2/A7/A8)
+
+**Files**: `backend/core/memory/temporal_normalizer.py` (new), `backend/core/experiments.py` (+`temporal_normalization` flag, env `ATOM_TEMPORALITY_ENABLED`, default ON), `backend/core/ingestion_pipeline.py` (+`_apply_temporal_normalization` + `_record_to_text` override), `backend/tests/test_temporal_normalizer_p0.py` (new — 24 tests).
+
+**TDD red→green**: RED was the module ImportError at collection. Contracts pinned: regex date anchors (ISO / "as of <Month> <d>, <yyyy>" / "<Month> <yyyy>" / "Q<n> <yyyy>" / "by end of <yyyy>") sorted desc, deduped by value (anchored vs bare match of the same date collapse — higher-confidence pattern wins by application order), capped at 10/text; `normalize_record` additive (copy + `temporal_entities`/`as_of`/`temporal_axis`, never mutates input, unshaped input degrades to `{}`); `temporal_entities` receiver (`handle_temporal_entities`/`encode_temporal_context`) workspace-scoped in-memory store (cap 500/ws, newest kept), bi-temporal read mirroring `GraphRAGEngine.edges_as_of` (`as_of <= t < valid_until` via `_visible_at`); flag-off returns legacy shapes everywhere; never raises at any entry point; ingestion hook wired through a `_record_to_text` override so EVERY path (sync/webhook/binary/tiered) funnels through the single transformer insertion point — the override swallows hook failures (log + legacy text). Timezone-safe (R13): naive inputs assumed UTC.
+
+**Verification**: new suite 24/24; regression `test_covpush_ingestion_pipeline.py` + `test_covpush_ingestion_transformers.py` + `test_covpush_w9_graphrag.py` 237 passed; `test_berd_gap_closures.py` 11 passed; mypy clean on `temporal_normalizer.py` (0 errors); `ingestion_pipeline.py` mypy baseline unchanged (40 vs 43 at HEAD — fewer due to line-shift merges, zero new errors).
+
+## Session 2026-08-20 (backend) — Temporal Evolution W1: point-in-time cutoffs (GraphRAG)
+
+**Files**: `backend/core/graphrag/multi_hop_expansion.py` (+`as_of`), `backend/core/graphrag/community_detection.py` (+window), `backend/tests/test_temporal_w1_timelines.py` (new — 16 tests).
+
+**TDD red→green** (16 tests; RED was raised-`TypeError` on the new kwargs): expansion now prunes edges not alive at the query instant — ORM path filters `valid_from`/`invalid_at` in `_get_neighbors_with_cues`; SQL path binds `as_of`/`as_of_rel` params and emits the clause ONLY when present (legacy SQL text byte-identical → no parameter drift for old callers); both record `metadata["as_of"]` when used, nothing when not. `CommunityDetectionService.detect_communities`/`_detect_impl`/`_build_graph` take `window_start`/`window_end`: nodes must have been created ≤ `window_end`; edges must overlap the interval (born ≤ `window_end`, invalidated only after `window_start`); NULL bi-temporal fields pass (legacy rows never dropped); window recorded in `DetectionResult.metadata` on both the detect and graph-too-small paths. No-window calls are behavior-identical (graph builds and SQL text unchanged) — verified by the 3 legacy-control tests in-suite plus the existing `test_covpush_w9_graphrag.py` + `test_covpush_w77b_graphrag_oracle.py` (4 `TestLeidenAlgorithm` failures reproduce identically at pristine HEAD via stash — pre-existing cross-suite pollution, unrelated).
+
 **2026-08-20 R-fix**: P0.4 integration-symmetry follow-ups (WhatsApp/Slack/Teams). Files: `integrations/atom_communication_ingestion_pipeline.py` (WhatsApp `_normalize_message` now falls back across `content`/`text`/`body`; poller accepts `teams` alias), `api/routes/webhooks/slack_webhooks.py` (passes FULL payload to bridge, not inner `data.get("event",{})` — UCB adapter + `_transform_slack_payload` both needed the `event_callback` envelope), `core/ingestion_pipeline.py` (`teams` added to `_KNOWN_COMM_INTEGRATIONS`). New suite `tests/test_memory_symmetry_fixes.py` 9/9 (Red first). Verification: `test_memory_backfill_unified.py` + `test_covpush_w86_gmail_ingestion_ai.py` + `test_covpush_intgr_c.py` + `test_covpush_w71c_webhooks2.py` + `test_covpush_ingestion_pipeline.py` → 520 passed, 11 failed (all pre-existing: 5 PrivsecAuditLogger + 6 gmail/intgr-c import-order/env — verified identical via `git stash`); mypy 95 errors on the 3 touched files, identical pre-existing baseline (0 new). Docs: `AGENT_MEMORY_UNIFICATION_PLAN.md` §7 — WhatsApp/Slack/Teams rows + follow-ups marked FIXED.
 
-
-**2026-08-20 R-fix**: P0.4 INGESTION data-loss fix. File: `integrations/atom_communication_ingestion_pipeline.py` `_normalize_message` email branch — read only `body`/`from`/`to`/`date` but all three live email producers emit `content`/`sender[_email]`/`recipient`/`timestamp` (Outlook poller `:1610`, Gmail poller `:1466`, Outlook webhook transform `ingestion_pipeline.py:2973`) → stored `atom_communications` rows had sender=None, recipient=None, content="", timestamp=now(); the full email body never reached the comm/graph store. Now falls back across `content`/`body`/`text`/`bodyPreview`, sender `from`/`sender`/`sender_email`/`sender_id`, recipient `to`/`recipient`, timestamp `timestamp`/`date` (handles both datetime and ISO string), thread_id via metadata.thread_id/conversation_id. Tests: `tests/test_memory_symmetry_fixes.py::TestEmailNormalizePreservesFields` 5/5 (Red first). Verification: full symmetry suite 14/14; regression `test_email_api_ingestion.py` + `test_realtime_communication_ingestion.py` + `test_covpush_w86_gmail_ingestion_ai.py` + `test_bughunt_mail_office.py` + `test_memory_backfill_unified.py` + `test_covpush_intgr_c.py::TestPipelineWebhookHelpers` → 207 passed, 5 failed (all pre-existing — verified identical on clean HEAD).
-=======
 ## Session 2026-08-20 (backend) — Temporal Evolution W2: hierarchy + persistence (GraphRAG)
 
 **Files**: `backend/core/graphrag/community_detection.py` (+`_detect_hierarchy_impl` thread, `_link_hierarchy`, `_store_hierarchy`, `_persist_communities`, `_clear_workspace_communities`; `detect_hierarchy` gains `store_results`), `backend/tests/test_temporal_w2_community_hierarchy.py` (new — 10 tests), `backend/core/models.py::GraphCommunity.parent_community_id` (W2 — pre-existing at HEAD), `docs/intelligence/graphrag.md` (schema doc +lineage column).

@@ -21,21 +21,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
-
-
-import html as _html
-
-def _strip_html(text: str) -> str:
-    """Strip HTML tags and decode entities from text."""
-    if not isinstance(text, str):
-        return str(text)
-    text = _html.unescape(text)
-    return re.sub(r"<[^>]+>", "", text).strip()
 
 RRF_K = 60
 _VECTOR_LIMIT_MULTIPLIER = 3
@@ -136,7 +125,6 @@ class DocumentsHybridSearch:
         out: List[Dict[str, Any]] = []
         for rec in records or []:
             content = str(rec.get("content") or rec.get("text") or "").strip()
-            content = _strip_html(content)
             cid = str(rec.get("id") or "")
             if not content or not cid:
                 continue

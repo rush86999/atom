@@ -221,20 +221,16 @@ export default function CanvasDetailPage() {
         },
     } : lastMessage;
 
-
-return (
-
     return (
         // _app.tsx already wraps every non-standalone page in <Layout> — a
         // second wrapper here rendered a duplicate navigation sidebar.
-
         <>
             <Head>
                 <title>{canvasData?.title || "Canvas"} | Atom</title>
             </Head>
-            <div className="flex h-screen bg-background overflow-hidden">
-                {/* Top bar */}
-                <div className="flex items-center justify-between border-b px-4 py-2 shrink-0 bg-background">
+            <div className="h-[calc(100vh-3.5rem)] flex flex-col">
+                {/* Canvas header bar */}
+                <div className="flex items-center justify-between border-b px-4 py-2 shrink-0">
                     <div className="flex items-center gap-3">
                         <Link href="/canvas">
                             <Button variant="ghost" size="sm">

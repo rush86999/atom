@@ -280,22 +280,6 @@ class DocumentParser:
                 logger.warning(f"Formula extraction failed: {fe}")
         
         try:
-            # Old-format .xls (Excel 97-2003) is an OLE2 binary — openpyxl
-            # and pandas-without-xlrd cannot read it. Detect the OLE2 magic
-            # and parse with xlrd so .xls files actually ingest.
-            if content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
-                import xlrd
-
-                wb = xlrd.open_workbook(file_contents=content)
-                full_text = []
-                for sheet in wb.sheets()[:5]:  # Limit sheets
-                    full_text.append(f"--- Sheet: {sheet.name} ---")
-                    for r in range(min(sheet.nrows, 100)):  # Limit rows
-                        full_text.append(
-                            " | ".join(str(sheet.cell_value(r, c)) for c in range(sheet.ncols))
-                        )
-                return "\n".join(full_text)
-
             import pandas as pd
 
             # Read all sheets
@@ -648,15 +632,6 @@ class AutoDocumentIngestionService:
                 if _upsert_status == "written":
                     chars_ingested = len(text)
                     logger.info(f"Ingested {file_name} ({chars_ingested} chars) from {source}")
-                    self._bridge_document_to_db(
-                        doc_id=_file_doc_id,
-                        file_name=file_name,
-                        file_ext=file_ext,
-                        content=content,
-                        text=text,
-                        source=source,
-                        ws_id=ws_id,
-                    )
                 else:
                     return {
                         "status": "skipped",
@@ -679,58 +654,6 @@ class AutoDocumentIngestionService:
             "source": source,
             "doc_id": _file_doc_id,
         }
-
-    def _bridge_document_to_db(
-        self,
-        *,
-        doc_id: str,
-        file_name: str,
-        file_ext: str,
-        content: bytes,
-        text: str,
-        source: str,
-        ws_id: str,
-    ) -> None:
-        """Create the IngestedDocument row for a file-ingested doc (bridge).
-
-        DocumentsHybridSearch drops LanceDB vector hits that have no matching
-        IngestedDocument row ("unbridged"), and the file-ingest path previously
-        created no row — so WorkDrive/OneDrive uploads were invisible to
-        documents.search and the chat search. Creating the row with the same id
-        stamped on the vector row bridges the hit; the FTS5 trigger on
-        ingested_documents indexes it for the lexical leg. Never raises.
-        """
-        try:
-            from core.database import SessionLocal
-            from core.models import IngestedDocument as IngestedDocumentModel
-
-            session = SessionLocal()
-            try:
-                session.add(
-                    IngestedDocumentModel(
-                        id=doc_id,
-                        workspace_id=ws_id,
-                        tenant_id=getattr(self, "tenant_id", None) or "default",
-                        file_name=file_name,
-                        file_path=f"{source}/{file_name}",
-                        file_type=file_ext,
-                        integration_id=source,
-                        file_size_bytes=len(content),
-                        content_preview=text[:500],
-                        external_id=doc_id,
-                        ingested_at=datetime.now(timezone.utc),
-                        freshness_status="fresh",
-                        last_verified_at=datetime.now(timezone.utc),
-                    )
-                )
-                session.commit()
-                logger.debug(
-                    f"Bridged ingested doc {doc_id} ({file_name}) to ingested_documents"
-                )
-            finally:
-                session.close()
-        except Exception as e:
-            logger.warning(f"Failed to bridge ingested doc {file_name} to DB: {e}")
 
     async def sync_integration(
         self, 

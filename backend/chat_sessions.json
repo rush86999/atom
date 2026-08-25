@@ -1403,12 +1403,6 @@
     "history": []
   },
   {
-
-    "session_id": "session_1787142505103_9bsei70vb",
-    "user_id": "7d405d22-ef12-4a88-b755-23ac8bdfa16c",
-    "created_at": "2026-08-24T11:45:32.405186+00:00",
-    "last_active": "2026-08-24T11:45:32.405186+00:00",
-    "metadata": {},
     "session_id": "twilio_unknown_unknown_",
     "user_id": "external_agent_user",
     "created_at": "2026-08-22T11:46:28.416042+00:00",
@@ -1416,29 +1410,10 @@
     "metadata": {
       "channel_id": "unknown"
     },
-
     "message_count": 0,
     "history": []
   },
   {
-
-    "session_id": "a5e7851b-646f-4e49-8664-33b57cf6e3f2",
-    "user_id": "7d405d22-ef12-4a88-b755-23ac8bdfa16c",
-    "created_at": "2026-08-24T16:32:44.798951+00:00",
-    "last_active": "2026-08-24T16:32:44.798951+00:00",
-    "metadata": {},
-    "message_count": 0,
-    "history": []
-  },
-  {
-    "session_id": "session_1787648044705_lgkasrjdn",
-    "user_id": "67e0bae3-4256-495a-bc8a-cab9d8c4d81f",
-    "created_at": "2026-08-25T09:14:37.457320+00:00",
-    "last_active": "2026-08-25T12:45:50.828670+00:00",
-    "metadata": {},
-    "message_count": 0,
-    "history": [],
-    "title": "what is inside fly.toml file"
     "session_id": "session_1787510911922_ibji0n99s",
     "user_id": "browser-test-user",
     "created_at": "2026-08-23T19:02:58.585722+00:00",

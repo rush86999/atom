@@ -66,11 +66,7 @@ AGENTS = {
 
 from core.workflow_endpoints import load_workflows
 from ai.automation_engine import AutomationEngine
-try:
-    from ai.workflow_scheduler import workflow_scheduler
-except Exception as sched_err:
-    workflow_scheduler = None
-    logger.warning(f"workflow_scheduler not available: {sched_err}")
+from ai.workflow_scheduler import workflow_scheduler
 import asyncio
 import uuid
 
@@ -669,35 +665,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 **extra_kwargs,
             )
             
-            content = response_data.get("content", "").strip() if response_data else ""
-            is_generic_failure = not content or "couldn't generate a response" in content.lower() or "check your api key" in content.lower()
-
-            if response_data.get("success") and content and not is_generic_failure:
+            if response_data.get("success"):
                 return {
-                    "content": content,
+                    "content": response_data.get("content", "").strip(),
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
-                    "memory_context": memory_block,
-                }
-
-            if memory_block and memory_block.strip():
-                return {
-                    "content": f"Based on your ingested documents:\n\n{memory_block.strip()}",
-                    "model": "memory-synthesizer",
-                    "provider": "atom-memory",
                     "memory_context": memory_block,
                 }
 
             return None
         except Exception as e:
             logger.warning(f"Unified conversational response failed: {e}")
-            if memory_block and memory_block.strip():
-                return {
-                    "content": f"Based on your ingested documents:\n\n{memory_block.strip()}",
-                    "model": "memory-synthesizer",
-                    "provider": "atom-memory",
-                    "memory_context": memory_block,
-                }
             return None
 
 
@@ -829,22 +807,35 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         logger.info(f"Feature handling complete. Handled: {handled}, Intent: {primary_intent}")
 
-        # Execute Agent only if explicitly requested as an AGENT_REQUEST
-        if primary_intent == ChatIntent.AGENT_REQUEST:
+        # Fallback to ComputerUseAgent if no specific feature handled it successfully
+        # OR if the intention was explicitly AGENT_REQUEST
+        if not handled or primary_intent == ChatIntent.AGENT_REQUEST:
              try:
-                mode = "thinker"
-                task = await asyncio.wait_for(
-                    agent_service.execute_task(goal=message, mode=mode),
-                    timeout=5.0
+                # Use the General Agent (ComputerUseAgent) for unhandled queries
+                logger.info(f"Fallback to ComputerUseAgent for: {message}")
+                
+                # Determine mode based on intent
+                mode = "thinker" # Default
+                if primary_intent in [ChatIntent.TASK_MANAGEMENT, ChatIntent.WORKFLOW_CREATION]:
+                    mode = "tasker"
+                
+                logger.info(f"Calling agent_service.execute_task with goal: {message}")
+                
+                # Execute agent task (short-lived)
+                task = await agent_service.execute_task(
+                    goal=message,
+                    mode=mode,
                 )
+                logger.info(f"Agent task started: {task}")
+                
                 feature_responses[FeatureType.AGENT] = {
                     "success": True,
-                    "data": {"task_id": task.get("id"), "status": task.get("status")},
-                    "message": f"Task initiated. ID: {task.get('id')}",
+                    "data": {"task_id": task["id"], "status": task["status"]},
+                    "message": f"I'm working on that. Task ID: {task['id']}",
                     "suggested_actions": ["Check Status"]
                 }
              except Exception as e:
-                logger.warning(f"Agent dispatch skipped/timed out: {e}")
+                logger.error(f"Agent fallback failed: {e}")
                 
         return feature_responses
 
@@ -910,10 +901,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         if intent == ChatIntent.SEARCH_REQUEST:
             search_data = feature_responses.get(FeatureType.SEARCH, {})
             if search_data.get("data"):
-                data = search_data["data"]
-                count = len(data.get("results", [])) + len(
-                    data.get("document_results", [])
-                )
+                count = len(search_data["data"].get("results", []))
                 return f"I found {count} results for your search."
             return "I've searched across your connected platforms."
 
@@ -1012,31 +1000,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         """Handle search requests across all platforms"""
         try:
             # Use AI data intelligence for unified search
-            search_results = []
             if "data_intelligence" in self.ai_engines:
                 search_results = self.ai_engines["data_intelligence"].search_unified_entities(
                     message
                 )
-
-            # Document-memory leg: ingested files (WorkDrive uploads, etc.)
-            # live in the LanceDB documents store, which the in-memory entity
-            # search above never queries — so document queries returned 0
-            # results even after a successful ingest. Hybrid search fuses the
-            # PG lexical index with the LanceDB vector leg.
-            document_results = []
-            try:
-                from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
-
-                doc_resp = await DocumentsHybridSearch().search(message, limit=5)
-                document_results = doc_resp.get("results", []) or []
-            except Exception as doc_err:
-                logger.warning(f"Document search leg failed: {doc_err}")
+            else:
+                search_results = []
 
             return {
                 "success": True,
                 "data": {
                     "results": search_results,
-                    "document_results": document_results,
                     "query": message,
                     "platforms_searched": intent_analysis.get("platforms", [])
                 },

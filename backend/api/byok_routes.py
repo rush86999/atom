@@ -14,22 +14,13 @@ logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
-from core.auth import get_current_user, get_optional_current_user, User, get_current_tenant
+from core.auth import get_current_user, User
 from core.models import Tenant, TenantSetting
 from core.database import get_db
+from core.auth import get_current_tenant
 from sqlalchemy.orm import Session
 from cryptography.fernet import Fernet
 from core.schemas import ApiResponse
-
-def get_safe_tenant(current_user: Optional[User] = Depends(get_optional_current_user), db: Session = Depends(get_db)) -> Tenant:
-    if current_user and getattr(current_user, "tenant_id", None):
-        t = db.query(Tenant).filter(Tenant.id == current_user.tenant_id).first()
-        if t:
-            return t
-    t = db.query(Tenant).first()
-    if not t:
-        t = Tenant(id="default", name="Default Tenant")
-    return t
 
 # BYOK Configuration Storage
 BYOK_CONFIG_FILE = "./data/byok_config.json"
@@ -908,8 +899,8 @@ async def add_api_key(
 
 @router.get("/api/ai/providers")
 async def get_ai_providers(
-    current_user: Optional[User] = Depends(get_optional_current_user),
-    tenant: Tenant = Depends(get_safe_tenant),
+    current_user: User = Depends(get_current_user),
+    tenant: Tenant = Depends(get_current_tenant),
     byok_manager: BYOKManager = Depends(get_byok_manager),
     db: Session = Depends(get_db)
 ):
@@ -931,15 +922,15 @@ async def get_ai_providers(
         "active_providers": len(
             [p for p in providers_with_status if p["has_api_keys"]]
         ),
-        "ai_mode": getattr(tenant, "ai_mode", "byok")
+        "ai_mode": tenant.ai_mode
     })
 
 
 @router.get("/api/ai/providers/{provider_id}")
 async def get_ai_provider(
     provider_id: str,
-    current_user: Optional[User] = Depends(get_optional_current_user),
-    tenant: Tenant = Depends(get_safe_tenant),
+    current_user: User = Depends(get_current_user),
+    tenant: Tenant = Depends(get_current_tenant),
     byok_manager: BYOKManager = Depends(get_byok_manager),
     db: Session = Depends(get_db)
 ):
@@ -998,9 +989,6 @@ async def store_api_key(
     api_key: Optional[str] = Query(None),
     key_name: str = "default",
     environment: str = "production",
-
-    current_user: Optional[User] = Depends(get_optional_current_user),
-    tenant: Tenant = Depends(get_safe_tenant),
     body: Optional[Dict[str, Any]] = None,
     current_user: User = Depends(get_current_user),
     tenant: Tenant = Depends(get_current_tenant),

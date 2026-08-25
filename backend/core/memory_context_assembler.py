@@ -30,7 +30,6 @@ their own paths (Letta sleep-time principle).
 import asyncio
 import logging
 import os
-import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -114,91 +113,6 @@ async def _knowledge_leg(message: str, workspace_id: str) -> List[str]:
         label = title if title else source
         lines.append(f"[{source}: {label}] {preview}")
     return lines
-
-
-# Explicit file reference detection: when the user names a specific ingested
-# file ("what is inside fly.toml"), the knowledge leg should surface that
-# file's FULL content instead of a generic preview list of every matched doc.
-_SPECIFIC_FILE_RE = re.compile(
-    r"([\w][\w\- ()&']*\.(?:toml|yaml|yml|json|ini|cfg|conf|log|txt|md|pdf|csv|xlsx?|docx?|pptx?|png|jpe?g))",
-    re.IGNORECASE,
-)
-_SPECIFIC_FILE_CHAR_CAP = 6000
-_SPECIFIC_FILE_TOTAL_CAP = 8000
-
-
-def _fetch_doc_full_text(lancedb: Any, doc_id: str) -> str:
-    """Sync LanceDB row fetch (run in a thread)."""
-    try:
-        row = lancedb.get_document_by_id("documents", doc_id)
-    except Exception:
-        return ""
-    if not row:
-        return ""
-    return str(row.get("text") or row.get("content") or row.get("preview") or "")
-
-
-async def _specific_file_leg(message: str, workspace_id: str) -> List[str]:
-    """Full-content leg for explicitly named ingested files.
-
-    Extracts file-name tokens from the message (e.g. "fly.toml",
-    "visa payment 1-17-25.pdf"), matches them against ingested_documents, and
-    returns the FULL text of the matching doc(s) — not the truncated preview
-    list the generic knowledge leg renders. Never raises.
-    """
-    tokens = _SPECIFIC_FILE_RE.findall(message or "")
-    if not tokens:
-        return []
-    try:
-        from core.database import SessionLocal
-        from core.models import IngestedDocument as IngestedDocumentModel
-
-        db = SessionLocal()
-        try:
-            docs = []
-            seen = set()
-            for tok in tokens[:3]:
-                doc = (
-                    db.query(IngestedDocumentModel)
-                    .filter(
-                        IngestedDocumentModel.workspace_id == workspace_id,
-                        IngestedDocumentModel.file_name.ilike(f"%{tok}%"),
-                    )
-                    .order_by(IngestedDocumentModel.ingested_at.desc())
-                    .first()
-                )
-                if doc is not None and doc.id not in seen:
-                    seen.add(doc.id)
-                    docs.append(doc)
-        finally:
-            db.close()
-
-        if not docs:
-            return []
-
-        try:
-            from core.lancedb_handler import get_lancedb_handler
-
-            lancedb = get_lancedb_handler(workspace_id)
-        except Exception:
-            lancedb = None
-
-        lines = []
-        for doc in docs:
-            full_text = ""
-            if lancedb is not None:
-                full_text = await asyncio.to_thread(
-                    _fetch_doc_full_text, lancedb, doc.id
-                )
-            if not full_text:
-                full_text = doc.content_preview or "(no extractable content)"
-            if len(full_text) > _SPECIFIC_FILE_CHAR_CAP:
-                full_text = full_text[: _SPECIFIC_FILE_CHAR_CAP] + "…"
-            lines.append(f"[ingested: {doc.file_name}]\n{full_text}")
-        return lines
-    except Exception as e:
-        logger.debug(f"memory assembler: specific-file leg failed: {e}")
-        return []
 
 
 async def _episodes_leg(message: str, agent_id: str) -> List[str]:
@@ -532,15 +446,7 @@ async def assemble_memory_context(
         # scopes integration-record recall to the work/responsibilities the
         # data was synced for. Same tag the sync route stamps at ingest.
         agent_role = await asyncio.to_thread(_resolve_agent_role, agent_id)
-        (
-            specific_lines,
-            graph_ctx,
-            knowledge_lines,
-            integration_lines,
-            episode_lines,
-            fact_lines,
-        ) = await asyncio.gather(
-            _safe(_specific_file_leg(message, workspace_id), "specific_file"),
+        graph_ctx, knowledge_lines, integration_lines, episode_lines, fact_lines = await asyncio.gather(
             _safe(_graph_leg(message, workspace_id, tenant_id), "graph"),
             _safe(_knowledge_leg(message, workspace_id), "knowledge"),
             _safe(_integration_records_leg(message, workspace_id, agent_role), "integration_records"),
@@ -553,10 +459,8 @@ async def assemble_memory_context(
         # re-ordered by relevance so the per-block caps keep the best lines,
         # not the first N the store returned. Stop the phase once budget is
         # exhausted (a slow or absent reranker degrades to current order).
-        # Skipped entirely when a specific file was named — its full content
-        # is already rendered verbatim.
         gather_elapsed_ms = (time.monotonic() - started) * 1000
-        if not specific_lines and rerank_enabled() and gather_elapsed_ms < RERANK_BUDGET_MS:
+        if rerank_enabled() and gather_elapsed_ms < RERANK_BUDGET_MS:
             legs_to_rerank = (
                 ("knowledge", knowledge_lines),
                 ("integration_records", integration_lines),
@@ -588,18 +492,9 @@ async def assemble_memory_context(
         blocks: List[str] = []
         if graph_ctx:
             blocks.append("KNOWLEDGE GRAPH CONTEXT:\n" + graph_ctx)
-        if specific_lines:
-            # The user named a specific file — render its full content
-            # prominently and skip the generic preview list (which would
-            # otherwise dump every loosely-related ingested doc).
-            specific_block = "\n".join(specific_lines)
-            if len(specific_block) > _SPECIFIC_FILE_TOTAL_CAP:
-                specific_block = specific_block[: _SPECIFIC_FILE_TOTAL_CAP] + "…"
-            blocks.append("REQUESTED FILE CONTENT:\n" + specific_block)
-        if not specific_lines:
-            knowledge_block = _bounded_lines(knowledge_lines or [], KNOWLEDGE_CHAR_CAP)
-            if knowledge_block:
-                blocks.append("RELATED KNOWLEDGE & CONVERSATIONS (docs + email/chat):\n" + knowledge_block)
+        knowledge_block = _bounded_lines(knowledge_lines or [], KNOWLEDGE_CHAR_CAP)
+        if knowledge_block:
+            blocks.append("RELATED KNOWLEDGE & CONVERSATIONS (docs + email/chat):\n" + knowledge_block)
         integration_block = _bounded_lines(integration_lines or [], KNOWLEDGE_CHAR_CAP)
         if integration_block:
             blocks.append("RELATED INTEGRATION RECORDS (CRM/shop/files ingested):\n" + integration_block)
