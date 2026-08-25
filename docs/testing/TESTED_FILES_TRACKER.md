@@ -6,7 +6,31 @@
 
 ---
 
+## Session 2026-08-25 (Round 82 — model provenance + silent-bump drift detection + scoped harness patches)
+
+**Context**: HARNESS_EVOLUTION follow-up (external research adjudication, GEPA/AHE/PromptBridge/HarnessCompass thread). The self-evolution harness mined failures with no model dimension (`AgentReasoningStep` had no model column; `propose_mutation` hardcoded `"model_scope": "all"`), so a prompt patch tuned on one checkpoint served every model. CAIN-style silent provider bumps (checkpoint changes under a stable alias) were undetectable: `byok_handler` stamped the router-SELECTED model into outcome feedback — never the provider-ECHOED ID from the response body.
+
+**Design (adjudicated)**: filter patches on the REQUESTED concrete model at dispatch (pre-flight); capture the RESOLVED echo post-flight for provenance/drift/mining. Drift alert → immediate serve-path expiry of matching family-scoped patches (not next-cycle). Family normalization is policy: collapse dates/snapshots/free-preview tags, PRESERVE variant tiers (`deepseek-v4-flash` ≠ `-pro`). Read-time computed views over the single `harness_patches` store — no per-model replication.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/llm/model_provenance.py` (NEW) | resolved-model contextvar (`set/get/clear_resolved_model`), `normalize_model_family`, `ModelDriftDetector` (baseline map keyed `(provider, requested) → resolved`, JSON state `./data/model_resolution_state.json`, null-safe observe, self-healing, thread-safe, flag `ATOM_MODEL_DRIFT_DETECTION_ENABLED` default ON, never raises) | round82 (17 tests) |
+| `core/llm/byok_handler.py` | `_capture_echoed_model()` static helper (reads `.model` via existing `_raw_response` pattern); stale-echo reset on entry of `generate_response` / `generate_with_cognitive_tier` / `generate_structured_response`; capture after all 9 non-streaming `chat.completions.create` sites (main/fallback/heal/paid sync + instructor + cognitive-tier async family); `_record_outcome_feedback(resolved_model=)` kwarg (backward-compat default None → contextvar fallback) feeding `_get_drift_detector().observe(...)` independent of `ATOM_LEARNING_ROUTER`. Streaming paths NOT yet instrumented (chunks carry `.model`; follow-up) | round82 integration ×3 (contextvar fallback, explicit-wins, detector-crash survival); w107 7 passed |
+| `core/harness_evolution_service.py` | `propose_mutation` retagged: system_prompt → `model_scope="model_family"` (+family from pattern when mining provides it), tripwire/compaction stay `"all"` (compaction scoping left open — schema permissive); NEW `applicable_patches(patches, current_model_id, provider_id=None, drift_detector=None)` read-time filter (scope match → unknown-family fail-safe exclusion → drift expiry); `normalize_model_family` re-export | round82 (5 tests incl. variant-separation negative + drift-expiry); w77 26 passed; unit/core 4 passed |
+| `core/models.py` | `AgentReasoningStep.requested_model` / `.resolved_model` (String, nullable) | columns + StaticPool sqlite roundtrip tests |
+| `alembic/versions/20260826_add_reasoning_step_model_provenance.py` (NEW) | guarded batch_alter_table (SQLite-safe), down = `20260826_domain_ledger` | covered via models roundtrip; guarded for hybrid dev DBs |
+| `core/atom_meta_agent.py` | `_persist_reasoning_step` stamps `resolved_model` from the contextvar (best-effort; requested_model left NULL at this seam — caller has alias only) | journey-gaps suite green |
+
+**Verification**: `tests/test_round82_model_provenance.py` 30 passed (TDD red-first: module ImportError confirmed before implementation). Regressions: w77 harness-evolution 26, unit/core test_harness_evolution 4, w107 byok 7, R81 journey-gaps + feedback_loop 25 — **92 passed total**. mypy `--follow-imports=skip`: model_provenance + harness_evolution_service clean (1 no-any-return fixed during green).
+
+**Known gaps (documented, deliberate)**: streaming create sites uninstrumented; `requested_model` column not yet populated at the meta-agent seam (needs routing-decision pass-through); runtime consumer of `harness_patches` still does not exist — `applicable_patches` ships first so the invariant is inherited, not retrofitted.
+
+---
+
 ## Session 2026-08-21 (Round 80 — integration user-journey audit: every app, every role, UI/UX)
+
 
 **Context**: walked every app integration end-to-end (discover → connect → status → use → manage) for every role including UI/UX. Findings + fixes below; full matrix in `docs/INTEGRATIONS_JOURNEY_AUDIT.md`. Backend TDD (RED first); frontend jest.
 

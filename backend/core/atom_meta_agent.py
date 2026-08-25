@@ -2828,6 +2828,16 @@ Provide your Mentorship Guidance:"""
         """
         step_id = ""
         try:
+            # R82: stamp model provenance from the per-call contextvar set by
+            # byok_handler._capture_echoed_model. Best-effort: absent echo →
+            # NULL column, never blocks persistence.
+            _resolved_model = None
+            try:
+                from core.llm.model_provenance import get_resolved_model
+
+                _resolved_model = get_resolved_model()
+            except Exception:
+                pass
             with SessionLocal() as db:
                 db_step = AgentReasoningStep(
                     id=str(uuid.uuid4()),
@@ -2841,6 +2851,7 @@ Provide your Mentorship Guidance:"""
                     verified=verified_kind,
                     verification_evidence=verification_evidence,
                     duration_ms=duration_ms,
+                    resolved_model=_resolved_model,
                 )
                 db.add(db_step)
                 db.commit()

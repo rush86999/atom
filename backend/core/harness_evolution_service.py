@@ -10,6 +10,63 @@ from core.sandbox_transaction import SandboxTransaction
 
 logger = logging.getLogger(__name__)
 
+
+def normalize_model_family(model_id) -> str:
+    """Re-export of the R82 family policy (see core.llm.model_provenance)."""
+    from core.llm.model_provenance import normalize_model_family as _norm
+
+    return str(_norm(model_id))
+
+
+def applicable_patches(
+    patches: List[Dict[str, Any]],
+    current_model_id: Optional[str],
+    provider_id: Optional[str] = None,
+    drift_detector=None,
+) -> List[Dict[str, Any]]:
+    """Read-time filter deciding which harness patches apply to a model call.
+
+    The constraint chain (R82 adjudicated design):
+      1. scope match — ``all`` patches always apply; ``model_family`` patches
+         apply only when their family normalizes to the serving model's family;
+      2. fail-safe — scoped patches with unknown origin family (``None``,
+         pre-provenance) are EXCLUDED, never silently universalized;
+      3. drift expiry — when the detector reports active silent-bump drift on
+         ``(provider_id, current_model_id)``, family-scoped patches matching
+         that identity are suppressed IMMEDIATELY (serve-path action, not
+         next-mining-cycle correction), until the echo stabilizes again.
+
+    Granularity is per-LLM-call: tier/stage routing means one run can span
+    several models, so callers inside step loops pass the concrete router-
+    selected model for THAT call (never a caller alias like "auto").
+    """
+    family = normalize_model_family(current_model_id)
+    drifted = False
+    if drift_detector is not None and provider_id and current_model_id:
+        try:
+            drifted = drift_detector.is_drifted(provider_id, current_model_id)
+        except Exception:
+            drifted = False
+
+    out: List[Dict[str, Any]] = []
+    for patch in patches or []:
+        if not isinstance(patch, dict):
+            continue
+        scope = str(patch.get("model_scope", "all"))
+        if scope == "all":
+            out.append(patch)
+            continue
+        patch_family = normalize_model_family(patch.get("model_family"))
+        if not patch_family or patch_family != family:
+            continue
+        if drifted:
+            continue
+        out.append(patch)
+    return out
+
+
+
+
 class HarnessEvolutionService:
     """
     Offline Meta-Runtime Service that mines execution traces for failure patterns,
@@ -78,30 +135,49 @@ class HarnessEvolutionService:
         tool = pattern.get("tool", "unknown")
         step_type = pattern.get("step_type", "unknown")
 
-        # Select patch strategy based on tool/step
+        # Select patch strategy based on tool/step.
+        # model_scope policy (R82, adjudicated): deterministic blast-radius
+        # controls (tripwires, compaction bounds) are portable across models
+        # ("all"); prose-level strategy (system_prompt rules) failed even on
+        # its own evolution model in AHE's component ablation and demonstrably
+        # fails to transfer across task surfaces — so prompt patches are
+        # family-scoped. "model_family" is None until mining keys clusters on
+        # AgentReasoningStep.requested_model (provenance lands with R82);
+        # unknown-family scoped patches are excluded at application time
+        # (fail-safe), see applicable_patches().
         if tool == "shell" or tool == "run_command":
             target = "ast_tripwire"
             payload = {
                 "blocked_patterns": ["rm -rf /", "mkfs", "dd if="],
                 "max_depth": 10
             }
+            model_scope = "all"
+            model_family = None
         elif step_type == "thought":
             target = "system_prompt"
             payload = {
                 "instruction_append": "Always justify tool parameters before invoking them."
             }
+            model_scope = "model_family"
+            model_family = pattern.get("model_family")
         else:
             target = "context_compaction"
             payload = {
                 "max_token_limit": 4096,
                 "compaction_strategy": "boundary_protection"
             }
+            # Compaction bounds are secretly model-sensitive (context windows
+            # differ per model); left portable today but the schema permits
+            # scoping once mining attributes overflow failures to families.
+            model_scope = "all"
+            model_family = None
 
         return {
             "patch_id": f"patch_{step_type}_{tool}",
             "target_component": target,
             "mutation_payload": payload,
-            "model_scope": "all"
+            "model_scope": model_scope,
+            "model_family": model_family,
         }
 
     async def validate_mutation_in_sandbox(

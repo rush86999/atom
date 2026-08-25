@@ -60,6 +60,44 @@ Atom has four parallel self-evolution mechanisms. The `HarnessEvolutionService` 
 
 ---
 
+## Model Provenance & Scoped Patches (Round 82)
+
+The problem statement above notes that *different foundation models have different blind spots*. Rounds up to R81 did not act on that: `mine_weaknesses` clustered failures by `(step_type, tool)` only (`AgentReasoningStep` had no model column), and every proposed patch shipped `"model_scope": "all"`. A prompt rule tuned on one checkpoint served every model routed to the agent.
+
+### Two identities per LLM call
+
+| Identity | When known | Source | Used for |
+|---|---|---|---|
+| **requested** | pre-flight | router-selected concrete model (BPC/tier/stage resolution; never a caller alias like `"auto"`) | patch applicability filtering at dispatch |
+| **resolved** | post-flight | provider-echoed `model` field on the response body (`byok_handler._capture_echoed_model`, same `_raw_response` pattern as logprobs/usage) | drift detection, reasoning-step provenance, next mining cycle |
+
+**Files**: `core/llm/model_provenance.py` (contextvar carrier + `ModelDriftDetector`), `core/llm/byok_handler.py` (`_capture_echoed_model` at all non-streaming create sites; `_record_outcome_feedback(resolved_model=...)` feeds the detector independently of `ATOM_LEARNING_ROUTER`).
+
+### Silent-bump drift detection
+
+CAIN-style vendor drift changes the resolved ID while the requested alias stays stable — invisible to requested-keyed consumers. `ModelDriftDetector` keeps a persisted baseline map `(provider_id, requested_model) → resolved` (`./data/model_resolution_state.json`) and fires a `DriftEvent` on divergence. Missing echoes are *unknown*, never *unchanged*; the detector self-heals when the echo stabilizes. Flag: `ATOM_MODEL_DRIFT_DETECTION_ENABLED` (default ON, detection-only, never raises).
+
+### Patch scoping policy
+
+`propose_mutation` now tags by component class:
+
+- `ast_tripwire`, `context_compaction` → `"model_scope": "all"` (deterministic blast-radius controls are portable). Compaction is secretly model-sensitive via context windows — schema permits scoping later.
+- `system_prompt` → `"model_scope": "model_family"` (+ `model_family` once mining keys clusters on `requested_model`). Evidence basis is precautionary, not demonstrated: AHE's −2.3pp system-prompt result is a same-model ablation (its cross-model runs transfer the full harness), but prompt-level artifacts also fail across task surfaces (ACE playbook regressing below seed on SWE-bench) and across models (PromptBridge model-drifting measurements).
+
+**Family granularity is policy**: `normalize_model_family()` collapses dates/snapshots (`gpt-5.4-2026-03` → `gpt-5.4`) and `free`/`preview` tags, but PRESERVES variant tiers (`deepseek-v4-flash` ≠ `-pro`). Drift detection stays keyed on the concrete ID for maximum sensitivity; families govern only patch breadth.
+
+### Application-time constraint
+
+The tag alone is inert. `core/harness_evolution_service.py::applicable_patches(patches, current_model_id, provider_id=None, drift_detector=None)` is the read-time filter the first runtime consumer of `harness_patches` must call inside its step loop (per-LLM-call — tier routing means one run spans several models):
+
+1. scope match — `all` always; family-scoped only on normalized family equality;
+2. fail-safe — unknown origin family ⇒ excluded, never silently universalized;
+3. **drift expiry** — active drift on `(provider_id, current_model_id)` suppresses matching family-scoped patches IMMEDIATELY (serve-path action, not next-cycle correction), restoring when the echo stabilizes.
+
+**Known gaps**: streaming create sites uninstrumented; `requested_model` not yet populated at the meta-agent persistence seam; no runtime consumer exists yet — the filter ships first so the invariant is inherited, not retrofitted.
+
+---
+
 ## Safety Architecture (Phase 1-2 Gap Closure)
 
 The SOTA gap analysis (2026) identified critical safety gaps in the evolution system. These were closed in two phases.

@@ -590,6 +590,13 @@ VISION_ONLY_MODELS = {
 }
 
 
+def _get_drift_detector():
+    """R82 module hook: lazy drift-detector accessor (monkeypatchable in tests)."""
+    from core.llm.model_provenance import get_drift_detector
+
+    return get_drift_detector()
+
+
 class BYOKHandler:
     """
     Handler for LLM interactions using BYOK system with intelligent cost optimization.
@@ -886,6 +893,26 @@ class BYOKHandler:
             setattr(result, "_atom_mean_logprob", mean_lp)
         except (TypeError, ZeroDivisionError, AttributeError):
             return
+
+    @staticmethod
+    def _capture_echoed_model(response: Any) -> None:
+        """R82: record the provider-echoed (resolved) model ID for this call.
+
+        Reads the ``model`` field off the raw provider response (same
+        ``_raw_response`` pattern used for logprobs/usage) into a contextvar.
+        This is the POST-flight identity — diverges from the requested model
+        exactly on silent checkpoint bumps, which ModelDriftDetector then
+        flags in _record_outcome_feedback. Best-effort: never raises.
+        """
+        try:
+            from core.llm.model_provenance import set_resolved_model
+
+            if response is None:
+                return
+            raw = getattr(response, "_raw_response", None) or response
+            set_resolved_model(getattr(raw, "model", None))
+        except Exception:
+            pass
 
     def _model_supports_tools(self, model_id: str) -> bool:
         """
@@ -1965,6 +1992,16 @@ class BYOKHandler:
         except Exception:
             pass
 
+        # R82: clear any stale resolved-model echo from a previous call in
+        # this task so outcome feedback never attributes an old provider echo
+        # to a new request.
+        try:
+            from core.llm.model_provenance import clear_resolved_model
+
+            clear_resolved_model()
+        except Exception:
+            pass
+
         # Phase 72: Trial Restriction Check
         if self._is_trial_restricted():
             logger.warning(f"AI Blocked: Trial expired for workspace {self.workspace_id}")
@@ -2281,6 +2318,7 @@ class BYOKHandler:
                         messages=messages,
                         temperature=temperature
                     )
+                    self._capture_echoed_model(response)
                     
                     result = response.choices[0].message.content
                     finish_reason = getattr(response.choices[0], "finish_reason", None)
@@ -2432,6 +2470,7 @@ class BYOKHandler:
                                     messages=messages,
                                     temperature=temperature
                                 )
+                                self._capture_echoed_model(response)
                                 result = response.choices[0].message.content
                                 self._last_used_model = fallback_model
                                 self._last_used_provider = provider_id
@@ -2491,6 +2530,7 @@ class BYOKHandler:
                                     response = client.chat.completions.create(
                                         **heal_result.patched_kwargs
                                     )
+                                    self._capture_echoed_model(response)
                                     result = response.choices[0].message.content
                                     finish_reason = getattr(response.choices[0], "finish_reason", None)
                                     logger.info(
@@ -2549,6 +2589,7 @@ class BYOKHandler:
                                     messages=messages,
                                     temperature=temperature,
                                 )
+                                self._capture_echoed_model(response)
                                 result = response.choices[0].message.content
                                 finish_reason = getattr(response.choices[0], "finish_reason", None)
                                 logger.info(
@@ -2613,6 +2654,7 @@ class BYOKHandler:
         exception: Optional[Exception] = None,
         schema_error: bool = False,
         routing_result_id: Optional[str] = None,
+        resolved_model: Optional[str] = None,
     ) -> None:
         """Best-effort outcome observation for the learning router.
 
@@ -2627,7 +2669,23 @@ class BYOKHandler:
         the feedback carries the id so record_feedback recovers the real
         per-decision prompt features — eliminating train/serve skew. When None,
         a random id is used (feedback falls back to task-level feature defaults).
+
+        ``resolved_model``: R82 provider-echoed model ID. When omitted, falls
+        back to the per-call contextvar set by ``_capture_echoed_model``.
+        Either way, ``(provider_id, model, resolved)`` is fed to the silent-
+        bump drift detector — independent of the learning-router flag.
         """
+        # R82: silent-bump drift observation (independent of ATOM_LEARNING_ROUTER).
+        try:
+            from core.llm.model_provenance import (
+                get_resolved_model as _cv_resolved,
+            )
+
+            effective_resolved = resolved_model or _cv_resolved()
+            _get_drift_detector().observe(provider_id, model, effective_resolved or None)
+        except Exception:
+            pass  # drift detection is best-effort; never blocks generation
+
         # Stage router outcome join (independent of the learning router flag):
         # when a stage decision is active for this request, write the attempt's
         # outcome back onto the audit row so the calibration script gets
@@ -2968,6 +3026,15 @@ class BYOKHandler:
         """
         request_id = str(uuid.uuid4())
 
+        # R82: reset stale resolved-model echo (same rationale as
+        # generate_response's stage-carrier reset).
+        try:
+            from core.llm.model_provenance import clear_resolved_model
+
+            clear_resolved_model()
+        except Exception:
+            pass
+
         # Phase 68-06: Step 1 - Select tier using CognitiveTierService
         tier = self.tier_service.select_tier(prompt, task_type, user_tier_override)
 
@@ -3219,11 +3286,19 @@ class BYOKHandler:
         if self._is_trial_restricted():
             logger.warning(f"AI Blocked: Trial expired for workspace {self.workspace_id}")
             return None
-            
+
+        # R82: reset stale resolved-model echo before structured attempts.
+        try:
+            from core.llm.model_provenance import clear_resolved_model
+
+            clear_resolved_model()
+        except Exception:
+            pass
+
         if not self.clients:
             logger.warning("No LLM clients available")
             return None
-        
+
         try:
             # Check if instructor is available
             if not INSTRUCTOR_AVAILABLE:
@@ -3472,6 +3547,7 @@ class BYOKHandler:
                             f"({_soft_exc}); retrying once without logprobs"
                         )
                         result = instructor_client.chat.completions.create(**_create_kwargs)
+                    self._capture_echoed_model(result)  # reads _raw_response.model
                     _structured_latency_ms = (time.time() - _structured_start) * 1000.0
                     if _soft_sc_on:
                         # Best-effort — no stamp ⇒ voter weight 1.0.
@@ -4011,6 +4087,7 @@ class BYOKHandler:
                 messages=messages,
                 max_tokens=500
             )
+            self._capture_echoed_model(response)
 
             desc = response.choices[0].message.content
             return desc
@@ -4585,6 +4662,7 @@ class BYOKHandler:
             try:
                 request_start = datetime.now()
                 response = await client.chat.completions.create(**base_kwargs)
+                self._capture_echoed_model(response)
                 latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
 
                 choice = response.choices[0] if getattr(response, "choices", None) else None
@@ -4701,6 +4779,7 @@ class BYOKHandler:
                             )
                             try:
                                 healed_response = await client.chat.completions.create(**heal_result.patched_kwargs)
+                                self._capture_echoed_model(healed_response)
                                 healed_choice = healed_response.choices[0] if getattr(healed_response, "choices", None) else None
                                 healed_content = ""
                                 if healed_choice is not None:
@@ -4784,6 +4863,7 @@ class BYOKHandler:
                             }
                             retry_kwargs["model"] = paid_model
                             paid_response = await client.chat.completions.create(**retry_kwargs)
+                            self._capture_echoed_model(paid_response)
                             p_choice = (
                                 paid_response.choices[0]
                                 if getattr(paid_response, "choices", None)

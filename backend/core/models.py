@@ -1088,6 +1088,13 @@ class AgentReasoningStep(Base):
     confidence = Column(Float, default=1.0)
     duration_ms = Column(Float, default=0.0)
 
+    # Model provenance (Round 82): which identity served this step.
+    # requested_model = router-selected concrete model (pre-flight);
+    # resolved_model  = provider-echoed ID (post-flight) — diverges from
+    # requested only on silent checkpoint bumps / provider reroutes.
+    requested_model = Column(String(120), nullable=True)
+    resolved_model = Column(String(160), nullable=True)
+
     # Outcome verification (silent no-op defense).
     # Tri-state: 'verified' | 'unverified' | 'failed_verification'
     # - 'verified': tool returned a verifiable success signal + evidence
