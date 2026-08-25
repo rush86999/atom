@@ -87,7 +87,8 @@ async def get_integration_usage(current_user: User = Depends(get_current_user)):
 @require_governance(
     action_complexity=ActionComplexity.MODERATE,
     action_name="enable_auto_sync",
-    feature="data_ingestion"
+    feature="data_ingestion",
+    agent_id_is_scope=True  # ?agent_id= scopes memory, not the actor
 )
 async def enable_auto_sync(
     request: EnableSyncRequest,
@@ -192,7 +193,8 @@ async def disable_auto_sync(
 @require_governance(
     action_complexity=ActionComplexity.MODERATE,
     action_name="trigger_sync",
-    feature="data_ingestion"
+    feature="data_ingestion",
+    agent_id_is_scope=True  # ?agent_id= scopes memory, not the actor
 )
 async def trigger_sync(
     integration_id: str,

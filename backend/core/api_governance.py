@@ -73,7 +73,8 @@ def require_governance(
     action_complexity: int = ActionComplexity.MODERATE,
     action_name: Optional[str] = None,
     feature: Optional[str] = None,
-    allow_user_initiated: bool = True
+    allow_user_initiated: bool = True,
+    agent_id_is_scope: bool = False
 ):
     """
     Decorator to apply governance checks to state-changing API routes.
@@ -148,8 +149,16 @@ def require_governance(
                 logger.warning(f"⚠️  EMERGENCY BYPASS: Governance check skipped for {func.__name__}")
                 return await func(*args, **kwargs)
 
-            # Extract agent_id from request
-            agent_id = extract_agent_id(request)
+            # Extract agent_id from request. Routes flagged agent_id_is_scope
+            # (Round 86) carry ?agent_id= as a memory-scoping BENEFICIARY
+            # ("tag records for this employee"), not an acting agent — only
+            # genuine agent channels (request.state / X-Agent-ID header)
+            # identify the actor there, so a human seeding a STUDENT
+            # employee's memory is never gated by the employee's maturity.
+            agent_id = extract_agent_id(
+                request,
+                include_query_body=not agent_id_is_scope
+            )
 
             # If no agent_id and user-initiated is allowed, proceed
             if not agent_id and allow_user_initiated:
@@ -177,17 +186,21 @@ def require_governance(
 # Helper Functions
 # ============================================================================
 
-def extract_agent_id(request: Request) -> Optional[str]:
+def extract_agent_id(request: Request, include_query_body: bool = True) -> Optional[str]:
     """
     Extract agent_id from request.
 
     Checks multiple possible locations:
     - request.state.agent_id
-    - request.query_params.agent_id
+    - request.query_params.agent_id            (when include_query_body)
     - request.headers X-Agent-ID
+    - request body agent_id                    (when include_query_body)
 
     Args:
         request: FastAPI request object
+        include_query_body: False for routes where ?agent_id= is a scoping
+            beneficiary rather than an actor (Round 86) — query/body sources
+            are then ignored so the human caller stays the governed actor.
 
     Returns:
         Agent ID string or None
@@ -197,9 +210,10 @@ def extract_agent_id(request: Request) -> Optional[str]:
         return request.state.agent_id
 
     # Check query parameters
-    agent_id = request.query_params.get('agent_id')
-    if agent_id:
-        return agent_id
+    if include_query_body:
+        agent_id = request.query_params.get('agent_id')
+        if agent_id:
+            return agent_id
 
     # Check headers
     agent_id = request.headers.get('X-Agent-ID')
@@ -207,13 +221,14 @@ def extract_agent_id(request: Request) -> Optional[str]:
         return agent_id
 
     # Check request body (if JSON)
-    try:
-        if hasattr(request, '_json'):
-            body = request._json
-            if isinstance(body, dict) and 'agent_id' in body:
-                return body['agent_id']
-    except Exception as e:
-        logger.debug(f"Failed to extract agent_id from request body: {e}")
+    if include_query_body:
+        try:
+            if hasattr(request, '_json'):
+                body = request._json
+                if isinstance(body, dict) and 'agent_id' in body:
+                    return body['agent_id']
+        except Exception as e:
+            logger.debug(f"Failed to extract agent_id from request body: {e}")
 
     return None
 

@@ -171,12 +171,25 @@ class StudentLearningService:
 
     @staticmethod
     def relevant_to(student: AgentRegistry, action_type: str) -> bool:
-        """Whether an action type overlaps the student's capabilities."""
+        """Whether an action type is relevant for this student to observe.
+
+        Students are role-based by design: capabilities first; if none are
+        registered, the student's role (template specialty keywords) filters;
+        a roleless generic student observes everything.
+        """
         capabilities = set(student.capabilities or [])
-        if not capabilities:
-            return True  # generalist students observe everything
         action = (action_type or "").lower()
-        return any(action in cap.lower() or cap.lower() in action for cap in capabilities)
+        if capabilities:
+            return any(action in cap.lower() or cap.lower() in action for cap in capabilities)
+
+        config = student.configuration if isinstance(student.configuration, dict) else {}
+        role = (config.get("role") or "").lower()
+        if role and role != "general":
+            from core.guided_automation_service import _TEMPLATE_KEYWORDS
+            keywords = _TEMPLATE_KEYWORDS.get(role)
+            if keywords:
+                return any(kw in action or action in kw.replace(" ", "_") for kw in keywords)
+        return True  # generic students observe everything
 
     def dispatch_observation_event(
         self,
@@ -243,8 +256,9 @@ class StudentLearningService:
 
         old_confidence = float(student.confidence_score or 0.0)
         # Cap below the promotion threshold: learning earns readiness,
-        # the training system confers maturity.
-        student.confidence_score = min(_CONFIDENCE_CEILING, old_confidence + boost)
+        # the training system confers maturity. Never lowers confidence
+        # (agents created with a higher starting score keep it).
+        student.confidence_score = max(old_confidence, min(_CONFIDENCE_CEILING, old_confidence + boost))
         actual_boost = student.confidence_score - old_confidence
 
         self.db.commit()

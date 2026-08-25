@@ -9,8 +9,11 @@ import { MaturityProgression } from "@/components/Agents/MaturityProgression";
 import MaturityApprovalPanel from "@/components/Agents/MaturityApprovalPanel";
 import { EmployeeOnboardingGuide } from "@/components/Agents/EmployeeOnboardingGuide";
 import AgentLaunchGuide from "@/components/Agents/AgentLaunchGuide";
+import { GuidedAgentCreator } from "@/components/Agents/GuidedAgentCreator";
+import { AutomationSuggestionsPanel } from "@/components/Agents/AutomationSuggestionsPanel";
+import { AgentMaturityGuideDialog } from "@/components/Agents/AgentMaturityGuide";
 import { Badge } from "@/components/ui/badge";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Sparkles, GraduationCap } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import {
     Dialog,
@@ -74,6 +77,11 @@ const AgentsDashboard = () => {
     // Reasoning Modal State
     const [isReasoningModalOpen, setIsReasoningModalOpen] = useState(false);
     const [selectedReasoningId, setSelectedReasoningId] = useState<string | null>(null);
+
+    // Guided agent creation (employee self-serve) + maturity guide state
+    const [isGuidedCreatorOpen, setIsGuidedCreatorOpen] = useState(false);
+    const [guidedPresetGoal, setGuidedPresetGoal] = useState<string | null>(null);
+    const [isMaturityGuideOpen, setIsMaturityGuideOpen] = useState(false);
 
     // WebSocket Integration
     const { isConnected, lastMessage, subscribe } = useWebSocket();
@@ -389,6 +397,19 @@ const AgentsDashboard = () => {
                         Agent Control Center
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400">Monitor and orchestrate your autonomous workforce.</p>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                            size="sm"
+                            data-testid="describe-job-button"
+                            onClick={() => { setGuidedPresetGoal(null); setIsGuidedCreatorOpen(true); }}
+                        >
+                            <Sparkles className="mr-1.5 h-4 w-4" />
+                            Describe a job — we&apos;ll build the agent
+                        </Button>
+                        <span className="text-xs text-gray-400">
+                            No setup forms. The agent starts as a Student and learns on the job.
+                        </span>
+                    </div>
                 </div>
 
                 <EmployeeOnboardingGuide />
@@ -478,6 +499,27 @@ const AgentsDashboard = () => {
                             currentLevel={activeAgentMaturity}
                             className="mb-4"
                         />
+                        <div className="mb-4">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                data-testid="active-agent-maturity-guide-button"
+                                disabled={!activeAgentId}
+                                onClick={() => setIsMaturityGuideOpen(true)}
+                            >
+                                <GraduationCap className="mr-1.5 h-4 w-4" />
+                                When will {activeAgentName === "Terminal" ? "this agent" : activeAgentName} be useful?
+                            </Button>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mb-4">
+                            <AutomationSuggestionsPanel
+                                onCreateAgent={(goal) => {
+                                    setGuidedPresetGoal(goal);
+                                    setIsGuidedCreatorOpen(true);
+                                }}
+                            />
+                        </div>
                         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mb-4">
                             <MaturityApprovalPanel />
                         </div>
@@ -498,6 +540,21 @@ const AgentsDashboard = () => {
                 </div>
             </div>
 
+
+            {/* Employee self-serve guided agent creation */}
+            <GuidedAgentCreator
+                open={isGuidedCreatorOpen}
+                onOpenChange={setIsGuidedCreatorOpen}
+                onAgentCreated={fetchAgents}
+                initialGoal={guidedPresetGoal}
+            />
+
+            {/* Per-agent readiness report */}
+            <AgentMaturityGuideDialog
+                agentId={activeAgentId}
+                open={isMaturityGuideOpen}
+                onOpenChange={setIsMaturityGuideOpen}
+            />
 
             {/* Run Agent Dialog */}
             <Dialog open={isRunDialogOpen} onOpenChange={setIsRunDialogOpen}>

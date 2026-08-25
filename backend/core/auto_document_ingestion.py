@@ -19,6 +19,10 @@ from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
+# Strong refs for fire-and-forget post-ingestion agent-trigger tasks (a bare
+# create_task result can be garbage-collected mid-flight).
+_pending_agent_trigger_tasks: set = set()
+
 
 class FileType(str, Enum):
     """Supported file types for ingestion"""
@@ -900,17 +904,24 @@ class AutoDocumentIngestionService:
                 try:
                     from core.atom_meta_agent import handle_data_event_trigger
                     logger.info(f"Triggering Atom Agent for {results['files_ingested']} new documents in {integration_id}")
-                    
-                    # Fire-and-forget (or await? sync_integration is async, so we can await)
-                    # We pass the summary of ingestion to Atom
-                    await handle_data_event_trigger(
+
+                    # Fire-and-forget (resolved: create_task, NOT await).
+                    # Awaiting ran a FULL meta-agent turn inline — sync
+                    # close-out blocked for minutes on LLM latency/retries.
+                    # Mirrors the turn-fact extraction pending-set pattern:
+                    # strong task ref prevents GC; done-callback discards.
+                    _trigger_task = asyncio.create_task(handle_data_event_trigger(
                         event_type="document_ingestion",
                         data={
                             "integration_id": integration_id,
                             "count": results["files_ingested"],
-                            "files": results["newly_ingested_files"] 
+                            "files": results["newly_ingested_files"]
                         },
                         workspace_id="default"
+                    ))
+                    _pending_agent_trigger_tasks.add(_trigger_task)
+                    _trigger_task.add_done_callback(
+                        lambda t: _pending_agent_trigger_tasks.discard(t)
                     )
                 except Exception as trigger_err:
                     logger.warning(f"Failed to trigger agent after ingestion: {trigger_err}")

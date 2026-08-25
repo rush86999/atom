@@ -287,3 +287,66 @@ async def test_zoho_uses_resource_id_as_identity(monkeypatch):
 
     assert res.get("success") is True
     assert captured.get("external_id") == "zoho-resource-11"
+
+
+# ---------------------------------------------------------------------------
+# Sync close-out must never block on the post-ingestion agent trigger
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_sync_closeout_not_blocked_by_agent_trigger(monkeypatch):
+    """handle_data_event_trigger runs a FULL meta-agent turn. Awaiting it
+    inline meant sync_integration blocked for minutes on LLM latency/retries
+    (observed: 90s pytest-timeout via CreditsError backoff). It must be
+    scheduled fire-and-forget instead."""
+    import time
+
+    from core.auto_document_ingestion import AutoDocumentIngestionService
+
+    calls = {}
+
+    async def slow_trigger(*args, **kwargs):
+        calls["kwargs"] = kwargs
+        import asyncio as _aio
+
+        await _aio.sleep(30)  # simulate a long/retrying agent run
+
+    monkeypatch.setattr(
+        "core.atom_meta_agent.handle_data_event_trigger", slow_trigger
+    )
+
+    service = AutoDocumentIngestionService()
+    settings = service.get_settings("google_drive")
+    settings.enabled = True
+    service.memory_handler = MagicMock()
+    service.memory_handler.add_document.return_value = True
+
+    async def fake_parse(content, ext, name):
+        return "extracted body"
+
+    monkeypatch.setattr(service.parser, "parse_document", fake_parse)
+    monkeypatch.setattr(
+        service, "_list_files",
+        AsyncMock(return_value=[{"id": "file1", "name": "t.txt", "size": 10}]),
+    )
+    monkeypatch.setattr(
+        service, "_download_file", AsyncMock(return_value=b"bytes")
+    )
+
+    started = time.monotonic()
+    result = await service.sync_integration("google_drive", force=True)
+    elapsed = time.monotonic() - started
+
+    assert result["files_ingested"] == 1
+    assert elapsed < 10, (
+        f"sync close-out took {elapsed:.1f}s — it must not await the "
+        "post-ingestion agent trigger"
+    )
+    # Let the scheduled task start before the loop closes.
+    import asyncio as _aio
+
+    for _ in range(3):
+        await _aio.sleep(0)
+    assert calls.get("kwargs", {}).get("integration_id") == "google_drive" or (
+        calls.get("kwargs", {}).get("data", {}).get("integration_id")
+        == "google_drive"
+    ), "trigger must still be scheduled with the ingestion summary"

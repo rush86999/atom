@@ -245,3 +245,72 @@ class TestGuidedAgentFactoryUnit:
         blueprint = await factory.design_agent("help with miscellaneous things")
         assert blueprint["template"] == "custom"
         assert blueprint["name"]
+
+
+class TestMaturityGuide:
+    def test_general_guide_lists_four_levels(self, client, employee_user):
+        global _current_test_user
+        _current_test_user = employee_user
+
+        resp = client.get("/api/agents/maturity-guide")
+
+        assert resp.status_code == 200, resp.text
+        levels = resp.json()["data"]["levels"]
+        assert [l["level"] for l in levels] == ["student", "intern", "supervised", "autonomous"]
+        # Each level answers the user's real question: when is it useful?
+        for level in levels:
+            assert level["useful_for"]
+            assert level["what_it_can_do"]
+            assert level["what_it_cannot_do"]
+
+    def test_agent_guide_reports_readiness(self, client, employee_user, db_session):
+        global _current_test_user
+        _current_test_user = employee_user
+
+        llm = MagicMock()
+        llm.generate_completion = AsyncMock(side_effect=RuntimeError("no llm"))
+        with patch("api.agent_onboarding_routes.get_guided_agent_factory",
+                   return_value=_factory_with_llm(llm)):
+            created = client.post("/api/agents/guided", json={"goal": "help track our sales leads in the crm"})
+        agent_id = created.json()["data"]["agent_id"]
+
+        resp = client.get(f"/api/agents/{agent_id}/maturity-guide")
+
+        assert resp.status_code == 200, resp.text
+        data = resp.json()["data"]
+        assert data["current_level"] == "student"
+        assert data["level_guide"]["level"] == "student"
+        assert data["what_it_can_do_today"]["example_actions"]  # concrete verbs
+        assert data["learning_progress"]["role"] == "sales_assistant"
+        assert data["next_level"] == "intern"
+        assert "graduation exam" in data["how_to_advance"]
+        assert data["readiness"]["confidence"] < 0.45
+        assert not data["readiness"]["ready_for_graduation_review"]
+
+    def test_agent_guide_404_for_missing_agent(self, client, employee_user):
+        global _current_test_user
+        _current_test_user = employee_user
+        resp = client.get("/api/agents/does-not-exist/maturity-guide")
+        assert resp.status_code == 404
+
+    def test_agent_guide_counts_learning_pathways(self, client, employee_user, db_session):
+        global _current_test_user
+        _current_test_user = employee_user
+
+        llm = MagicMock()
+        llm.generate_completion = AsyncMock(side_effect=RuntimeError("no llm"))
+        with patch("api.agent_onboarding_routes.get_guided_agent_factory",
+                   return_value=_factory_with_llm(llm)):
+            created = client.post("/api/agents/guided", json={"goal": "help with invoices"})
+        agent_id = created.json()["data"]["agent_id"]
+
+        from core.student_learning_service import StudentLearningService
+        service = StudentLearningService(db_session)
+        service.learn_from_teacher(agent_id, "atom_main", "check vendor first")
+        service.learn_from_observation(agent_id, "hitl_approval", "approved send_email")
+
+        resp = client.get(f"/api/agents/{agent_id}/maturity-guide")
+        progress = resp.json()["data"]["learning_progress"]
+        assert progress["lessons_from_teacher"] == 1
+        assert progress["observations"] == 1
+        assert set(progress["pathways_used"]) == {"teacher", "observation"}

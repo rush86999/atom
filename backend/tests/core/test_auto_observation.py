@@ -182,3 +182,53 @@ class TestHitlTriggersObservation:
         kwargs = auto_mock.await_args.kwargs
         assert kwargs["observation_type"] == "hitl_rejection"
         assert kwargs["action_type"] == "bulk_delete"
+
+
+class TestRoleBasedStudents:
+    """Students are role-based by design; generic is the fallback."""
+
+    def test_role_filters_observation_when_no_capabilities(self, db_session):
+        # A finance-role student with no capability list registered
+        finance_student = AgentRegistry(
+            id=f"role-{uuid.uuid4().hex[:8]}", name="Fin", category="Finance",
+            description="role test", module_path="core.generic_agent", class_name="GenericAgent",
+            status="student", confidence_score=0.1, configuration={"role": "finance_analyst"},
+            capabilities=None, workspace_id="default", tenant_id="default",
+        )
+        db_session.add(finance_student)
+        db_session.commit()
+        service = StudentLearningService(db_session)
+
+        # Invoice action is relevant to the finance role...
+        assert service.relevant_to(finance_student, "approve_invoice") is True
+        # ...a recruiting action is not
+        assert service.relevant_to(finance_student, "schedule_interview") is False
+
+    def test_generic_student_observes_everything(self, db_session):
+        generic = AgentRegistry(
+            id=f"gen-{uuid.uuid4().hex[:8]}", name="Gen", category="General",
+            description="generic test", module_path="core.generic_agent", class_name="GenericAgent",
+            status="student", confidence_score=0.1, configuration={},
+            capabilities=None, workspace_id="default", tenant_id="default",
+        )
+        db_session.add(generic)
+        db_session.commit()
+        service = StudentLearningService(db_session)
+
+        assert service.relevant_to(generic, "approve_invoice") is True
+        assert service.relevant_to(generic, "schedule_interview") is True
+
+    def test_capabilities_take_priority_over_role(self, db_session):
+        student = AgentRegistry(
+            id=f"cap-{uuid.uuid4().hex[:8]}", name="Cap", category="Finance",
+            description="cap test", module_path="core.generic_agent", class_name="GenericAgent",
+            status="student", confidence_score=0.1, configuration={"role": "finance_analyst"},
+            capabilities=["onboarding"], workspace_id="default", tenant_id="default",
+        )
+        db_session.add(student)
+        db_session.commit()
+        service = StudentLearningService(db_session)
+
+        # Capability list wins even though role would say otherwise
+        assert service.relevant_to(student, "invoice_approval") is False
+        assert service.relevant_to(student, "onboarding") is True

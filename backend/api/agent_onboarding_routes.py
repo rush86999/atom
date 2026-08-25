@@ -32,6 +32,28 @@ logger = logging.getLogger(__name__)
 
 router = BaseAPIRouter(prefix="/api/agents", tags=["Agent Onboarding"])
 
+# Students are ROLE-based by design: the role (template specialty or
+# category) decides the curriculum topics the student starts mastering and
+# which workspace events are relevant to observe. "general" is the fallback
+# for generic students, who observe everything but start with no curriculum.
+ROLE_CURRICULUM = {
+    "finance_analyst": ["invoices", "reconciliation", "expense_analysis", "budget_tracking"],
+    "sales_assistant": ["lead_scoring", "crm_sync", "email_outreach", "deal_management"],
+    "ops_coordinator": ["inventory", "order_tracking", "vendor_management", "logistics"],
+    "hr_assistant": ["onboarding", "policy_lookup", "leave_tracking"],
+    "procurement_specialist": ["po_extraction", "draft_orders", "integration_sync"],
+    "knowledge_analyst": ["knowledge_ingestion", "research", "summarization"],
+    "marketing_analyst": ["campaign_tracking", "content_calendar", "social_media"],
+}
+
+
+def _role_for(blueprint: dict) -> str:
+    """Template specialty if the blueprint used one, else category."""
+    template = blueprint.get("template")
+    if template and template != "custom":
+        return template
+    return (blueprint.get("category") or "general").lower()
+
 
 class GuidedAgentRequest(BaseModel):
     """Plain-language agent creation request — one required field."""
@@ -117,13 +139,15 @@ async def create_guided_agent(
     configuration = blueprint.get("configuration") or {}
     if not isinstance(configuration, dict):
         configuration = {}
-    # Learning contract: the Atom meta agent is the designated teacher (fast
-    # pathway), but observation of workspace events is a first-class pathway
-    # too — teaching accelerates, it does not gate. Promotion to higher
-    # maturity still goes through the training/graduation system.
+    # Role-based student: the role drives curriculum and observation
+    # relevance; learning contract declares both pathways (teacher +
+    # observation), and the Atom meta agent is the designated teacher.
+    role = _role_for(blueprint)
+    configuration["role"] = role
     configuration["learning"] = {
         "teacher_agent_id": "atom_main",
         "pathways": ["teacher", "observation"],
+        "curriculum": ROLE_CURRICULUM.get(role, []),
     }
 
     registry_entry = AgentRegistry(
@@ -138,6 +162,11 @@ async def create_guided_agent(
         # Always spoon-fed to start: employees and autonomous agents alike
         # get a STUDENT that must graduate before acting unattended.
         status=AgentStatus.STUDENT.value,
+        # Spoon-fed start: fresh students begin with low confidence and earn
+        # it through teaching/observation (capped below the promotion
+        # threshold) — the model default of 0.5 would already sit at the
+        # training-review boundary.
+        confidence_score=0.1,
         user_id=str(getattr(current_user, "id", "unknown")),
         workspace_id=workspace_id,
         tenant_id=tenant_id,
@@ -188,4 +217,137 @@ async def get_automation_suggestions(
     return router.success_response(
         data=result,
         message=f"{len(result.get('suggestions', []))} automation suggestions generated from workspace history",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Maturity guidance: users need to know when an agent will be useful
+# ---------------------------------------------------------------------------
+
+MATURITY_LEVELS_USER_GUIDE = [
+    {
+        "level": "student",
+        "title": "Student — learning the ropes",
+        "what_it_can_do": "Watch, search, read, and summarize. It learns from every task: the Atom meta agent teaches it and it observes what gets approved in your workspace.",
+        "what_it_cannot_do": "Nothing that changes anything — no sending, creating, or updating. Expect to spoon-feed it.",
+        "useful_for": "Not directly useful yet — it is building context. Days, not weeks, if you give it feedback.",
+    },
+    {
+        "level": "intern",
+        "title": "Intern — drafts and suggests",
+        "what_it_can_do": "Analyze, draft, recommend, and propose. It can prepare emails, reports, and workflow suggestions for your review.",
+        "what_it_cannot_do": "Execute anything on its own — every draft needs your click.",
+        "useful_for": "Useful as a preparation assistant: saves drafting time immediately.",
+    },
+    {
+        "level": "supervised",
+        "title": "Supervised — executes with your approval",
+        "what_it_can_do": "Create, update, send, and schedule — but each consequential action pauses for your approval (one tap to approve or reject).",
+        "what_it_cannot_do": "Act unattended; destructive actions still require review.",
+        "useful_for": "Genuinely useful day-to-day: it does the work, you keep the keys.",
+    },
+    {
+        "level": "autonomous",
+        "title": "Autonomous — runs on its own",
+        "what_it_can_do": "Full execution including workflows, on a schedule or triggered by events, with full audit logging.",
+        "what_it_cannot_do": "Nothing is hidden — every action remains auditable, and guardrails can restrict it any time.",
+        "useful_for": "Set-and-forget automation; this is when the agent pays for itself.",
+    },
+]
+
+_LEVEL_ORDER = ["student", "intern", "supervised", "autonomous"]
+_ADVANCEMENT = {
+    "student": "Complete training sessions and pass the graduation exam: confidence ≥ 0.5 plus demonstrated episodes with low intervention. Teaching and observation accelerate this.",
+    "intern": "25+ quality episodes with <20% human intervention and constitutional score ≥ 0.85.",
+    "supervised": "50+ quality episodes with very low intervention rate — earned through consistent, corrected real work.",
+}
+
+
+@router.get("/maturity-guide")
+async def get_maturity_guide(
+    current_user: User = Depends(get_current_user),
+):
+    """Plain-language guide to agent maturity levels so users know what to
+    expect and when an agent becomes useful."""
+    return router.success_response(
+        data={"levels": MATURITY_LEVELS_USER_GUIDE},
+        message="Agent maturity guide",
+    )
+
+
+@router.get("/{agent_id}/maturity-guide")
+async def get_agent_maturity_guide(
+    agent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Personalized readiness report for one agent: where it is, what it can
+    do today, and exactly what advances it to the next level."""
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    if not agent:
+        raise router.error_response(
+            error_code="AGENT_NOT_FOUND",
+            message=f"Agent {agent_id} not found",
+            status_code=404,
+        )
+
+    status = (agent.status or "student").lower()
+    config = agent.configuration if isinstance(agent.configuration, dict) else {}
+    learning = config.get("learning", {}) if isinstance(config.get("learning"), dict) else {}
+    log = learning.get("log", []) or []
+    confidence = float(agent.confidence_score or 0.0)
+
+    # Example capabilities per complexity band, drawn from the governance
+    # ladder so the guide never drifts from actual enforcement.
+    from core.agent_governance_service import AgentGovernanceService
+    bands = {1: [], 2: [], 3: [], 4: []}
+    for action, complexity in AgentGovernanceService.ACTION_COMPLEXITY.items():
+        if len(bands[complexity]) < 5:
+            bands[complexity].append(action)
+    maturity_idx = _LEVEL_ORDER.index(status) if status in _LEVEL_ORDER else 0
+
+    # Mastery progress from the pedagogy framework (safe on missing config)
+    from core.agent_pedagogy import PedagogicalFramework
+    mastery = PedagogicalFramework(db).get_mastery_report(agent)
+
+    next_level = _LEVEL_ORDER[maturity_idx + 1] if maturity_idx + 1 < len(_LEVEL_ORDER) else None
+    learning_ceiling = 0.45
+    at_ceiling = confidence >= learning_ceiling
+
+    readiness = {
+        "ready_for_graduation_review": at_ceiling,
+        "confidence": round(confidence, 3),
+        "confidence_needed_for_training_review": learning_ceiling,
+        "note": (
+            "Learning is capped here on purpose — a training session and "
+            "graduation exam confer maturity, learning alone never does."
+        ) if at_ceiling else (
+            f"{round((learning_ceiling - confidence) / 0.01)} more observations "
+            f"(or {round((learning_ceiling - confidence) / 0.05)} lessons) roughly reach the review threshold."
+        ),
+    }
+
+    return router.success_response(
+        data={
+            "agent_id": agent.id,
+            "agent_name": agent.name,
+            "current_level": status,
+            "level_guide": next(g for g in MATURITY_LEVELS_USER_GUIDE if g["level"] == status),
+            "what_it_can_do_today": {
+                "complexity_band": maturity_idx + 1,
+                "example_actions": bands.get(maturity_idx + 1, []),
+            },
+            "learning_progress": {
+                "role": config.get("role", "general"),
+                "curriculum": learning.get("curriculum", []),
+                "lessons_from_teacher": sum(1 for e in log if e.get("source") == "teacher"),
+                "observations": sum(1 for e in log if e.get("source") == "observation"),
+                "pathways_used": learning.get("pathways_used", []),
+            },
+            "mastery": mastery,
+            "readiness": readiness,
+            "next_level": next_level,
+            "how_to_advance": _ADVANCEMENT.get(status, "Top maturity level reached."),
+        },
+        message=f"{agent.name} is a {status.upper()} — see readiness for what comes next",
     )

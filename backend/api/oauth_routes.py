@@ -343,13 +343,26 @@ async def oauth_initiate(
     provider: str,
     request: Request = None,
     user_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
 ):
-    """Initiate OAuth flow for a specific provider."""
+    """Initiate OAuth flow for a specific provider.
+
+    Round 86: browser navigations cannot send an Authorization header, so the
+    frontend passes ``?token=<JWT>``. get_current_user reads it from query
+    params — but only resolves the user when given a db session, which this
+    route previously never passed (silent demo-user fallback mis-bound the
+    consent state and stored tokens under the wrong user).
+    """
     uid = "demo-user"
     if request:
         try:
             from core.auth import get_current_user
-            u = await get_current_user(request=request)
+            # Round 86: pass the query-param token explicitly. Called
+            # manually, get_current_user's token default is the Depends
+            # sentinel (truthy), so its own query/cookie fallback never ran
+            # and every ?token= navigation silently degraded to demo-user.
+            browser_token = request.query_params.get("token")
+            u = await get_current_user(request=request, token=browser_token, db=db)
             if u and u.id:
                 uid = u.id
         except Exception:

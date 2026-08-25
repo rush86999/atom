@@ -6491,3 +6491,41 @@ Research note: retrieval-time pre-filtering re-validated for A-G1/A-G2 (RAG acce
 **Verification**: new suite 6/6 passed; adjacent suites green — components/Agents (12 suites, 129 tests incl. MaturityApprovalPanel), ingestion-scoping, maturity-api client, approvals-page. `tsc --noEmit`: 0 errors in touched files.
 
 **Backend contracts locked by tests**: `/api/v1/auth/oauth/{tokens,config-status}`, `/api/agents/custom` category=Sales, `/api/data-ingestion/sync/zoho?agent_id=&force=true`, `/api/integrations/outlook/memory/backfill{,/status/{job_id}}`.
+
+## 2026-08-26b — Launch guide generalized: role-driven app matching (small-business framing)
+
+**Files**:
+- `frontend-nextjs/components/Agents/AgentLaunchGuide.tsx` — rewritten from hardcoded Zoho+Outlook sales flow to role-driven app matching: 5 small-business roles (Sales/Marketing/Operations/Finance/Support), each with ordered app preferences (exact ids + `zoho*` wildcards + virtual Outlook) resolved against the LIVE ingestion registry (`GET /api/data-ingestion/available-integrations`) — not a static list. Matched apps get connect CTAs (direct OAuth where PROVIDER_CONFIGS has a flow, `/integrations/{id}` deep-link otherwise), sync/backfill/auto-sync ingest actions per capability, and env-var hints when server-side OAuth is unconfigured. Plain-language SMB copy ("hire/trainee/promote") replaces maturity jargon.
+- Bug fixes found by tests: mount effect never called `refreshConnections` (connection state only loaded on focus); unstable `refreshConnections` identity (registryIds dep) caused an infinite registry-refetch loop — fixed via `registryIdsRef`.
+- Tests updated: 8 cases incl. wildcard fallback (no zoho → hubspot setup deep-link), finance re-matching, auto-hide gating on ALL matched apps connected.
+
+**Verification**: suite 8/8; neighbors 14 suites / 144 tests green; tsc 0 errors in touched files.
+
+## 2026-08-25e — Same-file freshness: content-addressed identity + non-blocking trigger
+
+**Scope**: "re-ingesting the same file must UPDATE, never duplicate." The sync path already did this right (external_id + modified_at + source_content_hash + old-vector-row delete + supersession); the connector one-off path and post-ingestion trigger did not.
+
+**Research-validated identity hierarchy** (Microsoft Graph driveItem id; Drive fileId; Box/Zoho resource ids; Dropbox path — each provider exposes an immutable per-file identifier; SHA-256 content addressing as the no-source-id fallback; titles are NEVER identity):
+
+- **Source-scoped external ids**: `process_file_bytes` gains `external_id=` (explicit param, extra_metadata fallback). Stable doc_id = `ext_sha1("{source}:{external_id}")[:24]` — SOURCE-SCOPED so two integrations reusing the same raw id string can't collide (one file's refresh must never delete another's row). No-source-id fallback: `doc_`+sha256(text)[:24] (content-addressing: identical content = one row, any filename).
+- **Freshness via shared upsert**: unchanged hash → skipped/unchanged (no-op); changed → aligned replace (delete prior versions, write fresh). Result dicts now carry `doc_id`. Metadata stamps `external_id` + `source_content_hash`.
+- **Connector plumbing**: all five cloud-drive services forward their NATIVE ids (`external_id=file_id`; Dropbox passes its full path) instead of dropping them.
+- **Sync close-out unblocked**: `sync_integration`'s post-ingestion meta-agent trigger was AWAITED inline — with real LLM credentials a single sync blocked for minutes on CreditsError retry backoff (observed: 90s pytest-timeout; the inline "(or await?)" comment is now resolved). Fire-and-forget `create_task` + module-level pending-set (turn-fact pattern); strong-ref GC guard. Suite went 90s+-timeout → **1.07s**.
+
+**Note**: parallel session landed overlapping work mid-flight (R84f native ids for OneDrive/Box; R85 ontology-draft promotion automation default-auto closing the earlier draft-dead-end follow-up; shared `core/vector_upsert.py` funnel). Merged state verified green.
+
+**New suite**: `backend/tests/core/test_ingestion_freshness.py` (11) — updated-content replace (old row gone), unchanged no-op, content-hash fallback dedup across different filenames, cross-source id-collision regression, metadata stamps, 5×connector native-id plumbing, sync close-out not blocked by agent trigger.
+
+**Verification**: 115 passed across freshness/same-file/auto-document-ingestion/join-key/data-journey/documents-hybrid suites.
+
+## 2026-08-26c — Live journey verification + 2 governance/OAuth identity fixes
+
+**Live smoke (server :8000, bootstrap admin)**: registry lists zoho+13; config-status zoho/microsoft true; `POST /api/agents/custom` created "Sales Development Rep" (STUDENT); scoped sync initially 403'd, then succeeded after fix (0 records = no OAuth consent yet — expected).
+
+**Fix 1 — scoping param ≠ governance actor** (`core/api_governance.py`, `api/data_ingestion_routes.py`): `?agent_id=` on /sync/{id} + /enable-sync is a memory-scoping beneficiary (Round 80s), but the generic decorator treated it as the ACTING agent → human seeding a STUDENT employee's memory got 403 INTERN-required. New opt-out `require_governance(..., agent_id_is_scope=True)`: query/body excluded from actor extraction (state/X-Agent-ID still gate genuine agent callers). Tests: `backend/tests/test_data_ingestion_scope_governance.py` (6) — RED→GREEN, incl. regression that default decorator still gates on query param.
+
+**Fix 2 — OAuth initiate bound consent to "demo-user"**: browser navigation passes `?token=<JWT>` (no headers possible), but oauth_initiate called `get_current_user(request=request)` without db AND with the Depends-sentinel token default occupying the slot → silent fallback to demo-user; tokens stored under wrong user; guide never showed connected. Fix: db dependency passthrough + explicit `token=request.query_params.get("token")`. Verified live: state now binds real admin UUID. Tests: `backend/tests/test_oauth_initiate_token_identity.py` (2). Note: test_round71_oauth_routes_auth::test_v1_oauth_initiate_requires_auth fails pre-existing on clean tree (unrelated).
+
+**Config**: root `.env` gained `ZOHO_OAUTH_SCOPES` (CRM/Books/Projects/Inventory + WorkDrive + offline_access) — default was WorkDrive-only, so CRM sync would have returned nothing post-consent. Re-consent required.
+
+**Verification**: new suites 8/8; neighbors green (round80f, round80e, hybrid ingestion; role-relevance failures pre-existing via stash check).
