@@ -376,19 +376,22 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.COMPLEX: "llama-3.3-70b-versatile",
         QueryComplexity.ADVANCED: "llama-3.3-70b-versatile",
     },
-    "openrouter": {  # OpenRouter — gateway to 300+ models via one key
-        QueryComplexity.SIMPLE: "openai/gpt-4o-mini",
-        QueryComplexity.MODERATE: "openai/gpt-4o-mini",
-        QueryComplexity.COMPLEX: "anthropic/claude-3.5-sonnet",
-        QueryComplexity.ADVANCED: "anthropic/claude-3.5-sonnet",
-    },
     "opencode-go": {  # OpenCode Go — low-cost subscription via OpenCode Zen gateway
         # https://opencode.ai/zen — tested+verified open coding models served
         # by the OpenCode team; one subscription key, no per-provider signups.
-        QueryComplexity.SIMPLE: "deepseek-v4-flash",
-        QueryComplexity.MODERATE: "deepseek-v4-flash",
-        QueryComplexity.COMPLEX: "deepseek-v4-pro",
-        QueryComplexity.ADVANCED: "kimi-k2.7-code",
+        # Use free variants first; the free→paid retry logic in
+        # generate_response_async will auto-fallback to paid siblings when
+        # the free allowance is exhausted.
+        QueryComplexity.SIMPLE: "deepseek-v4-flash-free",
+        QueryComplexity.MODERATE: "deepseek-v4-flash-free",
+        QueryComplexity.COMPLEX: "mimo-v2.5-free",
+        QueryComplexity.ADVANCED: "mimo-v2.5-free",
+    },
+    "openrouter": {  # OpenRouter — gateway with free models via :free suffix
+        QueryComplexity.SIMPLE: "openrouter/free",
+        QueryComplexity.MODERATE: "openrouter/free",
+        QueryComplexity.COMPLEX: "openrouter/free",
+        QueryComplexity.ADVANCED: "openrouter/free",
     },
 }
 
@@ -426,6 +429,24 @@ OPCODE_FREE_MODEL_PAID_FALLBACK_DEFAULTS = {
 def _is_opencode_free_model(model: str) -> bool:
     """True for OpenCode Zen free-usage models (documented "-free" suffix)."""
     return model.endswith(OPCODE_FREE_MODEL_SUFFIX)
+
+
+def _forced_model_override() -> Optional[tuple[str, str]]:
+    """Parse ``ATOM_FORCED_LLM_MODEL``: a plain model id forces the
+    opencode-go provider; ``provider:model`` pins an explicit pair. Returns
+    None when unset/invalid so normal BPC routing proceeds."""
+    raw = os.getenv("ATOM_FORCED_LLM_MODEL", "").strip()
+    if not raw:
+        return None
+    if ":" in raw:
+        provider, _, model = raw.partition(":")
+        provider = provider.strip().lower()
+        model = model.strip()
+    else:
+        provider, model = "opencode-go", raw.strip()
+    if not provider or not model:
+        return None
+    return (provider, model)
 
 
 def _opencode_free_paid_fallback() -> dict:
@@ -1543,7 +1564,21 @@ class BYOKHandler:
             List of (provider, model) tuples ranked by value score
         """
         ranked_options = []
-        
+
+        # ATOM_FORCED_LLM_MODEL: the operator pins one (provider, model) pair
+        # and BPC is skipped entirely — e.g. nemotron-3-ultra-free when the
+        # paid balance is exhausted but free models still work. A forced
+        # provider with no configured client falls through to BPC (the forced
+        # pair must never appear in the ranked result).
+        forced = _forced_model_override()
+        if forced:
+            provider, model = forced
+            if provider in self.clients:
+                logger.info(f"Forced LLM model {provider}/{model} (ATOM_FORCED_LLM_MODEL)")
+                return [(provider, model)]
+            logger.warning(
+                f"Forced LLM provider {provider} has no client — ignoring ATOM_FORCED_LLM_MODEL"
+            )
         # 1. Dynamic BPC Selection (Data-Driven)
         try:
             # Lazy async initialization: auto-populate pricing cache on first use

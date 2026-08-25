@@ -1,27 +1,217 @@
 import asyncio
 import logging
 import datetime
-from typing import Dict, Any, List
+import os
+from typing import Dict, Any, List, Optional
 
 from core.database import SessionLocal
 from core.models import HITLAction, HITLActionStatus
 from core.agent_governance_service import AgentGovernanceService
 from integrations.outlook_routes import outlook_service
 from core.websockets import manager
+from core.llm_service import get_llm_service
 
 logger = logging.getLogger(__name__)
 
 # Configurable CC email addresses
 DEFAULT_CC_RECIPIENTS = ["chandrakant@brennan.ca", "support@brennan.ca"]
 
+# Fallback reply used when the LLM is unavailable or the flag is off.
+DEFAULT_REPLY_TEMPLATE = (
+    "Hi,\n\nChandrakant here from Brennan Machinery. I have received a quote "
+    "request from you.\n\nHow can I assist you today?\n\nThanks"
+)
+
+# LLM-drafted replies: off restores the fixed template above.
+LLM_DRAFTS_FLAG = "ATOM_OUTLOOK_LLM_DRAFTS"
+LLM_DRAFT_TIMEOUT_SECONDS = 25  # free gateway is slow when overloaded; the
+                                # 15s scan cadence tolerates a 25s draft
+
+# OpenCode Go free-usage model used for the reply draft (works without a paid
+# balance; the free allowance is separate). Override via env, e.g.
+#   ATOM_OUTLOOK_DRAFT_MODEL=mimo-v2.5-free
+OUTLOOK_DRAFT_MODEL_FLAG = "ATOM_OUTLOOK_DRAFT_MODEL"
+DEFAULT_OUTLOOK_DRAFT_MODEL = "nemotron-3-ultra-free"
+
+_EMAIL_SYSTEM_INSTRUCTION = (
+    "You are the email assistant for Brennan Machinery, a metal "
+    "fabrication company. Write concise, professional customer "
+    "replies. Never invent facts."
+)
+
+# Email trigger: the contact-page link OR any of these keywords (comma-
+# separated, case-insensitive substring match). Override via env.
+TRIGGER_KEYWORDS_FLAG = "ATOM_OUTLOOK_TRIGGER_KEYWORDS"
+DEFAULT_TRIGGER_KEYWORDS = "quote,price,quotation,pricing,estimate"
+
 # Set to track processed email message IDs during runtime to prevent double-drafting
 PROCESSED_EMAIL_IDS = set()
+
+
+def _matches_email_trigger(full_text: str) -> bool:
+    """Decide whether an email warrants a reply draft: the Brennan contact
+    page link is present, or the body contains any configured trigger keyword
+    (default: quote/price/quotation/pricing/estimate). Pure + testable."""
+    text = (full_text or "").lower()
+    if "https://brennan.ca/pages/contact" in text:
+        return True
+    raw = os.getenv(TRIGGER_KEYWORDS_FLAG, DEFAULT_TRIGGER_KEYWORDS)
+    for kw in (k.strip().lower() for k in raw.split(",")):
+        if kw and kw in text:
+            return True
+    return False
+
+
+def llm_drafts_enabled() -> bool:
+    return os.getenv(LLM_DRAFTS_FLAG, "true").lower() in ("1", "true", "yes", "on")
+
+
+# Markers of a BYOKHandler failure apology (all providers failed) — the
+# handler returns a polite error string instead of raising, so treat any
+# output containing these as "no draft" and fall back to the template.
+_LLM_FAILURE_MARKERS = (
+    "couldn't generate",
+    "could not generate",
+    "check your api key",
+    "insufficient balance",
+    "all providers failed",
+    "unable to generate",
+    "no llm providers",
+)
+
+
+def _looks_like_failure(text: str) -> bool:
+    t = (text or "").lower()
+    return any(m in t for m in _LLM_FAILURE_MARKERS)
+
+
+def _build_draft_prompt(
+    sender_name: str,
+    sender_email: str,
+    subject: str,
+    body: str,
+    preview: str,
+) -> str:
+    """Build the prompt for the reply-drafting LLM call (pure, testable)."""
+    sender_name = (sender_name or "the customer").strip()
+    email_body = (body or "").strip() or (preview or "").strip()
+    subject = (subject or "(no subject)").strip()
+    return (
+        f"A customer sent a quote request to Brennan Machinery via the contact "
+        f"page (https://brennan.ca/pages/contact).\n\n"
+        f"Customer name: {sender_name}\n"
+        f"Customer email: {sender_email}\n"
+        f"Email subject: {subject}\n"
+        f"Email body:\n{email_body[:2000]}\n\n"
+        f"Write a professional, warm reply email. Do not invent prices, "
+        f"lead times, or product specs that are not in the customer's message "
+        f"— say that you will get them the details. Sign the email as "
+        f"Chandrakant from Brennan Machinery. Keep it under 150 words."
+    )
+
+
+def _opencode_free_model() -> str:
+    """The free opencode-go model to use for drafts (env-overridable)."""
+    model = os.getenv(OUTLOOK_DRAFT_MODEL_FLAG, DEFAULT_OUTLOOK_DRAFT_MODEL).strip()
+    return model or DEFAULT_OUTLOOK_DRAFT_MODEL
+
+
+def _opencode_free_model_chain() -> list:
+    """Free-model fallback chain: the pinned model first, then other
+    documented opencode-go free models (the free gateway is intermittently
+    overloaded / has per-model availability gaps, so trying the next free
+    model is far more reliable than giving up)."""
+    models = []
+    primary = _opencode_free_model()
+    if primary:
+        models.append(primary)
+    for m in ("mimo-v2.5-free", "laguna-s-2.1-free"):
+        if m not in models:
+            models.append(m)
+    return models
+
+
+def _call_free_model_sync(client: Any, model: str, prompt: str, system_instruction: Optional[str] = None) -> str:
+    """Sync opencode-go chat call (run in a thread). Returns the reply text
+    or "" on any failure so the caller can fall back."""
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_instruction or _EMAIL_SYSTEM_INSTRUCTION},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.7,
+            max_tokens=400,
+        )
+        if not getattr(response, "choices", None):
+            return ""
+        return str(response.choices[0].message.content or "")
+    except Exception as e:
+        logger.debug(f"[Outlook Automation] direct free-model call failed: {e}")
+        return ""
+
+
+async def _call_free_model(llm: Any, prompt: str) -> str:
+    """Try the opencode-go client directly with the pinned free model (the
+    BPC ranker only sees paid opencode models from the pricing cache, so a
+    subscription with no balance fails before ever trying the free models).
+    The free gateway is intermittently overloaded (upstream 502) and models
+    come and go, so the call walks a fallback chain of free models (2 attempts
+    each, short backoff) before falling back to generic routing."""
+    try:
+        handler = getattr(llm, "handler", None)
+        client = (getattr(handler, "clients", None) or {}).get("opencode-go")
+        if client is not None:
+            for model in _opencode_free_model_chain():
+                for attempt in range(2):
+                    content = await asyncio.to_thread(
+                        _call_free_model_sync, client, model, prompt
+                    )
+                    if content:
+                        return content
+                    await asyncio.sleep(0.3)
+            logger.debug("[Outlook Automation] direct free-model calls empty across chain; falling back")
+    except Exception as e:
+        logger.debug(f"[Outlook Automation] direct free-model path failed: {e}; falling back")
+    return await llm.generate(
+        prompt=prompt,
+        system_instruction=_EMAIL_SYSTEM_INSTRUCTION,
+        temperature=0.7,
+        max_tokens=400,
+    )
+
+
+async def _draft_reply(
+    sender_name: str,
+    sender_email: str,
+    subject: str,
+    body: str,
+    preview: str,
+) -> str:
+    """Draft a reply to a customer query email via the LLM. Never raises;
+    returns "" on any failure/timeout so the caller falls back to the template."""
+    try:
+        llm = get_llm_service()
+        prompt = _build_draft_prompt(sender_name, sender_email, subject, body, preview)
+        draft = await asyncio.wait_for(
+            _call_free_model(llm, prompt),
+            timeout=LLM_DRAFT_TIMEOUT_SECONDS,
+        )
+        draft = (draft or "").strip()
+        if _looks_like_failure(draft):
+            logger.warning("[Outlook Automation] LLM returned a failure-shaped reply, using template")
+            return ""
+        return draft
+    except Exception as e:
+        logger.warning(f"[Outlook Automation] LLM reply draft failed, using template: {e}")
+        return ""
 
 async def process_outlook_automation():
     """
     Background worker loop that:
     1. Reads unread emails from Outlook (simulated or real).
-    2. Scans for 'https://brennan.ca/pages/contact'.
+    2. Scans for the Brennan contact page link or quote keywords.
     3. Requests approval (HITLAction) to reply.
     4. Detects decided/approved HITLActions and sends the reply email.
     """
@@ -72,9 +262,10 @@ async def process_outlook_automation():
             body_preview = email.get("body_preview", "")
             
             full_text = (body_content + " " + body_preview).lower()
-            
-            # Check for target URL
-            if "https://brennan.ca/pages/contact" in full_text:
+
+            # Trigger: Brennan contact-page link OR a quote/price keyword
+            # (configurable via ATOM_OUTLOOK_TRIGGER_KEYWORDS).
+            if _matches_email_trigger(full_text):
                 # Extract sender email address
                 from_field = email.get("from_field") or {}
                 sender_email = from_field.get("emailAddress", {}).get("address")
@@ -97,14 +288,37 @@ async def process_outlook_automation():
                 
                 # Create HITL Action (Human approval required before sending email)
                 logger.info(f"[Outlook Automation] Match found in email {email_id} from {sender_email}. Requesting HITL approval...")
-                
+
+                # LLM-drafted reply (personalized) with the template as a
+                # safe fallback — the approval UI shows whichever body lands here.
+                draft_body = DEFAULT_REPLY_TEMPLATE
+                draft_subject = "Brennan Machinery"
+                if llm_drafts_enabled():
+                    sender_name = str(
+                        (from_field.get("emailAddress") or {}).get("name")
+                        or (email.get("sender") or {}).get("name")
+                        or ""
+                    )
+                    drafted = await _draft_reply(
+                        sender_name=sender_name,
+                        sender_email=str(sender_email),
+                        subject=str(email.get("subject") or ""),
+                        body=str(body_content or ""),
+                        preview=str(body_preview or ""),
+                    )
+                    if drafted:
+                        draft_body = drafted
+                        original_subject = str(email.get("subject") or "").strip()
+                        if original_subject:
+                            draft_subject = f"Re: {original_subject}"[:120]
+
                 gov_service = AgentGovernanceService(db)
                 params = {
                     "user_id": user_id,
                     "to_recipients": [sender_email],
                     "cc_recipients": DEFAULT_CC_RECIPIENTS,
-                    "subject": "Brennan Machinery",
-                    "body": "Hi,\n\nChandrakant here from Brennan Machinery. I have received a quote request from you.\n\nHow can I assist you today?\n\nThanks",
+                    "subject": draft_subject,
+                    "body": draft_body,
                     "email_id": email_id
                 }
                 
@@ -112,7 +326,7 @@ async def process_outlook_automation():
                     agent_id="outlook_automation_agent",
                     action_type="outlook_automation_send_email",
                     params=params,
-                    reason=f"Email from {sender_email} contains Brennan contact page. Requesting approval to reply. Original Email ID: {email_id}"
+                    reason=f"Email from {sender_email} matches a quote-request trigger. Requesting approval to reply. Original Email ID: {email_id}"
                 )
                 
                 # Broadcast via WebSockets so the UI/Chat gets updated live!

@@ -141,7 +141,10 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         self.malicious_patterns = [
             r'<script[^>]*>.*?</script>',  # XSS
             r'javascript:',               # JS protocol
-            r'on\w+\s*=',               # Event handlers
+            # Word boundary required: a bare on\w+\s*= also matched mid-word
+            # occurrences like c[on]tent= in benign email HTML, 400-ing chat
+            # requests whose history quoted ingested emails.
+            r'\bon\w+\s*=',               # Event handlers
             r'union\s+select',          # SQL injection
             r'drop\s+table',            # SQL injection
             r'exec\(',                  # Code execution

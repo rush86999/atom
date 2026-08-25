@@ -57,7 +57,12 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         self.malicious_patterns = [
             r"<script[^>]*>.*?</script>",
             r"javascript:",
-            r"on\w+\s*=",
+            # Word boundary required: the bare `on\w+\s*=` also matched
+            # mid-word occurrences like `c[on]tent=` in benign email HTML
+            # (`<meta ... content="text/html">`), 400-ing every chat request
+            # whose conversation_history quoted an ingested email. \b keeps
+            # real event handlers (onerror=, onload=, onclick =) detected.
+            r"\bon\w+\s*=",
             r"union\s+select",
             r"drop\s+table",
             r"exec\(",

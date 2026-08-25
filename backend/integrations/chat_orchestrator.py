@@ -669,9 +669,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 **extra_kwargs,
             )
             
-            if response_data.get("success") and response_data.get("content"):
+            content = response_data.get("content", "").strip() if response_data else ""
+            is_generic_failure = not content or "couldn't generate a response" in content.lower() or "check your api key" in content.lower()
+
+            if response_data.get("success") and content and not is_generic_failure:
                 return {
-                    "content": response_data.get("content", "").strip(),
+                    "content": content,
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,
@@ -907,7 +910,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         if intent == ChatIntent.SEARCH_REQUEST:
             search_data = feature_responses.get(FeatureType.SEARCH, {})
             if search_data.get("data"):
-                count = len(search_data["data"].get("results", []))
+                data = search_data["data"]
+                count = len(data.get("results", [])) + len(
+                    data.get("document_results", [])
+                )
                 return f"I found {count} results for your search."
             return "I've searched across your connected platforms."
 
@@ -1006,17 +1012,31 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         """Handle search requests across all platforms"""
         try:
             # Use AI data intelligence for unified search
+            search_results = []
             if "data_intelligence" in self.ai_engines:
                 search_results = self.ai_engines["data_intelligence"].search_unified_entities(
                     message
                 )
-            else:
-                search_results = []
+
+            # Document-memory leg: ingested files (WorkDrive uploads, etc.)
+            # live in the LanceDB documents store, which the in-memory entity
+            # search above never queries — so document queries returned 0
+            # results even after a successful ingest. Hybrid search fuses the
+            # PG lexical index with the LanceDB vector leg.
+            document_results = []
+            try:
+                from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+                doc_resp = await DocumentsHybridSearch().search(message, limit=5)
+                document_results = doc_resp.get("results", []) or []
+            except Exception as doc_err:
+                logger.warning(f"Document search leg failed: {doc_err}")
 
             return {
                 "success": True,
                 "data": {
                     "results": search_results,
+                    "document_results": document_results,
                     "query": message,
                     "platforms_searched": intent_analysis.get("platforms", [])
                 },

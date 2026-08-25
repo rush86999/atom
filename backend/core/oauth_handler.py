@@ -336,7 +336,7 @@ WHATSAPP_OAUTH_CONFIG = OAuthConfig(
 _ZOHO_ACCOUNTS_BASE = os.getenv(
     "ZOHO_ACCOUNTS_BASE", "https://accounts.zoho.com"
 ).rstrip("/")
-_ZOHO_SCOPES_DEFAULT = "WorkDrive.team.ALL,WorkDrive.files.ALL,WorkDrive.workspace.ALL"
+_ZOHO_SCOPES_DEFAULT = "WorkDrive.team.ALL,WorkDrive.files.ALL,WorkDrive.workspace.ALL,WorkDrive.teamfolders.READ"
 _ZOHO_SCOPES = [s.strip() for s in os.getenv("ZOHO_OAUTH_SCOPES", _ZOHO_SCOPES_DEFAULT).split(",") if s.strip()]
 
 ZOHO_OAUTH_CONFIG = OAuthConfig(
