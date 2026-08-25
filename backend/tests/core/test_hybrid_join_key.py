@@ -112,9 +112,12 @@ async def test_api_ingest_document_passes_doc_id_to_lancedb():
 
     assert handler_calls, "add_document was not called"
     kwargs = handler_calls[0]
-    assert kwargs["doc_id"] == doc_id, "API ingest must pass doc_id into LanceDB"
-    assert kwargs["metadata"].get("doc_id") == doc_id
-    assert resp.id == doc_id
+    # Upsert contract: the doc id is the STABLE key derived from the title —
+    # re-ingesting the same title updates the same row instead of duplicating.
+    expected_id = doc_routes._stable_doc_key("api", "revenue.md")
+    assert kwargs["doc_id"] == expected_id, "API ingest must pass its stable doc_id into LanceDB"
+    assert kwargs["metadata"].get("doc_id") == expected_id
+    assert resp.id == expected_id
 
 
 def test_file_ingest_path_stamps_source_type_and_doc_id():

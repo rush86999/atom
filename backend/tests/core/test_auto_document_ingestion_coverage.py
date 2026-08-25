@@ -517,6 +517,9 @@ class TestAutoDocumentIngestionService:
         service.redactor = None
         service.memory_handler = MagicMock()
         service.memory_handler.add_document.return_value = True
+        # Workspace override selects a per-workspace handler — seed the cache
+        # so the injected mock serves "test-workspace".
+        service._ws_handlers = {"test-workspace": service.memory_handler}
         content = b"# Test Document\n\nThis is test content."
 
         result = await service.process_file_bytes(

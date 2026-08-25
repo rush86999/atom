@@ -71,6 +71,68 @@ async def _stored_chunk_count(lancedb_handler, doc_id: str, fallback_text: str) 
         pass
     return max(1, -(-len(text) // 500))
 
+
+def _stable_doc_key(namespace: str, name: str) -> str:
+    """Deterministic doc id per (namespace, file/title).
+
+    Re-ingesting the same file updates it in place instead of piling up
+    UUID-suffixed duplicates (stale + fresh both matching in search)."""
+    import hashlib
+
+    digest = hashlib.sha1(f"{namespace}:{name}".encode("utf-8")).hexdigest()[:24]
+    return f"{namespace}_{digest}"
+
+
+async def _upsert_document(
+    lancedb_handler,
+    *,
+    text: str,
+    doc_key: str,
+    source: str,
+    metadata: Dict[str, Any],
+    user_id: str,
+    workspace_id: Optional[str] = None,
+) -> str:
+    """Content-aware upsert on a stable doc key.
+
+    Returns "skipped_unchanged" when the stored copy has the same content
+    hash; otherwise replaces (delete prior versions, then write) and
+    returns "written"."""
+    from core.doc_freshness_service import hash_text
+
+    content_hash = hash_text(text)
+    try:
+        prior = await asyncio.to_thread(
+            lancedb_handler.get_document_by_id, "documents", doc_key
+        )
+        if isinstance(prior, dict):
+            prior_meta = prior.get("metadata") or {}
+            if isinstance(prior_meta, dict) and prior_meta.get("source_content_hash") == content_hash:
+                return "skipped_unchanged"
+    except Exception:
+        pass
+
+    metadata["source_content_hash"] = content_hash
+    if hasattr(lancedb_handler, "delete_documents_by_id"):
+        try:
+            await asyncio.to_thread(lancedb_handler.delete_documents_by_id, "documents", doc_key)
+        except Exception:
+            pass
+    success = await asyncio.to_thread(
+        lancedb_handler.add_document,
+        table_name="documents",
+        text=text,
+        source=source,
+        metadata=metadata,
+        user_id=user_id,
+        workspace_id=workspace_id,
+        doc_id=doc_key,
+    )
+    if not success:
+        raise RuntimeError("LanceDB add_document returned False")
+    return "written"
+
+
 @router.post("/ingest", response_model=DocumentResponse)
 async def ingest_document(
     request: DocumentIngestRequest,
@@ -89,7 +151,9 @@ async def ingest_document(
         if not lancedb_handler:
              raise router.internal_error("Search database not available")
 
-        doc_id = str(uuid.uuid4())
+        # Stable key per title: re-ingesting the same document updates it in
+        # place (content-hash skip / replace) instead of duplicating.
+        doc_id = _stable_doc_key("api", request.title or f"untitled_{str(uuid.uuid4())[:8]}")
         content = request.content or ""
         doc_type = request.type
         title = request.title or f"Document {doc_id[:8]}"
@@ -108,18 +172,14 @@ async def ingest_document(
 
         # to_thread: add_document embeds synchronously; called directly on the
         # loop thread, embed_text's same-thread guard makes every write fail.
-        success = await asyncio.to_thread(
-            lancedb_handler.add_document,
-            table_name="documents",
+        await _upsert_document(
+            lancedb_handler,
             text=content,
+            doc_key=doc_id,
             source=f"api:{doc_id}",
             metadata=metadata,
             user_id=str(current_user.id) if current_user else "default_user",
-            doc_id=doc_id
         )
-
-        if not success:
-             raise router.internal_error("Failed to store document in LanceDB")
 
         return DocumentResponse(
             id=doc_id,
@@ -193,8 +253,11 @@ async def upload_document(
         if not content:
              content = f"[Empty or unparseable file: {filename}]"
 
-        # 2. Store document
-        doc_id = str(uuid.uuid4())
+        # 2. Store document — stable key per (author, filename) so
+        # re-uploading the same file updates it in place.
+        doc_id = _stable_doc_key(
+            "upload", f"{current_user.email if current_user else 'unknown'}:{filename}"
+        )
         metadata = {
             "source": "upload",
             "size": len(content_bytes),
@@ -210,19 +273,15 @@ async def upload_document(
             "author": current_user.email if current_user else "unknown"
         }
 
-        success = await asyncio.to_thread(
-            lancedb_handler.add_document,
-            table_name="documents",
+        await _upsert_document(
+            lancedb_handler,
             text=content,
+            doc_key=doc_id,
             source=f"upload:{filename}",
             metadata=metadata,
             user_id=str(current_user.id) if current_user else "default_user",
             workspace_id=ws_id,
-            doc_id=doc_id
         )
-
-        if not success:
-             raise router.internal_error("Failed to store uploaded document in LanceDB")
 
         # 3. Aligned PG row: gives the upload full journey parity with synced
         # documents — lexical leg (FTS), VFS cat, citability. id MUST equal the
@@ -232,22 +291,33 @@ async def upload_document(
             from core.models import IngestedDocument
 
             with get_db_session() as db:
-                db.add(IngestedDocument(
-                    id=doc_id,
-                    workspace_id=ws_id or "default",
-                    tenant_id=getattr(current_user, "tenant_id", None),
-                    file_name=filename,
-                    file_path=f"upload:{filename}",
-                    file_type=file_ext,
-                    integration_id="manual_upload",
-                    file_size_bytes=len(content_bytes),
-                    content_preview=content[:500],
-                    external_id=f"upload_{doc_id}",
-                    ingested_at=datetime.now(timezone.utc),
-                    source_content_hash=None,
-                    last_verified_at=datetime.now(timezone.utc),
-                    freshness_status="fresh",
-                ))
+                # Upsert on the stable doc key: a re-upload of the same file
+                # refreshes the mirror row instead of hitting the PK.
+                from core.doc_freshness_service import hash_text
+
+                _row = (
+                    db.query(IngestedDocument)
+                    .filter(IngestedDocument.id == doc_id)
+                    .first()
+                )
+                if _row is None:
+                    _row = IngestedDocument(
+                        id=doc_id,
+                        workspace_id=ws_id or "default",
+                        tenant_id=getattr(current_user, "tenant_id", None),
+                        external_id=f"upload_{doc_id}",
+                        integration_id="manual_upload",
+                    )
+                    db.add(_row)
+                _row.file_name = filename
+                _row.file_path = f"upload:{filename}"
+                _row.file_type = file_ext
+                _row.file_size_bytes = len(content_bytes)
+                _row.content_preview = content[:500]
+                _row.ingested_at = datetime.now(timezone.utc)
+                _row.source_content_hash = hash_text(content)
+                _row.last_verified_at = datetime.now(timezone.utc)
+                _row.freshness_status = "fresh"
                 db.commit()
         except Exception as pg_err:
             # Vector row already stored; never fail the upload because the

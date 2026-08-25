@@ -561,7 +561,38 @@ class AutoDocumentIngestionService:
         # documents.cat. Stamp a stable doc_id + source_type:"file" so the
         # hybrid service can flag these as bridged:false (no PG row) rather
         # than silently returning unresolvable hits.
-        _file_doc_id = f"file_{datetime.now(timezone.utc).timestamp()}"
+        # The id is STABLE per (source, file_name): re-ingesting the same file
+        # updates it in place (skip when unchanged, replace when changed)
+        # instead of accumulating timestamp-suffixed duplicates.
+        import hashlib as _hashlib
+
+        from core.doc_freshness_service import hash_text
+
+        _content_hash = hash_text(text)
+        _file_doc_id = (
+            "file_" + _hashlib.sha1(f"{source}:{file_name}".encode("utf-8")).hexdigest()[:24]
+        )
+
+        # Content-level idempotency on the stable key.
+        if _handler is not None:
+            try:
+                _prior = await asyncio.to_thread(
+                    _handler.get_document_by_id, "documents", _file_doc_id
+                )
+                if isinstance(_prior, dict):
+                    _prior_meta = _prior.get("metadata") or {}
+                    if not isinstance(_prior_meta, dict):
+                        _prior_meta = {}
+                    if _prior_meta.get("source_content_hash") == _content_hash:
+                        return {
+                            "status": "skipped",
+                            "reason": "unchanged",
+                            "file_name": file_name,
+                            "chars_ingested": 0,
+                            "source": source,
+                        }
+            except Exception as probe_err:  # noqa: BLE001 — probe failures must not block writes
+                logger.debug(f"unchanged-probe failed for {file_name}: {probe_err}")
 
         _meta: Dict[str, Any] = {
             "file_name": file_name,
@@ -571,6 +602,8 @@ class AutoDocumentIngestionService:
             "ingested_at": datetime.now(timezone.utc).isoformat(),
             "pg_document_id": _file_doc_id,
             "source_type": "file",
+            "source_content_hash": _content_hash,
+            "freshness_status": "fresh",
         }
         # Connector-supplied context (e.g. WorkDrive folder path / root)
         if extra_metadata:
@@ -582,6 +615,15 @@ class AutoDocumentIngestionService:
 
         if _handler:
             try:
+                # Replace, not append: remove any prior version of this file
+                # under the stable key before writing the fresh copy.
+                if hasattr(_handler, "delete_documents_by_id"):
+                    try:
+                        await asyncio.to_thread(
+                            _handler.delete_documents_by_id, "documents", _file_doc_id
+                        )
+                    except Exception as del_err:  # noqa: BLE001 — best-effort cleanup
+                        logger.debug(f"prior-version cleanup skipped for {file_name}: {del_err}")
                 # to_thread: sync add_document from the loop thread can never
                 # embed (embed_text same-thread guard)
                 success = await asyncio.to_thread(
@@ -591,6 +633,7 @@ class AutoDocumentIngestionService:
                     source=f"{source}:{file_name}",
                     metadata=_meta,
                     user_id=user_id,
+                    workspace_id=ws_id,
                     doc_id=_file_doc_id,
                 )
                 if success:
@@ -667,6 +710,7 @@ class AutoDocumentIngestionService:
                     external_id = file_info.get("id")
                     if external_id:
                         seen_external_ids.add(external_id)
+                    existing: Optional[IngestedDocument] = None
                     if external_id in self.ingested_docs:
                         existing = self.ingested_docs[external_id]
                         if file_info.get("modified_at") == existing.external_modified_at:
@@ -717,6 +761,13 @@ class AutoDocumentIngestionService:
 
                         source_modified = file_info.get("modified_at")
                         content_hash = hash_text(text)
+                        # Content-level idempotency: source modified_at can
+                        # change (touch/rename) without the bytes changing —
+                        # skip the rewrite and just refresh the cache marker.
+                        if existing and existing.source_content_hash == content_hash:
+                            existing.external_modified_at = source_modified
+                            results["files_skipped"] += 1
+                            continue
                         # Join-key bridge (hybrid search, Step 1): generate the PG
                         # row id BEFORE the LanceDB write and pass it as doc_id so
                         # the LanceDB documents row id equals the IngestedDocument
@@ -766,6 +817,20 @@ class AutoDocumentIngestionService:
                         )
 
                         if success:
+                            # Re-ingest of a modified file: remove the OLD
+                            # vector row so search returns exactly one (fresh)
+                            # copy instead of a stale+fresh duplicate pair.
+                            if existing and existing.id and existing.id != new_id:
+                                try:
+                                    await asyncio.to_thread(
+                                        self.memory_handler.delete_documents_by_id,
+                                        "documents",
+                                        existing.id,
+                                    )
+                                except Exception as old_del_err:  # noqa: BLE001 — best-effort cleanup
+                                    logger.warning(
+                                        f"Failed to remove superseded row {existing.id}: {old_del_err}"
+                                    )
                             # Record ingestion (in-memory cache + DB for
                             # cross-run freshness tracking).
                             self.ingested_docs[external_id] = IngestedDocument(
