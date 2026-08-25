@@ -1633,6 +1633,16 @@ app.include_router(user_templates_router)
 board_router = safe_import_router("api.board_routes")
 app.include_router(board_router)
 
+# Audit trail (per-decision agent audit) — api/audit_routes.py declares its
+# own /api/audit prefix, so include BARE. Previously never mounted: every
+# auditAPI.* call from the /audit-trail frontend page 404'd.
+try:
+    from api.audit_routes import router as audit_trail_router
+    app.include_router(audit_trail_router, tags=["audit"])
+    logger.info("✓ Agent audit trail mounted at /api/audit")
+except Exception as e:  # pragma: no cover - boot resilience
+    logger.error(f"Failed to mount audit trail router: {e}")
+
 # Nav stub routes — endpoints for sidebar nav items that had no backend
 # endpoint (tasks, support tickets, communication analytics, integration health).
 nav_stub_router = safe_import_router("api.nav_stub_routes")

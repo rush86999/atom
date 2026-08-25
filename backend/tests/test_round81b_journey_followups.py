@@ -57,12 +57,14 @@ class TestAtomMainPersistence:
         assert db.query(AgentRegistry).count() == 1
 
     def test_execute_wiring_pinned(self):
-        """execute() must ensure the row exists before governance/outcome use."""
+        """The ReAct body (execute_unaudited; R84 audit bracket wrapper
+        delegates to it) must ensure the row exists before governance/outcome
+        use."""
         import inspect
 
         from core import atom_meta_agent
 
-        src = inspect.getsource(atom_meta_agent.AtomMetaAgent.execute)
+        src = inspect.getsource(atom_meta_agent.AtomMetaAgent.execute_unaudited)
         assert "ensure_atom_registry_persisted" in src
 
 

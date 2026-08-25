@@ -589,7 +589,6 @@ class LanceDBHandler:
         source: str = "",
         metadata: dict[str, Any] = None,
         user_id: str = "default_user",
-        extract_knowledge: bool = True,
         workspace_id: Union[str, None] = None,
         doc_id: Union[str, None] = None,
         skip_ai_triggers: bool = False,
@@ -606,7 +605,6 @@ class LanceDBHandler:
                 natively filterable; use ``extra_columns`` for fields you need
                 to prefilter on, like ``outcome`` or ``agent_id``).
             user_id: User ID who owns the document
-            extract_knowledge: Whether to extract knowledge (triggers AI)
             workspace_id: Workspace ID
             doc_id: Optional document ID (will generate if not provided)
             skip_ai_triggers: If True, skip AI trigger coordinator and workflow triggers
@@ -993,6 +991,30 @@ class LanceDBHandler:
         except Exception as e:
             logger.error(f"Failed to get document {doc_id}: {e}")
             return None
+
+    def delete_documents_by_id(self, table_name: str, doc_id: str) -> bool:
+        """Delete ALL rows whose id equals ``doc_id`` from a table.
+
+        LanceDB ``table.add`` is append-only, so re-ingesting the same doc_id
+        (fact versioning, re-uploads) leaves multiple rows — this removes
+        every version. Returns True if the delete call succeeded (including
+        zero matches); False on error. Call from a worker thread when the
+        table's embedding path may be touched.
+        """
+        self._ensure_db()
+        if self.db is None:
+            return False
+
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return False
+            safe_doc_id = str(doc_id).replace("'", "''")
+            table.delete(f"id = '{safe_doc_id}'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete document {doc_id} from '{table_name}': {e}")
+            return False
 
     def list_documents(
         self, table_name: str, limit: int = 20, offset: int = 0

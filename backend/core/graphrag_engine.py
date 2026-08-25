@@ -683,15 +683,27 @@ class GraphRAGEngine:
             try:
                 # Bug #12: verify both endpoint nodes exist before inserting the
                 # edge — prevents orphaned relationships that pollute traversals.
+                # Endpoints may be node IDs OR names: the batch ingestion path
+                # (ingest_document et al.) remaps relationship endpoints to
+                # entity NAMES, so an id-only lookup made every external
+                # add_relationship call from those producers fail with
+                # "source node not found".
+                from sqlalchemy import or_
+
                 from core.models import GraphNode
-                src = session.query(GraphNode).filter(
-                    GraphNode.id == rel.from_entity,
-                    GraphNode.workspace_id == ws_id
-                ).first()
-                tgt = session.query(GraphNode).filter(
-                    GraphNode.id == rel.to_entity,
-                    GraphNode.workspace_id == ws_id
-                ).first()
+
+                def _find_node(endpoint: str):
+                    return (
+                        session.query(GraphNode)
+                        .filter(
+                            or_(GraphNode.id == endpoint, GraphNode.name == endpoint),
+                            GraphNode.workspace_id == ws_id,
+                        )
+                        .first()
+                    )
+
+                src = _find_node(rel.from_entity)
+                tgt = _find_node(rel.to_entity)
                 if not src:
                     logger.warning(f"add_relationship: source node '{rel.from_entity}' not found — skipping")
                     return None
@@ -718,10 +730,12 @@ class GraphRAGEngine:
                     logger.debug(f"ontology validation skipped: {onto_err}")
 
                 # Dedup with occurrence counts (A5) — same triple upserts.
+                # Resolve to the found nodes' canonical IDs (endpoints may
+                # have been passed as names).
                 existing_edge = session.query(GraphEdge).filter(
                     GraphEdge.workspace_id == ws_id,
-                    GraphEdge.source_node_id == rel.from_entity,
-                    GraphEdge.target_node_id == rel.to_entity,
+                    GraphEdge.source_node_id == src.id,
+                    GraphEdge.target_node_id == tgt.id,
                     GraphEdge.relationship_type == rel.rel_type,
                 ).first()
                 if existing_edge:
@@ -743,8 +757,8 @@ class GraphRAGEngine:
                     id=rel.id,
                     tenant_id=tid,
                     workspace_id=ws_id,
-                    source_node_id=rel.from_entity,
-                    target_node_id=rel.to_entity,
+                    source_node_id=src.id,
+                    target_node_id=tgt.id,
                     relationship_type=rel.rel_type,
                     properties=props
                 )
@@ -934,11 +948,23 @@ class GraphRAGEngine:
                     node_type = e_data.get("type", "unknown")
                     # A2/A5: canonicalize the type label through the ontology
                     # (alias resolution — "org" == "Organization") so upserts
-                    # dedupe across alias spellings.
-                    if onto:
-                        resolved = onto.resolve_entity_type(node_type)
-                        if resolved:
-                            node_type = resolved
+                    # dedupe across alias spellings. R84: integration record
+                    # types (crm_leads, books_invoices, onedrive_file …) map
+                    # through the ontology bridge when the raw label isn't
+                    # already resolvable — one funnel, every producer.
+                    resolved = onto.resolve_entity_type(node_type) if onto else None
+                    if not resolved:
+                        try:
+                            from core.integration_ontology_bridge import (
+                                map_record_type,
+                                type_map_enabled,
+                            )
+                            if type_map_enabled():
+                                resolved = map_record_type(node_type)
+                        except Exception:  # noqa: BLE001 — mapping must never block ingestion
+                            resolved = None
+                    if resolved:
+                        node_type = resolved
 
                     # Upsert on (workspace, name, type): re-ingesting the same
                     # entity (or importing an org bundle) must merge, not

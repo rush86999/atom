@@ -291,9 +291,28 @@ class Microsoft365LifecycleLearner:
         try:
             from core.graphrag_engine import GraphRAGEngine
 
+            # R84: resolve the workspace's REAL tenant — this used to pass
+            # tenant_id=workspace_id, filing every Outlook-extracted node
+            # under a bogus tenant and hiding them from tenant-scoped reads.
+            tenant_id = "default"
+            try:
+                from core.database import get_db_session
+                from core.models import Workspace
+
+                with get_db_session() as db:
+                    ws = db.query(Workspace).filter(
+                        Workspace.id == workspace_id
+                    ).first()
+                    if ws is not None and ws.tenant_id:
+                        tenant_id = ws.tenant_id
+            except Exception as ws_err:  # noqa: BLE001 — fallback, never block
+                logging.getLogger(__name__).debug(
+                    f"tenant resolution fell back to default for {workspace_id}: {ws_err}"
+                )
+
             engine = GraphRAGEngine()
             engine.ingest_structured_data(
-                workspace_id=workspace_id, tenant_id=workspace_id, entities=entities, relationships=relationships
+                workspace_id=workspace_id, tenant_id=tenant_id, entities=entities, relationships=relationships
             )
             logger.info(
                 f"Ingested {len(entities)} entities / {len(relationships)} relationships from Outlook"

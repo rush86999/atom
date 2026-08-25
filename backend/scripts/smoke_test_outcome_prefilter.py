@@ -127,7 +127,6 @@ def _index_episode(handler, *, doc_id, text, outcome, agent_id="ag-1"):
         source=f"episode:{doc_id}",
         metadata=metadata,
         doc_id=doc_id,
-        extract_knowledge=False,
         skip_ai_triggers=True,
         extra_columns={"outcome": outcome, "agent_id": agent_id},
     )

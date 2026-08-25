@@ -362,7 +362,6 @@ class TestEpisodeConsolidation:
                 source=f"episode:{episode.id}",
                 metadata=metadata,
                 user_id="default_user",
-                extract_knowledge=False
             )
 
         with patch('core.episode_lifecycle_service.get_lancedb_handler', return_value=handler):
@@ -417,7 +416,6 @@ class TestEpisodeConsolidation:
                 source=f"episode:{episode.id}",
                 metadata=metadata,
                 user_id="default_user",
-                extract_knowledge=False
             )
 
         with patch('core.episode_lifecycle_service.get_lancedb_handler', return_value=handler):
@@ -521,7 +519,6 @@ class TestEpisodeArchival:
             source=f"episode:{episode.id}",
             metadata=metadata,
             user_id="default_user",
-            extract_knowledge=False
         )
 
         with patch('core.episode_lifecycle_service.get_lancedb_handler', return_value=handler):

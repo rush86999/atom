@@ -48,13 +48,25 @@ def write_turn_fact_vectors(*, rows: List[TurnFact], source_text: str = "") -> i
     Write fact vectors to LanceDB. Best-effort — returns count written.
     Never raises.
     """
-    handler = _get_handler()
-    if handler is None:
+    if not rows:
         return 0
+
+    # R84c: build handlers per workspace (usually one). The handler's own
+    # workspace_id must match the row's — search filters on it, and a default-
+    # workspace handler made every fact invisible to workspace-scoped recall.
+    handlers: dict = {}
+
+    def _handler_for(ws):
+        if ws not in handlers:
+            handlers[ws] = _get_handler(ws)
+        return handlers[ws]
 
     written = 0
     for row in rows:
         try:
+            handler = _handler_for(row.workspace_id)
+            if handler is None:
+                continue
             ok = handler.add_document(
                 table_name=_TABLE_NAME,
                 text=row.fact_text,
@@ -69,7 +81,6 @@ def write_turn_fact_vectors(*, rows: List[TurnFact], source_text: str = "") -> i
                 user_id=row.user_id or "turn_fact",
                 workspace_id=row.workspace_id,
                 doc_id=row.id,
-                extract_knowledge=False,  # never trigger downstream AI from extraction
                 skip_ai_triggers=True,
             )
             if ok:

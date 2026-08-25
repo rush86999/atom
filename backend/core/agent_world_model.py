@@ -128,7 +128,6 @@ class WorldModelService:
             source=f"agent_{experience.agent_id}",
             metadata=metadata,
             user_id="agent_system", # System owned
-            extract_knowledge=False # Don't re-ingest as generic knowledge
         )
 
     async def record_formula_usage(
@@ -191,7 +190,6 @@ class WorldModelService:
             source=f"agent_{agent_id}",
             metadata=metadata,
             user_id="agent_system",
-            extract_knowledge=False
         )
 
     async def update_experience_feedback(
@@ -210,42 +208,43 @@ class WorldModelService:
             feedback_notes: Optional notes explaining the feedback
         """
         try:
-            # Update the experience in LanceDB
-            # Since LanceDB doesn't support direct updates, we search and re-add
-            results = self.db.search(
-                table_name=self.table_name,
-                query="",  # Empty query to get by ID
-                limit=100
+            # Direct ID lookup (the old scan — search(query="", limit=100) then
+            # match ids — silently missed any experience beyond the first 100,
+            # and the append-only re-add left a stale duplicate row behind).
+            res = await asyncio.to_thread(
+                self.db.get_document_by_id, self.table_name, experience_id
             )
-            
-            for res in results:
-                if res.get("id") == experience_id:
-                    meta = res.get("metadata", {})
-                    
-                    # Update confidence based on feedback
-                    old_confidence = meta.get("confidence_score", 0.5)
-                    # Blend feedback into confidence (feedback has 40% weight)
-                    new_confidence = old_confidence * 0.6 + (feedback_score + 1.0) / 2.0 * 0.4
-                    
-                    meta["confidence_score"] = new_confidence
-                    meta["feedback_score"] = feedback_score
-                    meta["feedback_notes"] = feedback_notes
-                    meta["feedback_at"] = datetime.now(timezone.utc).isoformat()
-                    
-                    # Re-add with updated metadata (LanceDB append-only)
-                    enhanced_text = res["text"] + f"\nFeedback: {feedback_notes}" if feedback_notes else res["text"]
-                    
-                    await asyncio.to_thread(
-                        self.db.add_document,
-                        table_name=self.table_name,
-                        text=enhanced_text,
-                        source=res.get("source", "system"),
-                        metadata=meta,
-                        user_id="feedback_system"
-                    )
-                    
-                    logger.info(f"Updated experience {experience_id} with feedback {feedback_score}")
-                    return True
+            if res:
+                meta = res.get("metadata", {})
+
+                # Update confidence based on feedback
+                old_confidence = meta.get("confidence_score", 0.5)
+                # Blend feedback into confidence (feedback has 40% weight)
+                new_confidence = old_confidence * 0.6 + (feedback_score + 1.0) / 2.0 * 0.4
+
+                meta["confidence_score"] = new_confidence
+                meta["feedback_score"] = feedback_score
+                meta["feedback_notes"] = feedback_notes
+                meta["feedback_at"] = datetime.now(timezone.utc).isoformat()
+
+                enhanced_text = res["text"] + f"\nFeedback: {feedback_notes}" if feedback_notes else res["text"]
+
+                # Replace, not append: remove all prior versions first.
+                await asyncio.to_thread(
+                    self.db.delete_documents_by_id, self.table_name, experience_id
+                )
+                await asyncio.to_thread(
+                    self.db.add_document,
+                    table_name=self.table_name,
+                    text=enhanced_text,
+                    source=res.get("source", "system"),
+                    metadata=meta,
+                    user_id="feedback_system",
+                    doc_id=experience_id
+                )
+
+                logger.info(f"Updated experience {experience_id} with feedback {feedback_score}")
+                return True
                     
             logger.warning(f"Experience {experience_id} not found for feedback update")
             return False
@@ -264,36 +263,37 @@ class WorldModelService:
         Called when an agent successfully reuses a past experience pattern.
         """
         try:
-            results = self.db.search(
-                table_name=self.table_name,
-                query="",  # Empty query to get by ID
-                limit=100
+            # Direct ID lookup + replace (see update_experience_feedback).
+            res = await asyncio.to_thread(
+                self.db.get_document_by_id, self.table_name, experience_id
             )
+            if res:
+                meta = res.get("metadata", {})
+                old_confidence = meta.get("confidence_score", 0.5)
 
-            for res in results:
-                if res.get("id") == experience_id:
-                    meta = res.get("metadata", {})
-                    old_confidence = meta.get("confidence_score", 0.5)
+                # Boost confidence, clamped to the documented [0.0, 1.0]
+                # range. Previously only the upper bound was capped, so a
+                # negative boost_amount (or a large boost on a low-
+                # confidence record) could drive the value below 0.
+                meta["confidence_score"] = max(0.0, min(1.0, old_confidence + boost_amount))
+                meta["boost_count"] = meta.get("boost_count", 0) + 1
+                meta["last_boosted_at"] = datetime.now(timezone.utc).isoformat()
 
-                    # Boost confidence, clamped to the documented [0.0, 1.0]
-                    # range. Previously only the upper bound was capped, so a
-                    # negative boost_amount (or a large boost on a low-
-                    # confidence record) could drive the value below 0.
-                    meta["confidence_score"] = max(0.0, min(1.0, old_confidence + boost_amount))
-                    meta["boost_count"] = meta.get("boost_count", 0) + 1
-                    meta["last_boosted_at"] = datetime.now(timezone.utc).isoformat()
+                await asyncio.to_thread(
+                    self.db.delete_documents_by_id, self.table_name, experience_id
+                )
+                await asyncio.to_thread(
+                    self.db.add_document,
+                    table_name=self.table_name,
+                    text=res.get("text", ""),
+                    source=res.get("source", "system"),
+                    metadata=meta,
+                    user_id="boost_system",
+                    doc_id=experience_id
+                )
 
-                    await asyncio.to_thread(
-                        self.db.add_document,
-                        table_name=self.table_name,
-                        text=res.get("text", ""),
-                        source=res.get("source", "system"),
-                        metadata=meta,
-                        user_id="boost_system"
-                    )
-
-                    logger.info(f"Boosted experience {experience_id} confidence by {boost_amount}")
-                    return True
+                logger.info(f"Boosted experience {experience_id} confidence by {boost_amount}")
+                return True
 
             logger.warning(f"Experience {experience_id} not found for confidence boost")
             return False
@@ -389,7 +389,6 @@ class WorldModelService:
             source=f"fact_agent_{fact.source_agent_id}",
             metadata=metadata,
             user_id="fact_system",
-            extract_knowledge=False
         )
 
     async def update_fact_verification(self, fact_id: str, status: str) -> bool:
@@ -1042,15 +1041,18 @@ class WorldModelService:
         degradation — role scoping is additive, never exclusive).
         """
         if agent_role:
-            # R83: `metadata` is a JSON *string* column in LanceDB, so a
-            # server-side `metadata.role == …` DataFusion filter always
-            # returned [] (no such nested field on utf8). Search unfiltered,
-            # then rank role-tagged hits first by parsing the JSON client-side.
+            # R83: `metadata` is a JSON *string* column in Lance, so a nested
+            # `metadata.role == …` DataFusion filter always returned []. Two
+            # strategies, best first:
+            #   1. Server-side LIKE on the serialized JSON — role-tagged hits
+            #      beyond the client-side fetch window are still found.
+            #   2. Client-side ranking fallback (R83 behavior) when the LIKE
+            #      filter isn't supported by the handler/deployment.
+            import json as _json
+
             wanted = str(agent_role).lower()
 
             def _role_of(rec: dict) -> str:
-                import json as _json
-
                 raw = rec.get("metadata")
                 if isinstance(raw, str):
                     try:
@@ -1061,20 +1063,44 @@ class WorldModelService:
                     return ""
                 return str(raw.get("role") or "").lower()
 
-            hits = db.search(
-                table_name="documents",
-                query=task_description,
-                limit=max(limit * 3, limit),
-                user_id=None,
-            )
-            role_hits = [r for r in hits or [] if _role_of(r) == wanted]
-            results = list(role_hits)
+            # The needle matches how json.dumps serializes {"role": wanted}
+            # (double quotes, ": " separator) — same trick as the audit
+            # execution_needle.
+            needle = _json.dumps({"role": wanted})[1:-1].replace("'", "''")
+            role_hits = None
+            try:
+                role_hits = db.search(
+                    table_name="documents",
+                    query=task_description,
+                    limit=limit,
+                    user_id=None,
+                    filter_str=f"metadata LIKE '%{needle}%'",
+                )
+            except Exception as like_err:  # noqa: BLE001 — older handler / dialect
+                logger.debug(f"role LIKE filter unavailable, falling back: {like_err}")
+                role_hits = None
+            if role_hits is None:
+                hits = db.search(
+                    table_name="documents",
+                    query=task_description,
+                    limit=max(limit * 3, limit),
+                    user_id=None,
+                )
+                role_hits = [r for r in hits or [] if _role_of(r) == wanted]
+
+            results = list(role_hits or [])[:limit]
             if len(results) < limit:
+                hits = db.search(
+                    table_name="documents",
+                    query=task_description,
+                    limit=max(limit * 3, limit),
+                    user_id=None,
+                )
                 included = {r.get("id") for r in results}
                 for r in hits or []:
                     if len(results) >= limit:
                         break
-                    if r.get("id") not in included:
+                    if r.get("id") not in included and _role_of(r) != wanted:
                         results.append(r)
             return results
         return db.search(
@@ -1419,7 +1445,6 @@ class WorldModelService:
             source=f"episode_{agent_id}",
             metadata=episode_metadata,
             user_id="episode_system",
-            extract_knowledge=False
         )
 
 
@@ -1520,7 +1545,13 @@ class WorldModelService:
                 canonical = []
             for res in canonical or []:
                 meta = res.get("metadata", {})
-                if not isinstance(meta, dict) or meta.get("type") != "episode":
+                if not isinstance(meta, dict):
+                    continue
+                # Both canonical types live in this table: segmentation
+                # writes type "episode", the supervision service writes
+                # type "supervision_episode" — excluding the latter made
+                # every supervised-run episode invisible to recall.
+                if meta.get("type") not in ("episode", "supervision_episode"):
                     continue
                 if agent_id and meta.get("agent_id") != agent_id:
                     continue

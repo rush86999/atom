@@ -922,7 +922,7 @@ class TestPipelineWebhook:
         assert result["lancedb_indexed"] == 1
         args = pipeline["lancedb"].add_document.call_args
         assert args.kwargs["table_name"] == "atom_communications"
-        assert args.kwargs["extract_knowledge"] is False
+        assert "extract_knowledge" not in args.kwargs  # dead param removed (R84)
 
     @pytest.mark.asyncio
     async def test_webhook_no_source_connection(self, pipeline):
@@ -968,7 +968,12 @@ class TestPipelineTiered:
         assert result["tier"] == "deep"
         assert result["records_processed"] == 1
         assert result["entities_extracted"] == 1
-        pipeline["lancedb"].add_document.assert_called_once()
+        # R84: basic tier writes the index row AND a deterministic
+        # business_facts row for the same record.
+        tables = [c.kwargs.get("table_name")
+                  for c in pipeline["lancedb"].add_document.call_args_list]
+        assert sum(1 for t in tables if t and t.startswith("tenant_")) == 1
+        assert tables.count("business_facts") == 1
 
     @pytest.mark.asyncio
     async def test_tiered_communication_pipeline(self, pipeline, monkeypatch):

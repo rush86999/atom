@@ -343,11 +343,84 @@ class AutoDocumentIngestionService:
     def get_settings(self, integration_id: str) -> IngestionSettings:
         """Get or create settings for an integration"""
         if integration_id not in self.settings:
-            self.settings[integration_id] = IngestionSettings(
+            settings = IngestionSettings(
                 integration_id=integration_id,
                 workspace_id=self.workspace_id
             )
+            # Hydrate from the durable row if one exists (restart survival).
+            self._load_settings_row(integration_id, settings)
+            self.settings[integration_id] = settings
         return self.settings[integration_id]
+
+    def _settings_row_query(self, db, integration_id: str):
+        from core.models import IngestionSettings as IngestionSettingsRow
+
+        return (
+            db.query(IngestionSettingsRow)
+            .filter(
+                IngestionSettingsRow.workspace_id == self.workspace_id,
+                IngestionSettingsRow.integration_id == integration_id,
+            )
+            .first()
+        )
+
+    def _load_settings_row(self, integration_id: str, settings: IngestionSettings) -> None:
+        """Best-effort hydration from the ``ingestion_settings`` table.
+
+        Settings previously lived only in this process's memory — a restart
+        wiped enabled flags, folders and last_sync. Never raises."""
+        try:
+            from core.database import get_db_session
+
+            with get_db_session() as db:
+                row = self._settings_row_query(db, integration_id)
+                if row is None:
+                    return
+                settings.enabled = bool(row.enabled)
+                settings.auto_sync_new_files = bool(row.auto_sync_new_files)
+                settings.file_types = list(row.file_types or settings.file_types)
+                settings.sync_folders = list(row.sync_folders or [])
+                settings.exclude_folders = list(row.exclude_folders or [])
+                settings.max_file_size_mb = row.max_file_size_mb or settings.max_file_size_mb
+                settings.sync_frequency_minutes = (
+                    row.sync_frequency_minutes or settings.sync_frequency_minutes
+                )
+                settings.last_sync = row.last_sync
+        except Exception as e:
+            logger.debug(f"Ingestion settings load skipped for {integration_id}: {e}")
+
+    def _persist_settings(self, settings: IngestionSettings) -> None:
+        """Best-effort durable copy of ingestion settings. Never raises.
+
+        Only the document-ingestion columns are touched — hybrid ingestion
+        stores its pipeline state (entity_types, sync_mode, …) in the same
+        rows and must survive this upsert."""
+        try:
+            from core.database import get_db_session
+
+            with get_db_session() as db:
+                row = self._settings_row_query(db, settings.integration_id)
+                if row is None:
+                    from core.models import IngestionSettings as IngestionSettingsRow
+
+                    row = IngestionSettingsRow(
+                        workspace_id=self.workspace_id,
+                        integration_id=settings.integration_id,
+                    )
+                    db.add(row)
+                row.enabled = settings.enabled
+                row.auto_sync_new_files = settings.auto_sync_new_files
+                row.file_types = list(settings.file_types or [])
+                row.sync_folders = list(settings.sync_folders or [])
+                row.exclude_folders = list(settings.exclude_folders or [])
+                row.max_file_size_mb = settings.max_file_size_mb
+                row.sync_frequency_minutes = settings.sync_frequency_minutes
+                row.last_sync = settings.last_sync
+                db.commit()
+        except Exception as e:
+            logger.warning(
+                f"Failed to persist ingestion settings for {settings.integration_id}: {e}"
+            )
     
     def update_settings(
         self,
@@ -379,6 +452,7 @@ class AutoDocumentIngestionService:
             settings.sync_frequency_minutes = sync_frequency_minutes
         
         logger.info(f"Updated ingestion settings for {integration_id}: enabled={settings.enabled}")
+        self._persist_settings(settings)
         return settings
 
     async def process_file_bytes(
@@ -438,6 +512,25 @@ class AutoDocumentIngestionService:
         ws_id = workspace_id or self.workspace_id
         chars_ingested = 0
 
+        # Per-workspace handler: the workspace override previously only
+        # stamped metadata — the row still landed in the default workspace's
+        # store, invisible to that workspace's recall.
+        _handler = self.memory_handler
+        if ws_id and ws_id != self.workspace_id:
+            try:
+                if not hasattr(self, "_ws_handlers"):
+                    self._ws_handlers: Dict[str, Any] = {}
+                if ws_id not in self._ws_handlers:
+                    from core.lancedb_handler import get_lancedb_handler
+
+                    self._ws_handlers[ws_id] = get_lancedb_handler(ws_id)
+                _handler = self._ws_handlers[ws_id]
+            except Exception as ws_handler_err:  # noqa: BLE001 — fall back to default
+                logger.warning(
+                    f"workspace handler unavailable for {ws_id}, using default: {ws_handler_err}"
+                )
+                _handler = self.memory_handler
+
         # Join-key bridge (hybrid search, Step 1): the file-ingest path creates
         # no PG IngestedDocument row, so vector hits from here can't resolve to
         # documents.cat. Stamp a stable doc_id + source_type:"file" so the
@@ -462,18 +555,17 @@ class AutoDocumentIngestionService:
         if role:
             _meta["role"] = str(role).lower()
 
-        if self.memory_handler:
+        if _handler:
             try:
                 # to_thread: sync add_document from the loop thread can never
                 # embed (embed_text same-thread guard)
                 success = await asyncio.to_thread(
-                    self.memory_handler.add_document,
+                    _handler.add_document,
                     table_name="documents",
                     text=text,
                     source=f"{source}:{file_name}",
                     metadata=_meta,
                     user_id=user_id,
-                    extract_knowledge=True,
                     doc_id=_file_doc_id,
                 )
                 if success:
@@ -635,7 +727,6 @@ class AutoDocumentIngestionService:
                                 "source_type": "ingested",
                             },
                             user_id="system",
-                            extract_knowledge=True,
                             doc_id=new_id,
                             # Freshness columns as TOP-LEVEL filterable columns
                             # (not buried in the metadata JSON blob — see the
@@ -713,6 +804,7 @@ class AutoDocumentIngestionService:
                 results["freshness"] = {"error": str(reeval_err)}
 
             settings.last_sync = datetime.now(timezone.utc)
+            self._persist_settings(settings)
             results["completed_at"] = datetime.now(timezone.utc).isoformat()
             results["success"] = True
             
@@ -1155,22 +1247,163 @@ class AutoDocumentIngestionService:
             return None
     
     async def _list_onedrive_files(self, settings: IngestionSettings) -> List[Dict]:
-        """List files from OneDrive"""
-        logger.info("OneDrive file listing not fully implemented")
-        return []
-    
+        """List files from OneDrive via the Graph-backed integration service."""
+        try:
+            import os
+
+            from integrations.onedrive_service import onedrive_service
+
+            access_token = os.getenv("ONEDRIVE_ACCESS_TOKEN")
+            if not access_token:
+                logger.warning("OneDrive access token not configured")
+                return []
+
+            result = await onedrive_service.list_files(
+                access_token=access_token,
+                page_size=getattr(settings, "max_files", 100),
+            )
+            if result.get("status") != "success":
+                logger.error(f"Failed to list OneDrive files: {result.get('message')}")
+                return []
+
+            files = []
+            for item in result.get("data", {}).get("value", []):
+                # Skip folders — only file items have a "file" facet.
+                if "file" not in (item or {}):
+                    continue
+                files.append({
+                    "id": item.get("id"),
+                    "name": item.get("name"),
+                    "path": item.get("parentReference", {}).get("path", ""),
+                    "size": item.get("size", 0),
+                    "modified_at": item.get("lastModifiedDateTime"),
+                    "url": item.get("webUrl"),
+                })
+            logger.info(f"Listed {len(files)} files from OneDrive")
+            return files
+
+        except Exception as e:
+            logger.error(f"OneDrive file listing error: {e}")
+            return []
+
     async def _download_onedrive_file(self, file_info: Dict) -> Optional[bytes]:
-        """Download from OneDrive"""
-        return None
-    
+        """Download from OneDrive via the Graph-backed integration service."""
+        try:
+            import os
+
+            from integrations.onedrive_service import onedrive_service
+
+            access_token = os.getenv("ONEDRIVE_ACCESS_TOKEN")
+            if not access_token:
+                logger.warning("OneDrive access token not configured")
+                return None
+
+            file_id = file_info.get("id")
+            if not file_id:
+                return None
+            return await onedrive_service.download_file_bytes(
+                access_token=access_token, file_id=file_id
+            )
+
+        except Exception as e:
+            logger.error(f"OneDrive download error: {e}")
+            return None
+
     async def _list_notion_pages(self, settings: IngestionSettings) -> List[Dict]:
-        """List pages from Notion"""
-        logger.info("Notion page listing not fully implemented")
-        return []
-    
+        """List pages from Notion via the search endpoint."""
+        try:
+            import os
+
+            from integrations.notion_service import NotionService
+
+            token = os.getenv("NOTION_ACCESS_TOKEN") or os.getenv("NOTION_API_KEY") or os.getenv("NOTION_TOKEN")
+            if not token:
+                logger.warning("Notion access token not configured")
+                return []
+
+            notion = NotionService(config={"access_token": token})
+            data = notion.search(page_size=getattr(settings, "max_files", 100))
+            pages = []
+            for item in data.get("results", []):
+                if item.get("object") != "page":
+                    continue
+                # Best-effort title: check common title property locations.
+                title = item.get("url", "").rsplit("/", 1)[-1] or "Untitled"
+                props = item.get("properties", {})
+                for value in props.values():
+                    if value.get("type") == "title" and value.get("title"):
+                        title = "".join(
+                            part.get("plain_text", "") for part in value["title"]
+                        )
+                        break
+                pages.append({
+                    "id": item.get("id"),
+                    "name": f"{title}.md",
+                    "path": title,
+                    "size": 0,
+                    "modified_at": item.get("last_edited_time"),
+                    "url": item.get("url"),
+                })
+            logger.info(f"Listed {len(pages)} pages from Notion")
+            return pages
+
+        except Exception as e:
+            logger.error(f"Notion page listing error: {e}")
+            return []
+
     async def _download_notion_content(self, file_info: Dict) -> Optional[bytes]:
-        """Get content from Notion page"""
-        return None
+        """Flatten a Notion page's blocks into markdown-ish text bytes."""
+        try:
+            import os
+
+            from integrations.notion_service import NotionService
+
+            token = os.getenv("NOTION_ACCESS_TOKEN") or os.getenv("NOTION_API_KEY") or os.getenv("NOTION_TOKEN")
+            if not token:
+                logger.warning("Notion access token not configured")
+                return None
+
+            page_id = file_info.get("id")
+            if not page_id:
+                return None
+
+            notion = NotionService(config={"access_token": token})
+            parts: List[str] = [f"# {file_info.get('path') or file_info.get('name') or page_id}"]
+            cursor = None
+            while True:
+                kwargs = {"page_size": 100}
+                if cursor:
+                    kwargs["start_cursor"] = cursor
+                data = notion.get_block_children(page_id, **kwargs)
+                results = data.get("results", [])
+                if not results and not cursor:
+                    break
+                for block in results:
+                    # Any rich-text-bearing sub-key of the block payload.
+                    for value in block.values():
+                        if isinstance(value, dict) and isinstance(value.get("rich_text"), list):
+                            text = "".join(
+                                rt.get("plain_text", "")
+                                for rt in value["rich_text"]
+                            )
+                            if text:
+                                prefix = "- " if block.get("type") == "bulleted_list_item" else ""
+                                parts.append(prefix + text)
+                        elif isinstance(value, dict) and isinstance(value.get("title"), list):
+                            text = "".join(
+                                rt.get("plain_text", "") for rt in value["title"]
+                            )
+                            if text:
+                                parts.append(text)
+                cursor = data.get("next_cursor")
+                if not data.get("has_more") or not cursor:
+                    break
+
+            return "\n\n".join(parts).encode("utf-8")
+
+        except Exception as e:
+            logger.error(f"Notion content download error: {e}")
+            return None
     
     def get_ingested_documents(
         self, 
@@ -1197,16 +1430,36 @@ class AutoDocumentIngestionService:
         """
         count = 0
         removed_ids = []
-        
+
         for ext_id, doc in list(self.ingested_docs.items()):
             if doc.integration_id == integration_id:
                 removed_ids.append(ext_id)
+                # Real vector cleanup: delete the stored row by its doc id.
+                if self.memory_handler and doc.id:
+                    try:
+                        await asyncio.to_thread(
+                            self.memory_handler.delete_documents_by_id,
+                            "documents",
+                            doc.id,
+                        )
+                    except Exception as del_err:  # noqa: BLE001 — removal best-effort
+                        logger.warning(f"LanceDB delete failed for {doc.id}: {del_err}")
                 del self.ingested_docs[ext_id]
                 count += 1
-        
-        # In production, also delete from LanceDB
-        # self.memory_handler.delete_by_metadata("integration_id", integration_id)
-        
+
+        # Best-effort removal of the durable freshness rows so deleted docs
+        # don't reappear in freshness reevaluations.
+        try:
+            from core.models import IngestedDocument as IngestedDocumentRow
+
+            with self._freshness_session() as db:
+                db.query(IngestedDocumentRow).filter(
+                    IngestedDocumentRow.integration_id == integration_id
+                ).delete(synchronize_session=False)
+                db.commit()
+        except Exception as db_err:  # noqa: BLE001
+            logger.warning(f"IngestedDocument cleanup skipped for {integration_id}: {db_err}")
+
         logger.info(f"Removed {count} documents from {integration_id}")
         
         return {
@@ -1237,10 +1490,20 @@ class AutoDocumentIngestionService:
 _doc_ingestion_service: Optional[AutoDocumentIngestionService] = None
 
 
-def get_document_ingestion_service() -> AutoDocumentIngestionService:
-    """Get or create the document ingestion service"""
+def get_document_ingestion_service(
+    workspace_id: str = "default",
+) -> AutoDocumentIngestionService:
+    """Get or create the document ingestion service.
+
+    ``workspace_id`` is accepted (and ignored beyond first init) because every
+    caller — document_ingestion_routes.py, sqs_worker.py — passes one; the old
+    zero-arg signature made each of those calls raise TypeError inside a broad
+    except and surface as a 500.
+    """
     global _doc_ingestion_service
     if _doc_ingestion_service is None:
+        # The service is a fixed-"default"-workspace singleton; the arg is
+        # accepted for caller compatibility only.
         _doc_ingestion_service = AutoDocumentIngestionService()
     return _doc_ingestion_service
 

@@ -169,7 +169,8 @@ class KnowledgeExtractionOperator:
     This is the CORE operator that enables agent learning and recall.
     
     Mirrors the legacy pipeline behavior from:
-    - LanceDBHandler.add_document() with extract_knowledge=True
+    - the legacy LanceDBHandler.add_document() extraction step (the
+    - handler no longer extracts; dead param removed R84)
     - KnowledgeIngestionManager.process_document()
     
     Populates:
@@ -602,14 +603,13 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
                         metadata = json.loads(metadata) if metadata else {}
                     
                     # Note: We skip secrets redaction here as it's done in the pipeline operator
-                    # Note: extract_knowledge=False because Bytewax handles streaming differently
+                    # Note: no handler-level AI extraction — Bytewax operators own knowledge extraction.
                     success = self.handler.add_document(
                         table_name=self.table_name,
                         text=item.content,
                         source=item.app_type,
                         metadata=metadata,
                         user_id=metadata.get("user_id"),
-                        extract_knowledge=False
                     )
                     logger.info(f"[LanceDBSink] [CREATE] Persisted {item.id}: {success}")
                     
@@ -628,7 +628,6 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
                         text=item.content,
                         metadata=metadata,
                         user_id=metadata.get("user_id"),
-                        extract_knowledge=False,
                         doc_id=item.id,
                         skip_ai_triggers=True
                     )

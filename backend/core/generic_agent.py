@@ -152,7 +152,29 @@ class GenericAgent:
 
         start_time = datetime.now(timezone.utc)
         logger.info(f"Agent {self.name} ({self.id}) starting task: {task_input[:50]}")
-        
+
+        # R84c: bind the run to the per-decision audit trail. All log_agent_action /
+        # log_llm_call calls on this context (tool invocations below, LLM ledgering
+        # in _react_step) thread their audit rows to this execution; the trail is
+        # closed out with execution_complete + a completeness gate before returning.
+        # Never raises into the agent loop.
+        try:
+            from core.agent_action_audit import bind_audit_context, log_agent_action
+            _audit_token = bind_audit_context(
+                agent_id=self.id,
+                execution_id=_run_uuid,
+                user_id=(context or {}).get("user_id"),
+                workspace_id=getattr(self, "workspace_id", None),
+            )
+            log_agent_action(
+                action="execution_start",
+                description=f"Agent {self.name} starting task",
+                metadata={"task_input": task_input[:2000]},
+            )
+        except Exception as audit_bind_err:  # noqa: BLE001
+            _audit_token = None
+            logger.debug(f"audit context bind skipped: {audit_bind_err}")
+
         # 1. Recall Memory
         memory_context = await self.world_model.recall_experiences(
             agent=self._get_registry_model(),
@@ -365,6 +387,16 @@ class GenericAgent:
                         for pr in parallel_results:
                             p_tool = pr["tool_name"]
                             p_params = pr.get("params") or {}
+                            # R84c: ledger each parallel tool decision too.
+                            try:
+                                from core.agent_action_audit import log_agent_action
+                                log_agent_action(
+                                    action=f"tool:{p_tool}",
+                                    description=f"Tool {p_tool} invoked (parallel batch)",
+                                    metadata={"params": p_params},
+                                )
+                            except Exception:  # noqa: BLE001
+                                pass
                             p_record = {
                                 "step": current_step,
                                 "thought": thought,
@@ -697,6 +729,46 @@ class GenericAgent:
                     )
             except Exception as tf_err:
                 logger.debug(f"turn-fact extraction dispatch failed: {tf_err}")
+
+        # R84c: close out the audit trail for this run — execution_complete
+        # bracket + completeness gate (expected = tool steps + one LLM call
+        # per ReAct step). A shortfall means part of the run escaped the
+        # audit trail and is surfaced as an ERROR, never an exception.
+        if _audit_token is not None:
+            try:
+                from core.agent_action_audit import (
+                    check_execution_audit_completeness,
+                    log_agent_action,
+                    unbind_audit_context,
+                )
+                log_agent_action(
+                    action="execution_complete",
+                    description=f"Agent {self.name} finished with status {status}",
+                    metadata={
+                        "status": status,
+                        "steps": len(steps),
+                        "task_input": task_input[:2000],
+                    },
+                    success=(status == "success"),
+                )
+                _tool_steps = sum(1 for s in steps if s.get("action"))
+                _completeness = check_execution_audit_completeness(
+                    _run_uuid,
+                    expected_tool_calls=_tool_steps,
+                    expected_llm_calls=len(steps),
+                )
+                if not _completeness.get("complete"):
+                    logger.error(
+                        "AUDIT GAP for execution %s: %s", _run_uuid, _completeness
+                    )
+                unbind_audit_context(_audit_token)
+            except Exception as audit_close_err:  # noqa: BLE001
+                logger.debug(f"audit close-out skipped: {audit_close_err}")
+                try:
+                    from core.agent_action_audit import unbind_audit_context
+                    unbind_audit_context(_audit_token)
+                except Exception:
+                    pass
 
         return execution_result
 
@@ -1182,7 +1254,25 @@ What is your next step?"""
         # Consume the screenshot after one use to prevent stale visual context
         self.last_screenshot = None
         
+        # R84c: ledger this ReAct LLM decision into the audit trail. No-op
+        # outside an agent run (no bound context), so platform traffic is
+        # not flooded. Never raises into the loop.
+        def _audit_llm(response: Any) -> None:
+            # R84c: ledger this ReAct LLM decision into the audit trail.
+            # No-op outside an agent run (no bound context). Never raises.
+            try:
+                from core.agent_action_audit import log_llm_call
+                log_llm_call(
+                    model=str(agent_model_tier or "auto"),
+                    prompt=user_prompt,
+                    response=response,
+                    provider="llm_service",
+                )
+            except Exception:  # noqa: BLE001
+                pass
+
         if structured_result:
+            _audit_llm(structured_result.model_dump())
             return structured_result
         
         # Fallback: Use LLMService for raw response
@@ -1196,6 +1286,7 @@ What is your next step?"""
         
         # Handle error responses
         if not raw_response or "not initialized" in str(raw_response).lower():
+            _audit_llm(raw_response)
             return ReActStep(
                 thought="LLM not available",
                 final_answer=raw_response if raw_response else "Unable to process - LLM not configured."
@@ -1207,6 +1298,7 @@ What is your next step?"""
         # didn't contain the word "answer". Now checks for structured markers.
         raw_lower = (raw_response or "").lower().strip()
         has_final_marker = raw_lower.startswith("final answer:") or raw_lower.startswith("answer:")
+        _audit_llm(raw_response)
         return ReActStep(
             thought=raw_response[:200] if raw_response else "Unable to reason",
             final_answer=raw_response if has_final_marker else None
@@ -1284,6 +1376,57 @@ What is your next step?"""
             return result
 
     async def _step_act(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False) -> Any:
+        """Auditing wrapper around every tool invocation (R84c).
+
+        Ledgers success, error-string results, and exceptions into the
+        per-decision audit trail; the audit write itself is guarded so a
+        downed audit store never breaks the tool call. Delegates to
+        ``_step_act_unaudited`` for the actual governance + MCP dispatch.
+        """
+        import time as _time
+
+        _start = _time.monotonic()
+        try:
+            result = await self._step_act_unaudited(
+                tool_name, args, context, step_callback, pre_approved
+            )
+        except Exception as tool_err:
+            try:
+                from core.agent_action_audit import log_agent_action
+                log_agent_action(
+                    action=f"tool:{tool_name}",
+                    description=f"Tool {tool_name} raised",
+                    metadata={
+                        "tool": tool_name,
+                        "params": args,
+                        "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                    },
+                    success=False,
+                    error_message=str(tool_err)[:2000],
+                )
+            except Exception:  # noqa: BLE001
+                pass
+            raise
+
+        _is_err = isinstance(result, str) and "error" in result.lower()
+        try:
+            from core.agent_action_audit import log_agent_action
+            log_agent_action(
+                action=f"tool:{tool_name}",
+                description=f"Tool {tool_name} invoked",
+                metadata={
+                    "tool": tool_name,
+                    "params": args,
+                    "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                },
+                success=not _is_err,
+                error_message=result[:2000] if _is_err else None,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return result
+
+    async def _step_act_unaudited(self, tool_name: str, args: Dict, context: Dict = None, step_callback: Optional[callable] = None, pre_approved: bool = False) -> Any:
         """Execute a tool via MCP with Governance Check
 
         ``pre_approved`` (Workstream G): when True, the governance/HITL check is

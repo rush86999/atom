@@ -852,7 +852,6 @@ class EpisodeSegmentationService:
                 source=f"episode:{episode['id']}",
                 metadata=metadata,
                 user_id=episode["user_id"] or "system",
-                extract_knowledge=False,
                 extra_columns={
                     "outcome": episode.get("outcome", "unknown"),
                     "agent_id": episode.get("agent_id", ""),
@@ -1735,7 +1734,6 @@ Topics: {', '.join(episode.topics)}
                 source=f"supervision_episode:{episode.id}",
                 metadata=metadata,
                 user_id=episode.user_id or "system",
-                extract_knowledge=False
             )
 
             logger.info(f"Archived supervision episode {episode.id} to LanceDB")

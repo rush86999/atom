@@ -475,6 +475,9 @@ class HybridDataIngestionService:
             
             # Ingest each record into Atom Memory
             seen_types = set()
+            # R84: one fact budget per sync run caps total fact writes.
+            from core.integration_ontology_bridge import FactBudget
+            fact_budget = FactBudget()
             for record in records:
                 try:
                     record_type = record.get("type", "unknown")
@@ -515,6 +518,16 @@ class HybridDataIngestionService:
                     if not text or len(text) < 10:
                         continue
                     
+                    # R83 (P4): classify sensitivity per record so the taint
+                    # gates downstream (org-bundle export, recall ceilings,
+                    # R84 fact metadata, and the raw vector row below) have
+                    # real data instead of the "internal" default.
+                    from core.data_taint_tracker import classify_sensitivity
+                    try:
+                        _sensitivity = classify_sensitivity(text)
+                    except Exception:  # noqa: BLE001 — classification must never block ingestion
+                        _sensitivity = "internal"
+
                     # Ingest into LanceDB (to_thread: sync add_document from
                     # the loop thread can never embed — same-thread guard)
                     if self.memory_handler:
@@ -522,6 +535,7 @@ class HybridDataIngestionService:
                             "integration_id": integration_id,
                             "record_id": record.get("id", "unknown"),
                             "record_type": record.get("type", "unknown"),
+                            "sensitivity": _sensitivity,
                             "synced_at": datetime.now(timezone.utc).isoformat()
                         }
                         # AI-employee relevance tag (Round 80)
@@ -534,28 +548,21 @@ class HybridDataIngestionService:
                             source=integration_id,
                             metadata=_meta,
                             user_id=record.get("user_id", "system"),
-                            extract_knowledge=True
                         )
                         if success:
                             results["records_ingested"] += 1
-                    
+
                     # Also ingest into GraphRAG for entity/relationship extraction
                     if self.graphrag:
                         # ingest_document is a coroutine — must be awaited, or
                         # the truthy coroutine crashes on .get() and every
                         # record is recorded as an error.
-                        #
-                        # R83 (P4): classify sensitivity per record so the
-                        # taint gates downstream (org-bundle export, recall
-                        # ceilings) have real data instead of the "internal"
-                        # default for every integration record.
-                        from core.data_taint_tracker import classify_sensitivity
-                        try:
-                            _sensitivity = classify_sensitivity(text)
-                        except Exception:  # noqa: BLE001 — classification must never block ingestion
-                            _sensitivity = "internal"
                         graphrag_result = await self.graphrag.ingest_document(
                             workspace_id=self.workspace_id,
+                            # tenant_id must be explicit: the engine's own
+                            # default is "default", which filed every node from
+                            # this path under the wrong tenant.
+                            tenant_id=self.tenant_id,
                             doc_id=f"{integration_id}_{record.get('id', 'unknown')}",
                             text=text,
                             source=integration_id,
@@ -564,6 +571,27 @@ class HybridDataIngestionService:
                         if graphrag_result:
                             results["entities_extracted"] += graphrag_result.get("entities", 0)
                             results["relationships_extracted"] += graphrag_result.get("relationships", 0)
+
+                    # R84: deterministic business-fact auto-extraction
+                    # (LLM-free; unverified observations, idempotent per
+                    # record via DocumentIngestion markers). Budget caps the
+                    # whole sync run.
+                    try:
+                        from core.integration_ontology_bridge import write_integration_fact
+                        fact_stats = await write_integration_fact(
+                            workspace_id=self.workspace_id,
+                            tenant_id=self.tenant_id,
+                            integration_id=integration_id,
+                            record_type=record_type,
+                            record=record,
+                            text=text,
+                            sensitivity=_sensitivity,
+                            memory_handler=self.memory_handler,
+                            budget=fact_budget,
+                        )
+                        results["facts_written"] = results.get("facts_written", 0) + fact_stats.get("written", 0)
+                    except Exception as fact_err:  # noqa: BLE001 — observation layer never blocks ingestion
+                        logger.warning(f"Fact extraction skipped for {integration_id}: {fact_err}")
                 
                 except Exception as record_err:
                     results["errors"].append(str(record_err))

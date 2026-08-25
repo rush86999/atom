@@ -158,7 +158,6 @@ Output: {json.dumps(example_output)}
                     source=f"formula:{source}",
                     metadata=metadata,
                     user_id=user_id,
-                    extract_knowledge=True # Still useful to extract entities like "Revenue"
                 )
                 logger.info(f"Formula Card embedded in LanceDB: {name}")
                 

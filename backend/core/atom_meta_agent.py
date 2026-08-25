@@ -447,11 +447,127 @@ class AtomMetaAgent:
         self._stage_group: Optional[str] = None
 
         
-    async def execute(self, request: str, context: Dict[str, Any] = None, 
+    async def execute(self, request: str, context: Dict[str, Any] = None,
                       trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL,
                       step_callback: Optional[callable] = None,
                       execution_id: str = None,
                       canvas_context: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        """Auditing bracket around the meta-agent run (R84c parity).
+
+        Binds run identity (agent_id='atom_main', execution_id) for every
+        log_agent_action / log_llm_call inside the loop, brackets the run
+        with execution_start / execution_complete events, and runs the
+        audit-completeness gate on close-out. Unbind is guaranteed on both
+        success and exception paths; audit failures never break the run.
+        Delegates to ``execute_unaudited`` (the ReAct body).
+        """
+        context = context or {}
+        from core.agent_action_audit import bind_audit_context, log_agent_action
+
+        exec_uuid = execution_id or str(uuid.uuid4())
+        _audit_token = None
+        try:
+            _audit_token = bind_audit_context(
+                "atom_main",
+                exec_uuid,
+                user_id=context.get("user_id"),
+                workspace_id=self.workspace_id,
+            )
+            log_agent_action(
+                action="execution_start",
+                description=f"Meta-agent run started: {request[:200]}",
+                metadata={"task_input": request[:2000],
+                          "trigger_mode": trigger_mode.value},
+                success=True,
+            )
+        except Exception:  # noqa: BLE001 — auditing must never block runs
+            _audit_token = None
+
+        try:
+            result = await self.execute_unaudited(
+                request, context=context, trigger_mode=trigger_mode,
+                step_callback=step_callback, execution_id=execution_id,
+                canvas_context=canvas_context,
+            )
+        except Exception as run_err:
+            self._close_audit_bracket(
+                exec_uuid, status="failed", actions_executed=[],
+                success=False, error_message=str(run_err)[:2000],
+                token=_audit_token,
+            )
+            raise
+
+        steps = result.get("actions_executed") or []
+        status = result.get("status", "success")
+        self._close_audit_bracket(
+            exec_uuid, status=status, actions_executed=steps,
+            success=(status == "success"),
+            error_message=None, token=_audit_token,
+        )
+        return result
+
+    def _close_audit_bracket(self, exec_uuid: str, status: Any,
+                             actions_executed: list, success: bool,
+                             error_message: Optional[str], token) -> None:
+        """Write execution_complete + completeness gate + unbind. Never raises."""
+        try:
+            from core.agent_action_audit import (
+                check_execution_audit_completeness,
+                log_agent_action,
+                unbind_audit_context,
+            )
+            log_agent_action(
+                action="execution_complete",
+                description=f"Meta-agent run finished with status {status}",
+                metadata={
+                    "status": status,
+                    "steps": len(actions_executed),
+                    "task_input": None,
+                },
+                success=success,
+                error_message=error_message,
+            )
+            tool_steps = sum(1 for s in actions_executed if s.get("action"))
+            completeness = check_execution_audit_completeness(
+                exec_uuid,
+                expected_tool_calls=tool_steps,
+                expected_llm_calls=len(actions_executed),
+            )
+            if not completeness.get("complete"):
+                logger.error("AUDIT GAP for execution %s: %s", exec_uuid, completeness)
+        except Exception as audit_close_err:  # noqa: BLE001
+            logger.debug(f"audit close-out skipped: {audit_close_err}")
+        finally:
+            if token is not None:
+                try:
+                    from core.agent_action_audit import unbind_audit_context
+                    unbind_audit_context(token)
+                except Exception:  # noqa: BLE001
+                    pass
+
+    def _ledger_llm_decision(self, model: str, prompt: Any, response: Any,
+                             provider: str = "llm_service") -> None:
+        """Ledger one ReAct LLM decision into the per-decision audit trail.
+
+        No-op outside an agent run (no bound context — log_llm_call returns
+        None), so platform traffic is not flooded. Never raises into the loop.
+        """
+        try:
+            from core.agent_action_audit import log_llm_call
+            log_llm_call(
+                model=str(model or "auto"),
+                prompt=prompt,
+                response=response,
+                provider=provider,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+    async def execute_unaudited(self, request: str, context: Dict[str, Any] = None,
+                                trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL,
+                                step_callback: Optional[callable] = None,
+                                execution_id: str = None,
+                                canvas_context: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """
         Main entry point for Atom. Uses Robust ReAct Loop with Pydantic validation.
         Based on 2025 Architecture: PydanticAI wraps each step in a validation layer.
@@ -1643,8 +1759,15 @@ What is your next step?"""
         )
         
         if structured_result:
+            self._ledger_llm_decision(
+                model=_stage_model or "auto",
+                prompt=user_prompt,
+                response=structured_result.model_dump()
+                if hasattr(structured_result, "model_dump")
+                else structured_result,
+            )
             return structured_result
-        
+
         # Fallback: Use LLMService for completion
         response_data = await self.llm.generate_completion(
             messages=[
@@ -1654,8 +1777,9 @@ What is your next step?"""
             model="fast",
             temperature=0.2
         )
-        
+
         raw_response = response_data.get("content")
+        self._ledger_llm_decision(model="fast", prompt=user_prompt, response=raw_response)
         
         # Handle None, empty, or error responses
         is_error = not raw_response or any(kw in str(raw_response).lower() for kw in ["not initialized", "error", "restriction", "budget", "expired", "failed", "no eligible"])
@@ -1696,8 +1820,63 @@ What is your next step?"""
             return f"Error triggering workflow {workflow_id}: {e}"
 
     async def _execute_tool_with_governance(self, tool_name: str, args: Dict,
-                                            context: Dict, step_callback: Optional[callable],
+                                            context: Dict, step_callback: Optional[callable] = None,
                                             pre_approved: bool = False) -> str:
+        """Auditing wrapper around every meta-agent tool invocation (R84c parity).
+
+        Mirrors GenericAgent._step_act: ledgers success, error-string results,
+        and exceptions into the per-decision audit trail. The audit write is
+        guarded so a downed audit store never breaks the tool call; KillRun
+        aborts still audit (success=False) before re-raising. Delegates to
+        ``_execute_tool_with_governance_unaudited`` for the actual work.
+        """
+        import time as _time
+        from core.agent_action_audit import is_error_result
+
+        _start = _time.monotonic()
+        try:
+            result = await self._execute_tool_with_governance_unaudited(
+                tool_name, args, context, step_callback, pre_approved
+            )
+        except Exception as tool_err:
+            try:
+                from core.agent_action_audit import log_agent_action
+                log_agent_action(
+                    action=f"tool:{tool_name}",
+                    description=f"Meta-agent tool {tool_name} raised",
+                    metadata={
+                        "tool": tool_name,
+                        "params": args,
+                        "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                    },
+                    success=False,
+                    error_message=str(tool_err)[:2000],
+                )
+            except Exception:  # noqa: BLE001 — audit must never mask the tool error
+                pass
+            raise
+
+        _is_err = is_error_result(result)
+        try:
+            from core.agent_action_audit import log_agent_action
+            log_agent_action(
+                action=f"tool:{tool_name}",
+                description=f"Meta-agent tool {tool_name} invoked",
+                metadata={
+                    "tool": tool_name,
+                    "params": args,
+                    "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
+                },
+                success=not _is_err,
+                error_message=result[:2000] if _is_err else None,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return result
+
+    async def _execute_tool_with_governance_unaudited(self, tool_name: str, args: Dict,
+                                                      context: Dict, step_callback: Optional[callable] = None,
+                                                      pre_approved: bool = False) -> str:
         """Execute a tool via MCP with governance checks
 
         ``pre_approved`` (Workstream G): when True, the governance/HITL check is

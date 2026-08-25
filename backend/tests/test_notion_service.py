@@ -90,7 +90,15 @@ class TestNotionServiceAuthentication:
         """NotionService generates OAuth authorization URL."""
         # Patch uuid.uuid4 - it's imported locally in get_authorization_url()
         # so we patch it in the uuid module directly
+        import os
+
+        oauth_env = {
+            "NOTION_CLIENT_ID": "test-client-id",
+            "NOTION_CLIENT_SECRET": "test-client-secret",
+            "NOTION_REDIRECT_URI": "http://localhost/callback",
+        }
         with patch('uuid.uuid4', return_value='test-state'), \
+             patch.dict(os.environ, oauth_env), \
              patch('core.productivity.notion_service.get_db_session') as mock_get_db:
 
             mock_db = MagicMock()

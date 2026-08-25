@@ -54,6 +54,23 @@ class SearchResponse(BaseModel):
     total_count: int
     timestamp: str
 
+
+async def _stored_chunk_count(lancedb_handler, doc_id: str, fallback_text: str) -> int:
+    """Chunk count from the STORED text (post-redaction), not the raw input.
+
+    The handler stores one row per document; the count reflects ~500-char
+    retrieval chunks of what actually landed in LanceDB."""
+    text = fallback_text
+    try:
+        stored = await asyncio.to_thread(
+            lancedb_handler.get_document_by_id, "documents", doc_id
+        )
+        if stored and stored.get("text"):
+            text = stored["text"]
+    except Exception:
+        pass
+    return max(1, -(-len(text) // 500))
+
 @router.post("/ingest", response_model=DocumentResponse)
 async def ingest_document(
     request: DocumentIngestRequest,
@@ -98,7 +115,6 @@ async def ingest_document(
             source=f"api:{doc_id}",
             metadata=metadata,
             user_id=str(current_user.id) if current_user else "default_user",
-            extract_knowledge=True,
             doc_id=doc_id
         )
 
@@ -111,7 +127,7 @@ async def ingest_document(
             type=doc_type,
             metadata=metadata,
             ingested_at=metadata["ingested_at"],
-            chunk_count=max(1, len(content) // 500)
+            chunk_count=await _stored_chunk_count(lancedb_handler, doc_id, content)
         )
     except Exception as e:
         logger.error(f"Document ingestion failed: {e}")
@@ -170,13 +186,7 @@ async def upload_document(
                 message=f"File exceeds the {MAX_UPLOAD_SIZE // (1024*1024)} MB upload limit",
                 status_code=413,
             )
-        if file_ext not in ALLOWED_EXTENSIONS:
-            raise router.error_response(
-                error_code="UNSUPPORTED_FILE_TYPE",
-                message=f"File type '{file_ext}' is not supported",
-                status_code=415,
-            )
-        
+
         # 1. Parse content using robust parser
         content = await DocumentParser.parse_document(content_bytes, file_ext, filename)
         
@@ -204,7 +214,6 @@ async def upload_document(
             source=f"upload:{filename}",
             metadata=metadata,
             user_id=str(current_user.id) if current_user else "default_user",
-            extract_knowledge=True,
             workspace_id=ws_id,
             doc_id=doc_id
         )
@@ -218,7 +227,7 @@ async def upload_document(
             type=file.content_type or "application/octet-stream",
             metadata=metadata,
             ingested_at=metadata["ingested_at"],
-            chunk_count=max(1, len(content) // 500)
+            chunk_count=await _stored_chunk_count(lancedb_handler, doc_id, content)
         )
     except Exception as e:
         # BUG-124: Previously the broad `except Exception` caught the 413/415
@@ -249,8 +258,11 @@ async def search_documents(
         if not lancedb_handler:
              raise router.internal_error("Search database not available")
         
-        # Use LanceDB vector search
-        results_data = lancedb_handler.search(
+        # Use LanceDB vector search. to_thread: search() embeds the query
+        # synchronously; on the loop thread the same-thread embed guard makes
+        # every search return [] (writes were fixed the same way).
+        results_data = await asyncio.to_thread(
+            lancedb_handler.search,
             table_name="documents",
             query=q,
             limit=limit,
@@ -269,7 +281,7 @@ async def search_documents(
                   id=str(r.get("id", uuid.uuid4())), # Fallback ID if not in result
                   title=meta.get("title") or meta.get("file_name") or "Untitled",
                   content_preview=r.get("text", "")[:200] + "...",
-                  score=r.get("_score", 0.0), # LanceDB return _score or score?
+                  score=r.get("score", r.get("_score", 0.0)),
                   metadata=meta
              ))
         
@@ -348,13 +360,19 @@ async def delete_document(
     if not lancedb_handler:
             raise router.internal_error("Search database not available")
 
-    # This is tricky with LanceDB as we usually delete by filter
-    # Assuming doc_id matches 'id' column or a metadata field 'doc_id'
-    # lancedb_handler.delete_by_metadata("doc_id", doc_id) # Hypothetical method
-    
-    # For now, implementing as a no-op or log warning as full deletion requires filter
-    logger.warning(f"Delete requested for {doc_id} - not fully implemented in LanceDB handler wrapper")
-    return router.success_response(message=f"Document '{doc_id}' deletion scheduled")
+    # 404 on unknown id, then delete by the id column (to_thread: delete may
+    # touch the sync LanceDB path). Previously a logged no-op that returned
+    # success — the document was never removed and the user was told it was.
+    doc = await asyncio.to_thread(lancedb_handler.get_document_by_id, "documents", doc_id)
+    if not doc:
+         raise router.not_found_error("Document", doc_id)
+    deleted = await asyncio.to_thread(
+        lancedb_handler.delete_documents_by_id, "documents", doc_id
+    )
+    if not deleted:
+         raise router.internal_error(message="Failed to delete document")
+
+    return router.success_response(message=f"Document '{doc_id}' deleted")
 
 @router.get("")
 async def list_documents(

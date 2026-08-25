@@ -60,7 +60,7 @@ class TestShopifyHealthCheck:
         svc = ShopifyService(config={"api_key": "test_key"})
         import asyncio
 
-        result = asyncio.get_event_loop().run_until_complete(svc.health_check())
+        result = asyncio.run(svc.health_check())
         # Should execute without NameError and report health based on api_key presence.
         assert result["healthy"] is True
         assert result["message"] == "Connected"
@@ -71,7 +71,7 @@ class TestShopifyHealthCheck:
         svc = ShopifyService(config={})
         import asyncio
 
-        result = asyncio.get_event_loop().run_until_complete(svc.health_check())
+        result = asyncio.run(svc.health_check())
         assert result["healthy"] is False
 
 
@@ -412,9 +412,9 @@ class TestProcessFileBytes:
         assert result["status"] == "ingested"
         assert result["chars_ingested"] > 0
         svc.memory_handler.add_document.assert_called_once()
-        # Verify extract_knowledge=True is passed.
+        # Dead extract_knowledge param removed (R84) — must not be passed.
         _, kwargs = svc.memory_handler.add_document.call_args
-        assert kwargs.get("extract_knowledge") is True
+        assert "extract_knowledge" not in kwargs
 
 
 # ---------------------------------------------------------------------------

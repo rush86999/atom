@@ -120,8 +120,9 @@ class IngestionPipelineService(HybridDataIngestionService):
             workspace_id=self.workspace_id, tenant_id=self.tenant_id, db=db
         )
 
-        # Initialize GraphRAG engine for entity/relationship extraction
-        self._graphrag = GraphRAGEngine(db=self.db)
+        # GraphRAG note: this subclass previously built a second engine
+        # (self._graphrag) that was never used — all extraction goes through
+        # the parent's self.graphrag, which receives workspace/tenant per call.
 
         # Phase 323: High-performance Multi-Entity Extraction
         # Create LLMService once with proper tenant context (reused across all extractions)
@@ -293,6 +294,12 @@ class IngestionPipelineService(HybridDataIngestionService):
 
             ingested_record_ids = []  # Track for post-ingestion idempotency recording
 
+            # R84c: fact budget for the whole sync run (parity with the hybrid
+            # sync path — this path previously wrote GraphRAG only: no vector
+            # row, no sensitivity classification, no business fact).
+            from core.integration_ontology_bridge import FactBudget
+            sync_fact_budget = FactBudget()
+
             for record in records:
                 try:
                     pass
@@ -313,6 +320,58 @@ class IngestionPipelineService(HybridDataIngestionService):
                         continue
 
                     results["records_processed"] += 1
+
+                    # R84c parity legs: vector row + sensitivity + fact.
+                    # Sensitivity first so both the vector metadata and the
+                    # fact carry the real classification.
+                    try:
+                        from core.data_taint_tracker import classify_sensitivity
+                        try:
+                            _sensitivity = classify_sensitivity(text)
+                        except Exception:  # noqa: BLE001
+                            _sensitivity = "internal"
+                    except ImportError:
+                        _sensitivity = "internal"
+
+                    try:
+                        await asyncio.to_thread(
+                            self.lancedb.add_document,
+                            table_name=f"integration_{integration_id}",
+                            text=text,
+                            source=integration_id,
+                            metadata={
+                                "integration_id": integration_id,
+                                "record_id": record.get("id", "unknown"),
+                                "record_type": record.get("type", "unknown"),
+                                "sensitivity": _sensitivity,
+                                "synced_at": datetime.now(timezone.utc).isoformat(),
+                            },
+                            user_id=record.get("user_id", "system"),
+                            workspace_id=self.workspace_id,
+                            skip_ai_triggers=True,
+                        )
+                        results["records_indexed"] = results.get("records_indexed", 0) + 1
+                    except Exception as vector_err:  # noqa: BLE001 — vector mirror never blocks graph ingestion
+                        logger.warning(f"[{job_id}] LanceDB index skipped for record {record.get('id')}: {vector_err}")
+
+                    try:
+                        from core.integration_ontology_bridge import write_integration_fact
+                        fact_stats = await write_integration_fact(
+                            workspace_id=self.workspace_id,
+                            tenant_id=self.tenant_id,
+                            integration_id=integration_id,
+                            record_type=record.get("type", "unknown"),
+                            record=record,
+                            text=text,
+                            sensitivity=_sensitivity,
+                            memory_handler=self.lancedb,
+                            budget=sync_fact_budget,
+                        )
+                        results["facts_written"] = (
+                            results.get("facts_written", 0) + fact_stats.get("written", 0)
+                        )
+                    except Exception as fact_err:  # noqa: BLE001 — observation layer never blocks ingestion
+                        logger.warning(f"[{job_id}] Fact extraction skipped: {fact_err}")
 
                     # Phase 323: High-performance Multi-Entity Extraction (Advanced)
                     # For complex unstructured data, extract multiple business entities
@@ -344,12 +403,21 @@ class IngestionPipelineService(HybridDataIngestionService):
                 logger.info(
                     f"[{job_id}] Ingesting {len(entities)} entities, {len(relationships)} relationships to GraphRAG"
                 )
-                self.graphrag.ingest_structured_data(
+                # The engine's own return is authoritative: it reports what
+                # actually landed (0s after an inner rollback) instead of the
+                # producer's candidate counts.
+                gr_counts = self.graphrag.ingest_structured_data(
                     workspace_id=self.workspace_id, tenant_id=self.tenant_id,
                     entities=entities + integration_entities, relationships=relationships,
                 )
-                results["entities_extracted"] += len(entities)
-                results["relationships_extracted"] += len(relationships)
+                if isinstance(gr_counts, dict) and gr_counts:
+                    results["entities_extracted"] += gr_counts.get("entities", 0)
+                    results["relationships_extracted"] += gr_counts.get("relationships", 0)
+                    if gr_counts.get("edges_rejected"):
+                        results["edges_rejected"] = gr_counts["edges_rejected"]
+                else:
+                    results["entities_extracted"] += len(entities)
+                    results["relationships_extracted"] += len(relationships)
 
                 # Record successful ingestion for document-level idempotency
                 for rid, rtext in ingested_record_ids:
@@ -453,7 +521,7 @@ class IngestionPipelineService(HybridDataIngestionService):
 
     def _extract_structured_entities(
         self, record: dict[str, Any], integration_id: str, text: str
-    ) -> Union[tuple[dict, dict], tuple[None, None]]:
+    ) -> Union[tuple[dict, dict, dict], tuple[None, None, None]]:
         """
         Extract structured entity and relationship from a record.
 
@@ -1104,6 +1172,11 @@ class IngestionPipelineService(HybridDataIngestionService):
             integration_entities = []  # anchor nodes; sent to GraphRAG, not counted
             relationships = []
 
+            # R84c: one fact budget per webhook delivery (parity with the
+            # tiered path — this path previously had no fact/sensitivity layer).
+            from core.integration_ontology_bridge import FactBudget
+            webhook_fact_budget = FactBudget()
+
             for record in records:
                 try:
                     pass
@@ -1135,6 +1208,33 @@ class IngestionPipelineService(HybridDataIngestionService):
                     if integ_entity and not any(e.get("name") == integ_entity["name"] for e in integration_entities):
                         integration_entities.append(integ_entity)
 
+                    # R84c: deterministic business-fact extraction + sensitivity
+                    # classification (LLM-free; parity with the tiered path).
+                    try:
+                        from core.data_taint_tracker import classify_sensitivity
+                        from core.integration_ontology_bridge import write_integration_fact
+
+                        try:
+                            _sensitivity = classify_sensitivity(text)
+                        except Exception:  # noqa: BLE001
+                            _sensitivity = "internal"
+                        fact_stats = await write_integration_fact(
+                            workspace_id=self.workspace_id,
+                            tenant_id=self.tenant_id,
+                            integration_id=integration_id,
+                            record_type=record.get("type", "unknown"),
+                            record=record,
+                            text=text,
+                            sensitivity=_sensitivity,
+                            memory_handler=self.lancedb,
+                            budget=webhook_fact_budget,
+                        )
+                        results["facts_written"] = (
+                            results.get("facts_written", 0) + fact_stats.get("written", 0)
+                        )
+                    except Exception as fact_err:  # noqa: BLE001 — observation layer never blocks ingestion
+                        logger.warning(f"Webhook fact extraction skipped for {integration_id}: {fact_err}")
+
                 except Exception as record_err:
                     error_msg = f"Failed to process webhook record: {record_err}"
                     results["errors"].append(error_msg)
@@ -1150,12 +1250,16 @@ class IngestionPipelineService(HybridDataIngestionService):
                     f"Ingesting webhook data: {len(entities)} entities, {len(relationships)} relationships",
                     extra={"integration_id": integration_id, "tenant_id": self.tenant_id},
                 )
-                self.graphrag.ingest_structured_data(
+                gr_counts = self.graphrag.ingest_structured_data(
                     workspace_id=self.workspace_id, tenant_id=self.tenant_id,
                     entities=entities + integration_entities, relationships=relationships,
                 )
-                results["entities_extracted"] = len(entities)
-                results["relationships_extracted"] = len(relationships)
+                if isinstance(gr_counts, dict) and gr_counts:
+                    results["entities_extracted"] = gr_counts.get("entities", 0)
+                    results["relationships_extracted"] = gr_counts.get("relationships", 0)
+                else:
+                    results["entities_extracted"] = len(entities)
+                    results["relationships_extracted"] = len(relationships)
             else:
                 pass
 
@@ -1269,7 +1373,6 @@ class IngestionPipelineService(HybridDataIngestionService):
                                 user_id=self.tenant_id,
                                 workspace_id=self.workspace_id,
                                 doc_id=doc_id,
-                                extract_knowledge=False,  # Already extracted via GraphRAG
                                 skip_ai_triggers=True,  # Prevent loops
                             )
 
@@ -1357,7 +1460,7 @@ class IngestionPipelineService(HybridDataIngestionService):
         """
         Process webhook payload with Tiered Ingestion (Basic vs Deep).
 
-        1. Basic Tier: Indexes to LanceDB (extract_knowledge=False) [ALWAYS RUNS]
+        1. Basic Tier: Indexes to LanceDB only (no AI extraction) [ALWAYS RUNS]
         2. Deep Tier: Entity extraction via GraphRAG [GATED BY QUOTA]
 
         Args:
@@ -1399,6 +1502,9 @@ class IngestionPipelineService(HybridDataIngestionService):
             )
 
             # 3. Basic Tier - LanceDB Indexing (ALWAYS)
+            # R84: one fact budget per webhook delivery.
+            from core.integration_ontology_bridge import FactBudget
+            webhook_fact_budget = FactBudget()
             for record in records:
                 text = self._record_to_text(record, integration_id)
 
@@ -1446,9 +1552,36 @@ class IngestionPipelineService(HybridDataIngestionService):
                         },
                         user_id=self.tenant_id,
                         workspace_id=self.workspace_id,
-                        extract_knowledge=False,  # CRITICAL: Basic tier only
-                        skip_ai_triggers=True,  # Prevent workflow loops
+                        skip_ai_triggers=True,  # CRITICAL: Basic tier — prevent workflow loops
                     )
+
+                    # R84: deterministic business-fact extraction (LLM-free).
+                    # Sensitivity classified per record so fact metadata and
+                    # the P4 taint gates get real data.
+                    try:
+                        from core.data_taint_tracker import classify_sensitivity
+                        from core.integration_ontology_bridge import (
+                            write_integration_fact,
+                        )
+
+                        try:
+                            _sensitivity = classify_sensitivity(text)
+                        except Exception:  # noqa: BLE001
+                            _sensitivity = "internal"
+                        fact_stats = await write_integration_fact(
+                            workspace_id=self.workspace_id,
+                            tenant_id=self.tenant_id,
+                            integration_id=integration_id,
+                            record_type=record.get("type", "unknown"),
+                            record=record,
+                            text=text,
+                            sensitivity=_sensitivity,
+                            memory_handler=self.lancedb,
+                            budget=webhook_fact_budget,
+                        )
+                        results["facts_written"] = results.get("facts_written", 0) + fact_stats.get("written", 0)
+                    except Exception as fact_err:  # noqa: BLE001 — observation layer never blocks ingestion
+                        logger.warning(f"Webhook fact extraction skipped for {integration_id}: {fact_err}")
 
             results["tier"] = "basic"
 
@@ -1485,12 +1618,16 @@ class IngestionPipelineService(HybridDataIngestionService):
                     webhook_ingested_ids.append((record_id, text))
 
             if entities or relationships:
-                self.graphrag.ingest_structured_data(
+                gr_counts = self.graphrag.ingest_structured_data(
                     workspace_id=self.workspace_id, tenant_id=self.tenant_id,
                     entities=entities + integration_entities, relationships=relationships,
                 )
-                results["entities_extracted"] = len(entities)
-                results["relationships_extracted"] = len(relationships)
+                if isinstance(gr_counts, dict) and gr_counts:
+                    results["entities_extracted"] = gr_counts.get("entities", 0)
+                    results["relationships_extracted"] = gr_counts.get("relationships", 0)
+                else:
+                    results["entities_extracted"] = len(entities)
+                    results["relationships_extracted"] = len(relationships)
                 results["tier"] = "deep"
 
                 # Record successful ingestion for document-level idempotency
@@ -1518,6 +1655,10 @@ class IngestionPipelineService(HybridDataIngestionService):
                         try:
                             await self.graphrag.ingest_document(
                                 workspace_id=self.workspace_id,
+                                # Explicit tenant: the shared parent engine
+                                # defaults to "default" and would file these
+                                # nodes under the wrong tenant.
+                                tenant_id=self.tenant_id,
                                 doc_id=str(
                                     record.get("id", str(uuid.uuid4()))
                                 ),  # Convert UUID to string

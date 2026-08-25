@@ -127,19 +127,48 @@ async def test_assembler_role_pass_post_filters_metadata_string(monkeypatch):
 
 
 def test_world_model_role_ranking_post_filters():
-    """documents recall must rank JSON-parsed role matches first."""
+    """documents recall must rank role matches first — via BOTH real handler
+    behaviors: (1) server-side LIKE filter honored, (2) filter-less fallback
+    with client-side parse (R83 behavior)."""
     from core.agent_world_model import WorldModelService
 
     hits = [
         {"id": "gen", "text": "gen", "metadata": json.dumps({"role": "eng"})},
         {"id": "mine", "text": "mine", "metadata": json.dumps({"role": "sales"})},
     ]
-    db = MagicMock()
-    db.search.return_value = hits
 
+    def _filtered_search(**kw):
+        """Handler double that HONORS filter_str like the real LanceDB one."""
+        f = kw.get("filter_str")
+        res = hits
+        if f:
+            needle = f.split("LIKE '%", 1)[1].rsplit("%'", 1)[0]
+            res = [h for h in hits if needle in h["metadata"]]
+        return res[: kw.get("limit", 5)]
+
+    # 1. Filter-aware handler: LIKE finds the sales row first; untagged
+    #    general knowledge tops up remaining slots (additive, never exclusive).
+    db = MagicMock()
+    db.search.side_effect = lambda **kw: _filtered_search(**kw)
     svc = WorldModelService.__new__(WorldModelService)
     out = svc._recall_general_knowledge(db, "q", agent_role="Sales", limit=2)
-    assert [r["id"] for r in out][0] == "mine"
+    assert [r["id"] for r in out] == ["mine", "gen"], out
+
+    # 2. Legacy handler that REJECTS filters: client-side ranking fallback
+    #    must still put the role match first and top up with general rows.
+    db_legacy = MagicMock()
+    calls = {"n": 0}
+
+    def _legacy_search(**kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("filter_str unsupported")
+        return list(hits)[: kw.get("limit", 5)]
+
+    db_legacy.search.side_effect = _legacy_search
+    out2 = svc._recall_general_knowledge(db_legacy, "q", agent_role="Sales", limit=2)
+    assert [r["id"] for r in out2][0] == "mine"
+    assert len(out2) == 2  # general knowledge tops up remaining slots
 
 
 def test_bytewax_source_contract():

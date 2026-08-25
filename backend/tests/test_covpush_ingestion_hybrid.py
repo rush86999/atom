@@ -251,7 +251,11 @@ class TestHybridSync:
     @pytest.mark.asyncio
     async def test_sync_record_error_partial(self, hybrid, hybrid_factory):
         hybrid.enable_auto_sync("slack")
-        hybrid_factory["memory"].add_document.side_effect = [Exception("boom"), True]
+        # R84: two writes per record now — index row + business_facts row.
+        hybrid_factory["memory"].add_document.side_effect = [
+            Exception("boom"), True,   # record 1: index fails, fact ok
+            True, True,                # record 2: both ok
+        ]
         records = [
             {"id": "1", "type": "message", "text": "some long enough message text here"},
             {"id": "2", "type": "message", "text": "another long enough message here"},

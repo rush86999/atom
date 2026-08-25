@@ -324,7 +324,13 @@ class HistoricalSyncService:
                     ]
                     shared_engine.ingest_structured_data(
                         workspace_id=workspace_id,
-                        tenant_id=workspace_id,
+                        # R84: tenant_id must be the service's REAL tenant.
+                        # It previously received workspace_id here, filing
+                        # every backfill node under a bogus tenant and
+                        # hiding them from tenant-scoped graph reads (the
+                        # engine itself is even constructed with the
+                        # correct self.tenant_id right above).
+                        tenant_id=self.tenant_id,
                         entities=ent_dicts,
                         relationships=rel_dicts,
                     )

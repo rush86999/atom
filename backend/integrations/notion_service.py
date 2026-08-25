@@ -278,12 +278,17 @@ class NotionService(IntegrationService):
             logger.error(f"Failed to create database: {e}")
             return None
     
-    def get_block_children(self, block_id: str, page_size: int = 100) -> Dict[str, Any]:
-        """Get block children"""
+    def get_block_children(
+        self, block_id: str, page_size: int = 100, start_cursor: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get block children (paginated via ``start_cursor``)."""
         try:
+            params: Dict[str, Any] = {"page_size": page_size}
+            if start_cursor:
+                params["start_cursor"] = start_cursor
             response = self.session.get(
                 f"{self.base_url}/blocks/{block_id}/children",
-                params={"page_size": page_size}
+                params=params
             )
             response.raise_for_status()
             return response.json()
