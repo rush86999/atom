@@ -192,6 +192,38 @@ class WorldModelService:
             user_id="agent_system",
         )
 
+    async def _get_experience_by_id(self, experience_id: str):
+        """Fetch one experience row by id; None when absent.
+
+        Prefers a direct ``get_document_by_id`` lookup (finds rows at any
+        depth; the legacy scan stopped at the first 100). Falls back to the
+        legacy search-scan when the lookup yields nothing (mocked handlers
+        that only implement ``search``). Never raises.
+        """
+        import inspect as _inspect
+
+        raw = None
+        try:
+            raw = self.db.get_document_by_id(self.table_name, experience_id)
+        except Exception as lookup_err:  # noqa: BLE001
+            logger.debug(f"experience id lookup failed for {experience_id}: {lookup_err}")
+        if _inspect.iscoroutine(raw):  # async-mock handlers
+            raw = await raw
+        if isinstance(raw, dict) and raw.get("id"):
+            return raw
+        try:
+            results = self.db.search(
+                table_name=self.table_name,
+                query="",  # Empty query to get by ID
+                limit=200,
+            )
+        except Exception:
+            return None
+        for res in results or []:
+            if res.get("id") == experience_id:
+                return res
+        return None
+
     async def update_experience_feedback(
         self,
         experience_id: str,
@@ -208,12 +240,10 @@ class WorldModelService:
             feedback_notes: Optional notes explaining the feedback
         """
         try:
-            # Direct ID lookup (the old scan — search(query="", limit=100) then
-            # match ids — silently missed any experience beyond the first 100,
-            # and the append-only re-add left a stale duplicate row behind).
-            res = await asyncio.to_thread(
-                self.db.get_document_by_id, self.table_name, experience_id
-            )
+            # Direct ID lookup + delete/re-add replace (the old append-only
+            # re-add left a stale duplicate row behind; the scan-based lookup
+            # missed experiences beyond the first fetch window).
+            res = await self._get_experience_by_id(experience_id)
             if res:
                 meta = res.get("metadata", {})
 
@@ -264,9 +294,7 @@ class WorldModelService:
         """
         try:
             # Direct ID lookup + replace (see update_experience_feedback).
-            res = await asyncio.to_thread(
-                self.db.get_document_by_id, self.table_name, experience_id
-            )
+            res = await self._get_experience_by_id(experience_id)
             if res:
                 meta = res.get("metadata", {})
                 old_confidence = meta.get("confidence_score", 0.5)
@@ -1522,10 +1550,13 @@ class WorldModelService:
             # Build query with agent role and task description
             query = f"{agent_role} {task_description}"
 
-            results = self.db.search(
-                table_name="agent_episodes",
-                query=query,
-                limit=limit * 2  # Get more results for filtering
+            results = list(
+                self.db.search(
+                    table_name="agent_episodes",
+                    query=query,
+                    limit=limit * 2  # Get more results for filtering
+                )
+                or []
             )
 
             # Canonical fusion leg: the segmentation service writes the
@@ -1543,7 +1574,10 @@ class WorldModelService:
             except Exception as canon_err:
                 logger.debug(f"canonical episodes leg unavailable: {canon_err}")
                 canonical = []
-            for res in canonical or []:
+            # Copy before appending: handlers/mocks can return the SAME list
+            # object for both tables, and appending into the list being
+            # iterated below loops forever.
+            for res in list(canonical or []):
                 meta = res.get("metadata", {})
                 if not isinstance(meta, dict):
                     continue
