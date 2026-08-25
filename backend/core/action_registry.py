@@ -1688,3 +1688,163 @@ async def _ontology_inspect(args: Dict[str, Any], context: Dict[str, Any]) -> Di
         "undeclared_relations_in_use": onto.undeclared_relations_in_use(
             context.get("workspace_id", "default")),
     }
+
+
+# ============================================================================
+# AI Sales Agent tools — sales case lifecycle + inventory/quote (Step 2 of the
+# business-discovery build-out). Handlers in tools/sales_tool, imported lazily
+# (seed-action pattern). Governance (maturity gating, sandbox, audit) is layered
+# above via the shared dispatch; the ask-human action creates a HITL pause.
+# ============================================================================
+
+_SALES_CASE_CREATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "customer_email": {"type": "string"},
+        "customer_name": {"type": "string"},
+        "subject": {"type": "string"},
+        "email_id": {"type": "string"},
+        "conversation_id": {"type": "string"},
+        "intent": {"type": "string"},
+        "products": {"type": "array", "items": {"type": "object"}},
+        "requirements": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["customer_email"],
+}
+
+_SALES_CASE_GET_SCHEMA = {
+    "type": "object",
+    "properties": {"case_id": {"type": "string"}},
+    "required": ["case_id"],
+}
+
+_SALES_CASE_LIST_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "status": {"type": "string"},
+        "limit": {"type": "integer"},
+    },
+    "required": [],
+}
+
+_SALES_CASE_TRANSITION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "case_id": {"type": "string"},
+        "status": {"type": "string"},
+        "reason": {"type": "string"},
+    },
+    "required": ["case_id", "status"],
+}
+
+_SALES_CASE_ASK_HUMAN_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "case_id": {"type": "string"},
+        "question": {"type": "string"},
+        "priority": {"type": "string"},
+    },
+    "required": ["case_id", "question"],
+}
+
+_SALES_INVENTORY_CHECK_SCHEMA = {
+    "type": "object",
+    "properties": {"product": {"type": "string"}},
+    "required": ["product"],
+}
+
+_SALES_QUOTE_CALCULATE_SCHEMA = {
+    "type": "object",
+    "properties": {"case_id": {"type": "string"}},
+    "required": ["case_id"],
+}
+
+
+@register_action(
+    "sales.case.create",
+    description="Create a new sales case from an inbound customer email/query. "
+                "The case is the central object of the AI sales agent; returns the "
+                "case with status=new and a decisions trail.",
+    parameters_schema=_SALES_CASE_CREATE_SCHEMA,
+    effects=[{"effect": "case_created"}],
+)
+async def _sales_case_create(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.sales_tool import sales_case_create
+    return await sales_case_create(args, context)
+
+
+@register_action(
+    "sales.case.get",
+    description="Load a sales case by id — its status, customer, products, decisions, "
+                "pending actions, human interventions, quote and shipping state.",
+    parameters_schema=_SALES_CASE_GET_SCHEMA,
+    effects=[{"effect": "read_only"}],
+)
+async def _sales_case_get(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.sales_tool import sales_case_get
+    return await sales_case_get(args, context)
+
+
+@register_action(
+    "sales.case.list",
+    description="List sales cases, optionally filtered by status — e.g. all "
+                "waiting_for_vendor cases that need a follow-up.",
+    parameters_schema=_SALES_CASE_LIST_SCHEMA,
+    effects=[{"effect": "read_only"}],
+)
+async def _sales_case_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.sales_tool import sales_case_list
+    return await sales_case_list(args, context)
+
+
+@register_action(
+    "sales.case.transition",
+    description="Advance a sales case to a valid next status (validated state machine: "
+                "new -> researching -> quoting -> quote_pending_approval -> quoted -> "
+                "ordered -> purchasing -> shipping -> completed; waiting_for_* pauses). "
+                "Use when the agent finishes the work a status awaits.",
+    parameters_schema=_SALES_CASE_TRANSITION_SCHEMA,
+    effects=[{"effect": "case_transitioned"}],
+)
+async def _sales_case_transition(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.sales_tool import sales_case_transition
+    return await sales_case_transition(args, context)
+
+
+@register_action(
+    "sales.case.ask_human",
+    description="Pause the case and ask a human a question (creates a HITL approval "
+                "and moves the case to waiting_for_human). Use when the situation is "
+                "uncertain, high-risk, or an unknown business rule — never guess.",
+    parameters_schema=_SALES_CASE_ASK_HUMAN_SCHEMA,
+    effects=[{"effect": "hitl_created"}, {"effect": "case_paused"}],
+)
+async def _sales_case_ask_human(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.sales_tool import sales_case_ask_human
+    return await sales_case_ask_human(args, context)
+
+
+@register_action(
+    "sales.inventory.check",
+    description="Check product availability across ingested sources (emails, shipping "
+                "docs, Zoho sync records). NOT authoritative — first-version search "
+                "over ingested knowledge; verify against live Zoho Inventory before quoting.",
+    parameters_schema=_SALES_INVENTORY_CHECK_SCHEMA,
+    effects=[{"effect": "read_only"}],
+)
+async def _sales_inventory_check(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.sales_tool import sales_inventory_check
+    return await sales_inventory_check(args, context)
+
+
+@register_action(
+    "sales.quote.calculate",
+    description="Build a preliminary DRAFT quote for a case from its products, with "
+                "prices sourced from ingested price-list documents (marked with their "
+                "source). Missing prices stay null — ask vendor / ask human, never invent.",
+    parameters_schema=_SALES_QUOTE_CALCULATE_SCHEMA,
+    effects=[{"effect": "quote_drafted"}],
+)
+async def _sales_quote_calculate(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.sales_tool import sales_quote_calculate
+    return await sales_quote_calculate(args, context)

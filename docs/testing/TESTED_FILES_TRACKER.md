@@ -7,6 +7,40 @@
 ---
 
 
+## Session 2026-08-25 (AI sales agent — Sales Case scaffold + forced free-model)
+
+**Files**: `backend/core/models.py` (SalesCase + SalesCaseStatus), `backend/core/sales_case.py`,
+`backend/tools/sales_tool.py`, `backend/core/action_registry.py` (sales.* tools),
+`backend/core/llm/byok_handler.py` (`ATOM_FORCED_LLM_MODEL`),
+`backend/tests/test_sales_case.py` (new), `backend/tests/test_byok_forced_model.py` (new).
+
+**Context**: the Sales Case scaffold (model + validated status machine +
+ask-human HITL + 5 tools wired through the action registry) existed as
+UNCOMMITTED WIP from a previous session — this session verified it, added the
+missing piece, and committed it all.
+
+**Verified**: `core/sales_case.py` (create/get/list/transition/ask_human with
+validated state machine + HITLAction pause), `tools/sales_tool.py`
+(case CRUD, ask_human, inventory-check + quote-calc over ingested knowledge,
+honest about not being authoritative). New `find_case_by_email()` — vendor/customer
+reply -> case correlation (by customer_email/email_id/conversation_id, open-only
+by default) — the manager's "vendor email → identify related case" step.
+
+**ATOM_FORCED_LLM_MODEL** (implemented the pre-existing RED test suite):
+`_forced_model_override()` + `get_ranked_providers` short-circuit — operator
+pins one (provider, model) pair (plain model = opencode-go; `provider:model` =
+explicit) and BPC is skipped; a forced provider without a client falls through
+to BPC. Lets the user force `nemotron-3-ultra-free` GLOBALLY (chat + agents),
+not just the Outlook drafts.
+
+**Tests**: +16 sales_case/tools (create/get/find incl. open-only exclusion,
+list filter, valid+invalid+unknown transitions, ask_human pauses + HITL id,
+registry has all 7 sales tools, tool roundtrips) — isolated on the worker DB
+(session-scoped, wiped per test). +6 forced-model. 49/49 across the 4 suites.
+
+---
+
+
 ## Session 2026-08-25 (Sales decision catalog — business-discovery step)
 
 **Files**: `backend/core/sales_decision_catalog.py` (+ new
