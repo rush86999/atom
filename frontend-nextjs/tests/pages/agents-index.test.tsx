@@ -162,8 +162,30 @@ describe("AgentsDashboard", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  // The page fires several fetches on mount (useProviderStatus's onboarding
+  // probe, graduation-progress, ...). A bare mockRejectedValueOnce can be
+  // consumed by one of those, never reaching fetchAgents — scope the
+  // rejection to the agents list URL instead.
+  const rejectAgentsList = () => {
+    mockFetch.mockImplementation((url: any) => {
+      const u = typeof url === "string" ? url : String(url);
+      if (u.includes("/api/agents/") && !u.includes("graduation-progress")) {
+        return Promise.reject(new Error("network down"));
+      }
+      if (u.includes("/graduation-progress")) {
+        const id = u.split("/")[u.split("/").length - 2];
+        return Promise.resolve(okJson({ success: true, data: {
+          agent_id: id, current_tier: "student", next_tier: "intern",
+          next_threshold_episodes: 10, episodes_to_next: 10, episode_count: 0,
+          criteria: {},
+        }}));
+      }
+      return Promise.resolve(okJson({ success: true, data: AGENTS }));
+    });
+  };
+
   test("shows error when fetch fails", async () => {
-    mockFetch.mockRejectedValueOnce(new Error("network down"));
+    rejectAgentsList();
     const { unmount } = render(<AgentsDashboard />);
     await waitFor(() =>
       expect(screen.getByText(/Failed to load agents: network down/)).toBeInTheDocument()
@@ -174,7 +196,26 @@ describe("AgentsDashboard", () => {
   test("poll refresh clears a previously shown error", async () => {
     jest.useFakeTimers();
     try {
-      mockFetch.mockRejectedValueOnce(new Error("network down"));
+      let failOnce = true;
+      mockFetch.mockImplementation((url: any) => {
+        const u = typeof url === "string" ? url : String(url);
+        if (u.includes("/api/agents/") && !u.includes("graduation-progress")) {
+          if (failOnce) {
+            failOnce = false;
+            return Promise.reject(new Error("network down"));
+          }
+          return Promise.resolve(okJson({ success: true, data: AGENTS }));
+        }
+        if (u.includes("/graduation-progress")) {
+          const id = u.split("/")[u.split("/").length - 2];
+          return Promise.resolve(okJson({ success: true, data: {
+            agent_id: id, current_tier: "student", next_tier: "intern",
+            next_threshold_episodes: 10, episodes_to_next: 10, episode_count: 0,
+            criteria: {},
+          }}));
+        }
+        return Promise.resolve(okJson({ success: true, data: AGENTS }));
+      });
       render(<AgentsDashboard />);
       await waitFor(() =>
         expect(screen.getByText(/Failed to load agents: network down/)).toBeInTheDocument()

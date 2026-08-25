@@ -100,12 +100,14 @@ describe("SessionSettings", () => {
       expect(screen.getByText("Chrome on macOS")).toBeInTheDocument();
     });
 
-    // Current session is recorded on mount
+    // Current session is recorded on mount. R82: the page sends the real
+    // backend JWT (the old shared 'current-session-token' placeholder
+    // collided all users onto one upsert row).
     expect(mockFetch).toHaveBeenCalledWith(
       "/api/auth/sessions",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ token: "current-session-token" }),
+        body: JSON.stringify({ token: "test-token" }),
       })
     );
 

@@ -956,7 +956,12 @@ async def create_custom_agent(
         schedule_config=req.schedule_config,
         module_path="core.generic_agent",
         class_name="GenericAgent",
-        status=AgentStatus.STUDENT.value
+        status=AgentStatus.STUDENT.value,
+        # Round 86: start hires below the INTERN band floor (0.5). The old
+        # 0.5 default put every new employee one graded rehearsal away from
+        # promotion — confidence should reflect demonstrated work, and the
+        # evidence gate (student_training_service) now requires it anyway.
+        confidence_score=0.35,
     )
     db.add(registry_entry)
     db.commit()

@@ -1,42 +1,31 @@
-const mockQuery = jest.fn();
-jest.mock("@/lib/db", () => ({ query: mockQuery }));
+/**
+ * pages/api/auth/register tests.
+ *
+ * The handler is a thin proxy to the Python backend (R83 rewrite):
+ * - validates method, email/password presence, password policy (mirrors the
+ *   backend's UserCreate rules), and requires a first name (last optional)
+ * - passes backend status/error bodies through verbatim, including 429
+ *   Retry-After headers
+ * - returns 502 when the backend is unreachable (the old direct-Postgres
+ *   fallback was removed — it wrote ghost rows the backend never reads)
+ */
 
-const apiFlag = { USE_BACKEND_API: false, userManagementAPI: {} };
-jest.mock("@/lib/api", () => apiFlag);
-
-const mockBcryptHash = jest.fn().mockResolvedValue("hashed-password");
-jest.mock("bcryptjs", () => ({
-  hash: mockBcryptHash,
-}));
-
-const mockValidatePassword = jest.fn();
-jest.mock("@/lib/password-validator", () => ({
-  validatePassword: mockValidatePassword,
-}));
-
-const mockSendEmail = jest.fn();
-const mockGenerateVerificationEmailHTML = jest.fn();
-jest.mock("@/lib/email", () => ({
-  sendEmail: mockSendEmail,
-  generateVerificationEmailHTML: mockGenerateVerificationEmailHTML,
-}));
+const mockFetch = jest.fn();
+(global as any).fetch = mockFetch;
 
 import { createMocks } from "node-mocks-http";
 import handler from "@/pages/api/auth/register";
 
-const mockFetch = jest.fn();
+const okBody = { access_token: "tok", user: { id: "u1" } };
 
-const strongPassword = "Str0ng!Passw0rd";
+// Use real Response objects: the test-env fetch wrapper calls
+// response.clone(), which plain object mocks don't implement.
+const jsonResponse = (status: number, body: unknown, headers?: Record<string, string>) =>
+  new Response(JSON.stringify(body), { status, headers });
 
 describe("pages/api/auth/register", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    apiFlag.USE_BACKEND_API = false;
-    mockBcryptHash.mockResolvedValue("hashed-password");
-    mockValidatePassword.mockReturnValue({ isValid: true, feedback: [] });
-    mockGenerateVerificationEmailHTML.mockReturnValue("<html>verify</html>");
-    mockSendEmail.mockResolvedValue(undefined);
-    (global as any).fetch = mockFetch;
   });
 
   const invoke = async (method = "POST", body: any = {}) => {
@@ -57,155 +46,56 @@ describe("pages/api/auth/register", () => {
     expect(res._getJSONData().error).toBe("Email and password are required");
   });
 
-  it("rejects weak passwords with feedback details", async () => {
-    mockValidatePassword.mockReturnValue({
-      isValid: false,
-      feedback: ["Too short"],
-    });
-    const res = await invoke("POST", { email: "a@b.com", password: "weak" });
+  it("rejects passwords shorter than 8 characters", async () => {
+    const res = await invoke("POST", { email: "a@b.com", password: "weak", first_name: "Jane" });
     expect(res._getStatusCode()).toBe(400);
-    expect(res._getJSONData()).toEqual({
-      error: "Password does not meet security requirements",
-      details: ["Too short"],
-    });
+    expect(res._getJSONData().error).toBe("Password must be at least 8 characters long");
   });
 
-  it("passes through a successful backend registration", async () => {
-    apiFlag.USE_BACKEND_API = true;
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ message: "registered via backend" }),
-    });
-    const res = await invoke("POST", {
-      email: "a@b.com",
-      password: strongPassword,
-      name: "A",
-    });
+  it("requires a first name (last name optional)", async () => {
+    const res = await invoke("POST", { email: "a@b.com", password: "Str0ng!Passw0rd" });
+    expect(res._getStatusCode()).toBe(400);
+    expect(res._getJSONData().error).toBe("First name is required");
+  });
+
+  it("accepts a single full name and splits it", async () => {
+    mockFetch.mockResolvedValue(jsonResponse(201, okBody));
+    const res = await invoke("POST", { email: "a@b.com", password: "Str0ng!Passw0rd", name: "Jane Doe" });
     expect(res._getStatusCode()).toBe(201);
-    expect(res._getJSONData()).toEqual({ message: "registered via backend" });
-    expect(mockQuery).not.toHaveBeenCalled();
+    // The test-env fetch interceptor hands the mock a single Request object
+    // (url + init already merged), so read the body from it.
+    const request = mockFetch.mock.calls[0][0] as Request;
+    expect(request.url).toContain("/api/auth/register");
+    const sent = await request.json();
+    expect(sent.first_name).toBe("Jane");
+    expect(sent.last_name).toBe("Doe");
   });
 
-  it("passes through a 400 from the backend", async () => {
-    apiFlag.USE_BACKEND_API = true;
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: async () => ({ error: "user exists" }),
-    });
-    const res = await invoke("POST", {
-      email: "a@b.com",
-      password: strongPassword,
-    });
+  it("proxies a successful registration and returns 201 with the body", async () => {
+    mockFetch.mockResolvedValue(jsonResponse(201, okBody));
+    const res = await invoke("POST", { email: "a@b.com", password: "Str0ng!Passw0rd", first_name: "Jane", last_name: "Doe" });
+    expect(res._getStatusCode()).toBe(201);
+    expect(res._getJSONData()).toEqual(okBody);
+  });
+
+  it("passes through a 400 from the backend verbatim", async () => {
+    mockFetch.mockResolvedValue(jsonResponse(400, { error: "user exists" }));
+    const res = await invoke("POST", { email: "a@b.com", password: "Str0ng!Passw0rd", first_name: "Jane" });
     expect(res._getStatusCode()).toBe(400);
     expect(res._getJSONData()).toEqual({ error: "user exists" });
   });
 
-  it("falls back to direct DB when the backend fails", async () => {
-    apiFlag.USE_BACKEND_API = true;
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 503,
-      text: async () => "unavailable",
-      json: async () => ({}),
-    });
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: "u1", email: "a@b.com", name: "A", created_at: "2026-01-01" }] })
-      .mockResolvedValueOnce({ rows: [] });
-    const res = await invoke("POST", {
-      email: "a@b.com",
-      password: strongPassword,
-      name: "A",
-    });
-    expect(res._getStatusCode()).toBe(201);
+  it("forwards Retry-After on backend 429 rate limits", async () => {
+    mockFetch.mockResolvedValue(jsonResponse(429, { error: "rate_limited" }, { "Retry-After": "30" }));
+    const res = await invoke("POST", { email: "a@b.com", password: "Str0ng!Passw0rd", first_name: "Jane" });
+    expect(res._getStatusCode()).toBe(429);
+    expect(res.getHeader("Retry-After")).toBe("30");
   });
 
-  it("falls back to direct DB when the backend fetch throws", async () => {
-    apiFlag.USE_BACKEND_API = true;
-    mockFetch.mockRejectedValue(new Error("connection refused"));
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: "u1", email: "a@b.com", name: null, created_at: "2026-01-01" }] })
-      .mockResolvedValueOnce({ rows: [] });
-    const res = await invoke("POST", {
-      email: "a@b.com",
-      password: strongPassword,
-    });
-    expect(res._getStatusCode()).toBe(201);
-  });
-
-  it("returns 400 when the user already exists", async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: "existing" }] });
-    const res = await invoke("POST", {
-      email: "dup@b.com",
-      password: strongPassword,
-    });
-    expect(res._getStatusCode()).toBe(400);
-    expect(res._getJSONData().error).toBe("User already exists with this email");
-  });
-
-  it("creates the user, hashes the password, stores a verification token, and sends email", async () => {
-    const userRow = { id: "u-77", email: "new@b.com", name: "New User", created_at: "2026-01-01T00:00:00Z" };
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [userRow] })
-      .mockResolvedValueOnce({ rows: [] });
-    const res = await invoke("POST", {
-      email: "new@b.com",
-      password: strongPassword,
-      name: "New User",
-    });
-    expect(res._getStatusCode()).toBe(201);
-    const body = res._getJSONData();
-    expect(body.message).toContain("User created successfully");
-    expect(body.requiresVerification).toBe(true);
-    expect(body.user).toEqual({
-      id: "u-77",
-      email: "new@b.com",
-      name: "New User",
-      createdAt: "2026-01-01T00:00:00Z",
-    });
-    const insertCall = mockQuery.mock.calls.find(
-      (call: any) => (call[0] as string).includes("INSERT INTO users"),
-    );
-    expect(insertCall).toBeDefined();
-    expect(insertCall[1][1]).toBe("hashed-password");
-    const tokenCall = mockQuery.mock.calls.find(
-      (call: any) => (call[0] as string).includes("email_verification_tokens"),
-    );
-    expect(tokenCall).toBeDefined();
-    const code = tokenCall[1][1];
-    expect(Number(code)).toBeGreaterThanOrEqual(100000);
-    expect(Number(code)).toBeLessThanOrEqual(999999);
-    expect(mockGenerateVerificationEmailHTML).toHaveBeenCalledWith(code, "New User");
-    expect(mockSendEmail).toHaveBeenCalledWith({
-      to: "new@b.com",
-      subject: "Verify Your Email Address",
-      html: "<html>verify</html>",
-    });
-  });
-
-  it("still returns 201 when sending the verification email fails", async () => {
-    mockSendEmail.mockRejectedValue(new Error("smtp down"));
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ id: "u-1", email: "a@b.com", name: null, created_at: "2026-01-01" }] })
-      .mockResolvedValueOnce({ rows: [] });
-    const res = await invoke("POST", {
-      email: "a@b.com",
-      password: strongPassword,
-    });
-    expect(res._getStatusCode()).toBe(201);
-  });
-
-  it("returns 500 when the database throws", async () => {
-    mockQuery.mockRejectedValue(new Error("db down"));
-    const res = await invoke("POST", {
-      email: "a@b.com",
-      password: strongPassword,
-    });
-    expect(res._getStatusCode()).toBe(500);
-    expect(res._getJSONData().error).toBe("Internal server error");
+  it("returns 502 when the backend is unreachable", async () => {
+    mockFetch.mockRejectedValue(new Error("network down"));
+    const res = await invoke("POST", { email: "a@b.com", password: "Str0ng!Passw0rd", first_name: "Jane" });
+    expect(res._getStatusCode()).toBe(502);
+    expect(res._getJSONData().error).toBe("Registration service is unreachable");
   });
 });

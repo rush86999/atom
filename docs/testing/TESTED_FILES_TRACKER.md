@@ -6571,3 +6571,20 @@ Research note: retrieval-time pre-filtering re-validated for A-G1/A-G2 (RAG acce
 **Config**: root `.env` gained `ZOHO_OAUTH_SCOPES` (CRM/Books/Projects/Inventory + WorkDrive + offline_access) — default was WorkDrive-only, so CRM sync would have returned nothing post-consent. Re-consent required.
 
 **Verification**: new suites 8/8; neighbors green (round80f, round80e, hybrid ingestion; role-relevance failures pre-existing via stash check).
+
+## 2026-08-26d — Research-aligned promotion: multi-pathway STUDENT→INTERN gate + role-specific mentorship
+
+**Research basis**: CSA Agentic Trust Framework (evidence over review), RenLayer Trust Tiers (trust earned in production, ≥30-day quantitative promotion evidence, automatic demotion), Progressive Autonomy pattern ("advancing by calendar creates phantom trust"), DeepMind Levels of AGI (capability ⊥ autonomy). Repo's own higher tiers already graduate on 10/25/50 clean episodes — STUDENT→INTERN was the outlier.
+
+**Why it was broken**: `AgentRegistry.confidence_score` defaults to 0.5 = exactly the INTERN band floor → first completed session (+0.05 min) promoted instantly on a subjective rehearsal grade with zero production evidence.
+
+**Fix** (`core/student_training_service.py`, `api/agent_routes.py`):
+- Multi-pathway `_evaluate_intern_readiness` — ANY of: `system_agent` (atom_main / category system|Meta bootstraps the product), `mentor_taught` (≥3 mentored sessions + ceil(min_episodes/2) episodes at ratio floor — apprenticeship substitutes half the solo floor), `self_directed` (3 sessions + 10 episodes @ 0.7 ratio). Knobs: ATOM_PROMOTION_MIN_{TRAINING_SESSIONS=3,EPISODES=10,SUCCESS_RATIO=0.7}. Response carries `promotion` progress block (pathway, counts) for UI.
+- **Role-specific mentorship**: `_find_mentor` requires a same-role senior (SUPERVISED+) with verified success episodes; atom_main is a generalist and only mentors system/Meta students. Playbook = mentor's top-5 verified cases attached to proposal (`proposal_data["mentor_playbook"]`, description names the mentor); no qualified mentor → self-directed only.
+- New hires via `POST /api/agents/custom` start at confidence 0.35 (was 0.5 default).
+- Ratio check only applies when episode count floor is met (`MIN_EPISODES=0` disables work evidence cleanly).
+- `db.flush()` before gate queries (autoflush-off sessions missed the current session's outcome).
+
+**Tests**: `backend/tests/test_promotion_evidence_gate.py` (11): one-session never promotes; 3+clean promotes; poor ratio blocks; env knobs; progress counts; system exemption ×2; playbook attach; generic-meta-doesn't-teach-Sales; meta-teaches-system; mentored pathway halves floor. Legacy suites updated where they tested confidence mechanics (env knobs preserve intent) or mocked DB aggregates (w63).
+
+**Verification**: 168 training-suite tests + 62 w79 green; main_api_app imports clean; live server restarted with gate active.

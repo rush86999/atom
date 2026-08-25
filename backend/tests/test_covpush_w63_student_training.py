@@ -141,6 +141,12 @@ class TestCompleteTrainingMissingAgent:
             return proposal
 
         svc.db.query.return_value.filter.return_value.first.side_effect = _first
+        # Round 86 evidence gate issues its own aggregate queries; keep them
+        # inert (no sessions, no episodes) so this test stays about the
+        # completion flow itself.
+        _flt = svc.db.query.return_value.filter.return_value
+        _flt.count.return_value = 0
+        _flt.all.return_value = []
         outcome = TrainingOutcome(
             performance_score=0.6, supervisor_feedback="solid", errors_count=1,
             tasks_completed=4, total_tasks=5,
