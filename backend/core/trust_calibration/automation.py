@@ -31,7 +31,11 @@ _notified_keys: Dict[str, float] = {}
 
 
 def _env_str(name: str, default: str) -> str:
-    return os.getenv(name, default)
+    # Env wins > runtime_settings DB row (UI admin) > default.
+    from core.runtime_settings import get_setting
+
+    value = get_setting(name, default)
+    return value if isinstance(value, str) else default
 
 
 def automation_mode() -> str:

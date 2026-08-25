@@ -23,14 +23,14 @@ MIN_OBSERVATIONS = 10
 
 
 def _env_float(name: str, default: float) -> float:
-    try:
-        return float(os.getenv(name, str(default)))
-    except (TypeError, ValueError):
-        return default
+    # Env wins > runtime_settings DB row (UI admin) > default.
+    from core.runtime_settings import get_float_setting
+
+    return get_float_setting(name, default)
 
 
 def enabled() -> bool:
-    return os.getenv("ATOM_TRUST_CALIBRATION_ENABLED", "false").lower() == "true"
+    return get_bool_setting("ATOM_TRUST_CALIBRATION_ENABLED", False)
 
 
 class TrustCalibrationGateway:

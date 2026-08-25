@@ -21,9 +21,15 @@ import from anywhere, including the voter module.
 """
 from __future__ import annotations
 
-import os
 import re
 from typing import Any
+
+from core.runtime_settings import (
+    get_bool_setting,
+    get_float_setting,
+    get_int_setting,
+    get_setting,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -33,12 +39,12 @@ from typing import Any
 
 def is_cascade_routing_enabled() -> bool:
     """Cascade routing on schema-validation failure (Workstream B)."""
-    return _flag("ATOM_CASCADE_ROUTING")
+    return get_bool_setting("ATOM_CASCADE_ROUTING", False)
 
 
 def is_self_consistency_enabled() -> bool:
     """Self-consistency voting for irreversible actions (Workstream C)."""
-    return _flag("ATOM_SELF_CONSISTENCY")
+    return get_bool_setting("ATOM_SELF_CONSISTENCY", False)
 
 
 def is_self_consistency_force_proposal_enabled() -> bool:
@@ -54,16 +60,17 @@ def is_self_consistency_force_proposal_enabled() -> bool:
     ``MATCH_CONFIDENCE_FORCE_PROPOSAL`` pattern from
     ``core/selector_confidence_service.py``.
     """
-    return _flag("ATOM_SELF_CONSISTENCY_FORCE_PROPOSAL")
+    return get_bool_setting("ATOM_SELF_CONSISTENCY_FORCE_PROPOSAL", False)
 
 
-def _flag(env_var: str) -> bool:
-    return os.getenv(env_var, "false").strip().lower() in {"1", "true", "yes", "on"}
+def _flag(env_var: str, default: bool = False) -> bool:
+    """Legacy helper — routed through runtime_settings (env wins > DB > default)."""
+    return get_bool_setting(env_var, default)
 
 
 def _flag_default_true(env_var: str) -> bool:
     """Env-var flag that defaults to ON (R72 default-ON decisions)."""
-    return os.getenv(env_var, "true").strip().lower() not in {"0", "false", "no", "off"}
+    return get_bool_setting(env_var, True)
 
 
 # ---------------------------------------------------------------------------
@@ -83,18 +90,14 @@ def is_moa_enabled() -> bool:
 
 def get_moa_samples() -> int:
     """Number of MoA samples drawn (Workstream F). Default 3, min 2."""
-    try:
-        n = int(os.getenv("ATOM_MOA_SAMPLES", "3"))
-    except (TypeError, ValueError):
-        n = 3
-    return max(2, n)
+    return max(2, get_int_setting("ATOM_MOA_SAMPLES", 3))
 
 
 def is_moa_diversity_enabled() -> bool:
     """Diversity-aware init (W3/P4a, arXiv 2601.19921): rotate per-sample
     perspective overlays in MoA + self-consistency sampling. Default OFF
     (shadow-first — zero behavior change until enabled)."""
-    return os.getenv("ATOM_MOA_DIVERSITY_ENABLED", "false").lower() in ("1", "true", "yes", "on")
+    return get_bool_setting("ATOM_MOA_DIVERSITY_ENABLED", False)
 
 
 def is_parallel_tools_enabled() -> bool:
@@ -104,11 +107,7 @@ def is_parallel_tools_enabled() -> bool:
 
 def get_max_parallel_tools() -> int:
     """Max tools in a single parallel batch (Workstream G). Default 4."""
-    try:
-        n = int(os.getenv("ATOM_MAX_PARALLEL_TOOLS", "4"))
-    except (TypeError, ValueError):
-        n = 4
-    return max(1, n)
+    return max(1, get_int_setting("ATOM_MAX_PARALLEL_TOOLS", 4))
 
 
 def is_tool_cache_enabled() -> bool:
@@ -118,11 +117,7 @@ def is_tool_cache_enabled() -> bool:
 
 def get_tool_cache_ttl() -> int:
     """TTL for cached tool results in seconds (Workstream H). Default 30."""
-    try:
-        n = int(os.getenv("ATOM_TOOL_CACHE_TTL", "30"))
-    except (TypeError, ValueError):
-        n = 30
-    return max(0, n)
+    return max(0, get_int_setting("ATOM_TOOL_CACHE_TTL", 30))
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +138,7 @@ def get_sc_hash_algo() -> str:
     switch: ``ATOM_SC_HASH_ALGO=sha256-sortkeys`` restores exact old hashes.
     Invalid values fail closed to legacy.
     """
-    raw = (os.getenv("ATOM_SC_HASH_ALGO") or "jcs").strip().lower()
+    raw = str(get_setting("ATOM_SC_HASH_ALGO", "jcs") or "jcs").strip().lower()
     if raw in ("jcs", "jcs-sha256", "rfc8785"):
         return "jcs-sha256"
     return "sha256-sortkeys"
@@ -210,11 +205,7 @@ def is_sc_soft_enabled() -> bool:
 
 def get_self_consistency_samples() -> int:
     """Number of samples drawn by the self-consistency voter (default 3)."""
-    try:
-        n = int(os.getenv("ATOM_SELF_CONSISTENCY_SAMPLES", "3"))
-    except (TypeError, ValueError):
-        n = 3
-    return max(1, n)
+    return max(1, get_int_setting("ATOM_SELF_CONSISTENCY_SAMPLES", 3))
 
 
 def get_self_consistency_high_threshold() -> float:
@@ -224,10 +215,7 @@ def get_self_consistency_high_threshold() -> float:
     layer. At N=3 this threshold is only reached by unanimous 3/3 votes;
     at N=5 it's reached by 5/5 = 1.0 (4/5 = 0.8 falls just under).
     """
-    try:
-        return float(os.getenv("ATOM_SELF_CONSISTENCY_HIGH_THRESHOLD", "0.85"))
-    except (TypeError, ValueError):
-        return 0.85
+    return get_float_setting("ATOM_SELF_CONSISTENCY_HIGH_THRESHOLD", 0.85)
 
 
 def get_self_consistency_partial_threshold() -> float:
@@ -235,10 +223,7 @@ def get_self_consistency_partial_threshold() -> float:
 
     Below this is ``ambiguous``. Mirrors ``MATCH_CONFIDENCE_PARTIAL_THRESHOLD``.
     """
-    try:
-        return float(os.getenv("ATOM_SELF_CONSISTENCY_PARTIAL_THRESHOLD", "0.50"))
-    except (TypeError, ValueError):
-        return 0.50
+    return get_float_setting("ATOM_SELF_CONSISTENCY_PARTIAL_THRESHOLD", 0.50)
 
 
 def get_temperature_spread(n: int) -> list[float]:

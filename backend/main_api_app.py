@@ -3838,6 +3838,15 @@ try:
     except (ImportError, NameError) as e:
         logger.warning(f"Stage router management routes failed to load: {e}")
 
+    # 38b. Admin Runtime Settings Routes (env vars as UI admin settings)
+    try:
+        from api.admin_runtime_settings_routes import router as admin_settings_router
+
+        app.include_router(admin_settings_router)
+        logger.info("✓ Admin Runtime Settings Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"Admin runtime settings routes failed to load: {e}")
+
     # 40. Fleet Router Management Routes (validation + approval queue)
     try:
         from api.fleet_router_routes import router as fleet_router_mgmt_router

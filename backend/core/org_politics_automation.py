@@ -55,14 +55,27 @@ MIN_RECRUIT_EVENTS = 10          # telemetry floor before any escalation
 COI_REVOCATION_THRESHOLD = 20    # open COI pairs that force revocation
 MAX_ALIGNMENT_GAP = 2.0          # must match the P6 sweep threshold
 
-_MODE = os.getenv("ATOM_ORG_AUTO_ENFORCE", "auto").lower()
-if _MODE not in ("off", "notify", "approve", "auto"):
-    logger.warning(f"Invalid ATOM_ORG_AUTO_ENFORCE '{_MODE}', using 'auto'")
-    _MODE = "auto"
-_INTERVAL_MIN = float(os.getenv("ATOM_ORG_AUTO_INTERVAL_MIN", "1440"))
-_NOTIFY_COOLDOWN_HOURS = float(
-    os.getenv("ATOM_ORG_AUTO_NOTIFY_COOLDOWN_HOURS", "24")
-)
+def _mode() -> str:
+    """Env wins > runtime_settings DB row (UI admin) > default."""
+    from core.runtime_settings import get_setting
+
+    raw = str(get_setting("ATOM_ORG_AUTO_ENFORCE", "auto") or "auto").lower()
+    if raw not in ("off", "notify", "approve", "auto"):
+        logger.warning(f"Invalid ATOM_ORG_AUTO_ENFORCE '{raw}', using 'auto'")
+        return "auto"
+    return raw
+
+
+def _interval_min() -> float:
+    from core.runtime_settings import get_float_setting
+
+    return get_float_setting("ATOM_ORG_AUTO_INTERVAL_MIN", 1440.0)
+
+
+def _notify_cooldown_hours() -> float:
+    from core.runtime_settings import get_float_setting
+
+    return get_float_setting("ATOM_ORG_AUTO_NOTIFY_COOLDOWN_HOURS", 24.0)
 
 _last_run: Dict[str, Any] = {}
 _automation_task: Optional[asyncio.Task] = None
@@ -72,28 +85,41 @@ _RESOLVER_TTL_SECONDS = 60.0
 _resolver_cache: Dict[str, tuple] = {}  # flag_key -> (monotonic_ts, value)
 
 
+# In-memory overrides set via set_automation_config (win over resolver).
+_override_mode: Optional[str] = None
+_override_interval: Optional[float] = None
+
+_MODE = "auto"  # deprecated import-time snapshot (legacy readers)
+_INTERVAL_MIN = 1440.0  # deprecated import-time snapshot (legacy readers)
+_NOTIFY_COOLDOWN_HOURS = 24.0  # deprecated import-time snapshot
+
+
 def automation_mode() -> str:
-    return _MODE
+    if _override_mode is not None:
+        return _override_mode
+    return _mode()
 
 
 def automation_interval_min() -> float:
-    return _INTERVAL_MIN
+    if _override_interval is not None:
+        return _override_interval
+    return _interval_min()
 
 
 def set_automation_config(
     mode: Optional[str] = None, interval_min: Optional[float] = None
 ) -> Dict[str, Any]:
-    """Runtime override of mode/interval (in-memory; env is durable source)."""
-    global _MODE, _INTERVAL_MIN
+    """Runtime override of mode/interval (in-memory; UI/env are durable)."""
+    global _override_mode, _override_interval
     if mode is not None:
         lowered = str(mode).lower()
         if lowered in ("off", "notify", "approve", "auto"):
-            _MODE = lowered
+            _override_mode = lowered
         else:
             logger.warning(f"Ignoring invalid mode '{mode}'")
     if interval_min is not None and float(interval_min) > 0:
-        _INTERVAL_MIN = float(interval_min)
-    return {"mode": _MODE, "interval_min": _INTERVAL_MIN}
+        _override_interval = float(interval_min)
+    return {"mode": automation_mode(), "interval_min": automation_interval_min()}
 
 
 # ── Flag resolution ─────────────────────────────────────────────────────────
@@ -159,7 +185,7 @@ def _set_flag_state(db: Any, flag_key: str, verdict: str, state: str,
             OrgPoliticsAction(
                 flag_key=flag_key,
                 verdict=verdict,
-                mode=_MODE,
+                mode=automation_mode(),
                 state=state,
                 stats_json=dict(stats),
                 created_at=datetime.now(timezone.utc),
@@ -367,7 +393,7 @@ def _notify_cooldown_active(key: str) -> bool:
     last = _last_notified.get(key)
     if last is None:
         return False
-    return (time.monotonic() - last) < _NOTIFY_COOLDOWN_HOURS * 3600
+    return (time.monotonic() - last) < _notify_cooldown_hours() * 3600
 
 
 # ── Certification pass ──────────────────────────────────────────────────────
@@ -386,7 +412,7 @@ def certify(db: Any) -> Dict[str, Any]:
         revoke_reasons.append(f"alignment gap {sweep['max_gap']} > {MAX_ALIGNMENT_GAP}")
     if readiness["coi_pairs"] >= COI_REVOCATION_THRESHOLD:
         revoke_reasons.append(f"{readiness['coi_pairs']} COI pairs")
-    if _MODE != "off" and revoke_reasons:
+    if automation_mode() != "off" and revoke_reasons:
         for flag_key in FLAG_KEYS:
             if resolve_flag_value(db, flag_key):
                 _set_flag_state(db, flag_key, "revoke", "revoked",
@@ -409,7 +435,7 @@ def certify(db: Any) -> Dict[str, Any]:
         and sweep["ran"]
         and sweep["green"]
     )
-    if not eligible or _MODE == "off":
+    if not eligible or automation_mode() == "off":
         out["readiness"] = readiness
         out["sweep"] = {k: sweep[k] for k in ("ran", "green", "max_gap",
                                               "skipped_reason")}
@@ -422,7 +448,7 @@ def certify(db: Any) -> Dict[str, Any]:
         if current or latest_pending_or_applied:
             continue
         label = _FLAG_LABELS[flag_key]
-        if _MODE == "auto":
+        if automation_mode() == "auto":
             _set_flag_state(db, flag_key, "enable", "applied", {"readiness": readiness})
             out["applied"].append(flag_key)
             _spawn_notification(
@@ -432,7 +458,7 @@ def certify(db: Any) -> Dict[str, Any]:
                 f"recruits) and alignment sweep green (max gap "
                 f"{sweep['max_gap']}). '{label}' enforcement is now ON.",
             )
-        elif _MODE == "approve":
+        elif automation_mode() == "approve":
             _set_flag_state(db, flag_key, "enable", "approval", {"readiness": readiness})
             out["queued"].append(flag_key)
             if not _notify_cooldown_active(flag_key):
@@ -558,14 +584,14 @@ def get_automation_status() -> Dict[str, Any]:
             }
             pending = pending_approvals(db)
         return {
-            "mode": _MODE,
-            "interval_min": _INTERVAL_MIN,
+            "mode": automation_mode(),
+            "interval_min": automation_interval_min(),
             "flags": flags,
             "pending_approvals": pending,
             "last_run": _last_run,
         }
     except Exception as e:  # noqa: BLE001
-        return {"mode": _MODE, "error": "status_unavailable"}
+        return {"mode": automation_mode(), "error": "status_unavailable"}
 
 
 # ── Background loop ─────────────────────────────────────────────────────────
@@ -574,7 +600,7 @@ def get_automation_status() -> Dict[str, Any]:
 async def org_politics_automation_loop() -> None:
     while True:
         try:
-            await asyncio.sleep(max(_INTERVAL_MIN, 0.5) * 60)
+            await asyncio.sleep(max(automation_interval_min(), 0.5) * 60)
             run_auto_certification()
         except asyncio.CancelledError:
             break
@@ -584,7 +610,7 @@ async def org_politics_automation_loop() -> None:
 
 def ensure_automation_task() -> None:
     global _automation_task
-    if _automation_task is not None or _MODE == "off":
+    if _automation_task is not None or automation_mode() == "off":
         return
     try:
         loop = asyncio.get_event_loop()

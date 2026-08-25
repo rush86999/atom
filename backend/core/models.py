@@ -2927,6 +2927,33 @@ class SystemSettings(Base):
     global_budget_limit = Column(Integer, default=0)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+
+class RuntimeSetting(Base):
+    """UI-administrable runtime setting (one row per env-var override).
+
+    Resolution order lives in ``core/runtime_settings.py``:
+    explicit env var WINS > this row > catalog default. Rows are written
+    by the admin settings API (``api/admin_runtime_settings_routes.py``).
+    """
+
+    __tablename__ = "runtime_settings"
+    key = Column(String(128), primary_key=True)
+    value_json = Column(JSONColumn, nullable=True)
+    updated_by = Column(String, nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class SettingChangeAudit(Base):
+    """Append-only audit trail for runtime-setting changes (who/when/what)."""
+
+    __tablename__ = "setting_change_audit"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    setting_key = Column(String(128), nullable=False, index=True)
+    old_value_json = Column(JSONColumn, nullable=True)
+    new_value_json = Column(JSONColumn, nullable=True)
+    changed_by = Column(String, nullable=True)
+    changed_at = Column(DateTime(timezone=True), server_default=func.now())
+
 class Intervention(Base):
     __tablename__ = "interventions"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))

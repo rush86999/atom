@@ -55,19 +55,43 @@ logger = logging.getLogger(__name__)
 # TURN_FACT_VECTOR_RECALL_ENABLED (Tier-2 semantic recall). Pre-compress was
 # already ON. See docs/architecture/CONTEXT_MEMORY.md.
 # ---------------------------------------------------------------------------
-TURN_FACT_EXTRACTION_ENABLED = (
-    os.getenv("TURN_FACT_EXTRACTION_ENABLED", "true").lower() == "true"
-)
-TURN_FACT_PRE_COMPRESS_ENABLED = (
-    os.getenv("TURN_FACT_PRE_COMPRESS_ENABLED", "true").lower() == "true"
-)
-TURN_FACT_VECTOR_RECALL_ENABLED = (
-    os.getenv("TURN_FACT_VECTOR_RECALL_ENABLED", "true").lower() == "true"
-)
-TURN_FACT_MAX_PER_TURN = int(os.getenv("TURN_FACT_MAX_PER_TURN", "5"))
-TURN_FACT_EXTRACTION_SAMPLE_RATE = float(
-    os.getenv("TURN_FACT_EXTRACTION_SAMPLE_RATE", "1.0")
-)
+def extraction_enabled() -> bool:
+    """Env wins > runtime_settings DB row (UI admin) > default."""
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("TURN_FACT_EXTRACTION_ENABLED", True)
+
+
+def pre_compress_enabled() -> bool:
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("TURN_FACT_PRE_COMPRESS_ENABLED", True)
+
+
+def vector_recall_enabled() -> bool:
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("TURN_FACT_VECTOR_RECALL_ENABLED", True)
+
+
+def max_per_turn() -> int:
+    from core.runtime_settings import get_int_setting
+
+    return get_int_setting("TURN_FACT_MAX_PER_TURN", 5)
+
+
+def extraction_sample_rate() -> float:
+    from core.runtime_settings import get_float_setting
+
+    return get_float_setting("TURN_FACT_EXTRACTION_SAMPLE_RATE", 1.0)
+
+
+# Deprecated import-time snapshots kept for legacy readers (generic_agent).
+TURN_FACT_EXTRACTION_ENABLED = extraction_enabled()
+TURN_FACT_PRE_COMPRESS_ENABLED = pre_compress_enabled()
+TURN_FACT_VECTOR_RECALL_ENABLED = vector_recall_enabled()
+TURN_FACT_MAX_PER_TURN = max_per_turn()
+TURN_FACT_EXTRACTION_SAMPLE_RATE = extraction_sample_rate()
 
 # Tunables
 _EXTRACTION_TIMEOUT_S = 2.0
@@ -1023,7 +1047,7 @@ def prefetch_relevant_facts(
     Gated by ``TURN_FACT_VECTOR_RECALL_ENABLED`` (default OFF — adds embedding latency).
     Never raises.
     """
-    if not TURN_FACT_VECTOR_RECALL_ENABLED:
+    if not vector_recall_enabled():
         return []
     if not query or query.strip().lower() in _TRIVIAL_QUERIES:
         return []

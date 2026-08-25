@@ -50,10 +50,36 @@ from core.models import IngestedDocument
 logger = logging.getLogger(__name__)
 
 # --- Config -----------------------------------------------------------------
-FRESHNESS_TTL_HOURS = float(os.getenv("ATOM_DOC_FRESHNESS_TTL_HOURS", "24"))
-FRESHNESS_FILTER_ENABLED = os.getenv("ATOM_FRESHNESS_FILTER_ENABLED", "true").lower() == "true"
-SUPERSESSION_SIM_THRESHOLD = float(os.getenv("ATOM_SUPERSESSION_SIM_THRESHOLD", "0.86"))
-SUPERSESSION_ENTITY_OVERLAP = float(os.getenv("ATOM_SUPERSESSION_ENTITY_OVERLAP", "0.5"))
+def freshness_ttl_hours() -> float:
+    """Env wins > runtime_settings DB row (UI admin) > default."""
+    from core.runtime_settings import get_float_setting
+
+    return get_float_setting("ATOM_DOC_FRESHNESS_TTL_HOURS", 24.0)
+
+
+def freshness_filter_enabled() -> bool:
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("ATOM_FRESHNESS_FILTER_ENABLED", True)
+
+
+def supersession_sim_threshold() -> float:
+    from core.runtime_settings import get_float_setting
+
+    return get_float_setting("ATOM_SUPERSESSION_SIM_THRESHOLD", 0.86)
+
+
+def supersession_entity_overlap() -> float:
+    from core.runtime_settings import get_float_setting
+
+    return get_float_setting("ATOM_SUPERSESSION_ENTITY_OVERLAP", 0.5)
+
+
+# Deprecated import-time snapshots kept for legacy importers (lancedb_handler).
+FRESHNESS_TTL_HOURS = freshness_ttl_hours()
+FRESHNESS_FILTER_ENABLED = freshness_filter_enabled()
+SUPERSESSION_SIM_THRESHOLD = supersession_sim_threshold()
+SUPERSESSION_ENTITY_OVERLAP = supersession_entity_overlap()
 
 # Statuses that should be suppressed from default retrieval. ``stale`` is
 # excluded by default too: a doc whose source has changed may contain
@@ -83,9 +109,12 @@ def compute_freshness_status(
     source_modified_at_now: Optional[datetime] = None,
     last_verified_modified: Optional[datetime] = None,
     now: Optional[datetime] = None,
-    ttl_hours: float = FRESHNESS_TTL_HOURS,
+    ttl_hours: Optional[float] = None,
 ) -> str:
     """Compute a freshness status from the recorded signals.
+
+    ``ttl_hours=None`` resolves from runtime settings (env > UI row > 24h).
+
 
     Precedence (most actionable first):
       1. ``outdated`` — never verified, or last verification older than TTL.
@@ -97,6 +126,7 @@ def compute_freshness_status(
     modified_at the source *currently* reports; ``last_verified_modified`` is
     the modified_at we recorded when we last verified.
     """
+    ttl_hours = ttl_hours if ttl_hours is not None else freshness_ttl_hours()
     now = now or datetime.now(timezone.utc)
 
     if last_verified_at is None:
@@ -207,10 +237,13 @@ def detect_supersession(
     embed_fn: Optional[EmbedFn] = None,
     older_embeddings: Optional[Dict[str, List[float]]] = None,
     older_entity_sets: Optional[Dict[str, Set[str]]] = None,
-    sim_threshold: float = SUPERSESSION_SIM_THRESHOLD,
-    entity_overlap_threshold: float = SUPERSESSION_ENTITY_OVERLAP,
+    sim_threshold: Optional[float] = None,
+    entity_overlap_threshold: Optional[float] = None,
 ) -> List[SupersessionCandidate]:
     """Find older docs superseded by ``newer_doc``.
+
+    ``None`` thresholds resolve from runtime settings (env > UI row).
+
 
     Hybrid detection: an older doc is a candidate when EITHER
       (a) semantic similarity >= ``sim_threshold`` (near-duplicate content), OR
@@ -227,6 +260,14 @@ def detect_supersession(
 
     Pure function — no DB or network IO. All IO is the caller's job.
     """
+    sim_threshold = (
+        sim_threshold if sim_threshold is not None else supersession_sim_threshold()
+    )
+    entity_overlap_threshold = (
+        entity_overlap_threshold
+        if entity_overlap_threshold is not None
+        else supersession_entity_overlap()
+    )
     candidates: List[SupersessionCandidate] = []
     if not newer_doc_id:
         return candidates

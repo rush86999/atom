@@ -69,18 +69,58 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
-# ── Feature flags (read once at import; kill switches) ──────────────────────
-STAGE_ROUTING_ENABLED = os.getenv("ATOM_STAGE_ROUTING_ENABLED", "true").lower() == "true"
-STAGE_ROUTING_FORCE_ENFORCE = os.getenv(
-    "ATOM_STAGE_ROUTING_FORCE_ENFORCE", "false"
-).lower() == "true"
-STAGE_ROUTING_PICKER = os.getenv("ATOM_STAGE_ROUTING_PICKER", "efficient_first").lower()
-STAGE_ROUTING_CONFIDENCE_THRESHOLD = float(
-    os.getenv("ATOM_STAGE_ROUTING_CONFIDENCE_THRESHOLD", "0.5")
-)
-STAGE_ROUTING_WINDOW = int(os.getenv("ATOM_STAGE_ROUTING_WINDOW", "3"))
-_STAGE_ROUTING_SPLIT_RAW = os.getenv("ATOM_STAGE_ROUTING_SPLIT", "")
-_STAGE_SPLIT_SEED_RAW = os.getenv("ATOM_STAGE_ROUTING_SPLIT_SEED", "")
+# ── Feature flags (runtime settings: env wins > UI admin row > default) ─────
+def stage_router_enabled() -> bool:
+    """Master switch — on alone = shadow (audit-only)."""
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("ATOM_STAGE_ROUTING_ENABLED", True)
+
+
+def stage_routing_force_enforce() -> bool:
+    """Live tier override (default off = shadow)."""
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("ATOM_STAGE_ROUTING_FORCE_ENFORCE", False)
+
+
+def stage_routing_picker() -> str:
+    from core.runtime_settings import get_setting
+
+    return str(get_setting("ATOM_STAGE_ROUTING_PICKER", "efficient_first") or "efficient_first").strip().lower()
+
+
+def stage_routing_confidence_threshold() -> float:
+    from core.runtime_settings import get_float_setting
+
+    return get_float_setting("ATOM_STAGE_ROUTING_CONFIDENCE_THRESHOLD", 0.5)
+
+
+def stage_routing_window() -> int:
+    from core.runtime_settings import get_int_setting
+
+    return max(1, get_int_setting("ATOM_STAGE_ROUTING_WINDOW", 3))
+
+
+def _stage_routing_split_raw() -> str:
+    from core.runtime_settings import get_setting
+
+    return str(get_setting("ATOM_STAGE_ROUTING_SPLIT", "") or "")
+
+
+def _stage_split_seed_raw() -> str:
+    from core.runtime_settings import get_setting
+
+    return str(get_setting("ATOM_STAGE_ROUTING_SPLIT_SEED", "") or "")
+
+
+# Deprecated import-time snapshots kept ONLY for legacy readers; live decision
+# paths use the accessor functions above.
+STAGE_ROUTING_ENABLED = stage_router_enabled()
+STAGE_ROUTING_FORCE_ENFORCE = stage_routing_force_enforce()
+STAGE_ROUTING_PICKER = stage_routing_picker()
+STAGE_ROUTING_CONFIDENCE_THRESHOLD = stage_routing_confidence_threshold()
+STAGE_ROUTING_WINDOW = stage_routing_window()
 
 CAPABLE = "capable"
 EFFICIENT = "efficient"
@@ -285,17 +325,17 @@ class AgentStagePolicy:
 
     enforce: bool = False
     picker: StagePicker = StagePicker.EFFICIENT_FIRST
-    confidence_threshold: float = STAGE_ROUTING_CONFIDENCE_THRESHOLD
-    window: int = STAGE_ROUTING_WINDOW
+    confidence_threshold: float = field(default_factory=stage_routing_confidence_threshold)
+    window: int = field(default_factory=stage_routing_window)
     source: str = "global"  # "global" | "agent-config" (which layer set enforce)
 
 
 def resolve_agent_policy(
     agent_config: Optional[Dict[str, Any]],
-    global_enforce: bool = STAGE_ROUTING_FORCE_ENFORCE,
+    global_enforce: Optional[bool] = None,
     global_picker: StagePicker = StagePicker.EFFICIENT_FIRST,
-    global_threshold: float = STAGE_ROUTING_CONFIDENCE_THRESHOLD,
-    global_window: int = STAGE_ROUTING_WINDOW,
+    global_threshold: Optional[float] = None,
+    global_window: Optional[int] = None,
 ) -> AgentStagePolicy:
     """Resolve the effective stage-routing policy for one agent.
 
@@ -306,9 +346,14 @@ def resolve_agent_policy(
     Never raises — invalid values fall back to the global defaults.
     """
     picker = global_picker
-    threshold = max(0.0, min(global_threshold, 1.0))
-    window = max(1, global_window)
-    enforce = global_enforce
+    threshold = max(0.0, min(
+        global_threshold if global_threshold is not None else stage_routing_confidence_threshold(),
+        1.0,
+    ))
+    window = max(1, global_window if global_window is not None else stage_routing_window())
+    enforce = (
+        global_enforce if global_enforce is not None else stage_routing_force_enforce()
+    )
     source = "global"
     try:
         block = (agent_config or {}).get("stage_routing")
@@ -363,14 +408,14 @@ class WeightedRandomSplit:
     @classmethod
     def from_env(cls) -> Optional["WeightedRandomSplit"]:
         """Build the split from ``ATOM_STAGE_ROUTING_SPLIT``/``_SEED`` env vars."""
-        raw = os.getenv("ATOM_STAGE_ROUTING_SPLIT", "")
+        raw = _stage_routing_split_raw()
         if not raw:
             return None
         try:
             weights = json.loads(raw)
             if not isinstance(weights, dict):
                 raise ValueError("split config must be a JSON object")
-            seed_raw = os.getenv("ATOM_STAGE_ROUTING_SPLIT_SEED", "")
+            seed_raw = _stage_split_seed_raw()
             seed = int(seed_raw) if seed_raw else None
             return cls(weights, seed=seed)
         except (ValueError, TypeError) as e:
@@ -455,13 +500,21 @@ class StageRouter:
     def __init__(
         self,
         picker: StagePicker = StagePicker.EFFICIENT_FIRST,
-        confidence_threshold: float = STAGE_ROUTING_CONFIDENCE_THRESHOLD,
-        window: int = STAGE_ROUTING_WINDOW,
-        enabled: bool = STAGE_ROUTING_ENABLED,
-        enforce: bool = STAGE_ROUTING_FORCE_ENFORCE,
+        confidence_threshold: Optional[float] = None,
+        window: Optional[int] = None,
+        enabled: Optional[bool] = None,
+        enforce: Optional[bool] = None,
         split: Optional[WeightedRandomSplit] = None,
         audit: bool = True,
     ) -> None:
+        confidence_threshold = (
+            confidence_threshold
+            if confidence_threshold is not None
+            else stage_routing_confidence_threshold()
+        )
+        window = window if window is not None else stage_routing_window()
+        enabled = enabled if enabled is not None else stage_router_enabled()
+        enforce = enforce if enforce is not None else stage_routing_force_enforce()
         self.picker = picker if isinstance(picker, StagePicker) else StagePicker(picker)
         self.confidence_threshold = max(0.0, min(confidence_threshold, 1.0))
         self.window = max(1, window)
@@ -949,11 +1002,11 @@ def stage_router_status() -> Dict[str, Any]:
     Never raises — a DB failure returns an ``error`` phase with generic text.
     """
     config = {
-        "enabled": STAGE_ROUTING_ENABLED,
-        "force_enforce": STAGE_ROUTING_FORCE_ENFORCE,
-        "picker": STAGE_ROUTING_PICKER,
-        "confidence_threshold": STAGE_ROUTING_CONFIDENCE_THRESHOLD,
-        "traffic_split": bool(_STAGE_ROUTING_SPLIT_RAW),
+        "enabled": stage_router_enabled(),
+        "force_enforce": stage_routing_force_enforce(),
+        "picker": stage_routing_picker(),
+        "confidence_threshold": stage_routing_confidence_threshold(),
+        "traffic_split": bool(_stage_routing_split_raw()),
     }
     try:
         from core.llm.stage_router_automation import get_automation_status
@@ -1112,11 +1165,11 @@ def get_stage_router() -> StageRouter:
     global _stage_router
     if _stage_router is None:
         picker = StagePicker.EFFICIENT_FIRST
-        if STAGE_ROUTING_PICKER == StagePicker.CAPABLE_FIRST.value:
+        if stage_routing_picker() == StagePicker.CAPABLE_FIRST.value:
             picker = StagePicker.CAPABLE_FIRST
-        elif STAGE_ROUTING_PICKER not in (StagePicker.EFFICIENT_FIRST.value,):
+        elif stage_routing_picker() not in (StagePicker.EFFICIENT_FIRST.value,):
             logger.warning(
-                f"Invalid ATOM_STAGE_ROUTING_PICKER '{STAGE_ROUTING_PICKER}', "
+                f"Invalid ATOM_STAGE_ROUTING_PICKER '{stage_routing_picker()}', "
                 "using efficient_first"
             )
         split: Optional[WeightedRandomSplit] = None
@@ -1128,10 +1181,10 @@ def get_stage_router() -> StageRouter:
             split = None
         _stage_router = StageRouter(
             picker=picker,
-            confidence_threshold=STAGE_ROUTING_CONFIDENCE_THRESHOLD,
-            window=STAGE_ROUTING_WINDOW,
-            enabled=STAGE_ROUTING_ENABLED,
-            enforce=STAGE_ROUTING_FORCE_ENFORCE,
+            confidence_threshold=stage_routing_confidence_threshold(),
+            window=stage_routing_window(),
+            enabled=stage_router_enabled(),
+            enforce=stage_routing_force_enforce(),
             split=split,
         )
     # Auto-certification (consent-gated): lazily start the background pass

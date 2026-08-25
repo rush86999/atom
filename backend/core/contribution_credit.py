@@ -35,7 +35,10 @@ _STEP_VALUES = {"completed": 1.0, "failed": 0.0}
 
 
 def contribution_credit_enabled() -> bool:
-    return os.getenv("ATOM_CONTRIBUTION_CREDIT_ENABLED", "false").lower() == "true"
+    # Env wins > runtime_settings DB row (UI admin) > default.
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("ATOM_CONTRIBUTION_CREDIT_ENABLED", False)
 
 
 def _step_value(status: Optional[str]) -> float:
