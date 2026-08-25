@@ -7,6 +7,50 @@
 ---
 
 
+## Session 2026-08-25 (Outlook "No access token" — two-DB split fix)
+
+**Files**: `backend/scripts/migrate_outlook_token_to_root_db.py`,
+`backend/scripts/verify_outlook_token.py`, `backend/scripts/pin_storage_paths.py`,
+`.env` / `backend/.env` (gitignored, 4 keys pinned to absolute paths).
+
+**Problem (user-observed)**: recurring
+`ERROR:integrations.outlook_service:No access token available for user
+default_user` — so the email-reply flow could never reach Microsoft Graph.
+
+**Root cause**: `DATABASE_URL=sqlite:///./atom_dev.db` (and LanceDB +
+BYOK key-file paths) are CWD-relative. The server had been launched from both
+repo root and `backend/` over time, silently creating TWO databases:
+- `atom_dev.db` (root) — live user `67e0bae3…`, Zoho tokens, NO Outlook
+- `backend/atom_dev.db` — stale user `7d405d22…`, but it held the ONLY
+  Outlook/Microsoft OAuth token
+
+Each DB's tokens are Fernet-encrypted with a per-CWD key file
+(`data/byok_encryption_key` vs `backend/data/byok_encryption_key`), so a raw
+row copy would be undecryptable.
+
+**Fix**:
+1. `migrate_outlook_token_to_root_db.py` — decrypt the outlook/microsoft rows
+   from `backend/atom_dev.db` with the backend key, re-encrypt with the root
+   key, upsert into root `atom_dev.db` under the live user (id preserved,
+   `status=active`).
+2. `verify_outlook_token.py` — the migrated access token had expired (401);
+   refreshed it with the stored refresh_token via the standard
+   `login.microsoftonline.com/{tenant}/oauth2/v2.0/token` flow and persisted
+   the fresh pair. Verified live: `GET /v1.0/me` → `vishal@brennan.ca`.
+3. `pin_storage_paths.py` — rewrote `DATABASE_URL`/`LANCEDB_URI`/
+   `LANCEDB_PATH`/`BYOK_ENC_KEY_FILE` in BOTH `.env` files to absolute
+   repo-root paths so the split cannot recur regardless of launch CWD
+   (`main_api_app` loads `backend/.env` first — it wins).
+
+**Verification**: `OutlookService._get_access_token('default_user')` returns
+the token and `_make_graph_request('default_user', '/me')` returns
+`vishal@brennan.ca` — the exact call that previously logged the error.
+Both outlook+microsoft rows active with the fresh token; poller will
+auto-refresh on expiry (client id/secret configured).
+
+---
+
+
 ## Session 2026-08-25 (Chat shows full content for named files — specific-file leg)
 
 **Files**: `backend/core/memory_context_assembler.py` (+ 3 tests in
