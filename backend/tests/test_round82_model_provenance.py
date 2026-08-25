@@ -10,8 +10,10 @@ read-time applicability filtering (normalize -> scope match -> drift expiry).
 All tests mock-heavy: zero network, zero LLM spend.
 """
 
+import asyncio
 import json
 import threading
+from datetime import datetime, timezone
 
 import pytest
 
@@ -96,14 +98,50 @@ def test_drift_same_value_no_event(tmp_path):
     assert det.observe("openai", "m", "m-snap-1") is None
 
 
-def test_drift_heals_when_provider_rolls_back(tmp_path):
+def test_drift_healing_is_debounced(tmp_path):
+    """A silent bump IS a steady state: one repeated echo must NOT heal —
+    suppression persists until N consecutive stable echoes (default 3)."""
     det = _detector(tmp_path)
     det.observe("openai", "m", "snap-a")
     assert det.is_drifted("openai", "m") is False  # steady baseline
     det.observe("openai", "m", "snap-b")
-    assert det.is_drifted("openai", "m") is True  # bump fires
+    assert det.is_drifted("openai", "m") is True   # bump fires
     det.observe("openai", "m", "snap-b")
-    assert det.is_drifted("openai", "m") is False  # echo stabilized → healed
+    assert det.is_drifted("openai", "m") is True   # 1 stable echo: still drifted
+    det.observe("openai", "m", "snap-b")
+    assert det.is_drifted("openai", "m") is True   # 2 stable echoes: still drifted
+    det.observe("openai", "m", "snap-b")
+    assert det.is_drifted("openai", "m") is False  # 3 stable echoes: healed
+
+
+def test_drift_revalidation_clears_immediately(tmp_path):
+    det = _detector(tmp_path)
+    det.observe("openai", "m", "snap-a")
+    det.observe("openai", "m", "snap-b")
+    assert det.is_drifted("openai", "m") is True
+    det.mark_revalidated("openai", "m")  # explicit post-validation clear
+    assert det.is_drifted("openai", "m") is False
+
+
+def test_drift_second_bump_resets_stable_counter(tmp_path):
+    det = _detector(tmp_path)
+    det.observe("openai", "m", "snap-a")
+    det.observe("openai", "m", "snap-b")
+    det.observe("openai", "m", "snap-b")  # 1 stable
+    det.observe("openai", "m", "snap-c")  # bumps again mid-heal
+    assert det.is_drifted("openai", "m") is True
+    det.observe("openai", "m", "snap-c")  # stable counter restarted from 0
+    assert det.is_drifted("openai", "m") is True
+
+
+def test_drift_stable_echoes_env_override(tmp_path, monkeypatch):
+    monkeypatch.setenv("ATOM_DRIFT_STABLE_ECHOES", "1")
+    det = _detector(tmp_path)
+    det.observe("openai", "m", "snap-a")
+    det.observe("openai", "m", "snap-b")
+    assert det.is_drifted("openai", "m") is True
+    det.observe("openai", "m", "snap-b")
+    assert det.is_drifted("openai", "m") is False  # 1 echo suffices
 
 
 def test_drift_state_persists_across_instances(tmp_path):
@@ -247,10 +285,61 @@ async def test_propose_mutation_prompt_patch_is_family_scoped():
     from core.harness_evolution_service import HarnessEvolutionService
 
     svc = HarnessEvolutionService.__new__(HarnessEvolutionService)
-    patch = await svc.propose_mutation({"tool": "unknown", "step_type": "thought"})
+    patch = await svc.propose_mutation(
+        {"tool": "unknown", "step_type": "thought", "model_family": "gpt-5.4"}
+    )
     assert patch["target_component"] == "system_prompt"
     assert patch["model_scope"] == "model_family"
-    assert "model_family" in patch
+    assert patch["model_family"] == "gpt-5.4"
+    # Composite identity: family is part of the patch_id so cross-family
+    # variants can't overwrite each other on deploy.
+    assert patch["patch_id"] == "patch_thought_unknown_gpt-5.4"
+
+
+def test_default_validation_rejects_universal_prompt_patch():
+    from core.harness_evolution_service import HarnessEvolutionService
+
+    svc = HarnessEvolutionService.__new__(HarnessEvolutionService)
+    assert svc._default_patch_validation({
+        "patch_id": "p", "target_component": "system_prompt",
+        "model_scope": "all", "mutation_payload": {},
+    }) is False
+    assert svc._default_patch_validation({
+        "patch_id": "p", "target_component": "system_prompt",
+        "model_scope": "model_family", "model_family": "gpt-5.4",
+        "mutation_payload": {},
+    }) is True
+
+
+def test_deploy_keyed_on_patch_id_and_family():
+    """Two family variants of the same logical patch coexist in the store."""
+    from unittest.mock import MagicMock
+    from core.harness_evolution_service import HarnessEvolutionService
+    from core.models import AgentRegistry
+
+    svc = HarnessEvolutionService.__new__(HarnessEvolutionService)
+    svc.db = MagicMock()
+
+    gpt_patch = {"patch_id": "patch_thought_shell", "target_component": "system_prompt",
+                 "model_scope": "model_family", "model_family": "gpt-5.4"}
+    ds_patch = {"patch_id": "patch_thought_shell", "target_component": "system_prompt",
+                "model_scope": "model_family", "model_family": "deepseek-v4-flash"}
+
+    agent = AgentRegistry(id="a1", name="a", category="ops",
+                          configuration={"harness_patches": []})
+    svc.db.query.return_value.filter.return_value.first.return_value = agent
+    for p in (gpt_patch, ds_patch):
+        asyncio.run(svc.deploy_harness_patch(p, "a1"))
+
+    ids = {(p["patch_id"], p["model_family"]) for p in agent.configuration["harness_patches"]}
+    assert ("patch_thought_shell", "gpt-5.4") in ids
+    assert ("patch_thought_shell", "deepseek-v4-flash") in ids  # not overwritten
+
+    # Re-deploying the same variant replaces only that variant.
+    asyncio.run(svc.deploy_harness_patch(gpt_patch, "a1"))
+    fams = [p["model_family"] for p in agent.configuration["harness_patches"]
+            if p["patch_id"] == "patch_thought_shell"]
+    assert fams.count("gpt-5.4") == 1
 
 
 @pytest.mark.asyncio
@@ -309,6 +398,45 @@ def test_applicable_patches_drift_expiry(tmp_path, monkeypatch):
     after = {p["patch_id"] for p in applicable_patches(
         patches, "gpt-5.4-2026-03", provider_id="openai", drift_detector=det)}
     assert after == {"portable"}  # scoped patch expired immediately
+
+
+# ── mining keys clusters on model family ──────────────────────────────
+
+
+def test_mine_weaknesses_clusters_by_model_family():
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    from core.harness_evolution_service import HarnessEvolutionService
+
+    svc = HarnessEvolutionService.__new__(HarnessEvolutionService)
+    svc.db = MagicMock()
+
+    def step(step_type, tool, requested=None, resolved=None):
+        return SimpleNamespace(
+            id="x", tenant_id="t", timestamp=datetime.now(timezone.utc),
+            verified="failed_verification", feedback_score=-1,
+            step_type=step_type, action={"tool": tool},
+            requested_model=requested, resolved_model=resolved,
+            thought="t", observation="o", verification_evidence="e",
+        )
+
+    rows = [
+        step("thought", "shell", requested="gpt-5.4-2026-03"),
+        step("thought", "shell", resolved="gpt-5.4-2026-09"),   # echo fallback
+        step("thought", "shell", requested="deepseek-v4-flash"),
+        step("action", "shell", requested="gpt-5.4-2026-03"),   # same family, diff step
+    ]
+    svc.db.query.return_value.filter.return_value.all.return_value = rows
+
+    patterns = asyncio.run(svc.mine_weaknesses("t"))
+    by_key = {(p["model_family"], p["step_type"], p["tool"]): p for p in patterns}
+
+    # Both gpt echoes collapse to one family cluster of 2
+    assert by_key[("gpt-5.4", "thought", "shell")]["failure_count"] == 2
+    # deepseek clusters separately
+    assert by_key[("deepseek-v4-flash", "thought", "shell")]["failure_count"] == 1
+    # same family, different step_type stays a separate cluster
+    assert by_key[("gpt-5.4", "action", "shell")]["failure_count"] == 1
 
 
 # ── rec #1d: reasoning-step provenance columns ────────────────────────
