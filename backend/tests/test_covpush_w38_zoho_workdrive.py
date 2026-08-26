@@ -65,7 +65,7 @@ class TestListFiles:
                    new=AsyncMock(return_value=[])) as m:
             resp = client.post("/api/zoho-workdrive/files/list", json={"user_id": "u1"})
         assert resp.status_code == 200
-        m.assert_awaited_once_with("u1", "root")
+        m.assert_awaited_once_with("u1", "root", None, None, False)
 
     def test_list_files_error_500(self, client):
         with patch("api.zoho_workdrive_routes.zoho_service.list_files",
