@@ -230,3 +230,38 @@ async def test_download_file_returns_none_on_failure():
         content = await svc.download_file("u1", "f1")
 
     assert content is None
+
+
+async def test_full_sync_unscoped_walks_private_and_team_folders():
+    """Unscoped /full-sync must walk the private workspace AND all team
+    folders (walk_files with no root_ids) — not just the private root.
+    Greptile P1: removing the walker entirely left team-folder documents
+    unsynchronized."""
+    svc, _client = _service([])
+    svc.walk_files = AsyncMock(return_value=[{"id": "f1", "name": "a.pdf", "path": "/private", "type": "file"}])
+    svc.list_files = AsyncMock(return_value=[{"id": "wrong", "name": "x.pdf", "type": "file"}])
+    svc.ingest_file_to_memory = AsyncMock(return_value={"success": True, "result": {"status": "ingested"}})
+    svc.sync_to_postgres_cache = AsyncMock(return_value={"success": True, "metrics_synced": 0})
+
+    res = await svc.full_sync("u1")
+
+    svc.walk_files.assert_awaited_once()
+    svc.list_files.assert_not_awaited()
+    assert res["files_found"] == 1
+    assert res["files_ingested"] == 1
+
+
+async def test_full_sync_scoped_uses_list_files_not_walk_files():
+    """Scoped /sync-team must use the scoped listing — never the unscoped
+    whole-tree walk (which would ingest unrelated files)."""
+    svc, _client = _service([])
+    svc.walk_files = AsyncMock(return_value=[{"id": "wrong", "name": "x.pdf", "type": "file"}])
+    svc.list_files = AsyncMock(return_value=[])
+    svc.ingest_file_to_memory = AsyncMock(return_value={"success": True, "result": {"status": "ingested"}})
+    svc.sync_to_postgres_cache = AsyncMock(return_value={"success": True, "metrics_synced": 0})
+
+    res = await svc.full_sync("u1", workspace_id="ws1")
+
+    svc.walk_files.assert_not_awaited()
+    svc.list_files.assert_awaited_once()
+    assert res["files_found"] == 0

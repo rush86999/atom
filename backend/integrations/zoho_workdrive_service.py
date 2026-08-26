@@ -919,13 +919,16 @@ class ZohoWorkDriveService(IntegrationService):
         root_folder = folder_id or "root"
         
         # List files with new parameters
-        # Scoped listing: /sync-team must honor the requested workspace/team/
-        # folder scope. walk_files() is unscoped and would silently ingest
-        # unrelated files — it must NOT replace this result.
-        files = await self.list_files(
-            user_id, parent_id=root_folder, team_id=team_id,
-            workspace_id=workspace_id, recursive=recursive
-        )
+        # Scoped sync honors the requested workspace/team/folder scope; an
+        # unscoped full sync walks the private workspace AND all team folders
+        # (walk_files with no root_ids starts at ["root"] + team folder ids).
+        if workspace_id or team_id or folder_id:
+            files = await self.list_files(
+                user_id, parent_id=root_folder, team_id=team_id,
+                workspace_id=workspace_id, recursive=recursive
+            )
+        else:
+            files = await self.walk_files(user_id)
 
 
         ingested = 0
