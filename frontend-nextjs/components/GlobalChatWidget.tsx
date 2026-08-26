@@ -56,32 +56,45 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         }
     }, [messages, isOpen]);
 
-    // Fetch existing pending approvals on mount or open
+    // Fetch existing pending approvals when the widget opens. The effect only
+    // runs while the popover is open — firing on mount (widget closed) hit the
+    // backend on every page load and surfaced a runtime Network Error when it
+    // was unreachable.
     useEffect(() => {
+        if (!isOpen) return;
+
         const fetchPendingApprovals = async () => {
             try {
-                const { apiClient } = await import('../lib/api-client');
-                const response = await apiClient.get("/api/agents/approvals/pending", {
-                    retry: false,
-                    validateStatus: (status) => status < 500
-                }) as any;
-                if (response.status === 200 && Array.isArray(response.data) && response.data.length > 0) {
-                    const first = response.data[0];
+                const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
+                // Same-origin call through the Next.js proxy (next.config
+                // rewrites /api/agents/* to the backend), matching the chat
+                // calls in this widget — no cross-origin dependency on the
+                // backend's direct port or CORS.
+                const res = await fetch("/api/agents/approvals/pending", {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                }).catch(() => null);
+
+                if (!res || !res.ok) {
+                    // Backend unreachable or insufficient permission — treat
+                    // as an empty queue. A background poll must never throw.
+                    setPendingApproval(null);
+                    return;
+                }
+                const data = await res.json().catch(() => null);
+                if (Array.isArray(data) && data.length > 0) {
+                    const first = data[0];
                     setPendingApproval({
                         action_id: first.id,
                         tool: first.action_type,
-                        reason: first.reason
+                        reason: first.reason,
                     });
-                } else if (response.status === 200 && Array.isArray(response.data) && response.data.length === 0) {
+                } else {
                     setPendingApproval(null);
                 }
-            } catch (err) {
-                // Background polling check - graceful empty state if backend is unreachable,
-                // but surface the failure server-side via console for diagnostics.
-                console.error("Failed to fetch pending approvals:", err);
-                if (process.env.NODE_ENV === 'development') {
-                    console.debug("Pending approvals unavailable (backend unreachable)");
-                }
+            } catch {
+                // Graceful empty state — never surface a runtime error when
+                // the backend is unreachable.
+                setPendingApproval(null);
             }
         };
         fetchPendingApprovals();

@@ -12249,6 +12249,7 @@ class SalesCase(Base):
 
     __table_args__ = (
         Index("ix_sales_cases_status_updated", "status", "updated_at"),
+    )
 
 class TrustCalibrationAssessment(Base):
     """One shadow assessment per ask-the-human moment (R81l P1).

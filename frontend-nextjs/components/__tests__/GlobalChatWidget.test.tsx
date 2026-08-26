@@ -18,7 +18,7 @@
  *   marketplace with the template id
  *
  * APIs: POST /api/chat/message, GET /api/chat/history/:sid,
- *       GET /api/agents/approvals/pending (apiClient),
+ *       GET /api/agents/approvals/pending (same-origin fetch via proxy),
  *       POST /api/agents/approvals/:id (apiClient)
  */
 import React from 'react';
@@ -50,10 +50,9 @@ jest.mock('next/router', () => ({
   }),
 }));
 
-const mockApiGet = jest.fn();
 const mockApiPost = jest.fn();
 jest.mock('../../lib/api-client', () => ({
-  apiClient: { get: mockApiGet, post: mockApiPost },
+  apiClient: { post: mockApiPost },
 }));
 
 jest.mock('@/hooks/useWebSocket', () => ({
@@ -118,10 +117,12 @@ describe('GlobalChatWidget', () => {
             ],
           })
         );
+      }),
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json([]));
       })
     );
 
-    mockApiGet.mockResolvedValue({ status: 200, data: [] });
     mockApiPost.mockResolvedValue({ data: { success: true } });
   });
 
@@ -242,10 +243,14 @@ describe('GlobalChatWidget', () => {
   });
 
   it('shows the pending approval banner from the API and approves it', async () => {
-    mockApiGet.mockResolvedValue({
-      status: 200,
-      data: [{ id: 'p-1', action_type: 'send_email', reason: 'Customer email' }],
-    });
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([{ id: 'p-1', action_type: 'send_email', reason: 'Customer email' }])
+        );
+      })
+    );
 
     render(<GlobalChatWidget />);
     openChat();
@@ -267,10 +272,14 @@ describe('GlobalChatWidget', () => {
   });
 
   it('rejects the pending approval via the API', async () => {
-    mockApiGet.mockResolvedValue({
-      status: 200,
-      data: [{ id: 'p-2', action_type: 'send_email', reason: 'Spam' }],
-    });
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([{ id: 'p-2', action_type: 'send_email', reason: 'Spam' }])
+        );
+      })
+    );
 
     render(<GlobalChatWidget />);
     openChat();
@@ -416,10 +425,12 @@ describe('GlobalChatWidget (extended coverage)', () => {
       ),
       rest.get('/api/chat/history/:sid', (req, res, ctx) => {
         return res(ctx.status(200), ctx.json({ messages: [] }));
+      }),
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json([]));
       })
     );
 
-    mockApiGet.mockResolvedValue({ status: 200, data: [] });
     mockApiPost.mockResolvedValue({ data: { success: true } });
   });
 
@@ -547,10 +558,14 @@ describe('GlobalChatWidget (extended coverage)', () => {
   });
 
   it('shows an error toast when the approval decision API fails', async () => {
-    mockApiGet.mockResolvedValue({
-      status: 200,
-      data: [{ id: 'p-9', action_type: 'delete_file', reason: 'Dangerous' }],
-    });
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([{ id: 'p-9', action_type: 'delete_file', reason: 'Dangerous' }])
+        );
+      })
+    );
     mockApiPost.mockResolvedValue({ data: { success: false, error: 'nope' } });
 
     render(<GlobalChatWidget />);
@@ -566,10 +581,14 @@ describe('GlobalChatWidget (extended coverage)', () => {
   });
 
   it('shows an error toast when the approval decision POST rejects', async () => {
-    mockApiGet.mockResolvedValue({
-      status: 200,
-      data: [{ id: 'p-8', action_type: 'delete_file', reason: 'Dangerous' }],
-    });
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([{ id: 'p-8', action_type: 'delete_file', reason: 'Dangerous' }])
+        );
+      })
+    );
     mockApiPost.mockRejectedValue(new Error('network down'));
 
     render(<GlobalChatWidget />);
@@ -584,17 +603,24 @@ describe('GlobalChatWidget (extended coverage)', () => {
     });
   });
 
-  it('logs an error when the pending approvals fetch rejects', async () => {
-    mockApiGet.mockRejectedValue(new Error('approvals down'));
+  it('stays silent when the pending approvals fetch fails', async () => {
+    // A background poll must never surface a runtime error: the banner simply
+    // stays hidden and nothing reaches console.error (the Next dev overlay
+    // shows console.error calls from components).
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res) => res.networkError('approvals down'))
+    );
 
     render(<GlobalChatWidget />);
+    openChat();
+    await screen.findByText('ATOM Assistant');
 
-    await waitFor(() => {
-      expect(errorSpy).toHaveBeenCalledWith(
-        'Failed to fetch pending approvals:',
-        expect.anything()
-      );
-    });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(screen.queryByText('Approval Required')).not.toBeInTheDocument();
+    expect(errorSpy).not.toHaveBeenCalledWith(
+      'Failed to fetch pending approvals:',
+      expect.anything()
+    );
   });
 
   it('treats a failed message POST as an error bubble', async () => {
@@ -671,19 +697,20 @@ describe('GlobalChatWidget (extended coverage)', () => {
   });
 
   it('clears a pending approval when the API reports an empty queue', async () => {
-    // First loads show a pending approval, then re-opening clears it.
-    // (The effect runs on mount too, so the queue must stay non-empty until
-    // the popover has opened.)
-    mockApiGet.mockResolvedValue({
-      status: 200,
-      data: [{ id: 'p-5', action_type: 'send_email', reason: 'Needs approval' }],
-    });
+    // First load shows a pending approval, then re-opening clears it.
+    // (The fetch fires when the popover opens, not on mount.)
+    let approvals: any[] = [{ id: 'p-5', action_type: 'send_email', reason: 'Needs approval' }];
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json(approvals));
+      })
+    );
 
     render(<GlobalChatWidget />);
     openChat();
     expect(await screen.findByText('Approval Required')).toBeInTheDocument();
 
-    mockApiGet.mockResolvedValue({ status: 200, data: [] });
+    approvals = [];
 
     const closeButton = document
       .querySelector('.lucide-x')

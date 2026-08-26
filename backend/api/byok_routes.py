@@ -998,9 +998,6 @@ async def store_api_key(
     api_key: Optional[str] = Query(None),
     key_name: str = "default",
     environment: str = "production",
-
-    current_user: Optional[User] = Depends(get_optional_current_user),
-    tenant: Tenant = Depends(get_safe_tenant),
     body: Optional[Dict[str, Any]] = None,
     current_user: User = Depends(get_current_user),
     tenant: Tenant = Depends(get_current_tenant),

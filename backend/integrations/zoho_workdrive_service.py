@@ -207,45 +207,44 @@ class ZohoWorkDriveService(IntegrationService):
                     params={"page[limit]": self.PAGE_SIZE, "page[offset]": offset},
                 )
 
-
-            if not teams:
-                # GET /teams can be empty for users who are plain members of
-                # their org's team (no admin/owner role). Fall back to the
-                # org team id advertised on /users/me and fetch it directly.
-                me_res = await self.client.get(f"{self.base_url}/users/me", headers=headers)
-                if me_res.status_code == 200:
-                    me_attrs = me_res.json().get("data", {}).get("attributes", {})
-                    tid = me_attrs.get("preferred_team_id")
-                    if tid:
-                        team_res = await self.client.get(f"{self.base_url}/teams/{tid}", headers=headers)
-                        if team_res.status_code == 200:
-                            tdata = team_res.json().get("data", {})
-                            tattrs = tdata.get("attributes", {})
-                            teams.append(
-                                {
-                                    "id": tdata.get("id") or tid,
-                                    "name": tattrs.get("name") or tid,
-                                    "type": tdata.get("type", "teams"),
-                                    "status": tattrs.get("status") or tattrs.get("shared_status"),
-                                    "role": tattrs.get("role_id"),
-                                }
-                            )
-                response.raise_for_status()
-                items = response.json().get("data", [])
-                for item in items:
-                    attrs = item.get("attributes", {})
-                    teams.append(
-                        {
-                            "id": item.get("id"),
-                            "name": attrs.get("name") or attrs.get("display_name"),
-                            "type": item.get("type", "teams"),
-                            "status": attrs.get("status"),
-                            "role": attrs.get("role"),
-                        }
-                    )
-                if len(items) < self.PAGE_SIZE or len(teams) >= self.MAX_LIST_ITEMS:
-                    break
-                offset += self.PAGE_SIZE
+                if not teams:
+                    # GET /teams can be empty for users who are plain members of
+                    # their org's team (no admin/owner role). Fall back to the
+                    # org team id advertised on /users/me and fetch it directly.
+                    me_res = await self.client.get(f"{self.base_url}/users/me", headers=headers)
+                    if me_res.status_code == 200:
+                        me_attrs = me_res.json().get("data", {}).get("attributes", {})
+                        tid = me_attrs.get("preferred_team_id")
+                        if tid:
+                            team_res = await self.client.get(f"{self.base_url}/teams/{tid}", headers=headers)
+                            if team_res.status_code == 200:
+                                tdata = team_res.json().get("data", {})
+                                tattrs = tdata.get("attributes", {})
+                                teams.append(
+                                    {
+                                        "id": tdata.get("id") or tid,
+                                        "name": tattrs.get("name") or tid,
+                                        "type": tdata.get("type", "teams"),
+                                        "status": tattrs.get("status") or tattrs.get("shared_status"),
+                                        "role": tattrs.get("role_id"),
+                                    }
+                                )
+                    response.raise_for_status()
+                    items = response.json().get("data", [])
+                    for item in items:
+                        attrs = item.get("attributes", {})
+                        teams.append(
+                            {
+                                "id": item.get("id"),
+                                "name": attrs.get("name") or attrs.get("display_name"),
+                                "type": item.get("type", "teams"),
+                                "status": attrs.get("status"),
+                                "role": attrs.get("role"),
+                            }
+                        )
+                    if len(items) < self.PAGE_SIZE or len(teams) >= self.MAX_LIST_ITEMS:
+                        break
+                    offset += self.PAGE_SIZE
 
             return teams
         except Exception as e:
