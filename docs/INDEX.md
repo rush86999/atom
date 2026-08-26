@@ -66,6 +66,7 @@
 | [Stage Router / Switchyard](architecture/SWITCHYARD_GAP_ANALYSIS.md) | **NEW** - Shadow-first turn-level LLM routing, A/B harness, consent-gated automation | AI Engineers |
 | [Self-Evolving Harness](architecture/HARNESS_EVOLUTION.md) | Offline trace analysis, auto-patches | Researchers |
 | [Hermes Comparison](architecture/HERMES_COMPARISON.md) | Atom vs Hermes — what we built/didn't | Architects |
+| [Agent Harness Research](architecture/AGENT_HARNESS_RESEARCH.md) | **NEW** - Citation-backed survey: guardrails, voting vs debate, multi-agent orgs, memory, verified execution, harness benchmarks | Researchers/AI Engineers |
 
 ### 👥 Agent Systems & Orchestration
 
