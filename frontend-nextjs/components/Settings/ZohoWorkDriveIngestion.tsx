@@ -64,7 +64,7 @@ function extractErrorMessage(text: string, status: number): string {
     return errMsg;
 }
 
-export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
+export default function ZohoWorkDriveIngestion() {
     const [teams, setTeams] = useState<ZohoTeam[]>([]);
     const [teamFolders, setTeamFolders] = useState<ZohoTeamFolder[]>([]);
     const [files, setFiles] = useState<ZohoFile[]>([]);
@@ -93,12 +93,14 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
     };
 
     const handleConnectZoho = () => {
-        window.location.href = `/api/v1/auth/oauth/zoho/authorize?user_id=${userId}`;
+        // R88: the authorize endpoint derives identity from the auth session
+        // (JWT/cookie) and fails closed — no user_id is passed or trusted.
+        window.location.href = '/api/v1/auth/oauth/zoho/authorize';
     };
 
     const fetchTeams = async () => {
         try {
-            const response = await fetch(`/api/zoho-workdrive/teams?user_id=${userId}`);
+            const response = await fetch('/api/zoho-workdrive/teams');
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
@@ -113,7 +115,7 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
 
     const fetchTeamFolders = async () => {
         try {
-            const response = await fetch(`/api/zoho-workdrive/team-folders?user_id=${userId}`);
+            const response = await fetch('/api/zoho-workdrive/team-folders');
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
@@ -134,7 +136,6 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: userId,
                     parent_id,
                     ...(workspace_id ? { workspace_id } : {}),
                     ...(team_id ? { team_id } : {}),
@@ -201,7 +202,7 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
             const response = await fetch('/api/zoho-workdrive/ingest', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, file_id: file.id })
+                body: JSON.stringify({ file_id: file.id })
             });
             if (!response.ok) {
                 const text = await response.text();
@@ -231,34 +232,56 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
     const handleIngestAll = async () => {
         const ingestableFiles = files.filter(f => f.type !== 'folder');
         if (ingestableFiles.length === 0) return;
-        
+
         setIngestingAll(true);
-        let successCount = 0;
-        for (const file of ingestableFiles) {
-            try {
-                const response = await fetch('/api/zoho-workdrive/ingest', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, file_id: file.id })
-                });
-                if (response.ok) {
-                    // HTTP 200 can still carry {success: false} (download or
-                    // parse failure) — only count real ingestions.
-                    const data = await response.json().catch(() => null);
-                    if (data?.success) {
-                        setIngestedFileIds(prev => new Set(prev).add(file.id));
-                        successCount++;
-                    }
-                }
-            } catch (err) {
-                console.error(`Failed to ingest ${file.name}:`, err);
+        try {
+            // Server-side batch: one /ingest-folder call with a max_files cap
+            // and aggregated error reporting, instead of N sequential /ingest
+            // requests from the client.
+            const response = await fetch('/api/zoho-workdrive/ingest-folder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    folder_id: currentFolderId,
+                    ...(lastParams.workspace_id ? { workspace_id: lastParams.workspace_id } : {}),
+                    ...(lastParams.team_id ? { team_id: lastParams.team_id } : {}),
+                    recursive: false,
+                })
+            });
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(extractErrorMessage(text, response.status));
             }
+            const data = await response.json();
+            if (data.success) {
+                const ingested = data.files_ingested ?? 0;
+                // Only mark the visible files as ingested when every file in
+                // the folder actually landed — per-file errors are listed in
+                // data.errors and surfaced via the toast instead.
+                if (ingested === ingestableFiles.length && (!data.errors || data.errors.length === 0)) {
+                    setIngestedFileIds(prev => {
+                        const next = new Set(prev);
+                        ingestableFiles.forEach(f => next.add(f.id));
+                        return next;
+                    });
+                }
+                toast({
+                    title: "Batch Ingestion Complete",
+                    description: `Ingested ${ingested} of ${ingestableFiles.length} files into AI working memory.` +
+                        (data.errors?.length ? ` (${data.errors.length} failed)` : ''),
+                });
+            } else {
+                throw new Error(data.error || 'Batch ingestion failed');
+            }
+        } catch (error: any) {
+            toast({
+                title: "Batch Ingestion Failed",
+                description: error.message,
+                variant: "error"
+            });
+        } finally {
+            setIngestingAll(false);
         }
-        setIngestingAll(false);
-        toast({
-            title: "Batch Ingestion Complete",
-            description: `Ingested ${successCount} of ${ingestableFiles.length} files into AI working memory.`,
-        });
     };
 
     const formatSize = (bytes?: number) => {

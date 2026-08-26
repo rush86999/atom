@@ -25,6 +25,10 @@ class ZohoWorkDriveService(IntegrationService):
     PAGE_SIZE = 50
     MAX_LIST_ITEMS = 10000
     MAX_WALK_DEPTH = 25
+    # Global caps for client-triggered recursive traversal — bound request
+    # latency and upstream API calls on large drives.
+    MAX_RECURSIVE_ITEMS = 2000
+    MAX_TREE_NODES = 1000
 
     def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
         if config is None:
@@ -489,10 +493,18 @@ class ZohoWorkDriveService(IntegrationService):
             # Recursive traversal if requested. Subfolders are always regular
             # folders (even inside team folders / workspaces), so recurse with
             # plain parent_id — dropping team_id/workspace_id prevents routing
-            # subfolders to the teamfolders/workspaces endpoints.
+            # subfolders to the teamfolders/workspaces endpoints. The budget
+            # caps TOTAL items across the whole recursion, not per folder, so
+            # a deep tree can't fan out into unbounded sequential API calls.
             if recursive:
                 all_files = list(files)
                 for f in files:
+                    if len(all_files) >= self.MAX_RECURSIVE_ITEMS:
+                        logger.warning(
+                            "Recursive listing hit cap of %s items; truncating",
+                            self.MAX_RECURSIVE_ITEMS,
+                        )
+                        break
                     if f.get("type") == "folder":
                         subfiles = await self.list_files(
                             user_id, parent_id=f["id"], recursive=True
@@ -553,9 +565,14 @@ class ZohoWorkDriveService(IntegrationService):
                 return {"id": "root", "name": "Root", "type": "folder", "children": [], "error": "Could not resolve workspace"}
 
             # Build tree recursively
+            nodes_built = 0
+
             async def build_tree(folder_id: str, depth: int) -> Dict[str, Any]:
+                nonlocal nodes_built
                 if depth > max_depth:
                     return {"id": folder_id, "name": "..." if depth > 0 else "Root", "type": "folder", "children": [], "truncated": True}
+                if nodes_built >= self.MAX_TREE_NODES:
+                    return {"id": folder_id, "name": "...", "type": "folder", "children": [], "truncated": True}
 
                 # Get folder contents
                 if folder_id == "root":
@@ -573,6 +590,7 @@ class ZohoWorkDriveService(IntegrationService):
                 if resp.status_code != 200:
                     return {"id": folder_id, "name": "Error", "type": "folder", "children": [], "error": f"HTTP {resp.status_code}"}
 
+                nodes_built += 1
                 data = resp.json()
                 node = {
                     "id": folder_id if folder_id != "root" else target_url.split("/")[-2],
@@ -582,13 +600,6 @@ class ZohoWorkDriveService(IntegrationService):
                     "file_count": 0
                 }
 
-                # Get name for non-root
-                if folder_id != "root":
-                    meta_resp = await self.client.get(f"{self.base_url}/files/{folder_id}", headers=headers)
-                    if meta_resp.status_code == 200:
-                        meta = meta_resp.json().get("data", {}).get("attributes", {})
-                        node["name"] = meta.get("name") or meta.get("display_name") or "Folder"
-
                 for item in data.get("data", []):
                     attrs = item.get("attributes", {})
                     item_type = attrs.get("type", "file")
@@ -596,6 +607,8 @@ class ZohoWorkDriveService(IntegrationService):
 
                     if item_type == "folder":
                         child = await build_tree(item.get("id"), depth + 1)
+                        # The parent listing already carries the child's name —
+                        # no per-folder metadata fetch needed (was N+1).
                         child["name"] = name
                         node["children"].append(child)
                     else:
@@ -603,7 +616,12 @@ class ZohoWorkDriveService(IntegrationService):
 
                 return node
 
-            return await build_tree("root", 0)
+            tree = await build_tree("root", 0)
+            if nodes_built >= self.MAX_TREE_NODES:
+                logger.warning(
+                    "Folder tree hit cap of %s nodes; truncated", self.MAX_TREE_NODES
+                )
+            return tree
 
         except Exception as e:
             logger.error(f"Failed to build folder tree: {e}")

@@ -44,6 +44,13 @@ function mockApi({
       const data = body.workspace_id ? teamFiles : fileList;
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data }) });
     }
+    if (u.includes('/api/zoho-workdrive/ingest-folder')) {
+      const ingested = fileList.filter((f: any) => f.type !== 'folder').length;
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ success: true, files_ingested: ingested, files_processed: ingested, errors: [] }),
+      });
+    }
     if (u.includes('/api/zoho-workdrive/ingest')) {
       return Promise.resolve({
         ok: true,
@@ -75,14 +82,14 @@ describe('ZohoWorkDriveIngestion', () => {
   });
 
   it('renders the card title and description', async () => {
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     expect(await screen.findByText('Zoho WorkDrive Ingestion')).toBeInTheDocument();
     expect(screen.getByText(/Sync and ingest documents/)).toBeInTheDocument();
   });
 
 
   it('auto-lists the private workspace on mount, with sizes and folder Open buttons', async () => {
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     expect(await screen.findByText('quarterly-report.pdf')).toBeInTheDocument();
   });
 
@@ -106,7 +113,7 @@ describe('ZohoWorkDriveIngestion', () => {
       return Promise.resolve({ ok: true, json: async () => ({}) });
     });
 
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     await screen.findByText('quarterly-report.pdf');
     fireEvent.click(await screen.findByRole('button', { name: /Open/ }));
     await screen.findByText('No files found in this folder');
@@ -122,7 +129,7 @@ describe('ZohoWorkDriveIngestion', () => {
   });
 
   it('lists files after Refresh, with formatted sizes and folder Open buttons', async () => {
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     await loadFiles();
     expect(screen.getByText('quarterly-report.pdf')).toBeInTheDocument();
     expect(screen.getByText('Budget.xlsx')).toBeInTheDocument();
@@ -133,24 +140,24 @@ describe('ZohoWorkDriveIngestion', () => {
   });
 
   it('lists Team Folders at the private root', async () => {
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     expect(await screen.findByText('Marketing Assets')).toBeInTheDocument();
     expect(screen.getByText('Finance Docs')).toBeInTheDocument();
     expect(screen.getByText(/Marketing • Team Folder/)).toBeInTheDocument();
   });
 
   it('opens a team folder by fetching its workspace files with workspace_id', async () => {
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     await screen.findByText('Marketing Assets');
     fireEvent.click(screen.getAllByRole('button', { name: /Open/ })[0]);
     expect(await screen.findByText('team-notes.docx')).toBeInTheDocument();
     const listCalls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).includes('/files/list'));
     const teamCall = listCalls[listCalls.length - 1];
-    expect(JSON.parse(teamCall[1].body)).toEqual({ user_id: 'u1', parent_id: 'tf1', workspace_id: 'ws1', team_id: 't1' });
+    expect(JSON.parse(teamCall[1].body)).toEqual({ parent_id: 'tf1', workspace_id: 'ws1', team_id: 't1' });
   });
 
   it('hides team folders inside a team folder and returns to the private root via the breadcrumb', async () => {
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     await screen.findByText('Marketing Assets');
     fireEvent.click(screen.getAllByRole('button', { name: /Open/ })[0]);
     await screen.findByText('team-notes.docx');
@@ -159,46 +166,46 @@ describe('ZohoWorkDriveIngestion', () => {
     expect(await screen.findByText('quarterly-report.pdf')).toBeInTheDocument();
     const listCalls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).includes('/files/list'));
     const rootCall = listCalls[listCalls.length - 1];
-    expect(JSON.parse(rootCall[1].body)).toEqual({ user_id: 'u1', parent_id: 'root' });
+    expect(JSON.parse(rootCall[1].body)).toEqual({ parent_id: 'root' });
   });
 
   it('opens a regular folder by fetching its children', async () => {
     mockApi({ teamFolderList: [] });
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     await screen.findByText('My Folder');
     fireEvent.click(screen.getByRole('button', { name: /Open/ }));
     await waitFor(() => {
       const listCalls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).includes('/files/list'));
       const openCall = listCalls[listCalls.length - 1];
-      expect(JSON.parse(openCall[1].body)).toEqual({ user_id: 'u1', parent_id: 'd1' });
+      expect(JSON.parse(openCall[1].body)).toEqual({ parent_id: 'd1' });
     });
   });
 
   it('opens a folder row on double-click', async () => {
     mockApi({ teamFolderList: [] });
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     await screen.findByText('My Folder');
     fireEvent.dblClick(screen.getByText('My Folder'));
     await waitFor(() => {
       const listCalls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).includes('/files/list'));
       const openCall = listCalls[listCalls.length - 1];
-      expect(JSON.parse(openCall[1].body)).toEqual({ user_id: 'u1', parent_id: 'd1' });
+      expect(JSON.parse(openCall[1].body)).toEqual({ parent_id: 'd1' });
     });
   });
 
   it('opens a team folder row on double-click', async () => {
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     await screen.findByText('Marketing Assets');
     fireEvent.dblClick(screen.getByText('Marketing Assets'));
     await waitFor(() => {
       const listCalls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).includes('/files/list'));
       const openCall = listCalls[listCalls.length - 1];
-      expect(JSON.parse(openCall[1].body)).toEqual({ user_id: 'u1', parent_id: 'tf1', workspace_id: 'ws1', team_id: 't1' });
+      expect(JSON.parse(openCall[1].body)).toEqual({ parent_id: 'tf1', workspace_id: 'ws1', team_id: 't1' });
     });
   });
 
   it('does not open anything when double-clicking a file row', async () => {
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     await screen.findByText('quarterly-report.pdf');
     fireEvent.dblClick(screen.getByText('quarterly-report.pdf'));
     // No extra /files/list call beyond the mount-time fetch.
@@ -208,7 +215,7 @@ describe('ZohoWorkDriveIngestion', () => {
 
   it('shows the empty state with Refresh Files while still listing team folders', async () => {
     mockApi({ fileList: [] });
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     expect(await screen.findByText('No files found in this folder')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Refresh Files/ })).toBeInTheDocument();
     // Team folders are still listed so the user can navigate to them
@@ -216,7 +223,7 @@ describe('ZohoWorkDriveIngestion', () => {
   });
 
   it('ingests a file and toasts success', async () => {
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
 
     await loadFiles();
     // Match the per-file Ingest button exactly (the header also renders an
@@ -233,12 +240,29 @@ describe('ZohoWorkDriveIngestion', () => {
       );
     });
     const ingestCall = (global.fetch as jest.Mock).mock.calls.find(([u]) => String(u).includes('/ingest'));
-    expect(JSON.parse(ingestCall[1].body)).toEqual({ user_id: 'u1', file_id: 'f1' });
+    expect(JSON.parse(ingestCall[1].body)).toEqual({ file_id: 'f1' });
+  });
+
+  it('ingests all files via the server-side batch endpoint', async () => {
+    render(<ZohoWorkDriveIngestion />);
+    await loadFiles();
+    fireEvent.click(screen.getByRole('button', { name: /Ingest All Files/ }));
+    await waitFor(() => {
+      expect(mockToast.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Batch Ingestion Complete' })
+      );
+    });
+    const batchCall = (global.fetch as jest.Mock).mock.calls
+      .filter(([u]) => String(u).includes('/api/zoho-workdrive/ingest-folder'))
+      .slice(-1)[0];
+    expect(JSON.parse(batchCall[1].body)).toEqual({ folder_id: 'root', recursive: false });
+    // Every visible file is marked ingested on a clean batch
+    expect(await screen.findAllByText('✓ Ingested to Memory')).toHaveLength(2);
   });
 
   it('toasts an error when ingestion fails', async () => {
     mockApi({ ingestSuccess: false });
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     await screen.findByText('quarterly-report.pdf');
     fireEvent.click(screen.getAllByRole('button', { name: /^Ingest$/ })[0]);
 
@@ -254,7 +278,7 @@ describe('ZohoWorkDriveIngestion', () => {
   });
 
   it('refreshes the current folder via the Refresh button using the last params', async () => {
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
 
 
     await screen.findByText('quarterly-report.pdf');
@@ -264,19 +288,19 @@ describe('ZohoWorkDriveIngestion', () => {
     await waitFor(() => {
       const listCalls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).includes('/files/list'));
       expect(listCalls.length).toBeGreaterThanOrEqual(2);
-      expect(JSON.parse(listCalls[listCalls.length - 1][1].body)).toEqual({ user_id: 'u1', parent_id: 'root' });
+      expect(JSON.parse(listCalls[listCalls.length - 1][1].body)).toEqual({ parent_id: 'root' });
     });
   });
 
   it('shows only files in recursive All Files mode and toggles back', async () => {
-    render(<ZohoWorkDriveIngestion userId="u1" />);
+    render(<ZohoWorkDriveIngestion />);
     await screen.findByText('quarterly-report.pdf');
     expect(screen.getByText('My Folder')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /^All Files$/ }));
     await waitFor(() => {
       const listCalls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).includes('/files/list'));
-      expect(JSON.parse(listCalls[listCalls.length - 1][1].body)).toEqual({ user_id: 'u1', parent_id: 'root', recursive: true });
+      expect(JSON.parse(listCalls[listCalls.length - 1][1].body)).toEqual({ parent_id: 'root', recursive: true });
     });
     // folders are filtered out in all-files mode
     expect(screen.queryByText('My Folder')).not.toBeInTheDocument();
@@ -290,7 +314,7 @@ describe('ZohoWorkDriveIngestion', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Current Folder$/ }));
     await waitFor(() => {
       const listCalls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).includes('/files/list'));
-      expect(JSON.parse(listCalls[listCalls.length - 1][1].body)).toEqual({ user_id: 'u1', parent_id: 'root' });
+      expect(JSON.parse(listCalls[listCalls.length - 1][1].body)).toEqual({ parent_id: 'root' });
     });
     expect(await screen.findByText('My Folder')).toBeInTheDocument();
   });

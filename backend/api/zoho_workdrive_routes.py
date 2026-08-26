@@ -1,7 +1,7 @@
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, HTTPException, Query, Request
+from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 
 from core.auth import get_current_user, User
@@ -23,38 +23,35 @@ router = BaseAPIRouter(
 # Initialize service
 zoho_service = ZohoWorkDriveService()
 
-# Pydantic models
+# Pydantic models. None carry user_id: identity comes exclusively from the
+# auth token (router-level get_current_user dependency) — a client-supplied
+# user_id must never reappear on these surfaces.
 class FileListRequest(BaseModel):
-    user_id: str = Field(..., description="User ID")
     parent_id: str = Field("root", description="Parent folder or team ID")
     team_id: Optional[str] = Field(None, description="Explicit team ID")
     workspace_id: Optional[str] = Field(None, description="Explicit workspace ID")
     recursive: bool = Field(False, description="Recursively list subfolders")
 
 class IngestRequest(BaseModel):
-    user_id: str = Field(..., description="User ID")
     file_id: str = Field(..., description="Zoho WorkDrive file ID")
 
 class IngestFolderRequest(BaseModel):
-    user_id: str = Field(..., description="User ID")
     folder_id: str = Field(..., description="Root folder ID to ingest")
     team_id: Optional[str] = Field(None, description="Explicit team ID")
     workspace_id: Optional[str] = Field(None, description="Explicit workspace ID")
     recursive: bool = Field(True, description="Recursively ingest subfolders")
-    max_files: int = Field(500, description="Maximum files to ingest")
+    max_files: int = Field(500, ge=1, le=2000, description="Maximum files to ingest")
 
 class SyncTeamRequest(BaseModel):
-    user_id: str = Field(..., description="User ID")
     team_id: Optional[str] = Field(None, description="Explicit team ID")
     workspace_id: Optional[str] = Field(None, description="Explicit workspace ID")
     folder_id: Optional[str] = Field(None, description="Specific folder ID to sync")
     recursive: bool = Field(True, description="Recursively sync subfolders")
 
 class FolderTreeRequest(BaseModel):
-    user_id: str = Field(..., description="User ID")
     workspace_id: Optional[str] = Field(None, description="Explicit workspace ID")
     team_id: Optional[str] = Field(None, description="Explicit team ID")
-    max_depth: int = Field(10, description="Maximum tree depth")
+    max_depth: int = Field(10, ge=1, le=25, description="Maximum tree depth")
 
 @router.get("/teams", summary="List Zoho WorkDrive teams")
 async def get_teams(current_user: User = Depends(get_current_user)):
