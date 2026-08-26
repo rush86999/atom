@@ -348,6 +348,15 @@ class EpisodeSegmentationService:
         # outcome-agnostic, which made "show me successful episodes where
         # the canvas showed X" unanswerable.
         episode_outcome = self._derive_outcome(executions)
+        # Chat-only sessions have no execution records; a completed exchange
+        # with a substantive assistant reply is a successful episode. Leaving
+        # these "unknown" meant graduation episode-counts could never advance
+        # for chat-trained agents.
+        if episode_outcome == "unknown" and any(
+            getattr(m, "role", "") == "assistant" and getattr(m, "content", None)
+            for m in messages
+        ):
+            episode_outcome = "success"
 
         # Generate LLM summary for most recent canvas
         if canvas_audits:
@@ -422,6 +431,32 @@ class EpisodeSegmentationService:
         await self._archive_to_lancedb(episode, canvas_context)
 
         # 7. NOW commit — segments + back-links + episode all land together.
+        # Also persist the AgentEpisode row: graduation-progress counts
+        # AgentEpisode.outcome == "success" from SQL, so without this the
+        # episode-counter criteria could never advance for any agent (the
+        # dict above is intentionally not an ORM model — segments + LanceDB
+        # remain the retrieval source of truth; this row is the ledger).
+        try:
+            from core.models import AgentEpisode
+
+            self.db.add(AgentEpisode(
+                id=episode_id,
+                agent_id=agent_id,
+                tenant_id=getattr(self, "tenant_id", None) or "default",
+                workspace_id="default",
+                task_description=episode.get("task_description") or episode.get("summary"),
+                maturity_at_time=episode.get("maturity_at_time") or "student",
+                constitutional_score=episode.get("constitutional_score"),
+                human_intervention_count=episode.get("human_intervention_count") or 0,
+                confidence_score=0.5,
+                outcome="success" if episode_outcome in ("success", "completed") else (episode_outcome or "partial"),
+                success=episode_outcome in ("success", "completed"),
+                status="completed",
+                metadata_json={"session_id": session_id, "topics": episode.get("topics", [])},
+            ))
+        except Exception as ep_row_err:  # ledger write must not kill archival
+            logger.warning(f"AgentEpisode ledger row not persisted: {ep_row_err}")
+
         self.db.commit()
 
         logger.info(f"Created episode {episode['id']} from session {session_id}")

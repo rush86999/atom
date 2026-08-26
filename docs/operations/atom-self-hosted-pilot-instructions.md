@@ -62,6 +62,25 @@ same click-through flow as Outlook:
    callback stores refresh tokens automatically for all four services.
 4. Verify: `http://localhost:8001/api/v1/auth/oauth/tokens` shows provider `zoho`, status `active`.
 
+**Region (DC) rules — learned 2026-08-26 the hard way on `accounts.zohocloud.ca`:**
+- Clients are **DC-scoped**. Create the client on the console of the account's
+  HOME DC (`api-console.zohocloud.ca` for Canada), not `api-console.zoho.com` —
+  otherwise the authorize flow fails with `Invalid Redirect Uri` after the
+  cross-DC sign-in hop, even though the client id looks valid.
+- `ZOHO_ACCOUNTS_BASE` must match that DC; the token exchange hits the same
+  base, and the token response's `api_domain` is stored per-connection so the
+  data plane (CRM/Books services) targets the right regional API automatically
+  (also overridable via `ZOHO_DEFAULT_API_DOMAIN`).
+- `ZOHO_OAUTH_SCOPES` now drives the consent scope list (comma-separated;
+  `offline_access` filtered out — Zoho uses `access_type=offline`). Verified
+  valid names: `ZohoCRM.modules.ALL`, `ZohoCRM.org.READ`,
+  `ZohoBooks.fullaccess.all`, `ZohoInventory.fullaccess.all`,
+  `WorkDrive.files.ALL`, `WorkDrive.teamfolders.ALL`. NOTE: **Projects has no
+  `fullaccess.all`** — use `ZohoProjects.portals.all,ZohoProjects.projects.all`.
+  One unknown scope fails the whole authorize with `Invalid OAuth Scope`.
+- Zoho rate-limits rapid authorize attempts ("Maximum request limit reached");
+  the error clears after ~10-15 min, so don't loop scope probing.
+
 > A Zoho **Self Client** cannot drive this flow (no redirect URI — only
 > console "Generate Code" grant codes, which expire in 10 min). Use server-based.
 

@@ -335,19 +335,30 @@ WHATSAPP_OAUTH_CONFIG = OAuthConfig(
 _ZOHO_ACCOUNTS_BASE = os.getenv(
     "ZOHO_ACCOUNTS_BASE", "https://accounts.zoho.com"
 ).rstrip("/")
+# ZOHO_OAUTH_SCOPES overrides the default grant (comma/space separated) — the
+# .env documents "re-consent required after change", so the consent URL must
+# reflect it. Keep ZohoProjects in the default set: the hybrid sync pulls
+# Projects tasks alongside Books/Inventory/CRM.
+_ZOHO_DEFAULT_SCOPES = [
+    "ZohoBooks.fullaccess.all",
+    "ZohoInventory.fullaccess.all",
+    "ZohoCRM.fullaccess.all",
+    "ZohoProjects.fullaccess.all",
+    "ZohoWorkDrive.files.READ",
+    "ZohoWorkDrive.teamfolders.READ",
+]
+_zoho_env_scopes = [
+    s.strip()
+    for s in os.getenv("ZOHO_OAUTH_SCOPES", "").replace(",", " ").split()
+    if s.strip() and s.strip() != "offline_access"  # MS-ism; Zoho uses access_type=offline
+]
 ZOHO_OAUTH_CONFIG = OAuthConfig(
     client_id_env="ZOHO_CLIENT_ID",
     client_secret_env="ZOHO_CLIENT_SECRET",
     redirect_uri_env="ZOHO_REDIRECT_URI",
     auth_url=f"{_ZOHO_ACCOUNTS_BASE}/oauth/v2/auth",
     token_url=f"{_ZOHO_ACCOUNTS_BASE}/oauth/v2/token",
-    scopes=[
-        "ZohoBooks.fullaccess.all",
-        "ZohoInventory.fullaccess.all",
-        "ZohoCRM.fullaccess.all",
-        "ZohoWorkDrive.files.READ",
-        "ZohoWorkDrive.teamfolders.READ",
-    ],
+    scopes=_zoho_env_scopes or _ZOHO_DEFAULT_SCOPES,
 )
 
 BOX_OAUTH_CONFIG = OAuthConfig(

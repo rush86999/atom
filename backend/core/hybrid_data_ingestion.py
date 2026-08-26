@@ -104,7 +104,9 @@ DEFAULT_SYNC_CONFIGS: Dict[str, SyncConfiguration] = {
     ),
     "zoho": SyncConfiguration(
         integration_id="zoho",
-        entity_types=["crm_leads", "crm_deals", "books_invoices", "projects_tasks", "inventory_items", "inventory_sales_orders"],
+        # workdrive_files first: tiny list, ingested before the hundreds of
+        # CRM/Books records so documents are queryable within minutes of sync.
+        entity_types=["workdrive_files", "crm_leads", "crm_deals", "books_invoices", "projects_tasks", "inventory_items", "inventory_sales_orders"],
         sync_last_n_days=30,
         max_records_per_sync=1000
     ),
@@ -156,6 +158,7 @@ class HybridDataIngestionService:
         self.usage_stats: Dict[str, IntegrationUsageStats] = {}
         self.sync_configs: Dict[str, SyncConfiguration] = {}
         self._sync_tasks: Dict[str, asyncio.Task] = {}
+        self._sync_locks: Dict[str, asyncio.Lock] = {}
         self._running = False
         
         # Initialize LanceDB handler
@@ -407,7 +410,124 @@ class HybridDataIngestionService:
         self._persist_integration(integration_id)
     
     async def sync_integration_data(
-        self, 
+        self,
+        integration_id: str,
+        force: bool = False,
+        discovery_mode: bool = False,
+        role: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Serialize per-integration syncs.
+
+        Overlapping syncs used to clobber each other (shared rate budget, a
+        second fetch zeroing out mid-ingest). A second caller while one sync
+        is running is skipped, not queued — the running pass already covers it.
+        """
+        lock = self._sync_locks.setdefault(integration_id, asyncio.Lock())
+        if lock.locked():
+            return {"skipped": True, "reason": "Sync already in progress for this integration"}
+        async with lock:
+            return await self._sync_integration_data_impl(
+                integration_id, force=force, discovery_mode=discovery_mode, role=role
+            )
+
+    def _mirror_crm_records_to_sql(self, records: List[Dict[str, Any]], workspace_id: str) -> None:
+        """Upsert Zoho CRM leads/deals into sales_leads / sales_deals.
+
+        Keyed by external_id (= Zoho record id) so re-syncs update in place.
+        Best-effort: SQL is the dashboard ledger; failures never block the
+        memory ingestion that follows.
+        """
+        try:
+            from sales.models import Lead, Deal, LeadStatus, DealStage
+
+            _STAGE_MAP = [
+                ("closed won", DealStage.CLOSED_WON, 100.0),
+                ("closed lost", DealStage.CLOSED_LOST, 0.0),
+                ("negotiat", DealStage.NEGOTIATION, 75.0),
+                ("proposal", DealStage.PROPOSAL, 60.0),
+                ("quote", DealStage.PROPOSAL, 60.0),
+                ("qualif", DealStage.QUALIFICATION, 30.0),
+                ("needs analysis", DealStage.QUALIFICATION, 30.0),
+            ]
+
+            def _stage(raw_stage: str):
+                s = (raw_stage or "").lower()
+                for needle, stage, prob in _STAGE_MAP:
+                    if needle in s:
+                        return stage, prob
+                return DealStage.DISCOVERY, 10.0
+
+            db = SessionLocal()
+            leads_up = deals_up = 0
+            try:
+                for r in records:
+                    ext = str(r.get("id") or "").strip()
+                    if not ext:
+                        continue
+                    rtype = r.get("type")
+                    if rtype == "lead":
+                        row = db.query(Lead).filter(
+                            Lead.workspace_id == workspace_id,
+                            Lead.external_id == ext,
+                        ).first()
+                        if not row:
+                            # email is NOT NULL — synthesize a stable pointer
+                            # when Zoho has no email on the lead
+                            row = Lead(
+                                workspace_id=workspace_id,
+                                external_id=ext,
+                                email=r.get("email") or f"zoho-{ext}@crm.local",
+                            )
+                            db.add(row)
+                        if r.get("email"):
+                            row.email = r["email"]
+                        parts = (r.get("name") or "").split(" ", 1)
+                        row.first_name = parts[0] or None
+                        row.last_name = parts[1] if len(parts) > 1 else None
+                        row.company = r.get("company")
+                        row.source = "zoho_crm"
+                        st = (r.get("status") or "").lower()
+                        if "convert" in st:
+                            row.status = LeadStatus.QUALIFIED
+                            row.is_converted = True
+                        elif "qualif" in st:
+                            row.status = LeadStatus.QUALIFIED
+                        elif "contact" in st or "attempt" in st:
+                            row.status = LeadStatus.CONTACTED
+                        leads_up += 1
+                    elif rtype == "deal":
+                        row = db.query(Deal).filter(
+                            Deal.workspace_id == workspace_id,
+                            Deal.external_id == ext,
+                        ).first()
+                        if not row:
+                            row = Deal(
+                                workspace_id=workspace_id,
+                                external_id=ext,
+                                name=r.get("name") or f"Zoho deal {ext}",
+                            )
+                            db.add(row)
+                        row.name = r.get("name") or row.name
+                        try:
+                            row.value = float(r.get("amount") or 0.0)
+                        except (TypeError, ValueError):
+                            pass
+                        stage, prob = _stage(r.get("stage"))
+                        row.stage = stage
+                        row.probability = prob
+                        deals_up += 1
+                db.commit()
+                if leads_up or deals_up:
+                    logger.info(
+                        f"Mirrored CRM records to SQL: {leads_up} leads, {deals_up} deals (workspace {workspace_id})"
+                    )
+            finally:
+                db.close()
+        except Exception as mirror_err:
+            logger.warning(f"CRM SQL mirror failed (non-fatal): {mirror_err}")
+
+    async def _sync_integration_data_impl(
+        self,
         integration_id: str,
         force: bool = False,
         discovery_mode: bool = False,
@@ -473,6 +593,13 @@ class HybridDataIngestionService:
             records = await self._fetch_integration_data(integration_id, config, discovery_mode=discovery_mode, role=_role)
             results["records_fetched"] = len(records)
 
+            # Mirror Zoho CRM leads/deals into the SQL sales tables so the
+            # sales dashboard (/api/sales/dashboard/summary) reflects the
+            # ingested CRM instead of zeros. Memory stays the retrieval
+            # source; this is the structured ledger for KPIs.
+            if integration_id == "zoho":
+                self._mirror_crm_records_to_sql(records, self.workspace_id)
+
             # Keep-set for the FULL-sync stale-fact GC (O2): every fetched id
             # still exists at the source, even if its ingest is skipped below.
             fetched_record_ids = [
@@ -531,6 +658,13 @@ class HybridDataIngestionService:
                     from core.data_taint_tracker import classify_sensitivity
                     try:
                         _sensitivity = classify_sensitivity(text)
+                        # Source-side modified time, when the provider exposes
+                        # one (CRM Modified_Time, WorkDrive modified_at, …).
+                        _source_modified_at = (
+                            record.get("modified_at")
+                            or record.get("modified_time")
+                            or record.get("Modified_Time")
+                        )
                     except Exception:  # noqa: BLE001 — classification must never block ingestion
                         _sensitivity = "internal"
 
@@ -542,7 +676,14 @@ class HybridDataIngestionService:
                             "record_id": record.get("id", "unknown"),
                             "record_type": record.get("type", "unknown"),
                             "sensitivity": _sensitivity,
-                            "synced_at": datetime.now(timezone.utc).isoformat()
+                            "synced_at": datetime.now(timezone.utc).isoformat(),
+                            # Freshness signals (doc_freshness_service model):
+                            # the source's own modified time + when this mirror
+                            # was last verified against the source. Source-change
+                            # → index lag = now - source_modified_at.
+                            "source_modified_at": _source_modified_at,
+                            "last_verified_at": datetime.now(timezone.utc).isoformat(),
+                            "freshness_status": "fresh",
                         }
                         # AI-employee relevance tag (Round 80)
                         if _role:
@@ -553,15 +694,17 @@ class HybridDataIngestionService:
                         from core.vector_upsert import upsert_document
 
                         _record_key = f"rec_{integration_id}:{record.get('id', 'unknown')}"
-                        _upsert_status = await upsert_document(
-                            self.memory_handler,
-                            table_name=f"integration_{integration_id}",
-                            text=text,
-                            doc_id=_record_key,
-                            source=integration_id,
-                            metadata=_meta,
-                            user_id=record.get("user_id", "system"),
-                        )
+                        _upsert_status = "skipped_unchanged"
+                        if self.memory_handler:
+                            _upsert_status = await upsert_document(
+                                self.memory_handler,
+                                table_name=f"integration_{integration_id}",
+                                text=text,
+                                doc_id=_record_key,
+                                source=integration_id,
+                                metadata=_meta,
+                                user_id=record.get("user_id", "system"),
+                            )
                         if _upsert_status == "written":
                             results["records_ingested"] += 1
                         else:
@@ -570,7 +713,11 @@ class HybridDataIngestionService:
                             )
 
                     # Also ingest into GraphRAG for entity/relationship extraction
-                    if self.graphrag:
+                    # LLM extraction only for NEW/CHANGED records — re-running
+                    # it for unchanged mirrors made every re-sync crawl at
+                    # LLM latency per record. The LanceDB row already carries
+                    # the entities from the first pass.
+                    if self.graphrag and _upsert_status == "written":
                         # ingest_document is a coroutine — must be awaited, or
                         # the truthy coroutine crashes on .get() and every
                         # record is recorded as an error.
@@ -1226,6 +1373,117 @@ class HybridDataIngestionService:
                             for project_id in projects[:3]: # Sync top 3 active projects
                                 records.extend(await adapter.get_tasks(portal_id=portal_id, project_id=project_id))
                                 
+                    elif entity_type == "workdrive_files":
+                        # WorkDrive files/team-folders — the OAuth grant covers
+                        # WorkDrive.files/teamfolders; ingest file metadata
+                        # (name, extension, modified time) into memory so the
+                        # employee can recall documents by content of title.
+                        try:
+                            from integrations.zoho_workdrive_service import zoho_workdrive_service
+
+                            wd_user = token.user_id if token else None
+                            logger.info(f"[WD] token={'yes' if token else 'no'} wd_user={wd_user}")
+                            if wd_user:
+                                # Real team folders (H Drive, Accounting, …) via
+                                # /teams traversal (requires WorkDrive.teams.READ);
+                                # accounts without Teams fall back to the
+                                # personal root workspace.
+                                folders = await zoho_workdrive_service.get_team_folders(wd_user)
+                                if not folders:
+                                    folder_ids = ["root"]
+                                else:
+                                    # Record the team folders themselves so
+                                    # structure is queryable, then their files.
+                                    for f in folders[:8]:
+                                        records.append({
+                                            "id": f"wd_{f.get('id')}",
+                                            "type": "workdrive_folder",
+                                            "name": f.get("name") or "Untitled folder",
+                                            "description": f"team folder in {f.get('team_name') or 'WorkDrive'}",
+                                            "folder_id": f.get("team_id"),
+                                        })
+                                    folder_ids = [f.get("id") for f in folders[:8] if f.get("id")]
+
+                                # Relevance funnel (mirrors the OneDrive fetcher
+                                # and the enterprise-RAG pattern: whitelist →
+                                # binary exclusion → content parsing). Only
+                                # document-like files become records; parseable
+                                # ones also get their content extracted via
+                                # AutoDocumentIngestion so retrieval matches
+                                # substance, not just filenames.
+                                _DOC_EXTS = (".pdf", ".docx", ".doc", ".xlsx", ".xls", ".csv", ".txt", ".md", ".pptx", ".ppt")
+                                _SKIP_EXTS = (".pst", ".ost", ".zip", ".exe", ".dmg", ".mp4", ".mov", ".7z", ".rar", ".iso", ".img", ".sql", ".bak")
+                                _MAX_CONTENT_BYTES = 8 * 1024 * 1024
+                                _content_budget = 25  # max downloads per sync
+                                try:
+                                    from core.auto_document_ingestion import AutoDocumentIngestionService
+                                    _doc_ingestor = AutoDocumentIngestionService(workspace_id=self.workspace_id)
+                                except Exception:
+                                    _doc_ingestor = None
+
+                                for fid in folder_ids[:8]:  # top team folders per sync
+                                    wd_files = await zoho_workdrive_service.list_files(
+                                        wd_user, parent_id=fid, recursive=True
+                                    )
+                                    for f in wd_files:
+                                        f_name = (f.get("name") or "").lower()
+                                        is_folder = f.get("type") == "folder"
+                                        if is_folder:
+                                            # Empty subfolders are structure
+                                            # noise (AR aging buckets etc.);
+                                            # keep only non-empty ones.
+                                            if not f.get("size"):
+                                                continue
+                                            records.append({
+                                                "id": f"wd_{f.get('id')}",
+                                                "type": "workdrive_folder",
+                                                "name": f.get("name") or "Untitled folder",
+                                                "description": "folder",
+                                                "modified_at": f.get("modified_at"),
+                                                "folder_id": fid,
+                                            })
+                                            continue
+                                        ext = ("." + f["extension"].lower()) if f.get("extension") else ""
+                                        if ext in _SKIP_EXTS or (ext not in _DOC_EXTS and ext):
+                                            # binary archives / non-documents:
+                                            # no retrieval value, pure noise
+                                            continue
+                                        records.append({
+                                            "id": f"wd_{f.get('id')}",
+                                            "type": "workdrive_file",
+                                            "name": f.get("name") or "Untitled",
+                                            "description": (
+                                                f"{('.'.join(ext.split('.'))) if ext else 'file'} "
+                                                f"{(f.get('size') or 0)} bytes"
+                                            ).strip(),
+                                            "modified_at": f.get("modified_at"),
+                                            "folder_id": fid,
+                                        })
+                                        if (
+                                            _doc_ingestor
+                                            and ext in (".pdf", ".docx", ".xlsx", ".csv", ".txt", ".md", ".pptx")
+                                            and (f.get("size") or 0) <= _MAX_CONTENT_BYTES
+                                            and _content_budget > 0
+                                        ):
+                                            try:
+                                                _bytes = await zoho_workdrive_service.download_file(wd_user, f.get("id"))
+                                                if _bytes:
+                                                    await _doc_ingestor.process_file_bytes(
+                                                        content=_bytes,
+                                                        file_name=f.get("name") or "workdrive-file",
+                                                        source="zoho_workdrive",
+                                                        user_id=wd_user,
+                                                        workspace_id=self.workspace_id,
+                                                        role=getattr(config, "role", None),
+                                                        external_id=f"zoho_workdrive:{f.get('id')}",
+                                                        extra_metadata={"folder_id": fid, "source_modified_at": f.get("modified_at")},
+                                                    )
+                                                    _content_budget -= 1
+                                            except Exception as c_err:
+                                                logger.debug(f"WorkDrive content extraction skipped for {f.get('name')}: {c_err}")
+                        except Exception as wd_err:
+                            logger.warning(f"WorkDrive fetch failed (non-fatal): {wd_err}")
+
                 logger.info(f"Universal Zoho Sync (Discovery={discovery_mode}): Fetched {len(records)} items across modules")
             finally:
                 db.close()
@@ -1301,6 +1559,14 @@ class HybridDataIngestionService:
             service = OneDriveService(tenant_id=self.tenant_id, config={})
             access_token = await service.get_access_token(self.tenant_id)
             if not access_token:
+                # Fall back to the OAuth callback's IntegrationToken store
+                # (auto-refreshing) — connection_service rows are not written
+                # by the unified OAuth flow, so a fresh Microsoft connect has
+                # no connection-service record.
+                from integrations.outlook_service import outlook_service
+
+                access_token = await outlook_service._get_access_token(None)
+            if not access_token:
                 logger.warning("OneDrive fetch skipped: no access token resolved")
                 return []
 
@@ -1333,6 +1599,8 @@ class HybridDataIngestionService:
                     "name": name,
                     "source": "onedrive",
                     "object_type": "file",
+                    # top-level so the sync loop records it as a freshness signal
+                    "modified_at": item.get("lastModifiedDateTime"),
                     "properties": {
                         "id": file_id,
                         "name": name,

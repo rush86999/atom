@@ -104,7 +104,31 @@ class ZohoAdapter:
         """Refresh Zoho access token using refresh token"""
         if not self._refresh_token:
             return False
-            
+
+        # Refresh MUST hit the same datacenter that issued the grant. Prefer
+        # ZOHO_ACCOUNTS_BASE (deploy-time config), then the accounts base the
+        # OAuth callback recorded on the token row, then the .com default —
+        # otherwise a non-.com account (e.g. zohocloud.ca) gets a .com token
+        # that 401s against its regional API.
+        token_url = os.getenv("ZOHO_ACCOUNTS_BASE", "").strip().rstrip("/")
+        if token_url:
+            token_url = f"{token_url}/oauth/v2/token"
+        else:
+            token_url = self.DEFAULT_TOKEN_URL
+            try:
+                if self.db:
+                    from core.models import IntegrationToken
+                    _meta_row = self.db.query(IntegrationToken).filter(
+                        IntegrationToken.workspace_id == self.workspace_id,
+                        IntegrationToken.provider == "zoho",
+                    ).first()
+                    accounts_base = ((_meta_row.credential_metadata or {}).get("accounts_base")
+                                     if _meta_row and _meta_row.credential_metadata else None)
+                    if accounts_base:
+                        token_url = f"{str(accounts_base).rstrip('/')}/oauth/v2/token"
+            except Exception:
+                pass
+
         try:
             async with httpx.AsyncClient() as client:
                 data = {
@@ -113,7 +137,7 @@ class ZohoAdapter:
                     "client_secret": self.client_secret,
                     "grant_type": "refresh_token"
                 }
-                response = await client.post(self.DEFAULT_TOKEN_URL, data=data)
+                response = await client.post(token_url, data=data)
                 response.raise_for_status()
                 
                 token_data = response.json()

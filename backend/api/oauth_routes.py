@@ -15,6 +15,7 @@ import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import RedirectResponse
@@ -286,6 +287,18 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                         existing_integration.scope = " ".join(scopes) if scopes else ""
                         if p_key == "zoho" and zoho_api_domain:
                             existing_integration.instance_url = zoho_api_domain
+                        if p_key == "zoho":
+                            # Record the accounts DC that issued this grant so
+                            # later refreshes hit the same DC (a .com refresh
+                            # yields a token that 401s against .ca APIs).
+                            try:
+                                from urllib.parse import urlparse as _urlparse
+                                _base = f"{_urlparse(config.auth_url).scheme}://{_urlparse(config.auth_url).netloc}"
+                                meta = existing_integration.credential_metadata or {}
+                                meta["accounts_base"] = _base
+                                existing_integration.credential_metadata = meta
+                            except Exception:
+                                pass
                         logger.info(f"Updated IntegrationToken for provider={p_key}, user={target_uid}")
                     else:
                         new_integration = IntegrationToken(
@@ -300,6 +313,10 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                             status="active",
                             scope=" ".join(scopes) if scopes else "",
                             instance_url=zoho_api_domain if p_key == "zoho" else None,
+                            credential_metadata=(
+                                {"accounts_base": f"{urlparse(config.auth_url).scheme}://{urlparse(config.auth_url).netloc}"}
+                                if p_key == "zoho" else None
+                            ),
                         )
                         db.add(new_integration)
                         logger.info(f"Created IntegrationToken for provider={p_key}, user={target_uid}")

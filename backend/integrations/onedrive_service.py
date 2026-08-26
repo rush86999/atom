@@ -155,7 +155,9 @@ class OneDriveService(IntegrationService):
             return response.json()
 
     async def _graph_get_bytes(self, access_token: str, url: str) -> bytes:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        # /content replies 302 to a pre-authed CDN URL — follow it (httpx
+        # drops the Authorization header on cross-host redirects by default).
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
             response = await client.get(
                 url, headers={"Authorization": f"Bearer {access_token}"}
             )

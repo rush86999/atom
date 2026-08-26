@@ -16,7 +16,15 @@ class ZohoBooksService(IntegrationService):
         if config is None:
             config = {}
         super().__init__(tenant_id=tenant_id, config=config)
-        self.base_url = "https://www.zohoapis.com/books/v3"
+        # Region-flexible: per-connection api_domain (from the OAuth token
+        # response) > env default > .com fallback, so non-.com DCs (e.g.
+        # accounts.zohocloud.ca) reach the right data plane.
+        api_domain = (
+            config.get("api_domain")
+            or os.getenv("ZOHO_DEFAULT_API_DOMAIN")
+            or "https://www.zohoapis.com"
+        ).rstrip("/")
+        self.base_url = f"{api_domain}/books/v3"
         self.client_id = config.get("client_id") or os.getenv("ZOHO_BOOKS_CLIENT_ID") or os.getenv("ZOHO_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("ZOHO_BOOKS_CLIENT_SECRET") or os.getenv("ZOHO_CLIENT_SECRET")
         self.access_token = config.get("access_token")

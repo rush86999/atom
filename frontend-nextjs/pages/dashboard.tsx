@@ -262,6 +262,11 @@ const DashboardPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {sales?.total_leads > 0 && (
+                    <span className="mr-2">
+                      Leads: <span className="font-bold text-orange-600">{sales.total_leads}</span>
+                    </span>
+                  )}
                   Forecast (weighted): <span className="font-bold text-orange-600">${sales?.weighted_forecast?.toLocaleString() || "0"}</span>
                 </div>
               </div>

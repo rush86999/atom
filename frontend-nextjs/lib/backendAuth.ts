@@ -55,12 +55,15 @@ export async function loginWithBackend(
   return data;
 }
 
-export function persistBackendToken(token: string) {
+export function persistBackendToken(token: string, email?: string) {
   if (typeof window === "undefined") return;
 
   localStorage.removeItem("atom_explicit_logout");
   localStorage.setItem("auth_token", token);
   localStorage.setItem("token", token);
+  // Sidebar/profile identity fallback for API-first sessions (NextAuth's
+  // session stays empty when sign-in bypassed the NextAuth route).
+  if (email) localStorage.setItem("user_email", email);
   document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Lax`;
   document.cookie = `next-auth.session-token=${token}; path=/; max-age=86400; SameSite=Lax`;
 }

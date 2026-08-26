@@ -42,6 +42,18 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     const { data: session } = useSession();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    // Real identity fallback: the API-first login (persistBackendToken) stores
+    // the backend email in localStorage; NextAuth's session stays empty when
+    // sign-in bypassed the NextAuth route, which used to leave the static
+    // "Atom User" placeholder in the sidebar.
+    const [profile, setProfile] = useState<{ name?: string; email?: string }>({});
+    useEffect(() => {
+        if (session?.user?.email || typeof window === "undefined") return;
+        const email = localStorage.getItem("user_email");
+        if (email) setProfile({ name: email.split("@")[0], email });
+    }, [session?.user?.email]);
+    const displayName = session?.user?.name || profile.name || "Atom User";
+    const displayEmail = session?.user?.email || profile.email || "Premium Agent Ops";
 
     const handleSignOut = () => {
         if (typeof window !== "undefined") {
@@ -236,8 +248,8 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                             <User className="h-5 w-5" />
                         </div>
                         <div className="ml-3 flex-1 overflow-hidden">
-                            <p className="text-sm font-bold text-foreground truncate">{session?.user?.name || "Atom User"}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{session?.user?.email || "Premium Agent Ops"}</p>
+                            <p className="text-sm font-bold text-foreground truncate">{displayName}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{displayEmail}</p>
                         </div>
                         <Button
                             variant="ghost"
@@ -257,7 +269,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                         <>
                             <div
                                 className="mx-auto h-9 w-9 rounded-xl bg-secondary/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                                title={session?.user?.name || 'Atom User'}
+                                title={displayName}
                             >
                                 <User className="h-5 w-5" />
                             </div>

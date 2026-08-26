@@ -70,7 +70,7 @@ export default function LoginPage() {
         try {
             if (isLogin) {
                 const data = await loginWithBackend(formData.email, formData.password);
-                persistBackendToken(data.access_token);
+                persistBackendToken(data.access_token, formData.email);
                 router.push(safeDest);
             } else {
                 // Register — same rules and error mapping as /auth/signup.
@@ -88,7 +88,7 @@ export default function LoginPage() {
                 });
                 // #7 fix: was logging the full JWT to console — capturable by
                 // browser extensions, shared screens, forwarded logs.
-                persistBackendToken(data.access_token);
+                persistBackendToken(data.access_token, formData.email);
                 router.push(safeDest);
             }
         } catch (err: any) {

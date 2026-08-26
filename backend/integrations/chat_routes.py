@@ -112,6 +112,7 @@ class ChatMessageRequest(BaseModel):
     user_id: str = Field(..., description="User ID for context")
     session_id: Optional[str] = Field(None, description="Conversation session ID")
     context: Optional[Dict[str, Any]] = Field(None, description="Additional context data")
+    agent_id: Optional[str] = Field(None, description="Explicit agent selection — session-linked agent chats record graduation episodes")
 
 
 class ChatMessageResponse(BaseModel):
@@ -600,6 +601,23 @@ async def send_chat_message(
                 error_code="budget_exceeded",
                 recovery_url=response.get("recovery_url", "/settings/billing"),
             )
+
+        # R81-parity: session-linked agent chats accumulate episodic memory.
+        # The atom-agent chat endpoint triggers episode creation, but this —
+        # the live chat surface — never did, so agents trained through
+        # /api/chat/message never registered graduation episodes.
+        if getattr(request, "agent_id", None) and response.get("success", True):
+            try:
+                from core.episode_integration import trigger_episode_creation
+
+                trigger_episode_creation(
+                    session_id=response.get("session_id") or session_id or request.session_id,
+                    agent_id=request.agent_id,
+                    title=request.message[:50],
+                    user_id=active_user_id,
+                )
+            except Exception as episode_error:  # never block the chat response
+                logger.warning(f"Failed to trigger episode creation: {episode_error}")
 
         return ChatMessageResponse(
             success=response.get("success", True),

@@ -162,10 +162,18 @@ class OutlookService(IntegrationService):
                     ).first()
 
                 if token_record and token_record.access_token:
+                    # SQLite returns naive datetimes even for UTC-stored values;
+                    # .timestamp() on a naive value interprets LOCAL time and
+                    # shifted expiry by the UTC offset (4h ghost-validity on
+                    # EDT hosts → 401 storms before refresh ever fired), so pin
+                    # UTC before converting.
+                    _expires = token_record.expires_at
+                    if _expires and _expires.tzinfo is None:
+                        _expires = _expires.replace(tzinfo=timezone.utc)
                     tokens = {
                         "access_token": decrypt_token(token_record.access_token, allow_plaintext=True),
                         "refresh_token": decrypt_token(token_record.refresh_token, allow_plaintext=True) if token_record.refresh_token else None,
-                        "expires_at": token_record.expires_at.timestamp() if token_record.expires_at else None
+                        "expires_at": _expires.timestamp() if _expires else None
                     }
                     if self._is_token_expired(tokens):
                         refreshed = await self._refresh_access_token(token_record.user_id or user_id, tokens)
@@ -187,6 +195,9 @@ class OutlookService(IntegrationService):
                 expires_dt = datetime.fromtimestamp(expires_at, tz=timezone.utc)
             else:
                 expires_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+            # DB rows come back naive but are stored UTC — pin before compare
+            if expires_dt.tzinfo is None:
+                expires_dt = expires_dt.replace(tzinfo=timezone.utc)
             return datetime.now(timezone.utc) >= expires_dt
         except Exception:
             return True

@@ -15,7 +15,15 @@ class ZohoCRMService(IntegrationService):
         if config is None:
             config = {}
         super().__init__(tenant_id=tenant_id, config=config)
-        self.base_url = "https://www.zohoapis.com/crm/v2"
+        # Region-flexible: per-connection api_domain (from the OAuth token
+        # response) > env default > .com fallback, so non-.com DCs (e.g.
+        # accounts.zohocloud.ca) reach the right data plane.
+        api_domain = (
+            config.get("api_domain")
+            or os.getenv("ZOHO_DEFAULT_API_DOMAIN")
+            or "https://www.zohoapis.com"
+        ).rstrip("/")
+        self.base_url = f"{api_domain}/crm/v2"
         self.access_token = config.get("access_token") or os.getenv("ZOHO_CRM_ACCESS_TOKEN")
         self.client = httpx.AsyncClient(timeout=30.0)
 

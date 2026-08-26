@@ -6,7 +6,7 @@ const ZohocrmPage: React.FC = () => (
     appName="Zoho CRM"
     description="Customer relationship management — leads and deals"
     category="crm"
-    coveredServices={["Zoho CRM", "Zoho Inventory", "Zoho CRM", "Zoho WorkDrive"]}
+    coveredServices={["Zoho CRM", "Zoho Books", "Zoho Inventory", "Zoho WorkDrive", "Zoho Projects"]}
   />
 );
 

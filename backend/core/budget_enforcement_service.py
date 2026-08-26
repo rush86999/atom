@@ -118,7 +118,14 @@ class BudgetEnforcementService:
             enforcement_mode = self._get_enforcement_mode(tenant_id)
 
             # Check if budget exceeded
-            budget_exceeded = utilization >= 100.0 or current_spend >= budget_limit
+            # A zero/unset limit means "no budget configured" — treat it as
+            # unlimited. New installs have no TenantSetting['billing'] yet, and
+            # reading 0.0 as a real limit blocked every new agent episode the
+            # moment any spend existed.
+            budget_configured = budget_limit > 0
+            budget_exceeded = budget_configured and (
+                utilization >= 100.0 or current_spend >= budget_limit
+            )
 
             if not budget_exceeded:
                 # Phase 10: Fleet Aggregate Check
