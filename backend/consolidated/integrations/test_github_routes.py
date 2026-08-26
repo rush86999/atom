@@ -479,3 +479,17 @@ class TestGitHubRoutes:
         """Test health check endpoint"""
         mock_health = {
             "status": "healthy",
+            "service": "github",
+            "rate_limit_remaining": 4999,
+            "timestamp": datetime.now().isoformat()
+        }
+        self.mock_service.health_check.return_value = mock_health
+
+        with self.app.test_client() as client:
+            response = client.get('/api/github/health')
+
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert data['ok'] is True
+            assert data['health'] == mock_health
+            assert 'timestamp' in data

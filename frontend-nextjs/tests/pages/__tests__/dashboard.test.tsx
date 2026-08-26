@@ -124,7 +124,9 @@ describe("pages/dashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: /process invoice/i }));
     expect(mockPush).toHaveBeenCalledWith("/accounting/bills/upload");
 
-    fireEvent.click(screen.getByRole("button", { name: /config/i }));
+    // Exact match: the getting-started card's "Configure AI" CTA also
+    // matches /config/i.
+    fireEvent.click(screen.getByRole("button", { name: "Config" }));
     expect(mockPush).toHaveBeenCalledWith("/integrations");
 
     fireEvent.click(screen.getByRole("button", { name: /view all/i }));

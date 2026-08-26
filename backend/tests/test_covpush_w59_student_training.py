@@ -52,9 +52,20 @@ def _session(**kw):
     return MagicMock(**base)
 
 
+def _arm_evidence_queries(db):
+    """Round-86 evidence gate adds count()/all() queries (sessions, episodes,
+    success ratio, mentor candidates) that plain Mock chains can't serve."""
+    chain = db.query.return_value.filter.return_value
+    chain.count.return_value = 10
+    chain.all.return_value = []
+    chain.order_by.return_value.all.return_value = []
+    chain.order_by.return_value.limit.return_value.all.return_value = []
+    return db
+
+
 @pytest.fixture
 def svc():
-    return StudentTrainingService(Mock())
+    return StudentTrainingService(_arm_evidence_queries(Mock()))
 
 
 class TestCreateProposal:

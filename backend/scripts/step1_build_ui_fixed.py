@@ -131,13 +131,13 @@ export default function {component.capitalize()}Page() {{
         <meta name="description" content="{details['description']}" />
       </Head>
       
-      <main className={styles.container}}>
-        <div className={styles.header}}>
+      <main className={{styles.container}}>
+        <div className={{styles.header}}>
           <h1>{details['title']}</h1>
           <p>{details['description']}</p>
         </div>
         
-        <div className={styles.content}}>
+        <div className={{styles.content}}>
           <{component.capitalize()}Component />
         </div>
       </main>
@@ -171,30 +171,30 @@ export function {component.capitalize()}Component() {{
   }};
 
   return (
-    <div className={styles.{component}Component}}>
-      <div className={styles.header}}>
+    <div className={{styles.{component}Component}}>
+      <div className={{styles.header}}>
         <h2>{component.capitalize()} Interface</h2>
         <p>Features: {features_str}</p>
       </div>
       
-      <div className={styles.content}}>
-        <div className={styles.featureList}}>
-          {['{features_str}'].map((feature, index) => (
-            <div key={index} className={styles.featureItem}}>
+      <div className={{styles.content}}>
+        <div className={{styles.featureList}}>
+          {{['{features_str}'].map((feature, index) => (
+            <div key={index} className={{styles.featureItem}}>
               <h3>{{feature}}</h3>
               <button 
                 onClick={{() => handleAction(feature)}}
                 disabled={{isLoading}}
-                className={styles.actionButton}}
+                className={{styles.actionButton}}
               >
                 {{isLoading ? 'Loading...' : `Use ${{feature}}`}}
               </button>
             </div>
-          ))}
+          ))}}
         </div>
       </div>
       
-      <div className={styles.status}}>
+      <div className={{styles.status}}>
         <p>Status: {{isLoading ? 'Processing...' : 'Ready'}}</p>
       </div>
     </div>
@@ -477,7 +477,7 @@ export default function HomePage() {{
           <h2>Your Interface Command Center</h2>
           <div className="feature-grid">
             {features.map((feature, index) => (
-              <Link key={index}} href={feature.href} className="feature-card">
+              <Link key={index} href={feature.href} className="feature-card">
                 <div className="feature-icon">{feature.icon}</div>
                 <h3>{feature.name}</h3>
                 <p>{feature.description}</p>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useRouter } from 'next/router';
 import { Button } from "../../components/ui/button";
 import { Menu, PanelRightOpen, X } from "lucide-react";
@@ -11,16 +11,14 @@ const ChatPage = () => {
     const { agent_id } = router.query;
     const initialAgentId = Array.isArray(agent_id) ? agent_id[0] : agent_id || null;
 
-    // Restore the last active session after mount so SSR and initial client hydration match
-    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-
-    useEffect(() => {
+    // Restore the last active session after a page reload so the conversation
+    // isn't lost (the chat sidebar lists sessions, but the middle pane should
+    // resume where the user left off).
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(() => {
+        if (typeof window === "undefined") return null;
         const saved = window.localStorage.getItem("atom_chat_session_id");
-        if (saved && saved !== "new") {
-            setSelectedSessionId(saved);
-        }
-    }, []);
-
+        return saved && saved !== "new" ? saved : null;
+    });
     // Mobile drawer state.
     const [showSidebar, setShowSidebar] = useState(false);
     const [showWorkspace, setShowWorkspace] = useState(false);

@@ -558,4 +558,8 @@ server {{
     }}
 
     # OAuth callbacks - no rate limiting
-    location /api/auth
+    location /api/auth {{
+        proxy_pass http://localhost:5058;
+    }}
+}}
+"""

@@ -57,12 +57,7 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         self.malicious_patterns = [
             r"<script[^>]*>.*?</script>",
             r"javascript:",
-            # Word boundary required: the bare `on\w+\s*=` also matched
-            # mid-word occurrences like `c[on]tent=` in benign email HTML
-            # (`<meta ... content="text/html">`), 400-ing every chat request
-            # whose conversation_history quoted an ingested email. \b keeps
-            # real event handlers (onerror=, onload=, onclick =) detected.
-            r"\bon\w+\s*=",
+            r"on\w+\s*=",
             r"union\s+select",
             r"drop\s+table",
             r"exec\(",
@@ -278,7 +273,7 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         # callbacks that carry their own fail-closed signature verification
         # (e.g. X-Telegram-Bot-Api-Secret-Token). No browser session exists to
         # forge, so CSRF does not apply to them.
-        if request.url.path.startswith("/api/") or request.url.path.endswith("/webhook"):
+        if request.url.path.endswith("/webhook"):
             return await call_next(request)
 
         # Check for CSRF token for state-changing requests

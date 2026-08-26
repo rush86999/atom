@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Query, WebSocket, status
 from sqlalchemy.orm import Session
 
-from core.auth import decode_token, get_current_user, get_optional_current_user
+from core.auth import decode_token, get_current_user
 from core.models import User
 from core.rbac_service import Permission, RBACService
 

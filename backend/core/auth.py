@@ -210,22 +210,6 @@ async def get_current_user(
         raise credentials_exception
     return user
 
-
-async def get_optional_current_user(
-    request: Request,
-    token: Optional[str] = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-) -> Optional[User]:
-    """
-    Get current user if token is valid, otherwise return first active user or None (for graceful dev mode).
-    """
-    try:
-        return await get_current_user(request, token, db)
-    except Exception:
-        try:
-            return db.query(User).filter(User.status == UserStatus.ACTIVE).first() or db.query(User).first()
-        except Exception:
-            return None
 async def get_current_tenant(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

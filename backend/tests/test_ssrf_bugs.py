@@ -7,6 +7,7 @@ The bugs:
 1. hitl_service.py:112-118 - callback_url from user input used without validation
 2. skill_creation_agent.py:203-210 - URL from user input fetched without validation
 3. base_agent_mixin.py:38 - fetch_url method without URL validation
+   (module archived to .archive/dead-core-ai-2026-07/ — test removed with it)
 """
 
 import pytest
@@ -53,20 +54,6 @@ class TestSSRFVulnerabilities:
             "Bug confirmed: URL passed to HTTP client without validation"
         assert 'raise_for_status' in source, \
             "Bug confirmed: HTTP client makes request to arbitrary URL"
-
-    def test_base_agent_fetch_url_not_validated(self):
-        """
-        Test that fetch_url doesn't validate URL.
-
-        BUG: Line 38-50 - URL passed to mcp_service without validation.
-        """
-        from core.base_agent_mixin import MCPCapableMixin
-
-        source = inspect.getsource(MCPCapableMixin.fetch_url)
-
-        # Verify the bug - URL used without validation
-        assert 'url' in source and 'fetch_page' in source, \
-            "Bug confirmed: URL parameter used without validation in tool call"
 
     def test_no_url_whitelist(self):
         """

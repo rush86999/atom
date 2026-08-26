@@ -31,7 +31,7 @@ REPLACEMENTS = {
     "noreply@atom.com": "noreply@atom.com",
     
     # Path replacements
-    "/home/developer/home/developer",
+    "/home/developer/home/developer": "/home/developer",
     "/home/developer/projects/atom": "/home/developer/projects",
     "/home/developer/atom-production": "/opt/atom",
     

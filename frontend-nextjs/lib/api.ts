@@ -14,7 +14,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
   process.env.API_BASE_URL ||
   process.env.PYTHON_BACKEND_URL ||
   "http://127.0.0.1:8000";
-const API_TIMEOUT = 60000; // 60 seconds default for LLM/AI workflows
+const API_TIMEOUT = 10000; // 10 seconds
 const MAX_RETRIES = 3;
 
 // Create axios instance with default configuration
@@ -75,7 +75,6 @@ apiClient.interceptors.response.use(
     originalRequest.__isRetryRequest = true;
 
     // Use @lifeomic/attempt retry for exponential backoff and jitter
-    const requestTimeout = originalRequest.timeout || API_TIMEOUT;
     try {
       const response = await retry(
         async () => {
@@ -88,7 +87,7 @@ apiClient.interceptors.response.use(
           jitter: true, // Add randomness to prevent retry storms
           minDelay: 500,
           maxDelay: 10000,
-          timeout: requestTimeout,
+          timeout: API_TIMEOUT,
           handleError: (attemptError: any) => {
             return isRetryableError(attemptError);
           },

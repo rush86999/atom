@@ -7,12 +7,14 @@ Provides AI-based training duration estimation and confidence boosting.
 
 from datetime import datetime, timedelta
 import logging
+import os
 from typing import Any, Dict, List, Optional
 import uuid
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from core.models import (
+    AgentEpisode,
     AgentProposal,
     AgentRegistry,
     AgentStatus,
@@ -122,13 +124,14 @@ class StudentTrainingService:
         # Determine training scenario template
         scenario_template = self._select_scenario_template(blocked_trigger)
 
-        # Create proposal
-        proposal = AgentProposal(
-            agent_id=agent.id,
-            agent_name=agent.name,
-            proposal_type=ProposalType.WORKFLOW.value,
-            title=f"Training Proposal: {agent.name} - {scenario_template} Fundamentals",
-            description=f"""
+        # Round 86 — mentor pathway (1 of many): a qualified mentor (the meta
+        # agent by default) teaches from its own verified episode record. The
+        # playbook is attached to the proposal so supervisors see who taught
+        # what, and completion marks the session as mentored — which halves
+        # the independent-evidence floor at promotion time.
+        mentor_playbook = self._build_mentor_playbook(agent)
+
+        description = f"""
 This agent was blocked from executing an automated task because it's in STUDENT maturity level.
 To proceed, this training will help the agent develop the necessary capabilities.
 
@@ -136,16 +139,34 @@ To proceed, this training will help the agent develop the necessary capabilities
 **Capability Gaps:** {', '.join(capability_gaps)}
 
 After completing this training, the agent will be able to handle similar tasks autonomously.
-            """.strip(),
-            proposal_data={
-                "learning_objectives": learning_objectives,
-                "capability_gaps": capability_gaps,
-                "training_scenario_template": scenario_template,
-                "estimated_duration_hours": duration_estimate.estimated_hours,
-                "duration_estimation_confidence": duration_estimate.confidence,
-                "duration_estimation_reasoning": duration_estimate.reasoning,
-                "scenario_template": scenario_template
-            },
+            """.strip()
+        if mentor_playbook:
+            description += (
+                f"\n\n**Mentor:** {mentor_playbook['mentor_name']} will coach this "
+                f"training using {len(mentor_playbook['cases'])} verified real cases."
+            )
+
+        proposal_data = {
+            "learning_objectives": learning_objectives,
+            "capability_gaps": capability_gaps,
+            "training_scenario_template": scenario_template,
+            "estimated_duration_hours": duration_estimate.estimated_hours,
+            "duration_estimation_confidence": duration_estimate.confidence,
+            "duration_estimation_reasoning": duration_estimate.reasoning,
+            "scenario_template": scenario_template
+        }
+        if mentor_playbook:
+            proposal_data["mentor_taught"] = True
+            proposal_data["mentor_playbook"] = mentor_playbook
+
+        # Create proposal
+        proposal = AgentProposal(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            proposal_type=ProposalType.WORKFLOW.value,
+            title=f"Training Proposal: {agent.name} - {scenario_template} Fundamentals",
+            description=description,
+            proposal_data=proposal_data,
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=agent.id,  # Using agent_id as user_id for training proposals
             tenant_id="default"  # Default tenant for training proposals
@@ -315,16 +336,38 @@ After completing this training, the agent will be able to handle similar tasks a
         agent.confidence_score = min(1.0, agent.confidence_score + confidence_boost)
         actual_boost = agent.confidence_score - old_confidence
 
-        # Check for maturity transition to INTERN
+        # Check for maturity transition to INTERN.
+        # Round 86 (research-aligned): promotion requires production evidence,
+        # not one graded rehearsal. Confidence alone was gameable by design —
+        # new hires start at 0.5, exactly the INTERN band floor, so any
+        # completed session promoted instantly. Gate now also requires a
+        # minimum number of completed sessions AND an outcome-tracked episode
+        # record (count + success ratio), mirroring how higher tiers already
+        # graduate on 10/25/50 clean episodes. Knob names follow the repo's
+        # kill-switch convention; defaults encode "trust is earned in
+        # production" (CSA Agentic Trust Framework / RenLayer Trust Tiers).
         promoted_to_intern = False
-        if agent.confidence_score >= 0.5 and agent.status == AgentStatus.STUDENT.value:
-            agent.status = AgentStatus.INTERN.value
-            session.promoted_to_intern = True
-            promoted_to_intern = True
-            logger.info(
-                f"Agent {agent.id} promoted from STUDENT to INTERN "
-                f"(confidence: {agent.confidence_score:.3f})"
-            )
+        promotion_progress: Dict[str, Any] = {}
+        if agent.status == AgentStatus.STUDENT.value:
+            # Sessions may run with autoflush off; make this session's
+            # just-written outcome visible to the evidence queries.
+            self.db.flush()
+            readiness = self._evaluate_intern_readiness(agent)
+            promotion_progress = readiness
+            if agent.confidence_score >= 0.5 and readiness.get("ready"):
+                agent.status = AgentStatus.INTERN.value
+                session.promoted_to_intern = True
+                promoted_to_intern = True
+                logger.info(
+                    f"Agent {agent.id} promoted from STUDENT to INTERN "
+                    f"(confidence: {agent.confidence_score:.3f}, "
+                    f"evidence: {readiness})"
+                )
+            elif agent.confidence_score >= 0.5:
+                logger.info(
+                    f"Agent {agent.id} confidence ready but evidence gate "
+                    f"blocked INTERN promotion: {readiness.get('reason')}"
+                )
 
         # Update proposal execution result
         proposal = self.db.query(AgentProposal).filter(
@@ -379,8 +422,268 @@ After completing this training, the agent will be able to handle similar tasks a
             "old_confidence": old_confidence,
             "new_confidence": agent.confidence_score,
             "promoted_to_intern": promoted_to_intern,
+            "promotion": promotion_progress,
             "new_status": agent.status,
             "capabilities_developed": outcome.capabilities_developed
+        }
+
+    def _is_system_agent(self, agent: AgentRegistry) -> bool:
+        """Platform-built agents bootstrap the system and skip apprenticeship."""
+        exempt_ids = {"atom_main"}
+        exempt_categories = {"system", "Meta"}
+        return (
+            agent.id in exempt_ids
+            or (agent.category or "").lower() in exempt_categories
+            or agent.module_path == "core.atom_meta_agent"
+        )
+
+    def _find_mentor(self, agent: AgentRegistry) -> Optional[AgentRegistry]:
+        """
+        Qualified teacher for this student — ROLE-SPECIFIC by construction.
+
+        Mentoring transfers domain judgment, so evidence must match the
+        STUDENT'S JOB. Candidates, best-evidence wins:
+          1. Same-role senior (SUPERVISED+) with verified success episodes.
+          2. SUPER-MENTOR: atom_main once it has earned
+             ATOM_SUPERMENTOR_MIN_DOMAIN_WINS verified wins attributed to
+             this role in the domain ledger (R86c). The generalist teaches
+             a role only after doing enough of that role's real work.
+
+        System/Meta students are taught by the meta agent directly. No
+        qualified mentor → None (self-directed pathway).
+        """
+        from core.domain_attribution import count_domain_wins
+
+        category = (agent.category or "").lower()
+
+        # Platform/system agents may be taught by the meta agent itself.
+        if agent.id == "atom_main" or category in {"system", "meta"}:
+            meta = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == "atom_main"
+            ).first()
+            if meta and meta.id != agent.id:
+                return meta
+
+        min_super_wins = int(os.getenv("ATOM_SUPERMENTOR_MIN_DOMAIN_WINS", "5"))
+
+        # Candidate 1: most confident same-role senior with verified wins.
+        senior = None
+        candidates = self.db.query(AgentRegistry).filter(
+            AgentRegistry.category == agent.category,
+            AgentRegistry.id != agent.id,
+            AgentRegistry.id != "atom_main",
+            AgentRegistry.status.in_([
+                AgentStatus.SUPERVISED.value,
+                AgentStatus.AUTONOMOUS.value,
+            ]),
+        ).order_by(AgentRegistry.confidence_score.desc()).all()
+        for candidate in candidates:
+            has_verified_wins = self.db.query(AgentEpisode).filter(
+                AgentEpisode.agent_id == candidate.id,
+                AgentEpisode.outcome == "success",
+            ).first() is not None
+            if has_verified_wins:
+                senior = candidate
+                break
+
+        # Candidate 2: super-mentor (earned per-role).
+        meta = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == "atom_main"
+        ).first()
+        super_wins = (
+            count_domain_wins(self.db, "atom_main", agent.category)
+            if meta else 0
+        )
+        super_qualified = bool(meta) and super_wins >= max(1, min_super_wins)
+
+        if super_qualified:
+            if senior is None:
+                return meta
+            # Both qualified: the more proven teacher for THIS domain wins.
+            senior_wins = self.db.query(AgentEpisode).filter(
+                AgentEpisode.agent_id == senior.id,
+                AgentEpisode.outcome == "success",
+            ).count()
+            return meta if super_wins > senior_wins else senior
+
+        return senior
+
+    def _build_mentor_playbook(self, agent: AgentRegistry) -> Optional[Dict[str, Any]]:
+        """
+        Teaching material distilled from the mentor's verified success record:
+        real cases the student will train against, not synthetic curriculum.
+        Super-mentor cases come from the domain ledger (attributed work);
+        role-senior cases from verified episodes. None when no qualified
+        mentor or no verified cases exist.
+        """
+        from core.domain_attribution import top_domain_cases
+
+        mentor = self._find_mentor(agent)
+        if not mentor or mentor.id == agent.id:
+            return None
+
+        if mentor.id == "atom_main" and (mentor.category or "").lower() == "meta":
+            ledger_cases = top_domain_cases(self.db, mentor.id, agent.category)
+            if not ledger_cases:
+                return None
+            return {
+                "mentor_id": mentor.id,
+                "mentor_name": mentor.name,
+                "source": "domain_ledger",
+                "cases": [
+                    {
+                        "task": c.task_summary,
+                        "maturity_at_time": "super_mentor",
+                        "constitutional_score": 1.0,
+                    }
+                    for c in ledger_cases
+                ],
+            }
+
+        cases = self.db.query(AgentEpisode).filter(
+            AgentEpisode.agent_id == mentor.id,
+            AgentEpisode.outcome == "success",
+        ).order_by(AgentEpisode.created_at.desc()).limit(5).all()
+
+        if not cases:
+            return None
+
+        return {
+            "mentor_id": mentor.id,
+            "mentor_name": mentor.name,
+            "source": "role_episodes",
+            "cases": [
+                {
+                    "task": c.task_description,
+                    "maturity_at_time": c.maturity_at_time,
+                    "constitutional_score": c.constitutional_score,
+                }
+                for c in cases
+            ],
+        }
+
+    def _count_mentored_sessions(self, agent_id: str) -> int:
+        """Completed sessions whose proposal carried a mentor playbook."""
+        sessions = self.db.query(TrainingSession).filter(
+            TrainingSession.agent_id == agent_id,
+            TrainingSession.status == "completed",
+        ).all()
+        mentored = 0
+        for s in sessions:
+            proposal = self.db.query(AgentProposal).filter(
+                AgentProposal.id == s.proposal_id
+            ).first()
+            if proposal and (proposal.proposal_data or {}).get("mentor_playbook"):
+                mentored += 1
+        return mentored
+
+    def _evaluate_intern_readiness(self, agent: AgentRegistry) -> Dict[str, Any]:
+        """
+        Multi-pathway STUDENT→INTERN gate (Round 86).
+
+        Pathways (any one graduates — "1 of many" by design):
+          - system_agent:  platform-built agents (atom_main, Chat Assistant)
+                           bootstrap the product; apprenticeship is for hires.
+          - mentor_taught: taught by a qualified mentor from its verified case
+                           record; apprenticeship substitutes half of the
+                           independent-evidence floor.
+          - self_directed: unmentored — full session + episode + success-ratio
+                           evidence.
+
+        Confidence still accrues per session but is not, by itself, evidence.
+        All floors are env-tunable so deployments calibrate strictness.
+        """
+        min_sessions = int(os.getenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", "3"))
+        min_episodes = int(os.getenv("ATOM_PROMOTION_MIN_EPISODES", "10"))
+        min_ratio = float(os.getenv("ATOM_PROMOTION_MIN_SUCCESS_RATIO", "0.7"))
+
+        if self._is_system_agent(agent):
+            return {
+                "ready": True,
+                "pathway": "system_agent",
+                "reason": None,
+                "training_sessions": 0,
+                "required_training_sessions": 0,
+                "episodes": 0,
+                "required_episodes": 0,
+                "success_ratio": None,
+                "required_success_ratio": min_ratio,
+            }
+
+        completed_sessions = self.db.query(TrainingSession).filter(
+            TrainingSession.agent_id == agent.id,
+            TrainingSession.status == "completed",
+        ).count()
+
+        episodes = self.db.query(AgentEpisode).filter(
+            AgentEpisode.agent_id == agent.id,
+        ).count()
+        successful_episodes = self.db.query(AgentEpisode).filter(
+            AgentEpisode.agent_id == agent.id,
+            AgentEpisode.outcome == "success",
+        ).count()
+        ratio = (successful_episodes / episodes) if episodes else 0.0
+
+        mentored_sessions = self._count_mentored_sessions(agent.id)
+        mentor_episode_floor = -(-min_episodes // 2)  # ceil(min/2)
+
+        pathways = []
+
+        # Pathway: mentor_taught
+        mentor_missing = []
+        if mentored_sessions < min_sessions:
+            mentor_missing.append(
+                f"{mentored_sessions}/{min_sessions} mentored sessions"
+            )
+        if episodes < mentor_episode_floor:
+            mentor_missing.append(f"{episodes}/{mentor_episode_floor} work episodes")
+        elif episodes > 0 and ratio < min_ratio:
+            mentor_missing.append(f"success ratio {ratio:.2f} < {min_ratio:.2f}")
+        pathways.append({
+            "pathway": "mentor_taught",
+            "ready": not mentor_missing,
+            "reason": "; needs " + ", ".join(mentor_missing) if mentor_missing else None,
+            "training_sessions": mentored_sessions,
+            "required_training_sessions": min_sessions,
+        })
+
+        # Pathway: self_directed
+        solo_missing = []
+        if completed_sessions < min_sessions:
+            solo_missing.append(
+                f"{completed_sessions}/{min_sessions} completed training sessions"
+            )
+        if episodes < min_episodes:
+            solo_missing.append(f"{episodes}/{min_episodes} work episodes")
+        elif episodes > 0 and ratio < min_ratio:
+            solo_missing.append(f"success ratio {ratio:.2f} < {min_ratio:.2f}")
+        pathways.append({
+            "pathway": "self_directed",
+            "ready": not solo_missing,
+            "reason": "; needs " + ", ".join(solo_missing) if solo_missing else None,
+            "training_sessions": completed_sessions,
+            "required_training_sessions": min_sessions,
+        })
+
+        fired = next((p for p in pathways if p["ready"]), None)
+        if fired:
+            reason = None
+        else:
+            reason = "no pathway satisfied: " + " | ".join(
+                f"[{p['pathway']}] needs {p['reason'].replace('; needs ', '')}"
+                for p in pathways if not p["ready"]
+            )
+        return {
+            "ready": fired is not None,
+            "pathway": fired["pathway"] if fired else None,
+            "reason": reason,
+            "training_sessions": completed_sessions,
+            "required_training_sessions": min_sessions,
+            "mentored_sessions": mentored_sessions,
+            "episodes": episodes,
+            "required_episodes": min_episodes,
+            "success_ratio": round(ratio, 3),
+            "required_success_ratio": min_ratio,
         }
 
     async def get_training_history(

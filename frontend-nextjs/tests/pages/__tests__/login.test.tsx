@@ -55,6 +55,9 @@ const switchToRegisterMode = () => {
   fireEvent.click(screen.getByTestId('login-toggle-mode'));
   fireEvent.change(screen.getByTestId('login-first-name-input'), { target: { value: 'Jane' } });
   fireEvent.change(screen.getByTestId('login-last-name-input'), { target: { value: 'Doe' } });
+  // The register handler requires password confirmation to match before it
+  // will call the backend.
+  fireEvent.change(screen.getByTestId('login-confirm-password-input'), { target: { value: 'secret123' } });
 };
 
 describe('LoginPage', () => {
@@ -229,7 +232,11 @@ describe('LoginPage', () => {
     fireEvent.click(screen.getByTestId('login-submit-button'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('login-error-message')).toHaveTextContent('Email already registered');
+      // lib/registration maps duplicate-email details to a friendlier,
+      // actionable message rather than passing the raw backend text through.
+      expect(screen.getByTestId('login-error-message')).toHaveTextContent(
+        'An account with this email already exists. Try signing in instead.'
+      );
     });
     expect(mockPush).not.toHaveBeenCalled();
   });
@@ -243,7 +250,7 @@ describe('LoginPage', () => {
     fireEvent.click(screen.getByTestId('login-submit-button'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('login-error-message')).toHaveTextContent('Registration failed');
+      expect(screen.getByTestId('login-error-message')).toHaveTextContent('Failed to create account. Please try again.');
     });
   });
 

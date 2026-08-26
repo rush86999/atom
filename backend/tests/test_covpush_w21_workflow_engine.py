@@ -583,7 +583,8 @@ class TestAsanaExecutor:
              patch("integrations.asana_service.asana_service.update_task", create=True, new=AsyncMock(return_value={"gid": "1"})):
             result = await engine._execute_asana_action("update_task", {"task_gid": "1", "completed": True}, None)
         assert result["status"] == "success"
-        with pytest.raises(ValueError, match="task_gid is required"):
+        with patch.object(engine, "_get_token", return_value="t"), \
+             pytest.raises(ValueError, match="task_gid is required"):
             await engine._execute_asana_action("update_task", {}, None)
 
     async def test_add_comment(self):
@@ -592,7 +593,8 @@ class TestAsanaExecutor:
              patch("integrations.asana_service.asana_service.add_task_comment", create=True, new=AsyncMock(return_value={"gid": "c"})):
             result = await engine._execute_asana_action("add_comment", {"task_gid": "1", "text": "hi"}, None)
         assert result["status"] == "success"
-        with pytest.raises(ValueError, match="add_comment"):
+        with patch.object(engine, "_get_token", return_value="t"), \
+             pytest.raises(ValueError, match="add_comment"):
             await engine._execute_asana_action("add_comment", {"task_gid": "1"}, None)
 
     async def test_get_workspaces_and_users(self):
@@ -602,7 +604,8 @@ class TestAsanaExecutor:
              patch("integrations.asana_service.asana_service.get_users", create=True, new=AsyncMock(return_value=[])):
             await engine._execute_asana_action("get_workspaces", {}, None)
             await engine._execute_asana_action("get_users", {"workspace": "w"}, None)
-        with pytest.raises(ValueError, match="workspace is required for get_users"):
+        with patch.object(engine, "_get_token", return_value="t"), \
+             pytest.raises(ValueError, match="workspace is required for get_users"):
             await engine._execute_asana_action("get_users", {}, None)
 
     async def test_get_teams(self):
@@ -610,7 +613,8 @@ class TestAsanaExecutor:
         with patch.object(engine, "_get_token", return_value="t"), \
              patch("integrations.asana_service.asana_service.get_teams", create=True, new=AsyncMock(return_value=[])):
             await engine._execute_asana_action("get_teams", {"workspace": "w"}, None)
-        with pytest.raises(ValueError, match="workspace is required for get_teams"):
+        with patch.object(engine, "_get_token", return_value="t"), \
+             pytest.raises(ValueError, match="workspace is required for get_teams"):
             await engine._execute_asana_action("get_teams", {}, None)
 
     async def test_search_tasks(self):
@@ -618,7 +622,8 @@ class TestAsanaExecutor:
         with patch.object(engine, "_get_token", return_value="t"), \
              patch("integrations.asana_service.asana_service.search_tasks", create=True, new=AsyncMock(return_value=[])):
             await engine._execute_asana_action("search_tasks", {"workspace": "w", "query": "q"}, None)
-        with pytest.raises(ValueError, match="search_tasks"):
+        with patch.object(engine, "_get_token", return_value="t"), \
+             pytest.raises(ValueError, match="search_tasks"):
             await engine._execute_asana_action("search_tasks", {"workspace": "w"}, None)
 
     async def test_create_project_not_implemented(self):

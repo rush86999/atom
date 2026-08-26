@@ -276,6 +276,9 @@ PROMETHEUS_ENABLED=true   STRUCTLOG_LEVEL=INFO   HEALTH_CHECK_DISK_THRESHOLD_GB=
 
 ATOM_MEMORY_POISON_TRIPWIRE=true         # quarantines sources that supersede >=5 facts/10min (memory-injection defense)
 
+# Model provenance & harness-patch scoping (R82, docs/architecture/HARNESS_EVOLUTION.md)
+ATOM_MODEL_DRIFT_DETECTION_ENABLED=true  # detect silent provider checkpoint bumps (resolved-ID change under stable alias)
+
 # Temporal Evolution (docs/architecture/TEMPORAL_EVOLUTION.md)
 ATOM_TEMPORALITY_ENABLED=true            # ingestion date anchors + bi-temporal graph reads (default ON)
 

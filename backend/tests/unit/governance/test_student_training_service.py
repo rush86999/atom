@@ -347,7 +347,11 @@ class TestTrainingCompletion:
     """Test training completion and confidence boost calculation"""
 
     @pytest.mark.asyncio
-    async def test_complete_training_session_updates_confidence(self, db_session: Session):
+    async def test_complete_training_session_updates_confidence(self, db_session: Session, monkeypatch):
+        # Round 86 evidence gate off here — this suite tests confidence
+        # mechanics, not the promotion evidence requirements.
+        monkeypatch.setenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", "1")
+        monkeypatch.setenv("ATOM_PROMOTION_MIN_EPISODES", "0")
         """
         Test completing training session updates agent confidence.
         """
@@ -475,7 +479,11 @@ class TestTrainingCompletion:
         assert agent.status == AgentStatus.STUDENT.value
 
     @pytest.mark.asyncio
-    async def test_complete_training_excellent_performance_large_boost(self, db_session: Session):
+    async def test_complete_training_excellent_performance_large_boost(self, db_session: Session, monkeypatch):
+        # Round 86 evidence gate off here — this suite tests confidence
+        # mechanics, not the promotion evidence requirements.
+        monkeypatch.setenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", "1")
+        monkeypatch.setenv("ATOM_PROMOTION_MIN_EPISODES", "0")
         """
         Test excellent training performance results in larger confidence boost.
         """
@@ -2113,7 +2121,11 @@ class TestTrainingCompletionPromotion:
     """Test training completion and promotion decisions"""
 
     @pytest.mark.asyncio
-    async def test_agent_promoted_to_intern_when_confidence_reaches_05(self, db_session: Session):
+    async def test_agent_promoted_to_intern_when_confidence_reaches_05(self, db_session: Session, monkeypatch):
+        # Round 86 evidence gate off here — this suite tests confidence
+        # mechanics, not the promotion evidence requirements.
+        monkeypatch.setenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", "1")
+        monkeypatch.setenv("ATOM_PROMOTION_MIN_EPISODES", "0")
         """Test agent promoted to INTERN when confidence reaches 0.5 (exact threshold)"""
         # Arrange
         agent = AgentRegistry(
@@ -2760,7 +2772,11 @@ class TestBlockedTriggerResolution:
         assert "Confidence boost:" in blocked_trigger.resolution_outcome
 
     @pytest.mark.asyncio
-    async def test_blocked_trigger_resolution_outcome_includes_promoted_status(self, db_session: Session):
+    async def test_blocked_trigger_resolution_outcome_includes_promoted_status(self, db_session: Session, monkeypatch):
+        # Round 86 evidence gate off here — this suite tests confidence
+        # mechanics, not the promotion evidence requirements.
+        monkeypatch.setenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", "1")
+        monkeypatch.setenv("ATOM_PROMOTION_MIN_EPISODES", "0")
         """Test blocked trigger resolution_outcome includes promoted status"""
         # Arrange
         agent = AgentRegistry(

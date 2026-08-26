@@ -658,12 +658,7 @@ class LanceDBHandler:
             # Generate embedding
             embedding = self.embed_text(text)
             if embedding is None:
-                vector_size = 1536 if self.embedding_provider == "openai" else 384
-                if NUMPY_AVAILABLE:
-                    import numpy as np
-                    embedding = np.zeros(vector_size, dtype=np.float32)
-                else:
-                    embedding = [0.0] * vector_size
+                return False
 
             # Use provided doc_id or generate new one
             if doc_id is None:

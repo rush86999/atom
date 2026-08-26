@@ -61,8 +61,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 ) : (
                     <div className="group flex items-center gap-2">
                         <div>
-                            <h2 className="font-semibold" suppressHydrationWarning>{sessionTitle}</h2>
-                            <p className="text-xs text-muted-foreground" suppressHydrationWarning>ID: {sessionId || "New Session"}</p>
+                            <h2 className="font-semibold">{sessionTitle}</h2>
+                            <p className="text-xs text-muted-foreground">ID: {sessionId || "New Session"}</p>
                         </div>
                         <Button
                             size="icon"

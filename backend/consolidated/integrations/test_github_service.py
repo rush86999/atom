@@ -486,3 +486,5 @@ class TestGitHubService:
             "events": ["push", "pull_request"]
         }
         mock_make_request.assert_called_once_with(
+            "POST", "/repos/owner/repo/hooks", expected_data
+        )

@@ -1088,6 +1088,13 @@ class AgentReasoningStep(Base):
     confidence = Column(Float, default=1.0)
     duration_ms = Column(Float, default=0.0)
 
+    # Model provenance (Round 82): which identity served this step.
+    # requested_model = router-selected concrete model (pre-flight);
+    # resolved_model  = provider-echoed ID (post-flight) — diverges from
+    # requested only on silent checkpoint bumps / provider reroutes.
+    requested_model = Column(String(120), nullable=True)
+    resolved_model = Column(String(160), nullable=True)
+
     # Outcome verification (silent no-op defense).
     # Tri-state: 'verified' | 'unverified' | 'failed_verification'
     # - 'verified': tool returned a verifiable success signal + evidence
@@ -12188,68 +12195,6 @@ class FleetRouterAutomationAction(Base):
 
 
 
-class SalesCaseStatus(str, enum.Enum):
-    """Statuses for the AI sales-agent case lifecycle (dynamic state, not a
-    hardcoded workflow). The valid transitions live in core/sales_case.py."""
-    NEW = "new"
-    UNDERSTANDING = "understanding"
-    RESEARCHING = "researching"
-    WAITING_FOR_HUMAN = "waiting_for_human"
-    WAITING_FOR_VENDOR = "waiting_for_vendor"
-    WAITING_FOR_CUSTOMER = "waiting_for_customer"
-    WAITING_FOR_INVENTORY = "waiting_for_inventory"
-    QUOTING = "quoting"
-    QUOTE_PENDING_APPROVAL = "quote_pending_approval"
-    QUOTED = "quoted"
-    ORDERED = "ordered"
-    PURCHASING = "purchasing"
-    SHIPPING = "shipping"
-    COMPLETED = "completed"
-
-
-class SalesCase(Base):
-    """A sales case — the central object of the AI sales agent.
-
-    Tracks one customer inquiry end-to-end: intent, products, requirements,
-    decisions, actions, human interventions, vendor communications, the quote
-    and shipping state. Status is validated state (see core/sales_case.py for
-    the transition map), not a hardcoded workflow.
-    """
-    __tablename__ = "sales_cases"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, nullable=True, index=True)
-    workspace_id = Column(String, nullable=True, index=True)
-    user_id = Column(String, nullable=True, index=True)
-
-    status = Column(String, default=SalesCaseStatus.NEW.value, index=True)
-    intent = Column(String, nullable=True)
-
-    customer_name = Column(String, nullable=True)
-    customer_email = Column(String, nullable=True)
-    subject = Column(String, nullable=True)
-    email_id = Column(String, nullable=True, index=True)      # source email (thread anchor)
-    conversation_id = Column(String, nullable=True, index=True)
-
-    products = Column(JSONColumn, default=list)               # [{name, qty, notes}]
-    requirements = Column(JSONColumn, default=list)           # free-text requirement notes
-    decisions = Column(JSONColumn, default=list)              # [{action, reason, by, at}]
-    actions = Column(JSONColumn, default=list)                # action history
-    pending_actions = Column(JSONColumn, default=list)
-    human_interventions = Column(JSONColumn, default=list)    # [{question, answer, hitl_id}]
-    vendor_communications = Column(JSONColumn, default=list)  # [{to, subject, sent_at}]
-    quote = Column(JSONColumn, nullable=True)                 # quote draft / final
-    shipping = Column(JSONColumn, nullable=True)
-    metadata_json = Column("metadata_json", JSONColumn, nullable=True)
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-
-    __table_args__ = (
-        Index("ix_sales_cases_status_updated", "status", "updated_at"),
-    )
 
 class TrustCalibrationAssessment(Base):
     """One shadow assessment per ask-the-human moment (R81l P1).
@@ -12395,5 +12340,32 @@ class OntologyDraftAction(Base):
 
     __table_args__ = (
         Index("ix_ontology_draft_auto_type_created", "tenant_id", "entity_type_id", "created_at"),
+    )
 
+
+class DomainExperienceLedger(Base):
+    """
+    Per-role outcome ledger for generalist agents (R86c).
+
+    The meta agent's executions all credit one blended row, which made its
+    record useless as ROLE evidence. Each row here attributes one verified
+    run to a business domain (resolved from the task text), so the meta
+    agent can EARN super-mentor status per role — see
+    ``core/domain_attribution.py`` and StudentTrainingService._find_mentor.
+
+    This is the exact-count evidence layer; the world-model AgentExperience
+    remains the semantic/vector layer for recall.
+    """
+
+    __tablename__ = "domain_experience_ledger"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id = Column(String(255), nullable=False, index=True)
+    domain = Column(String(64), nullable=False, index=True)
+    outcome = Column(String(20), nullable=False)  # success | failure | partial
+    task_summary = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    __table_args__ = (
+        Index("ix_domain_ledger_agent_domain_outcome", "agent_id", "domain", "outcome"),
     )
