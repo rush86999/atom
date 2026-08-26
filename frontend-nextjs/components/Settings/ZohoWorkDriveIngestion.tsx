@@ -242,8 +242,13 @@ export default function ZohoWorkDriveIngestion({ userId }: { userId: string }) {
                     body: JSON.stringify({ user_id: userId, file_id: file.id })
                 });
                 if (response.ok) {
-                    setIngestedFileIds(prev => new Set(prev).add(file.id));
-                    successCount++;
+                    // HTTP 200 can still carry {success: false} (download or
+                    // parse failure) — only count real ingestions.
+                    const data = await response.json().catch(() => null);
+                    if (data?.success) {
+                        setIngestedFileIds(prev => new Set(prev).add(file.id));
+                        successCount++;
+                    }
                 }
             } catch (err) {
                 console.error(`Failed to ingest ${file.name}:`, err);

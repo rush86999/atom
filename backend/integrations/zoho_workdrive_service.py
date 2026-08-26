@@ -392,24 +392,27 @@ class ZohoWorkDriveService(IntegrationService):
 
             target_url = None
 
-            # Explicit workspace takes priority (covers both personal and team workspaces)
-            if workspace_id:
+            # A team folder (team_id + parent_id that is a team folder id) is
+            # the precise scope and wins over workspace_id — the UI sends both
+            # for a team folder, and /workspaces/{id}/files would otherwise
+            # replace the selected folder's file set with the workspace root.
+            if team_id and parent_id and parent_id != "root":
+                # parent_id is a team folder id — list its files directly.
+                target_url = f"{self.base_url}/teamfolders/{parent_id}/files"
+            # Explicit workspace (personal or team workspace root)
+            elif workspace_id:
                 target_url = f"{self.base_url}/workspaces/{workspace_id}/files"
             # Explicit team_id: fetch that team's root workspace
             elif team_id:
-                if parent_id and parent_id != "root":
-                    # parent_id is a team folder id — list its files directly.
-                    target_url = f"{self.base_url}/teamfolders/{parent_id}/files"
-                else:
-                    # GET /teams/{team_id} -> get workspace_id from team's root workspace
-                    team_res = await self.client.get(f"{self.base_url}/teams/{team_id}", headers=headers)
-                    if team_res.status_code == 200:
-                        team_data = team_res.json().get("data", {})
-                        attrs = team_data.get("attributes", {})
-                        root_ws = attrs.get("root_workspace", {})
-                        ws_id = root_ws.get("id") if isinstance(root_ws, dict) else None
-                        if ws_id:
-                            target_url = f"{self.base_url}/workspaces/{ws_id}/files"
+                # GET /teams/{team_id} -> get workspace_id from team's root workspace
+                team_res = await self.client.get(f"{self.base_url}/teams/{team_id}", headers=headers)
+                if team_res.status_code == 200:
+                    team_data = team_res.json().get("data", {})
+                    attrs = team_data.get("attributes", {})
+                    root_ws = attrs.get("root_workspace", {})
+                    ws_id = root_ws.get("id") if isinstance(root_ws, dict) else None
+                    if ws_id:
+                        target_url = f"{self.base_url}/workspaces/{ws_id}/files"
             # parent_id is "root" or folder ID
             elif not parent_id or parent_id == "root":
                 # Default to user's private workspace
@@ -604,7 +607,7 @@ class ZohoWorkDriveService(IntegrationService):
 
         except Exception as e:
             logger.error(f"Failed to build folder tree: {e}")
-            return {"id": "root", "name": "Root", "type": "folder", "children": [], "error": str(e)}
+            return {"id": "root", "name": "Root", "type": "folder", "children": [], "error": "Failed to build folder tree"}
     async def get_team_folder_ids(self, user_id: str) -> List[str]:
         """Return the IDs of all team folders (shared workspaces) across the
         user's teams. Team folders are the shared-drive counterpart to the
@@ -760,7 +763,7 @@ class ZohoWorkDriveService(IntegrationService):
             return {"success": True, "result": result}
         except Exception as e:
             logger.error(f"Failed to ingest Zoho WorkDrive file: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to ingest file"}
 
     async def ingest_folder_tree(self, user_id: str,
                                  folder_id: str,
@@ -820,7 +823,8 @@ class ZohoWorkDriveService(IntegrationService):
                     elif res.get("error"):
                         errors.append(f"{name}: {res['error']}")
                 except Exception as file_err:
-                    errors.append(f"{name}: {file_err}")
+                    logger.warning(f"Ingest failed for {name}: {file_err}")
+                    errors.append(f"{name}: ingest failed")
 
             return {
                 "success": True,
@@ -831,7 +835,7 @@ class ZohoWorkDriveService(IntegrationService):
             }
         except Exception as e:
             logger.error(f"Failed to ingest folder tree: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to ingest folder tree"}
 
     async def sync_to_postgres_cache(self, user_id: str) -> Dict[str, Any]:
         """Sync Zoho WorkDrive analytics to PostgreSQL IntegrationMetric table."""
@@ -876,14 +880,15 @@ class ZohoWorkDriveService(IntegrationService):
                 db.commit()
             except Exception as e:
                 db.rollback()
-                return {"success": False, "error": str(e)}
+                logger.error(f"Zoho WorkDrive metrics sync failed: {e}")
+                return {"success": False, "error": "Failed to sync metrics"}
             finally:
                 db.close()
                 
             return {"success": True, "metrics_synced": metrics_synced}
         except Exception as e:
             logger.error(f"Zoho WorkDrive PostgreSQL cache sync failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Failed to sync Zoho WorkDrive cache"}
 
     async def full_sync(self, user_id: str,
                          workspace_id: Optional[str] = None,
@@ -914,12 +919,13 @@ class ZohoWorkDriveService(IntegrationService):
         root_folder = folder_id or "root"
         
         # List files with new parameters
+        # Scoped listing: /sync-team must honor the requested workspace/team/
+        # folder scope. walk_files() is unscoped and would silently ingest
+        # unrelated files — it must NOT replace this result.
         files = await self.list_files(
             user_id, parent_id=root_folder, team_id=team_id,
             workspace_id=workspace_id, recursive=recursive
         )
-        parseable_exts = (".docx", ".xlsx", ".xls", ".csv", ".pdf", ".txt", ".md", ".pptx")
-        files = await self.walk_files(user_id)
 
 
         ingested = 0
@@ -943,10 +949,11 @@ class ZohoWorkDriveService(IntegrationService):
                     else:
                         skipped.append(f"{name} ({inner.get('reason') or 'no_text'})")
                 except Exception as file_err:
-                    errors.append(f"{name}: {file_err}")
+                    logger.warning(f"Ingest failed for {name}: {file_err}")
+                    errors.append(f"{name}: ingest failed")
         except Exception as e:
             logger.error(f"Zoho WorkDrive memory ingestion failed: {e}")
-            errors.append(str(e))
+            errors.append("memory ingestion failed")
 
         cache_result = await self.sync_to_postgres_cache(user_id)
         return {
@@ -1016,7 +1023,7 @@ class ZohoWorkDriveService(IntegrationService):
             return {"success": True, "result": result}
         except Exception as e:
             logger.error(f"Zoho WorkDrive operation {operation} failed: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Operation failed"}
 
 
 # Create a default instance for hub_sync_service compatibility
