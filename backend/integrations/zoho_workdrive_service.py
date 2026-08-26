@@ -271,6 +271,10 @@ class ZohoWorkDriveService(IntegrationService):
                 return
             tdata = team_res.json().get("data", {})
             tattrs = tdata.get("attributes", {})
+            # Deliberately NOT _team_from_jsonapi: the single-team GET /teams/:id
+            # response uses different attribute names than the /teams listing
+            # (role_id vs role, shared_status as the status fallback). Do not
+            # "deduplicate" this into the listing mapper.
             teams.append(
                 {
                     "id": tdata.get("id") or tid,
