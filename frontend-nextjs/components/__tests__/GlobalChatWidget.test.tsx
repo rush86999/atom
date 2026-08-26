@@ -18,7 +18,7 @@
  *   marketplace with the template id
  *
  * APIs: POST /api/chat/message, GET /api/chat/history/:sid,
- *       GET /api/agents/approvals/pending (apiClient),
+ *       GET /api/agents/approvals/pending (same-origin fetch via proxy),
  *       POST /api/agents/approvals/:id (apiClient)
  */
 import React from 'react';
@@ -50,10 +50,9 @@ jest.mock('next/router', () => ({
   }),
 }));
 
-const mockApiGet = jest.fn();
 const mockApiPost = jest.fn();
 jest.mock('../../lib/api-client', () => ({
-  apiClient: { get: mockApiGet, post: mockApiPost },
+  apiClient: { post: mockApiPost },
 }));
 
 jest.mock('@/hooks/useWebSocket', () => ({
@@ -118,10 +117,12 @@ describe('GlobalChatWidget', () => {
             ],
           })
         );
+      }),
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json([]));
       })
     );
 
-    mockApiGet.mockResolvedValue({ status: 200, data: [] });
     mockApiPost.mockResolvedValue({ data: { success: true } });
   });
 
@@ -242,10 +243,14 @@ describe('GlobalChatWidget', () => {
   });
 
   it('shows the pending approval banner from the API and approves it', async () => {
-    mockApiGet.mockResolvedValue({
-      status: 200,
-      data: [{ id: 'p-1', action_type: 'send_email', reason: 'Customer email' }],
-    });
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([{ id: 'p-1', action_type: 'send_email', reason: 'Customer email' }])
+        );
+      })
+    );
 
     render(<GlobalChatWidget />);
     openChat();
@@ -267,10 +272,14 @@ describe('GlobalChatWidget', () => {
   });
 
   it('rejects the pending approval via the API', async () => {
-    mockApiGet.mockResolvedValue({
-      status: 200,
-      data: [{ id: 'p-2', action_type: 'send_email', reason: 'Spam' }],
-    });
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([{ id: 'p-2', action_type: 'send_email', reason: 'Spam' }])
+        );
+      })
+    );
 
     render(<GlobalChatWidget />);
     openChat();
@@ -379,6 +388,7 @@ describe('GlobalChatWidget', () => {
 // ---------------------------------------------------------------------------
 describe('GlobalChatWidget (extended coverage)', () => {
   let errorSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
   let postedMessages: any[];
 
   const sendChatMessage = async (text: string) => {
@@ -393,6 +403,7 @@ describe('GlobalChatWidget (extended coverage)', () => {
 
   beforeEach(() => {
     errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     postedMessages = [];
     wsState.isConnected = false;
     wsState.lastMessage = null;
@@ -416,15 +427,18 @@ describe('GlobalChatWidget (extended coverage)', () => {
       ),
       rest.get('/api/chat/history/:sid', (req, res, ctx) => {
         return res(ctx.status(200), ctx.json({ messages: [] }));
+      }),
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json([]));
       })
     );
 
-    mockApiGet.mockResolvedValue({ status: 200, data: [] });
     mockApiPost.mockResolvedValue({ data: { success: true } });
   });
 
   afterEach(() => {
     errorSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it('submits thumbs up feedback with model identity', async () => {
@@ -547,10 +561,14 @@ describe('GlobalChatWidget (extended coverage)', () => {
   });
 
   it('shows an error toast when the approval decision API fails', async () => {
-    mockApiGet.mockResolvedValue({
-      status: 200,
-      data: [{ id: 'p-9', action_type: 'delete_file', reason: 'Dangerous' }],
-    });
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([{ id: 'p-9', action_type: 'delete_file', reason: 'Dangerous' }])
+        );
+      })
+    );
     mockApiPost.mockResolvedValue({ data: { success: false, error: 'nope' } });
 
     render(<GlobalChatWidget />);
@@ -566,10 +584,14 @@ describe('GlobalChatWidget (extended coverage)', () => {
   });
 
   it('shows an error toast when the approval decision POST rejects', async () => {
-    mockApiGet.mockResolvedValue({
-      status: 200,
-      data: [{ id: 'p-8', action_type: 'delete_file', reason: 'Dangerous' }],
-    });
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([{ id: 'p-8', action_type: 'delete_file', reason: 'Dangerous' }])
+        );
+      })
+    );
     mockApiPost.mockRejectedValue(new Error('network down'));
 
     render(<GlobalChatWidget />);
@@ -584,17 +606,72 @@ describe('GlobalChatWidget (extended coverage)', () => {
     });
   });
 
-  it('logs an error when the pending approvals fetch rejects', async () => {
-    mockApiGet.mockRejectedValue(new Error('approvals down'));
+  it('logs a warning — never console.error — when the approvals fetch fails', async () => {
+    // A background poll must never surface a runtime error (the Next dev
+    // overlay shows console.error from components), but total silence makes
+    // "approvals were never shown" undebuggable. The fetch settling is
+    // observed deterministically via its diagnostic warning.
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res) => res.networkError('approvals down'))
+    );
+
+    render(<GlobalChatWidget />);
+    openChat();
+    await screen.findByText('ATOM Assistant');
+
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[ChatWidget] Pending approvals unreachable:',
+        expect.anything()
+      );
+    });
+    expect(screen.queryByText('Approval Required')).not.toBeInTheDocument();
+    expect(errorSpy).not.toHaveBeenCalledWith(
+      'Failed to fetch pending approvals:',
+      expect.anything()
+    );
+  });
+
+  it('distinguishes an expired token (401) from an empty queue in diagnostics', async () => {
+    // An auth failure means UNKNOWN approvals, not "no approvals" — it gets
+    // its own logged state even though the banner stays hidden.
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) =>
+        res(ctx.status(401), ctx.json({ detail: 'Unauthorized' }))
+      )
+    );
 
     render(<GlobalChatWidget />);
 
     await waitFor(() => {
-      expect(errorSpy).toHaveBeenCalledWith(
-        'Failed to fetch pending approvals:',
-        expect.anything()
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[ChatWidget] Pending approvals unauthorized (HTTP 401)')
       );
     });
+    expect(screen.queryByText('Approval Required')).not.toBeInTheDocument();
+  });
+
+  it('surfaces pending approvals proactively on mount via the collapsed-widget badge', async () => {
+    // Governance-first: an agent blocked mid-run waiting on approval is
+    // visible without the user opening chat. The original cross-origin bug
+    // was the transport, not the timing — the same-origin proxy keeps the
+    // mount fetch cheap.
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) =>
+        res(
+          ctx.status(200),
+          ctx.json([{ id: 'p-7', action_type: 'send_email', reason: 'Needs approval' }])
+        )
+      )
+    );
+
+    render(<GlobalChatWidget />);
+    // Widget is still collapsed here.
+    expect(await screen.findByTestId('approval-indicator')).toBeInTheDocument();
+
+    openChat();
+    expect(await screen.findByText('Approval Required')).toBeInTheDocument();
+    expect(screen.queryByTestId('approval-indicator')).not.toBeInTheDocument();
   });
 
   it('treats a failed message POST as an error bubble', async () => {
@@ -660,8 +737,8 @@ describe('GlobalChatWidget (extended coverage)', () => {
     };
     rerender(<GlobalChatWidget />);
 
-    await new Promise((r) => setTimeout(r, 100));
-    // The step could not attach to a user message, so no reasoning toggle appears.
+    // rerender is act-wrapped, so the passive effect has already flushed —
+    // no sleep-based assertion needed for this negative case.
     expect(
       screen.queryByRole('button', { name: /reasoning process/i })
     ).not.toBeInTheDocument();
@@ -671,19 +748,20 @@ describe('GlobalChatWidget (extended coverage)', () => {
   });
 
   it('clears a pending approval when the API reports an empty queue', async () => {
-    // First loads show a pending approval, then re-opening clears it.
-    // (The effect runs on mount too, so the queue must stay non-empty until
-    // the popover has opened.)
-    mockApiGet.mockResolvedValue({
-      status: 200,
-      data: [{ id: 'p-5', action_type: 'send_email', reason: 'Needs approval' }],
-    });
+    // First load shows a pending approval, then re-opening clears it.
+    // (The fetch fires when the popover opens, not on mount.)
+    let approvals: any[] = [{ id: 'p-5', action_type: 'send_email', reason: 'Needs approval' }];
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) => {
+        return res(ctx.status(200), ctx.json(approvals));
+      })
+    );
 
     render(<GlobalChatWidget />);
     openChat();
     expect(await screen.findByText('Approval Required')).toBeInTheDocument();
 
-    mockApiGet.mockResolvedValue({ status: 200, data: [] });
+    approvals = [];
 
     const closeButton = document
       .querySelector('.lucide-x')
