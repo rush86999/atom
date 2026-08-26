@@ -45,7 +45,11 @@ function mockApi({
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data }) });
     }
     if (u.includes('/api/zoho-workdrive/ingest-folder')) {
-      const ingested = fileList.filter((f: any) => f.type !== 'folder').length;
+      // Mirror the backend: /ingest-folder only counts parseable extensions.
+      const supported = ['.docx', '.xlsx', '.xls', '.csv', '.pdf', '.txt', '.md', '.pptx'];
+      const ingested = fileList.filter(
+        (f: any) => f.type !== 'folder' && supported.some(ext => (f.name || '').toLowerCase().endsWith(ext))
+      ).length;
       return Promise.resolve({
         ok: true,
         json: async () => ({ success: true, files_ingested: ingested, files_processed: ingested, errors: [] }),
@@ -256,7 +260,35 @@ describe('ZohoWorkDriveIngestion', () => {
       .filter(([u]) => String(u).includes('/api/zoho-workdrive/ingest-folder'))
       .slice(-1)[0];
     expect(JSON.parse(batchCall[1].body)).toEqual({ folder_id: 'root', recursive: false });
-    // Every visible file is marked ingested on a clean batch
+    // Every ingestable visible file is marked ingested on a clean batch
+    expect(await screen.findAllByText('✓ Ingested to Memory')).toHaveLength(2);
+  });
+
+  it('batch ingests only parseable extensions and still marks them when unsupported files are present', async () => {
+    // A .xyz file sits alongside supported ones; the backend /ingest-folder
+    // skips it, so it must not count as a failure or block the badges.
+    const mixedFiles = [
+      ...privateFiles,
+      { id: 'fx', name: 'notes.xyz', type: 'file', extension: 'xyz', size: 10 },
+    ];
+    mockApi({ fileList: mixedFiles });
+    render(<ZohoWorkDriveIngestion />);
+    await screen.findByText('notes.xyz');
+    fireEvent.click(screen.getByRole('button', { name: /Ingest All Files/ }));
+    await waitFor(() => {
+      const batchCall = (global.fetch as jest.Mock).mock.calls
+        .filter(([u]) => String(u).includes('/api/zoho-workdrive/ingest-folder'))
+        .slice(-1)[0];
+      // Badge gating succeeded — the toast reports the supported count only
+      expect(mockToast.toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Batch Ingestion Complete',
+          description: expect.stringContaining('2 of 2 files'),
+        })
+      );
+      expect(JSON.parse(batchCall[1].body)).toEqual({ folder_id: 'root', recursive: false });
+    });
+    // Only the two supported files get the badge
     expect(await screen.findAllByText('✓ Ingested to Memory')).toHaveLength(2);
   });
 

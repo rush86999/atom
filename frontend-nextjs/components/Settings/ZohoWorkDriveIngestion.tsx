@@ -46,6 +46,9 @@ interface Breadcrumb {
     teamFolderId?: string;
 }
 
+// Keep in sync with PARSEABLE_EXTS in backend/integrations/zoho_workdrive_service.py
+const INGESTABLE_EXTS = ['.docx', '.xlsx', '.xls', '.csv', '.pdf', '.txt', '.md', '.pptx'];
+
 function extractErrorMessage(text: string, status: number): string {
     let errMsg = `Server returned ${status}`;
     try {
@@ -230,7 +233,13 @@ export default function ZohoWorkDriveIngestion() {
     };
 
     const handleIngestAll = async () => {
-        const ingestableFiles = files.filter(f => f.type !== 'folder');
+        // Mirror of backend PARSEABLE_EXTS (integrations/zoho_workdrive_service.py):
+        // /ingest-folder skips other extensions, so they shouldn't count as
+        // failures or block the ingested badges.
+        const ingestableFiles = files.filter(f =>
+            f.type !== 'folder' &&
+            INGESTABLE_EXTS.some(ext => (f.name || '').toLowerCase().endsWith(ext))
+        );
         if (ingestableFiles.length === 0) return;
 
         setIngestingAll(true);
