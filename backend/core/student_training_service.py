@@ -302,6 +302,37 @@ After completing this training, the agent will be able to handle similar tasks a
         if not session:
             raise ValueError(f"Training session {session_id} not found")
 
+        # R87: idempotency guard — a retried POST /complete (double-click,
+        # client retry) previously re-applied the confidence boost, re-ran
+        # the INTERN readiness evaluation against inflated session counts,
+        # and re-flipped the proposal to EXECUTED. Confidence feeds
+        # SpecialistMatcher, fleet routing, and governance maturity mapping,
+        # so double-counting is privilege-adjacent. Report the recorded
+        # outcome without mutating anything.
+        if (session.status or "").lower() == "completed":
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == session.agent_id
+            ).first()
+            logger.info(
+                f"Training session {session_id} already completed; "
+                "ignoring duplicate completion (idempotent)"
+            )
+            return {
+                "session_id": session_id,
+                "agent_id": session.agent_id,
+                "performance_score": session.performance_score or 0.0,
+                # Amount applied BY THIS CALL (none — already completed).
+                "confidence_boost": 0.0,
+                "prior_confidence_boost": session.confidence_boost or 0.0,
+                "old_confidence": agent.confidence_score if agent else None,
+                "new_confidence": agent.confidence_score if agent else None,
+                "promoted_to_intern": bool(session.promoted_to_intern),
+                "promotion": {"already_completed": True},
+                "new_status": agent.status if agent else None,
+                "capabilities_developed": session.capabilities_developed or [],
+                "already_completed": True,
+            }
+
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == session.agent_id
         ).first()

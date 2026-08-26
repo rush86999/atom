@@ -20,7 +20,7 @@ from sqlalchemy.orm import sessionmaker
 from api.audit_routes import router
 from api.audit_routes import get_db as route_get_db
 from core.auth import get_current_user
-from core.models import AgentExecution, AuditLog
+from core.models import AgentExecution, AuditLog, User, UserRole, UserStatus
 
 
 @pytest.fixture
@@ -36,8 +36,20 @@ def audit_db():
     )
     AuditLog.__table__.create(engine)
     AgentExecution.__table__.create(engine)
+    # R89: /api/audit/* is supervisor-gated; the gate re-queries the User row.
+    User.__table__.create(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
+    session.add(User(
+        id="user-1",
+        email="lead@test.local",
+        first_name="L",
+        last_name="E",
+        hashed_password="x",
+        role=UserRole.SUPER_ADMIN.value,
+        status=UserStatus.ACTIVE.value,
+    ))
+    session.commit()
     yield session
     session.close()
 

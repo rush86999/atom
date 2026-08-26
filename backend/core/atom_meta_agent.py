@@ -87,6 +87,39 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# R87: execution-outcome classification for learning signals.
+#
+# Module scope so it's unit-testable without the AtomMetaAgent singleton.
+# The terminal failure statuses below carry canned final text with no literal
+# "error" substring ("Maximum reasoning steps reached.", "Budget limit
+# reached…", "Agent run killed by sandbox: …"). Classifying them via the old
+# final_output heuristic recorded timeouts / budget halts / sandbox kills to
+# AgentGovernanceService.record_outcome and the DomainExperienceLedger as
+# SUCCESSES — a deployment that repeatedly hit limits earned super-mentor
+# wins from its failures. Terminal statuses always win; the legacy heuristic
+# only applies when no recognized status is present (legacy callers).
+# ---------------------------------------------------------------------------
+_TERMINAL_FAILURE_STATUSES = frozenset({
+    "failed",
+    "timeout",
+    "budget_exceeded",
+    "killed_sandbox",
+    "error",
+})
+
+
+def _execution_succeeded(result: Dict) -> bool:
+    """Classify a meta-agent run outcome for learning/governance signals."""
+    status = str(result.get("status") or "").strip().lower()
+    if status in _TERMINAL_FAILURE_STATUSES:
+        return False
+    if status == "success":
+        return True
+    final_output = result.get("final_output")
+    return bool(final_output) and "error" not in str(final_output).lower()
+
+
+# ---------------------------------------------------------------------------
 # Execution Sandbox Layer (Round 43 / Phase A) — module-level helper.
 #
 # Defined at module scope so it's unit-testable without the AtomMetaAgent
@@ -2903,7 +2936,7 @@ Provide your Mentorship Guidance:"""
             logger.error(f"Failed to persist reasoning step: {e}")
         return step_id
 
-    async def _record_execution(self, request: str, result: Dict, 
+    async def _record_execution(self, request: str, result: Dict,
                                 trigger_mode: AgentTriggerMode):
         """Record execution to World Model for future learning"""
         # R86c: attribute this run to a business role when the task text
@@ -2937,8 +2970,11 @@ Provide your Mentorship Guidance:"""
         )
         await self.world_model.record_experience(experience)
 
-        # 2. Update Governance Outcome
-        success = result.get("status") == "success" or (result.get("final_output") is not None and "error" not in result.get("final_output").lower())
+        # 2. Update Governance Outcome — R87: terminal failure statuses
+        # (timeout/budget_exceeded/killed_sandbox/failed) must never be
+        # recorded as successes, even when their canned final text lacks the
+        # word "error".
+        success = _execution_succeeded(result)
         try:
             gov = AgentGovernanceService(db)
             await gov.record_outcome("atom_main", success=success)

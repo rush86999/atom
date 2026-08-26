@@ -108,7 +108,12 @@ def certify(resolved: List[ResolvedDecision]) -> CertificationResult:
         return result
 
     ordered = sorted(resolved, key=lambda r: r.decided_at)
-    cut = max(int(len(ordered) * TRAIN_FRACTION), len(ordered) - MIN_EVAL)
+    # R87: the MIN_EVAL term is a floor on holdout size, so it must REDUCE
+    # the train cut (min), not raise it. max() pinned the holdout at exactly
+    # 8 rows for any n >= 27 — certification statistics never gained
+    # reliability with volume (100 rows and 400 rows both certified on the
+    # same 8-sample holdout). Now: holdout = max(MIN_EVAL, 30% of data).
+    cut = min(int(len(ordered) * TRAIN_FRACTION), len(ordered) - MIN_EVAL)
     train, evaluation = ordered[:cut], ordered[cut:]
     result.n_train, result.n_eval = len(train), len(evaluation)
 

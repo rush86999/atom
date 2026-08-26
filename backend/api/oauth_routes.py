@@ -246,11 +246,24 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                     "zoho_workdrive",
                 ]
 
+            # R88: credentials belong to the user who consented. Copying the
+            # encrypted tokens into EVERY active user's IntegrationToken rows
+            # turned any user's connect (or an attacker's token-binding flow)
+            # into fleet-wide credential injection. Opt back in explicitly
+            # for single-operator deployments via
+            # ATOM_OAUTH_SHARED_INTEGRATION_TOKENS=true.
+            _shared_tokens = os.getenv(
+                "ATOM_OAUTH_SHARED_INTEGRATION_TOKENS", ""
+            ).strip().lower() == "true"
+
             user_ids_to_sync = {current_user.id}
-            from core.models import UserStatus
-            active_users = db.query(User).filter(User.status == UserStatus.ACTIVE).all()
-            for u in active_users:
-                user_ids_to_sync.add(u.id)
+            if _shared_tokens:
+                from core.models import UserStatus
+                active_users = db.query(User).filter(
+                    User.status == UserStatus.ACTIVE
+                ).all()
+                for u in active_users:
+                    user_ids_to_sync.add(u.id)
 
             # Zoho token responses carry the datacenter API domain (e.g.
             # https://www.zohoapis.com / .in / .eu). Stored on the canonical
@@ -328,10 +341,17 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                 logger.error(f"Failed to schedule Zoho sync after OAuth connect: {sync_err}")
 
         return token_data
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"OAuth callback failed for {provider}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to complete {provider} OAuth flow: {str(e)}")
+        # R88: keep str(e) server-side — provider/client errors previously
+        # flowed to the client in the detail field.
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to complete {provider} OAuth flow",
+        )
 
 # ============================================================================
 # Generic OAuth Endpoints
@@ -342,7 +362,6 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
 async def oauth_initiate(
     provider: str,
     request: Request = None,
-    user_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     """Initiate OAuth flow for a specific provider.
@@ -352,8 +371,16 @@ async def oauth_initiate(
     params — but only resolves the user when given a db session, which this
     route previously never passed (silent demo-user fallback mis-bound the
     consent state and stored tokens under the wrong user).
+
+    R88 (fail-closed identity): a valid JWT — Authorization header, NextAuth
+    cookie, or ``?token=`` — is REQUIRED before any consent state is minted.
+    The previous "demo-user" fallback plus a client-supplied ``?user_id=``
+    override let an unauthenticated caller mint a validly-signed state bound
+    to ANY user id; combined with the callback's unknown-user fallback that
+    planted the attacker's provider tokens on the first DB row (bootstrap
+    admin).
     """
-    uid = "demo-user"
+    uid = None
     if request:
         try:
             from core.auth import get_current_user
@@ -365,10 +392,15 @@ async def oauth_initiate(
             u = await get_current_user(request=request, token=browser_token, db=db)
             if u and u.id:
                 uid = u.id
+        except HTTPException:
+            raise
         except Exception:
-            pass
-    if uid == "demo-user" and user_id:
-        uid = user_id
+            uid = None
+    if not uid:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required to initiate an OAuth flow",
+        )
 
     configs = {
         "google": GOOGLE_OAUTH_CONFIG,
@@ -437,12 +469,15 @@ async def oauth_callback(
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        # In local dev, the OAuth flow may use a placeholder user_id (e.g.
-        # "demo-user") that doesn't exist in the database.  Fall back to the
-        # first available user so the token can still be persisted.
-        user = db.query(User).first()
-        if not user:
-            raise HTTPException(status_code=400, detail="No users found in database")
+        # R88: fail closed. The previous fallback bound tokens to the FIRST
+        # database row (the bootstrap admin) whenever the signed state
+        # referenced a user id absent from the DB — exactly how an attacker
+        # who initiated a flow for a fabricated/victim id planted their own
+        # provider credentials on the admin account.
+        raise HTTPException(
+            status_code=401,
+            detail="OAuth state references an unknown user",
+        )
 
     # CSRF / token-binding check: if this request carries an authenticated
     # session, the user it belongs to MUST be the user the state was minted

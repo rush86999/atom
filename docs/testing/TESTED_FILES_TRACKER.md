@@ -6640,3 +6640,60 @@ Research note: retrieval-time pre-filtering re-validated for A-G1/A-G2 (RAG acce
 **Tests** (+2 in `test_super_mentor_pathway.py`, now 9): edge-role vocabulary mined from episodes and used for attribution; super-mentor eligibility works for an arbitrary category string via ledger wins under that exact role. Suite total 20 passed with promotion-gate suite.
 
 **Verification**: 145 training/governance tests green; imports clean; server restarted.
+
+## 2026-08-26g — R87 bug-hunt round: promotion authz + learning-ledger integrity + certification statistics
+
+Parallel sweep of post-R86d surfaces (new routes + new automation modules) surfaced 9 confirmed findings; 5 fixed this round (TDD RED→GREEN), 4 higher-design-cost findings queued (see below).
+
+**Fix 1 — Any member could promote any agent to any maturity (HIGH)** (`api/episode_routes.py`): `/graduation/promote`, `/graduation/exam`, `/lifecycle/decay`, `/lifecycle/consolidate` required only `get_current_user`; `AgentGraduationService.promote_agent` does no role check → one POST handed AUTONOMOUS to a STUDENT, bypassing the whole maturity system. Added `_require_supervisor` (TEAM_LEAD+, mirrors `agent_maturity_routes.py`) to all four mutating graduation/lifecycle endpoints. Tests: `tests/test_round87_promotion_authz.py` (3).
+
+**Fix 2 — Meta-agent recorded timeout/budget/sandbox-kills as learning SUCCESSES (HIGH)** (`core/atom_meta_agent.py`): `success = status=="success" or ("error" not in final_output)` — canned failure texts ("Maximum reasoning steps reached.", "Budget limit reached…", "killed by sandbox: …") have no "error" substring → governance confidence + DomainExperienceLedger super-mentor wins accrued from failures. New module-level `_execution_succeeded()`: terminal statuses {failed, timeout, budget_exceeded, killed_sandbox, error} always fail; legacy heuristic only for unrecognized/no status. Tests: `tests/test_round87_meta_outcome_classification.py` (9, incl. wiring via mocked gov+ledger).
+
+**Fix 3 — Trust-certification holdout pinned at exactly 8 rows (MED-HIGH)** (`core/trust_calibration/certify.py:111`): `cut = max(70%·n, n−MIN_EVAL)` made eval ≡ MIN_EVAL=8 for all n≥27 — the P2 gate (Brier/coverage → resolved enforce) never gained reliability with volume. Inverted floor: `min(...)` → holdout = max(MIN_EVAL, 30%). Legacy R81f fixtures resized (8→11 crafted rows) so their blocks remain the pure holdout; every original assertion kept. Tests: `tests/test_round87_trust_certify_holdout.py` (+2 certify).
+
+**Fix 4 — Training-session completion not idempotent (MED-HIGH)** (`core/student_training_service.py`): retried POST /complete re-applied +0.05..0.20 confidence, re-ran INTERN readiness on inflated counts, re-flipped proposal. Guard: completed session returns recorded outcome with `already_completed: true`, `confidence_boost: 0.0` (this-call semantics), no mutation. Tests: `tests/test_round87_training_session_idempotency.py` (3).
+
+**Fix 5 — Trust-gateway record failure poisoned the shared session (MED)** (`core/trust_calibration/gateway.py`): `assess_and_record` swallowed commit exceptions without rollback → caller's ambient HITL-path session dies with PendingRollbackError on next ORM op — breaking the very ask-path it must never break. Added guarded `db.rollback()` in the except. Test forces a genuine IntegrityError inside commit (pinned-PK subclass) and asserts rollback + usable session.
+
+**Queued from this sweep (not fixed — design decisions needed):**
+- HIGH: OAuth initiate/callback mint victim-bound state from client `?user_id=` fallback + first-DB-user fallback + connect fans tokens out to ALL active users (`api/oauth_routes.py`)
+- MED-HIGH: workflow execution status/results IDOR across tenants (`api/workflow_template_routes.py:447+`)
+- MED-HIGH: audit events API exposes all users' prompt excerpts/tool args to any authenticated user (`api/audit_routes.py`)
+- MED: canvas logic read/run skip ownership + AUTONOMOUS gate bypassed by omitting agent_id (`api/canvas_routes.py:789+`)
+- MED: 4 webhook families (zoho/pm-crm/communication/dev-prod) still accept unsigned events (`api/routes/webhooks/ingestion_webhooks.py`)
+
+**Verification**: 72 cluster tests + 575 neighboring suites (meta-agent coverage/react-loop, student training ×2, episode routes, supervision, covpush fleet/regtrio/w32/w98) green; main_api_app imports clean.
+
+## 2026-08-26h — R88: OAuth token-binding + credential fan-out (HIGH cluster)
+
+**Fix 1 — initiate fail-closed identity (HIGH)** (`api/oauth_routes.py`): `GET /{provider}/initiate|authorize` minted a validly-signed consent state for ANY client-supplied `?user_id=` when auth failed (demo-user fallback). Removed the param + fallback; a valid JWT (header / NextAuth cookie / `?token=`) is now REQUIRED before any state is minted — 401 otherwise. Legit R86 `?token=` navigation unchanged.
+
+**Fix 2 — callback unknown-user fail-closed (HIGH)** (`api/oauth_routes.py`): signed state referencing a nonexistent user fell back to the FIRST DB row (bootstrap admin) → attacker completed consent with their own provider account and their tokens were planted on the admin. Now 401. Combined with Fix 1 this closes the unauthenticated token-binding attack end-to-end.
+
+**Fix 3 — credential fan-out opt-in (HIGH)** (`api/oauth_routes.py`): every connect copied the encrypted access/refresh tokens into ALL active users' IntegrationToken rows. Default now stores only for the connecting user; `ATOM_OAUTH_SHARED_INTEGRATION_TOKENS=true` restores legacy shared-credential behavior. The legit Zoho one-grant→five-services fan-out (zoho/zoho_books/zoho_inventory/zoho_crm/zoho_workdrive) is preserved per-user.
+
+**Fix 4 — str(e) leak in callback errors**: `_handle_callback_logic` returned provider/exception text to clients (`detail=f"...{str(e)}"`); generic detail + server-side log now.
+
+**Tests**: `backend/tests/test_round88_oauth_token_binding.py` (8): unauth initiate 401; no victim-binding via ?user_id=; ?token= regression guard; unknown-state-user creates ZERO rows; connecting-user-only storage; legacy flag restores fan-out; zoho multi-provider scoped to connector; no exception-text leak (pinned-PK-style mocked exchange raising RuntimeError).
+
+**Stale suite re-contract**: `test_oauth_initiate_token_identity.py::test_no_token_still_falls_back_to_demo_user` asserted the exact vulnerable fallback ("keeps today's fallback") → rewritten as `test_no_token_fails_closed` (401, no state, resolver never called with a token).
+
+**Bonus**: R71 B14 `test_v1_oauth_initiate_requires_auth` — failing pre-existing since Round 71 — now passes (the gate it demanded finally exists).
+
+**Frontend note**: components calling `/initiate` without a token (`OutlookIntegration.tsx:215`, `AgentLaunchGuide.tsx:375` fallbacks) now get an explicit 401 instead of silently storing under demo-user (which never showed "connected" anyway). Those paths should pass `?token=` like the rest.
+
+**Verification**: 14 OAuth-suite tests green (round88 + round86-identity + round71); 424/436 broader sweep green with the 12 failures verified pre-existing via stash check (LLM-oauth/cognitive-tier/Salesforce/Telegram coverage — unrelated modules); main_api_app imports clean.
+
+## 2026-08-26i — R89: workflow-execution IDOR + audit gate + canvas logic gates + webhook family secrets
+
+**Fix 1 — cross-user/cross-tenant execution reads (MED-HIGH)** (`api/workflow_template_routes.py`): `/executions/{id}/status|results` matched execution_id OR workflow_id with no ownership filter → any JWT read others' run outputs (context blob: results, step history, errors). New `_execution_access_filter`: own rows (user_id/owner_id) + pre-R89 unattributed rows only within-tenant (fully anonymous rows visible solely to tenant-less callers). `execute_template` now stamps `user_id`/`tenant_id` into the orchestrator execution_context (the create path already persisted context.user_id). Tests: `tests/test_round89_workflow_execution_scope.py` (6).
+
+**Fix 2 — audit API supervisor-gated (MED-HIGH)** (`api/audit_routes.py`): all four `/api/audit/*` endpoints exposed every user's tool args + prompt excerpts to any member JWT. Added `_require_supervisor` (TEAM_LEAD+) mirroring agent_maturity_routes. Stale suite re-contract: `tests/test_audit_routes_api.py` fixture now seeds a real SUPER_ADMIN user (gate re-queries the DB; MagicMock role → 403). Tests: `tests/test_round89_audit_supervisor_gate.py` (5).
+
+**Fix 3 — canvas logic read/run ownership + non-bypassable AUTONOMOUS gate (MED)** (`api/canvas_routes.py`): GET /logic leaked any canvas's logic source and POST /logic/run executed it with attacker inputs — both had no access check (PUT did); worse, the maturity gate keyed off OPTIONAL client-supplied agent_id, so omitting it silently skipped governance. Shared `_require_canvas_access` on all three; `_enforce_logic_governance` unconditional (check_governance(None) raises). Stale suite re-contract ×3 in `tests/test_covpush_canvasroutes.py::TestCanvasLogic` (success paths now name an autonomous agent / read own canvas). Tests: `tests/test_round89_canvas_logic_gates.py` (7). Frontend CanvasLogicPanel always sends agent_id — unaffected.
+
+**Fix 4 — four never-verified webhook families fail closed (MED)** (`api/routes/webhooks/ingestion_webhooks.py`): zoho / pm-crm / communication / dev-prod handlers processed unsigned bodies, resolved tenants from public payload ids (Jira clientKey, Twilio AccountSid, Zoho orgId…) and dispatched CRUD incl. deletions with victim credentials. R69-pattern `_verify_family_webhook(request, env, label)`: secret unset → 503; missing/bad X-Atom-Webhook-Signature (hex HMAC-SHA256 over raw body) → 401; HEAD health probes skipped. Env: ATOM_ZOHO_WEBHOOK_SECRET, ATOM_PMCRM_WEBHOOK_SECRET, ATOM_COMMUNICATION_WEBHOOK_SECRET, ATOM_DEVPROD_WEBHOOK_SECRET. Stale suites re-contracted via transparent signing client + autouse env fixture in `tests/test_covpush_ingestion_webhooks.py` (77 call sites untouched). Tests: `tests/test_round89_webhook_family_secrets.py` (13).
+
+**Pre-existing failures verified via stash check** (NOT this round): canvas CRUD test_update_404_for_other_user/test_delete_missing_canvas (404-vs-400), 6× integration/contracts/test_workflow_api_contracts (401s), mini_app_harness_journey.
+
+**Verification**: 63/63 across R87+R88+R89 new/re-contracted suites; 786 passed webhook+audit sweep; 380/382 canvas/miniapp sweep; main_api_app imports clean.

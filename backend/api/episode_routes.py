@@ -7,7 +7,7 @@ REST endpoints for episodic memory system with governance integration.
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, Query
+from fastapi import Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -20,7 +20,7 @@ from core.database import get_db
 from core.episode_lifecycle_service import EpisodeLifecycleService
 from core.episode_retrieval_service import EpisodeRetrievalService
 from core.episode_segmentation_service import EpisodeSegmentationService
-from core.models import AgentFeedback, Episode, User
+from core.models import AgentFeedback, Episode, User, UserRole
 from core.security_dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,28 @@ router = BaseAPIRouter(prefix="/api/episodes", tags=["episodes"])
 # Feature flags
 EPISODE_GOVERNANCE_ENABLED = os.getenv("EPISODE_GOVERNANCE_ENABLED", "true").lower() == "true"
 EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").lower() == "true"
+
+# R87: graduation and lifecycle-maintenance mutations are supervisor-grade
+# operations. promote/exam hand out maturity levels (the platform's entire
+# permission model) and decay/consolidate mutate fleet-wide episode state —
+# none may be driven by an ordinary member JWT.
+_SUPERVISOR_ROLES = [
+    UserRole.TEAM_LEAD.value,
+    UserRole.WORKSPACE_ADMIN.value,
+    UserRole.SUPER_ADMIN.value,
+]
+
+
+def _require_supervisor(db: Session, current_user: User) -> None:
+    """Require a supervisor-grade role (TEAM_LEAD+), 403 otherwise."""
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role not in _SUPERVISOR_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required role: TEAM_LEAD or ADMIN",
+        )
 
 
 # Request Models
@@ -658,6 +680,7 @@ async def run_exam(
     db: Session = Depends(get_db)
 ):
     """Run graduation exam on edge cases"""
+    _require_supervisor(db, current_user)
     service = AgentGraduationService(db)
     return await service.run_graduation_exam(agent_id, edge_case_episodes)
 
@@ -670,6 +693,7 @@ async def promote_agent(
     db: Session = Depends(get_db)
 ):
     """Promote agent after validation"""
+    _require_supervisor(db, current_user)
     service = AgentGraduationService(db)
     success = await service.promote_agent(agent_id, new_maturity, current_user.id)
 
@@ -702,6 +726,7 @@ async def trigger_decay(
     db: Session = Depends(get_db)
 ):
     """Trigger decay process"""
+    _require_supervisor(db, current_user)
     service = EpisodeLifecycleService(db)
     return await service.decay_old_episodes(days_threshold)
 
@@ -712,6 +737,7 @@ async def consolidate_episodes(
     db: Session = Depends(get_db)
 ):
     """Consolidate similar episodes"""
+    _require_supervisor(db, current_user)
     service = EpisodeLifecycleService(db)
     return await service.consolidate_similar_episodes(agent_id)
 

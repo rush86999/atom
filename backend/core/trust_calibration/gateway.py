@@ -240,6 +240,15 @@ class TrustCalibrationGateway:
             )
             return {"id": row.id, **assessment}
         except Exception as e:  # noqa: BLE001
+            # R87: roll the shared session back before returning — callers
+            # pass their ambient request session (HITL ask-paths), and after
+            # a failed flush/commit SQLAlchemy blocks every subsequent ORM
+            # operation with PendingRollbackError until rollback. Recording
+            # must never break the ask path.
+            try:
+                db.rollback()
+            except Exception:  # noqa: BLE001
+                logger.debug("trust calibration rollback failed", exc_info=True)
             logger.warning(f"trust calibration record skipped: {e}")
             return None
 

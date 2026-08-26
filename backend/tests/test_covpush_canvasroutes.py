@@ -889,11 +889,17 @@ class TestCanvasLogic:
         assert res.status_code == 403
 
     def test_put_logic_success(self, client, db_session, users, monkeypatch):
+        # R89 re-contract: governance is mandatory — an AUTONOMOUS agent must
+        # be named even on the success path.
         u = _make_user(db_session)
         users["current"] = u
         c = _make_canvas(db_session, u.id, is_collaborative=False)
+        agent = _make_agent(db_session, status="autonomous")
         _patch_logic_service(monkeypatch, saved={"source": "x = 1"})
-        res = client.put(f"/api/canvas/{c.id}/logic", json={"source": "x = 1"})
+        res = client.put(
+            f"/api/canvas/{c.id}/logic",
+            json={"source": "x = 1", "agent_id": agent.id},
+        )
         assert res.status_code == 200
         assert res.json()["success"] is True
 
@@ -904,19 +910,27 @@ class TestCanvasLogic:
         assert res.status_code == 404
 
     def test_get_logic_success(self, client, db_session, users, monkeypatch):
+        # R89 re-contract: GET is ownership-checked like PUT — read the
+        # current user's own canvas.
         u = _make_user(db_session)
         users["current"] = u
+        c = _make_canvas(db_session, u.id)
         _patch_logic_service(monkeypatch, loaded={"source": "x = 1", "language": "python"})
-        res = client.get("/api/canvas/c-1/logic")
+        res = client.get(f"/api/canvas/{c.id}/logic")
         assert res.status_code == 200
         assert res.json()["data"]["source"] == "x = 1"
 
     def test_run_logic_success(self, client, db_session, users, monkeypatch):
+        # R89 re-contract: runs name an AUTONOMOUS agent (no silent bypass).
         u = _make_user(db_session)
         users["current"] = u
         c = _make_canvas(db_session, u.id)
+        agent = _make_agent(db_session, status="autonomous")
         _patch_logic_service(monkeypatch, run_result={"ok": True, "stdout": "hi"})
-        res = client.post(f"/api/canvas/{c.id}/logic/run", json={"inputs": {"a": 1}})
+        res = client.post(
+            f"/api/canvas/{c.id}/logic/run",
+            json={"inputs": {"a": 1}, "agent_id": agent.id},
+        )
         assert res.status_code == 200
         assert res.json()["success"] is True
 

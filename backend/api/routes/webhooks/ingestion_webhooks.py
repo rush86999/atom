@@ -20,6 +20,7 @@ Key features:
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 import hmac
+import hashlib
 import os
 
 from api.routes.webhooks.base import verify_hmac_signature
@@ -34,6 +35,43 @@ logger = get_logger(__name__)
 # Create router and queue
 router = APIRouter()
 webhook_queue = WebhookIngestionQueue()
+
+
+# ============================================================================
+# R89: shared fail-closed verification for the generic webhook families.
+#
+# The zoho / pm-crm / communication / dev-prod handlers resolved tenants from
+# public/enumerable payload fields (Jira clientKey, Twilio AccountSid, Zoho
+# orgId…) and dispatched CRUD — including deletions — using the victim
+# tenant's stored credentials, with NO verification at all. Same contract as
+# the R69 family secrets: env must be set (503 otherwise) and the request
+# must carry X-Atom-Webhook-Signature = hex HMAC-SHA256 over the RAW body.
+# ============================================================================
+
+async def _verify_family_webhook(request: Request, secret_env: str, label: str) -> None:
+    """Fail-closed shared-secret verification for a webhook family.
+
+    HEAD probes (health checks) carry no side effects and no body — skipped.
+    """
+    if request.method == "HEAD":
+        return
+
+    expected_secret = os.getenv(secret_env, "")
+    if not expected_secret:
+        logger.error(f"{label} webhook received but {secret_env} not set — rejecting")
+        raise HTTPException(status_code=503, detail="Webhook verification not configured")
+
+    raw_body = await request.body()
+    supplied_sig = request.headers.get("X-Atom-Webhook-Signature", "")
+    if not supplied_sig:
+        logger.error(f"{label} webhook missing signature header — rejecting")
+        raise HTTPException(status_code=401, detail="Missing signature")
+    computed_sig = hmac.new(
+        expected_secret.encode(), raw_body, hashlib.sha256
+    ).hexdigest()
+    if not hmac.compare_digest(computed_sig, supplied_sig):
+        logger.error(f"{label} webhook signature mismatch — rejecting")
+        raise HTTPException(status_code=401, detail="Invalid signature")
 
 
 # ============================================================================
@@ -987,6 +1025,9 @@ async def zoho_webhook_handler(
     Extracts external Zoho org_id/portal_id to resolve tenant_id using Discovery Service,
     and enqueues the payload to WebhookIngestionQueue.
     """
+    # R89: fail-closed shared-secret verification (see _verify_family_webhook)
+    await _verify_family_webhook(request, "ATOM_ZOHO_WEBHOOK_SECRET", "Zoho")
+
     # Normalize integration_id with underscore
     integration_id = integration_id.replace("-", "_")
     if integration_id not in ZOHO_INTEGRATIONS:
@@ -1121,6 +1162,9 @@ async def pm_crm_webhook_handler(
     # 1. Handle Trello / generic HEAD handshakes
     if request.method == "HEAD":
         return Response(status_code=200)
+
+    # R89: fail-closed shared-secret verification
+    await _verify_family_webhook(request, "ATOM_PMCRM_WEBHOOK_SECRET", "PM/CRM")
 
     # Normalize integration_id with underscore
     integration_id = integration_id.replace("-", "_")
@@ -1291,6 +1335,9 @@ async def communication_webhook_handler(
     if request.method == "HEAD":
         return Response(status_code=200)
 
+    # R89: fail-closed shared-secret verification
+    await _verify_family_webhook(request, "ATOM_COMMUNICATION_WEBHOOK_SECRET", "Communication")
+
     # Normalize integration_id with underscore
     integration_id = integration_id.replace("-", "_")
     if integration_id not in COMMUNICATION_INTEGRATIONS:
@@ -1453,6 +1500,9 @@ async def dev_prod_webhook_handler(
     validation_token = request.query_params.get("validationToken")
     if validation_token:
         return PlainTextResponse(content=validation_token)
+
+    # R89: fail-closed shared-secret verification
+    await _verify_family_webhook(request, "ATOM_DEVPROD_WEBHOOK_SECRET", "Dev/Productivity")
 
     # Normalize integration_id with underscore
     integration_id = integration_id.replace("-", "_")

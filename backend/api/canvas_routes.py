@@ -736,6 +736,32 @@ async def canvas_state_websocket(canvas_id: str, websocket: WebSocket):
 # mirrors custom_components_service._check_governance_for_js).
 # ============================================================================
 
+
+def _require_canvas_access(db: Session, canvas_id: str, current_user: User) -> None:
+    """Owner on private canvases, anyone on collaborative ones; fail-closed.
+
+    R89: shared by PUT (already had it inline), GET (leaked logic source) and
+    POST run (executed other users' logic with attacker-chosen inputs).
+    """
+    from core.models import Canvas
+
+    canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+    if canvas is None:
+        raise HTTPException(status_code=404, detail=f"Canvas {canvas_id} not found")
+    if not canvas.is_collaborative and str(canvas.created_by) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="You do not have permission to edit this canvas")
+
+
+def _enforce_logic_governance(svc, agent_id: Optional[str]) -> None:
+    """R89: the AUTONOMOUS gate is mandatory. The previous `if body.agent_id:`
+    wiring let a caller bypass the maturity check entirely by omitting the
+    field — check_governance(None) already raises PermissionError."""
+    try:
+        svc.check_governance(agent_id)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+
+
 class CanvasLogicRequest(BaseModel):
     source: str = Field("", description="Python source to save")
     language: str = Field("python")
@@ -762,21 +788,10 @@ async def put_canvas_logic(
     # owner on private canvases and any collaborator on collaborative canvases
     # (mini-app blueprint/instance canvases are created collaborative). A
     # stranger must never overwrite a private canvas's logic.
-    canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
-    if canvas is None:
-        raise HTTPException(status_code=404, detail=f"Canvas {canvas_id} not found")
-    if not canvas.is_collaborative and str(canvas.created_by) != str(current_user.id):
-        raise HTTPException(status_code=403, detail="You do not have permission to edit this canvas")
+    _require_canvas_access(db, canvas_id, current_user)
 
     svc = CanvasLogicService(db)
-    if body.agent_id:
-        try:
-            svc.check_governance(body.agent_id)
-        except PermissionError:
-            raise HTTPException(
-                status_code=403,
-                detail="Canvas logic requires an AUTONOMOUS agent"
-            )
+    _enforce_logic_governance(svc, body.agent_id)
     saved = svc.save_logic(
         canvas_id=canvas_id,
         source=body.source,
@@ -794,6 +809,10 @@ async def get_canvas_logic(
 ):
     """Load the canvas's stored server-side logic."""
     from core.canvas_logic_service import CanvasLogicService
+
+    # R89: logic source is canvas content — same access rule as PUT.
+    _require_canvas_access(db, canvas_id, current_user)
+
     logic = CanvasLogicService(db).load_logic(canvas_id)
     if logic is None:
         raise HTTPException(status_code=404, detail=f"No logic saved for canvas {canvas_id}")
@@ -809,14 +828,10 @@ async def run_canvas_logic(
 ):
     """Run the canvas's stored logic in the isolated sandbox runtime."""
     from core.canvas_logic_service import CanvasLogicService
+
+    # R89: ownership first, then the (now non-bypassable) AUTONOMOUS gate.
+    _require_canvas_access(db, canvas_id, current_user)
     svc = CanvasLogicService(db)
-    if body.agent_id:
-        try:
-            svc.check_governance(body.agent_id)
-        except PermissionError:
-            raise HTTPException(
-                status_code=403,
-                detail="Canvas logic requires an AUTONOMOUS agent"
-            )
+    _enforce_logic_governance(svc, body.agent_id)
     result = await svc.run(canvas_id, inputs=body.inputs, agent_id=body.agent_id)
     return {"success": result.get("success", True), "data": result}

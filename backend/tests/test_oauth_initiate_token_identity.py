@@ -73,12 +73,16 @@ def test_token_query_binds_state_to_real_user(client):
     assert calls["n"] >= 1
 
 
-def test_no_token_still_falls_back_to_demo_user(client):
-    """Anonymous browser hit (no token param) keeps today's fallback."""
+def test_no_token_fails_closed(client):
+    """R88 re-contract: an anonymous browser hit (no token param) must NOT
+    mint a consent state at all. The old demo-user fallback produced a
+    validly-signed state for a nonexistent user, which the callback then
+    resolved to the first DB row (bootstrap admin) — planting attacker
+    provider tokens on the admin account. Fail closed with 401 instead."""
     test_client, calls = client
     resp = test_client.get(
         "/api/v1/auth/oauth/zoho/initiate", follow_redirects=False
     )
-    assert resp.status_code == 307
-    state = resp.headers["location"].split("state=")[-1]
-    assert _get_user_id_from_state(state, "zoho") == "demo-user"
+    assert resp.status_code in (401, 403)
+    assert "state=" not in (resp.headers.get("location") or "")
+    assert calls["tokens"] == []

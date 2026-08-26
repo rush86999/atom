@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
 from core.database import get_db
-from core.models import AgentExecution, AuditLog, User
+from core.models import AgentExecution, AuditLog, User, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +78,31 @@ def _base_event_query(db: Session):
     return db.query(AuditLog).filter(AuditLog.event_type.in_(AUDIT_EVENT_TYPES))
 
 
+# ---------------------------------------------------------------------------
+# R89: the audit trail exposes ALL users' agent decisions — tool arguments,
+# prompt excerpts, model/provider per LLM call. It is an accountant/reviewer
+# surface, so it is gated to supervisor-grade roles (TEAM_LEAD+), mirroring
+# agent_maturity_routes._require_supervisor.
+# ---------------------------------------------------------------------------
+
+_SUPERVISOR_ROLES = [
+    UserRole.TEAM_LEAD.value,
+    UserRole.WORKSPACE_ADMIN.value,
+    UserRole.SUPER_ADMIN.value,
+]
+
+
+def _require_supervisor(db: Session, current_user: User) -> None:
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role not in _SUPERVISOR_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required role: TEAM_LEAD or ADMIN",
+        )
+
+
 # --------------------------------------------------------------------------- #
 # Event feed
 # --------------------------------------------------------------------------- #
@@ -94,6 +119,7 @@ def list_events(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    _require_supervisor(db, current_user)
     query = _base_event_query(db)
 
     if agent_id:
@@ -136,6 +162,7 @@ def list_executions(
     the matching ``execution_complete`` event when present (RUNNING implies
     the run crashed or the audit close-out failed — itself a signal).
     """
+    _require_supervisor(db, current_user)
     query = (
         _base_event_query(db)
         .filter(AuditLog.event_type == "agent_action")
@@ -201,6 +228,7 @@ def get_execution_timeline(
     current_user: User = Depends(get_current_user),
 ):
     """Full replayable decision chain for one agent execution."""
+    _require_supervisor(db, current_user)
     rows = (
         _base_event_query(db)
         .filter(_execution_filter(execution_id))
@@ -278,6 +306,7 @@ def audit_summary(
     current_user: User = Depends(get_current_user),
 ):
     """Aggregate stats over the recent window, for dashboard headers."""
+    _require_supervisor(db, current_user)
     from datetime import timedelta
 
     window_start = datetime.now(timezone.utc) - timedelta(days=days)

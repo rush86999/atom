@@ -463,6 +463,7 @@ async def get_execution_status(
             (WorkflowExecution.execution_id == execution_id)
             | (WorkflowExecution.workflow_id == execution_id)
         )
+        .filter(_execution_access_filter(current_user))
         .order_by(WorkflowExecution.created_at.desc())
         .first()
     )
@@ -494,6 +495,46 @@ def _safe_json_loads(raw):
         return None
 
 
+def _execution_access_filter(current_user: User):
+    """R89: scope execution reads to their owner (or the caller's tenant for
+    legacy unattributed rows).
+
+    WorkflowExecution rows carry user_id/owner_id/tenant_id but the status and
+    results endpoints matched on id alone — any authenticated user could read
+    another user's run outputs (business data), step history, and errors.
+    Rule: your own runs (user_id or owner_id), plus pre-R89 rows with no
+    identity at all ONLY when they are also un-tenanted or tenanted to the
+    caller — cross-tenant legacy rows stay hidden.
+    """
+    from sqlalchemy import or_
+
+    from core.models import WorkflowExecution
+
+    uid = str(current_user.id)
+    caller_tenant = str(getattr(current_user, "tenant_id", None) or "")
+    own = or_(
+        WorkflowExecution.user_id == uid,
+        WorkflowExecution.owner_id == uid,
+    )
+    # Unattributed rows (pre-R89, never stamped): tenant-stamped ones stay
+    # within their tenant; fully anonymous rows are visible only to
+    # tenant-less callers (pure local-dev legacy). Anonymous rows belong to
+    # no one — not to everyone.
+    if caller_tenant:
+        legacy_unattributed = (
+            WorkflowExecution.user_id.is_(None)
+            & WorkflowExecution.owner_id.is_(None)
+            & (WorkflowExecution.tenant_id == caller_tenant)
+        )
+    else:
+        legacy_unattributed = (
+            WorkflowExecution.user_id.is_(None)
+            & WorkflowExecution.owner_id.is_(None)
+            & WorkflowExecution.tenant_id.is_(None)
+        )
+    return or_(own, legacy_unattributed)
+
+
 @router.get("/executions/{execution_id}/results")
 async def get_execution_results(
     execution_id: str,
@@ -513,6 +554,7 @@ async def get_execution_results(
             (WorkflowExecution.execution_id == execution_id)
             | (WorkflowExecution.workflow_id == execution_id)
         )
+        .filter(_execution_access_filter(current_user))
         .order_by(WorkflowExecution.created_at.desc())
         .first()
     )
@@ -590,11 +632,20 @@ async def execute_template(
         import asyncio
         from advanced_workflow_orchestrator import get_orchestrator
 
-        # Create execution context
+        # Create execution context — R89: stamp the caller's identity so the
+        # run is attributable and the status/results reads can scope to it.
         context = await get_orchestrator().execute_workflow(
             workflow_id,  # Use the instantiated workflow_id
             input_data=parameters if parameters is not None else {},
-            execution_context={"source": "visual_builder", "agent_id": agent_id}
+            execution_context={
+                "source": "visual_builder",
+                "agent_id": agent_id,
+                "user_id": str(current_user.id),
+                **(
+                    {"tenant_id": str(current_user.tenant_id)}
+                    if getattr(current_user, "tenant_id", None) else {}
+                ),
+            }
         )
 
         logger.info(f"Template executed: {template_id} by agent {agent_id or 'system'}, workflow_id: {workflow_id}")

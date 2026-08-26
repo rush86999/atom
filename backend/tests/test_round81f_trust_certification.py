@@ -47,6 +47,9 @@ class TestCertificationGate:
         # Train on clean separation; holdout rejections wear APPROVAL-like
         # features and carry confidently-wrong recorded p (0.95). The refit
         # must miss them -> Brier blows up AND coverage stays 0.
+        # (R87: holdout = max(MIN_EVAL, 30%), so the crafted block is sized
+        # to remain the ENTIRE holdout under the corrected temporal split:
+        # 24 train rows -> cut=int(0.7*35)=24 -> eval = the 11 crafted rows.)
         now = datetime.now(timezone.utc)
         rows = []
         for i in range(24):
@@ -57,7 +60,7 @@ class TestCertificationGate:
                 decided_at=now - timedelta(days=200 - i),
                 features_json={"tool": [p] * 3, "ctx": [0.5]},
             ))
-        for i in range(8):
+        for i in range(11):
             rows.append(ResolvedDecision(
                 p_approve=0.95, y=0,
                 decided_at=now - timedelta(days=20 - i),
@@ -91,8 +94,10 @@ class TestCertificationGate:
                 decided_at=now - timedelta(days=200 - i),
                 features_json={"tool": [p] * 3, "ctx": [0.5]},
             ))
-        # Holdout: 8 rejections, all over-scored at 0.6 -> coverage 0.
-        for i in range(8):
+        # Holdout: rejections, all over-scored at 0.6 -> coverage 0.
+        # (R87: sized to 11 so the crafted block remains the entire holdout
+        # under holdout = max(MIN_EVAL, 30%).)
+        for i in range(11):
             rows.append(ResolvedDecision(
                 p_approve=0.6, y=0,
                 decided_at=now - timedelta(days=20 - i),

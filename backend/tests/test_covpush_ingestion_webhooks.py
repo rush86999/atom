@@ -31,7 +31,58 @@ def make_client(db=None):
     app = FastAPI()
     app.include_router(iw.router)
     app.dependency_overrides[get_db] = lambda: db if db is not None else MagicMock()
-    return TestClient(app, raise_server_exceptions=False)
+    client = TestClient(app, raise_server_exceptions=False)
+
+    # R89 re-contract: the zoho/pm-crm/communication/dev-prod families are
+    # fail-closed verified now. Sign family requests transparently so the
+    # business-logic tests below keep testing dispatch, not auth.
+    import hashlib
+    import hmac as _hmac
+    import json as _json
+
+    _FAMILY_ENVS = {
+        "/webhooks/zoho/": "ATOM_ZOHO_WEBHOOK_SECRET",
+        "/webhooks/pm-crm/": "ATOM_PMCRM_WEBHOOK_SECRET",
+        "/webhooks/communication/": "ATOM_COMMUNICATION_WEBHOOK_SECRET",
+        "/webhooks/dev-prod/": "ATOM_DEVPROD_WEBHOOK_SECRET",
+    }
+    orig_post = client.post
+
+    def _signing_post(url, **kwargs):
+        for prefix, env_name in _FAMILY_ENVS.items():
+            if url.startswith(prefix):
+                secret = os.getenv(env_name, "")
+                if secret:
+                    if "json" in kwargs:
+                        body = _json.dumps(kwargs.pop("json")).encode()
+                        kwargs["content"] = body
+                    elif "data" in kwargs:
+                        from urllib.parse import urlencode as _urlencode
+
+                        body = _urlencode(kwargs.pop("data")).encode()
+                        kwargs["content"] = body
+                    else:
+                        body = kwargs.get("content") or b""
+                    sig = _hmac.new(
+                        secret.encode(), body, hashlib.sha256
+                    ).hexdigest()
+                    headers = kwargs.setdefault("headers", {})
+                    headers["X-Atom-Webhook-Signature"] = sig
+                break
+        return orig_post(url, **kwargs)
+
+    client.post = _signing_post
+    return client
+
+
+@pytest.fixture(autouse=True)
+def _family_secrets(monkeypatch):
+    """R89: the generic webhook families reject unsigned traffic; tests opt
+    in by setting the shared secrets (the signing client above signs)."""
+    monkeypatch.setenv("ATOM_ZOHO_WEBHOOK_SECRET", "test-zoho-secret")
+    monkeypatch.setenv("ATOM_PMCRM_WEBHOOK_SECRET", "test-pmcrm-secret")
+    monkeypatch.setenv("ATOM_COMMUNICATION_WEBHOOK_SECRET", "test-comm-secret")
+    monkeypatch.setenv("ATOM_DEVPROD_WEBHOOK_SECRET", "test-devprod-secret")
 
 
 def _discovery(tenant_id="tenant-1"):
