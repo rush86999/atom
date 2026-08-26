@@ -184,7 +184,9 @@ class ZohoWorkDriveService(IntegrationService):
         """List WorkDrive teams for the user (Team Folders root).
 
         Required by the /teams route and the frontend ingestion picker.
-        Hits GET /api/v1/teams and normalizes the JSON:API response.
+        Hits GET /api/v1/teams and normalizes the JSON:API response. When the
+        listing comes back empty (plain org members without admin/owner role),
+        falls back to the org team advertised on /users/me.
         """
         token = await self.get_access_token(user_id)
         if not token:
@@ -192,7 +194,7 @@ class ZohoWorkDriveService(IntegrationService):
 
         try:
             headers = {"Authorization": f"Zoho-oauthtoken {token}"}
-            teams = []
+            teams: List[Dict[str, Any]] = []
             offset = 0
             # JSON:API pagination — loop until a page comes back short/empty so
             # large teams are not silently truncated to the first page.
@@ -205,45 +207,81 @@ class ZohoWorkDriveService(IntegrationService):
                 response.raise_for_status()
                 items = response.json().get("data", [])
                 for item in items:
-                    attrs = item.get("attributes", {})
-                    teams.append(
-                        {
-                            "id": item.get("id"),
-                            "name": attrs.get("name") or attrs.get("display_name"),
-                            "type": item.get("type", "teams"),
-                            "status": attrs.get("status"),
-                            "role": attrs.get("role"),
-                        }
-                    )
+                    teams.append(self._team_from_jsonapi(item))
                 if len(items) < self.PAGE_SIZE or len(teams) >= self.MAX_LIST_ITEMS:
-                    if not teams:
-                        # GET /teams can be empty for users who are plain members of
-                        # their org's team (no admin/owner role). Fall back to the
-                        # org team id advertised on /users/me and fetch it directly.
-                        me_res = await self.client.get(f"{self.base_url}/users/me", headers=headers)
-                        if me_res.status_code == 200:
-                            me_attrs = me_res.json().get("data", {}).get("attributes", {})
-                            tid = me_attrs.get("preferred_team_id")
-                            if tid:
-                                team_res = await self.client.get(f"{self.base_url}/teams/{tid}", headers=headers)
-                                if team_res.status_code == 200:
-                                    tdata = team_res.json().get("data", {})
-                                    tattrs = tdata.get("attributes", {})
-                                    teams.append(
-                                        {
-                                            "id": tdata.get("id") or tid,
-                                            "name": tattrs.get("name") or tid,
-                                            "type": tdata.get("type", "teams"),
-                                            "status": tattrs.get("status") or tattrs.get("shared_status"),
-                                            "role": tattrs.get("role_id"),
-                                        }
-                                    )
                     break
                 offset += self.PAGE_SIZE
+
+            if not teams:
+                await self._append_org_team_fallback(headers, teams)
             return teams
         except Exception as e:
             logger.error(f"Failed to list Zoho WorkDrive teams: {e}")
             return []
+
+    @staticmethod
+    def _team_from_jsonapi(item: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize one JSON:API team resource into the picker's team dict."""
+        attrs = item.get("attributes", {})
+        return {
+            "id": item.get("id"),
+            "name": attrs.get("name") or attrs.get("display_name"),
+            "type": item.get("type", "teams"),
+            "status": attrs.get("status"),
+            "role": attrs.get("role"),
+        }
+
+    async def _append_org_team_fallback(
+        self, headers: Dict[str, str], teams: List[Dict[str, Any]]
+    ) -> None:
+        """Fetch the org team directly when GET /teams lists nothing.
+
+        GET /teams can be empty for users who are plain members of their
+        org's team (no admin/owner role). /users/me advertises that team via
+        ``preferred_team_id``; fetch it and append it so the picker still
+        shows something usable. Failures log a warning and leave ``teams``
+        untouched — never raises.
+        """
+        try:
+            me_res = await self.client.get(f"{self.base_url}/users/me", headers=headers)
+            if me_res.status_code != 200:
+                logger.warning(
+                    "Zoho WorkDrive /users/me returned %s; org-team fallback unavailable",
+                    me_res.status_code,
+                )
+                return
+            me_attrs = me_res.json().get("data", {}).get("attributes", {})
+            tid = me_attrs.get("preferred_team_id")
+            if not tid:
+                logger.warning(
+                    "Zoho WorkDrive /users/me has no preferred_team_id; "
+                    "org-team fallback unavailable"
+                )
+                return
+
+            team_res = await self.client.get(
+                f"{self.base_url}/teams/{tid}", headers=headers
+            )
+            if team_res.status_code != 200:
+                logger.warning(
+                    "Zoho WorkDrive org-team fetch for %s returned %s",
+                    tid,
+                    team_res.status_code,
+                )
+                return
+            tdata = team_res.json().get("data", {})
+            tattrs = tdata.get("attributes", {})
+            teams.append(
+                {
+                    "id": tdata.get("id") or tid,
+                    "name": tattrs.get("name") or tid,
+                    "type": tdata.get("type", "teams"),
+                    "status": tattrs.get("status") or tattrs.get("shared_status"),
+                    "role": tattrs.get("role_id"),
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Zoho WorkDrive org-team fallback failed: {e}")
 
     async def list_files(self, user_id: str, parent_id: str = "root") -> List[Dict[str, Any]]:
         """List files in a specific folder or 'root' (user's private workspace)."""

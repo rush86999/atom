@@ -12194,8 +12194,6 @@ class FleetRouterAutomationAction(Base):
     )
 
 
-
-
 class TrustCalibrationAssessment(Base):
     """One shadow assessment per ask-the-human moment (R81l P1).
 

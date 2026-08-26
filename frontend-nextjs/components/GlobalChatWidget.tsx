@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { useRouter } from 'next/router';
 import { getCurrentUserId } from "@/lib/identity";
+import { authHeaders } from "@/lib/auth-headers";
 
 interface GlobalChatWidgetProps {
     userId?: string;
@@ -56,27 +57,33 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         }
     }, [messages, isOpen]);
 
-    // Fetch existing pending approvals when the widget opens. The effect only
-    // runs while the popover is open — firing on mount (widget closed) hit the
-    // backend on every page load and surfaced a runtime Network Error when it
-    // was unreachable.
+    // Fetch existing pending approvals proactively (mount) and again whenever
+    // the popover opens. The original bug was a cross-origin call to the
+    // backend's direct port — the same-origin Next.js proxy fixes that, so
+    // fetching on mount is cheap again. Keeping it on mount preserves Atom's
+    // governance-first approval-gate UX: an agent blocked mid-run is visible
+    // without the user having to open chat first.
     useEffect(() => {
-        if (!isOpen) return;
+        const controller = new AbortController();
 
         const fetchPendingApprovals = async () => {
             try {
-                const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
-                // Same-origin call through the Next.js proxy (next.config
-                // rewrites /api/agents/* to the backend), matching the chat
-                // calls in this widget — no cross-origin dependency on the
-                // backend's direct port or CORS.
                 const res = await fetch("/api/agents/approvals/pending", {
-                    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-                }).catch(() => null);
+                    headers: authHeaders(),
+                    signal: controller.signal,
+                });
 
-                if (!res || !res.ok) {
-                    // Backend unreachable or insufficient permission — treat
-                    // as an empty queue. A background poll must never throw.
+                if (!res.ok) {
+                    // Never surface to the user — but "never log" is a different
+                    // requirement. Auth failures get their own diagnostic: an
+                    // expired token means UNKNOWN approvals, not an empty queue.
+                    if (res.status === 401 || res.status === 403) {
+                        console.warn(
+                            `[ChatWidget] Pending approvals unauthorized (HTTP ${res.status}) — token may be missing/expired; queue treated as unknown.`
+                        );
+                    } else {
+                        console.warn(`[ChatWidget] Pending approvals fetch failed (HTTP ${res.status}).`);
+                    }
                     setPendingApproval(null);
                     return;
                 }
@@ -91,13 +98,14 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                 } else {
                     setPendingApproval(null);
                 }
-            } catch {
-                // Graceful empty state — never surface a runtime error when
-                // the backend is unreachable.
+            } catch (err: any) {
+                if (err?.name === 'AbortError') return;
+                console.warn('[ChatWidget] Pending approvals unreachable:', err);
                 setPendingApproval(null);
             }
         };
         fetchPendingApprovals();
+        return () => controller.abort();
     }, [isOpen]);
 
     // WebSocket subscription
@@ -153,9 +161,8 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const loadSessionHistory = async (sid: string, welcomeMsg: ChatMessageData) => {
         try {
             setIsLoading(true);
-            const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
             const res = await fetch(`/api/chat/history/${sid}?user_id=${userId || getCurrentUserId()}`, {
-                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                headers: authHeaders(),
             }).catch(() => null);
 
             if (res && res.ok) {
@@ -204,12 +211,11 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         setIsLoading(true);
 
         try {
-            const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
             const res = await fetch("/api/chat/message", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+                    ...authHeaders(),
                 },
                 body: JSON.stringify({
                     message: text,
@@ -400,10 +406,23 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             <Popover open={isOpen} onOpenChange={setIsOpen}>
                 <PopoverTrigger asChild>
                     <Button
-                        className="h-14 w-14 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300"
+                        className="relative h-14 w-14 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300"
                         onClick={() => setIsOpen(true)}
+                        aria-label={pendingApproval && !isOpen ? 'Messages — approval required' : 'Open ATOM Assistant'}
                     >
                         <MessageSquare className="h-6 w-6 text-white" />
+                        {/* Unread-style indicator: an agent is blocked on an
+                            approval while the widget is collapsed. Keeps the
+                            HITL gate visible without opening chat. */}
+                        {pendingApproval && !isOpen && (
+                            <span
+                                data-testid="approval-indicator"
+                                className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center"
+                            >
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                                <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500 border-2 border-white" />
+                            </span>
+                        )}
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent

@@ -388,6 +388,7 @@ describe('GlobalChatWidget', () => {
 // ---------------------------------------------------------------------------
 describe('GlobalChatWidget (extended coverage)', () => {
   let errorSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
   let postedMessages: any[];
 
   const sendChatMessage = async (text: string) => {
@@ -402,6 +403,7 @@ describe('GlobalChatWidget (extended coverage)', () => {
 
   beforeEach(() => {
     errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     postedMessages = [];
     wsState.isConnected = false;
     wsState.lastMessage = null;
@@ -436,6 +438,7 @@ describe('GlobalChatWidget (extended coverage)', () => {
 
   afterEach(() => {
     errorSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it('submits thumbs up feedback with model identity', async () => {
@@ -603,10 +606,11 @@ describe('GlobalChatWidget (extended coverage)', () => {
     });
   });
 
-  it('stays silent when the pending approvals fetch fails', async () => {
-    // A background poll must never surface a runtime error: the banner simply
-    // stays hidden and nothing reaches console.error (the Next dev overlay
-    // shows console.error calls from components).
+  it('logs a warning — never console.error — when the approvals fetch fails', async () => {
+    // A background poll must never surface a runtime error (the Next dev
+    // overlay shows console.error from components), but total silence makes
+    // "approvals were never shown" undebuggable. The fetch settling is
+    // observed deterministically via its diagnostic warning.
     server.use(
       rest.get('/api/agents/approvals/pending', (req, res) => res.networkError('approvals down'))
     );
@@ -615,12 +619,59 @@ describe('GlobalChatWidget (extended coverage)', () => {
     openChat();
     await screen.findByText('ATOM Assistant');
 
-    await new Promise((r) => setTimeout(r, 100));
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[ChatWidget] Pending approvals unreachable:',
+        expect.anything()
+      );
+    });
     expect(screen.queryByText('Approval Required')).not.toBeInTheDocument();
     expect(errorSpy).not.toHaveBeenCalledWith(
       'Failed to fetch pending approvals:',
       expect.anything()
     );
+  });
+
+  it('distinguishes an expired token (401) from an empty queue in diagnostics', async () => {
+    // An auth failure means UNKNOWN approvals, not "no approvals" — it gets
+    // its own logged state even though the banner stays hidden.
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) =>
+        res(ctx.status(401), ctx.json({ detail: 'Unauthorized' }))
+      )
+    );
+
+    render(<GlobalChatWidget />);
+
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[ChatWidget] Pending approvals unauthorized (HTTP 401)')
+      );
+    });
+    expect(screen.queryByText('Approval Required')).not.toBeInTheDocument();
+  });
+
+  it('surfaces pending approvals proactively on mount via the collapsed-widget badge', async () => {
+    // Governance-first: an agent blocked mid-run waiting on approval is
+    // visible without the user opening chat. The original cross-origin bug
+    // was the transport, not the timing — the same-origin proxy keeps the
+    // mount fetch cheap.
+    server.use(
+      rest.get('/api/agents/approvals/pending', (req, res, ctx) =>
+        res(
+          ctx.status(200),
+          ctx.json([{ id: 'p-7', action_type: 'send_email', reason: 'Needs approval' }])
+        )
+      )
+    );
+
+    render(<GlobalChatWidget />);
+    // Widget is still collapsed here.
+    expect(await screen.findByTestId('approval-indicator')).toBeInTheDocument();
+
+    openChat();
+    expect(await screen.findByText('Approval Required')).toBeInTheDocument();
+    expect(screen.queryByTestId('approval-indicator')).not.toBeInTheDocument();
   });
 
   it('treats a failed message POST as an error bubble', async () => {
@@ -686,8 +737,8 @@ describe('GlobalChatWidget (extended coverage)', () => {
     };
     rerender(<GlobalChatWidget />);
 
-    await new Promise((r) => setTimeout(r, 100));
-    // The step could not attach to a user message, so no reasoning toggle appears.
+    // rerender is act-wrapped, so the passive effect has already flushed —
+    // no sleep-based assertion needed for this negative case.
     expect(
       screen.queryByRole('button', { name: /reasoning process/i })
     ).not.toBeInTheDocument();
