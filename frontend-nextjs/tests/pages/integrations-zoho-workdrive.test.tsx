@@ -1,20 +1,17 @@
 /**
- * Zoho WorkDrive page tests (pages/integrations/zoho-workdrive.tsx, was 0% coverage)
+ * Zoho WorkDrive page tests (pages/integrations/zoho-workdrive.tsx)
  *
- * Covers: session-derived userId propagation to ZohoWorkDriveIngestion and
- * the 'demo-user' fallback when there is no session.
+ * Covers: the page renders inside the shared Layout and mounts the ingestion
+ * component. The page no longer derives or forwards a userId — identity is
+ * resolved server-side from the authenticated session (JWT/cookie), and the
+ * demo-user fallback has been removed.
  */
 
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import ZohoWorkDrivePage from "@/pages/integrations/zoho-workdrive";
 
-const mockUseSession = jest.fn();
 const mockIngestion = jest.fn();
-
-jest.mock("next-auth/react", () => ({
-  useSession: (...args: any[]) => mockUseSession(...args),
-}));
 
 jest.mock("@/components/layout", () => ({
   Layout: ({ children }: { children: React.ReactNode }) => (
@@ -31,28 +28,23 @@ describe("ZohoWorkDrivePage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(console, "error").mockImplementation(() => {});
-    mockIngestion.mockImplementation((props: any) => (
-      <div data-testid="zoho-ingestion">Ingestion for {props.userId}</div>
+    mockIngestion.mockImplementation(() => (
+      <div data-testid="zoho-ingestion">Ingestion</div>
     ));
   });
 
-  test("renders Layout and passes the session user id to the ingestion component", () => {
-    mockUseSession.mockReturnValue({ data: { user: { id: "user-42" } } });
-
+  test("renders the ingestion component inside the shared Layout", () => {
     render(<ZohoWorkDrivePage />);
 
-    expect(mockUseSession).toHaveBeenCalled();
     expect(screen.getByTestId("layout")).toBeInTheDocument();
-    expect(screen.getByTestId("zoho-ingestion")).toHaveTextContent("Ingestion for user-42");
-    expect(mockIngestion).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-42" }));
+    expect(screen.getByTestId("zoho-ingestion")).toBeInTheDocument();
   });
 
-  test("falls back to 'demo-user' when there is no session", () => {
-    mockUseSession.mockReturnValue({ data: null });
-
+  test("does not pass a client-derived userId to the ingestion component", () => {
     render(<ZohoWorkDrivePage />);
 
-    expect(screen.getByTestId("zoho-ingestion")).toHaveTextContent("Ingestion for demo-user");
-    expect(mockIngestion).toHaveBeenCalledWith(expect.objectContaining({ userId: "demo-user" }));
+    expect(mockIngestion).toHaveBeenCalledWith(
+      expect.not.objectContaining({ userId: expect.anything() })
+    );
   });
 });

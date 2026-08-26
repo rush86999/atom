@@ -56,25 +56,45 @@ class TestListFiles:
         with patch("api.zoho_workdrive_routes.zoho_service.list_files",
                    new=AsyncMock(return_value=[{"id": "f1"}])):
             resp = client.post("/api/zoho-workdrive/files/list", json={
-                "user_id": "u1", "parent_id": "root"})
+                "parent_id": "root"})
         assert resp.status_code == 200
         assert resp.json()["data"] == [{"id": "f1"}]
 
     def test_list_files_default_parent(self, client):
         with patch("api.zoho_workdrive_routes.zoho_service.list_files",
                    new=AsyncMock(return_value=[])) as m:
-            resp = client.post("/api/zoho-workdrive/files/list", json={"user_id": "u1"})
+            resp = client.post("/api/zoho-workdrive/files/list", json={})
         assert resp.status_code == 200
-        m.assert_awaited_once_with("u1", "root")
+        m.assert_awaited_once_with("u1", "root", None, None, False)
+
+    def test_list_files_forged_user_id_ignored(self, client):
+        # Identity comes from the token: a client-supplied user_id in the body
+        # must be ignored (extra fields) — the service still receives "u1".
+        with patch("api.zoho_workdrive_routes.zoho_service.list_files",
+                   new=AsyncMock(return_value=[])) as m:
+            resp = client.post("/api/zoho-workdrive/files/list",
+                               json={"user_id": "attacker", "parent_id": "root"})
+        assert resp.status_code == 200
+        m.assert_awaited_once_with("u1", "root", None, None, False)
 
     def test_list_files_error_500(self, client):
         with patch("api.zoho_workdrive_routes.zoho_service.list_files",
                    new=AsyncMock(side_effect=RuntimeError("boom"))):
-            resp = client.post("/api/zoho-workdrive/files/list", json={"user_id": "u1"})
+            resp = client.post("/api/zoho-workdrive/files/list", json={})
         assert resp.status_code == 500
 
-    def test_list_files_validation_422(self, client):
-        resp = client.post("/api/zoho-workdrive/files/list", json={})
+    def test_list_files_empty_body_is_valid(self, client):
+        # Every FileListRequest field is optional (user_id removed — identity
+        # is token-derived), so an empty body now defaults to the root folder.
+        with patch("api.zoho_workdrive_routes.zoho_service.list_files",
+                   new=AsyncMock(return_value=[])) as m:
+            resp = client.post("/api/zoho-workdrive/files/list", json={})
+        assert resp.status_code == 200
+        m.assert_awaited_once_with("u1", "root", None, None, False)
+
+    def test_ingest_folder_max_files_bounds_422(self, client):
+        resp = client.post("/api/zoho-workdrive/ingest-folder", json={
+            "folder_id": "root", "max_files": 10_000_000})
         assert resp.status_code == 422
 
 

@@ -366,7 +366,7 @@ class TestImpersonation:
         client = make_client(zoho_mod.router, current_user=authed_user)
 
         captured = {}
-        async def fake_list(user_id, parent_id):
+        async def fake_list(user_id, parent_id, team_id=None, workspace_id=None, recursive=False):
             captured["user_id"] = user_id
             return []
 

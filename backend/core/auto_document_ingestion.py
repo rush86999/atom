@@ -260,6 +260,30 @@ class DocumentParser:
         """Parse Excel to text - compatible with DocumentLifecycleLearner.
         Also extracts formulas and stores them in Atom's formula memory.
         """
+        # Old-format .xls (OLE2 Compound File): only xlrd reads these. The
+        # zip-based parsers (openpyxl/pandas) raise BadZipFile on OLE2 content,
+        # so detect by the OLE2 magic bytes BEFORE anything touches them.
+        if content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+            try:
+                import xlrd
+                wb = xlrd.open_workbook(file_contents=content)
+                parts = []
+                for sheet in wb.sheets():
+                    parts.append(f"--- Sheet: {sheet.name} ---")
+                    for r in range(getattr(sheet, "nrows", 0)):
+                        row = []
+                        for c in range(getattr(sheet, "ncols", 0)):
+                            val = sheet.cell_value(r, c)
+                            row.append(str(val) if val is not None else "")
+                        parts.append(" | ".join(row))
+                return "\n".join(parts)
+            except ImportError:
+                logger.warning("xlrd not installed; cannot parse old .xls (OLE2) files")
+                return ""
+            except Exception as e:
+                logger.error(f"XLS (xlrd) parse error: {e}")
+                return ""
+
         # Extract formulas if file_path is provided
         if file_path:
             try:

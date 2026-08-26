@@ -528,9 +528,9 @@ class TestZohoListFiles:
     def test_list_files_default_parent(self, zoho_client):
         with patch("api.zoho_workdrive_routes.zoho_service.list_files",
                    new=AsyncMock(return_value=[])) as m:
-            resp = zoho_client.post("/api/zoho-workdrive/files/list", json={"user_id": "u1"})
+            resp = zoho_client.post("/api/zoho-workdrive/files/list", json={})
         assert resp.status_code == 200
-        m.assert_awaited_once_with("admin-w79c", "root")
+        m.assert_awaited_once_with("admin-w79c", "root", None, None, False)
 
     def test_list_files_error_500(self, zoho_client):
         with patch("api.zoho_workdrive_routes.zoho_service.list_files",
@@ -538,9 +538,14 @@ class TestZohoListFiles:
             resp = zoho_client.post("/api/zoho-workdrive/files/list", json={"user_id": "u1"})
         assert resp.status_code == 500
 
-    def test_list_files_validation_422(self, zoho_client):
-        resp = zoho_client.post("/api/zoho-workdrive/files/list", json={})
-        assert resp.status_code == 422
+    def test_list_files_empty_body_is_valid(self, zoho_client):
+        # user_id removed from the schema (token-derived identity): all fields
+        # are optional now, so an empty body defaults to the root folder.
+        with patch("api.zoho_workdrive_routes.zoho_service.list_files",
+                   new=AsyncMock(return_value=[])) as m:
+            resp = zoho_client.post("/api/zoho-workdrive/files/list", json={})
+        assert resp.status_code == 200
+        m.assert_awaited_once_with("admin-w79c", "root", None, None, False)
 
 
 class TestZohoIngest:
