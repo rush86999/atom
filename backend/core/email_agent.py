@@ -64,7 +64,7 @@ def get_or_create_email_agent(db) -> Any:
             "tools": list(EMAIL_AGENT_TOOLS),
             "max_steps": 6,
         },
-        status="STUDENT",  # starts supervised; trains up via episodes/feedback
+        status="STUDENT",  # observe/draft-only; send_email unlocks at SUPERVISED via graduation
         confidence_score=0.5,
         enabled=True,
         is_system_agent=True,
