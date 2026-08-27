@@ -433,7 +433,7 @@ class ChatOrchestrator:
                         sticky_hint = (_p, _m)
             except Exception:
                 pass
-            ai_response = await self._get_qwen_response(message, history, routing_overrides, sticky_hint=sticky_hint, user_id=user_id)
+            ai_response = await self._get_qwen_response(message, history, routing_overrides, sticky_hint=sticky_hint, user_id=user_id, agent_id=(context or {}).get('agent_id'))
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
@@ -577,6 +577,7 @@ class ChatOrchestrator:
         routing_overrides: Optional[Dict[str, Any]] = None,
         sticky_hint: Optional[tuple] = None,
         user_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -632,10 +633,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # synced records (RED→GREEN journey fix).
                     user_workspace = resolve_user_workspace(user_id)
 
+                    logger.info(f"[MEMCTX] agent_id={agent_id!r}")
                     memory_block = await assemble_memory_context(
                         message=message,
                         workspace_id=user_workspace,
                         tenant_id=self.tenant_id,
+                        # the hire's identity → role-aware recall: records
+                        # synced FOR this employee surface first
+                        agent_id=agent_id,
                     )
                     if memory_block:
                         messages.append({"role": "system", "content": memory_block})
