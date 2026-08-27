@@ -28,8 +28,10 @@ their own paths (Letta sleep-time principle).
 """
 
 import asyncio
+import json
 import logging
 import os
+import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -147,6 +149,109 @@ async def _facts_leg(message: str, workspace_id: str) -> List[str]:
         prefetch_relevant_facts, workspace_id, message[:500], 5
     )
     return [str(getattr(f, "fact_text", "")).strip() for f in facts or [] if getattr(f, "fact_text", "")]
+
+
+_INVENTORY_RE = re.compile(
+    r"(what (data|records|files|documents|leads|info|information|knowledge)"
+    r"[^.?!]*?(ingest|have|got|know|stored)|"
+    r"what have you (ingested|been fed|stored|learned)|"
+    r"\binventory\b|data sources|list .{0,20}(sources|records|data)|"
+    r"how many (leads|records|files|documents|emails))",
+    re.IGNORECASE,
+)
+
+
+def _is_inventory_query(message: str) -> bool:
+    """True when the user asks for an inventory of ingested data — a question
+    semantic recall answers badly (it surfaces a few similar rows, not the
+    whole store)."""
+    return bool(message) and bool(_INVENTORY_RE.search(message))
+
+
+async def _inventory_leg(workspace_id: str) -> Optional[str]:
+    """Live counts of everything ingested, per integration source, with
+    record-type breakdowns. Runs in a thread (sync LanceDB I/O)."""
+
+    def _counts() -> Optional[str]:
+        # Read from the SAME store the sync pipeline writes to (the hybrid
+        # service's memory handler) — the chat-history handler resolves a
+        # different path and would report an empty world.
+        handler = None
+        try:
+            from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+
+            handler = get_hybrid_ingestion_service(workspace_id).memory_handler
+        except Exception:
+            handler = None
+        if handler is None or getattr(handler, "db", None) is None:
+            try:
+                from core.lancedb_handler import get_lancedb_handler
+
+                handler = get_lancedb_handler(workspace_id)
+            except Exception:
+                return None
+        if handler is not None and getattr(handler, "db", None) is None:
+            # lazy connection — initialize exactly like the sync pipeline does
+            try:
+                init = getattr(handler, "_ensure_db", None) or getattr(handler, "initialize", None)
+                if callable(init):
+                    init()
+            except Exception:
+                pass
+        if handler is None or getattr(handler, "db", None) is None:
+            return None
+
+        lines: List[str] = []
+        try:
+            for table_name in sorted(handler.db.table_names()):
+                if not str(table_name).startswith("integration_"):
+                    continue
+                try:
+                    tbl = handler.db.open_table(table_name)
+                    total = tbl.count_rows()
+                    if not total:
+                        continue
+                    source = str(table_name).replace("integration_", "")
+                    type_counts: Dict[str, int] = {}
+                    fresh = 0
+                    try:
+                        pdf = tbl.to_lance().to_table().to_pandas()
+                        for _, row in pdf.iterrows():
+                            try:
+                                meta = json.loads(row.get("metadata") or "{}")
+                            except Exception:
+                                meta = {}
+                            rtype = meta.get("record_type") or "record"
+                            type_counts[rtype] = type_counts.get(rtype, 0) + 1
+                            if meta.get("freshness_status") in (None, "fresh"):
+                                fresh += 1
+                    except Exception:
+                        pass
+                    breakdown = ", ".join(
+                        f"{t} {c}"
+                        for t, c in sorted(type_counts.items(), key=lambda kv: -kv[1])[:8]
+                    )
+                    lines.append(
+                        f"- {source}: {total} records{f' ({breakdown})' if breakdown else ''}"
+                        f" — {fresh} fresh"
+                    )
+                except Exception:
+                    continue
+            # communications (Outlook poller + chat ingestion)
+            try:
+                comms = handler.db.open_table("atom_communications")
+                lines.append(
+                    f"- communications (Outlook/email + chat): {comms.count_rows()} messages"
+                )
+            except Exception:
+                pass
+            return "\n".join(lines) if lines else None
+        except Exception as e:
+            logger.debug(f"inventory leg failed: {e}")
+            return None
+
+    return await asyncio.to_thread(_counts)
+
 
 
 async def _integration_records_leg(
@@ -490,6 +595,14 @@ async def assemble_memory_context(
                     break
 
         blocks: List[str] = []
+        # Inventory queries ("what data have you ingested?") need live counts,
+        # not the top-k semantically-similar rows the vector legs return.
+        if _is_inventory_query(message):
+            inventory = await _safe(_inventory_leg(workspace_id), "inventory")
+            if inventory:
+                blocks.append(
+                    "MEMORY INVENTORY (live counts of everything ingested):\n" + inventory
+                )
         if graph_ctx:
             blocks.append("KNOWLEDGE GRAPH CONTEXT:\n" + graph_ctx)
         knowledge_block = _bounded_lines(knowledge_lines or [], KNOWLEDGE_CHAR_CAP)
