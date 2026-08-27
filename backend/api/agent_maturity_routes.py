@@ -149,6 +149,14 @@ async def list_training_proposals(
             fields["session_status"] = active.status
             guidance = active.supervisor_guidance if isinstance(active.supervisor_guidance, dict) else {}
             fields["lesson_plan"] = guidance.get("lesson_plan") or guidance
+        # Student identity + trust state — the supervisor must know WHO is
+        # being trained and where they stand before scoring.
+        from core.models import AgentRegistry as _AR
+
+        agent_row = db.query(_AR).filter(_AR.id == p.agent_id).first()
+        fields["agent_tier"] = agent_row.status if agent_row else None
+        fields["agent_confidence"] = agent_row.confidence_score if agent_row else None
+        fields["agent_domain"] = ((agent_row.category if agent_row else None) or "").lower()
         return fields
 
     return {

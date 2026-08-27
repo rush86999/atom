@@ -29,6 +29,9 @@ type TrainingProposal = {
   created_at?: string;
   active_session_id?: string;
   session_status?: string;
+  agent_tier?: string;
+  agent_confidence?: number;
+  agent_domain?: string;
   lesson_plan?: {
     mentor?: string;
     domain?: string;
@@ -363,6 +366,8 @@ export default function ApprovalsPage() {
           <p className="text-sm text-gray-400 mb-4">
             Approved trainings in progress. Work with the agent (chat at /agents), then score the
             supervised pass here — completion boosts the agent's confidence and can promote it to INTERN.
+            An INTERN may then PROPOSE automated actions: those arrive in this same queue for your
+            approval, and you keep coaching it over chat the same way.
           </p>
           {proposals.filter((p) => p.active_session_id).length === 0 ? (
             <div className="rounded-xl border border-gray-800 p-6 text-center text-gray-500">
@@ -377,7 +382,46 @@ export default function ApprovalsPage() {
                   <div key={p.id} className="rounded-xl border border-emerald-800/60 bg-gray-900 p-4">
                     <div className="font-medium text-emerald-300">{p.title}</div>
                     <div className="text-xs text-gray-500 mt-1">
-                      agent {p.agent_name || String(p.agent_id).slice(0, 8)} · session {sid.slice(0, 8)} · {p.session_status}
+                      session {sid.slice(0, 8)} · {p.session_status}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="px-2 py-0.5 rounded-full bg-sky-900/40 text-sky-300">
+                        Student: {p.agent_name || String(p.agent_id).slice(0, 8)}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-gray-800 text-gray-300">
+                        tier: {p.agent_tier || "student"}
+                      </span>
+                      {typeof p.agent_confidence === "number" && (
+                        <span className="px-2 py-0.5 rounded-full bg-gray-800 text-gray-300">
+                          confidence: {p.agent_confidence.toFixed(2)}
+                        </span>
+                      )}
+                      {p.agent_domain && (
+                        <span className="px-2 py-0.5 rounded-full bg-gray-800 text-gray-300">
+                          domain: {p.agent_domain}
+                        </span>
+                      )}
+                      <span className="px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300">
+                        mentor: {p.lesson_plan?.mentor || "atom_main"}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <a
+                        href={`/chat?agent_id=${p.agent_id}`}
+                        className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-medium"
+                      >
+                        Chat with student →
+                      </a>
+                      <a
+                        href="/chat?agent_id=atom_main"
+                        className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-medium"
+                      >
+                        Ask mentor (Atom) →
+                      </a>
+                      <span className="text-xs text-gray-500 self-center">
+                        Tip: ask the mentor “how should we train the new hire on this lead?”, then run
+                        its suggestion with the student and refine.
+                      </span>
                     </div>
                     {(() => {
                       const draft = lessonDraft(sid, p.lesson_plan);
