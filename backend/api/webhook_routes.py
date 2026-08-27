@@ -120,3 +120,141 @@ async def webhook_health():
         },
         message="Webhook endpoints are healthy"
     )
+
+
+# ============================================================================
+# Zoho Flow (Zoho's automation app) — webhook ingestion
+# ============================================================================
+@router.post("/zoho-flow")
+async def zoho_flow_webhook(
+    request: Request,
+    agent_id: Optional[str] = None,
+    _check=Depends(_require_webhook_secret("ZOHOFLOW_WEBHOOK_SECRET")),
+):
+    """Ingest events pushed by a Zoho Flow (Zoho's automation/iPaaS app).
+
+    Point a Zoho Flow "Webhook" task at this URL with
+    `Authorization: Bearer $ZOHOFLOW_WEBHOOK_SECRET`. Accepts a single record
+    or `{"records": [...]}`; each record lands in agent memory
+    (role/freshness-stamped) and fires the AI trigger coordinator — so a
+    sales-domain event routes to the domain agent and hits its trust gate
+    exactly like synced data.
+    """
+    import uuid as _uuid
+    from datetime import datetime as _dt, timezone as _tz
+
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Body must be JSON")
+
+    records = payload.get("records") if isinstance(payload, dict) else None
+    if records is None:
+        records = [payload]
+    if not isinstance(records, list) or not records:
+        raise HTTPException(status_code=400, detail="No records in payload")
+
+    from core.database import SessionLocal
+    from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+    from core.vector_upsert import upsert_document
+    from core.models import AgentRegistry
+
+    # Role-scope: ?agent_id= resolves the hire's category (same rule as sync)
+    role = None
+    if agent_id:
+        db = SessionLocal()
+        try:
+            agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+            role = (agent.category or "").lower() if agent else None
+        finally:
+            db.close()
+
+    service = get_hybrid_ingestion_service("default")
+    if service.memory_handler is None:
+        await service.memory_handler.initialize() if hasattr(service.memory_handler, "initialize") else None
+
+    now = _dt.now(_tz.utc).isoformat()
+    written = 0
+    trigger_payloads = []
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        rid = str(rec.get("id") or rec.get("record_id") or _uuid.uuid4())
+        rtype = str(rec.get("type") or rec.get("module") or "event")
+        name = rec.get("name") or rec.get("subject") or rec.get("title") or rtype
+        parts = [f"{rtype.title()} from zoho_flow", f"name: {name}"]
+        for k in ("description", "summary", "status", "amount", "company", "email"):
+            if rec.get(k):
+                parts.append(f"{k}: {rec[k]}")
+        text = "\n".join(parts)
+
+        record = {
+            "id": rid,
+            "type": rtype,
+            "name": name,
+            "modified_at": rec.get("modified_time") or rec.get("modified_at"),
+        }
+
+        try:
+            from core.data_taint_tracker import classify_sensitivity
+            sensitivity = classify_sensitivity(text)
+        except Exception:
+            sensitivity = "internal"
+
+        meta = {
+            "integration_id": "zoho_flow",
+            "record_id": rid,
+            "record_type": rtype,
+            "sensitivity": sensitivity,
+            "synced_at": now,
+            "source_modified_at": record.get("modified_at"),
+            "last_verified_at": now,
+            "freshness_status": "fresh",
+        }
+        if role:
+            meta["role"] = role
+
+        status = "write_failed"
+        if service.memory_handler is not None:
+            status = await upsert_document(
+                service.memory_handler,
+                table_name="integration_zoho_flow",
+                text=text,
+                doc_id=f"rec_zoho_flow:{rid}",
+                source="zoho_flow",
+                metadata=meta,
+                user_id="system",
+            )
+        if status == "written":
+            written += 1
+        # The trigger classifier scores payload text — pass the full record
+        # (email/company/description carry the classification signal).
+        trigger_rec = dict(rec)
+        trigger_rec["id"] = rid
+        trigger_rec["type"] = rtype
+        trigger_rec.setdefault("name", name)
+        trigger_payloads.append(trigger_rec)
+
+    # Fire the domain trigger pipeline (trust gate / training proposals)
+    triggered = 0
+    try:
+        from core.ai_trigger_coordinator import on_data_ingested
+
+        for rec in trigger_payloads[:10]:  # cap trigger fan-out per push
+            await on_data_ingested(
+                rec,
+                source="zoho_flow",
+                workspace_id="default",
+                metadata={"role": role, "force_trigger": True},
+            )
+            triggered += 1
+    except Exception as trig_err:
+        logger.warning(f"zoho_flow trigger pass failed: {trig_err}")
+
+    return {
+        "success": True,
+        "received": len(records),
+        "ingested": written,
+        "triggers_fired": triggered,
+        "role": role,
+    }

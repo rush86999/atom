@@ -301,6 +301,19 @@ class AITriggerCoordinator:
         Make the trigger decision based on classification and memory insights.
         """
         memory_insights = memory_insights or {}
+
+        # Curated pushes (e.g. a Zoho Flow webhook the operator authored)
+        # declare force_trigger: they bypass the classifier's confidence band
+        # but NOT the trust gate — the interceptor still blocks STUDENT agents
+        # and routes them to training.
+        if (metadata or {}).get("force_trigger"):
+            agent_template = self.CATEGORY_TO_AGENT.get(category)
+            if agent_template:
+                return (
+                    TriggerDecision.TRIGGER_AGENT,
+                    agent_template,
+                    f"Forced trigger for {category.value} (curated source); trust gate applies downstream.",
+                )
         
         # Low confidence = no action
         if confidence < 0.3:

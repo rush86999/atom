@@ -389,6 +389,17 @@ class ChatOrchestrator:
             session_id = session_id or str(uuid.uuid4())
             session = self._get_or_create_session(user_id, session_id, context)
 
+            # Auto-title from the first user turn — untitled sessions flooded
+            # the chat sidebar as "Untitled" clones. Never overrides a title.
+            try:
+                _current = self.session_manager.get_session(session_id) if self.session_manager else None
+                if _current and not (_current.get("title") or "").strip():
+                    _title = " ".join((message or "").split())[:60]
+                    if _title:
+                        self.session_manager.rename_session(session_id, _title)
+            except Exception:
+                pass  # titling is cosmetic; never block the chat path
+
             # Build conversation history for context.
             # Session-dedup: replace byte-identical repeated text across turns
             # with reference markers (exact-match only — zero information loss).

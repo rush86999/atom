@@ -56,6 +56,12 @@ tasks then draw on that live data. The flow for every integration:
    was ingested. Blocked attempts on gated capabilities become training
    proposals (/approvals).
 
+**Zoho Flow (the automation app)** pushes events straight in: point a Flow
+"Webhook" task at `POST /api/webhooks/zoho-flow?agent_id=<hire>` with
+`Authorization: Bearer $ZOHOFLOW_WEBHOOK_SECRET`. Records ingest
+(role/freshness-stamped) and fire the domain trigger — a STUDENT hire gets
+blocked into a training proposal automatically.
+
 Supported today through the same pipeline: **zoho, onedrive, gmail,
 google_calendar, google_drive, hubspot, salesforce, slack, notion, jira,
 zendesk, shopify, telegram**. A Brennan-like stack is Zoho + Microsoft
