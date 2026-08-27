@@ -366,6 +366,18 @@ After completing this training, the agent will be able to handle similar tasks a
         confidence_boost = self._calculate_confidence_boost(outcome.performance_score)
         session.confidence_boost = confidence_boost
 
+        # Context restriction made concrete: the agent's trusted scope grows
+        # only through completed training. Developed capabilities merge into
+        # the registry's capability set (zero-trust tool gating reads it), so
+        # "run without asking" expands along exactly what was supervised.
+        if outcome.capabilities_developed:
+            current_caps = list(agent.capabilities or [])
+            merged = current_caps + [
+                c for c in outcome.capabilities_developed if c and c not in current_caps
+            ]
+            if merged != current_caps:
+                agent.capabilities = merged
+
         # Update agent confidence
         old_confidence = agent.confidence_score
         agent.confidence_score = min(1.0, agent.confidence_score + confidence_boost)
