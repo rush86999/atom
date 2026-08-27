@@ -121,8 +121,12 @@ class StudentTrainingService:
             target_maturity=AgentStatus.INTERN.value
         )
 
-        # Determine training scenario template
-        scenario_template = self._select_scenario_template(blocked_trigger)
+        # Determine training scenario template — domain-aware: the AGENT's
+        # category is authoritative (the hire was hired into a domain), with
+        # the trigger context as override.
+        scenario_template = self._select_scenario_template(
+            blocked_trigger, agent_category=agent.category
+        )
 
         # Round 86 — mentor pathway (1 of many): a qualified mentor (the meta
         # agent by default) teaches from its own verified episode record. The
@@ -537,6 +541,14 @@ After completing this training, the agent will be able to handle similar tasks a
             ).count()
             return meta if super_wins > senior_wins else senior
 
+        # Bootstrap: no graduated senior exists in this domain yet, so the
+        # first hire is trained by the meta agent itself (the architecture's
+        # "atom_main trains the first agent"). The earned-super-mentor
+        # comparison above takes over once real seniors exist — that is what
+        # stops an unproven generalist from displacing a graduated senior.
+        if senior is None:
+            return meta
+
         return senior
 
     def _build_mentor_playbook(self, agent: AgentRegistry) -> Optional[Dict[str, Any]]:
@@ -932,8 +944,16 @@ Based on multiple factors:
 
         return objectives
 
-    def _select_scenario_template(self, blocked_trigger: BlockedTriggerContext) -> str:
-        """Select appropriate training scenario template"""
+    def _select_scenario_template(
+        self,
+        blocked_trigger: BlockedTriggerContext,
+        agent_category: Optional[str] = None,
+    ) -> str:
+        """Select appropriate training scenario template.
+
+        Domain-aware: the student agent's own category wins (it was hired
+        into that domain); the trigger context is only a fallback signal.
+        """
         # Map trigger context to scenario template
         scenario_mapping = {
             "Finance": "Finance Fundamentals",
@@ -943,7 +963,11 @@ Based on multiple factors:
             "Support": "Customer Support"
         }
 
-        # Try to determine category from trigger context
+        # The hire's domain is authoritative
+        if agent_category and agent_category in scenario_mapping:
+            return scenario_mapping[agent_category]
+
+        # Fall back to the triggering data's category, when present
         if "category" in blocked_trigger.trigger_context:
             category = blocked_trigger.trigger_context["category"]
             if category in scenario_mapping:

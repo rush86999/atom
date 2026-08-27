@@ -360,8 +360,51 @@ class AITriggerCoordinator:
 
             atom = get_atom_agent(self.workspace_id)
 
-            # Spawn the agent
-            agent = await atom.spawn_agent(agent_template, persist=False)
+            # Route to the workspace's OWN persistent domain agent when one
+            # exists (e.g. the hired Sales Development Rep for sales data).
+            # Training and trust evidence must accumulate on the persistent
+            # hire — spawning an ephemeral template copy orphaned both, and a
+            # fresh copy has full-template confidence so the STUDENT trust
+            # gate never engaged.
+            agent = None
+            try:
+                from core.atom_meta_agent import SpecialtyAgentTemplate
+                from core.models import AgentRegistry as _AR
+
+                template_meta = SpecialtyAgentTemplate.TEMPLATES.get(agent_template, {})
+                domain_category = (template_meta.get("category") or "").lower()
+                if domain_category:
+                    def _resolve_domain_agent(db_session):
+                        from sqlalchemy import func as _func
+
+                        return (
+                            db_session.query(_AR)
+                            .filter(
+                                _func.lower(_AR.category) == domain_category,
+                                _AR.id.notlike("spawned_%"),
+                                _AR.enabled.is_(True),
+                            )
+                            .order_by(_AR.confidence_score.desc())
+                            .first()
+                        )
+
+                    if self.db is not None:
+                        candidate = _resolve_domain_agent(self.db)
+                    else:
+                        from core.database import get_db_session
+
+                        with get_db_session() as _db:
+                            candidate = _resolve_domain_agent(_db)
+                    if candidate:
+                        agent = candidate
+                        logger.info(
+                            f"AI Coordinator routing '{agent_template}' data to persistent domain agent {candidate.id} ({candidate.name})"
+                        )
+            except Exception as resolve_err:
+                logger.debug(f"Domain-agent resolution failed, falling back to spawn: {resolve_err}")
+
+            if agent is None:
+                agent = await atom.spawn_agent(agent_template, persist=False)
 
             # ========================================================================
             # NEW: Maturity-Based Trigger Interception

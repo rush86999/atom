@@ -126,11 +126,28 @@ async def list_training_proposals(
         # Learning fields live inside the proposal_data JSON column (there are
         # no capability_gaps/learning_objectives columns on the model).
         data: Dict[str, Any] = p.proposal_data if isinstance(p.proposal_data, dict) else {}
-        return {
+        fields = {
             "capability_gaps": data.get("capability_gaps", []),
             "learning_objectives": data.get("learning_objectives", []),
             "estimated_duration_hours": data.get("estimated_duration_hours"),
         }
+        # Active training session, when this proposal was approved — the
+        # supervisor completes the session (score + feedback) from the UI.
+        from core.models import TrainingSession as _TS
+
+        active = (
+            db.query(_TS)
+            .filter(
+                _TS.proposal_id == p.id,
+                _TS.status.in_(["scheduled", "active", "in_progress", "pending"]),
+            )
+            .order_by(_TS.started_at.desc())
+            .first()
+        )
+        if active:
+            fields["active_session_id"] = active.id
+            fields["session_status"] = active.status
+        return fields
 
     return {
         "proposals": [
