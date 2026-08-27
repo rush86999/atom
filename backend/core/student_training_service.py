@@ -104,6 +104,40 @@ class StudentTrainingService:
         if not agent:
             raise ValueError(f"Agent {blocked_trigger.agent_id} not found")
 
+        # Duplicate guard: repeated blocked triggers of the same domain used
+        # to stack identical proposals (approve one, another waits, sessions
+        # multiply for the same capability gap). One open front per agent:
+        # a pending proposal OR an approved proposal with an un-started/
+        # scheduled session returns the existing front instead of a clone.
+        from core.models import AgentProposal as _AP, ProposalStatus as _PS, TrainingSession as _TS
+
+        open_front = (
+            self.db.query(_AP)
+            .filter(
+                _AP.agent_id == agent.id,
+                _AP.proposal_type == "workflow",
+                _AP.status.in_([_PS.PENDING_APPROVAL.value, _PS.APPROVED.value]),
+            )
+            .order_by(_AP.created_at.desc())
+            .first()
+        )
+        if open_front:
+            has_open_session = (
+                self.db.query(_TS)
+                .filter(
+                    _TS.proposal_id == open_front.id,
+                    _TS.status.in_(["scheduled", "active", "in_progress", "pending"]),
+                )
+                .first()
+                is not None
+            ) if open_front.status == _PS.APPROVED.value else False
+            logger.info(
+                f"Duplicate training trigger for {agent.id}: returning open "
+                f"proposal {open_front.id} (status={open_front.status}, "
+                f"open_session={has_open_session}) instead of creating a clone"
+            )
+            return open_front
+
         # Identify capability gaps based on trigger context
         capability_gaps = await self._identify_capability_gaps(
             agent, blocked_trigger
