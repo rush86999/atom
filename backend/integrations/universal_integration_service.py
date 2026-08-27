@@ -588,11 +588,20 @@ class UniversalIntegrationService:
                     max_results=int(params.get("max_results") or params.get("limit") or 50),
                     token=token,
                 )
-                return {"status": "success", "data": messages}
+                # P1: fetched email content must ride inside the untrusted
+                # delimiters (like the webhook subject) so attacker-authored
+                # instructions cannot steer the model prompt.
+                from core.email_policy import spotlight_message_results
+
+                return {"status": "success", "data": spotlight_message_results(messages)}
             elif action == "get_message":
+                from core.email_policy import spotlight_message_results
+
                 return {
                     "status": "success",
-                    "data": await comm_service.get_email_by_id(user_id, params.get("id"), token=token),
+                    "data": spotlight_message_results(
+                        await comm_service.get_email_by_id(user_id, params.get("id"), token=token)
+                    ),
                 }
             else:
                 return {"status": "error", "message": f"Unsupported outlook action: {action}"}

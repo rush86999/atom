@@ -314,6 +314,26 @@ def spotlight_email_content(
     return f"{UNTRUSTED_OPEN}\n{header}{_sanitize_spotlight(body)}\n{UNTRUSTED_CLOSE}"
 
 
+def spotlight_message_results(messages: Any) -> str:
+    """Serialized fetched-email results wrapped in provenance delimiters.
+
+    P1: when the agent retrieves a message via search_emails/get_message, the
+    raw Outlook result must ride inside the untrusted delimiters (like the
+    webhook subject) so attacker-authored content cannot steer triage, drafts
+    or persisted output. Delimiters inside the content are sanitized.
+    """
+    if isinstance(messages, str):
+        raw = messages
+    else:
+        try:
+            import json as _json
+
+            raw = _json.dumps(messages, default=str)
+        except Exception:  # pragma: no cover - defensive
+            raw = str(messages)
+    return spotlight_email_content(raw)
+
+
 def is_valid_recipient(recipient: str) -> bool:
     """Basic syntactic email validation (deterministic schema guard)."""
     return bool(recipient and _EMAIL_RE.match(recipient.strip()))

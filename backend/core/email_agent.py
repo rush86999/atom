@@ -36,16 +36,35 @@ EMAIL_AGENT_SYSTEM_PROMPT = (
 EMAIL_AGENT_TOOLS = ["send_email", "search_emails", "draft_response"]
 
 
-def get_or_create_email_agent(db) -> Any:
-    """Seed (or fetch) the email assistant AgentRegistry row. Idempotent."""
+def email_agent_id_for(tenant_id: str) -> str:
+    """Tenant-scoped registry id: one maturity/permission row per tenant.
+
+    A single shared row would let one tenant's graduation/feedback move
+    another tenant's agent permissions (P1 — governance crosses tenants).
+    """
+    tenant_id = (tenant_id or "default").strip()
+    if not tenant_id or tenant_id == "default":
+        return EMAIL_AGENT_ID
+    return f"{EMAIL_AGENT_ID}_{tenant_id}"
+
+
+def get_or_create_email_agent(db, tenant_id: str = "default") -> Any:
+    """Seed (or fetch) the email assistant AgentRegistry row. Idempotent.
+
+    One row per tenant (``email_agent`` for default, ``email_agent_<tenant>``
+    otherwise) so maturity/confidence/governance are never shared across
+    tenants.
+    """
     from core.models import AgentRegistry
 
-    agent = db.query(AgentRegistry).filter(AgentRegistry.id == EMAIL_AGENT_ID).first()
+    tenant_id = tenant_id or "default"
+    agent_id = email_agent_id_for(tenant_id)
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
     if agent:
         return agent
 
     agent = AgentRegistry(
-        id=EMAIL_AGENT_ID,
+        id=agent_id,
         name="email_assistant",
         display_name="Email Assistant",
         handle="email",
@@ -68,12 +87,12 @@ def get_or_create_email_agent(db) -> Any:
         confidence_score=0.5,
         enabled=True,
         is_system_agent=True,
-        tenant_id="default",
+        tenant_id=tenant_id,
     )
     db.add(agent)
     db.commit()
     db.refresh(agent)
-    logger.info("Seeded email agent %s", EMAIL_AGENT_ID)
+    logger.info("Seeded email agent %s (tenant=%s)", agent_id, tenant_id)
     return agent
 
 
@@ -107,13 +126,14 @@ async def dispatch_for_incoming_email(
             return
 
         with get_db_session() as db:
-            agent_model = get_or_create_email_agent(db)
+            agent_model = get_or_create_email_agent(db, tenant_id)
 
         # Webhook-derived fields are UNTRUSTED data — the subject (attacker-
         # controllable via a crafted message) must ride inside the provenance
         # delimiters, never as a raw instruction in the task text (P2).
         task = build_email_task(subject=subject_hint or "")
         context: Dict[str, Any] = {
+            "agent_id": agent_model.id,
             "tenant_id": tenant_id or "default",
             "workspace_id": workspace_id or "default",
             "user_id": user_id or "default_user",
