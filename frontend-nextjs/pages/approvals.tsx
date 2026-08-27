@@ -33,6 +33,87 @@ type TrainingProposal = {
 
 const API = process.env.NEXT_PUBLIC_API_URL || "";
 
+/** First-time walkthrough for the very first training session, login to
+ * graduation. Dismissible; remembers dismissal for the browser. */
+const TRAINING_GUIDE_KEY = "atom_training_guide_dismissed";
+
+const TrainingGuide: React.FC = () => {
+    const [open, setOpen] = React.useState(false);
+    const [ready, setReady] = React.useState(false);
+
+    React.useEffect(() => {
+        if (typeof window === "undefined") return;
+        setOpen(window.localStorage.getItem(TRAINING_GUIDE_KEY) !== "1");
+        setReady(true);
+    }, []);
+
+    if (!ready) return null;
+
+    return (
+        <div className="mb-8 rounded-xl border border-indigo-800/60 bg-indigo-950/30 p-5">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <h2 className="text-lg font-semibold text-indigo-200">
+                        First training session — walkthrough
+                    </h2>
+                    <p className="text-sm text-gray-400 mt-1">
+                        Your new hire is a STUDENT. It cannot act on real data until you
+                        supervise a training pass and score it. Six steps, login to promotion.
+                    </p>
+                </div>
+                <button
+                    onClick={() => {
+                        window.localStorage.setItem(TRAINING_GUIDE_KEY, "1");
+                        setOpen(false);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 shrink-0"
+                >
+                    Hide guide
+                </button>
+            </div>
+            {open && (
+                <ol className="mt-4 space-y-3 text-sm text-gray-300 list-decimal list-inside">
+                    <li>
+                        <span className="font-medium text-gray-100">Sign in</span> at{" "}
+                        <a href="/login" className="text-sky-400 hover:underline">/login</a> with your
+                        supervisor account (must be TEAM_LEAD+ to decide trainings).
+                    </li>
+                    <li>
+                        <span className="font-medium text-gray-100">Approve the proposal</span> — below
+                        under <em>Training Proposals</em>, review what it was blocked from and its
+                        capability gaps, then click <span className="text-emerald-400 font-medium">Approve</span>.
+                        This opens a training session.
+                    </li>
+                    <li>
+                        <span className="font-medium text-gray-100">Train it on real work</span> — open{" "}
+                        <a href="/agents" className="text-sky-400 hover:underline">/agents</a>, run the
+                        hire on a genuine task (e.g. “Review the newest leads and draft outreach for the
+                        top one”). Correct its drafts, approve its access requests, iterate. Each
+                        supervised session is recorded as an episode.
+                    </li>
+                    <li>
+                        <span className="font-medium text-gray-100">Score the pass</span> — come back
+                        here to <em>Active Training Sessions</em>, fill in performance (be honest — the
+                        trust math uses it), tasks completed/total, errors, and written feedback, then
+                        click <span className="text-sky-400 font-medium">Complete Training Session</span>.
+                    </li>
+                    <li>
+                        <span className="font-medium text-gray-100">Repeat ×3</span> — promotion needs
+                        3 supervised sessions plus work episodes at a ≥ 0.7 success ratio (thresholds
+                        auto-tune per domain as history builds).
+                    </li>
+                    <li>
+                        <span className="font-medium text-gray-100">Graduation</span> — when the gate
+                        clears, the agent is promoted to INTERN automatically: it may then run, asking
+                        your approval per automated action, and it can help mentor the next hire in
+                        this domain.
+                    </li>
+                </ol>
+            )}
+        </div>
+    );
+};
+
 export default function ApprovalsPage() {
   const [actions, setActions] = useState<PendingAction[]>([]);
   const [proposals, setProposals] = useState<TrainingProposal[]>([]);
@@ -182,6 +263,8 @@ export default function ApprovalsPage() {
           Actions paused for human approval. Agents wait here until a decision is made.
         </p>
 
+        <TrainingGuide />
+
         {error && <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-700 text-sm">{error}</div>}
         {notice && <div className="mb-4 p-3 rounded-lg bg-emerald-900/40 border border-emerald-700 text-sm">{notice}</div>}
 
@@ -317,7 +400,7 @@ export default function ApprovalsPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {proposals.filter((p) => p.status === "pending").map((p) => (
+              {proposals.filter((p) => p.status === "pending" || p.status === "pending_approval").map((p) => (
                 <div key={p.id} className="rounded-xl border border-sky-800/60 bg-gray-900 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
