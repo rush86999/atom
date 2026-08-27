@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from 'next/router';
 import { Button } from "../../components/ui/button";
 import { Menu, PanelRightOpen, X } from "lucide-react";
@@ -14,11 +14,20 @@ const ChatPage = () => {
     // Restore the last active session after a page reload so the conversation
     // isn't lost (the chat sidebar lists sessions, but the middle pane should
     // resume where the user left off).
-    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(() => {
-        if (typeof window === "undefined") return null;
-        const saved = window.localStorage.getItem("atom_chat_session_id");
-        return saved && saved !== "new" ? saved : null;
-    });
+    // Mount-guarded: reading localStorage during initial render produced
+    // server/client hydration mismatches ("Text content does not match").
+    // Start empty; restore the last session right after mount.
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const saved =
+            typeof window === "undefined"
+                ? null
+                : window.localStorage.getItem("atom_chat_session_id");
+        if (saved && saved !== "new") {
+            setSelectedSessionId(saved);
+        }
+    }, []);
     // Mobile drawer state.
     const [showSidebar, setShowSidebar] = useState(false);
     const [showWorkspace, setShowWorkspace] = useState(false);
