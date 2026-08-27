@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { getAuthToken } from "@/lib/identity";
+import { getAuthToken, getCurrentUserId } from "@/lib/identity";
 
 /**
  * Approvals — the HITL queue (gap #4).
@@ -274,6 +274,60 @@ export default function ApprovalsPage() {
     }
   };
 
+  const [taskSuggestions, setTaskSuggestions] = useState<Record<string, { text: string; sending?: boolean }>>({});
+
+  const updateTaskSuggestion = (sid: string, patch: Partial<{ text: string; sending: boolean }>) =>
+    setTaskSuggestions((prev) => ({
+      ...prev,
+      [sid]: { text: "", ...(prev[sid] || {}), ...patch },
+    }));
+
+  // Supervisor suggests a task for the hire: lands in the lesson plan (so the
+  // training record shows it) AND goes straight to the agent over chat —
+  // agent-tagged, so the supervised pass is recorded as an episode.
+  const suggestTask = async (p: TrainingProposal, sid: string) => {
+    const st = taskSuggestions[sid];
+    const text = (st?.text || "").trim();
+    if (!text) return;
+    setTaskSuggestions((prev) => ({ ...prev, [sid]: { text, sending: true } }));
+    try {
+      const res = await fetch(`${API}/api/chat/message`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({
+          message: `Supervisor task: ${text}`,
+          user_id: getCurrentUserId(),
+          session_id: `training-chat-${sid}`,
+          agent_id: p.agent_id,
+        }),
+      });
+      if (!res.ok) {
+        setError(`Task send failed (${res.status}).`);
+        setTaskSuggestions((prev) => ({ ...prev, [sid]: { text, sending: false } }));
+        return;
+      }
+      // record it in the lesson plan for the training record
+      try {
+        const plan = p.lesson_plan || {};
+        const tasks = [...(plan.tasks || []), `Supervisor task: ${text}`];
+        await fetch(`${API}/api/maturity/training/sessions/${sid}/guidance`, {
+          method: "PATCH",
+          headers: headers(),
+          body: JSON.stringify({
+            lesson_plan: { ...plan, tasks },
+            supervisor_note: `Supervisor suggested task: ${text}`,
+          }),
+        });
+      } catch { /* lesson persistence is best-effort */ }
+      setNotice(`Task sent to ${p.agent_name || "the agent"}. It will work it in the training chat.`);
+      setTaskSuggestions((prev) => ({ ...prev, [sid]: { text: "", sending: false } }));
+      loadProposals();
+    } catch (e) {
+      setError(`Task send failed: ${String(e)}`);
+      setTaskSuggestions((prev) => ({ ...prev, [sid]: { text, sending: false } }));
+    }
+  };
+
   const updateSessionForm = (sid: string, patch: Partial<{ performance_score: string; supervisor_feedback: string; tasks_completed: string; total_tasks: string; errors_count: string }>) =>
     setSessionForms((prev) => ({
       ...prev,
@@ -524,6 +578,29 @@ export default function ApprovalsPage() {
                         </div>
                       );
                     })()}
+                    <div className="mt-3">
+                      {(() => {
+                        const st = taskSuggestions[sid] || { text: "", sending: false };
+                        return (
+                          <div className="flex gap-2">
+                            <input
+                              value={st.text}
+                              onChange={(e) => updateTaskSuggestion(sid, { text: e.target.value })}
+                              onKeyDown={(e) => { if (e.key === "Enter" && !st.sending) suggestTask(p, sid); }}
+                              placeholder="Suggest a training task… e.g. Qualify the Northline lead over email"
+                              className="flex-1 px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-sm text-gray-200"
+                            />
+                            <button
+                              onClick={() => suggestTask(p, sid)}
+                              disabled={st.sending || !st.text.trim()}
+                              className="px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-xs font-medium disabled:opacity-50"
+                            >
+                              {st.sending ? "Sending…" : "Suggest task"}
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
                       <label className="text-xs text-gray-400">
                         Performance (0–1)
