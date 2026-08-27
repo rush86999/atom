@@ -95,10 +95,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 title: `Draft — ${String(lastAssistant.content).slice(0, 60)}`,
                 session_id: sessionId,
                 agent_id: initialAgentId,
-            });
+            }, { timeout: 30000 });
             if (res.data?.url) {
                 window.location.href = res.data.url;
             }
+        } catch {
+            // backend may still be processing; the canvas is created server-side
         } finally {
             setOpeningCanvas(false);
         }
