@@ -18,6 +18,8 @@ from fastapi import Depends
 from core.auth import get_current_user
 from core.llm.routing_overrides import parse_routing_overrides
 from core.models import User
+from core.database import get_db
+from sqlalchemy.orm import Session as _Session
 from core.personal_scope import PERSONAL_TENANT_ID as CHAT_ROUTING_TENANT_KEY
 
 # Configure logging
@@ -808,7 +810,7 @@ async def get_routing_stats(
 async def chat_draft_to_canvas(
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: _Session = Depends(get_db),
 ):
     """Expand a chat draft into a co-editable canvas (training surface).
 
