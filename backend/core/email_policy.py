@@ -41,6 +41,30 @@ BLOCK = "block"
 UNTRUSTED_OPEN = "[UNTRUSTED_EMAIL]"
 UNTRUSTED_CLOSE = "[/UNTRUSTED_EMAIL]"
 
+# Inert stand-ins used when the reserved markers appear INSIDE untrusted
+# content: an attacker-controlled subject/body containing the closing marker
+# would otherwise terminate the block early and place instruction-like text
+# OUTSIDE the provenance region (P1 — delimiter-escape injection).
+_UNTRUSTED_OPEN_SAFE = "[UNTRUSTED_EMAIL-MARKER]"
+_UNTRUSTED_CLOSE_SAFE = "[/UNTRUSTED_EMAIL-MARKER]"
+
+
+def _sanitize_spotlight(content: str) -> str:
+    """Neutralize reserved delimiters inside untrusted content."""
+    if not content:
+        return ""
+    return (
+        str(content)
+        .replace(UNTRUSTED_CLOSE, _UNTRUSTED_CLOSE_SAFE)
+        .replace(UNTRUSTED_OPEN, _UNTRUSTED_OPEN_SAFE)
+    )
+
+
+def _sanitize_header(value: str) -> str:
+    """Single-line header field: no CR/LF so a crafted sender/subject cannot
+    forge extra header lines, then neutralize the reserved markers too."""
+    return _sanitize_spotlight(re.sub(r"[\r\n]+", " ", str(value or "")).strip())
+
 _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
@@ -208,15 +232,21 @@ def spotlight_email_content(
 
     The wrapped block is DATA — the model must never treat instructions
     inside it as authoritative. Used when feeding fetched emails to an agent.
+
+    All attacker-controlled fields are sanitized before wrapping: reserved
+    delimiters inside the content are neutralized (a crafted subject/body
+    containing the closing marker cannot terminate the block early), and
+    header fields (sender/subject) are collapsed to a single line so they
+    cannot forge extra header lines.
     """
     parts = []
     if sender:
-        parts.append(f"from: {sender}")
+        parts.append(f"from: {_sanitize_header(sender)}")
     if subject:
-        parts.append(f"subject: {subject}")
+        parts.append(f"subject: {_sanitize_header(subject)}")
     header_line = " · ".join(parts)
     header = f"{header_line}\n" if header_line else ""
-    return f"{UNTRUSTED_OPEN}\n{header}{body or ''}\n{UNTRUSTED_CLOSE}"
+    return f"{UNTRUSTED_OPEN}\n{header}{_sanitize_spotlight(body)}\n{UNTRUSTED_CLOSE}"
 
 
 def is_valid_recipient(recipient: str) -> bool:

@@ -191,6 +191,15 @@ class TestTierFloorEmailTools:
         allowed = resolve_allowed_tools(self._agent(["search_emails"], "STUDENT"))
         assert "search_emails" in allowed
 
+    def test_student_can_draft(self):
+        """STUDENT = observe/draft-only (role-training-plan): the triage-and-
+        draft workflow must complete on the webhook path without INTERN yet
+        (greptile P1: draft_response only in the INTERN floor)."""
+        from core.capability_resolver import resolve_allowed_tools
+
+        allowed = resolve_allowed_tools(self._agent(["draft_response"], "STUDENT"))
+        assert "draft_response" in allowed
+
     def test_student_cannot_send_email(self):
         from core.capability_resolver import resolve_allowed_tools
 

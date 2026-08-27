@@ -92,6 +92,11 @@ TIER_FLOOR_TOOL_WHITELISTS: Dict[str, Tuple[str, ...]] = {
         "search_reasoning_steps_lexical",
         # Read-only email triage (search over ingested communications).
         "search_emails",
+        # STUDENT = observe/draft-only (role-training-plan): drafting is the
+        # proposal-stage artifact with no external side effect; SEND stays
+        # gated at SUPERVISED. Without it the webhook-driven triage-and-
+        # draft workflow cannot complete at STUDENT.
+        "draft_response",
     ),
     "intern": (
         "canvas_render",
