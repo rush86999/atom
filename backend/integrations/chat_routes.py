@@ -802,3 +802,61 @@ async def get_routing_stats(
     except Exception as e:
         logger.warning(f"Failed to get routing stats: {e}")
         return {"enabled": enabled, "ema_enabled": ema_enabled, "stats": {"error": str(e)}}
+
+
+@router.post("/to-canvas")
+async def chat_draft_to_canvas(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Expand a chat draft into a co-editable canvas (training surface).
+
+    Supervisor trains the hire by editing the draft ON the canvas; the
+    original agent draft stays in the audit trail so the edit-diff is the
+    learning signal.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Body must be JSON")
+
+    content = body.get("content") or ""
+    title = (body.get("title") or "Chat draft").strip()[:200]
+    session_id = body.get("session_id")
+    agent_id = body.get("agent_id")
+
+    if not content.strip():
+        raise HTTPException(status_code=400, detail="content is required")
+
+    import uuid as _uuid
+    from core.models import Canvas, CanvasAudit
+
+    canvas_id = str(_uuid.uuid4())
+    canvas = Canvas(
+        id=canvas_id,
+        tenant_id=current_user.tenant_id or "default",
+        workspace_id=current_user.workspaces[0].id if getattr(current_user, "workspaces", None) else "default",
+        created_by=current_user.id,
+        name=title,
+        canvas_type="document",
+        content={"type": "doc", "content": content},
+        status="active",
+    )
+    db.add(canvas)
+    db.commit()
+
+    audit = CanvasAudit(
+        canvas_id=canvas_id,
+        tenant_id=canvas.tenant_id,
+        session_id=session_id,
+        agent_id=agent_id,
+        canvas_type="document",
+        action_type="create",
+        user_id=current_user.id,
+        details_json={"source": "chat_to_canvas", "title": title},
+    )
+    db.add(audit)
+    db.commit()
+
+    return {"success": True, "canvas_id": canvas_id, "url": f"/canvas/{canvas_id}"}

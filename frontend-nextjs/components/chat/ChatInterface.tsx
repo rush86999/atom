@@ -82,6 +82,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
 
     const showEmptyState = messages.length === 0 && !providerError;
 
+    // Expand the latest assistant draft into a co-editable canvas
+    const [openingCanvas, setOpeningCanvas] = React.useState(false);
+    const lastAssistant = [...messages].reverse().find((m) => m.type === "assistant" && m.content?.trim());
+    const openInCanvas = async () => {
+        if (!lastAssistant || openingCanvas) return;
+        setOpeningCanvas(true);
+        try {
+            const { apiClient } = await import("../../lib/api-client");
+            const res = await apiClient.post("/api/chat/to-canvas", {
+                content: lastAssistant.content,
+                title: `Draft — ${String(lastAssistant.content).slice(0, 60)}`,
+                session_id: sessionId,
+                agent_id: initialAgentId,
+            });
+            if (res.data?.url) {
+                window.location.href = res.data.url;
+            }
+        } finally {
+            setOpeningCanvas(false);
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-background relative" data-testid="chat-container">
             <VoiceModeOverlay
@@ -183,6 +205,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 toast={toast}
                 messagesCount={messages.length}
             />
+
+            {/* Expand the latest draft into a co-editable canvas (training surface) */}
+            {lastAssistant && !isProcessing && (
+                <div className="mx-4 mb-2 flex justify-end">
+                    <button
+                        onClick={openInCanvas}
+                        disabled={openingCanvas}
+                        className="px-3 py-1.5 rounded-lg border border-sky-500 text-sky-400 hover:bg-sky-950/40 text-xs font-medium disabled:opacity-50"
+                    >
+                        {openingCanvas ? "Opening…" : "Open latest draft in canvas"}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

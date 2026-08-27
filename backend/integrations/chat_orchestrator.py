@@ -9,6 +9,7 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 - Cross-platform workflow execution
 """
 import logging
+import re
 from enum import Enum
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
@@ -200,6 +201,19 @@ class ChatIntent(Enum):
     BUSINESS_HEALTH = "business_health"
     CRM = "crm"
     AGENT_REQUEST = "agent_request"  # Phase 30: Request that needs Atom Meta-Agent
+
+
+
+
+_EMAIL_SEARCH_RE = re.compile(
+    r"(find|search|look up|locate|check).{0,40}(email|mail)|"
+    r"(email|mail).{0,30}(from|about|regarding)|did you (ingest|receive|get).{0,40}email",
+    re.IGNORECASE,
+)
+
+
+def _is_email_search_query(message: str) -> bool:
+    return bool(message) and bool(_EMAIL_SEARCH_RE.search(message))
 
 
 class ChatOrchestrator:
@@ -644,10 +658,40 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     if memory_block:
                         messages.append({"role": "system", "content": memory_block})
+
             except Exception as e:
                 # A silent failure here makes ALL ingested integration data
                 # invisible at chat time (no error, empty memory) — warn, don't debug.
                 logger.warning(f"memory context assembly skipped: {e}")
+
+            # Email lookup via the EXISTING hybrid stack (text + semantic +
+            # rerank over the ingested mail memory) — no live Graph call, no
+            # rate-limit storms. Read-only: safe for every tier; mutations
+            # stay gated by maturity/capability elsewhere.
+            if agent_id and _is_email_search_query(message):
+                try:
+                    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+                    _res = await DocumentsHybridSearch().search(
+                        query=message[:500], limit=6
+                    )
+                    _hits = (res or {}).get("results", []) or []
+                    if _hits:
+                        _listing = "\n".join(
+                            f"- [{h.get('source','')}] {h.get('title','')}: "
+                            f"{str(h.get('preview',''))[:160]}"
+                            for h in _hits
+                        )
+                        messages.append({
+                            "role": "system",
+                            "content": (
+                                "MAILBOX SEARCH RESULTS (hybrid text+semantic over "
+                                "ingested email memory — use these to answer):\n"
+                                + _listing
+                            ),
+                        })
+                except Exception as email_err:
+                    logger.warning(f"hybrid email search failed: {email_err}")
 
             # Add conversation history
             for h in history:
