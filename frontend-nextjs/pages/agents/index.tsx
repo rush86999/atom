@@ -31,6 +31,7 @@ import { Brain } from "lucide-react";
 import ReasoningChainViewer from "@/components/ReasoningChainViewer";
 import { useProviderStatus } from "@/hooks/useProviderStatus";
 import { ProviderRequiredBanner } from "@/components/shared/ProviderRequiredBanner";
+import { handleSessionExpired } from "@/lib/auth-headers";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -151,9 +152,10 @@ const AgentsDashboard = () => {
                 const data = Array.isArray(json) ? json : (json.data ?? []);
                 setAgents(data.map(normalizeAgent));
             } else if (res.status === 401 || res.status === 403) {
-                setError("Unauthorized: Session expired. Redirecting...");
-                localStorage.removeItem('auth_token'); // Clear invalid token
-                router.push('/login');
+                // Token no longer valid (expired/revoked) — clear it and go
+                // to login, same behavior as the axios 401 interceptor.
+                setError("Session expired. Redirecting to login...");
+                handleSessionExpired();
             } else {
                 // Surface the backend's structured error (W45): the list
                 // endpoint now returns {error: {message}} on failure so the
@@ -196,6 +198,10 @@ const AgentsDashboard = () => {
                     const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(a.id)}/graduation-progress`, {
                         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                     });
+                    if (res.status === 401 || res.status === 403) {
+                        handleSessionExpired();
+                        return;
+                    }
                     if (res.ok) {
                         const json = await res.json();
                         map[a.id] = (json?.data ?? json) as GraduationProgress;
@@ -249,6 +255,10 @@ const AgentsDashboard = () => {
                 });
                 setIsRunDialogOpen(false); // Close dialog on success
             } else {
+                if (res.status === 401 || res.status === 403) {
+                    handleSessionExpired();
+                    return;
+                }
                 const err = await res.json();
                 const message = extractErrorMessage(err, 'Unknown error');
                 toast({ title: "Failed to start", description: message, variant: "error" });
@@ -280,6 +290,10 @@ const AgentsDashboard = () => {
                 setLogs(prev => [...prev, "Termination requested by user..."]);
                 fetchAgents();
             } else {
+                if (res.status === 401 || res.status === 403) {
+                    handleSessionExpired();
+                    return;
+                }
                 const err = await res.json();
                 toast({ title: "Failed to stop", description: extractErrorMessage(err, 'Unknown error'), variant: "error" });
             }
@@ -341,6 +355,10 @@ const AgentsDashboard = () => {
                 })
             });
 
+            if (res.status === 401 || res.status === 403) {
+                handleSessionExpired();
+                return;
+            }
             if (res.ok) {
                 toast({ title: "Feedback Recorded", description: "The agent will learn from this correction." });
             }
@@ -370,6 +388,10 @@ const AgentsDashboard = () => {
                 setIsEditDialogOpen(false);
                 fetchAgents();
             } else {
+                if (res.status === 401 || res.status === 403) {
+                    handleSessionExpired();
+                    return;
+                }
                 const err = await res.json();
                 toast({ title: "Failed to update", description: extractErrorMessage(err, 'Unknown error'), variant: "error" });
             }

@@ -25,3 +25,24 @@ export function authHeaders(
   }
   return headers;
 }
+
+/**
+ * Clear an invalid session and bounce to /login. Raw fetch() calls bypass
+ * the axios 401 interceptor in lib/api.ts (which does exactly this), so
+ * fetch-based callers must invoke this themselves when the backend rejects
+ * their token (401/403). No-op on auth pages to avoid a redirect loop.
+ *
+ * Returns true when a redirect was started so callers can bail out of
+ * in-flight handlers.
+ */
+export function handleSessionExpired(): boolean {
+  if (typeof window === "undefined") return false;
+  const path = window.location.pathname;
+  if (path.startsWith("/login") || path.startsWith("/auth/")) {
+    return false;
+  }
+  window.localStorage.removeItem("auth_token");
+  window.localStorage.removeItem("token");
+  window.location.href = `/login?callbackUrl=${encodeURIComponent(window.location.href)}`;
+  return true;
+}

@@ -454,6 +454,18 @@ class ChatOrchestrator:
                 return {"success": False, "message": "Request cancelled by user.",
                         "session_id": session_id, "cancelled": True}
 
+            # CRM write dispatch: when chatting AS a domain agent and the
+            # message is a CRM mutation, execute it directly through the
+            # Zoho adapter instead of hoping the LLM does it.
+            if agent_id and context and context.get("agent_id"):
+                _crm_result = await self._try_zoho_crm_write(message, context, user_id)
+                if _crm_result is not None:
+                    return {
+                        "success": True,
+                        "message": _crm_result,
+                        "session_id": session_id,
+                    }
+
             # 2. Analyze intent using AI NLP (for routing)
             intent_analysis = await self._analyze_intent(message, session)
 
@@ -738,6 +750,77 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.warning(f"Unified conversational response failed: {e}")
             return None
 
+    async def _try_zoho_crm_write(self, message: str, context: Dict[str, Any], user_id: str) -> Optional[str]:
+        """Detect CRM mutations in a chat message and execute them via Zoho.
+
+        Returns a human-readable confirmation string, or None if the message
+        doesn't contain a recognisable CRM operation.
+        """
+        import re as _re
+        from core.integrations.adapters.zoho import ZohoAdapter
+        from core.models import IntegrationToken
+
+        lower = message.lower()
+        is_create = "create" in lower or "add" in lower or "new lead" in lower
+        is_update = "update" in lower or "change" in lower
+        if not (is_create or is_update):
+            return None
+
+        if not any(k in lower for k in ("lead", "deal", "contact")):
+            return None
+
+        # extract name
+        name_match = _re.search(
+            r"(?:for|named|called)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)", message
+        )
+        person = name_match.group(1) if name_match else None
+
+        # extract email
+        email_match = _re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", message)
+        email = email_match.group(0) if email_match else None
+
+        # extract company
+        company_match = _re.search(r"at\s+([A-Z][\w !&]+?)(?:,|\.|$|\s+email|\s+phone)", message)
+        company = company_match.group(1).strip() if company_match else None
+
+        if not person and not email:
+            return None
+
+        db = SessionLocal()
+        try:
+            token = db.query(IntegrationToken).filter(
+                IntegrationToken.provider == "zoho",
+                IntegrationToken.status == "active",
+            ).first()
+            if not token:
+                return None
+            instance_url = token.instance_url or None
+            db.close()
+
+            adapter = ZohoAdapter(workspace_id="default", instance_url=instance_url)
+            await adapter.ensure_token()
+
+            if "create" in lower or "new lead" in lower or "add" in lower:
+                lead_data = {}
+                if email:
+                    lead_data["Email"] = email
+                if person:
+                    parts = person.split(" ", 1)
+                    lead_data["First_Name"] = parts[0]
+                    if len(parts) > 1:
+                        lead_data["Last_Name"] = parts[1]
+                    else:
+                        lead_data["Last_Name"] = parts[0]
+                if company:
+                    lead_data["Company"] = company
+                result = await adapter.create_lead(lead_data)
+                if result:
+                    return f"Created Zoho CRM lead: {person or 'New lead'} ({email or 'no email'}) — ID: {result.get('id', 'new')}"
+
+            return None
+        except Exception as e:
+            logger.warning(f"Zoho CRM write failed: {e}")
+            return None
 
     async def _analyze_intent(self, message: str, session: Dict) -> Dict[str, Any]:
         """Analyze user intent using AI NLP engine"""

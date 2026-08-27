@@ -356,6 +356,58 @@ class ZohoAdapter:
             logger.error(f"Zoho {module} organizations fetch failed: {e}")
             return []
 
+    # --- Write operations (agent-managed CRM mutations) ---
+
+    async def create_lead(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        base_url = self._get_base_url("crm")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{base_url}/Leads",
+                headers={"Authorization": f"Zoho-oauthtoken {self._access_token}"},
+                json={"data": [data]}
+            )
+            response.raise_for_status()
+            result = response.json()
+            if result.get("data") and result["data"][0].get("code") == "SUCCESS":
+                return {"id": result["data"][0]["details"]["id"], "status": "created"}
+            return None
+
+    async def update_lead(self, lead_id: str, fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        base_url = self._get_base_url("crm")
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                f"{base_url}/Leads/{lead_id}",
+                headers={"Authorization": f"Zoho-oauthtoken {self._access_token}"},
+                json={"data": [fields]}
+            )
+            response.raise_for_status()
+            return {"id": lead_id, "status": "updated"}
+
+    async def create_deal(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        base_url = self._get_base_url("crm")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{base_url}/Deals",
+                headers={"Authorization": f"Zoho-oauthtoken {self._access_token}"},
+                json={"data": [data]}
+            )
+            response.raise_for_status()
+            result = response.json()
+            if result.get("data") and result["data"][0].get("code") == "SUCCESS":
+                return {"id": result["data"][0]["details"]["id"], "status": "created"}
+            return None
+
+    async def update_deal(self, deal_id: str, fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        base_url = self._get_base_url("crm")
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                f"{base_url}/Deals/{deal_id}",
+                headers={"Authorization": f"Zoho-oauthtoken {self._access_token}"},
+                json={"data": [fields]}
+            )
+            response.raise_for_status()
+            return {"id": deal_id, "status": "updated"}
+
     def _map_lead(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize Zoho Lead"""
         return {
