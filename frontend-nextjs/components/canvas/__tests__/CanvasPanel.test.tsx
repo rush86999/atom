@@ -184,6 +184,9 @@ describe('CanvasPanel', () => {
 
   it('renders an email canvas with editable metadata and sends via the policy API', async () => {
     alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+    // Send is confirm-gated (the click authorizes the policy path), so the
+    // dialog must be accepted; a declined confirm posts nothing.
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
     const sentEmails: any[] = [];
     server.use(
       rest.post('*/api/canvas/email/send', async (req, res, ctx) => {
@@ -214,14 +217,23 @@ describe('CanvasPanel', () => {
     fireEvent.click(screen.getByText('Send'));
 
     // Send now posts the composed email through the deterministic policy
-    // endpoint instead of the old stub alert.
+    // endpoint instead of the old stub alert — behind an explicit confirm.
     await waitFor(() => expect(sentEmails).toHaveLength(1));
+    expect(confirmSpy).toHaveBeenCalledWith('Send email to boss@corp.com?');
     expect(sentEmails[0]).toMatchObject({
       to: ['boss@corp.com'],
       subject: 'Q3 numbers v2',
       body: 'Hi there',
       canvas_id: 'mail-1',
     });
+
+    // Declining the confirm dialog must not dispatch the send.
+    sentEmails.length = 0;
+    confirmSpy.mockReturnValue(false);
+    fireEvent.click(screen.getByText('Send'));
+    await waitFor(() => expect(confirmSpy).toHaveBeenCalledTimes(2));
+    expect(sentEmails).toHaveLength(0);
+    confirmSpy.mockReturnValue(true);
 
     // Save embeds email metadata
     fireEvent.click(screen.getByText('Save Changes'));

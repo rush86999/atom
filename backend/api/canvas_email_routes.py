@@ -9,6 +9,7 @@ from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.canvas_email_service import EmailCanvasService
 from core.database import get_db
+from core.personal_scope import resolve_tenant_id
 
 logger = logging.getLogger(__name__)
 router = BaseAPIRouter(prefix="/api/canvas/email", tags=["canvas_email"])
@@ -100,6 +101,7 @@ async def send_email_canvas(
         subject=request.subject,
         body=request.body,
         agent_id=request.agent_id,
+        tenant_id=resolve_tenant_id(current_user),
     )
     if not result.get("success"):
         raise router.error_response(

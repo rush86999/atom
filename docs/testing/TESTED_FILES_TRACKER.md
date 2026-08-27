@@ -27,7 +27,19 @@
 
 **Verification**: `tests/test_email_policy.py` + `tests/test_email_agent_dispatch.py` 24 passed; existing `tests/api/test_canvas_email_routes.py` + `tests/test_round46_outlook_client_state.py` 23 passed (regression); CanvasPanel jest 32 passed. All touched modules import clean (`core.email_policy`, `core.email_agent`, `core.canvas_email_service`, `integrations.universal_integration_service`, `integrations.mcp_service`, `api.canvas_email_routes`, `api.routes.webhooks.ingestion_webhooks`).
 
-**Known gaps**: `ATOM_EMAIL_ALLOWED_OUTBOUND_DOMAINS` unset = conservative (all external sends need approval); canvas Send uses `OutlookService` directly (human-present path), agent sends route through MCP gates; email agent starts STUDENT so auto-dispatch is read-only until trained (matches maturity system).
+**Review follow-up (same session)** — data-integrity + HITL-posture fixes from the PR standards review:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/canvas_email_service.py` | `record_send`: canvas_audit.canvas_id is a NOT NULL FK to canvases.id — a send without a backing Canvas row (fabricated `email_<hex>` id) failed FK enforcement on PostgreSQL. Now get-or-creates a minimal email Canvas row first (same pattern as `office_sync_service`). Tenant no longer hardcoded to `default`: `send_email`/`record_send` take `tenant_id` (resolved from the authenticated user via `resolve_tenant_id`) so audit rows + rate-cap ledger attribute to the right tenant. Ledger semantics: only successful sends are `action_type="email_send"`; blocked/failed attempts are `email_send_attempt` — auditable but not quota-consuming | `tests/test_email_agent_dispatch.py` TestRecordSendLedger 4 passed |
+| `api/canvas_email_routes.py` | `/send` passes `tenant_id=resolve_tenant_id(current_user)` | route tenant test 2 passed |
+| `core/email_policy.py` | `_sends_in_last_hour` docstring updated: counts successful sends only (blocked/failed don't consume quota) | — |
+| `core/email_agent.py` | seeded `confidence_score` 0.5 → 0.45 — STUDENT tier is confidence < 0.5 (CLAUDE.md maturity table); 0.5 sat exactly on the INTERN boundary | seed assertion (`status == STUDENT`, `confidence < 0.5`) |
+| `frontend-nextjs/components/canvas/CanvasPanel.tsx` | Send is confirm-gated (`window.confirm`) — the click authorizes allow/approve policy decisions, so it must be deliberate; declining posts nothing | CanvasPanel.test.tsx 32 passed (incl. declined-confirm no-dispatch) |
+
+**Verification (follow-up)**: `tests/test_email_policy.py` + `tests/test_email_agent_dispatch.py` + `tests/api/test_canvas_email_routes.py` 74 passed; `tests/test_round46_outlook_client_state.py` + `tests/test_capability_resolver.py` 16 passed; CanvasPanel jest 32 passed; `scripts/manual_verify_email.py` ALL CHECKS PASSED.
+
+**Known gaps**: `ATOM_EMAIL_ALLOWED_OUTBOUND_DOMAINS` unset = conservative (all external sends need approval); canvas Send uses `OutlookService` directly (human-present path), agent sends route through MCP gates; email agent starts STUDENT so auto-dispatch is read-only until trained (matches maturity system); the canvas-path rate-cap ledger counts canvas sends only — MCP-path sends enforce the cap at policy time against the same ledger; concurrent sends can race the cap (per-actor count is read before the row is written).
 
 ---
 

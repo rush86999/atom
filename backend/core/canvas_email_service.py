@@ -11,7 +11,7 @@ import uuid
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from core.models import CanvasAudit
+from core.models import Canvas, CanvasAudit
 
 logger = logging.getLogger(__name__)
 
@@ -390,6 +390,7 @@ class EmailCanvasService:
         subject: str = "",
         body: str = "",
         agent_id: Optional[str] = None,
+        tenant_id: str = "default",
     ) -> Dict[str, Any]:
         """Send the composed email through the deterministic email policy.
 
@@ -399,9 +400,10 @@ class EmailCanvasService:
         Agent-initiated sends go through the MCP path instead, where the
         same policy forces HITL approval (see mcp_service._check_hitl_policy).
 
-        Every send (or blocked attempt) is stamped into CanvasAudit as an
-        ``email_send`` row — the rate-cap ledger — and broadcast as a
-        ``canvas:update`` so agents/users co-editing the canvas see it live.
+        Every attempt is stamped into CanvasAudit — successful sends as
+        ``email_send`` (the rate-cap ledger), blocked/failed as
+        ``email_send_attempt`` — and broadcast as a ``canvas:update`` so
+        agents/users co-editing the canvas see it live.
         """
         from core.email_policy import evaluate_email_action
 
@@ -412,7 +414,7 @@ class EmailCanvasService:
         payload = {"to": to_emails, "cc": cc_emails, "subject": subject}
 
         if decision["decision"] == "block":
-            self.record_send(canvas_id, user_id, agent_id, payload, "blocked", decision)
+            self.record_send(canvas_id, user_id, agent_id, payload, "blocked", decision, tenant_id)
             return {
                 "success": False,
                 "error": decision["reason"],
@@ -433,11 +435,11 @@ class EmailCanvasService:
             )
         except Exception as e:
             logger.error(f"Email canvas send failed: {e}")
-            self.record_send(canvas_id, user_id, agent_id, payload, "failed", decision)
+            self.record_send(canvas_id, user_id, agent_id, payload, "failed", decision, tenant_id)
             return {"success": False, "error": "Outlook send failed", "status": "failed"}
 
         ok = result is not None
-        self.record_send(canvas_id, user_id, agent_id, payload, "sent" if ok else "failed", decision)
+        self.record_send(canvas_id, user_id, agent_id, payload, "sent" if ok else "failed", decision, tenant_id)
         if not ok:
             return {"success": False, "error": "Outlook send failed", "status": "failed"}
         return {
@@ -455,19 +457,38 @@ class EmailCanvasService:
         payload: Dict[str, Any],
         status: str,
         decision: Dict[str, Any],
+        tenant_id: str = "default",
     ) -> None:
-        """Stamp an email_send CanvasAudit row + broadcast canvas:update.
+        """Stamp a CanvasAudit row for a send attempt + broadcast canvas:update.
 
-        The audit row doubles as the deterministic rate-cap ledger
-        (email_policy._sends_in_last_hour counts action_type="email_send").
+        Only successful sends get action_type="email_send" — the rate-cap
+        ledger (email_policy._sends_in_last_hour); blocked/failed attempts
+        are recorded as "email_send_attempt" so they stay auditable without
+        consuming quota.
+
+        canvas_audit.canvas_id is a NOT NULL FK to canvases.id: when no such
+        Canvas row exists (e.g. canvas_id was absent), a minimal email Canvas
+        row is created first so the audit insert cannot fail on FK
+        enforcement (PostgreSQL; SQLite tests don't enforce it).
         """
+        canvas_id = canvas_id or f"email_{uuid.uuid4().hex[:8]}"
+        if self.db.query(Canvas).filter(Canvas.id == canvas_id).first() is None:
+            self.db.add(Canvas(
+                id=canvas_id,
+                tenant_id=tenant_id,
+                created_by=user_id or "system",
+                name=payload.get("subject") or "Email canvas",
+                canvas_type="email",
+                status="active",
+            ))
+
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
-            tenant_id="default",
+            tenant_id=tenant_id,
             agent_id=agent_id,
             user_id=user_id,
-            canvas_id=canvas_id or f"email_{uuid.uuid4().hex[:8]}",
-            action_type="email_send",
+            canvas_id=canvas_id,
+            action_type="email_send" if status == "sent" else "email_send_attempt",
             canvas_type="email",
             details_json={
                 "canvas_type": "email",

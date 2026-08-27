@@ -57,6 +57,43 @@ class TestCanvasEmailSendRoute:
             assert body.get("success") is True
             assert body.get("status") == "sent"
             mock_svc.send_email.assert_awaited_once()
+            # Tenant is resolved from the authenticated user, never hardcoded.
+            kwargs = mock_svc.send_email.await_args.kwargs
+            assert kwargs["tenant_id"] == "default"
+
+    def test_send_route_passes_user_tenant(self):
+        """A user scoped to a named tenant threads that tenant into the
+        service (audit rows + rate-cap ledger attributed correctly)."""
+        from fastapi import FastAPI
+
+        from api.canvas_email_routes import router
+        from core.auth import get_current_user
+        from core.database import get_db
+        from core.models import User
+
+        with patch("api.canvas_email_routes.EmailCanvasService") as mock_cls:
+            mock_svc = Mock()
+            mock_svc.send_email = AsyncMock(return_value={"success": True})
+            mock_cls.return_value = mock_svc
+
+            test_app = FastAPI()
+            test_app.include_router(router)
+            test_app.dependency_overrides[get_current_user] = lambda: User(
+                id="tenant-user",
+                email="tenant@test.com",
+                first_name="T",
+                last_name="U",
+                role="super_admin",
+                status="active",
+                tenant_id="tenant-x",
+            )
+            test_app.dependency_overrides[get_db] = lambda: Mock(spec=object)
+            resp = TestClient(test_app).post(
+                "/api/canvas/email/send",
+                json={"to": ["bob@brennan.ca"], "subject": "x", "body": "y"},
+            )
+            assert resp.status_code == 200
+            assert mock_svc.send_email.await_args.kwargs["tenant_id"] == "tenant-x"
 
     def test_send_route_returns_400_on_block(self):
         with patch("api.canvas_email_routes.EmailCanvasService") as mock_cls:
@@ -79,6 +116,79 @@ class TestCanvasEmailSendRoute:
             assert error_body["details"].get("blocked_by") == "email_policy"
 
 
+class TestRecordSendLedger:
+    """record_send — FK guard, tenant attribution, rate-cap ledger semantics."""
+
+    def _service(self, canvas_exists=False):
+        from core.canvas_email_service import EmailCanvasService
+
+        db = Mock()
+        db.query.return_value.filter.return_value.first.return_value = (
+            Mock() if canvas_exists else None
+        )
+        return EmailCanvasService(db), db
+
+    def _record(self, svc, status):
+        svc.record_send(
+            "email_abc123", "u1", None,
+            {"to": ["bob@brennan.ca"], "cc": [], "subject": "Quotation"},
+            status,
+            {"decision": "allow" if status == "sent" else "block"},
+            "tenant-x",
+        )
+
+    def test_successful_send_is_ledgered_as_email_send(self):
+        svc, db = self._service()
+        self._record(svc, "sent")
+        from core.models import CanvasAudit
+
+        audits = [c.args[0] for c in db.add.call_args_list if isinstance(c.args[0], CanvasAudit)]
+        assert len(audits) == 1
+        assert audits[0].action_type == "email_send"
+
+    def test_blocked_attempt_does_not_consume_rate_cap_quota(self):
+        """Blocked/failed attempts are audited as email_send_attempt — the
+        rate-cap ledger (_sends_in_last_hour) counts only email_send rows."""
+        svc, db = self._service()
+        self._record(svc, "blocked")
+        from core.models import CanvasAudit
+
+        audits = [c.args[0] for c in db.add.call_args_list if isinstance(c.args[0], CanvasAudit)]
+        assert audits[0].action_type == "email_send_attempt"
+        assert audits[0].details_json["send_status"] == "blocked"
+
+    def test_missing_canvas_row_is_created_fk_guard(self):
+        """canvas_audit.canvas_id is a NOT NULL FK to canvases.id: a send
+        without a backing Canvas row (e.g. canvas_id absent) must create one,
+        or the audit insert fails on PostgreSQL FK enforcement."""
+        svc, db = self._service(canvas_exists=False)
+        self._record(svc, "sent")
+
+        from core.models import Canvas, CanvasAudit
+
+        added = [c.args[0] for c in db.add.call_args_list]
+        canvases = [o for o in added if isinstance(o, Canvas)]
+        assert len(canvases) == 1
+        assert canvases[0].id == "email_abc123"
+        assert canvases[0].canvas_type == "email"
+        assert canvases[0].tenant_id == "tenant-x"
+
+        audits = [o for o in added if isinstance(o, CanvasAudit)]
+        assert audits[0].canvas_id == "email_abc123"
+        assert audits[0].tenant_id == "tenant-x"
+        db.commit.assert_called()
+
+    def test_existing_canvas_row_not_duplicated(self):
+        svc, db = self._service(canvas_exists=True)
+        self._record(svc, "sent")
+
+        from core.models import Canvas, CanvasAudit
+
+        added = [c.args[0] for c in db.add.call_args_list]
+        assert not [o for o in added if isinstance(o, Canvas)]
+        assert [o for o in added if isinstance(o, CanvasAudit)]
+
+
 class TestEmailAgentModule:
     """core.email_agent — registry seeding + provenance task building."""
 
@@ -90,6 +200,10 @@ class TestEmailAgentModule:
         agent = get_or_create_email_agent(db)
         assert agent.id == EMAIL_AGENT_ID
         assert agent.tenant_id == "default"
+        # STUDENT tier is confidence < 0.5 (maturity table) — the seed must
+        # not sit on the INTERN boundary while declaring STUDENT.
+        assert agent.status == "STUDENT"
+        assert agent.confidence_score < 0.5
         db.add.assert_called_once()
         db.commit.assert_called_once()
 

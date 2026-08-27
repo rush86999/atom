@@ -84,7 +84,9 @@ def get_or_create_email_agent(db, tenant_id: str = "default") -> Any:
             "max_steps": 6,
         },
         status="STUDENT",  # observe/draft-only; send_email unlocks at SUPERVISED via graduation
-        confidence_score=0.5,
+        # STUDENT tier is confidence < 0.5 (CLAUDE.md maturity table) — 0.5
+        # sits exactly on the INTERN boundary and contradicts the status.
+        confidence_score=0.45,
         enabled=True,
         is_system_agent=True,
         tenant_id=tenant_id,

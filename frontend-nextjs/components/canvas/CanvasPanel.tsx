@@ -112,6 +112,10 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
     };
 
     const handleSendEmail = async () => {
+        // Explicit confirm before dispatch — the send endpoint treats the
+        // human click as policy authorization for allow/approve decisions,
+        // so it should be a deliberate act, not a single accidental click.
+        if (!window.confirm(`Send email to ${emailMetadata.to}?`)) return;
         try {
             const { apiClient } = await import("@/lib/api");
             const res = await apiClient.post("/api/canvas/email/send", {

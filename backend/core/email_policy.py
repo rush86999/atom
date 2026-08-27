@@ -147,10 +147,12 @@ def classify_email_content(body: str, subject: str = "") -> str:
 
 
 def _sends_in_last_hour(actor_id: Optional[str]) -> int:
-    """Count CanvasAudit 'email_send' rows in the last hour for the actor.
+    """Count successful sends (CanvasAudit 'email_send') in the last hour.
 
-    Persisted rows (not an in-memory counter) so the cap survives restarts
-    and is auditable. Best-effort — a DB failure degrades to 0.
+    Only action_type="email_send" rows count — blocked/failed attempts are
+    recorded as "email_send_attempt" and don't consume quota. Persisted rows
+    (not an in-memory counter) so the cap survives restarts and is auditable.
+    Best-effort — a DB failure degrades to 0.
     """
     try:
         from sqlalchemy import func
