@@ -549,13 +549,22 @@ async def send_chat_message(
             routing_overrides = {}
 
         # Process the message through the chat orchestrator
-        response = await chat_orchestrator.process_chat_message(
-            user_id=active_user_id,
-            message=request.message,
-            session_id=session_id,
-            context=request.context,
-            routing_overrides=routing_overrides or None,
-        )
+        # Bind the chat turn's session/agent for the duration of processing —
+        # tool-time audit rows (canvas edits, guidance canvases) attribute to
+        # this session so training episodes capture the agent's canvas work.
+        from core.chat_session_context import set_chat_context, reset_chat_context
+
+        _ctx_tokens = set_chat_context(session_id, getattr(request, "agent_id", None))
+        try:
+            response = await chat_orchestrator.process_chat_message(
+                user_id=active_user_id,
+                message=request.message,
+                session_id=session_id,
+                context=request.context,
+                routing_overrides=routing_overrides or None,
+            )
+        finally:
+            reset_chat_context(_ctx_tokens)
 
         # Detect the "no LLM provider configured" sentinel and surface it as a
         # structured error so the frontend shows the recovery banner (linking

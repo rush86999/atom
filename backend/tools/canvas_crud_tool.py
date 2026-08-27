@@ -17,6 +17,8 @@ import logging
 import uuid
 from typing import Any, Dict, Optional
 
+from core.chat_session_context import audit_agent_id, audit_session_id
+
 logger = logging.getLogger(__name__)
 
 
@@ -162,6 +164,8 @@ async def update_canvas_content(
             new_audit = CanvasAudit(
                 canvas_id=canvas_id,
                 tenant_id=latest.tenant_id,
+                session_id=audit_session_id(None),
+                agent_id=audit_agent_id(None),
                 canvas_type=canvas_type,
                 action_type="update",
                 user_id=user_id,
@@ -243,6 +247,8 @@ async def delete_canvas(
             delete_audit = CanvasAudit(
                 canvas_id=canvas_id,
                 tenant_id=latest.tenant_id,
+                session_id=audit_session_id(None),
+                agent_id=audit_agent_id(None),
                 canvas_type=canvas_type,
                 action_type="delete",
                 user_id=user_id,

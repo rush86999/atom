@@ -72,7 +72,7 @@ async def _create_canvas_audit(
             agent_id=agent_id,
             user_id=user_id,
             canvas_id=canvas_id,
-            session_id=session_id,
+            session_id=audit_session_id(session_id),
             action_type=action,
             details_json={
                 "canvas_type": canvas_type,

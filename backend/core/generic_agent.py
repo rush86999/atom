@@ -126,6 +126,33 @@ class GenericAgent:
         """
         context = context or {}
 
+        # Bind the run's session/agent for tool-time audit attribution
+        # (canvas edits during this turn link to the session, feeding the
+        # training episode's canvas context).
+        _audit_tokens = None
+        try:
+            from core.chat_session_context import set_chat_context
+
+            _audit_tokens = set_chat_context(
+                (context or {}).get("session_id"), self.id
+            )
+        except Exception:
+            pass
+        try:
+            return await self._execute_impl(task_input, context, step_callback)
+        finally:
+            if _audit_tokens is not None:
+                from core.chat_session_context import reset_chat_context
+
+                reset_chat_context(_audit_tokens)
+
+    async def _execute_impl(self, task_input: str, context: Dict[str, Any] = None, step_callback: Optional[callable] = None) -> Dict[str, Any]:
+        """
+        Execute a task using the ReAct (Reason-Act-Observe) loop.
+        Accommodates timeouts and streaming callbacks.
+        """
+        context = context or {}
+
         # R81c (G9): stamp run identity + tier into the dispatch context so
         # the shared P2 capability gate and P9 sandbox gate engage on this
         # surface too. Both gates return None ("no policy in scope") without

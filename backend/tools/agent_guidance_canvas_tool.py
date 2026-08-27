@@ -446,7 +446,7 @@ class AgentGuidanceSystem:
                 agent_id=agent_id,
                 user_id=user_id,
                 canvas_id="",
-                session_id=None,
+                session_id=audit_session_id(None),
                 action_type=action,
                 details_json={
                     "component_type": "agent_operation_tracker",
