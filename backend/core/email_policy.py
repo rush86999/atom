@@ -75,6 +75,42 @@ def _allowed_domains() -> List[str]:
     return [d.strip().lower().lstrip(".") for d in raw.split(",") if d.strip()]
 
 
+def _blocked_sender_domains() -> List[str]:
+    """Inbound sender domains to reject (comma-separated env)."""
+    raw = os.getenv("ATOM_EMAIL_BLOCKED_SENDER_DOMAINS", "")
+    return [d.strip().lower().lstrip(".") for d in raw.split(",") if d.strip()]
+
+
+_SENSITIVITY_POLICY_DEFAULTS: Dict[str, str] = {
+    "restricted": BLOCK,
+    "confidential": APPROVE,
+}
+
+
+def _sensitivity_policy() -> Dict[str, str]:
+    """Label -> decision map, overridable via ATOM_EMAIL_SENSITIVITY_POLICY.
+
+    JSON like ``{"restricted": "approve", "confidential": "block"}``.
+    Invalid JSON / unknown values fall back to defaults; never raises.
+    """
+    raw = os.getenv("ATOM_EMAIL_SENSITIVITY_POLICY", "")
+    if not raw:
+        return dict(_SENSITIVITY_POLICY_DEFAULTS)
+    try:
+        import json as _json
+
+        parsed = _json.loads(raw)
+    except Exception:
+        return dict(_SENSITIVITY_POLICY_DEFAULTS)
+    if not isinstance(parsed, dict):
+        return dict(_SENSITIVITY_POLICY_DEFAULTS)
+    policy = dict(_SENSITIVITY_POLICY_DEFAULTS)
+    for label, decision in parsed.items():
+        if label in _SENSITIVITY_POLICY_DEFAULTS and decision in (ALLOW, APPROVE, BLOCK):
+            policy[label] = decision
+    return policy
+
+
 def _recipient_domain(recipient: str) -> Optional[str]:
     """Lowercased domain of a recipient, or None when unparseable."""
     if not recipient or "@" not in recipient:
@@ -168,24 +204,28 @@ def evaluate_email_action(
         # secrets) can never be sent, regardless of recipient. This runs
         # before the recipient-allowlist check so an external recipient can't
         # short-circuit it into an APPROVE (regression fixed: PII + external
-        # was previously approved and sent).
+        # was previously approved and sent). The label -> decision map is
+        # configurable via ATOM_EMAIL_SENSITIVITY_POLICY.
+        sens_policy = _sensitivity_policy()
         label = classify_email_content(
             action.get("body", ""), action.get("subject", "")
         )
-        if label == "restricted":
+        if label in sens_policy and sens_policy[label] != ALLOW:
+            decision = sens_policy[label]
             return {
-                "decision": BLOCK,
+                "decision": decision,
                 "reason": (
-                    "Email contains restricted-sensitivity content "
-                    "(PII/secrets); sending is blocked"
+                    f"Email contains {label}-sensitivity content "
+                    f"(PII/secrets); sending is {decision}ed"
                 ),
                 "policy": "sensitivity",
             }
 
-        # 1b. Attachment scan — same BLOCK precedence as the body. A PII/
-        # secret-bearing attachment must block even when the recipient check
-        # would otherwise approve. Text-less (binary/opaque) attachments are
+        # 1b. Attachment scan — same precedence as the body. A PII/secret-
+        # bearing attachment must block even when the recipient check would
+        # otherwise approve. Text-less (binary/opaque) attachments are
         # skipped; structured text is flattened before classification.
+        attachment_block = sens_policy.get("restricted", BLOCK) == BLOCK
         for att in action.get("attachments") or []:
             att_text = ""
             if isinstance(att, dict):
@@ -196,7 +236,7 @@ def evaluate_email_action(
                 att_text = str(att)
             if not att_text:
                 continue
-            if classify_email_content(att_text) == "restricted":
+            if classify_email_content(att_text) == "restricted" and attachment_block:
                 return {
                     "decision": BLOCK,
                     "reason": (
@@ -216,9 +256,9 @@ def evaluate_email_action(
                 }
 
         # 3. Confidential content -> approval.
-        if label == "confidential":
+        if label == "confidential" and sens_policy.get("confidential", APPROVE) != ALLOW:
             return {
-                "decision": APPROVE,
+                "decision": sens_policy.get("confidential", APPROVE),
                 "reason": "Email contains confidential content; requires human approval",
                 "policy": "sensitivity",
             }
@@ -277,3 +317,30 @@ def spotlight_email_content(
 def is_valid_recipient(recipient: str) -> bool:
     """Basic syntactic email validation (deterministic schema guard)."""
     return bool(recipient and _EMAIL_RE.match(recipient.strip()))
+
+
+def is_blocked_sender_domain(domain: str) -> bool:
+    """True when the inbound sender domain is on the denylist (or a subdomain)."""
+    blocked = _blocked_sender_domains()
+    if not blocked or not domain:
+        return False
+    d = domain.strip().lower()
+    return any(d == b or d.endswith("." + b) for b in blocked)
+
+
+def validate_sender(sender: str) -> bool:
+    """Inbound sender gate (Phase-3 spoofing check).
+
+    Requires a syntactically valid address and a domain that is not on the
+    ``ATOM_EMAIL_BLOCKED_SENDER_DOMAINS`` denylist. Deterministic; never
+    raises. Empty/invalid senders are rejected (fail closed).
+    """
+    try:
+        if not sender or not is_valid_recipient(sender):
+            return False
+        domain = _recipient_domain(sender)
+        if not domain or is_blocked_sender_domain(domain):
+            return False
+        return True
+    except Exception:  # pragma: no cover - defensive
+        return False

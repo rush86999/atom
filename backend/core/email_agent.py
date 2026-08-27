@@ -83,15 +83,28 @@ async def dispatch_for_incoming_email(
     user_id: str,
     subject_hint: str = "",
     resource_hint: str = "",
+    sender_hint: str = "",
 ) -> None:
     """Webhook -> agent trigger. Fire-and-forget; never raises.
 
     Spawns a governed GenericAgent run that triages the notified email and
-    drafts a reply if warranted. Sends stay approval-gated.
+    drafts a reply if warranted. Sends stay approval-gated. A spoofed or
+    denylisted inbound sender (``ATOM_EMAIL_BLOCKED_SENDER_DOMAINS``) is
+    skipped without spawning a run.
     """
     try:
         from core.database import get_db_session
+        from core.email_policy import validate_sender
         from core.generic_agent import GenericAgent
+
+        # P3 sender gate: reject forged/unparseable inbound senders before
+        # any agent run is spawned (fail closed on empty sender only when the
+        # notification actually carried one — absent hints skip the check).
+        if sender_hint and not validate_sender(sender_hint):
+            logger.warning(
+                "email agent dispatch skipped: invalid/blocked sender %r", sender_hint
+            )
+            return
 
         with get_db_session() as db:
             agent_model = get_or_create_email_agent(db)

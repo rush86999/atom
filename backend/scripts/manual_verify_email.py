@@ -150,6 +150,22 @@ def main() -> int:
         )
     )
 
+    # --- F. Inbound sender gate (P3 spoofing check) ---
+    import os as _os
+
+    _os.environ.setdefault("ATOM_EMAIL_BLOCKED_SENDER_DOMAINS", "spam.com")
+    from core.email_policy import validate_sender
+
+    results.append(
+        check(
+            "F. sender gate: valid ok, spoof/denylist rejected",
+            validate_sender("john@brennan.ca")
+            and not validate_sender("not-an-email")
+            and not validate_sender("x@spam.com"),
+            "john@brennan.ca ok; 'not-an-email' + x@spam.com rejected",
+        )
+    )
+
     print()
     ok = all(results)
     print("ALL CHECKS PASSED" if ok else "SOME CHECKS FAILED")

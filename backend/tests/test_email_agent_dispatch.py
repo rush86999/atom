@@ -172,6 +172,27 @@ class TestEmailAgentDispatch:
             await dispatch_for_incoming_email("", "ws", "u1")
         assert runner.tenant_id == "default"
 
+    async def test_dispatch_skips_blocked_sender(self):
+        """Spoofed/blocked inbound sender must NOT spawn an agent run (P3)."""
+        from core.email_agent import dispatch_for_incoming_email
+
+        runner, ctx_patch, ga_patch = self._patch_runner()
+        with ctx_patch, ga_patch, patch("core.email_policy.validate_sender", return_value=False):
+            await dispatch_for_incoming_email(
+                "t", "ws", "u1", sender_hint="spoofed@spam.com"
+            )
+        runner.execute.assert_not_awaited()
+
+    async def test_dispatch_allows_valid_sender(self):
+        from core.email_agent import dispatch_for_incoming_email
+
+        runner, ctx_patch, ga_patch = self._patch_runner()
+        with ctx_patch, ga_patch, patch("core.email_policy.validate_sender", return_value=True):
+            await dispatch_for_incoming_email(
+                "t", "ws", "u1", sender_hint="john@brennan.ca"
+            )
+        runner.execute.assert_awaited_once()
+
 
 class TestTierFloorEmailTools:
     """Email tools must be reachable per tier floor (greptile P1: STUDENT
