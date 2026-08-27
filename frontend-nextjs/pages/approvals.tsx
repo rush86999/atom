@@ -29,6 +29,14 @@ type TrainingProposal = {
   created_at?: string;
   active_session_id?: string;
   session_status?: string;
+  lesson_plan?: {
+    mentor?: string;
+    domain?: string;
+    objective?: string;
+    tasks?: string[];
+    materials?: string[];
+    supervisor_note?: string;
+  } | null;
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL || "";
@@ -221,6 +229,44 @@ export default function ApprovalsPage() {
     performance_score: string; supervisor_feedback: string;
     tasks_completed: string; total_tasks: string; errors_count: string;
   }>>({});
+  const [lessonDrafts, setLessonDrafts] = useState<Record<string, { objective: string; tasks_text: string; saving?: boolean }>>({});
+
+  const lessonDraft = (sid: string, plan: NonNullable<TrainingProposal["lesson_plan"]> | undefined) => {
+    if (!lessonDrafts[sid]) {
+      setLessonDrafts((prev) => ({
+        [sid]: {
+          objective: plan?.objective || "",
+          tasks_text: (plan?.tasks || []).join("\n"),
+        },
+      }));
+      return { objective: plan?.objective || "", tasks_text: (plan?.tasks || []).join("\n") };
+    }
+    return lessonDrafts[sid];
+  };
+
+  const saveLesson = async (sid: string) => {
+    const draft = lessonDrafts[sid];
+    if (!draft) return;
+    setLessonDrafts((prev) => ({ ...prev, [sid]: { ...draft, saving: true } }));
+    try {
+      const res = await fetch(`${API}/api/maturity/training/sessions/${sid}/guidance`, {
+        method: "PATCH",
+        headers: headers(),
+        body: JSON.stringify({
+          lesson_plan: {
+            ...(proposals.find((p) => p.active_session_id === sid)?.lesson_plan || {}),
+            objective: draft.objective,
+            tasks: draft.tasks_text.split("\n").map((t) => t.trim()).filter(Boolean),
+          },
+        }),
+      });
+      setNotice(res.ok ? "Lesson plan saved." : `Lesson save failed (${res.status}).`);
+    } catch (e) {
+      setError(`Lesson save failed: ${String(e)}`);
+    } finally {
+      setLessonDrafts((prev) => ({ ...prev, [sid]: { ...draft, saving: false } }));
+    }
+  };
 
   const updateSessionForm = (sid: string, patch: Partial<{ performance_score: string; supervisor_feedback: string; tasks_completed: string; total_tasks: string; errors_count: string }>) =>
     setSessionForms((prev) => ({
@@ -333,6 +379,50 @@ export default function ApprovalsPage() {
                     <div className="text-xs text-gray-500 mt-1">
                       agent {p.agent_name || String(p.agent_id).slice(0, 8)} · session {sid.slice(0, 8)} · {p.session_status}
                     </div>
+                    {(() => {
+                      const draft = lessonDraft(sid, p.lesson_plan);
+                      const setD = (patch: Partial<{ objective: string; tasks_text: string }>) =>
+                        setLessonDrafts((prev) => ({ ...prev, [sid]: { ...draft, ...patch } }));
+                      return (
+                        <div className="mt-3 p-3 rounded-lg bg-gray-800/60 border border-gray-700">
+                          <div className="text-xs uppercase tracking-wide text-gray-400 mb-2">
+                            Mentor-proposed lesson — edit freely, then train the hire on it
+                          </div>
+                          <div className="text-xs text-gray-400 mb-1">Mentor: {p.lesson_plan?.mentor || "atom_main"}</div>
+                          <label className="block text-xs text-gray-400">
+                            Objective
+                            <input
+                              value={draft.objective}
+                              onChange={(e) => setD({ objective: e.target.value })}
+                              className="mt-1 w-full px-2 py-1.5 rounded-md bg-gray-800 border border-gray-700 text-sm text-gray-200"
+                            />
+                          </label>
+                          <label className="block text-xs text-gray-400 mt-2">
+                            Tasks (one per line)
+                            <textarea
+                              rows={4}
+                              value={draft.tasks_text}
+                              onChange={(e) => setD({ tasks_text: e.target.value })}
+                              className="mt-1 w-full px-2 py-1.5 rounded-md bg-gray-800 border border-gray-700 text-sm text-gray-200 font-mono"
+                            />
+                          </label>
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => saveLesson(sid)}
+                              className="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-xs font-medium"
+                            >
+                              Save lesson
+                            </button>
+                            <a
+                              href={`/chat?agent_id=${p.agent_id}`}
+                              className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-medium"
+                            >
+                              Open training chat →
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
                       <label className="text-xs text-gray-400">
                         Performance (0–1)

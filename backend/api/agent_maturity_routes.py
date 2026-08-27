@@ -18,7 +18,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -147,6 +147,8 @@ async def list_training_proposals(
         if active:
             fields["active_session_id"] = active.id
             fields["session_status"] = active.status
+            guidance = active.supervisor_guidance if isinstance(active.supervisor_guidance, dict) else {}
+            fields["lesson_plan"] = guidance.get("lesson_plan") or guidance
         return fields
 
     return {
@@ -199,6 +201,15 @@ async def get_training_proposal(
         "duration_estimation_confidence": data.get("duration_estimation_confidence"),
         "duration_estimation_reasoning": data.get("duration_estimation_reasoning"),
         "training_scenario_template": data.get("training_scenario_template"),
+        "lesson_plan": (
+            (
+                session_row.supervisor_guidance or {}
+            ).get("lesson_plan")
+            if (
+                (session_row := db.query(TrainingSession).filter(TrainingSession.proposal_id == proposal.id).order_by(TrainingSession.started_at.desc()).first())
+                and isinstance(session_row.supervisor_guidance, dict)
+            ) else None
+        ),
         "status": str(proposal.status) if proposal.status else None,
         "approved_by": proposal.approved_by,
         "approved_at": proposal.approved_at.isoformat() if proposal.approved_at else None,
@@ -299,6 +310,43 @@ async def complete_training_session(
 
     logger.info("Training completed: session=%s result_keys=%s", session_id, sorted(result.keys()))
     return result
+
+
+
+
+@router.patch("/training/sessions/{session_id}/guidance")
+async def update_training_guidance(
+    session_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Supervisor edits the mentor-proposed lesson plan for the session.
+
+    The lesson arrives as the mentor's concrete proposal (tasks anchored in
+    the hire's real ingested data); the supervisor may modify or replace any
+    part before running the supervised pass.
+    """
+    _require_supervisor(db, current_user)
+    session = db.query(TrainingSession).filter(TrainingSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Body must be JSON")
+
+    guidance = session.supervisor_guidance if isinstance(session.supervisor_guidance, dict) else {}
+    lesson = body.get("lesson_plan")
+    if lesson is not None:
+        if not isinstance(lesson, dict):
+            raise HTTPException(status_code=400, detail="lesson_plan must be an object")
+        guidance["lesson_plan"] = lesson
+    if "supervisor_note" in body and isinstance(body["supervisor_note"], str):
+        guidance["supervisor_note"] = body["supervisor_note"]
+    session.supervisor_guidance = guidance
+    db.commit()
+    return {"success": True, "lesson_plan": guidance.get("lesson_plan")}
 
 
 @router.get("/agents/{agent_id}/training-history")

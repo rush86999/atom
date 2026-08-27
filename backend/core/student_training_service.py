@@ -6,6 +6,7 @@ Provides AI-based training duration estimation and confidence boosting.
 """
 
 from datetime import datetime, timedelta
+import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -301,6 +302,17 @@ After completing this training, the agent will be able to handle similar tasks a
             supervisor_id=user_id,
             total_tasks=len(proposal.proposal_data.get("learning_objectives", []))
         )
+
+        # Mentor-proposed lesson: a CONCRETE first-session plan the supervisor
+        # can modify — built from the blocked task, the mentor playbook and
+        # the hire's live ingested data. Without this the supervisor faced a
+        # bare completion form with no idea what the session should be.
+        try:
+            session.supervisor_guidance = await self._build_lesson_plan(
+                agent, proposal
+            )
+        except Exception as lesson_err:
+            logger.warning(f"lesson plan generation failed (non-fatal): {lesson_err}")
 
         self.db.add(session)
         self.db.commit()
@@ -649,6 +661,87 @@ After completing this training, the agent will be able to handle similar tasks a
                 }
                 for c in cases
             ],
+        }
+
+    async def _build_lesson_plan(
+        self, agent: AgentRegistry, proposal: AgentProposal
+    ) -> Dict[str, Any]:
+        """Mentor-proposed CONCRETE lesson for the first supervised session.
+
+        Anchored in the hire's actual ingested data (real leads, real
+        documents) so the supervisor edits a runnable plan instead of facing
+        an empty form. Purely advisory — the supervisor can rewrite any part.
+        """
+        mentor = self._find_mentor(agent)
+        mentor_name = mentor.name if mentor else "atom_main (self-directed)"
+        data = proposal.proposal_data or {}
+        objectives = (data.get("learning_objectives") or [])[:3]
+        gaps = (data.get("capability_gaps") or [])[:4]
+
+        # Sample real ingested leads for the exercises
+        leads: List[Dict[str, Any]] = []
+        try:
+            from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+
+            handler = get_hybrid_ingestion_service("default").memory_handler
+            if handler is not None and getattr(handler, "db", None) is None:
+                ensure = getattr(handler, "_ensure_db", None)
+                if callable(ensure):
+                    ensure()
+            if handler is not None and getattr(handler, "db", None) is not None:
+                for table_name in handler.db.table_names():
+                    if not str(table_name).startswith("integration_"):
+                        continue
+                    try:
+                        tbl = handler.db.open_table(table_name)
+                        # to_arrow (not to_lance — pylance is not installed)
+                        arrow = tbl.to_arrow()
+                        metas = arrow.column("metadata").to_pylist()
+                        texts = arrow.column("text").to_pylist()
+                        for meta_raw, text in zip(metas, texts):
+                            try:
+                                meta = json.loads(meta_raw or "{}")
+                            except Exception:
+                                meta = {}
+                            if meta.get("record_type") != "lead":
+                                continue
+                            leads.append({
+                                "name": "",
+                                "text": str(text or "")[:160],
+                            })
+                    except Exception:
+                        continue
+                    if len(leads) >= 3:
+                        break
+        except Exception as lead_err:
+            logger.debug(f"lesson lead sampling failed: {lead_err}")
+
+        first = leads[0]["text"] if leads else "any lead in memory"
+        second = leads[1]["text"] if len(leads) > 1 else (first or "a second lead")
+
+        tasks = [
+            f"Read this real lead and say what it likely needs: {first}",
+            "Draft a 3-sentence opening email for it (draft only — never send)",
+            f"Draft a short follow-up for a second lead: {second}",
+        ]
+        if gaps:
+            tasks.append(f"While working, self-check on: {', '.join(gaps)}")
+
+        return {
+            "mentor": mentor_name,
+            "domain": (agent.category or "").lower(),
+            "objective": (
+                objectives[0]
+                if objectives
+                else "Complete one supervised pass on real ingested data"
+            ),
+            "tasks": tasks,
+            "materials": [l["text"] for l in leads[:3]] or ["any ingested records"],
+            "supervisor_note": (
+                "Edit this lesson freely — reorder, reword, or replace tasks. "
+                "Then open the training chat, have the hire do the tasks, and "
+                "score the pass below when done."
+            ),
         }
 
     def _count_mentored_sessions(self, agent_id: str) -> int:

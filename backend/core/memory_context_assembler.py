@@ -215,10 +215,10 @@ async def _inventory_leg(workspace_id: str) -> Optional[str]:
                     type_counts: Dict[str, int] = {}
                     fresh = 0
                     try:
-                        pdf = tbl.to_lance().to_table().to_pandas()
-                        for _, row in pdf.iterrows():
+                        arrow = tbl.to_arrow()
+                        for meta_raw in arrow.column("metadata").to_pylist():
                             try:
-                                meta = json.loads(row.get("metadata") or "{}")
+                                meta = json.loads(meta_raw or "{}")
                             except Exception:
                                 meta = {}
                             rtype = meta.get("record_type") or "record"
