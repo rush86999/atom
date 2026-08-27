@@ -96,13 +96,10 @@ async def dispatch_for_incoming_email(
         with get_db_session() as db:
             agent_model = get_or_create_email_agent(db)
 
-        task = (
-            "A new Outlook email arrived"
-            + (f" (subject: {subject_hint})" if subject_hint else "")
-            + ". Use search_emails to locate it, then triage: summarize it, "
-            "decide whether a reply is warranted, and draft one if so. "
-            "External sends go through send_email, which requires human approval."
-        )
+        # Webhook-derived fields are UNTRUSTED data — the subject (attacker-
+        # controllable via a crafted message) must ride inside the provenance
+        # delimiters, never as a raw instruction in the task text (P2).
+        task = build_email_task(subject=subject_hint or "")
         context: Dict[str, Any] = {
             "tenant_id": tenant_id or "default",
             "workspace_id": workspace_id or "default",
@@ -111,6 +108,11 @@ async def dispatch_for_incoming_email(
             "resource_hint": resource_hint or "",
         }
         runner = GenericAgent(agent_model, workspace_id=context["workspace_id"])
+        # Bind the triggering tenant to the runner: GenericAgent reads
+        # self.tenant_id when stamping execution history (P1) — without this,
+        # every run was attributed to 'default' regardless of the webhook's
+        # tenant.
+        runner.tenant_id = context["tenant_id"]
         await runner.execute(task, context=context)
     except Exception as e:  # pragma: no cover - fire-and-forget
         logger.warning("email agent dispatch failed (fire-and-forget): %s", e)
