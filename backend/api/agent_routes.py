@@ -73,6 +73,10 @@ class AgentFeedbackRequest(BaseModel):
 class HITLApprovalRequest(BaseModel):
     decision: str # approved | rejected
     feedback: Optional[str] = None
+    # Supervisor MODIFIES the action before approving: the agent resumes with
+    # these params instead of its original ones (e.g. rewrite the draft
+    # email, retarget the recipient). Applied only on approve.
+    modified_params: Optional[Dict[str, Any]] = None
 
 # --- Endpoints ---
 
@@ -561,6 +565,16 @@ async def decide_hitl_action(
 
     if req.decision.lower() == "approved":
         action.status = HITLActionStatus.APPROVED.value
+        # Supervisor modification: the resumed action runs with these params
+        # instead of the agent's originals (real-world training loop: edit,
+        # approve, and the agent learns from the diff via user_feedback).
+        if req.modified_params:
+            try:
+                merged = dict(action.params or {})
+                merged.update(req.modified_params)
+                action.params = merged
+            except Exception as params_err:
+                logger.warning(f"HITL modified_params merge failed, keeping originals: {params_err}")
     else:
         action.status = HITLActionStatus.REJECTED.value
 

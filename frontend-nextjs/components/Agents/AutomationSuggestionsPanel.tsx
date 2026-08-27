@@ -16,6 +16,9 @@ import {
 export function AutomationSuggestionsPanel({ onCreateAgent }: { onCreateAgent?: (goal: string) => void }) {
   const [data, setData] = useState<AutomationSuggestionsResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Dismissed suggestions: the user rejected the suggestion — hide it for
+  // this browser (server-side dismissal lands with the history-mining v2).
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   const load = () => {
     setIsLoading(true);
@@ -26,6 +29,9 @@ export function AutomationSuggestionsPanel({ onCreateAgent }: { onCreateAgent?: 
   };
 
   useEffect(load, []);
+
+  const dismiss = (title: string) =>
+    setDismissed((prev) => new Set(prev).add(title));
 
   if (isLoading) {
     return (
@@ -56,7 +62,7 @@ export function AutomationSuggestionsPanel({ onCreateAgent }: { onCreateAgent?: 
       </div>
 
       <div className="space-y-3">
-        {data.suggestions.map((s: AutomationSuggestion) => (
+        {data.suggestions.filter((s: AutomationSuggestion) => !dismissed.has(s.title)).map((s: AutomationSuggestion) => (
           <div
             key={s.title}
             className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-white dark:bg-gray-800"
@@ -75,17 +81,30 @@ export function AutomationSuggestionsPanel({ onCreateAgent }: { onCreateAgent?: 
             {s.evidence && (
               <p className="mt-1.5 text-[11px] text-gray-400 italic">Evidence: {s.evidence}</p>
             )}
-            {onCreateAgent && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                data-testid={`suggestion-create-agent-${s.title.slice(0, 12)}`}
-                onClick={() => onCreateAgent(s.description || s.title)}
+            <div className="mt-2 flex flex-wrap gap-2">
+              {onCreateAgent && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid={`suggestion-create-agent-${s.title.slice(0, 12)}`}
+                  onClick={() => onCreateAgent(s.description || s.title)}
+                >
+                  Build an agent for this
+                </Button>
+              )}
+              <button
+                onClick={() => onCreateAgent?.(`Modified: ${s.description || s.title} — (edit the goal as needed)`)}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               >
-                Build an agent for this
-              </Button>
-            )}
+                Modify goal
+              </button>
+              <button
+                onClick={() => dismiss(s.title)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                Not now
+              </button>
+            </div>
           </div>
         ))}
       </div>

@@ -1695,13 +1695,14 @@ app.include_router(office_router, prefix="/api/v1/office", tags=["office"])
 # prefixes (/api/agents, /api/users) which match what the frontend calls.
 # Do NOT add an include prefix here — that would double the path
 # (e.g. /api/v1/agents/api/agents/...).
-if agent_router:
-    app.include_router(agent_router, tags=["agents"])
-# Employee self-serve onboarding: guided agent creation + history-mined
-# automation suggestions. Declares its own /api/agents prefix — include BARE.
+# Onboarding routes FIRST — their concrete paths (/api/agents/automation-suggestions)
+# must beat agent_routes' catch-all GET /api/agents/{agent_id}, which otherwise
+# swallows them as an agent id (404 "Agent not found: automation-suggestions").
 agent_onboarding_router = safe_import_router("api.agent_onboarding_routes")
 if agent_onboarding_router:
     app.include_router(agent_onboarding_router, tags=["agent-onboarding"])
+if agent_router:
+    app.include_router(agent_router, tags=["agents"])
 # episode_routes.py declares its own /api/episodes prefix — include BARE.
 # (Previously never mounted: the whole episodes API 404'd, incl. feedback submit.)
 episode_router = safe_import_router("api.episode_routes")

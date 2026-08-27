@@ -18,6 +18,7 @@ type PendingAction = {
   created_at?: string;
 };
 
+
 type TrainingProposal = {
   id: string;
   agent_id: string;
@@ -133,6 +134,8 @@ export default function ApprovalsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingAction, setEditingAction] = useState<string | null>(null);
+  const [editedParams, setEditedParams] = useState<Record<string, string>>({});
 
   const headers = useCallback(() => ({
     "Content-Type": "application/json",
@@ -198,13 +201,13 @@ export default function ApprovalsPage() {
     }
   };
 
-  const decide = async (id: string, decision: "approved" | "rejected") => {
+  const decide = async (id: string, decision: "approved" | "rejected", modifiedParams?: Record<string, unknown>) => {
     setNotice(null);
     try {
       const res = await fetch(`${API}/api/agents/approvals/${id}`, {
         method: "POST",
         headers: headers(),
-        body: JSON.stringify({ decision }),
+        body: JSON.stringify({ decision, ...(modifiedParams ? { modified_params: modifiedParams } : {}) }),
       });
       if (!res.ok) {
         setError(`Decision failed (${res.status})`);
@@ -341,19 +344,73 @@ export default function ApprovalsPage() {
                       {a.created_at ? new Date(a.created_at).toLocaleString() : ""}
                     </div>
                   </div>
+                  {editingAction === a.id && (
+                    <div className="mt-3">
+                      <div className="text-xs text-gray-400 mb-1">
+                        Modify the task before approving — the agent resumes with these params:
+                      </div>
+                      <textarea
+                        rows={4}
+                        value={editedParams[a.id] ?? JSON.stringify(a.params ?? {}, null, 2)}
+                        onChange={(e) =>
+                          setEditedParams((prev) => ({ ...prev, [a.id]: e.target.value }))
+                        }
+                        className="w-full px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-xs font-mono text-gray-200"
+                      />
+                    </div>
+                  )}
                   <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => decide(a.id, "approved")}
-                      className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => decide(a.id, "rejected")}
-                      className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-sm font-medium"
-                    >
-                      Reject
-                    </button>
+                    {editingAction === a.id ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            try {
+                              const modified = JSON.parse(editedParams[a.id] ?? "{}");
+                              decide(a.id, "approved", modified);
+                              setEditingAction(null);
+                            } catch {
+                              setError("Modified params must be valid JSON.");
+                            }
+                          }}
+                          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
+                        >
+                          Approve modified
+                        </button>
+                        <button
+                          onClick={() => setEditingAction(null)}
+                          className="px-4 py-2 rounded-lg bg-gray-700 text-sm font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditingAction(a.id);
+                            setEditedParams((prev) => ({
+                              ...prev,
+                              [a.id]: JSON.stringify(a.params ?? {}, null, 2),
+                            }));
+                          }}
+                          className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-sm font-medium"
+                        >
+                          Modify
+                        </button>
+                        <button
+                          onClick={() => decide(a.id, "approved")}
+                          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => decide(a.id, "rejected")}
+                          className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-sm font-medium"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
