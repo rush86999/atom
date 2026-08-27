@@ -54,19 +54,40 @@ const DashboardPage: React.FC = () => {
   const workspaceId = "default"; // Consistent with other components
 
   const integrationIcons: Record<string, any> = {
-    box: HardDrive,
-    dropbox: HardDrive,
-    gdrive: HardDrive,
-    slack: MessageSquare,
-    gmail: Mail,
-    notion: CheckSquare,
-    jira: CheckSquare,
-    github: Github,
-    nextjs: Code,
-    stripe: CreditCard,
-    linear: List,
+    zoho: List,
+    microsoft: CheckSquare,
     outlook: Mail,
+    google: HardDrive,
+    gmail: Mail,
+    slack: MessageSquare,
+    github: Github,
+    notion: CheckSquare,
+    dropbox: HardDrive,
+    box: HardDrive,
+    trello: List,
     asana: CheckSquare,
+    stripe: CreditCard,
+  };
+
+  // Real OAuth connections only — providers the user actually granted via
+  // the consent flow (IntegrationToken/OAuthToken store). No hardcoded list.
+  const providerMeta: Record<string, { name: string; category: string }> = {
+    zoho: { name: "Zoho Suite (CRM · Books · Inventory · Projects · WorkDrive)", category: "business" },
+    microsoft: { name: "Microsoft 365", category: "productivity" },
+    outlook: { name: "Outlook", category: "communication" },
+    google: { name: "Google Workspace", category: "productivity" },
+    gmail: { name: "Gmail", category: "communication" },
+    slack: { name: "Slack", category: "communication" },
+    github: { name: "GitHub", category: "development" },
+    notion: { name: "Notion", category: "productivity" },
+    dropbox: { name: "Dropbox", category: "storage" },
+    box: { name: "Box", category: "storage" },
+    trello: { name: "Trello", category: "productivity" },
+    asana: { name: "Asana", category: "productivity" },
+    linkedin: { name: "LinkedIn", category: "communication" },
+    salesforce: { name: "Salesforce", category: "crm" },
+    whatsapp: { name: "WhatsApp Business", category: "communication" },
+    stripe: { name: "Stripe", category: "finance" },
   };
 
   const refreshDashboardData = async () => {
@@ -77,54 +98,29 @@ const DashboardPage: React.FC = () => {
     try {
       setLoading(true);
 
-      // 1. Health Checks — BUG-101: Fixed URLs to include /v1 prefix matching
-      // the backend mount (/api/v1/integrations/{id}). Previously all 13
-      // health checks 404'd, making every integration show Disconnected.
       const token = typeof window !== "undefined" ? (localStorage.getItem("auth_token") || localStorage.getItem("token")) : null;
       const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
 
-      const healthChecks = await Promise.all([
-        fetch("/api/v1/integrations/box/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/dropbox/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/gdrive/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/slack/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/gmail/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/notion/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/jira/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/github/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/nextjs/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/stripe/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/linear/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/outlook/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-        fetch("/api/v1/integrations/asana/health", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response)),
-      ]);
+      // Real connected integrations: the OAuth grant store. An entry appears
+      // here only after the user completed a provider consent flow.
+      const tokensRes = await fetch("/api/v1/auth/oauth/tokens", { headers, signal: controller.signal }).catch(() => ({ ok: false } as Response));
 
-      const integrationList = [
-        { id: "box", name: "Box", category: "storage" },
-        { id: "dropbox", name: "Dropbox", category: "storage" },
-        { id: "gdrive", name: "Google Drive", category: "storage" },
-        { id: "slack", name: "Slack", category: "communication" },
-        { id: "gmail", name: "Gmail", category: "communication" },
-        { id: "notion", name: "Notion", category: "productivity" },
-        { id: "jira", name: "Jira", category: "productivity" },
-        { id: "github", name: "GitHub", category: "development" },
-        { id: "nextjs", name: "Next.js", category: "development" },
-        { id: "stripe", name: "Stripe", category: "finance" },
-        { id: "linear", name: "Linear", category: "productivity" },
-        { id: "outlook", name: "Outlook", category: "communication" },
-        { id: "asana", name: "Asana", category: "productivity" },
-      ];
+      let oauthList: Array<{ provider: string; status: string; expires_at?: string | null }> = [];
+      if (tokensRes.ok) {
+        const data = await tokensRes.json().catch((): null => null);
+        oauthList = Array.isArray(data?.integrations) ? data.integrations : [];
+      }
 
-      const updatedIntegrations = integrationList.map((integration, index) => {
-        const healthResponse = healthChecks[index];
-        const connected = healthResponse.ok;
-        const health = healthResponse.ok ? "healthy" : "error";
-
+      const updatedIntegrations = oauthList.map((row) => {
+        const meta = providerMeta[row.provider] || { name: row.provider, category: "integration" };
         return {
-          ...integration,
-          connected,
-          health,
-          icon: integrationIcons[integration.id] || Activity,
+          id: row.provider,
+          name: meta.name,
+          category: meta.category,
+          connected: row.status === "active",
+          health: row.status === "active" ? "healthy" : "error",
+          expires_at: row.expires_at || null,
+          icon: integrationIcons[row.provider] || Activity,
         };
       });
 
@@ -138,8 +134,8 @@ const DashboardPage: React.FC = () => {
 
       // 2. Fetch Business Intelligence Summary (Phase 12)
       const [finRes, salesRes] = await Promise.all([
-        fetch(`/api/v1/accounting/dashboard/summary?workspace_id=${workspaceId}`).catch(() => null),
-        fetch(`/api/sales/dashboard/summary?workspace_id=${workspaceId}`).catch(() => null)
+        fetch(`/api/v1/accounting/dashboard/summary?workspace_id=${workspaceId}`).catch((): null => null),
+        fetch(`/api/sales/dashboard/summary?workspace_id=${workspaceId}`).catch((): null => null)
       ]);
 
       const safeParseJson = async (res: Response | null) => {
@@ -420,7 +416,7 @@ const DashboardPage: React.FC = () => {
                               <span>
                                 {integration.connected
                                   ? "Connected"
-                                  : "Disconnected"}
+                                  : "Expired"}
                               </span>
                               {integration.connected ? (
                                 <CheckCircle className="w-4 h-4 text-green-500" />
@@ -429,6 +425,14 @@ const DashboardPage: React.FC = () => {
                               )}
                             </div>
                           </div>
+                          {integration.connected && integration.expires_at && (
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-gray-500 dark:text-gray-400">Token expires:</span>
+                              <span className="text-gray-500 dark:text-gray-400 text-xs">
+                                {new Date(integration.expires_at).toLocaleString()} (auto-renews)
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </CardContent>
