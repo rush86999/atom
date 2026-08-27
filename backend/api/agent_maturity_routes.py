@@ -149,6 +149,9 @@ async def list_training_proposals(
             fields["session_status"] = active.status
             guidance = active.supervisor_guidance if isinstance(active.supervisor_guidance, dict) else {}
             fields["lesson_plan"] = guidance.get("lesson_plan") or guidance
+            if guidance.get("canvas_id"):
+                fields["canvas_id"] = guidance["canvas_id"]
+                fields["canvas_url"] = f"/canvas/{guidance['canvas_id']}"
         # Student identity + trust state — the supervisor must know WHO is
         # being trained and where they stand before scoring.
         from core.models import AgentRegistry as _AR

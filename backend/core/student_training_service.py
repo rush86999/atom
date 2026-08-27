@@ -69,6 +69,70 @@ class TrainingOutcome:
         self.capability_gaps_remaining = capability_gaps_remaining
 
 
+# Generic per-domain lesson seeds: any small-business domain without explicit
+# gaps still gets a runnable first-session plan (objective + task skeletons).
+_ROLE_LESSON_SEEDS = {
+    "sales": {
+        "objective": "Qualify real leads and draft outreach for supervisor review",
+        "tasks": [
+            "Read the newest ingested lead and state its likely need",
+            "Draft a 3-sentence opening email",
+            "Draft a follow-up touch for a second lead",
+        ],
+    },
+    "finance": {
+        "objective": "Reconcile ingested bills/payments and flag exceptions",
+        "tasks": [
+            "Match 3 recent bills to payments or bank lines",
+            "Flag records older than 30 days",
+            "Summarize exceptions for supervisor approval",
+        ],
+    },
+    "operations": {
+        "objective": "Summarize live order/project status and surface stalls",
+        "tasks": [
+            "Group open orders/projects by stage",
+            "Flag the two oldest stalled items with a recommended nudge",
+            "Note inventory shortages if present",
+        ],
+    },
+    "marketing": {
+        "objective": "Draft an audience-specific update from product facts",
+        "tasks": [
+            "Segment the audience list (distributors vs end users)",
+            "Draft copy grounded in durable facts",
+            "Propose send timing",
+        ],
+    },
+    "support": {
+        "objective": "Resolve one real inbound request end-to-end (draft only)",
+        "tasks": [
+            "Pick the newest unresolved contact",
+            "Summarize the issue with evidence from memory",
+            "Draft a response citing one knowledge source",
+        ],
+    },
+    "hr": {
+        "objective": "Assemble onboarding/offboarding materials",
+        "tasks": [
+            "Build the checklist from standard steps",
+            "Attach relevant roster/calendar context",
+        ],
+    },
+}
+_ROLE_LESSON_SEEDS.setdefault(
+    "general",
+    {"objective": "Complete one supervised pass on real ingested data",
+     "tasks": ["Review ingested records", "Draft one artifact for review"]},
+)
+
+
+def _role_seed(category: Optional[str]) -> Dict[str, Any]:
+    key = (category or "").lower().strip()
+    return _ROLE_LESSON_SEEDS.get(key) or _ROLE_LESSON_SEEDS["general"]
+
+
+
 class StudentTrainingService:
     """
     Service for managing STUDENT agent training and maturity progression.
@@ -313,8 +377,19 @@ After completing this training, the agent will be able to handle similar tasks a
             )
         except Exception as lesson_err:
             logger.warning(f"lesson plan generation failed (non-fatal): {lesson_err}")
+        # Nested under "lesson_plan" so listing/canvas readers agree on shape.
+        session.supervisor_guidance = {"lesson_plan": session.supervisor_guidance.get("lesson_plan")} if isinstance(session.supervisor_guidance, dict) and "lesson_plan" in session.supervisor_guidance else {"lesson_plan": dict(session.supervisor_guidance or {})}
 
         self.db.add(session)
+        self.db.flush()  # materialize session.id before the canvas references it
+
+        # Mini-canvas: the visual review surface for this supervised pass
+        _canvas_agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == proposal.agent_id
+        ).first()
+        if _canvas_agent is not None:
+            self.ensure_session_canvas(session, _canvas_agent, proposal)
+
         self.db.commit()
         self.db.refresh(session)
 
@@ -663,6 +738,77 @@ After completing this training, the agent will be able to handle similar tasks a
             ],
         }
 
+    def ensure_session_canvas(self, session: TrainingSession, agent: AgentRegistry, proposal: AgentProposal) -> Optional[str]:
+        """Create the session's MINI-CANVAS — one per training session.
+
+        Renders the mentor lesson + student trust state + data scope as typed
+        sections (document canvas) so the supervisor reviews the trainee's
+        work visually, not as chat text. Idempotent: the canvas id is stored
+        in supervisor_guidance; re-invocations reuse it. Audited into
+        CanvasAudit under the chat-session-equivalent training session id.
+        """
+        guidance = session.supervisor_guidance if isinstance(session.supervisor_guidance, dict) else {}
+        if guidance.get("canvas_id"):
+            return guidance["canvas_id"]
+
+        try:
+            from core.models import Canvas, CanvasAudit
+
+            plan = guidance.get("lesson_plan") or {}
+            tasks = plan.get("tasks") or []
+            task_lines = "\n".join(f"- {t}" for t in tasks) or "- (lesson pending)"
+            content = {
+                "type": "training_session",
+                "student": {"id": agent.id, "name": agent.name, "tier": agent.status,
+                            "confidence": agent.confidence_score},
+                "mentor": plan.get("mentor") or "atom_main",
+                "domain": plan.get("domain") or "",
+                "objective": plan.get("objective", ""),
+                "tasks": tasks,
+                "materials": plan.get("materials", []),
+                "session_id": session.id,
+                "completed": bool(session.status == "completed"),
+                "performance_score": session.performance_score,
+            }
+
+            canvas = Canvas(
+                tenant_id=session.tenant_id or "default",
+                workspace_id=getattr(self, "workspace_id", None) or "default",
+                created_by=session.supervisor_id or agent.created_by,
+                name=f"Training: {agent.name} — {plan.get('objective', 'session')}"[:255],
+                description=f"Mini-canvas for training session {session.id}",
+                canvas_type="document",
+                content=content,
+                status="active",
+            )
+            self.db.add(canvas)
+            self.db.flush()  # assign canvas.id before audit rows reference it
+
+            audit = CanvasAudit(
+                canvas_id=canvas.id,
+                tenant_id=session.tenant_id or "default",
+                # attribute to the supervised pass: same id keys the episode
+                session_id=str(session.id),
+                agent_id=agent.id,
+                canvas_type="document",
+                action_type="training_session_started",
+                user_id=session.supervisor_id,
+                details_json={"lesson_objective": plan.get("objective", ""), "source": "training_flow"},
+            )
+            self.db.add(audit)
+
+            guidance["canvas_id"] = canvas.id
+            session.supervisor_guidance = guidance
+            self.db.commit()
+            logger.info(
+                f"Session mini-canvas created: {canvas.id} for training {session.id}"
+            )
+            return canvas.id
+        except Exception as canvas_err:
+            self.db.rollback()
+            logger.warning(f"mini-canvas creation failed (non-fatal): {canvas_err}")
+            return None
+
     async def _build_lesson_plan(
         self, agent: AgentRegistry, proposal: AgentProposal
     ) -> Dict[str, Any]:
@@ -716,14 +862,19 @@ After completing this training, the agent will be able to handle similar tasks a
         except Exception as lead_err:
             logger.debug(f"lesson lead sampling failed: {lead_err}")
 
-        first = leads[0]["text"] if leads else "any lead in memory"
-        second = leads[1]["text"] if len(leads) > 1 else (first or "a second lead")
-
-        tasks = [
-            f"Read this real lead and say what it likely needs: {first}",
-            "Draft a 3-sentence opening email for it (draft only — never send)",
-            f"Draft a short follow-up for a second lead: {second}",
-        ]
+        # Sales-flavored concrete pass when real leads exist; otherwise the
+        # domain seed template keeps EVERY role's first session runnable.
+        if leads:
+            first = leads[0]["text"]
+            second = leads[1]["text"] if len(leads) > 1 else first
+            tasks = [
+                f"Read this real lead and say what it likely needs: {first}",
+                "Draft a 3-sentence opening email for it (draft only — never send)",
+                f"Draft a short follow-up for a second lead: {second}",
+            ]
+        else:
+            seed = _role_seed(agent.category)
+            tasks = list(seed.get("tasks", []))
         if gaps:
             tasks.append(f"While working, self-check on: {', '.join(gaps)}")
 
@@ -733,7 +884,7 @@ After completing this training, the agent will be able to handle similar tasks a
             "objective": (
                 objectives[0]
                 if objectives
-                else "Complete one supervised pass on real ingested data"
+                else _role_seed(agent.category).get("objective", "Complete one supervised pass")
             ),
             "tasks": tasks,
             "materials": [l["text"] for l in leads[:3]] or ["any ingested records"],
