@@ -381,6 +381,134 @@ class EmailCanvasService:
             self.db.rollback()
             return {"success": False, "error": str(e)}
 
+    async def send_email(
+        self,
+        canvas_id: str,
+        user_id: str,
+        to_emails: List[str],
+        cc_emails: Optional[List[str]] = None,
+        subject: str = "",
+        body: str = "",
+        agent_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Send the composed email through the deterministic email policy.
+
+        Human-initiated (canvas Send button): the human's click IS the
+        authorization for allow/approve decisions, so both send; a BLOCK
+        (restricted-sensitivity content, e.g. PII/secrets) always refuses.
+        Agent-initiated sends go through the MCP path instead, where the
+        same policy forces HITL approval (see mcp_service._check_hitl_policy).
+
+        Every send (or blocked attempt) is stamped into CanvasAudit as an
+        ``email_send`` row — the rate-cap ledger — and broadcast as a
+        ``canvas:update`` so agents/users co-editing the canvas see it live.
+        """
+        from core.email_policy import evaluate_email_action
+
+        decision = evaluate_email_action(
+            {"to": to_emails, "cc": cc_emails, "subject": subject, "body": body},
+            {"user_id": user_id, "agent_id": agent_id},
+        )
+        payload = {"to": to_emails, "cc": cc_emails, "subject": subject}
+
+        if decision["decision"] == "block":
+            self.record_send(canvas_id, user_id, agent_id, payload, "blocked", decision)
+            return {
+                "success": False,
+                "error": decision["reason"],
+                "blocked_by": "email_policy",
+                "status": "blocked",
+            }
+
+        try:
+            from integrations.outlook_service import OutlookService
+
+            svc = OutlookService()
+            result = await svc.send_email(
+                user_id=user_id,
+                to_recipients=to_emails or [],
+                cc_recipients=cc_emails or [],
+                subject=subject or "",
+                body=body or "",
+            )
+        except Exception as e:
+            logger.error(f"Email canvas send failed: {e}")
+            self.record_send(canvas_id, user_id, agent_id, payload, "failed", decision)
+            return {"success": False, "error": "Outlook send failed", "status": "failed"}
+
+        ok = result is not None
+        self.record_send(canvas_id, user_id, agent_id, payload, "sent" if ok else "failed", decision)
+        if not ok:
+            return {"success": False, "error": "Outlook send failed", "status": "failed"}
+        return {
+            "success": True,
+            "status": "sent",
+            "decision": decision["decision"],
+            "policy": decision["policy"],
+        }
+
+    def record_send(
+        self,
+        canvas_id: str,
+        user_id: str,
+        agent_id: Optional[str],
+        payload: Dict[str, Any],
+        status: str,
+        decision: Dict[str, Any],
+    ) -> None:
+        """Stamp an email_send CanvasAudit row + broadcast canvas:update.
+
+        The audit row doubles as the deterministic rate-cap ledger
+        (email_policy._sends_in_last_hour counts action_type="email_send").
+        """
+        audit = CanvasAudit(
+            id=str(uuid.uuid4()),
+            tenant_id="default",
+            agent_id=agent_id,
+            user_id=user_id,
+            canvas_id=canvas_id or f"email_{uuid.uuid4().hex[:8]}",
+            action_type="email_send",
+            canvas_type="email",
+            details_json={
+                "canvas_type": "email",
+                "component_type": "compose_form",
+                "send_status": status,
+                "decision": decision.get("decision"),
+                "policy": decision.get("policy"),
+                "reason": decision.get("reason"),
+                "payload": payload,
+                "sent_at": datetime.now().isoformat(),
+            },
+        )
+        self.db.add(audit)
+        self.db.commit()
+        logger.info(f"Email canvas send recorded: {canvas_id} status={status}")
+
+        # Live broadcast on BOTH channels (canvas page + user panel) so the
+        # agent co-editing loop sees the send (canvas:update pattern, #39).
+        try:
+            import asyncio
+
+            from core.websockets import manager as ws_manager
+
+            message = {
+                "type": "canvas:update",
+                "data": {
+                    "action": "email_send",
+                    "canvas_id": canvas_id,
+                    "canvas_type": "email",
+                    "component": "email",
+                    "data": {"status": status, "payload": payload},
+                },
+            }
+            for channel in (f"canvas:{canvas_id}", f"user:{user_id}"):
+                try:
+                    asyncio.create_task(ws_manager.broadcast(channel, dict(message)))
+                except Exception:
+                    pass
+        except Exception as e:  # pragma: no cover - broadcast never breaks send
+            logger.debug(f"Email canvas broadcast failed: {e}")
+
     def _message_to_dict(self, message: EmailMessage) -> Dict[str, Any]:
         """Convert message to dict."""
         return {

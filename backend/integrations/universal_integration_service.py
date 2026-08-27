@@ -559,7 +559,43 @@ class UniversalIntegrationService:
                 return {"status": "success", "data": await comm_service.get_message(params.get("id"), token=token)}
                 
         elif service == "outlook":
-            return {"status": "success", "message": f"Routed to {service} handler via UIS-Bridge"}
+            # Was a dead stub returning "Routed via UIS-Bridge" — wire the real
+            # OutlookService so MCP send_email/search_emails actually work.
+            if not comm_service:
+                return {"status": "error", "message": "Outlook service not available"}
+            user_id = (context or {}).get("user_id") or "default_user"
+            if action == "send_message":
+                to = params.get("to") or params.get("to_recipients") or params.get("recipients")
+                if isinstance(to, str):
+                    to = [to]
+                if not to:
+                    return {"status": "error", "message": "to is required for send_message"}
+                data = await comm_service.send_email(
+                    user_id=user_id,
+                    to_recipients=to,
+                    cc_recipients=params.get("cc") or params.get("cc_recipients"),
+                    bcc_recipients=params.get("bcc") or params.get("bcc_recipients"),
+                    subject=params.get("subject", ""),
+                    body=params.get("body") or params.get("content") or "",
+                    token=token,
+                )
+                return {"status": "success" if data is not None else "error", "data": data}
+            elif action == "list_messages":
+                messages = await comm_service.get_user_emails(
+                    user_id=user_id,
+                    folder=params.get("folder", "inbox"),
+                    query=params.get("query"),
+                    max_results=int(params.get("max_results") or params.get("limit") or 50),
+                    token=token,
+                )
+                return {"status": "success", "data": messages}
+            elif action == "get_message":
+                return {
+                    "status": "success",
+                    "data": await comm_service.get_email_by_id(user_id, params.get("id"), token=token),
+                }
+            else:
+                return {"status": "error", "message": f"Unsupported outlook action: {action}"}
 
         elif service == "zoho_mail":
             if action == "list":

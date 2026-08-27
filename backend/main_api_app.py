@@ -603,13 +603,9 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"Failed to start org hub pull loop: {e}")
 
-        # Start Outlook Automation Loop
-        try:
-            from outlook_automation_service import start_outlook_automation_loop
-            _spawn_background_task(start_outlook_automation_loop())
-            logger.info("✓ Outlook Automation Loop started")
-        except Exception as e:
-            logger.error(f"Failed to start Outlook Automation Loop: {e}")
+        # Outlook: the scripted automation loop is REMOVED — the governed
+        # email agent (core.email_agent) handles inbox work through MCP gates
+        # instead, triggered by the Outlook webhook (ingestion_webhooks).
 
         # Start Outlook Memory Poller (recover after restart when Outlook is
         # already connected). Reads tokens from IntegrationToken; skips when no
@@ -3266,6 +3262,14 @@ try:
         app.include_router(canvas_sheets_router)
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas sheets routes not found: {e}")
+
+    try:
+        from api.canvas_email_routes import router as canvas_email_router
+
+        app.include_router(canvas_email_router)
+        logger.info("✓ Canvas Email Routes Loaded (/api/canvas/email)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Canvas email routes not found: {e}")
 
     try:
         from api.agent_control_routes import router as agent_control_router

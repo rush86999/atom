@@ -6,6 +6,31 @@
 
 ---
 
+## Session 2026-08-27 (Email agent harness — scripted Outlook loop removed, deterministic policy + governed agent + canvas send)
+
+**Context**: Brennan discussion — the scripted `outlook_automation_service.py` (15s poll loop, regex URL match, hardcoded reply body/CCs, direct `OutlookService` calls) beat the purpose of the agent harness. Replaced with a governed email agent + deterministic email policy (research: guardrails beat smarter models). Also fixed the dead `outlook` UIS-Bridge stub (send_email silently did nothing for platform=outlook) and wired the canvas Send button to a real policy-checked endpoint.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/email_policy.py` (NEW) | deterministic email policy: recipient egress allowlist (`ATOM_EMAIL_ALLOWED_OUTBOUND_DOMAINS`), content sensitivity via P4 classifier (restricted→BLOCK, confidential→APPROVE), rate cap (`ATOM_EMAIL_MAX_AUTONOMOUS_PER_HOUR`, CanvasAudit `email_send` ledger); `spotlight_email_content` provenance delimiters; `is_valid_recipient`. **Post-fix**: BLOCK-level check (restricted sensitivity) moved BEFORE the recipient allowlist — PII + external recipient previously returned APPROVE (recipient check short-circuited) and the human-present canvas path SENT the PII email; now always BLOCKs | `tests/test_email_policy.py` 18 passed |
+| `core/email_agent.py` (NEW) | `EMAIL_AGENT_ID` registry row get-or-create (STUDENT, MCP email tools, provenance system prompt); `dispatch_for_incoming_email` webhook→agent trigger (GenericAgent, fire-and-forget); `build_email_task` provenance wraps fetched email content | `tests/test_email_agent_dispatch.py` 3 passed |
+| `integrations/mcp_service.py` | `_check_hitl_policy`: deterministic email policy evaluated for `send_email` before tenant config — BLOCK returned directly (never overridable), APPROVE forces HITL (even for AUTONOMOUS agents / tenant auto-approve) | existing HITL suites green |
+| `integrations/universal_integration_service.py` | outlook branch was a stub returning "Routed via UIS-Bridge" — now real dispatch: `send_message`→`send_email`, `list_messages`→`get_user_emails`, `get_message`→`get_email_by_id` | `tests/test_email_agent_dispatch.py` 2 passed |
+| `core/canvas_email_service.py` | `send_email` (async: policy → OutlookService → audit) + `record_send` (CanvasAudit `email_send` row + `canvas:update` broadcast on `canvas:{id}`/`user:{uid}`) | covered via route test |
+| `api/canvas_email_routes.py` | `POST /api/canvas/email/send` (auth'd; human click = authorization for allow/approve; BLOCK → 400 with details) | `tests/test_email_agent_dispatch.py` 2 passed |
+| `api/routes/webhooks/ingestion_webhooks.py` | outlook webhook now also triggers `dispatch_for_incoming_email` (message notifications; fire-and-forget) — webhook→agent trigger, replaces poll loop | R46 clientState suite green (23 passed) |
+| `outlook_automation_service.py` (DELETED) | scripted loop removed; boot hook removed from `main_api_app.py` lifespan | no references remain (docstrings only) |
+| `frontend-nextjs/components/canvas/CanvasPanel.tsx` | Send button posts to `/api/canvas/email/send` (was stub alert); email state unchanged ({to, subject}) | CanvasPanel.test.tsx 32 passed |
+| `frontend-nextjs/components/canvas/__tests__/CanvasPanel.test.tsx` | Send test asserts real API request body | 32 passed |
+
+**Verification**: `tests/test_email_policy.py` + `tests/test_email_agent_dispatch.py` 24 passed; existing `tests/api/test_canvas_email_routes.py` + `tests/test_round46_outlook_client_state.py` 23 passed (regression); CanvasPanel jest 32 passed. All touched modules import clean (`core.email_policy`, `core.email_agent`, `core.canvas_email_service`, `integrations.universal_integration_service`, `integrations.mcp_service`, `api.canvas_email_routes`, `api.routes.webhooks.ingestion_webhooks`).
+
+**Known gaps**: `ATOM_EMAIL_ALLOWED_OUTBOUND_DOMAINS` unset = conservative (all external sends need approval); canvas Send uses `OutlookService` directly (human-present path), agent sends route through MCP gates; email agent starts STUDENT so auto-dispatch is read-only until trained (matches maturity system).
+
+---
+
 ## Session 2026-08-25 (Round 82 — model provenance + silent-bump drift detection + scoped harness patches)
 
 **Context**: HARNESS_EVOLUTION follow-up (external research adjudication, GEPA/AHE/PromptBridge/HarnessCompass thread). The self-evolution harness mined failures with no model dimension (`AgentReasoningStep` had no model column; `propose_mutation` hardcoded `"model_scope": "all"`), so a prompt patch tuned on one checkpoint served every model. CAIN-style silent provider bumps (checkpoint changes under a stable alias) were undetectable: `byok_handler` stamped the router-SELECTED model into outcome feedback — never the provider-ECHOED ID from the response body.

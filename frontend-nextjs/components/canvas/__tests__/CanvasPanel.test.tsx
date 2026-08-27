@@ -9,7 +9,8 @@
  * - editing content marks unsaved changes; Save POSTs to /api/artifacts
  *   (create) or /api/artifacts/update (existing id) and shows "Synced to
  *   cloud" with the updated version
- * - email canvas: editable To/Subject + Send alert; Save embeds metadata
+ * - email canvas: editable To/Subject + Send via /api/canvas/email/send
+ *   (deterministic policy path); Save embeds metadata
  * - sheet canvas: editable cells, Add New Row, Save serializes the grid
  * - window.atom.canvas.getState() exposes the AI accessibility state for
  *   each canvas type (markdown/code/sheet/email) via the real
@@ -181,8 +182,15 @@ describe('CanvasPanel', () => {
     expect(await screen.findByText('v9')).toBeInTheDocument();
   });
 
-  it('renders an email canvas with editable metadata and Send alert', async () => {
+  it('renders an email canvas with editable metadata and sends via the policy API', async () => {
     alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+    const sentEmails: any[] = [];
+    server.use(
+      rest.post('*/api/canvas/email/send', async (req, res, ctx) => {
+        sentEmails.push(req.body);
+        return res(ctx.status(200), ctx.json({ success: true, status: 'sent' }));
+      })
+    );
     send({
       type: 'canvas:update',
       data: {
@@ -204,7 +212,16 @@ describe('CanvasPanel', () => {
       target: { value: 'Q3 numbers v2' },
     });
     fireEvent.click(screen.getByText('Send'));
-    expect(alertSpy).toHaveBeenCalledWith('Sending email to boss@corp.com...');
+
+    // Send now posts the composed email through the deterministic policy
+    // endpoint instead of the old stub alert.
+    await waitFor(() => expect(sentEmails).toHaveLength(1));
+    expect(sentEmails[0]).toMatchObject({
+      to: ['boss@corp.com'],
+      subject: 'Q3 numbers v2',
+      body: 'Hi there',
+      canvas_id: 'mail-1',
+    });
 
     // Save embeds email metadata
     fireEvent.click(screen.getByText('Save Changes'));

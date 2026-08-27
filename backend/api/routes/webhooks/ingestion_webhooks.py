@@ -19,6 +19,7 @@ Key features:
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
+import asyncio
 import hmac
 import hashlib
 import os
@@ -977,6 +978,37 @@ async def outlook_webhook_handler(
 
                 logger.info(f"[OUTLOOK_WEBHOOK] Successfully enqueued job {job_id}")
                 processed_jobs.append(job_id)
+
+                # 8. Trigger the governed email agent for message notifications.
+                # Replaces the scripted outlook_automation_service loop: the
+                # agent itself triages and drafts via MCP tools, and every send
+                # flows through the harness (capability -> sandbox -> HITL ->
+                # deterministic email policy). Fire-and-forget; never blocks the
+                # webhook response.
+                if "message" in (resource_path or "").lower():
+                    try:
+                        from core.email_agent import dispatch_for_incoming_email
+
+                        resource_data = notification.get("resourceData") or {}
+                        asyncio.create_task(
+                            dispatch_for_incoming_email(
+                                tenant_id=tenant_id,
+                                workspace_id=(
+                                    getattr(connection, "workspace_id", None) or "default"
+                                ),
+                                user_id=(
+                                    getattr(connection, "user_id", None) or "default_user"
+                                ),
+                                subject_hint=(
+                                    resource_data.get("subject") if isinstance(resource_data, dict) else ""
+                                ) or "",
+                                resource_hint=resource_path,
+                            )
+                        )
+                    except Exception as _agent_trigger_err:
+                        logger.warning(
+                            f"[OUTLOOK_WEBHOOK] email agent trigger failed: {_agent_trigger_err}"
+                        )
 
 
             except Exception as e:
