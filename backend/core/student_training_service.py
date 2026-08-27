@@ -649,8 +649,22 @@ After completing this training, the agent will be able to handle similar tasks a
         All floors are env-tunable so deployments calibrate strictness.
         """
         min_sessions = int(os.getenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", "3"))
-        min_episodes = int(os.getenv("ATOM_PROMOTION_MIN_EPISODES", "10"))
         min_ratio = float(os.getenv("ATOM_PROMOTION_MIN_SUCCESS_RATIO", "0.7"))
+
+        # Dynamic policy (seeded → tuned by domain history). Overrides the
+        # static episode/session seeds when the domain has enough promoted
+        # agents to tune on; env kill-switch ATOM_PROMOTION_DYNAMIC_TUNING.
+        try:
+            from core.promotion_policy_service import get_promotion_policy
+
+            policy = get_promotion_policy(self.db, agent.category)
+            min_sessions = policy["min_sessions"]
+            min_episodes = int(policy["min_episodes"])
+            min_ratio = float(policy["min_success_ratio"])
+            policy_source = policy.get("source", "seeded")
+        except Exception:
+            min_episodes = int(os.getenv("ATOM_PROMOTION_MIN_EPISODES", "10"))
+            policy_source = "seeded"
 
         if self._is_system_agent(agent):
             return {
@@ -739,6 +753,7 @@ After completing this training, the agent will be able to handle similar tasks a
             "required_episodes": min_episodes,
             "success_ratio": round(ratio, 3),
             "required_success_ratio": min_ratio,
+            "policy_source": policy_source,
         }
 
     async def get_training_history(
