@@ -112,7 +112,28 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
     };
 
     const handleSendEmail = async () => {
-        alert(`Sending email to ${emailMetadata.to}...`);
+        // Explicit confirm before dispatch — the send endpoint treats the
+        // human click as policy authorization for allow/approve decisions,
+        // so it should be a deliberate act, not a single accidental click.
+        if (!window.confirm(`Send email to ${emailMetadata.to}?`)) return;
+        try {
+            const { apiClient } = await import("@/lib/api");
+            const res = await apiClient.post("/api/canvas/email/send", {
+                to: [emailMetadata.to].filter(Boolean),
+                cc: [],
+                subject: emailMetadata.subject || "",
+                body: localContentRef.current || "",
+                canvas_id: state?.id || undefined,
+            });
+            const data = res?.data || {};
+            if (data.success) {
+                alert(data.status === "sent" ? "Email sent." : `Email status: ${data.status}`);
+            } else {
+                alert(`Send blocked: ${data.error || data.message || "unknown error"}`);
+            }
+        } catch (e: any) {
+            alert(`Send failed: ${e?.response?.data?.message || e?.message || "unknown error"}`);
+        }
     };
 
     // ─── AI Accessibility: register canvas state for agent read-back ───

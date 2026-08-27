@@ -1272,8 +1272,35 @@ class MCPService(IntegrationService):
                 require_hitl = gov_config.get("require_hitl_external", False)
                 allow_autonomous = gov_config.get("allow_autonomous_external", False)
                 roles_map = gov_config.get("roles", {})
-                
-                if require_hitl:
+
+                # Deterministic email policy (research: guardrails beat smarter
+                # models). Pure rules, no LLM — a BLOCK is returned straight to
+                # the caller (never overridable by tenant auto-approve flags);
+                # an APPROVE forces HITL even when the tenant does not require
+                # it and even for AUTONOMOUS agents (policy says ask, so ask).
+                email_policy_reason = None
+                if tool_name == "send_email":
+                    try:
+                        from core.email_policy import evaluate_email_action
+                        _email_decision = evaluate_email_action(arguments, context)
+                        if _email_decision["decision"] == "block":
+                            logger.info(
+                                "email policy BLOCKED send: %s",
+                                _email_decision["reason"],
+                            )
+                            return {
+                                "error": f"Email blocked by deterministic policy: {_email_decision['reason']}",
+                                "blocked_by": "email_policy",
+                                "status": "BLOCKED",
+                            }
+                        if _email_decision["decision"] == "approve":
+                            email_policy_reason = _email_decision["reason"]
+                    except Exception as _policy_err:  # pragma: no cover - defensive
+                        # policy must never break dispatch — fail-safe to approval
+                        logger.debug("email policy evaluation failed: %s", _policy_err)
+                        email_policy_reason = "Email policy unavailable; defaulting to approval"
+
+                if require_hitl or email_policy_reason:
                     # Risk classification
                     risky_tools = ["send_email", "whatsapp_send_message", "whatsapp_send_template", "send_message"]
                     
@@ -1320,6 +1347,11 @@ class MCPService(IntegrationService):
                                      should_intercept = False
                                      logger.info(f"Auto-approving external action for Autonomous Agent {agent.name} (Maturity 5)")
 
+                         # Deterministic email policy APPROVE wins over
+                         # autonomous auto-approval — policy says ask, so ask.
+                         if email_policy_reason:
+                             should_intercept = True
+
                          if should_intercept:
                              from core.intervention_service import intervention_service
                              
@@ -1329,6 +1361,8 @@ class MCPService(IntegrationService):
                              # Create a user-friendly reason
                              target = arguments.get("to") or arguments.get("target") or "External Contact"
                              reason = f"Governance Policy: External communication to {target} requires approval."
+                             if email_policy_reason:
+                                 reason = f"Email policy: {email_policy_reason}"
                              if required_role:
                                  reason += f" Requires verified '{required_role}' role."
 

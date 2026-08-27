@@ -90,6 +90,13 @@ TIER_FLOOR_TOOL_WHITELISTS: Dict[str, Tuple[str, ...]] = {
         "memory_search",
         "memory_recall",
         "search_reasoning_steps_lexical",
+        # Read-only email triage (search over ingested communications).
+        "search_emails",
+        # STUDENT = observe/draft-only (role-training-plan): drafting is the
+        # proposal-stage artifact with no external side effect; SEND stays
+        # gated at SUPERVISED. Without it the webhook-driven triage-and-
+        # draft workflow cannot complete at STUDENT.
+        "draft_response",
     ),
     "intern": (
         "canvas_render",
@@ -101,6 +108,8 @@ TIER_FLOOR_TOOL_WHITELISTS: Dict[str, Tuple[str, ...]] = {
         "productivity_read",
         "browser_screenshot",
         "extract_text",
+        # Draft-only: no external side effect, stays proposal/approval-stage.
+        "draft_response",
     ),
     "supervised": (
         "canvas_render",
@@ -118,6 +127,13 @@ TIER_FLOOR_TOOL_WHITELISTS: Dict[str, Tuple[str, ...]] = {
         "browser_screenshot",
         "browser_download",
         "extract_text",
+        # Email tools are cumulative with the lower floors: search at STUDENT,
+        # draft at INTERN, send at SUPERVISED.
+        "search_emails",
+        "draft_response",
+        # External side effect, still HITL-gated (risky_tools + deterministic
+        # email policy) even at SUPERVISED.
+        "send_email",
     ),
     "autonomous": (
         # AUTONOMOUS gets the full tool surface; blast radius is bounded by

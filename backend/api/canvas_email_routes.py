@@ -9,6 +9,7 @@ from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.canvas_email_service import EmailCanvasService
 from core.database import get_db
+from core.personal_scope import resolve_tenant_id
 
 logger = logging.getLogger(__name__)
 router = BaseAPIRouter(prefix="/api/canvas/email", tags=["canvas_email"])
@@ -67,6 +68,49 @@ class CategorizeRequest(BaseModel):
     user_id: str
     category: str
     color: Optional[str] = None
+
+
+class SendEmailRequest(BaseModel):
+    to: List[str]
+    cc: Optional[List[str]] = None
+    subject: str = ""
+    body: str = ""
+    canvas_id: Optional[str] = None
+    agent_id: Optional[str] = None
+
+
+@router.post("/send")
+async def send_email_canvas(
+    request: SendEmailRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Send the composed email through the deterministic email policy.
+
+    Human-initiated send: the user's click authorizes allow/approve decisions;
+    BLOCK (restricted-sensitivity content) always refuses. Every attempt is
+    stamped into CanvasAudit (action_type="email_send") and broadcast as a
+    canvas:update so agents/users co-editing see it live.
+    """
+    service = EmailCanvasService(db)
+    result = await service.send_email(
+        canvas_id=request.canvas_id,
+        user_id=current_user.id,
+        to_emails=request.to,
+        cc_emails=request.cc,
+        subject=request.subject,
+        body=request.body,
+        agent_id=request.agent_id,
+        tenant_id=resolve_tenant_id(current_user),
+    )
+    if not result.get("success"):
+        raise router.error_response(
+            error_code="EMAIL_SEND_FAILED",
+            message=result.get("error", "Failed to send email"),
+            status_code=400,
+            details=result,
+        )
+    return result
 
 
 @router.post("/create")
