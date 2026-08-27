@@ -285,6 +285,42 @@ async def get_sync_status(
         raise router.internal_error(detail="Internal error")
 
 
+@router.get("/memory/records")
+async def search_memory_records(
+    q: str = Query(..., description="Search text — record name, company, content"),
+    agent_id: Optional[str] = Query(None, description="AI employee id — role-scopes the search"),
+    limit: int = Query(8, ge=1, le=20),
+    current_user: User = Depends(get_current_user),
+):
+    """Search the hire's ingested records (all integrations, role-aware).
+
+    Used by task composers to pin SPECIFIC items — a lead, invoice, document —
+    to a suggested task, so the agent works the exact object, not a guess.
+    """
+    from core.memory_context_assembler import _integration_records_leg
+    from core.models import AgentRegistry
+    from core.database import SessionLocal
+
+    workspace_id = get_workspace_id(current_user)
+    role = None
+    if agent_id:
+        db = SessionLocal()
+        try:
+            agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+            role = (agent.category or "").lower() if agent else None
+        finally:
+            db.close()
+
+    lines = await _integration_records_leg(q, workspace_id, role)
+    return {
+        "success": True,
+        "results": [
+            {"record": line}
+            for line in (lines or [])[:limit]
+        ],
+    }
+
+
 @router.get("/available-integrations")
 async def list_available_integrations():
     """

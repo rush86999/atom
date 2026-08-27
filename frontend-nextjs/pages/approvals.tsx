@@ -275,6 +275,8 @@ export default function ApprovalsPage() {
   };
 
   const [taskSuggestions, setTaskSuggestions] = useState<Record<string, { text: string; sending?: boolean }>>({});
+  const [recordSearch, setRecordSearch] = useState<Record<string, { q: string; results: { record: string }[]; loading: boolean }>>({});
+  const [pinnedRecords, setPinnedRecords] = useState<Record<string, string[]>>({});
 
   const updateTaskSuggestion = (sid: string, patch: Partial<{ text: string; sending: boolean }>) =>
     setTaskSuggestions((prev) => ({
@@ -290,12 +292,18 @@ export default function ApprovalsPage() {
     const text = (st?.text || "").trim();
     if (!text) return;
     setTaskSuggestions((prev) => ({ ...prev, [sid]: { text, sending: true } }));
+    const pins = pinnedRecords[sid] || [];
+    const scopeQ = recordSearch[sid]?.q?.trim();
+    const scopedMessage =
+      `Supervisor task: ${text}` +
+      (pins.length ? `\nWork on EXACTLY these records:\n${pins.join("\n")}` : "") +
+      (scopeQ && !pins.length ? `\nScope filter: ${scopeQ}` : "");
     try {
       const res = await fetch(`${API}/api/chat/message`, {
         method: "POST",
         headers: headers(),
         body: JSON.stringify({
-          message: `Supervisor task: ${text}`,
+          message: scopedMessage,
           user_id: getCurrentUserId(),
           session_id: `training-chat-${sid}`,
           agent_id: p.agent_id,
@@ -327,6 +335,32 @@ export default function ApprovalsPage() {
       setTaskSuggestions((prev) => ({ ...prev, [sid]: { text, sending: false } }));
     }
   };
+
+  const searchTimer = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const searchRecords = (sid: string, agentId: string, q: string) => {
+    setRecordSearch((prev) => ({ ...prev, [sid]: { ...(prev[sid] || { results: [], loading: false }), q, loading: !!q } }));
+    if (searchTimer.current[sid]) clearTimeout(searchTimer.current[sid]);
+    if (!q.trim()) {
+      setRecordSearch((prev) => ({ ...prev, [sid]: { q, results: [], loading: false } }));
+      return;
+    }
+    searchTimer.current[sid] = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API}/api/data-ingestion/memory/records?q=${encodeURIComponent(q)}&agent_id=${agentId}`, { headers: headers() });
+        const data = res.ok ? await res.json() : { results: [] };
+        setRecordSearch((prev) => ({ ...prev, [sid]: { q, results: data.results || [], loading: false } }));
+      } catch {
+        setRecordSearch((prev) => ({ ...prev, [sid]: { q, results: [], loading: false } }));
+      }
+    }, 500);
+  };
+
+  const togglePin = (sid: string, record: string) =>
+    setPinnedRecords((prev) => {
+      const cur = prev[sid] || [];
+      return { ...prev, [sid]: cur.includes(record) ? cur.filter((r) => r !== record) : [...cur, record] };
+    });
 
   const updateSessionForm = (sid: string, patch: Partial<{ performance_score: string; supervisor_feedback: string; tasks_completed: string; total_tasks: string; errors_count: string }>) =>
     setSessionForms((prev) => ({
@@ -578,26 +612,62 @@ export default function ApprovalsPage() {
                         </div>
                       );
                     })()}
-                    <div className="mt-3">
+                    <div className="mt-3 space-y-2">
                       {(() => {
                         const st = taskSuggestions[sid] || { text: "", sending: false };
+                        const rs = recordSearch[sid] || { q: "", results: [], loading: false };
+                        const pins = pinnedRecords[sid] || [];
                         return (
-                          <div className="flex gap-2">
-                            <input
-                              value={st.text}
-                              onChange={(e) => updateTaskSuggestion(sid, { text: e.target.value })}
-                              onKeyDown={(e) => { if (e.key === "Enter" && !st.sending) suggestTask(p, sid); }}
-                              placeholder="Suggest a training task… e.g. Qualify the Northline lead over email"
-                              className="flex-1 px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-sm text-gray-200"
-                            />
-                            <button
-                              onClick={() => suggestTask(p, sid)}
-                              disabled={st.sending || !st.text.trim()}
-                              className="px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-xs font-medium disabled:opacity-50"
-                            >
-                              {st.sending ? "Sending…" : "Suggest task"}
-                            </button>
-                          </div>
+                          <>
+                            <div className="flex gap-2">
+                              <input
+                                value={st.text}
+                                onChange={(e) => updateTaskSuggestion(sid, { text: e.target.value })}
+                                onKeyDown={(e) => { if (e.key === "Enter" && !st.sending) suggestTask(p, sid); }}
+                                placeholder="Suggest a training task… e.g. Qualify the Northline lead over email"
+                                className="flex-1 px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-sm text-gray-200"
+                              />
+                              <button
+                                onClick={() => suggestTask(p, sid)}
+                                disabled={st.sending || !st.text.trim()}
+                                className="px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-xs font-medium disabled:opacity-50"
+                              >
+                                {st.sending ? "Sending…" : "Suggest task"}
+                              </button>
+                            </div>
+                            <div className="flex gap-2">
+                              <input
+                                value={rs.q}
+                                onChange={(e) => searchRecords(sid, p.agent_id, e.target.value)}
+                                placeholder="Limit to — search ingested records (lead, invoice, file…)"
+                                className="flex-1 px-3 py-1.5 rounded-md bg-gray-800 border border-gray-700 text-xs text-gray-300"
+                              />
+                              {pins.length > 0 && (
+                                <span className="self-center text-xs text-emerald-400">{pins.length} pinned</span>
+                              )}
+                            </div>
+                            {rs.loading && <div className="text-xs text-gray-500">Searching memory…</div>}
+                            {rs.results.length > 0 && (
+                              <div className="space-y-1">
+                                {rs.results.slice(0, 6).map((r) => {
+                                  const pinned = pins.includes(r.record);
+                                  return (
+                                    <button
+                                      key={r.record}
+                                      onClick={() => togglePin(sid, r.record)}
+                                      className={`block w-full text-left px-2 py-1 rounded text-xs truncate ${
+                                        pinned
+                                          ? "bg-emerald-900/40 text-emerald-300 border border-emerald-700"
+                                          : "bg-gray-800/60 text-gray-400 hover:bg-gray-800"
+                                      }`}
+                                    >
+                                      {pinned ? "📌 " : ""}{r.record.slice(0, 120)}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </>
                         );
                       })()}
                     </div>
