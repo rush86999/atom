@@ -87,9 +87,11 @@ const TrainingGuide: React.FC = () => {
                     <li>
                         <span className="font-medium text-gray-100">Train it on real work</span> — open{" "}
                         <a href="/agents" className="text-sky-400 hover:underline">/agents</a>, run the
-                        hire on a genuine task (e.g. “Review the newest leads and draft outreach for the
-                        top one”). Correct its drafts, approve its access requests, iterate. Each
-                        supervised session is recorded as an episode.
+                        hire on a genuine task drawn from its connected data (e.g. “Review the newest
+                        Zoho CRM leads and draft outreach for the top one” — leads from the Zoho sync,
+                        customer threads from the Outlook poller, documents from WorkDrive/OneDrive).
+                        Correct its drafts, approve its access requests, iterate. Each supervised
+                        session is recorded as an episode.
                     </li>
                     <li>
                         <span className="font-medium text-gray-100">Score the pass</span> — come back

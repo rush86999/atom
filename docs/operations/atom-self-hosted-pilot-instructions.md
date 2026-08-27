@@ -31,6 +31,39 @@ NODE_OPTIONS='--max-old-space-size=4096' npx next dev --webpack -p 3001
 
 ---
 
+## 1b. Data ingestion → training flow (how Brennan's data reaches the hire)
+
+Connecting an app and enabling sync feeds the AI employee's memory; training
+tasks then draw on that live data. The flow for every integration:
+
+1. **Connect** (OAuth consent — see §2 below for Zoho/Outlook specifics).
+   A Zoho grant covers CRM, Books, Inventory, Projects and WorkDrive in one
+   consent; Microsoft covers Outlook mail (poller) and OneDrive files.
+2. **Sync scoped to the hire**: `POST /api/data-ingestion/sync/zoho?agent_id=<hire>&force=true`
+   (auto-sync runs hourly; Outlook's poller runs every minute). Records land
+   in agent memory **role-tagged** (the hire's category — Sales for the SDR)
+   and **freshness-stamped** (`source_modified_at` / `last_verified_at` /
+   `freshness_status`), so role-aware recall surfaces the right records and
+   stale ones are detectable.
+3. **What lands where**: CRM leads/deals → memory + the `sales_leads` /
+   `sales_deals` ledger (dashboard KPIs read these); Books invoices,
+   inventory items/orders, project tasks → memory + business facts;
+   WorkDrive team folders (H Drive, Accounting, …) and OneDrive files →
+   metadata records + parsed document content for searchable types
+   (.pdf/.docx/.xlsx/.csv/.txt) through the freshness-tracked ingestion path.
+4. **Train against it**: tasks like "review the newest Zoho leads and draft
+   outreach" or "check the Gary Payable spreadsheet" exercise exactly what
+   was ingested. Blocked attempts on gated capabilities become training
+   proposals (/approvals).
+
+Supported today through the same pipeline: **zoho, onedrive, gmail,
+google_calendar, google_drive, hubspot, salesforce, slack, notion, jira,
+zendesk, shopify, telegram**. A Brennan-like stack is Zoho + Microsoft
+(Outlook/OneDrive); swap in HubSpot/Salesforce/G Drive and the flow is
+identical — connect, enable sync, role-scope, train.
+
+---
+
 ## 2. Connecting apps (one-time)
 
 ### ✅ Outlook / Microsoft 365 — ALREADY CONNECTED
