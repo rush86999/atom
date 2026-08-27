@@ -1,9 +1,9 @@
 # What Research Says About Structuring LLM Agent Harnesses
 
-> **Last Updated**: Aug 25, 2026
+> **Last Updated**: Aug 27, 2026
 > **Purpose**: A citation-backed survey of peer-reviewed research on LLM agent harness/scaffold design — guardrails, voting vs debate, multi-agent organizations, memory architecture, verified execution, and harness benchmarks — with pointers to where Atom implements each pattern.
 
-**TL;DR**: Agent capability is a *model–harness pair*, not a model property. Six structural choices have published evidence behind them: (1) deterministic guardrails beat smarter models, (2) majority vote beats debate, (3) hierarchies work at scale but multi-agent orgs fail in documented ways, (4) memory needs an architecture, not a bigger context window, (5) execution needs sandboxing *and* outcome verification, and (6) harnesses are now directly measurable — and matter more than model choice in controlled studies.
+**TL;DR**: Agent capability is a *model–harness pair*, not a model property. Seven structural choices have published evidence behind them: (1) deterministic guardrails beat smarter models, (2) majority vote beats debate, (3) hierarchies work at scale but multi-agent orgs fail in documented ways, (4) memory needs an architecture, not a bigger context window, (5) execution needs sandboxing *and* outcome verification, (6) harnesses are now directly measurable — and matter more than model choice in controlled studies, and (7) autonomy should be earned through calibrated trust and supervised practice, not granted up front.
 
 ---
 
@@ -16,8 +16,9 @@
 5. [Sandboxed execution AND verified outcomes](#5-sandboxed-execution-and-verified-outcomes)
 6. [Harnesses are finally measurable](#6-harnesses-are-finally-measurable--and-they-matter-more-than-the-model)
 7. [Cost routing (bonus pattern)](#7-cost-routing-bonus-pattern)
-8. [Open problems](#8-open-problems)
-9. [How Atom implements these patterns](#9-how-atom-implements-these-patterns)
+8. [Autonomy is earned: trust calibration and supervised practice](#8-autonomy-is-earned-trust-calibration-and-supervised-practice)
+9. [Open problems](#9-open-problems)
+10. [How Atom implements these patterns](#10-how-atom-implements-these-patterns)
 
 ---
 
@@ -81,6 +82,9 @@ Four controlled studies landed in 2026. This used to be unmeasurable folklore.
 | **Stop Comparing LLM Agents Without Disclosing the Harness** (Zhang et al., 2026) | Harness-induced variance exceeded model-induced variance including ranking reversals; same model went 69.7% → 77.0% on Terminal-Bench from infrastructure alone ("Binding Constraint Thesis") | [arXiv:2605.23950](https://arxiv.org/abs/2605.23950) |
 | **Harness-Bench** (Yao et al., May 2026) | First diagnostic benchmark varying harness configurations across shared environments — 106 tasks, 6 harnesses × 8 backends, 5,194 trajectories | [arXiv:2605.27922](https://arxiv.org/abs/2605.27922) |
 | **Evo-Bench** (Aug 2026) | Benchmarks LLMs' ability to autonomously improve their own harness | [arXiv:2608.09096](https://arxiv.org/abs/2608.09096) |
+| **EvoHarness-RL** (Aug 2026) | Trains agents via RL to *self-evolve their own runtime harness* — maintaining state, tracking progress, verifying outcomes, and reusing learnings becomes a learned skill rather than a fixed scaffold | [arXiv:2608.05446](https://arxiv.org/abs/2608.05446) |
+| **The Empire, Long Divided, Must Unite** (Aug 2026) | Formalizes the agent harness as the component that turns a language model into an autonomous agent; surveys architectural trade-offs across scaffolds at pinned commits | [arXiv:2608.23953](https://arxiv.org/abs/2608.23953) |
+| **Agent Harness Survey** (Meng, Apr 2026) | First dedicated survey of harness/scaffold design, including automated "meta-harness" generation | [Preprints](https://www.preprints.org/manuscript/202604.0428/v1) · [curated list](https://github.com/RUCAIBox/awesome-agent-harness) |
 
 **Emerging consensus**: report **model–harness pairs**, not model names. See also the position paper ["'LLM Agent Performance' Is Not a Single Evaluation Target"](https://arxiv.org/abs/2602.03238).
 
@@ -92,13 +96,27 @@ Four controlled studies landed in 2026. This used to be unmeasurable folklore.
 | **Hybrid LLM** (ICLR 2024) | Difficulty-based routing cuts large-model calls ~40% with no quality drop | [arXiv:2404.14618](https://arxiv.org/abs/2404.14618) |
 | **Route-and-Reason** (2025) | Turn-level (sub-request) routing cut costs 84.46% | [arXiv:2506.05901](https://arxiv.org/abs/2506.05901) |
 
-## 8. Open problems
+## 8. Autonomy is earned: trust calibration and supervised practice
+
+The OWASP "least agency" principle (§1) says autonomy is earned, not default. A 2026 research thread makes this operational: agents should start under tight human oversight and *earn* latitude through demonstrated performance — mirroring how organizations onboard human hires.
+
+| Paper | Finding | Link |
+|---|---|---|
+| **Student Trust, Control, and Delegation** (Jul 2026) | Humans calibrate trust **per task, not per agent** — wide autonomy for advisory/low-stakes work, close oversight for high-stakes work. Autonomy grants should therefore be scoped by task domain, not agent-global | [arXiv:2607.18257](https://arxiv.org/abs/2607.18257) |
+| **Calibrate-Then-Act** (2026) | Decoupling uncertainty calibration from action selection improves cost-aware exploration — agents should know what they don't know before choosing to act autonomously | [arXiv:2602.16699](https://arxiv.org/html/2602.16699v3) |
+| **Dynamic Trust Calibration Using Contextual Bandits** (Sep 2025) | Perfectly calibrated trust = the human knowing exactly when to trust vs distrust; formalizes oversight as a bandit problem over autonomy decisions | [arXiv:2509.23497](https://arxiv.org/html/2509.23497v1) |
+| **How Humans Mentally Recalibrate AI Confidence Signals** (Mar 2026) | Mechanistic account of experiential trust recalibration — humans update trust from observed outcomes, implying deployment systems must too | [arXiv:2603.22634](https://arxiv.org/html/2603.22634v1) |
+
+**Takeaway**: the production pattern is an apprenticeship loop — propose → human approve/deny → learn from the decisions → widen scope per domain as success accumulates, with thresholds grounded in that domain's own episode history.
+
+## 9. Open problems
 
 - No standardized, repeatable A/B comparisons of full harness architectures yet — Harness-Bench (§6) is the first step, but diagnostic rather than leaderboard-grade.
 - Injection defenses saturate current public benchmarks (firewalls paper, §1) while failing on dynamic ones (AgentDyn) — evaluation lags deployment.
 - Single-agent safety certification does not transfer to multi-agent deployments (Anthropic, §3).
+- Trust calibration research (§8) studies human perceptions of agents; equivalent measured results for *system-side* earned-autonomy policies (e.g., statistically tuned promotion gates) are still emerging.
 
-## 9. How Atom implements these patterns
+## 10. How Atom implements these patterns
 
 | Pattern | Atom implementation | Docs |
 |---|---|---|
@@ -109,6 +127,9 @@ Four controlled studies landed in 2026. This used to be unmeasurable folklore.
 | Memory architecture | Per-turn fact extraction, bi-temporal GraphRAG, episodic memory | [CONTEXT_MEMORY.md](CONTEXT_MEMORY.md), [TEMPORAL_EVOLUTION.md](TEMPORAL_EVOLUTION.md) |
 | Verified outcomes | Postcondition oracle, two-tier confidence, verify-before-retry | [ORACLE_VERIFICATION.md](ORACLE_VERIFICATION.md) |
 | Cost routing | Cognitive tiers + learning router + stage router (shadow-first) | [SWITCHYARD_GAP_ANALYSIS.md](SWITCHYARD_GAP_ANALYSIS.md) |
+| Earned autonomy / apprenticeship loop | Supervisor training flow: training proposals → approval on `/approvals` → guided sessions → graduation episode; supervisor suggests tasks pinned to exact ingested records or scope filters (§8) | [training.md](../agents/training.md), [graduation.md](../agents/graduation.md) |
+| Trust calibration (system-side) | GP trust gateway over proposal approve/deny streams (P0–P2 shipped, P3 consent-gated) + dynamic promotion policy: STUDENT→INTERN gates seeded from env, then tuned per domain from AgentEpisode history with asymmetric adjustment (tighten fast on failure, ease slowly on success), statistical floor before tuning, hard bounds, kill-switch `ATOM_PROMOTION_DYNAMIC_TUNING=false` | [TRUST_CALIBRATION_PLAN.md](TRUST_CALIBRATION_PLAN.md), `backend/core/promotion_policy_service.py` |
+| Role- & inventory-aware memory recall | Live inventory leg answers "what data have you ingested?" from live counts instead of semantic recall; the chat agent's identity is threaded into role-aware recall so integration-record hits filter/rank by role; mentor domain learning feeds the mentor persona in dual mentor/student chat | [CONTEXT_MEMORY.md](CONTEXT_MEMORY.md), `backend/core/memory_context_assembler.py`, [training.md](../agents/training.md) |
 
 Atom is open source: **[github.com/rush86999/atom](https://github.com/rush86999/atom)**
 
