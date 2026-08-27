@@ -8,14 +8,15 @@ never be talked out of, and an APPROVE always requires a human.
 
 Layers (in order of precedence — BLOCK beats APPROVE):
     1. Content sensitivity (P4 taint classifier; restricted -> BLOCK)
+    1b. Attachment sensitivity (restricted -> BLOCK)
     2. Recipient egress allowlist  (external recipient -> APPROVE)
     3. Content sensitivity (confidential -> APPROVE)
     4. Autonomous send rate cap     (``ATOM_EMAIL_MAX_AUTONOMOUS_PER_HOUR``)
 
 BLOCK-level checks MUST run before approve-level ones: an external recipient
-+ PII body must block, never approve (the recipient check used to short-
-circuit before sensitivity ran — PII was approved and the human-present
-canvas path SENT it).
++ PII body/attachment must block, never approve (the recipient check used to
+short-circuit before sensitivity ran — PII was approved and the human-
+present canvas path SENT it).
 
 ``spotlight_email_content`` wraps untrusted email content in provenance
 delimiters (Spotlighting, Hines et al. 2024): the model treats the wrapped
@@ -180,6 +181,30 @@ def evaluate_email_action(
                 ),
                 "policy": "sensitivity",
             }
+
+        # 1b. Attachment scan — same BLOCK precedence as the body. A PII/
+        # secret-bearing attachment must block even when the recipient check
+        # would otherwise approve. Text-less (binary/opaque) attachments are
+        # skipped; structured text is flattened before classification.
+        for att in action.get("attachments") or []:
+            att_text = ""
+            if isinstance(att, dict):
+                att_text = att.get("text") or att.get("content") or att.get("body") or ""
+                if isinstance(att_text, (dict, list)):
+                    att_text = str(att_text)
+            else:
+                att_text = str(att)
+            if not att_text:
+                continue
+            if classify_email_content(att_text) == "restricted":
+                return {
+                    "decision": BLOCK,
+                    "reason": (
+                        "Attachment contains restricted-sensitivity content "
+                        "(PII/secrets); sending is blocked"
+                    ),
+                    "policy": "attachment_sensitivity",
+                }
 
         # 2. Recipient egress allowlist.
         for r in all_recipients:

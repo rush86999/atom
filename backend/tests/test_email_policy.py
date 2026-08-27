@@ -106,6 +106,51 @@ class TestEvaluateEmailAction:
         assert dec["decision"] == BLOCK
         assert dec["policy"] == "sensitivity"
 
+    def test_attachment_with_pii_blocks(self):
+        """Attachment scan (Phase-2 spec item 3): a PII-bearing attachment
+        must BLOCK even when the recipient check would otherwise APPROVE."""
+        dec = evaluate_email_action(
+            {
+                "to": ["customer@gmail.com"],
+                "subject": "Report",
+                "body": "Please find the report attached.",
+                "attachments": [
+                    {"name": "report.pdf", "text": "Client SSN: 123-45-6789"}
+                ],
+            },
+            {"user_id": "u1"},
+        )
+        assert dec["decision"] == BLOCK
+        assert dec["policy"] == "attachment_sensitivity"
+
+    def test_attachment_plain_passes_through(self, monkeypatch):
+        """Safe attachment content must not block; later checks still run."""
+        monkeypatch.setenv("ATOM_EMAIL_ALLOWED_OUTBOUND_DOMAINS", "brennan.ca")
+        dec = evaluate_email_action(
+            {
+                "to": ["bob@brennan.ca"],
+                "subject": "Quote",
+                "body": "Here is the quote.",
+                "attachments": [{"name": "quote.pdf", "text": "Quotation v8"}],
+            },
+            {"user_id": "u1"},
+        )
+        assert dec["decision"] == ALLOW
+
+    def test_attachment_without_text_ignored(self, monkeypatch):
+        """Binary/opaque attachments carry no text to classify — ignored."""
+        monkeypatch.setenv("ATOM_EMAIL_ALLOWED_OUTBOUND_DOMAINS", "brennan.ca")
+        dec = evaluate_email_action(
+            {
+                "to": ["bob@brennan.ca"],
+                "subject": "Docs",
+                "body": "Hi",
+                "attachments": [{"name": "scan.pdf", "size": 2048}],
+            },
+            {"user_id": "u1"},
+        )
+        assert dec["decision"] == ALLOW
+
     def test_confidential_content_requires_approval(self, monkeypatch):
         monkeypatch.setenv("ATOM_EMAIL_ALLOWED_OUTBOUND_DOMAINS", "brennan.ca")
         dec = evaluate_email_action(

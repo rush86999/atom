@@ -79,6 +79,24 @@ def main() -> int:
         )
     )
 
+    # --- B3. PII in an ATTACHMENT -> block (Phase-2 spec item 3) ---
+    dec = evaluate_email_action(
+        {
+            "to": ["customer@gmail.com"],
+            "subject": "Report",
+            "body": "Please find the report attached.",
+            "attachments": [{"name": "report.pdf", "text": "SSN: 123-45-6789"}],
+        },
+        {"user_id": "u1"},
+    )
+    results.append(
+        check(
+            "B3. PII attachment -> block (attachment_sensitivity)",
+            dec["decision"] == "block" and dec["policy"] == "attachment_sensitivity",
+            f"decision={dec['decision']} policy={dec['policy']}",
+        )
+    )
+
     # --- C. Safe internal -> ALLOW ---
     dec = evaluate_email_action(
         {"to": ["bob@brennan.ca"], "subject": "hi", "body": "quotation attached"},
