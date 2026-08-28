@@ -251,7 +251,7 @@ class TestInitPaths:
     def test_gemini_alt_provider_byok_fallback(self):
         mgr = MagicMock()
         mgr.is_configured = MagicMock(side_effect=lambda ws, p: p == "google_flash")
-        mgr.get_api_key = MagicMock(return_value="sk-g-alt")
+        mgr.get_api_key = MagicMock(return_value="sk-g-alt-123456")  # >=12: production placeholder filter rejects short keys
         with patch("core.llm.byok_handler.OpenAI", return_value=MagicMock()) as oai, \
              patch("core.llm.byok_handler.AsyncOpenAI", return_value=MagicMock()), \
              patch("core.llm.byok_handler.get_db_session"), \
@@ -259,7 +259,7 @@ class TestInitPaths:
              patch("core.llm.byok_handler.get_byok_manager", return_value=mgr), \
              patch.dict(os.environ, {"GEMINI_API_KEY": "", "GOOGLE_API_KEY": ""}):
             handler = BYOKHandler(workspace_id="default", tenant_id="default")
-        gemini_calls = [c for c in oai.call_args_list if c.kwargs.get("api_key") == "sk-g-alt"]
+        gemini_calls = [c for c in oai.call_args_list if c.kwargs.get("api_key") == "sk-g-alt-123456"]
         assert gemini_calls
         assert "gemini" in handler.clients
 

@@ -73,24 +73,41 @@ def _entry(provider, window=131072, cost=1e-7, tools=True):
 
 @pytest.fixture
 def handler():
-    """BYOKHandler with all external dependencies mocked."""
-    with patch("core.llm.byok_handler.get_byok_manager") as mock_manager:
-        mock_manager.return_value = Mock()
-        with patch("core.llm.byok_handler.CognitiveTierService"):
-            with patch("core.provider_health_monitor.get_provider_health_monitor") as mock_health:
-                monitor = Mock()
-                monitor.health_scores = {}
-                monitor.get_health_score = Mock(return_value=1.0)
-                monitor.record_call = Mock()
-                mock_health.return_value = monitor
-                h = BYOKHandler(
-                    workspace_id="test-ws",
-                    tenant_id="test-t",
-                    provider_id="auto",
-                )
-    h.rate_tracker = ProviderRateTracker()
-    h.excluded_models = set()
-    return h
+    """BYOKHandler with all external dependencies mocked.
+
+    Patchers are STARTED (not context-managed) so they stay active for the
+    duration of the TEST, not just construction: get_quality_score consults
+    the dynamic benchmark fetcher at call time, and the fetcher substring-
+    matches model names across GENERATIONS (a cached deepseek-chat-v3-0324
+    entry scores the current deepseek-chat 15 instead of the table's 80).
+    Without this, ranking tests depend on the ambient local benchmark cache.
+    """
+    patchers = [
+        patch("core.dynamic_benchmark_fetcher.get_benchmark_fetcher"),
+        patch("core.llm.byok_handler.get_byok_manager"),
+        patch("core.llm.byok_handler.CognitiveTierService"),
+        patch("core.provider_health_monitor.get_provider_health_monitor"),
+    ]
+    bench_mock, manager_mock, _tier_mock, health_mock = (p.start() for p in patchers)
+    bench_mock.return_value = Mock(get_benchmark_score=Mock(return_value=None))
+    manager_mock.return_value = Mock()
+    monitor = Mock()
+    monitor.health_scores = {}
+    monitor.get_health_score = Mock(return_value=1.0)
+    monitor.record_call = Mock()
+    health_mock.return_value = monitor
+    try:
+        h = BYOKHandler(
+            workspace_id="test-ws",
+            tenant_id="test-t",
+            provider_id="auto",
+        )
+        h.rate_tracker = ProviderRateTracker()
+        h.excluded_models = set()
+        yield h
+    finally:
+        for p in patchers:
+            p.stop()
 
 
 # ============================================================================

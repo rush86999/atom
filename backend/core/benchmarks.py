@@ -100,11 +100,21 @@ def get_quality_score(model_id: str) -> int:
     Get the normalized quality score for a model.
 
     PRIORITY:
-    1. Dynamic benchmark fetcher (LMSYS, Artificial Analysis, Benchmark.moe)
-    2. Static fallback scores
-    3. Heuristics for unknown models
+    1. Static EXACT match (curated table wins outright — the dynamic
+       fetcher's partial matcher is substring-based and crosses model
+       GENERATIONS: a cached ``deepseek-chat-v3-0324`` entry (scored 15.2)
+       used to shadow the current ``deepseek-chat``'s exact table score of
+       80, demoting a flagship model below every cognitive-tier floor)
+    2. Dynamic benchmark fetcher (LMSYS, Artificial Analysis, Benchmark.moe)
+       — fresh scores for models the table doesn't know exactly
+    3. Static partial match (longest key wins)
+    4. Heuristics for unknown models
     """
-    # Try dynamic benchmark fetcher first
+    # Exact curated score wins outright — see PRIORITY note above.
+    if model_id in MODEL_QUALITY_SCORES:
+        return MODEL_QUALITY_SCORES[model_id]
+
+    # Dynamic benchmark fetcher for models the table doesn't pin exactly
     try:
         from core.dynamic_benchmark_fetcher import get_benchmark_fetcher
         fetcher = get_benchmark_fetcher()
@@ -122,10 +132,6 @@ def get_quality_score(model_id: str) -> int:
         logger.debug(f"Failed to get dynamic benchmark: {e}, using static scores")
 
     # Fallback to static scores
-    # Exact match
-    if model_id in MODEL_QUALITY_SCORES:
-        return MODEL_QUALITY_SCORES[model_id]
-
     # Partial match — prefer the LONGEST matching key (most specific). A plain
     # first-match loop returned whichever key happened to iterate first: for
     # "gpt-4o-mini-2024-07-18" it matched "gpt-4o" (90) instead of the more
