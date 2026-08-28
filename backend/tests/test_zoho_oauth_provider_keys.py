@@ -42,7 +42,10 @@ def test_zoho_default_scopes_are_valid_names():
 
     scopes = set(oh._ZOHO_DEFAULT_SCOPES)
     assert "ZohoCRM.modules.ALL" in scopes
-    assert "ZohoProjects.projects.ALL" in scopes
+    # Projects needs the portal+project combo (verified in the pilot doc) —
+    # the fullaccess.all pattern does not exist for CRM or Projects.
+    assert "ZohoProjects.portals.all" in scopes
+    assert "ZohoProjects.projects.all" in scopes
     assert "ZohoCRM.fullaccess.all" not in scopes
     assert "ZohoProjects.fullaccess.all" not in scopes
     assert "ZohoBooks.fullaccess.all" in scopes

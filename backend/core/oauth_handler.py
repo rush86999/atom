@@ -344,9 +344,11 @@ _ZOHO_DEFAULT_SCOPES = [
     "ZohoInventory.fullaccess.all",
     # CRM/Projects do NOT use the fullaccess.all pattern — Zoho rejects
     # unknown scope names with "Scope does not exist". Use the canonical
-    # per-product names (same convention as core/integrations/adapters/zoho.py).
+    # per-product names (verified in the pilot doc; same convention as
+    # core/integrations/adapters/zoho.py).
     "ZohoCRM.modules.ALL",
-    "ZohoProjects.projects.ALL",
+    "ZohoProjects.portals.all",
+    "ZohoProjects.projects.all",
     "ZohoWorkDrive.files.READ",
     "ZohoWorkDrive.teamfolders.READ",
 ]

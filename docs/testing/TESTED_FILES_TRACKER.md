@@ -6,6 +6,21 @@
 
 ---
 
+## Session 2026-08-27b (Zoho OAuth scope fix — "Scope does not exist")
+
+**Context**: Zoho connect failed with `Invalid OAuth Scope / Scope does not exist`. `core/oauth_handler.py`'s `_ZOHO_DEFAULT_SCOPES` used `ZohoCRM.fullaccess.all` + `ZohoProjects.fullaccess.all` — CRM/Projects do not have a `fullaccess.all` pattern, so Zoho rejects the WHOLE authorize URL (one unknown scope fails everything). The pilot doc (`atom-self-hosted-pilot-instructions.md` §2) already carried the verified names.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/oauth_handler.py` | `_ZOHO_DEFAULT_SCOPES`: `ZohoCRM.fullaccess.all` → `ZohoCRM.modules.ALL`; `ZohoProjects.fullaccess.all` → `ZohoProjects.portals.all` + `ZohoProjects.projects.all` (doc-verified combo). Books/Inventory/WorkDrive scopes unchanged | `test_zoho_oauth_provider_keys.py::test_zoho_default_scopes_are_valid_names` (RED first: fails against old names, GREEN after) |
+| `tests/test_zoho_oauth_provider_keys.py` | regression test locking the valid scope set | 1 passed |
+
+**Verification**: RED proven (test fails with old scopes), GREEN after fix. Pre-existing unrelated failures in the same file (3× `Token decryption failed` — Fernet key missing in test env) confirmed unchanged before/after via stash.
+
+---
+
 ## Session 2026-08-27 (Email agent harness — scripted Outlook loop removed, deterministic policy + governed agent + canvas send)
 
 **Context**: Brennan discussion — the scripted `outlook_automation_service.py` (15s poll loop, regex URL match, hardcoded reply body/CCs, direct `OutlookService` calls) beat the purpose of the agent harness. Replaced with a governed email agent + deterministic email policy (research: guardrails beat smarter models). Also fixed the dead `outlook` UIS-Bridge stub (send_email silently did nothing for platform=outlook) and wired the canvas Send button to a real policy-checked endpoint.
