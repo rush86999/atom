@@ -43,6 +43,17 @@ type TrainingProposal = {
   } | null;
 };
 
+/** Role-canvas cards spawned for a training session (Phase 2 registry). */
+type SessionCanvas = {
+  canvas_id: string;
+  canvas_type: string;
+  details?: {
+    name?: string;
+    default_tasks?: string[];
+    trusted_scope?: { never?: string[] };
+  } | null;
+};
+
 const API = process.env.NEXT_PUBLIC_API_URL || "";
 
 /** First-time walkthrough for the very first training session, login to
@@ -136,6 +147,8 @@ export default function ApprovalsPage() {
   const [loading, setLoading] = useState(true);
   const [editingAction, setEditingAction] = useState<string | null>(null);
   const [editedParams, setEditedParams] = useState<Record<string, string>>({});
+  const [sessionCanvases, setSessionCanvases] = useState<Record<string, SessionCanvas[]>>({});
+  const [loadingCanvases, setLoadingCanvases] = useState<Record<string, boolean>>({});
 
   const headers = useCallback(() => ({
     "Content-Type": "application/json",
@@ -163,17 +176,37 @@ export default function ApprovalsPage() {
   // backend-complete (R81) but had zero UI — team leads could never see or
   // decide on training proposals from the app. Best-effort: a 403 signals
   // the viewer is not a supervisor, which is surfaced as a subtle note.
+  const loadSessionCanvases = useCallback(async (sid: string) => {
+    setLoadingCanvases((prev) => ({ ...prev, [sid]: true }));
+    try {
+      const res = await fetch(`${API}/api/maturity/training/sessions/${sid}/canvases`, { headers: headers() });
+      if (res.ok) {
+        const json = await res.json();
+        setSessionCanvases((prev) => ({ ...prev, [sid]: Array.isArray(json.canvases) ? json.canvases : [] }));
+      }
+    } catch {
+      // Non-critical: cards are a convenience, not a gate.
+    } finally {
+      setLoadingCanvases((prev) => ({ ...prev, [sid]: false }));
+    }
+  }, [headers]);
+
   const loadProposals = useCallback(async () => {
     try {
       const res = await fetch(`${API}/api/maturity/training/proposals`, { headers: headers() });
       if (res.ok) {
         const json = await res.json();
-        setProposals(Array.isArray(json) ? json : (json.proposals ?? []));
+        const list = Array.isArray(json) ? json : (json.proposals ?? []);
+        setProposals(list);
+        // Fetch the role-canvas cards for every active session (best-effort).
+        for (const p of list) {
+          if (p.active_session_id) loadSessionCanvases(String(p.active_session_id));
+        }
       }
     } catch {
       // Non-critical: the HITL queue still works without this section.
     }
-  }, [headers]);
+  }, [headers, loadSessionCanvases]);
 
   useEffect(() => {
     load();
@@ -612,6 +645,44 @@ export default function ApprovalsPage() {
                         </div>
                       );
                     })()}
+                    {(sessionCanvases[sid]?.length ?? 0) > 0 && (
+                      <div className="mt-3">
+                        <div className="text-xs uppercase tracking-wide text-gray-400 mb-2">
+                          Role canvases — session artifacts ({sessionCanvases[sid].length})
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {sessionCanvases[sid].map((cv) => {
+                            const never = cv.details?.trusted_scope?.never || [];
+                            const tasks = cv.details?.default_tasks || [];
+                            return (
+                              <div key={cv.canvas_id} className="rounded-lg border border-indigo-800/50 bg-indigo-950/20 p-3">
+                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                                  <span className="px-2 py-0.5 rounded-full bg-indigo-900/50 text-indigo-300 uppercase">
+                                    {cv.canvas_type}
+                                  </span>
+                                  <span className="font-medium text-indigo-200">
+                                    {cv.details?.name || cv.canvas_type}
+                                  </span>
+                                </div>
+                                {tasks.length > 0 && (
+                                  <ul className="mt-2 space-y-1 text-xs text-gray-400 list-disc list-inside">
+                                    {tasks.map((t, i) => <li key={i}>{t}</li>)}
+                                  </ul>
+                                )}
+                                {never.length > 0 && (
+                                  <div className="mt-2 text-xs text-red-400">
+                                    🚫 never: {never.join(", ")}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {loadingCanvases[sid] && !(sessionCanvases[sid]?.length) && (
+                      <div className="mt-3 text-xs text-gray-500">Loading role canvases…</div>
+                    )}
                     <div className="mt-3 space-y-2">
                       {(() => {
                         const st = taskSuggestions[sid] || { text: "", sending: false };

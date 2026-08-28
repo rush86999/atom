@@ -25,6 +25,7 @@ from core.models import (
     TrainingSession,
     TriggerSource,
 )
+from core import role_template_registry
 
 logger = logging.getLogger(__name__)
 
@@ -318,12 +319,35 @@ After completing this training, the agent will be able to handle similar tasks a
         self.db.commit()
         self.db.refresh(session)
 
+        # Phase 2: spawn the role's typed-canvas set (best-effort, never
+        # breaks approval). Artifacts are stamped into CanvasAudit under the
+        # session id so /approvals can render trainee work as visual cards.
+        self._spawn_role_canvases(session, user_id)
+
         logger.info(
             f"Approved training proposal {proposal_id}, created session {session.id}, "
             f"duration: {duration_hours:.1f} hours, ends: {end_date.isoformat()}"
         )
 
         return session
+
+    def _spawn_role_canvases(
+        self, session: TrainingSession, user_id: str
+    ) -> List[Dict[str, Any]]:
+        """Best-effort spawn of the role's typed-canvas set at session start.
+
+        Creates the FK-safe ChatSession row, one Canvas per template
+        canvas_type, and stamps CanvasAudit rows under the session id so
+        /approvals can render trainee work as visual cards. Never raises —
+        approval must not break if template resolution or spawn fails.
+        """
+        try:
+            return role_template_registry.spawn_session_canvases(
+                self.db, session, user_id
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(f"role canvas spawn failed (non-fatal): {exc}")
+            return []
 
     async def complete_training_session(
         self,

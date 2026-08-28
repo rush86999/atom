@@ -105,7 +105,8 @@ auto-tuned per domain history (`promotion_policy_service`).
 | Session-bound canvas attribution | done (this week) |
 | Chat + /approvals scoring loop | live |
 | Mentor lesson anchored to role-tagged records | live |
-| **Session mini-canvas rendering per role** | NEXT: wire the role template to spawn the typed-canvas set at session start and stamp artifacts into CanvasAudit under the session id (attribution already works) |
+| **Session mini-canvas rendering per role** | **implemented (2026-08-28)** — `core/role_template_registry.py` spawns the typed-canvas set at session start (`ChatSession` FK-safe row + `Canvas` + `CanvasAudit` stamped with the session id); `/approvals` renders the canvases as visual cards |
+| Role templates as data | `ROLE_TEMPLATES` in `core/role_template_registry.py` — {canvas_set, default_tasks, trusted_scope} per role; bookkeeper hard boundary `never: [send_payment]` |
 
 Role templates above are data files waiting to happen: `{domain} → {canvas
 set, default tasks, trusted scope}` — the training proposal already carries

@@ -6,6 +6,24 @@
 
 ---
 
+## Session 2026-08-28 (Role-template registry — training Phase 2: session canvas spawn + approvals cards)
+
+**Context**: Brennan's "when you say go" step — `docs/operations/role-training-plan.md` spec'd `{domain → canvas set, default tasks, trusted scope}` per role but the mini-canvas rendering was unimplemented. Approving a training proposal now spawns the role's typed-canvas set (ChatSession + Canvas + CanvasAudit stamped with the session id), so `/approvals` renders trainee work as visual cards instead of chat text.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/role_template_registry.py` (NEW) | `ROLE_TEMPLATES` (6 roles from role-training-plan.md: sales/bookkeeper/operations/marketing/support/hr — canvas_set, default_tasks, trusted_scope with bookkeeper `never: [send_payment]`); `get_role_template`; `resolve_template_for_agent` (specialty first, then `CATEGORY_ALIASES` e.g. Finance→bookkeeper); `spawn_session_canvases` — FK-safe: creates `ChatSession(id == session.id)` so `CanvasAudit.session_id` (FK → chat_sessions.id) holds, one `Canvas` per canvas_type (explicit uuid ids so audit FK matches pre-flush), one `CanvasAudit` per canvas (`action_type="session_spawn"`, session/agent/supervisor stamped, details_json carries default_tasks + trusted_scope), single commit, returns spawned descriptors; `get_session_canvases` | `tests/test_role_template_registry.py` 10 passed |
+| `core/student_training_service.py` | `from core import role_template_registry` (module-ref so the test patch target resolves); `_spawn_role_canvases(session, user_id)` — best-effort, never raises (approval must not break); called in `approve_training` after `db.refresh(session)` | `TestApproveHook` 1 passed; `tests/core/systems/test_student_training_service_coverage.py` approval test green (7/8 — 1 pre-existing stale dedupe failure, see below) |
+| `api/agent_maturity_routes.py` | `GET /api/maturity/training/sessions/{session_id}/canvases` — supervisor-gated (`_require_supervisor`), 404 on missing session, returns `{session_id, canvases}` via `role_template_registry.get_session_canvases` | `TestSessionCanvasesRoute` 2 passed |
+| `frontend-nextjs/pages/approvals.tsx` | Session cards fetch the canvases endpoint and render **role-canvas cards**: canvas-type badge + name, default tasks list, 🚫 never-scope chip (e.g. bookkeeper never sends payments); loading state; best-effort (non-fatal) | `tsc --noEmit` clean (only pre-existing error in untouched `src-tauri/src-types/api-generated.ts`) |
+| `tests/test_role_template_registry.py` | 12 tests: role lookup, specialty/category resolution, spawn+session stamping, FK-safe ChatSession, get_session_canvases, approve hook, route 200/404 | 12 passed |
+
+**Verification**: `tests/test_role_template_registry.py` 12 passed; regression `tests/test_email_policy.py` + `tests/test_email_agent_dispatch.py` 55 passed; `test_student_training_service_coverage.py` approval flow green. **Pre-existing (unrelated, zero diff):** `TestTrainingProposalWorkflow::test_concurrent_training_proposals` — stale vs the "one open front per agent" dedupe in `create_training_proposal` (returns the same proposal for two triggers of one agent; test expects two distinct ids). `core.student_training_service` diff is +24 lines in `approve_training` only.
+
+---
+
 ## Session 2026-08-27b (Zoho OAuth scope fix — "Scope does not exist")
 
 **Context**: Zoho connect failed with `Invalid OAuth Scope / Scope does not exist`. `core/oauth_handler.py`'s `_ZOHO_DEFAULT_SCOPES` used `ZohoCRM.fullaccess.all` + `ZohoProjects.fullaccess.all` — CRM/Projects do not have a `fullaccess.all` pattern, so Zoho rejects the WHOLE authorize URL (one unknown scope fails everything). The pilot doc (`atom-self-hosted-pilot-instructions.md` §2) already carried the verified names.

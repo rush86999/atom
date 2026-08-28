@@ -35,6 +35,7 @@ from core.models import (
 )
 from core.proposal_service import ProposalService
 from core.student_training_service import StudentTrainingService, TrainingOutcome
+from core import role_template_registry
 
 logger = logging.getLogger(__name__)
 
@@ -355,6 +356,33 @@ async def update_training_guidance(
     session.supervisor_guidance = guidance
     db.commit()
     return {"success": True, "lesson_plan": guidance.get("lesson_plan")}
+
+
+@router.get("/training/sessions/{session_id}/canvases")
+def get_training_session_canvases(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Role canvases spawned for a training session (visual cards on /approvals).
+
+    Phase 2 role-template registry: approving a training proposal spawns the
+    role's typed-canvas set (ChatSession + Canvas + CanvasAudit rows stamped
+    with the session id). This surface lets the supervisor review the trainee's
+    work as cards instead of chat text.
+    """
+    _require_supervisor(db, current_user)
+    session = (
+        db.query(TrainingSession)
+        .filter(TrainingSession.id == session_id)
+        .first()
+    )
+    if not session:
+        raise HTTPException(
+            status_code=404, detail=f"Training session {session_id} not found"
+        )
+    canvases = role_template_registry.get_session_canvases(db, session_id)
+    return {"session_id": session_id, "canvases": canvases}
 
 
 @router.get("/agents/{agent_id}/training-history")
