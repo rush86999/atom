@@ -346,6 +346,14 @@ After completing this training, the agent will be able to handle similar tasks a
                 self.db, session, user_id
             )
         except Exception as exc:  # pragma: no cover - defensive
+            # Roll back any partially-added ChatSession/Canvas/CanvasAudit
+            # rows so the failed spawn leaves no ghost pending objects on
+            # the request's DB session (they would otherwise flush on the
+            # caller's next commit and half-create the canvas set).
+            try:
+                self.db.rollback()
+            except Exception:  # pragma: no cover - rollback must never mask
+                pass
             logger.warning(f"role canvas spawn failed (non-fatal): {exc}")
             return []
 

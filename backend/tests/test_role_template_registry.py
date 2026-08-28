@@ -142,6 +142,23 @@ class TestApproveHook:
         mock_spawn.assert_called_once()
         assert result == [{"canvas_id": "c1"}]
 
+    def test_spawn_failure_is_non_fatal_and_rolls_back(self):
+        """A failed spawn returns [] (approval never breaks) AND rolls the
+        DB session back so no ghost ChatSession/Canvas/CanvasAudit rows are
+        left pending on the caller's session."""
+        import core.student_training_service as sts
+
+        db = Mock()
+        svc = sts.StudentTrainingService(db=db)
+        session = SimpleNamespace(id="sess-10", tenant_id="t1", agent_id="a1")
+        with patch(
+            "core.role_template_registry.spawn_session_canvases",
+            side_effect=RuntimeError("boom"),
+        ):
+            result = svc._spawn_role_canvases(session, "supervisor-1")
+        assert result == []
+        db.rollback.assert_called_once()
+
 
 class TestSessionCanvasesRoute:
     """GET /api/maturity/training/sessions/{id}/canvases — the /approvals
