@@ -34,6 +34,23 @@ except ImportError:  # pragma: no cover
     pytest.skip("oauth_routes not available", allow_module_level=True)
 
 
+def test_zoho_default_scopes_are_valid_names():
+    """Regression: Zoho rejects unknown scope names with "Scope does not
+    exist". CRM/Projects do not use the fullaccess.all pattern — the consent
+    URL must use the canonical per-product names."""
+    from core import oauth_handler as oh
+
+    scopes = set(oh._ZOHO_DEFAULT_SCOPES)
+    assert "ZohoCRM.modules.ALL" in scopes
+    assert "ZohoProjects.projects.ALL" in scopes
+    assert "ZohoCRM.fullaccess.all" not in scopes
+    assert "ZohoProjects.fullaccess.all" not in scopes
+    assert "ZohoBooks.fullaccess.all" in scopes
+    assert "ZohoInventory.fullaccess.all" in scopes
+    assert "ZohoWorkDrive.files.READ" in scopes
+    assert "ZohoWorkDrive.teamfolders.READ" in scopes
+
+
 def _make_db():
     """Mock DB: OAuthToken lookup empty, one ACTIVE user, capture IntegrationToken adds."""
     added = []

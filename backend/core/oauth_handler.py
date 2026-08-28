@@ -342,8 +342,11 @@ _ZOHO_ACCOUNTS_BASE = os.getenv(
 _ZOHO_DEFAULT_SCOPES = [
     "ZohoBooks.fullaccess.all",
     "ZohoInventory.fullaccess.all",
-    "ZohoCRM.fullaccess.all",
-    "ZohoProjects.fullaccess.all",
+    # CRM/Projects do NOT use the fullaccess.all pattern — Zoho rejects
+    # unknown scope names with "Scope does not exist". Use the canonical
+    # per-product names (same convention as core/integrations/adapters/zoho.py).
+    "ZohoCRM.modules.ALL",
+    "ZohoProjects.projects.ALL",
     "ZohoWorkDrive.files.READ",
     "ZohoWorkDrive.teamfolders.READ",
 ]
