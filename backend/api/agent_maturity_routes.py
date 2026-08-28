@@ -373,24 +373,32 @@ def get_training_session_canvases(
     work as cards instead of chat text.
     """
     _require_supervisor(db, current_user)
-    # IDOR guard: the session lookup is scoped to the caller's tenant (a
-    # foreign session UUID must 404, never leak another tenant's canvases)
-    # and the audit rows are read under the same tenant boundary.
-    tenant_id = resolve_tenant_id(current_user)
     session = (
         db.query(TrainingSession)
-        .filter(
-            TrainingSession.id == session_id,
-            TrainingSession.tenant_id == tenant_id,
-        )
+        .filter(TrainingSession.id == session_id)
         .first()
     )
     if not session:
         raise HTTPException(
             status_code=404, detail=f"Training session {session_id} not found"
         )
+    # Ownership gate (IDOR): the approving supervisor always sees their own
+    # session; otherwise the caller must share the session's tenant. A
+    # cross-tenant foreign UUID 404s (no existence leak). Tenant strings may
+    # legitimately diverge (e.g. sessions created before proposal-tenant
+    # inheritance stored "default"), so supervisor_id is authoritative.
+    tenant_id = resolve_tenant_id(current_user)
+    if (
+        str(session.supervisor_id or "") != str(current_user.id)
+        and session.tenant_id != tenant_id
+    ):
+        raise HTTPException(
+            status_code=404, detail=f"Training session {session_id} not found"
+        )
+    # Audit rows are read under the SESSION's tenant (where spawn wrote
+    # them), not the caller's — the two may differ for legacy sessions.
     canvases = role_template_registry.get_session_canvases(
-        db, session_id, tenant_id=tenant_id
+        db, session_id, tenant_id=session.tenant_id
     )
     return {"session_id": session_id, "canvases": canvases}
 

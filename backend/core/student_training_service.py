@@ -209,7 +209,10 @@ After completing this training, the agent will be able to handle similar tasks a
             proposal_data=proposal_data,
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=agent.id,  # Using agent_id as user_id for training proposals
-            tenant_id="default"  # Default tenant for training proposals
+            # Inherit the hire's tenant (was hardcoded "default" — that made
+            # sessions store "default" and broke tenant-scoped reads for
+            # non-default tenants). None → default fallback (admin/legacy).
+            tenant_id=agent.tenant_id or "default"
         )
 
         self.db.add(proposal)

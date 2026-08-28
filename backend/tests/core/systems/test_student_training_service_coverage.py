@@ -141,6 +141,9 @@ class TestTrainingProposalWorkflow:
         assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
         assert proposal.proposal_data.get("estimated_duration_hours") == 8.0
         assert blocked_trigger.proposal_id == proposal.id
+        # Tenant is inherited from the hire (agent), not hardcoded "default" —
+        # otherwise the session/endpoint tenant flow breaks for real tenants.
+        assert proposal.tenant_id == agent.tenant_id
 
     @pytest.mark.asyncio
     async def test_proposal_with_required_training_modules(self, db_session: Session):

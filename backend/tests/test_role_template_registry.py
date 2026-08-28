@@ -190,7 +190,7 @@ class TestSessionCanvasesRoute:
     def test_route_returns_spawned_canvases(self):
         db = Mock()
         db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
-            id="s1"
+            id="s1", tenant_id="t1", supervisor_id="u1"
         )
         with patch(
             "api.agent_maturity_routes._require_supervisor"
@@ -198,7 +198,7 @@ class TestSessionCanvasesRoute:
             "api.agent_maturity_routes.role_template_registry.get_session_canvases",
             return_value=[{"canvas_id": "c1", "canvas_type": "email"}],
         ):
-            resp = self._route()("s1", SimpleNamespace(id="u1"), db)
+            resp = self._route()("s1", SimpleNamespace(id="u1", tenant_id="t1"), db)
         assert resp == {
             "session_id": "s1",
             "canvases": [{"canvas_id": "c1", "canvas_type": "email"}],
@@ -214,27 +214,59 @@ class TestSessionCanvasesRoute:
                 self._route()("missing", SimpleNamespace(id="u1"), db)
         assert exc.value.status_code == 404
 
-    def test_route_blocks_cross_tenant_session(self):
-        """A supervisor cannot read another tenant's session canvases via a
-        foreign session UUID — the session lookup is scoped to the caller's
-        tenant and a miss is a 404 (no existence leak). Greptile finding."""
-        from fastapi import HTTPException
-
+    def test_route_allows_supervisor_with_divergent_tenant(self):
+        """Greptile finding 2: a session may be stored under "default" (the
+        old hardcoded proposal tenant) while its approving supervisor lives in
+        a real tenant — the supervisor must still see their own canvases.
+        supervisor_id is the authoritative ownership signal; audit rows are
+        read under the SESSION's tenant (where spawn wrote them)."""
         db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+            id="s1", tenant_id="default", supervisor_id="u1"
+        )
         with patch(
             "api.agent_maturity_routes._require_supervisor"
         ), patch(
-            "api.agent_maturity_routes.resolve_tenant_id", return_value="tenant-x"
-        ) as mock_tenant:
+            "api.agent_maturity_routes.role_template_registry.get_session_canvases",
+            return_value=[{"canvas_id": "c1", "canvas_type": "email"}],
+        ) as mock_canvases:
+            resp = self._route()(
+                "s1", SimpleNamespace(id="u1", tenant_id="tenant-x"), db
+            )
+        assert resp["session_id"] == "s1"
+        # audit rows scoped to the session's tenant, not the caller's
+        assert mock_canvases.call_args.kwargs.get("tenant_id") == "default"
+
+    def test_route_allows_same_tenant_non_supervisor(self):
+        """A supervisor in the session's tenant can review it even when they
+        were not the approving supervisor."""
+        db = Mock()
+        db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+            id="s2", tenant_id="t1", supervisor_id="other-user"
+        )
+        with patch(
+            "api.agent_maturity_routes._require_supervisor"
+        ), patch(
+            "api.agent_maturity_routes.role_template_registry.get_session_canvases",
+            return_value=[],
+        ):
+            resp = self._route()(
+                "s2", SimpleNamespace(id="u1", tenant_id="t1"), db
+            )
+        assert resp["session_id"] == "s2"
+
+    def test_route_blocks_cross_tenant_session(self):
+        """Foreign session UUID: neither the approving supervisor nor the
+        tenant matches → 404 (no existence leak). Greptile finding 1."""
+        from fastapi import HTTPException
+
+        db = Mock()
+        db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+            id="s3", tenant_id="tenant-other", supervisor_id="someone-else"
+        )
+        with patch("api.agent_maturity_routes._require_supervisor"):
             with pytest.raises(HTTPException) as exc:
-                self._route()("foreign-session", SimpleNamespace(id="u1"), db)
+                self._route()(
+                    "s3", SimpleNamespace(id="u1", tenant_id="tenant-mine"), db
+                )
         assert exc.value.status_code == 404
-        mock_tenant.assert_called_once()
-        # the TrainingSession lookup filtered by tenant_id, not just session id
-        filter_keys = {
-            expr.left.key
-            for call in db.query.return_value.filter.call_args_list
-            for expr in call.args
-        }
-        assert "tenant_id" in filter_keys
