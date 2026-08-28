@@ -25,6 +25,7 @@ from core.models import (
     TrainingSession,
     TriggerSource,
 )
+from core import role_template_registry
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +273,10 @@ After completing this training, the agent will be able to handle similar tasks a
             proposal_data=proposal_data,
             status=ProposalStatus.PENDING_APPROVAL.value,
             user_id=agent.id,  # Using agent_id as user_id for training proposals
-            tenant_id="default"  # Default tenant for training proposals
+            # Inherit the hire's tenant (was hardcoded "default" — that made
+            # sessions store "default" and broke tenant-scoped reads for
+            # non-default tenants). None → default fallback (admin/legacy).
+            tenant_id=agent.tenant_id or "default"
         )
 
         self.db.add(proposal)
@@ -393,12 +397,43 @@ After completing this training, the agent will be able to handle similar tasks a
         self.db.commit()
         self.db.refresh(session)
 
+        # Phase 2: spawn the role's typed-canvas set (best-effort, never
+        # breaks approval). Artifacts are stamped into CanvasAudit under the
+        # session id so /approvals can render trainee work as visual cards.
+        self._spawn_role_canvases(session, user_id)
+
         logger.info(
             f"Approved training proposal {proposal_id}, created session {session.id}, "
             f"duration: {duration_hours:.1f} hours, ends: {end_date.isoformat()}"
         )
 
         return session
+
+    def _spawn_role_canvases(
+        self, session: TrainingSession, user_id: str
+    ) -> List[Dict[str, Any]]:
+        """Best-effort spawn of the role's typed-canvas set at session start.
+
+        Creates the FK-safe ChatSession row, one Canvas per template
+        canvas_type, and stamps CanvasAudit rows under the session id so
+        /approvals can render trainee work as visual cards. Never raises —
+        approval must not break if template resolution or spawn fails.
+        """
+        try:
+            return role_template_registry.spawn_session_canvases(
+                self.db, session, user_id
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            # Roll back any partially-added ChatSession/Canvas/CanvasAudit
+            # rows so the failed spawn leaves no ghost pending objects on
+            # the request's DB session (they would otherwise flush on the
+            # caller's next commit and half-create the canvas set).
+            try:
+                self.db.rollback()
+            except Exception:  # pragma: no cover - rollback must never mask
+                pass
+            logger.warning(f"role canvas spawn failed (non-fatal): {exc}")
+            return []
 
     async def complete_training_session(
         self,

@@ -6,6 +6,55 @@
 
 ---
 
+## Session 2026-08-28b (Zoho WorkDrive scope — the REAL "Scope does not exist" fix)
+
+**Context**: After the CRM/Projects scope fix, Connect Zoho STILL failed with `Invalid OAuth Scope / Scope does not exist`. Pilot doc `atom-self-hosted-pilot-instructions.md` §2 (the doc-verified source) showed WorkDrive scopes are **`WorkDrive.`-prefixed with `.ALL`** (`WorkDrive.files.ALL`, `WorkDrive.teamfolders.ALL`) — the defaults had `ZohoWorkDrive.files.READ` / `ZohoWorkDrive.teamfolders.READ` (wrong prefix + wrong permission), and the regression test locked the same bad names, so the bug survived the first fix. One unknown scope fails the whole consent URL.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/oauth_handler.py` | `_ZOHO_DEFAULT_SCOPES`: `ZohoWorkDrive.files.READ` → `WorkDrive.files.ALL`; `ZohoWorkDrive.teamfolders.READ` → `WorkDrive.teamfolders.ALL` (pilot-doc §2 verified names) | `test_zoho_default_scopes_are_valid_names` RED→GREEN (test first locked `ZohoWorkDrive.*` bad names — fixed assertions to the verified set + `not in` guards) |
+| `tests/test_zoho_oauth_provider_keys.py` | validation test now asserts `WorkDrive.files.ALL` + `WorkDrive.teamfolders.ALL` and rejects the old names. **Bonus pre-existing fixture fix**: 3 callback tests passed `config=MagicMock()` but `_handle_callback_logic` calls `urlparse(config.auth_url)` → deterministic TypeError aborted the provider fan-out (rows never added) → `config=MagicMock(auth_url=...)`; mock token scope updated to the verified names | 6 passed (full file) |
+
+**Verification**: `tests/test_zoho_oauth_provider_keys.py` 6/6 passed (was 3 failed pre-fix — 1 from the scope guard, 3 from the pre-existing MagicMock fixture bug). Connect flow unchanged: frontend buttons → `GET /api/v1/auth/oauth/zoho/{authorize,initiate}` → `OAuthHandler` with the fixed defaults (no `ZOHO_OAUTH_SCOPES` env override in `.env`).
+
+---
+
+## Session 2026-08-28 (Role-template registry — training Phase 2: session canvas spawn + approvals cards)
+
+**Context**: Brennan's "when you say go" step — `docs/operations/role-training-plan.md` spec'd `{domain → canvas set, default tasks, trusted scope}` per role but the mini-canvas rendering was unimplemented. Approving a training proposal now spawns the role's typed-canvas set (ChatSession + Canvas + CanvasAudit stamped with the session id), so `/approvals` renders trainee work as visual cards instead of chat text.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/role_template_registry.py` (NEW) | `ROLE_TEMPLATES` (6 roles from role-training-plan.md: sales/bookkeeper/operations/marketing/support/hr — canvas_set, default_tasks, trusted_scope with bookkeeper `never: [send_payment]`); `get_role_template`; `resolve_template_for_agent` (specialty first, then `CATEGORY_ALIASES` e.g. Finance→bookkeeper); `spawn_session_canvases` — FK-safe: creates `ChatSession(id == session.id)` so `CanvasAudit.session_id` (FK → chat_sessions.id) holds, one `Canvas` per canvas_type (explicit uuid ids so audit FK matches pre-flush), one `CanvasAudit` per canvas (`action_type="session_spawn"`, session/agent/supervisor stamped, details_json carries default_tasks + trusted_scope), single commit, returns spawned descriptors; `get_session_canvases(db, session_id, tenant_id=None)` — optional tenant scope (IDOR guard) | `tests/test_role_template_registry.py` 13 passed |
+| `core/student_training_service.py` | `from core import role_template_registry` (module-ref so the test patch target resolves); `_spawn_role_canvases(session, user_id)` — best-effort, never raises (approval must not break); on failure rolls the DB session back so no ghost ChatSession/Canvas/CanvasAudit rows stay pending; called in `approve_training` after `db.refresh(session)` | `TestApproveHook` 2 passed (happy + failure/rollback path); `tests/core/systems/test_student_training_service_coverage.py` approval test green (7/8 — 1 pre-existing stale dedupe failure, see below) |
+| `api/agent_maturity_routes.py` | `GET /api/maturity/training/sessions/{session_id}/canvases` — supervisor-gated (`_require_supervisor`), 404 on missing session, returns `{session_id, canvases}` via `role_template_registry.get_session_canvases`. **Greptile round 2 (IDOR + tenant-mismatch)**: ownership gate = approving `supervisor_id` OR same-tenant (cross-tenant foreign UUID → 404, no existence leak); audit rows read under the SESSION's tenant (where spawn wrote them) — callers with a divergent tenant string still see their own sessions | `TestSessionCanvasesRoute` 6 passed (happy, 404-missing, supervisor-divergent-tenant, same-tenant-non-supervisor, cross-tenant 404, tenant-scoped registry read) |
+| `core/student_training_service.py` | `create_training_proposal`: proposal `tenant_id` inherited from the hire's agent (`agent.tenant_id or "default"`) instead of hardcoded `"default"` — sessions were storing "default" and 404-ing tenant-scoped reads for real tenants | coverage suite assertion `proposal.tenant_id == agent.tenant_id` (RED→GREEN) |
+| `frontend-nextjs/pages/approvals.tsx` | Session cards fetch the canvases endpoint and render **role-canvas cards**: canvas-type badge + name, default tasks list, 🚫 never-scope chip (e.g. bookkeeper never sends payments); loading state; best-effort (non-fatal) | `tsc --noEmit` clean (only pre-existing error in untouched `src-tauri/src-types/api-generated.ts`) |
+| `tests/test_role_template_registry.py` | 12 tests: role lookup, specialty/category resolution, spawn+session stamping, FK-safe ChatSession, get_session_canvases, approve hook, route 200/404 | 12 passed |
+
+**Verification**: `tests/test_role_template_registry.py` 12 passed; regression `tests/test_email_policy.py` + `tests/test_email_agent_dispatch.py` 55 passed; `test_student_training_service_coverage.py` approval flow green. **Pre-existing (unrelated, zero diff):** `TestTrainingProposalWorkflow::test_concurrent_training_proposals` — stale vs the "one open front per agent" dedupe in `create_training_proposal` (returns the same proposal for two triggers of one agent; test expects two distinct ids). `core.student_training_service` diff is +24 lines in `approve_training` only.
+
+---
+
+## Session 2026-08-27b (Zoho OAuth scope fix — "Scope does not exist")
+
+**Context**: Zoho connect failed with `Invalid OAuth Scope / Scope does not exist`. `core/oauth_handler.py`'s `_ZOHO_DEFAULT_SCOPES` used `ZohoCRM.fullaccess.all` + `ZohoProjects.fullaccess.all` — CRM/Projects do not have a `fullaccess.all` pattern, so Zoho rejects the WHOLE authorize URL (one unknown scope fails everything). The pilot doc (`atom-self-hosted-pilot-instructions.md` §2) already carried the verified names.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/oauth_handler.py` | `_ZOHO_DEFAULT_SCOPES`: `ZohoCRM.fullaccess.all` → `ZohoCRM.modules.ALL`; `ZohoProjects.fullaccess.all` → `ZohoProjects.portals.all` + `ZohoProjects.projects.all` (doc-verified combo). Books/Inventory/WorkDrive scopes unchanged | `test_zoho_oauth_provider_keys.py::test_zoho_default_scopes_are_valid_names` (RED first: fails against old names, GREEN after) |
+| `tests/test_zoho_oauth_provider_keys.py` | regression test locking the valid scope set | 1 passed |
+
+**Verification**: RED proven (test fails with old scopes), GREEN after fix. Pre-existing unrelated failures in the same file (3× `Token decryption failed` — Fernet key missing in test env) confirmed unchanged before/after via stash.
+
+---
+
 ## Session 2026-08-27 (Email agent harness — scripted Outlook loop removed, deterministic policy + governed agent + canvas send)
 
 **Context**: Brennan discussion — the scripted `outlook_automation_service.py` (15s poll loop, regex URL match, hardcoded reply body/CCs, direct `OutlookService` calls) beat the purpose of the agent harness. Replaced with a governed email agent + deterministic email policy (research: guardrails beat smarter models). Also fixed the dead `outlook` UIS-Bridge stub (send_email silently did nothing for platform=outlook) and wired the canvas Send button to a real policy-checked endpoint.
