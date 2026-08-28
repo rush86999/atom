@@ -136,7 +136,19 @@ class HarnessEvolutionService:
                     "verification_evidence": f.verification_evidence
                 })
 
-        return list(patterns.values())
+        # BPE telemetry feed (docs/architecture/BPE_WORKSPACE_PLAN.md Phase 3):
+        # harness-action failures + negative consult-value agents become the
+        # same pattern shape so propose_mutation can treat them like any
+        # other weakness. Optional dependency — never raises.
+        try:
+            from core.bpe.telemetry_feed import collect_bpe_weakness_patterns
+
+            patterns_list = list(patterns.values())
+            patterns_list.extend(collect_bpe_weakness_patterns())
+            return patterns_list
+        except Exception as e:
+            logger.debug(f"bpe weakness feed skipped: {e}")
+            return list(patterns.values())
 
     async def propose_mutation(self, pattern: Dict[str, Any]) -> Dict[str, Any]:
         """

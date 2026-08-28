@@ -67,6 +67,7 @@
 | [Self-Evolving Harness](architecture/HARNESS_EVOLUTION.md) | Offline trace analysis, auto-patches | Researchers |
 | [Hermes Comparison](architecture/HERMES_COMPARISON.md) | Atom vs Hermes — what we built/didn't | Architects |
 | [Agent Harness Research](architecture/AGENT_HARNESS_RESEARCH.md) | **NEW** - Citation-backed survey: guardrails, voting vs debate, multi-agent orgs, memory, verified execution, harness benchmarks | Researchers/AI Engineers |
+| [BPE Workspace Plan](architecture/BPE_WORKSPACE_PLAN.md) | **NEW** - Research-grounded plan: Belief/Progress/Experience runtime workspace (EvoHarness-RL) with track/commit/recall/note meta-actions and cost-aware consult policy | Researchers/AI Engineers |
 
 ### 👥 Agent Systems & Orchestration
 
@@ -83,6 +84,8 @@
 | [Agent Guidance System](agents/guidance-system.md) | Real-time operation tracking | Users |
 | [Agent Graduation](agents/graduation.md) | Promotion criteria & validation | Admins |
 | [Student Training](guides/AGENT_MATURITY_GOVERNANCE.md) | Maturity system (STUDENT→AUTONOMOUS) | Architects |
+| [Round 87 — Agent Journey Updates](agents/2026-08-28-agent-journey-round-87.md) | **NEW** - Linked-evidence completion, agent persona chat, ontology/file introspection, mini canvas, voice opt-in | All |
+| [Agent Workspace Live Trace](agents/agent-workspace-trace.md) | **NEW** - Real-time execution steps + reasoning trace in agent chat, per-step feedback → training, trace replay API, auto-show/hide | All |
 
 ### 🔌 Integrations & LLM Providers
 

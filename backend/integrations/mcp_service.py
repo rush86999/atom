@@ -867,7 +867,12 @@ class MCPService(IntegrationService):
         
         # Add dynamic tools from action_registry (Ontology Actions)
         from core.action_registry import action_registry
+        # BPE workspace meta-actions (docs/architecture/BPE_WORKSPACE_PLAN.md):
+        # shadow-first — hidden from the tool list until the flag is on.
+        from core.bpe.actions import bpe_enabled
         for action in action_registry.get_all_definitions():
+            if action.name.startswith("workspace.") and not bpe_enabled():
+                continue
             simplified_params = {}
             props = action.parameters_schema.get("properties", {})
             required = action.parameters_schema.get("required", [])
@@ -1106,26 +1111,30 @@ class MCPService(IntegrationService):
     async def search_tools(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
         Search for tools based on a query.
-        Returns a list of matching tools (name, description).
+        Returns matching tools with name, description AND parameters — the
+        agent lazy-loads these results as callable tools, so dropping the
+        parameter schema here left discovered tools uncallable without
+        guesswork (Aug 2026 awareness gap).
         """
         all_tools = await self.get_all_tools()
         query = query.lower()
-        
+
         matches = []
         for tool in all_tools:
             name = tool.get("name", "").lower()
             desc = tool.get("description", "").lower()
-            
+
             # Simple keyword matching for now
             if query in name or query in desc:
                 matches.append({
                     "name": tool["name"],
-                    "description": tool["description"]
+                    "description": tool["description"],
+                    "parameters": tool.get("parameters", {}),
                 })
-        
+
         # Sort by relevance (exact match first)
         matches.sort(key=lambda x: 0 if query in x["name"].lower() else 1)
-        
+
         return matches[:limit]
 
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:

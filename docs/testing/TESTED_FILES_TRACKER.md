@@ -9,6 +9,10 @@
 ## Session 2026-08-28c (Zoho adapter default scope + tracker count fixes — PR #598 review follow-ups)
 
 **Context**: Post-merge review follow-ups for PR #598, verified against the LIVE Zoho Canada authorize endpoint (`accounts.zohocloud.ca`, pilot client). Live matrix: `ZohoWorkDrive.files.READ` / `ZohoWorkDrive.teamfolders.READ` / `ZohoWorkDrive.files.ALL` → all rejected with "Invalid OAuth Scope / Scope does not exist" (error renders pre-login in a real browser; plain curl follows to the sign-in page and masks it); `WorkDrive.files.ALL` + `WorkDrive.teamfolders.ALL` → accepted, flow completes with a real grant code; the corrected 7-scope default list (`ZohoBooks.fullaccess.all,ZohoInventory.fullaccess.all,ZohoCRM.modules.ALL,ZohoProjects.portals.all,ZohoProjects.projects.all,WorkDrive.files.ALL,WorkDrive.teamfolders.ALL`) renders the real Atom consent page.
+## Session 2026-08-28f (BYOK single source of truth — DB mirror gated behind ATOM_BYOK_DB_SYNC)
+
+**Context**: Operator directive (now in CLAUDE.md Architecture): Atom is single-tenant; the encrypted file store `data/byok_keys.json` is THE source of truth for API keys; the `tenant_settings` DB mirror is SaaS parity only. Two live sources caused the day's entire BYOK bug class (DB-first reads outvoting the file, undeletable keys, resurrection on save).
+
 
 **Files tested/fixed**:
 
@@ -24,6 +28,15 @@
 ## Session 2026-08-28b (Zoho WorkDrive scope — the REAL "Scope does not exist" fix)
 
 **Context**: After the CRM/Projects scope fix, Connect Zoho STILL failed with `Invalid OAuth Scope / Scope does not exist`. Pilot doc `atom-self-hosted-pilot-instructions.md` §2 (the doc-verified source) showed WorkDrive scopes are **`WorkDrive.`-prefixed with `.ALL`** (`WorkDrive.files.ALL`, `WorkDrive.teamfolders.ALL`) — the defaults had `ZohoWorkDrive.files.READ` / `ZohoWorkDrive.teamfolders.READ` (wrong prefix + wrong permission), and the regression test locked the same bad names, so the bug survived the first fix. One unknown scope fails the whole consent URL.
+| `api/byok_routes.py` | `_db_key_sync_enabled()` gate (`ATOM_BYOK_DB_SYNC`, default OFF); `store_tenant_api_key` DB write, `get_tenant_api_key` DB-first read, `get_tenant_provider_status` + `has_tenant_keys` DB checks — all now parity-gated. `delete_api_key` DB cleanup stays UNCONDITIONAL (hygiene: legacy rows removed in either mode) | `tests/api/test_byok_single_source_of_truth.py` (NEW) 9 passed: flag default off/on, store file-only vs DB sync, get file-only vs DB-first, status/has-keys ignore DB by default, asdict shape stability for UIs |
+| `tests/test_bughunt_byok.py::test_string_complexity_keeps_bpc_results` | **pre-existing WIP failure, NOT touched**: expects `deepseek-chat` ranked, but the uncommitted `byok_handler.py` allowlist-substring work (logprobs cache + substring approval, unrelated to key storage) changed the ranked set to `deepseek-v3.2-speciale`. Left for the WIP author — guessing the intended model id would paper over a behavioral decision | — |
+
+**Verification**: 14/14 new+delete tests pass; broader BYOK suites 189 passed + the 1 pre-existing WIP failure above; backend restarted, health 200, OpenRouter via BYOK credential, zero decrypt errors.
+
+ (BYOK delete — UI Remove was structurally unable to delete wizard-saved keys)
+
+**Context**: "Can't delete the openai key from UI." Root cause: keys saved via wizard/Settings live in THREE places — the manager file store under a TENANT-scoped id (`tenant_{tenant}_{provider}_{key}_{env}`), and synced into `tenant_settings` — while `DELETE /api/ai/providers/{provider_id}/keys/{key_name}` only removed the exact GLOBAL-format id (`{provider}_{key}_{env}`) and never touched the DB. Result: 404 "API key not found", and even on success the DB row kept `get_tenant_provider_status` (DB-first) reporting "configured". Also verified the stored "OpenAI" key was an OpenRouter key (sk-or-…, 401 from OpenAI — legacy of the dropdown bug) and removed it from both stores.
+
 
 **Files tested/fixed**:
 
@@ -39,6 +52,41 @@
 ## Session 2026-08-28 (Role-template registry — training Phase 2: session canvas spawn + approvals cards)
 
 **Context**: Brennan's "when you say go" step — `docs/operations/role-training-plan.md` spec'd `{domain → canvas set, default tasks, trusted scope}` per role but the mini-canvas rendering was unimplemented. Approving a training proposal now spawns the role's typed-canvas set (ChatSession + Canvas + CanvasAudit stamped with the session id), so `/approvals` renders trainee work as visual cards instead of chat text.
+| `api/byok_routes.py` | `delete_api_key` rewritten: removes the exact global id, ALL tenant-scoped rows for that provider+key_name+environment (other tenants untouched), AND the `tenant_settings` DB row (db.rollback on failure never blocks file deletion); 404 only when nothing was removed; response reports `removed` ids | `tests/api/test_byok_delete_key.py` (NEW) 5 passed: tenant+DB footprint, global+tenant together w/ other-tenant/other-provider isolation, named-key isolation, 404 on no match, DB-failure tolerance |
+| `data/byok_keys.json` + `tenant_settings` | purged bogus OpenAI rows (mislabeled sk-or key + stale t-1 row) from file AND DB. **Ops lesson (twice bitten)**: purging the file while an old process is live gets overwritten by its next `_save_configuration()` (in-memory state wins) — kill the server FIRST, then purge, then start | verified: file = 2 openrouter rows, DB = OPENROUTER_API_KEY only |
+
+**Verification**: 5 new backend tests; health 200 post-restart; OpenRouter initializes from BYOK credential; DELETE route now returns 403 unauthenticated (auth gate live).
+
+ (BYOK settings journey — empty "Select provider" dropdown, end-to-end trace + gap fill)
+
+**Context**: "Select provider has no dropdown." Traced the BYOK journey end to end. Route ownership: `byok` (core.byok_endpoints) is NOT in the eager-load list (core/lazy_integration_registry.py ESSENTIAL_INTEGRATIONS), so api/byok_routes.py owns ALL `/api/ai/providers*` routes — every response is wrapped in the ApiResponse envelope (`{success, data: {providers}}`), and GET/POST are auth-gated. Three frontends read that endpoint:
+
+**Gaps found & filled**:
+
+| Surface | Gap | Fix | Tests |
+|---|---|---|---|
+| `src/components/AIProviders/AIProviderSettings.tsx` (Settings → AI) | fetched `/ai/providers` with NO Authorization header (→ 401) AND read top-level `data.providers` (→ undefined under the envelope) → error page; save/delete/test also dropped the auth header | `authHeaders()` on all four calls; envelope-unwrap (`data?.data?.providers ? data.data : data`) accepting both shapes | `tests/components/AIProviderSettings.test.tsx` (NEW) 4 passed: envelope render, auth header sent, legacy-shape compat, error+retry |
+| `components/DevStudio/BYOKManager.tsx` (Dev Studio) | same envelope miss → `providers` state stayed `[]` → **the empty "Select provider" dropdown**; save toast read `data.key_name` (undefined under envelope) | unwrap in `fetchProviders` + save handler | existing `BYOKManager.test.tsx` green |
+| `components/Onboarding/OnboardingWizard.tsx` (wizard step 2) | "Select provider" dropdown was a hardcoded 4-item list (openai/anthropic/deepseek/glm) — **OpenRouter missing entirely**; stale sync comment pointed at byok_endpoints | dropdown now populated live from `GET /api/ai/providers` on step 2 (excludes `ollama` — Card A owns it; skips inactive; keeps selection valid), falls back to the seed list (now incl. OpenRouter) on any failure | `OnboardingWizard.test.tsx` +2 (dynamic populate from envelope incl. openrouter/moonshot minus ollama; seed fallback on 401) — 14 passed |
+
+**Also traced, no change needed**: backend `GET /api/ai/providers` (byok_routes:900) returns `{provider, has_api_keys, status}` per row — shape matches frontend card rendering; POST `/api/ai/providers/{id}/keys` accepts the JSON body contract (R83) so all three surfaces store keys via `store_tenant_api_key` (file + tenant_settings sync). Flagged (not fixed, refactor-scale): duplicate route ownership — core.byok_endpoints registers the same paths but is unmounted in the running app; if it ever gets eager-loaded, global-vs-tenant store semantics silently flip.
+
+**Verification**: 4 jest suites, 29 passed (wizard 14, BYOKManager, AIProviderSettings 4, settings-ai page); tsc --noEmit clean for touched files.
+
+ (Agent Workspace live trace + TS backlog clearance + MSW bootstrap fix)
+
+**Context**: Wired chat-triggered agent runs to the Agent Workspace panel (live
+`agent_step_update`/`agent_status_change` streaming, normalized payloads),
+session-linked trace persistence + read API, per-step feedback write-through
+onto `AgentReasoningStep.feedback_score`, panel auto-show/auto-hide rail UX.
+Cleared the entire frontend TypeScript backlog (1,171 → 0 across
+`tsconfig.json` [app-only gate] + new `tsconfig.tests.json`) and fixed the
+pre-existing MSW bootstrap bug (`tests/setup.ts`: `server.listen()` was gated
+behind a `typeof server` check on a try-block-scoped variable — never ran, so
+fetch tests silently depended on a live backend on :8000; tests are now
+hermetic). Also fixed `_get_qwen_response` referencing an undefined `context`
+variable (memory-context injection silently skipped every turn).
+
 
 **Files tested/fixed**:
 
@@ -58,6 +106,29 @@
 ## Session 2026-08-27b (Zoho OAuth scope fix — "Scope does not exist")
 
 **Context**: Zoho connect failed with `Invalid OAuth Scope / Scope does not exist`. `core/oauth_handler.py`'s `_ZOHO_DEFAULT_SCOPES` used `ZohoCRM.fullaccess.all` + `ZohoProjects.fullaccess.all` — CRM/Projects do not have a `fullaccess.all` pattern, so Zoho rejects the WHOLE authorize URL (one unknown scope fails everything). The pilot doc (`atom-self-hosted-pilot-instructions.md` §2) already carried the verified names.
+| `integrations/chat_orchestrator.py` | `_emit_agent_step` reworked (normalized envelope: `output`→`observation`, execution/session stamped; broadcasts `workspace:default` + tenant channel), new `_emit_agent_status`, `_handle_agent_request` wires `step_callback` + run lifecycle broadcasts; fixed `_get_qwen_response` `context` NameError (memory injection restored) | `tests/test_covpush_w115_chat_orchestrator.py` 125 passed |
+| `core/atom_meta_agent.py` | `execute()` stamps `metadata_json={"session_id","channel":"chat"}` on `AgentExecution`; result payload carries `execution_id` | `tests/test_covpush_w32_meta_agent.py` |
+| `integrations/chat_routes.py` (NEW endpoint) | `GET /api/chat/trace/{session_id}` — runs + reasoning steps by session (json_extract on metadata_json), ownership-guarded | `tests/test_chat_agent_trace.py` (NEW) 10 passed |
+| `api/reasoning_routes.py` | `submit_step_feedback` accepts `execution_id`/`step_number`; write-through to `AgentReasoningStep.feedback_score`/`feedback_text` | `tests/test_chat_agent_trace.py`, `tests/test_covpush_w99_reasoning_routes.py` |
+| `tests/test_chat_agent_trace.py` (NEW) | payload normalization, trace endpoint (happy/empty/403/401), feedback write-through | 10 passed |
+| `frontend-nextjs/components/chat/AgentWorkspace.tsx` | run grouping by `execution_id`, trace cards (confidence/verified/duration/model), per-step + run feedback, history restore, slim rail mode, auto-hide pref toggle | `components/chat/__tests__/AgentWorkspace.test.tsx` 30 passed |
+| `frontend-nextjs/pages/chat/index.tsx` | auto-show on activity, auto-hide 8s after settle, manual-close suppression, pref persisted `atom_workspace_autohide` | `tests/pages/chat-index.test.tsx` |
+| `frontend-nextjs/lib/agent-trace-api.ts` (NEW) | authenticated trace/feedback client | — |
+| `frontend-nextjs/hooks/useWebSocket.ts` | wire message type widened (flat `agent_id`/`step`/`status` fields) — types only | — |
+| `frontend-nextjs/hooks/chat/useChatInterface.ts` | accepts flat+nested `agent_step_update` shapes; session filter; drops bare-number steps (junk `{step:1}` trace entries) | `hooks/chat` suites |
+| `frontend-nextjs/tests/setup.ts` | **MSW bootstrap fix**: hoisted server ref; `beforeAll(listen)/afterEach(resetHandlers)/afterAll(close)` now actually run — tests hermetic, no live backend | full suite green |
+| `frontend-nextjs/tsconfig.json` + `tsconfig.tests.json` (NEW) | app gate excludes tests; tests config relaxes `noImplicitAny`; `type-check:tests` script. TS backlog 1,171 → 0 (108 real app-code errors fixed: zustand v5 import, Chakra v3 props, d3 selections, Buffer/@types-node, ~30 `.catch((): null => null)` widening sites, etc.) | `npm run type-check` + `type-check:tests` both 0 errors |
+| `frontend-nextjs/tests/pages/__tests__/dashboard.test.tsx` | rewritten to current OAuth-driven page (`/api/v1/auth/oauth/tokens` mocks; Connected/Expired; empty state) | 9 passed |
+| auth + maturity + workflow-generator suites | updated to current contracts (callbackUrl router mock, registerWithBackend auto-login, evidence-gated completion, voice opt-in default) | 149 + 5 + 22 passed |
+
+**Verification**: `npm run type-check` 0 errors; `npm run type-check:tests` 0 errors; full jest 678 suites / 11,088 tests passed; backend suites touched modules 181 passed.
+
+---
+
+## Session 2026-08-28c (BPE gap closure — meta-agent parity, durable restore, evolution feed + AlphaEvolve-lite search)
+
+**Context**: Closing all remaining plan gaps: AtomMetaAgent never received the BPE block (parity), workspace state died on process restart, harness_evolution had no BPE signal, and the AlphaEvolve-style harness-config search (plan §2.7) was unimplemented.
+
 
 **Files tested/fixed**:
 
@@ -71,6 +142,55 @@
 ---
 
 ## Session 2026-08-27 (Email agent harness — scripted Outlook loop removed, deterministic policy + governed agent + canvas send)
+| `core/atom_meta_agent.py` | `_react_step`: same flag-gated, consult-policy-mediated BPE block as GenericAgent (scope: workspace/agent/session-execution); run start: episode counter reset; run end: episode close-out (consolidate-on-success / drop-on-failure, `record_episode`+`record_consult_mix`, `result_payload["bpe"]` state snapshot, persistence save) — **fix during session**: close-out initially placed before the `result_payload` literal (key wiped); moved after | meta agent suites 223 passed |
+| `core/bpe/persistence.py` (NEW) | `BPEWorkspaceStore`: JSON-per-workspace under `backend/data/bpe_workspaces/` (automation-settings pattern), atomic write, LRU bound 32 scopes, 64KB snapshot guard, corrupt-file degradation; `get_workspace` lazy-restores on registry miss | `tests/core/test_bpe_evolution.py` 24 passed |
+| `core/bpe/telemetry_feed.py` (NEW) | `collect_bpe_weakness_patterns`: bpe.* spans → weakness patterns in the SAME shape `mine_weaknesses` returns (errored consults → `harness_action`; negative-value agents ≥3 episodes & EMA<−0.2 → `consult_value`) | same file |
+| `core/harness_evolution_service.py` | `mine_weaknesses` appends BPE patterns (optional import, never raises) — propose_mutation can now treat harness misbehavior like any mined failure | same file |
+| `core/bpe/evolution.py` (NEW) | AlphaEvolve-lite: genome = 4 workspace bounds (`GENE_BOUNDS`), `mutate` (single gene, ±10% range, clamped), `Population` (top-8 distinct elites, duplicate rejection), `fitness_from_signals` (value EMA − 0.25·call-rate drift from ~1/episode target), `apply_best` gated by `ATOM_BPE_EVOLUTION_ENABLED` (off = proposal-only) | same file |
+| `core/bpe/workspace.py` | genome-threaded bounds: `set_active_bounds`/`get_active_bounds` (clamped), `BPEWorkspace.bounds` → Progress cap, render cap, `ExperienceStore(max_entries, recall_top_k)` | bounds tests |
+| `tests/core/agents/test_atom_meta_agent_coverage_extend.py` | **pre-existing break fixed forward**: `CORE_TOOLS_NAMES` count assertion 23 → 28 (platform/management block was committed earlier; HEAD's constant already had 28 entries — failure unrelated to BPE work, confirmed via `git show HEAD`) | 223 passed |
+
+**Verification**: BPE suites 85 passed (41+20+24); action-registry/mcp/rpc regressions 170 passed; core sweep (generic_agent/react/consolidator/meta_agent/harness_evolution) 436 passed, 12 skipped.
+
+ (BPE Phase 2 + Phase 3 v1 — consult policy, consolidation, episode close-out)
+
+**Context**: Continuation of the EvoHarness-RL incorporation (same plan doc). Phase 2: cost-aware consult policy learned post-hoc (no weight training) — complexity gate + per-agent value EMA + recall-only annealing render. Phase 3 v1: deterministic note→Experience promotion (success-only, evidence-gate posture) wired into the nightly consolidation sweep. Memento/AlphaEvolve mapping added to plan doc §2.7.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/bpe/consult_policy.py` (NEW) | `ConsultPolicy`: complexity gate (simple turns never render), value gate (EMA reward over episodes; suppress only after ≥5 episodes of evidence, `ATOM_BPE_CONSULT_POLICY` flag, default off = shadow recording), annealing analog (recall-only render once commit+note share <10% after ≥10 episodes — paper's decay ordering), `harness_call_rate` metric (→~1/episode target), `snapshot()` | `tests/core/test_bpe_consult_policy.py` 20 passed |
+| `core/bpe/consolidation.py` (NEW) | `classify_note` (deterministic keyword routing → mistakes/priors/skills), `consolidate_workspace_notes` (success-only promotion; failed runs drop notes), `sweep_pending_notes` (nightly sweep over registry — **fix during session**: iterated dict keys not values, every sweep silently no-op'd) | same file |
+| `core/bpe/workspace.py` | per-episode consult counters (`episode_consults`, `episode_commit_notes`, `reset_episode_counters`), counted only on successful harness actions; `render(mode='recall_only')` annealing header | counter tests |
+| `core/generic_agent.py` | run start: episode counter reset (flag-gated); `_react_step`: consult policy gates rendering (complexity via `analyze_query_complexity`, fallback moderate) + recall-only mode; run end: episode close-out — consolidate notes on success / drop on failure, `record_episode` + `record_consult_mix` feedback, `execution_result["bpe"]` with state snapshot; `_record_execution`: `bpe_workspace` + `bpe_consults` into experience `metadata_trace` (observability/replay; restore-on-restart deferred to Phase 3+) | generic/react/consolidator core suites 152 passed, 12 skipped |
+| `core/memory_consolidator.py` | `consolidate_workspace` nightly sweep gained `bpe_notes_consolidated` leg (optional import, never raises) | wire-in test |
+| `docs/architecture/BPE_WORKSPACE_PLAN.md` | §2.7 Memento (case-selection ≈ Phase 2 upgrade path) + AlphaEvolve (population-based harness-config evolution ≈ Phase 3 generalization) mapping; status bumped | — |
+
+**Verification**: `tests/core/test_bpe_workspace.py` + `tests/core/test_bpe_consult_policy.py` 61 passed; action-registry + mcp + rpc regressions 170 passed; core generic_agent/react/consolidator suites 152 passed, 12 skipped.
+
+
+
+**Context**: Incorporating EvoHarness-RL (arXiv:2608.05446) per `docs/architecture/BPE_WORKSPACE_PLAN.md`: a policy-facing Belief/Progress/Experience workspace with `track`/`commit`/`recall`/`note` meta-actions, prompt-time (no training), behind `ATOM_BPE_WORKSPACE_ENABLED` (shadow-first, default off).
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/bpe/__init__.py` (NEW) | package docstring | — |
+| `core/bpe/workspace.py` (NEW) | `BPEWorkspace` (B/P/E container), `Subgoal` (cap 8, done-drop-first eviction), `ExperienceStore` (4 categories, cap 80 w/ LFU eviction, keyword-overlap top-3 recall, `consolidate` removal hook), note buffer + drain, async `apply` (never raises), bounded `render`, `to_dict`/`from_dict` round-trip, in-process registry keyed (workspace_id, agent_id, scope) with FIFO cap 512 | `tests/core/test_bpe_workspace.py` 41 passed |
+| `core/bpe/adapter.py` (NEW) | `BPEAdapter` protocol, `NullAdapter`, `CompositeAdapter` (first non-empty wins, sync-or-async, per-source isolation) | covered via workspace tests |
+| `core/bpe/chat_adapter.py` (NEW) | chat-surface belief source: GraphRAG `get_context_for_ai`, bounded 800 chars, '' fall-through | — (integration deferred to flag-on rollout) |
+| `core/bpe/telemetry.py` (NEW) | `bpe.<action>` spans via `core.observability.tracing.record_span` (action, success, latency, payload size); never raises | `tests/core/test_bpe_workspace.py::TestTelemetry` |
+| `core/bpe/actions.py` (NEW) | `workspace.track/commit/recall/note` registered via `@register_action`; `bpe_enabled()` flag gate; scope resolution from context (session_id → execution_id) | `tests/core/test_bpe_workspace.py::TestActionRegistration` |
+| `core/generic_agent.py` | `_react_step`: flag-gated BPE block rendered beside utility_block (off → prompt unchanged); scope keyed by session/execution | generic/react suites green (129 passed, 12 skipped) |
+| `integrations/mcp_service.py` | `get_all_tools`: `workspace.*` hidden while `ATOM_BPE_WORKSPACE_ENABLED` off (shadow-first) | `tests/test_covpush_w85_mcp_service.py` green |
+| `api/rpc_routes.py` | imports `core.bpe.actions` at startup (same pattern as radio_actions) | `tests/test_r79_action_registry_rpc.py` green |
+
+**Verification**: `tests/core/test_bpe_workspace.py` 41 passed; action-registry + mcp_service + rpc regression suites 170 passed; generic_agent/react suites 129 passed, 12 skipped.
+
+ (Email agent harness — scripted Outlook loop removed, deterministic policy + governed agent + canvas send)
+
 
 **Context**: Brennan discussion — the scripted `outlook_automation_service.py` (15s poll loop, regex URL match, hardcoded reply body/CCs, direct `OutlookService` calls) beat the purpose of the agent harness. Replaced with a governed email agent + deterministic email policy (research: guardrails beat smarter models). Also fixed the dead `outlook` UIS-Bridge stub (send_email silently did nothing for platform=outlook) and wired the canvas Send button to a real policy-checked endpoint.
 
@@ -6798,3 +6918,32 @@ Parallel sweep of post-R86d surfaces (new routes + new automation modules) surfa
 **Pre-existing failures verified via stash check** (NOT this round): canvas CRUD test_update_404_for_other_user/test_delete_missing_canvas (404-vs-400), 6× integration/contracts/test_workflow_api_contracts (401s), mini_app_harness_journey.
 
 **Verification**: 63/63 across R87+R88+R89 new/re-contracted suites; 786 passed webhook+audit sweep; 380/382 canvas/miniapp sweep; main_api_app imports clean.
+
+## Session 2026-08-28 — Round 87 linked-evidence completion: contract + test updates
+
+**Source change** (`core/student_training_service.py`): `complete_training_session` now requires
+linked work evidence — `AgentEpisode` rows recorded inside the session window (`started_at >=
+session.started_at`, stamped at approval). Fewer than `ATOM_TRAINING_MIN_EVIDENCE_EPISODES`
+(default 3) → `InsufficientTrainingEvidenceError` (HTTP 422 via `api/agent_maturity_routes.py`,
+live counts included); recorded `performance_score` = `min(supervisor claim, evidence success
+ratio)`; task counts derived from the ledger; claimed values kept in `session.outcomes` for audit.
+Kill switch `ATOM_TRAINING_REQUIRE_EVIDENCE=0`. New `GET /api/maturity/training/sessions/{id}/evidence`.
+
+**Test updates (this round)**:
+- `backend/tests/test_promotion_evidence_gate.py` — `_run_session` now seeds in-window evidence
+  episodes (successes/failures params); `_seed_episodes` defaults to an hour-ago stamp so
+  pre-seeded history stays OUTSIDE the window; progress-block assertion 4→7 episodes; NEW tests:
+  unevidenced completion rejected (no mutation), claimed score capped by evidence ratio,
+  kill-switch restores legacy behavior. 14/14.
+- `backend/tests/unit/test_student_training_service.py` — `TestCompleteTrainingSession` (2 tests)
+  completed sessions with zero evidence (legal under the old contract). Updated: new
+  `_seed_session_evidence` helper stamps 3 in-window success episodes in
+  `test_complete_session_success` + `test_complete_session_boosts_confidence` (mechanics tests stay
+  scoped to mechanics; the gate itself is covered by the promotion-gate file). 24/24.
+- `frontend-nextjs/components/chat/__tests__/CanvasHost.test.tsx` — email mini-canvas Send is no
+  longer an `alert()` stub: asserts confirm-first policy authorization + `POST /api/canvas/email/send`
+  payload (to/subject/body/canvas_id) + success alert. 132/132 across components/chat.
+
+**Verification**: `test_promotion_evidence_gate.py` 14 passed; `test_student_training_service.py`
+24 passed; frontend `components/chat` 132 passed; backend health + new evidence route registered
+(401 unauthenticated) on the live dev server.

@@ -63,9 +63,17 @@ class GenericAgent:
         "mcp_tool_search",
         "save_business_fact",
         "verify_citation",
-        "ingest_knowledge_from_text", 
+        "ingest_knowledge_from_text",
         "request_human_intervention",
-        "get_system_health"
+        "get_system_health",
+        # Knowledge VFS: how agents browse/cite everything ingested from
+        # connectors and uploads. Read-only, bounded; without these the agent
+        # never learns ingested documents exist unless it thinks to run a
+        # tool search for them (Aug 2026 awareness gap).
+        "documents.search",
+        "documents.ls",
+        "documents.cat",
+        "documents.grep",
         # Others can be discovered
     ]
 
@@ -243,7 +251,19 @@ class GenericAgent:
         steps = []
         final_answer = None
         status = "success"
-        
+
+        # BPE workspace (plan Phase 2): fresh per-episode consult counters so
+        # the consult policy sees per-run rates, not lifetime totals.
+        try:
+            from core.bpe.actions import bpe_enabled as _bpe_on
+            from core.bpe.workspace import get_workspace as _get_ws
+
+            if _bpe_on():
+                _scope_key = str(context.get("session_id") or context.get("execution_id") or "")
+                _get_ws(self.workspace_id, str(self.id), _scope_key).reset_episode_counters()
+        except Exception as _bpe_err:
+            logger.debug(f"bpe episode reset skipped: {_bpe_err}")
+
         try:
             async def run_loop():
                 nonlocal final_answer, status
@@ -682,7 +702,46 @@ class GenericAgent:
             "audit_report": audit_report,
             "timestamp": start_time.isoformat()
         }
-        
+
+        # BPE workspace episode close-out (plan Phase 2): consolidate notes
+        # (success only — failed-run lessons are dropped, evidence-gate
+        # posture), feed the consult policy, persist workspace state into the
+        # result so _record_execution can attach it to the experience trace.
+        try:
+            from core.bpe.actions import bpe_enabled as _bpe_on
+            from core.bpe.consolidation import consolidate_workspace_notes
+            from core.bpe.consult_policy import get_consult_policy
+            from core.bpe.workspace import get_workspace as _get_ws
+
+            if _bpe_on():
+                _scope_key = str((context or {}).get("session_id") or (context or {}).get("execution_id") or "")
+                _ws = _get_ws(self.workspace_id, str(self.id), _scope_key)
+                _success = status == "success"
+                _bpe_consolidated = (
+                    consolidate_workspace_notes(_ws) if _success
+                    else {"dropped_notes": len(_ws.drain_pending_notes())}
+                )
+                _policy = get_consult_policy()
+                _policy.record_consult_mix(str(self.id), _ws.episode_commit_notes)
+                _policy.record_episode(
+                    str(self.id), _ws.episode_consults, _success, step_efficiency
+                )
+                execution_result["bpe"] = {
+                    "consults": _ws.episode_consults,
+                    "consolidated": _bpe_consolidated,
+                    "value_ema": _policy.snapshot().get(str(self.id), {}).get("value_ema"),
+                    "state": _ws.to_dict(),
+                }
+                try:
+                    from core.bpe.persistence import BPEWorkspaceStore
+
+                    BPEWorkspaceStore().save(execution_result["bpe"]["state"])
+                except Exception as _persist_err:
+                    logger.debug(f"bpe persist skipped: {_persist_err}")
+                _ws.reset_episode_counters()
+        except Exception as _bpe_err:
+            logger.debug(f"bpe episode close-out skipped: {_bpe_err}")
+
         await self._record_execution(task_input, execution_result, context)
 
         # R81 (G5): persist an episode for session-linked runs so workflow/
@@ -1122,6 +1181,34 @@ class GenericAgent:
                 "evidence so the outcome verifier can confirm it.\n"
             )
 
+        # BPE workspace (docs/architecture/BPE_WORKSPACE_PLAN.md, Phase 1+2):
+        # shadow-first — render the policy-facing (Belief/Progress/Experience)
+        # block only behind ATOM_BPE_WORKSPACE_ENABLED; flag off → prompt
+        # unchanged, consult telemetry still flows through bpe.* spans. With
+        # ATOM_BPE_CONSULT_POLICY on, the consult policy also gates rendering
+        # by complexity + per-agent value EMA and may render recall-only.
+        bpe_block = ""
+        try:
+            from core.bpe.actions import bpe_enabled
+            from core.bpe.consult_policy import get_consult_policy
+            from core.bpe.workspace import get_workspace
+
+            if bpe_enabled():
+                _ctx = context or {}
+                _scope_key = str(_ctx.get("session_id") or _ctx.get("execution_id") or "")
+                _ws = get_workspace(self.workspace_id, str(self.id), _scope_key)
+                _policy = get_consult_policy()
+                try:
+                    _complexity = self.llm._get_handler().analyze_query_complexity(task_input).value
+                except Exception:
+                    _complexity = "moderate"
+                if _policy.should_render(str(self.id), _complexity, workspace_nonempty=True):
+                    bpe_block = _ws.render(mode=_policy.render_mode(str(self.id)))
+                    if bpe_block:
+                        bpe_block += "\n"
+        except Exception as e:
+            logger.debug(f"bpe workspace render failed: {e}")
+
         system_prompt = f"""{self.system_prompt}{mentorship_focus}
 
 {stage_handoff_note}
@@ -1130,6 +1217,7 @@ class GenericAgent:
 {skill_instructions}
 
 {utility_block}
+{bpe_block}
 AVAILABLE TOOLS:
 {tool_descriptions}
 
@@ -1628,6 +1716,12 @@ What is your next step?"""
                 "step_count": len(result.get("steps", [])),
                 "plan_adherence": result.get("plan_adherence"),
                 "audit_report": result.get("audit_report"),
+                # BPE workspace state (plan Phase 2): Progress + Experience
+                # ride the experience trace for observability/replay. Restore-
+                # on-restart from this trace is a Phase-3+ item; within a
+                # process the in-memory registry keeps state live.
+                "bpe_workspace": (result.get("bpe") or {}).get("state"),
+                "bpe_consults": (result.get("bpe") or {}).get("consults", 0),
                 "duration_seconds": (datetime.now(timezone.utc) - datetime.fromisoformat(result["timestamp"])).total_seconds() if "timestamp" in result else 0
             },
             agent_role=self.config.get("role", "specialty_agent"),

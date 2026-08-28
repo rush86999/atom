@@ -653,7 +653,11 @@ def _ensure_vfs_registered():
 
 @register_action(
     "documents.ls",
-    description="List children of a VFS path (line-numbered, greppable document tree).",
+    description=(
+        "List children of the knowledge VFS. args: path — start at "
+        "'knowledge/documents' (one dir per ingested document) or "
+        "'knowledge/conversations'. Returns entries [{name, type, path}]."
+    ),
     parameters_schema=_DOCUMENTS_LS_SCHEMA,
 )
 async def _documents_ls(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
@@ -672,7 +676,12 @@ async def _documents_ls(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[s
 
 @register_action(
     "documents.cat",
-    description="Read a VFS leaf as line-numbered content (L<n>: <text>) for precise citation.",
+    description=(
+        "Read a document's FULL text as line-numbered lines (L1: …, L2: …) "
+        "for precise citation. args: path — e.g. "
+        "'knowledge/documents/<id>/content.lines' using an id from "
+        "documents.ls or a path from documents.grep."
+    ),
     parameters_schema=_DOCUMENTS_CAT_SCHEMA,
 )
 async def _documents_cat(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
@@ -691,7 +700,12 @@ async def _documents_cat(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[
 
 @register_action(
     "documents.grep",
-    description="Regex search across VFS content; returns [{path, line, snippet}] citations.",
+    description=(
+        "Regex-search ALL knowledge content (documents and conversations). "
+        "args: pattern (regex, case-insensitive), path_prefix ('knowledge'). "
+        "Returns matches [{path, line, snippet}] — read a hit's full text "
+        "with documents.cat(path=path + '/content.lines')."
+    ),
     parameters_schema=_DOCUMENTS_GREP_SCHEMA,
 )
 async def _documents_grep(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:

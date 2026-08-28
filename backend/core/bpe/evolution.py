@@ -1,0 +1,189 @@
+"""AlphaEvolve-lite: offline population search over BPE harness bounds.
+
+The paper-lineage idea (AlphaEvolve → self-evolving harnesses): treat the
+harness configuration as an evolvable genome and search over it offline,
+guided by an evaluator, instead of hand-tuning. Scope here is deliberately
+narrow — the four tunable workspace bounds in
+``core.bpe.workspace.GENE_BOUNDS`` (subgoal cap, recall top-K, Experience
+capacity, render budget) — never prompts, never weights.
+
+Loop (all offline, supervisor-gated to apply):
+
+1. ``propose(family)`` — mutate a random elite (or sample a random genome
+   when the population is cold). MAP-elites-lite: duplicate genomes are
+   rejected so the population keeps diversity.
+2. Trial the candidate by running agents under those bounds; score with
+   ``fitness_from_signals`` (consult-policy value EMA, penalized when the
+   harness-call rate strays from the paper's ~1-consult-per-episode
+   annealing target).
+3. ``report(family, genome, fitness)`` — keep the top :data:`POPULATION_SIZE`
+   distinct genomes.
+4. ``apply_best(family)`` — with ``ATOM_BPE_EVOLUTION_ENABLED`` set, write
+   the winner via ``workspace.set_active_bounds``. Flag off → returns None
+   (proposals only; a human/automation flips the flag to deploy).
+"""
+from __future__ import annotations
+
+import logging
+import os
+import random
+import time
+from typing import Any, Dict, List, Optional, Tuple
+
+from core.bpe.workspace import GENE_BOUNDS, set_active_bounds
+
+logger = logging.getLogger(__name__)
+
+POPULATION_SIZE = 8
+EVOLUTION_FLAG = "ATOM_BPE_EVOLUTION_ENABLED"
+# Fitness shaping: target harness-call rate (paper annealing target) and the
+# penalty weight for straying from it.
+TARGET_CALL_RATE = 1.0
+CALL_RATE_PENALTY = 0.25
+
+
+def evolution_enabled() -> bool:
+    return os.getenv(EVOLUTION_FLAG, "false").strip().lower() in ("1", "true", "yes")
+
+
+def clamp_genome(genome: Dict[str, Any]) -> Dict[str, Any]:
+    """Clamp/validate a genome against GENE_BOUNDS (invalid genes dropped)."""
+    out: Dict[str, Any] = {}
+    for gene, (lo, hi) in GENE_BOUNDS.items():
+        raw = genome.get(gene)
+        if raw is None:
+            continue
+        try:
+            out[gene] = max(lo, min(hi, type(lo)(raw)))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def random_genome(rng: random.Random) -> Dict[str, Any]:
+    genome: Dict[str, Any] = {}
+    for gene, (lo, hi) in GENE_BOUNDS.items():
+        if isinstance(lo, int):
+            genome[gene] = rng.randint(lo, hi)
+        else:
+            genome[gene] = round(rng.uniform(lo, hi), 3)
+    return genome
+
+
+def mutate(genome: Dict[str, Any], rng: random.Random) -> Dict[str, Any]:
+    """Perturb ONE gene by ±10% of its range (clamped). Single-step search."""
+    genes = sorted(GENE_BOUNDS.keys())
+    gene = rng.choice(genes)
+    lo, hi = GENE_BOUNDS[gene]
+    child = dict(genome)
+    step = (hi - lo) * 0.1
+    delta = rng.uniform(-step, step)
+    base = child.get(gene, lo)
+    try:
+        child[gene] = max(lo, min(hi, type(lo)(base + delta)))
+    except (TypeError, ValueError):
+        child[gene] = lo
+    if isinstance(lo, int):
+        child[gene] = int(round(child[gene]))
+        child[gene] = max(lo, min(hi, child[gene]))
+    else:
+        child[gene] = round(float(child[gene]), 3)
+    return child
+
+
+def fitness_from_signals(value_ema: float, harness_call_rate: float) -> float:
+    """Evaluator: consult value, penalized for call-rate drift from target.
+
+    Positive value_ema means consults correlate with success; a harness-call
+    rate far from ~1/episode means the workspace is noisy or ignored — the
+    same efficiency signal the paper's R_eff rewards.
+    """
+    drift = abs(float(harness_call_rate or 0.0) - TARGET_CALL_RATE)
+    return round(float(value_ema) - CALL_RATE_PENALTY * drift, 4)
+
+
+class Individual:
+    __slots__ = ("genome", "fitness", "updated_at")
+
+    def __init__(self, genome: Dict[str, Any], fitness: float) -> None:
+        self.genome = genome
+        self.fitness = fitness
+        self.updated_at = time.time()
+
+    def key(self) -> Tuple:
+        return tuple(sorted(self.genome.items()))
+
+
+class Population:
+    """Bounded, diversity-keeping elite pool per agent family. In-memory."""
+
+    def __init__(self, size: int = POPULATION_SIZE,
+                 rng: Optional[random.Random] = None) -> None:
+        self.size = size
+        self.rng = rng or random.Random()
+        self._individuals: Dict[str, List[Individual]] = {}
+
+    def _family(self, family: str) -> List[Individual]:
+        return self._individuals.setdefault(str(family), [])
+
+    def report(self, family: str, genome: Dict[str, Any], fitness: float) -> bool:
+        """Insert/update one evaluated genome. Returns True if accepted."""
+        clean = clamp_genome(genome)
+        if len(clean) != len(GENE_BOUNDS):
+            return False
+        fam = self._family(family)
+        ind = Individual(clean, float(fitness))
+        for existing in fam:
+            if existing.key() == ind.key():
+                if fitness > existing.fitness:  # re-evaluation: keep the best
+                    existing.fitness = ind.fitness
+                    existing.updated_at = ind.updated_at
+                return False
+        fam.append(ind)
+        fam.sort(key=lambda i: (-i.fitness, i.updated_at))
+        del fam[self.size:]
+        return True
+
+    def propose(self, family: str) -> Dict[str, Any]:
+        """Next candidate: mutate a random elite, or sample fresh when cold."""
+        fam = self._family(family)
+        if not fam:
+            return random_genome(self.rng)
+        parent = self.rng.choice(fam)
+        return mutate(parent.genome, self.rng)
+
+    def elites(self, family: str, k: int = 3) -> List[Dict[str, Any]]:
+        return [i.genome for i in self._family(family)[:max(0, int(k))]]
+
+    def best(self, family: str) -> Optional[Dict[str, Any]]:
+        fam = self._family(family)
+        return fam[0].genome if fam else None
+
+    def snapshot(self) -> Dict[str, List[Dict[str, Any]]]:
+        return {
+            family: [{"genome": i.genome, "fitness": i.fitness} for i in fam]
+            for family, fam in self._individuals.items()
+        }
+
+
+# Module-level singleton (in-process, like the workspace registry).
+population = Population()
+
+
+def get_population() -> Population:
+    return population
+
+
+def apply_best(family: str) -> Optional[Dict[str, Any]]:
+    """Deploy the family's best genome to new workspaces — flag-gated.
+
+    Flag off (default): proposal-only posture, returns None. Flag on:
+    applies via ``set_active_bounds`` and returns the effective bounds.
+    """
+    genome = population.best(family)
+    if genome is None:
+        return None
+    if not evolution_enabled():
+        logger.debug("bpe evolution: best genome held (flag off)")
+        return None
+    return set_active_bounds(genome)
