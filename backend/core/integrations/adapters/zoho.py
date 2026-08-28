@@ -181,7 +181,10 @@ class ZohoAdapter:
                 "ZohoBooks.fullaccess.all",
                 "ZohoProjects.projects.ALL",
                 "ZohoInventory.fullaccess.all",
-                "ZohoWorkDrive.files.ALL",
+                # WorkDrive scopes are `WorkDrive.`-prefixed — the
+                # `ZohoWorkDrive.` prefix is rejected ("Scope does not
+                # exist"; live-verified against accounts.zohocloud.ca).
+                "WorkDrive.files.ALL",
             ]
         
         params = {
