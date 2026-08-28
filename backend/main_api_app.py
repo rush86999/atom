@@ -1549,10 +1549,19 @@ if not is_test_mode:
             if mod not in _loaded_integrations:
                 router = load_integration(mod, registry="api_routers")
                 if router:
-                    prefix = "/api/integrations/outlook" if mod == "outlook" else f"/api/v1/integrations/{mod.replace('_', '-')}"
-                    app.include_router(router, prefix=prefix, tags=[mod])
+                    if mod in ("zoho_workdrive", "zoho_crm", "zoho_books", "zoho_inventory"):
+                        # These routers define their OWN prefix
+                        # (/api/zoho-workdrive, /api/integrations/zoho_*) —
+                        # adding /api/v1/integrations/... on top doubled every
+                        # path and 404'd the frontend's bare calls. Include
+                        # bare so the router prefix holds.
+                        app.include_router(router, tags=[mod])
+                        logger.info(f"  ✓ {mod} (router-prefixed bare mount)")
+                    else:
+                        prefix = "/api/integrations/outlook" if mod == "outlook" else f"/api/v1/integrations/{mod.replace('_', '-')}"
+                        app.include_router(router, prefix=prefix, tags=[mod])
+                        logger.info(f"  ✓ {mod} (Forced registration at {prefix})")
                     _loaded_integrations.add(mod)
-                    logger.info(f"  ✓ {mod} (Forced registration at {prefix})")
         except Exception as e:
             logger.error(f"  ✗ Forced registration failed for {mod}: {e}")
 
@@ -2801,30 +2810,34 @@ try:
 
         app.include_router(hubspot_router, prefix="/api/v1/integrations/hubspot")
 
-        # Zoho Suite (Standardized)
+        # Zoho Suite — every router defines its OWN prefix
+        # (/api/zoho-workdrive, /api/integrations/zoho_*). Mounting them under
+        # /api/v1/integrations/... doubled every path
+        # (…/zoho-workdrive/api/zoho-workdrive/…), 404-ing the frontend's
+        # bare calls. Include bare so the router prefixes hold.
         from api.zoho_workdrive_routes import router as zoho_router
 
-        app.include_router(zoho_router, prefix="/api/v1/integrations/zoho-workdrive")
+        app.include_router(zoho_router)
 
         from integrations.zoho_crm_routes import router as zoho_crm_router
 
-        app.include_router(zoho_crm_router, prefix="/api/v1/integrations/zoho-crm")
+        app.include_router(zoho_crm_router)
 
         from integrations.zoho_books_routes import router as zoho_books_router
 
-        app.include_router(zoho_books_router, prefix="/api/v1/integrations/zoho-books")
+        app.include_router(zoho_books_router)
 
         from integrations.zoho_inventory_routes import router as zoho_inventory_router
 
-        app.include_router(zoho_inventory_router, prefix="/api/v1/integrations/zoho-inventory")
+        app.include_router(zoho_inventory_router)
 
         from integrations.zoho_projects_routes import router as zoho_projects_router
 
-        app.include_router(zoho_projects_router, prefix="/api/v1/integrations/zoho-projects")
+        app.include_router(zoho_projects_router)
 
         from integrations.zoho_mail_routes import router as zoho_mail_router
 
-        app.include_router(zoho_mail_router, prefix="/api/v1/integrations/zoho-mail")
+        app.include_router(zoho_mail_router)
 
         # HR Integrations
         try:

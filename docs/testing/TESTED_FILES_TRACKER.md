@@ -6,6 +6,21 @@
 
 ---
 
+## Session 2026-08-28c (Zoho suite routes double-prefix — frontend 404 on /api/zoho-workdrive/*)
+
+**Context**: After the scope fix, Connect Zoho succeeded (tokens stored) but the WorkDrive page still showed disconnected + no files. Logs showed `GET /api/zoho-workdrive/health -> 404` on every health poll. Root cause: the "Standardized" refactor mounted every Zoho suite router (which carries its OWN prefix — `/api/zoho-workdrive`, `/api/integrations/zoho_*`) with an EXTRA `/api/v1/integrations/...` prefix, doubling every path to `…/zoho-workdrive/api/zoho-workdrive/…` — the frontend's bare calls all 404'd. Verified: bare = 404, doubled = 200.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `main_api_app.py` | Forced-registration loop + standardized block now include the six Zoho routers BARE (they define their own prefixes). Doubled paths gone; `/api/zoho-workdrive/*` + `/api/integrations/zoho_*` restored | TestClient mount probe: bare paths 401 (was 404), doubled path 404; `tests/test_covpush_w38_zoho_workdrive.py` 14 passed |
+| `%TEMP%\fastembed_cache` (runtime) | corrupt `bge-small-en-v1.5-onnx-q` cache (`model_optimized.onnx File doesn't exist`, "Local file sizes do not match the metadata") was failing every embedding → Zoho sync "0/602 records, 0 entities". Deleted; re-downloads on next start | — |
+
+**Verification**: TestClient on the imported app: `/api/zoho-workdrive/{health,teams}`, `/api/integrations/zoho_{crm,books,inventory,projects,mail}/health` all 401 (mounted, auth-gated); `/api/v1/integrations/zoho-workdrive/api/zoho-workdrive/health` 404 (no longer exists). `tests/test_covpush_w38_zoho_workdrive.py` 14 passed. No test referenced the doubled path.
+
+---
+
 ## Session 2026-08-28b (Zoho WorkDrive scope — the REAL "Scope does not exist" fix)
 
 **Context**: After the CRM/Projects scope fix, Connect Zoho STILL failed with `Invalid OAuth Scope / Scope does not exist`. Pilot doc `atom-self-hosted-pilot-instructions.md` §2 (the doc-verified source) showed WorkDrive scopes are **`WorkDrive.`-prefixed with `.ALL`** (`WorkDrive.files.ALL`, `WorkDrive.teamfolders.ALL`) — the defaults had `ZohoWorkDrive.files.READ` / `ZohoWorkDrive.teamfolders.READ` (wrong prefix + wrong permission), and the regression test locked the same bad names, so the bug survived the first fix. One unknown scope fails the whole consent URL.
