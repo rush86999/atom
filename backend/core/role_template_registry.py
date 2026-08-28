@@ -243,13 +243,19 @@ def spawn_session_canvases(
     return spawned
 
 
-def get_session_canvases(db, session_id: str) -> List[Dict[str, Any]]:
-    """Return canvases spawned for a training session (for /approvals cards)."""
-    rows = (
-        db.query(CanvasAudit)
-        .filter(CanvasAudit.session_id == session_id)
-        .all()
-    )
+def get_session_canvases(
+    db, session_id: str, tenant_id: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """Return canvases spawned for a training session (for /approvals cards).
+
+    When tenant_id is given the audit rows are scoped to that tenant so a
+    caller can never read another tenant's canvas metadata (IDOR guard — a
+    foreign session UUID must resolve to nothing outside its tenant).
+    """
+    filters = [CanvasAudit.session_id == session_id]
+    if tenant_id:
+        filters.append(CanvasAudit.tenant_id == tenant_id)
+    rows = db.query(CanvasAudit).filter(*filters).all()
     return [
         {
             "canvas_id": row.canvas_id,

@@ -35,6 +35,7 @@ from core.models import (
 )
 from core.proposal_service import ProposalService
 from core.student_training_service import StudentTrainingService, TrainingOutcome
+from core.personal_scope import resolve_tenant_id
 from core import role_template_registry
 
 logger = logging.getLogger(__name__)
@@ -372,16 +373,25 @@ def get_training_session_canvases(
     work as cards instead of chat text.
     """
     _require_supervisor(db, current_user)
+    # IDOR guard: the session lookup is scoped to the caller's tenant (a
+    # foreign session UUID must 404, never leak another tenant's canvases)
+    # and the audit rows are read under the same tenant boundary.
+    tenant_id = resolve_tenant_id(current_user)
     session = (
         db.query(TrainingSession)
-        .filter(TrainingSession.id == session_id)
+        .filter(
+            TrainingSession.id == session_id,
+            TrainingSession.tenant_id == tenant_id,
+        )
         .first()
     )
     if not session:
         raise HTTPException(
             status_code=404, detail=f"Training session {session_id} not found"
         )
-    canvases = role_template_registry.get_session_canvases(db, session_id)
+    canvases = role_template_registry.get_session_canvases(
+        db, session_id, tenant_id=tenant_id
+    )
     return {"session_id": session_id, "canvases": canvases}
 
 

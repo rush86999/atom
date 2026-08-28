@@ -124,6 +124,24 @@ class TestSpawnSessionCanvases:
         result = get_session_canvases(db, "sess-1")
         assert result == [{"canvas_id": "c1", "canvas_type": "email", "details": {"x": 1}}]
 
+    def test_get_session_canvases_scopes_to_tenant(self):
+        """When tenant_id is given the audit lookup filters by tenant too — a
+        caller can never read another tenant's canvas metadata (IDOR guard)."""
+        from core.role_template_registry import get_session_canvases
+
+        db = Mock()
+        row1 = SimpleNamespace(canvas_id="c1", canvas_type="sheets", details_json={"a": 1})
+        db.query.return_value.filter.return_value.all.return_value = [row1]
+        result = get_session_canvases(db, "sess-1", tenant_id="t1")
+        assert result == [{"canvas_id": "c1", "canvas_type": "sheets", "details": {"a": 1}}]
+        # the single filter call carried the tenant condition
+        filter_keys = {
+            expr.left.key
+            for call in db.query.return_value.filter.call_args_list
+            for expr in call.args
+        }
+        assert "tenant_id" in filter_keys
+
 
 class TestApproveHook:
     @pytest.mark.asyncio
@@ -195,3 +213,28 @@ class TestSessionCanvasesRoute:
             with pytest.raises(HTTPException) as exc:
                 self._route()("missing", SimpleNamespace(id="u1"), db)
         assert exc.value.status_code == 404
+
+    def test_route_blocks_cross_tenant_session(self):
+        """A supervisor cannot read another tenant's session canvases via a
+        foreign session UUID — the session lookup is scoped to the caller's
+        tenant and a miss is a 404 (no existence leak). Greptile finding."""
+        from fastapi import HTTPException
+
+        db = Mock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        with patch(
+            "api.agent_maturity_routes._require_supervisor"
+        ), patch(
+            "api.agent_maturity_routes.resolve_tenant_id", return_value="tenant-x"
+        ) as mock_tenant:
+            with pytest.raises(HTTPException) as exc:
+                self._route()("foreign-session", SimpleNamespace(id="u1"), db)
+        assert exc.value.status_code == 404
+        mock_tenant.assert_called_once()
+        # the TrainingSession lookup filtered by tenant_id, not just session id
+        filter_keys = {
+            expr.left.key
+            for call in db.query.return_value.filter.call_args_list
+            for expr in call.args
+        }
+        assert "tenant_id" in filter_keys
