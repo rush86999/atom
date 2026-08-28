@@ -296,7 +296,7 @@ describe('Tasks API Contract (GET/POST /api/v1/tasks)', () => {
       description: 'Task description',
       status: 'pending'
     };
-    expect(invalidTask.title).toBeUndefined();
+    expect((invalidTask as any).title).toBeUndefined();
   });
 
   it('should accept platform filter in query params', () => {

@@ -378,7 +378,7 @@ describe('Form Validation Integration', () => {
     });
 
     it('should show loading state during submission', async () => {
-      const mockSubmit = jest.fn(() => new Promise(resolve => setTimeout(resolve, 1000)));
+      const mockSubmit = jest.fn(() => new Promise<void>(resolve => setTimeout(resolve, 1000)));
       const fields = [
         {
           name: 'name',

@@ -566,7 +566,7 @@ describe('error-mapping', () => {
       const error = { response: { status: 401 }, customProp: 'customValue' };
       const enhanced = enhanceError(error);
 
-      expect(enhanced.customProp).toBe('customValue');
+      expect((enhanced as any).customProp).toBe('customValue');
     });
 
     it('should handle axios error with config', () => {

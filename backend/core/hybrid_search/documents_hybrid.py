@@ -97,7 +97,12 @@ class DocumentsHybridSearch:
             conv_results = await self._conversations_leg(query, max(2, limit // 3))
             stats["conversation_hits"] = len(conv_results)
             label = f"{label}+conversations" if (results or conv_results) and label != "no_results" else (label if label != "no_results" else "conversations_only")
-            results.extend(conv_results)
+            if conv_results:
+                # First-class, not leftovers: reserve slots for the conversation
+                # hits so the limit-cut below can't drop them all when doc legs
+                # return plenty (that hid ingested email from chat entirely).
+                doc_budget = max(limit - len(conv_results), 0)
+                results = results[:doc_budget] + conv_results
 
         return self._response(query, results[:limit], label, stats)
 

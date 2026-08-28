@@ -24,8 +24,10 @@ const createTestQueryClient = () => new QueryClient({
   defaultOptions: {
     queries: {
       retry: false,
+      // `cacheTime` is a v4 option (v5 renamed it to `gcTime`); cast instead of
+      // renaming so runtime behavior stays identical.
       cacheTime: 0,
-    },
+    } as any,
     mutations: {
       retry: false,
     },

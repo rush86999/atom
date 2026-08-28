@@ -27,7 +27,7 @@ import { server } from '@/tests/mocks/server';
 // interacted with (trigger -> open content -> click item calls onValueChange).
 jest.mock('@/components/ui/select', () => {
   const { createContext, useContext, useState } = jest.requireActual('react');
-  const SelectCtx = createContext<any>(null);
+  const SelectCtx = createContext(null as any);
 
   const Select = ({ value, onValueChange, children }: any) => {
     const [open, setOpen] = useState(false);

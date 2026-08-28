@@ -20,7 +20,7 @@ describe("pages/api/dev/bootstrap-session", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (global as any).fetch = mockFetch;
-    process.env.NODE_ENV = "test";
+    (process.env as any).NODE_ENV = "test";
     // Both candidate password files exist and contain a secret by default.
     mockExistsSync.mockImplementation(
       (p: any) => typeof p === "string" && p.includes(PASSWORD_FILE_SUFFIX),
@@ -29,7 +29,7 @@ describe("pages/api/dev/bootstrap-session", () => {
   });
 
   afterEach(() => {
-    process.env.NODE_ENV = "test";
+    (process.env as any).NODE_ENV = "test";
   });
 
   const invoke = async (method: any = "GET") => {
@@ -39,7 +39,7 @@ describe("pages/api/dev/bootstrap-session", () => {
   };
 
   it("returns 404 in production", async () => {
-    process.env.NODE_ENV = "production";
+    (process.env as any).NODE_ENV = "production";
     const res = await invoke();
     expect(res._getStatusCode()).toBe(404);
     expect(res._getJSONData()).toEqual({ error: "not_found" });

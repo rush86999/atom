@@ -18,6 +18,14 @@ jest.mock('next/router', () => ({
 const mockPush = jest.fn();
 const mockBack = jest.fn();
 
+// Fixtures mutate `status` across auth transitions, so the literal is widened
+// to the full status union instead of being pinned by the initial value.
+type MockSessionData = {
+  data: any;
+  status: 'authenticated' | 'unauthenticated' | 'loading';
+  update: jest.Mock;
+};
+
 beforeEach(() => {
   (useRouter as jest.Mock).mockReturnValue({
     push: mockPush,
@@ -138,7 +146,7 @@ describe('Authentication State Management', () => {
     });
 
     it('should update session when authentication changes', async () => {
-      let sessionData = {
+      let sessionData: MockSessionData = {
         data: null,
         status: 'unauthenticated' as const,
         update: jest.fn(),
@@ -292,7 +300,7 @@ describe('Authentication State Management', () => {
     });
 
     it('should set loading state during login process', async () => {
-      let sessionData = {
+      let sessionData: MockSessionData = {
         data: null,
         status: 'loading' as const,
         update: jest.fn(),
@@ -415,7 +423,7 @@ describe('Authentication State Management', () => {
 
   describe('Logout State Tests', () => {
     it('should transition from authenticated to unauthenticated on logout', async () => {
-      let sessionData = {
+      let sessionData: MockSessionData = {
         data: {
           user: { id: 'user-123', email: 'test@example.com' },
           expires: '2026-12-31T23:59:59.000Z',
@@ -492,7 +500,7 @@ describe('Authentication State Management', () => {
     });
 
     it('should set loading state during logout process', async () => {
-      let sessionData = {
+      let sessionData: MockSessionData = {
         data: { user: { id: 'user-123' }, expires: '2026-12-31T23:59:59.000Z' },
         status: 'authenticated' as const,
         update: jest.fn(),
@@ -582,11 +590,11 @@ describe('Authentication State Management', () => {
         .mockResolvedValueOnce(newSession);
 
       const sessionBefore = await getSession();
-      expect(sessionBefore.accessToken).toBe('old-access-token');
+      expect((sessionBefore as any).accessToken).toBe('old-access-token');
 
       // Simulate token refresh
       const sessionAfter = await getSession();
-      expect(sessionAfter.accessToken).toBe('new-access-token');
+      expect((sessionAfter as any).accessToken).toBe('new-access-token');
     });
 
     it('should handle token refresh failure', async () => {
@@ -665,7 +673,7 @@ describe('Authentication State Management', () => {
     });
 
     it('should clear error on successful authentication', async () => {
-      let sessionData = {
+      let sessionData: MockSessionData = {
         data: null,
         status: 'unauthenticated' as const,
         update: jest.fn(),

@@ -162,7 +162,7 @@ class AuthenticationError extends Error {
 
 // Default export stub — this file exports utility classes, not a route handler.
 // The stub prevents Next.js validator.ts errors while keeping the utilities importable.
-export default function handler() {
+export default function handler(): null {
   return null;
 }
 

@@ -2,6 +2,14 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from 'next-auth/react';
 import { getToken } from 'next-auth/jwt';
 
+// The backend attaches the upstream OAuth access token to the session; the
+// default next-auth Session type doesn't declare it.
+declare module 'next-auth' {
+    interface Session {
+        accessToken?: string;
+    }
+}
+
 // Helper to determine active backend
 function getBackendUrl() {
     // Use env var first, fallback to standard local ports

@@ -1,6 +1,7 @@
 const mockFetch = jest.fn();
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/integrations/linear/health";
 
 function apiResponse(ok: boolean, status = 200, text = ""): any {
@@ -14,7 +15,7 @@ describe("pages/api/integrations/linear/health", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  const invoke = async (method = "GET") => {
+  const invoke = async (method: RequestMethod = "GET") => {
     const { req, res } = createMocks({ method }) as any;
     await handler(req, res);
     return res;

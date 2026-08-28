@@ -6,6 +6,13 @@ interface WebSocketMessage {
     data?: any;
     workspace_id?: string;
     timestamp?: string;
+    // Flat fields some emitters broadcast without the `data` wrapper
+    // (e.g. agent_routes task streaming sends agent_id/step at top level).
+    agent_id?: string;
+    status?: string;
+    session_id?: string;
+    execution_id?: string;
+    step?: any;
 }
 
 interface UseWebSocketOptions {

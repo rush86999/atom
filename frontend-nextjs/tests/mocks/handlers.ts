@@ -1640,7 +1640,7 @@ export const slackHandlers = [
         success: true,
         message: {
           type: 'message',
-          text: req.body?.text || 'New test message',
+          text: (req.body as Record<string, any>)?.text || 'New test message',
           ts: '1234567892.123456',
         },
       })
@@ -1687,7 +1687,7 @@ export const slackHandlers = [
         success: true,
         channel: {
           id: 'C1234567890',
-          name: req.body?.name || 'general',
+          name: (req.body as Record<string, any>)?.name || 'general',
         },
       })
     );
@@ -1815,7 +1815,7 @@ export const microsoft365Handlers = [
         success: true,
         message: {
           id: 'new-email-id',
-          subject: req.body?.subject || 'Test Subject',
+          subject: (req.body as Record<string, any>)?.subject || 'Test Subject',
         },
       })
     );

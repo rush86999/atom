@@ -162,7 +162,7 @@ describe('logger.ts - Logger Configuration', () => {
   test('logger.error should handle error with context', () => {
     const error = new Error('Database connection failed');
     const context = { host: 'localhost', port: 5432, database: 'test_db' };
-    expect(() => logger.error('DB Error', error, context)).not.toThrow();
+    expect(() => (logger.error as any)('DB Error', error, context)).not.toThrow();
   });
 
   // Test 16: multiple log calls in sequence
@@ -281,14 +281,14 @@ describe('logger.ts - Logger Configuration', () => {
       };
     });
     const previousNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
+    (process.env as any).NODE_ENV = 'production';
     try {
       jest.isolateModules(() => {
         require('../logger');
       });
       expect(mockPinoConfig.transport).toBeUndefined();
     } finally {
-      process.env.NODE_ENV = previousNodeEnv;
+      (process.env as any).NODE_ENV = previousNodeEnv;
     }
   });
 

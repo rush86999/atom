@@ -31,7 +31,7 @@ const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 // the invoice/bill create dialogs can render and be interacted with
 // (trigger -> open content -> click item calls onValueChange).
 jest.mock('@/components/ui/select', () => {
-  const { createContext, useContext, useState } = jest.requireActual('react');
+  const { createContext, useContext, useState } = jest.requireActual('react') as typeof import('react');
   const SelectCtx = createContext<any>(null);
 
   const Select = ({ value, onValueChange, children }: any) => {
@@ -506,7 +506,9 @@ describe('QuickBooksIntegration', () => {
   test('handles health check network failure', async () => {
     server.use(
       rest.get('/api/integrations/quickbooks/health', (req, res, ctx) => {
-        return res(ctx.networkError('boom'));
+        // msw 1.x has no ctx.networkError; MSW turns the resulting handler
+        // exception into a network error, so keep calling through `as any`.
+        return res((ctx as any).networkError('boom'));
       })
     );
 
@@ -894,7 +896,9 @@ describe('QuickBooksIntegration', () => {
   test('create customer network failure shows an error toast', async () => {
     server.use(
       rest.post('/api/integrations/quickbooks/customers/create', (req, res, ctx) => {
-        return res(ctx.networkError('boom'));
+        // msw 1.x has no ctx.networkError; MSW turns the resulting handler
+        // exception into a network error, so keep calling through `as any`.
+        return res((ctx as any).networkError('boom'));
       })
     );
 
@@ -923,7 +927,9 @@ describe('QuickBooksIntegration', () => {
   test('create invoice network failure shows an error toast', async () => {
     server.use(
       rest.post('/api/integrations/quickbooks/invoices/create', (req, res, ctx) => {
-        return res(ctx.networkError('boom'));
+        // msw 1.x has no ctx.networkError; MSW turns the resulting handler
+        // exception into a network error, so keep calling through `as any`.
+        return res((ctx as any).networkError('boom'));
       })
     );
 
@@ -1038,7 +1044,9 @@ describe('QuickBooksIntegration', () => {
   test('create bill network failure shows an error toast', async () => {
     server.use(
       rest.post('/api/integrations/quickbooks/bills/create', (req, res, ctx) => {
-        return res(ctx.networkError('boom'));
+        // msw 1.x has no ctx.networkError; MSW turns the resulting handler
+        // exception into a network error, so keep calling through `as any`.
+        return res((ctx as any).networkError('boom'));
       })
     );
 

@@ -184,7 +184,7 @@ describe('useCanvasState Hook (comprehensive)', () => {
 
       const { result } = renderHook(() => useCanvasState());
 
-      expect(result.current.getState('canvas-1')?.type).toBe('chart');
+      expect((result.current.getState('canvas-1') as any)?.type).toBe('chart');
     });
 
     it('returns form canvas state through getState', () => {
@@ -197,7 +197,7 @@ describe('useCanvasState Hook (comprehensive)', () => {
 
       const { result } = renderHook(() => useCanvasState());
 
-      expect(result.current.getState('canvas-2')?.type).toBe('form');
+      expect((result.current.getState('canvas-2') as any)?.type).toBe('form');
     });
 
     it('returns null for unknown canvas types', () => {
@@ -237,7 +237,7 @@ describe('useCanvasState Hook (comprehensive)', () => {
 
       const { result } = renderHook(() => useCanvasState());
 
-      expect(result.current.getState('complex-canvas')?.data).toEqual(
+      expect((result.current.getState('complex-canvas') as any)?.data).toEqual(
         complexCanvas.data
       );
     });
@@ -252,7 +252,7 @@ describe('useCanvasState Hook (comprehensive)', () => {
 
       const { result } = renderHook(() => useCanvasState());
 
-      expect(result.current.getState('empty-canvas')?.data).toEqual({});
+      expect((result.current.getState('empty-canvas') as any)?.data).toEqual({});
     });
   });
 
@@ -272,10 +272,10 @@ describe('useCanvasState Hook (comprehensive)', () => {
           canvas_id: 'canvas-1',
           type: 'chart',
           data: { title: 'Updated' },
-        } as AnyCanvasState);
+        } as unknown as AnyCanvasState);
       });
 
-      expect(result.current.state?.data?.title).toBe('Updated');
+      expect((result.current.state as any)?.data?.title).toBe('Updated');
     });
 
     it('does not update state when the specific-canvas callback receives null', async () => {
@@ -314,13 +314,13 @@ describe('useCanvasState Hook (comprehensive)', () => {
         allCallback!({
           canvas_id: 'canvas-1',
           state: { type: 'chart', data: {} },
-        } as CanvasStateChangeEvent);
+        } as unknown as CanvasStateChangeEvent);
       });
       await act(async () => {
         allCallback!({
           canvas_id: 'canvas-2',
           state: { type: 'markdown', data: {} },
-        } as CanvasStateChangeEvent);
+        } as unknown as CanvasStateChangeEvent);
       });
 
       expect(result.current.allStates.length).toBe(2);
@@ -340,17 +340,17 @@ describe('useCanvasState Hook (comprehensive)', () => {
         allCallback!({
           canvas_id: 'canvas-1',
           state: { type: 'chart', data: { title: 'Original' } },
-        } as CanvasStateChangeEvent);
+        } as unknown as CanvasStateChangeEvent);
       });
       await act(async () => {
         allCallback!({
           canvas_id: 'canvas-1',
           state: { type: 'chart', data: { title: 'Updated' } },
-        } as CanvasStateChangeEvent);
+        } as unknown as CanvasStateChangeEvent);
       });
 
       expect(result.current.allStates).toHaveLength(1);
-      expect(result.current.allStates[0].state.data.title).toBe('Updated');
+      expect((result.current.allStates[0].state as any).data.title).toBe('Updated');
     });
   });
 
@@ -406,7 +406,9 @@ describe('useCanvasState Hook (comprehensive)', () => {
     });
 
     it('getMatchConfidence returns the match_confidence block for an agent operation', () => {
-      const agentState: AgentOperationState = {
+      // Legacy fixture shape (type/data + matchedLocator fields predate the
+      // current AgentOperationState/MatchConfidence interfaces).
+      const agentState = {
         canvas_id: 'op-1',
         type: 'agent_operation',
         data: { operationId: 'op-1' },
@@ -416,7 +418,7 @@ describe('useCanvasState Hook (comprehensive)', () => {
           matchedLocator: '[data-testid="submit"]',
           reason: 'unique button',
         },
-      };
+      } as unknown as AgentOperationState;
       mockApi.getState = jest.fn(() => agentState) as any;
       (window as any).atom.canvas = mockApi;
 

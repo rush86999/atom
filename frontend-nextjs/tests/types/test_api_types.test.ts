@@ -15,10 +15,13 @@ import type {
 } from '../../src/types/api-generated';
 
 // Extract commonly used types for convenience
-type AgentResponse = components['schemas']['AgentResponse'];
-type CanvasData = components['schemas']['CanvasData'];
-type PaginatedResponse<T> = components['schemas']['PaginatedResponse'];
-type ErrorResponse = components['schemas']['ErrorResponse'];
+// The generated OpenAPI bundle does not export these four schema names; widen the
+// schema map with a string index signature so these lookups stay permissive.
+type ApiSchemas = components['schemas'] & Record<string, any>;
+type AgentResponse = ApiSchemas['AgentResponse'];
+type CanvasData = ApiSchemas['CanvasData'];
+type PaginatedResponse<T> = ApiSchemas['PaginatedResponse'];
+type ErrorResponse = ApiSchemas['ErrorResponse'];
 
 describe('API Types', () => {
   describe('AgentResponse', () => {

@@ -35,7 +35,7 @@ describe('VariableModifier', () => {
           variable: { variable_id: 'v9', variable_name: 'counter', value: 42 },
         }),
       });
-    });
+    }) as unknown as typeof fetch;
   });
 
   const renderModifier = (props: Record<string, any> = {}) =>

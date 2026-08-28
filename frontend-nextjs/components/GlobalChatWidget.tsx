@@ -87,7 +87,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     setPendingApproval(null);
                     return;
                 }
-                const data = await res.json().catch(() => null);
+                const data = await res.json().catch((): null => null);
                 if (Array.isArray(data) && data.length > 0) {
                     const first = data[0];
                     setPendingApproval({
@@ -163,10 +163,10 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             setIsLoading(true);
             const res = await fetch(`/api/chat/history/${sid}?user_id=${userId || getCurrentUserId()}`, {
                 headers: authHeaders(),
-            }).catch(() => null);
+            }).catch((): null => null);
 
             if (res && res.ok) {
-                const data = await res.json().catch(() => null);
+                const data = await res.json().catch((): null => null);
                 if (data && data.messages) {
                     const validMessages = (data.messages || []).filter((msg: any) => msg.content?.trim());
                     if (validMessages.length > 0) {
@@ -229,10 +229,10 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                         })),
                     }
                 })
-            }).catch(() => null);
+            }).catch((): null => null);
 
             if (res && res.ok) {
-                const data = await res.json().catch(() => null);
+                const data = await res.json().catch((): null => null);
                 if (data && data.success) {
                     const assistantMessage: ChatMessageData = {
                         id: `assistant_${Date.now()}`,

@@ -26,6 +26,16 @@
  */
 
 import fc from 'fast-check';
+import type { Arbitrary } from 'fast-check';
+
+// fast-check v4 typings only accept a single constraints object, but this suite
+// was written against the legacy (min, max) positional signatures. This cast
+// view keeps the exact same runtime calls while satisfying the compiler.
+const legacyFc = fc as unknown as {
+  string(minLength?: number, maxLength?: number): Arbitrary<string>;
+  integer(min?: number, max?: number): Arbitrary<number>;
+  array<T>(arb: Arbitrary<T>, minLength?: number, maxLength?: number): Arbitrary<T[]>;
+};
 
 // =============================================================================
 // MOCKS: Tauri Invoke API (for CI testing without GUI)
@@ -162,7 +172,7 @@ describe('File Path Validation Invariants', () => {
   test('accepts valid path segments without traversal', () => {
     fc.assert(
       fc.property(
-        fc.array(fc.string(1, 32), 1, 5),
+        legacyFc.array(legacyFc.string(1, 32), 1, 5),
         (segments) => {
           // Construct valid path
           const validPath = segments.join('/');
@@ -200,7 +210,7 @@ describe('File Path Validation Invariants', () => {
   test('handles empty path segments safely', () => {
     fc.assert(
       fc.property(
-        fc.array(fc.string(), 1, 5),
+        legacyFc.array(fc.string(), 1, 5),
         (segments) => {
           // Construct path with potential empty segments
           const path = segments.join('/');
@@ -273,7 +283,7 @@ describe('Command Parameter Validation Invariants', () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...whitelistedCommands),
-        fc.array(fc.string(1, 10), 0, 3),
+        legacyFc.array(legacyFc.string(1, 10), 0, 3),
         (command, args) => {
           // Construct valid command
           const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command;
@@ -308,7 +318,7 @@ describe('Command Parameter Validation Invariants', () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...dangerousCommands),
-        fc.array(fc.string(1, 10), 0, 2),
+        legacyFc.array(legacyFc.string(1, 10), 0, 2),
         (command, args) => {
           // Construct potentially dangerous command
           const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command;
@@ -349,7 +359,7 @@ describe('Shell Command Whitelist Invariants', () => {
 
     fc.assert(
       fc.property(
-        fc.string(1, 20),
+        legacyFc.string(1, 20),
         (command) => {
           // Extract base command (first word)
           const commandBase = command.split(/\s+/)[0];
@@ -385,7 +395,7 @@ describe('Shell Command Whitelist Invariants', () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...whitelist),
-        fc.array(fc.string(1, 10), 0, 3),
+        legacyFc.array(legacyFc.string(1, 10), 0, 3),
         (command, args) => {
           // Skip commands that shouldn't have args (e.g., pwd)
           if (command === 'pwd' && args.length > 0) {
@@ -466,7 +476,7 @@ describe('Session State Consistency Invariants', () => {
     fc.assert(
       fc.property(
         fc.uuid(),
-        fc.string(1, 50),
+        legacyFc.string(1, 50),
         fc.string(),
         (token, userId, email) => {
           // Set session
@@ -539,7 +549,7 @@ describe('Session State Consistency Invariants', () => {
       fc.property(
         fc.record({
           token: fc.uuid(),
-          user_id: fc.option(fc.string(1, 50), { nil: undefined }),
+          user_id: fc.option(legacyFc.string(1, 50), { nil: undefined }),
           email: fc.option(fc.string(), { nil: undefined })
         }),
         (sessionData) => {
@@ -608,7 +618,7 @@ describe('Notification Parameter Validation Invariants', () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...validSounds),
-        fc.string(1, 100).filter(s => s.trim().length > 0),
+        legacyFc.string(1, 100).filter(s => s.trim().length > 0),
         (sound, title) => {
           // Send notification with valid sound
           const result = invoke('send_notification', {
@@ -642,7 +652,7 @@ describe('Notification Parameter Validation Invariants', () => {
   test('invalid sound values fallback to default', () => {
     fc.assert(
       fc.property(
-        fc.string(1, 20),
+        legacyFc.string(1, 20),
         (invalidSound) => {
           // Skip valid sound values
           if (invalidSound === 'default' || invalidSound === 'none') {
@@ -684,7 +694,7 @@ describe('File Content Round-trip Invariants', () => {
     fc.assert(
       fc.property(
         fc.string(),
-        fc.string(1, 32).filter(s => !s.includes('/') && !s.includes('..')),
+        legacyFc.string(1, 32).filter(s => !s.includes('/') && !s.includes('..')),
         (content, filename) => {
           // Write file
           const writeResult = invoke('write_file_content', {
@@ -725,7 +735,7 @@ describe('File Content Round-trip Invariants', () => {
   test('empty file content is handled correctly', () => {
     fc.assert(
       fc.property(
-        fc.string(1, 32).filter(s => !s.includes('/') && !s.includes('..')),
+        legacyFc.string(1, 32).filter(s => !s.includes('/') && !s.includes('..')),
         (filename) => {
           // Write empty file
           const writeResult = invoke('write_file_content', {
@@ -806,7 +816,7 @@ describe('Special Characters and Escaping Invariants', () => {
     fc.assert(
       fc.property(
         fc.string(),
-        fc.string(1, 32).filter(s => !s.includes('/') && !s.includes('..')),
+        legacyFc.string(1, 32).filter(s => !s.includes('/') && !s.includes('..')),
         (content, filename) => {
           // Write file with Unicode content
           const writeResult = invoke('write_file_content', {
@@ -852,7 +862,7 @@ describe('Command Timeout Invariants', () => {
   test('timeout values are validated', () => {
     fc.assert(
       fc.property(
-        fc.integer(1, 600),
+        legacyFc.integer(1, 600),
         (timeout) => {
           // Execute command with timeout
           const result = invoke('execute_shell_command', {

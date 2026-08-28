@@ -945,6 +945,44 @@ class LanceDBHandler:
             logger.error(f"Failed to search in '{table_name}': {e}")
             return []
 
+    def list_document_heads(self, table_name: str, limit: int = 200) -> list[dict[str, Any]]:
+        """List lightweight heads ({id, metadata, created_at}) without vectors.
+
+        Used by the Knowledge VFS to surface vector-only rows (no PG mirror)
+        in ``ls`` output. Metadata is parsed like :meth:`get_document_by_id`.
+        """
+        self._ensure_db()
+        if self.db is None:
+            return []
+
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return []
+            df = table.to_arrow().select(["id", "metadata", "created_at"]).to_pandas()
+            if df.empty:
+                return []
+
+            heads: list[dict[str, Any]] = []
+            for _, row in df.head(limit).iterrows():
+                metadata = row.get("metadata", {})
+                if isinstance(metadata, str):
+                    try:
+                        metadata = json.loads(metadata)
+                    except Exception:
+                        metadata = {}
+                elif metadata is None:
+                    metadata = {}
+                heads.append({
+                    "id": row["id"],
+                    "metadata": metadata,
+                    "created_at": row.get("created_at", ""),
+                })
+            return heads
+        except Exception as e:
+            logger.error(f"Failed to list heads in '{table_name}': {e}")
+            return []
+
     def get_document_by_id(self, table_name: str, doc_id: str) -> Union[dict[str, Any], None]:
         """Retrieve a single document by ID"""
         self._ensure_db()
@@ -956,17 +994,22 @@ class LanceDBHandler:
             if table is None:
                 return None
 
-            # Use PyArrow filtering or LanceDB specific filtering
-            # Note: filtering syntax depends on LanceDB version, assuming standard SQL-like
-            # SECURITY: escape single quotes in doc_id to prevent filter injection
-            # / broken filters, matching the escaping in search().
+            # SECURITY: escape single quotes in doc_id to prevent filter
+            # injection, matching the escaping in search().
             safe_doc_id = str(doc_id).replace("'", "''")
-            results = table.search().where(f"id = '{safe_doc_id}'").limit(1).to_pandas()
+            # Arrow filter, NOT table.search(): this is a point lookup —
+            # routing it through the kNN query builder can bind the embedding
+            # machinery (seconds per call, or a hang when no client is
+            # configured) and never needs the vector column anyway.
+            import pyarrow.compute as _pc
 
-            if results.empty:
+            arrow = table.to_arrow().select(["id", "text", "source", "metadata", "created_at"])
+            rows = arrow.filter(_pc.equal(arrow.column("id"), safe_doc_id)).to_pylist()
+
+            if not rows:
                 return None
 
-            row = results.iloc[0]
+            row = rows[0]
             metadata = row.get("metadata", {})
             if isinstance(metadata, str):
                 try:
@@ -981,7 +1024,7 @@ class LanceDBHandler:
                 "source": row.get("source", ""),
                 "metadata": metadata,
                 "created_at": row.get("created_at", ""),
-                "vector": row.get("vector", []) if "vector" in row else [],
+                "vector": [],
             }
         except Exception as e:
             logger.error(f"Failed to get document {doc_id}: {e}")

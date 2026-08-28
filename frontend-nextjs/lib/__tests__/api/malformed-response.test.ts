@@ -454,7 +454,7 @@ describe('API Malformed Response Handling', () => {
                     // No Content-Type header
                   }
                 }
-              )
+              ) as any
             );
           });
         })

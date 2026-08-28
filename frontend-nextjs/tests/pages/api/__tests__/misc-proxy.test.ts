@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, type RequestMethod } from "node-mocks-http";
 import searchHandler from "@/pages/api/search/[...path]";
 import workflowsOptimizeHandler from "@/pages/api/workflows/optimize";
 import zendeskTicketsHandler from "@/pages/api/zendesk/tickets";
@@ -29,7 +29,7 @@ afterEach(() => {
 describe("pages/api/search/[...path]", () => {
   const invoke = async (
     query: any = {},
-    method = "GET",
+    method: RequestMethod = "GET",
     body?: any,
     headers: any = {},
   ) => {
@@ -125,7 +125,7 @@ describe("pages/api/search/[...path]", () => {
 });
 
 describe("pages/api/workflows/optimize", () => {
-  const invoke = async (body?: any, method = "POST") => {
+  const invoke = async (body?: any, method: RequestMethod = "POST") => {
     const { req, res } = createMocks({ method, body }) as any;
     await workflowsOptimizeHandler(req, res);
     return res;
@@ -188,7 +188,7 @@ describe("pages/api/workflows/optimize", () => {
 });
 
 describe("pages/api/zendesk/tickets", () => {
-  const invoke = async (method = "GET", query: any = {}, body?: any) => {
+  const invoke = async (method: RequestMethod = "GET", query: any = {}, body?: any) => {
     const { req, res } = createMocks({ method, query, body }) as any;
     await zendeskTicketsHandler(req, res);
     return res;
@@ -281,7 +281,7 @@ describe("pages/api/zendesk/tickets", () => {
 });
 
 describe("pages/api/financial/budgets/summary", () => {
-  const invoke = async (query: any = { userId: "user-1" }, method = "GET") => {
+  const invoke = async (query: any = { userId: "user-1" }, method: RequestMethod = "GET") => {
     const { req, res } = createMocks({ method, query }) as any;
     await budgetSummaryHandler(req, res);
     return res;
@@ -350,7 +350,7 @@ describe("pages/api/financial/budgets/summary", () => {
 });
 
 describe("pages/api/integrations/slack/files", () => {
-  const invoke = async (method = "GET", query: any = {}, body?: any) => {
+  const invoke = async (method: RequestMethod = "GET", query: any = {}, body?: any) => {
     const { req, res } = createMocks({ method, query, body }) as any;
     await slackFilesHandler(req, res);
     return res;

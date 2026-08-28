@@ -1,6 +1,7 @@
 const mockFetch = jest.fn();
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/integrations/gitlab/projects";
 
 const okResponse = (data: any): any => ({
@@ -23,7 +24,7 @@ describe("pages/api/integrations/gitlab/projects", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  const invoke = async (body?: any, method = "POST") => {
+  const invoke = async (body?: any, method: RequestMethod = "POST") => {
     const { req, res } = createMocks({ method, body }) as any;
     await handler(req, res);
     return res;

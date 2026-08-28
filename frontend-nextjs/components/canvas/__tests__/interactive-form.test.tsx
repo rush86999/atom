@@ -645,7 +645,7 @@ describe('InteractiveForm - Submission Tests', () => {
 
   test('should show "Submitting..." during submit', async () => {
     const user = userEvent.setup();
-    const onSubmit = jest.fn(() => new Promise(resolve => setTimeout(resolve, 100)));
+    const onSubmit = jest.fn(() => new Promise<void>(resolve => setTimeout(resolve, 100)));
     const fields = [
       { name: 'name', label: 'Name', type: 'text' as const }
     ];
@@ -668,7 +668,7 @@ describe('InteractiveForm - Submission Tests', () => {
 
   test('should disable submit button during submit', async () => {
     const user = userEvent.setup();
-    const onSubmit = jest.fn(() => new Promise(resolve => setTimeout(resolve, 100)));
+    const onSubmit = jest.fn(() => new Promise<void>(resolve => setTimeout(resolve, 100)));
     const fields = [
       { name: 'name', label: 'Name', type: 'text' as const }
     ];

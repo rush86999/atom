@@ -451,7 +451,7 @@ describe('Keyboard Navigation Tests', () => {
             {items.map((item, idx) => (
               <li
                 key={item}
-                ref={el => refs.current[idx] = el}
+                ref={el => { refs.current[idx] = el; }}
                 role="option"
                 tabIndex={focusedIndex === idx ? 0 : -1}
               >
@@ -504,7 +504,7 @@ describe('Keyboard Navigation Tests', () => {
             {tabs.map((tab, idx) => (
               <button
                 key={tab}
-                ref={el => refs.current[idx] = el}
+                ref={el => { refs.current[idx] = el; }}
                 role="tab"
                 aria-selected={activeIndex === idx}
                 tabIndex={activeIndex === idx ? 0 : -1}

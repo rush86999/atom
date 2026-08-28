@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/integrations/azure/virtual-machines";
 
 const jsonResponse = (status: number, data: any): any => ({
@@ -19,7 +19,7 @@ describe("pages/api/integrations/azure/virtual-machines", () => {
 
   const invoke = async (options: { method?: string; query?: any; body?: any }) => {
     const { method = "GET", query, body } = options;
-    const { req, res } = createMocks({ method, query, body }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, query, body }) as any;
     await handler(req, res);
     return res;
   };

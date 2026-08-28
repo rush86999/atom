@@ -141,7 +141,7 @@ describe('PipelineSettingsPanel', () => {
 
   it('toasts and falls back to defaults when the load request fails', async () => {
     server.use(
-      rest.get('/api/v1/settings/automations/', (req, res, ctx) => res.networkError())
+      rest.get('/api/v1/settings/automations/', (req, res, ctx) => (res.networkError as any)())
     );
     render(<PipelineSettingsPanel isOpen={true} />);
 
@@ -152,7 +152,7 @@ describe('PipelineSettingsPanel', () => {
 
   it('toasts when the save request hits a network error', async () => {
     server.use(
-      rest.post('/api/v1/settings/automations/', (req, res, ctx) => res.networkError())
+      rest.post('/api/v1/settings/automations/', (req, res, ctx) => (res.networkError as any)())
     );
     render(<PipelineSettingsPanel isOpen={true} />);
     await screen.findByText('sales Pipeline');

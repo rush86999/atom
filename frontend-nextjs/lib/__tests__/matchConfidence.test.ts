@@ -4,12 +4,11 @@
  * Verifies the level → badge-color mapping, the chosen-candidate-first
  * rendering for LLM-tiebroken partials, and the modify-input path.
  */
+import type { SelectorCandidate, MatchConfidence } from "@/components/canvas/types";
 import {
   levelToBadgeColor,
   orderCandidatesForReview,
   buildModificationPayload,
-  type SelectorCandidate,
-  type MatchConfidence,
 } from "../matchConfidence";
 
 describe("levelToBadgeColor", () => {
@@ -69,11 +68,11 @@ describe("orderCandidatesForReview", () => {
   });
 
   it("returns an empty array when no candidates exist", () => {
-    const mc: MatchConfidence = {
+    const mc = {
       level: "high", score: 0.95,
       rationale: "single match",
       candidates: [],
-    };
+    } as unknown as MatchConfidence;
     expect(orderCandidatesForReview(mc)).toEqual([]);
   });
 });

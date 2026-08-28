@@ -54,7 +54,7 @@ describe('PiecesSidebar', () => {
   beforeEach(() => {
     fetchSpy = jest
       .spyOn(global as any, 'fetch')
-      .mockImplementation(async (url: string) => {
+      .mockImplementation(async (url: unknown) => {
         if (String(url).startsWith('/api/integrations/')) {
           return jsonResponse({ ok: true }); // health -> connected
         }
@@ -91,7 +91,7 @@ describe('PiecesSidebar', () => {
 
   it('shows a loading indicator in the count badge while fetching', () => {
     let resolveSkills: (r: any) => void;
-    fetchSpy.mockImplementation(async (url: string) => {
+    fetchSpy.mockImplementation(async (url: unknown) => {
       if (String(url).includes('/api/skills/list')) {
         return new Promise((res) => { resolveSkills = res; });
       }
@@ -209,7 +209,7 @@ describe('PiecesSidebar', () => {
   });
 
   it('shows a checkmark for connected pieces and a connect link for others', async () => {
-    fetchSpy.mockImplementation(async (url: string) => {
+    fetchSpy.mockImplementation(async (url: unknown) => {
       if (String(url).startsWith('/api/integrations/')) {
         return jsonResponse({}, false); // health -> not ok -> not connected
       }
@@ -238,7 +238,7 @@ describe('PiecesSidebar', () => {
   });
 
   it('survives failures of the skills, external-pieces and health fetches', async () => {
-    fetchSpy.mockImplementation(async (url: string) => {
+    fetchSpy.mockImplementation(async (url: unknown) => {
       if (String(url).startsWith('/api/integrations/')) {
         return jsonResponse({ ok: true });
       }

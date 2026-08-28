@@ -105,11 +105,11 @@ const HarnessEvolutionPage = () => {
                     </Box>
                     <Box display="flex" gap={3}>
                         <Button
-                            leftIcon={<RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />}
                             colorScheme="blue"
                             onClick={triggerRemine}
-                            isLoading={refreshing}
+                            loading={refreshing}
                         >
+                            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                             Mine &amp; Heal Now
                         </Button>
                     </Box>
@@ -186,7 +186,7 @@ const HarnessEvolutionPage = () => {
                                                 </td>
                                                 <td className="py-2 px-3 font-bold">{w.failure_count}</td>
                                                 <td className="py-2 px-3">
-                                                    <Text fontSize="xs" color="gray.400" noOfLines={2}>
+                                                    <Text fontSize="xs" color="gray.400" lineClamp={2}>
                                                         {w.examples[0]?.verification_evidence || w.examples[0]?.observation || "Failed validation test"}
                                                     </Text>
                                                 </td>

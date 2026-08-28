@@ -298,7 +298,7 @@ describe('useVoiceIO - Options Parameter', () => {
 
     // The options parameter should be passed through
     // (Note: React strict mode causes multiple calls)
-    expect(useSpeechRecognition.mock.calls.length).toBeGreaterThan(0);
+    expect((useSpeechRecognition as jest.Mock).mock.calls.length).toBeGreaterThan(0);
   });
 
   test('should work without options parameter', () => {
@@ -319,7 +319,7 @@ describe('useVoiceIO - Options Parameter', () => {
 
     expect(result.current).toBeDefined();
     // Note: React strict mode may cause multiple calls, check if any call was with undefined
-    expect(useSpeechRecognition.mock.calls.some(call => call[0] === undefined)).toBe(true);
+    expect((useSpeechRecognition as jest.Mock).mock.calls.some(call => call[0] === undefined)).toBe(true);
   });
 });
 

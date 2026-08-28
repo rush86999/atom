@@ -122,9 +122,9 @@ const Home = () => {
         if (token) {
           const res = await fetch(`${API_BASE}/api/onboarding/status`, {
             headers: { "Authorization": `Bearer ${token}` }
-          }).catch(() => null);
+          }).catch((): Response | null => null);
           if (res && res.ok) {
-            const data = await res.json().catch(() => null);
+            const data = await res.json().catch((): unknown => null);
             // R83: unwrap the success envelope ({success, data: {...}}) — the
             // bare read treated `undefined` as "not completed" and re-opened
             // the wizard for users who had already finished it.
@@ -134,9 +134,9 @@ const Home = () => {
               // Fetch full user details for wizard personalized greeting
               const userRes = await fetch(`${API_BASE}/api/users/me`, {
                 headers: { "Authorization": `Bearer ${token}` }
-              }).catch(() => null);
+              }).catch((): Response | null => null);
               if (userRes && userRes.ok) {
-                setUser(await userRes.json().catch(() => null));
+                setUser(await userRes.json().catch((): unknown => null));
               }
             }
           }

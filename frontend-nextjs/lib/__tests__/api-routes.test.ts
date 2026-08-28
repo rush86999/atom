@@ -6,6 +6,7 @@
  */
 
 import { createMocks } from 'node-mocks-http';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 // Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import handler from '../../pages/api/agent-governance/[...path]';
@@ -32,7 +33,7 @@ describe('Agent Governance API - Integration Tests', () => {
         json: async () => ({ status: 'healthy' }),
       });
 
-      await handler(req, res);
+      await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
       // Invariant: Should call fetch with correct URL
       expect(global.fetch).toHaveBeenCalledWith(
@@ -56,7 +57,7 @@ describe('Agent Governance API - Integration Tests', () => {
         json: async () => ({ success: true }),
       });
 
-      await handler(req, res);
+      await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
       // Invariant: POST requests should include body
       expect(global.fetch).toHaveBeenCalledWith(
@@ -80,7 +81,7 @@ describe('Agent Governance API - Integration Tests', () => {
         json: async () => ({ error: 'Internal Server Error' }),
       });
 
-      await handler(req, res);
+      await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
       // Invariant: Should forward error response
       expect(res._getStatusCode()).toBe(500);
@@ -96,7 +97,7 @@ describe('Agent Governance API - Integration Tests', () => {
         .mockRejectedValueOnce(new Error('Network error'))
         .mockRejectedValueOnce(new Error('Network error'));
 
-      await handler(req, res);
+      await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
       // Invariant: Should return error status, not crash
       expect(res._getStatusCode()).toBeGreaterThanOrEqual(400);
@@ -116,7 +117,7 @@ describe('Agent Governance API - Integration Tests', () => {
         json: async () => ({}),
       });
 
-      await handler(req, res);
+      await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
       // Invariant: Should always send JSON content type
       expect(global.fetch).toHaveBeenCalledWith(
@@ -132,7 +133,7 @@ describe('Agent Governance API - Integration Tests', () => {
     it('should filter out path from query parameters', async () => {
       const { req, res } = createMocks({
         method: 'GET',
-        query: { path: ['endpoint'], 'otherParam': 'value', 'path': ['should-be-filtered'] },
+        query: { 'otherParam': 'value', 'path': ['should-be-filtered'] },
       });
 
       (global.mockFetch as jest.Mock).mockResolvedValueOnce({
@@ -140,7 +141,7 @@ describe('Agent Governance API - Integration Tests', () => {
         json: async () => ({}),
       });
 
-      await handler(req, res);
+      await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
       // Invariant: 'path' should be excluded from query params
       const fetchUrl = (global.mockFetch as jest.Mock).mock.calls[0][0];
@@ -158,7 +159,7 @@ describe('Agent Governance API - Integration Tests', () => {
         json: async () => ({}),
       });
 
-      await handler(req, res);
+      await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
       // Invariant: Other query params should be preserved
       const fetchUrl = (global.mockFetch as jest.Mock).mock.calls[0][0];
@@ -179,7 +180,7 @@ describe('Agent Governance API - Integration Tests', () => {
         json: async () => ({}),
       });
 
-      await handler(req, res);
+      await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
       // Invariant: Should build correct path
       expect(global.fetch).toHaveBeenCalledWith(
@@ -199,7 +200,7 @@ describe('Agent Governance API - Integration Tests', () => {
         json: async () => ({}),
       });
 
-      await handler(req, res);
+      await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
       // Invariant: Should join path segments correctly
       expect(global.fetch).toHaveBeenCalledWith(
@@ -219,7 +220,7 @@ describe('Agent Governance API - Integration Tests', () => {
         json: async () => ({}),
       });
 
-      await handler(req, res);
+      await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
       // Invariant: Empty path should go to base endpoint
       expect(global.fetch).toHaveBeenCalledWith(
@@ -231,7 +232,7 @@ describe('Agent Governance API - Integration Tests', () => {
 
   describe('HTTP Method Handling', () => {
     it('should support all common HTTP methods', async () => {
-      const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+      const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
       for (const method of methods) {
         const { req, res } = createMocks({
@@ -245,7 +246,7 @@ describe('Agent Governance API - Integration Tests', () => {
           json: async () => ({}),
         });
 
-        await handler(req, res);
+        await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
         expect(global.fetch).toHaveBeenCalledWith(
           expect.any(String),
@@ -266,7 +267,7 @@ describe('Agent Governance API - Integration Tests', () => {
         json: async () => ({}),
       });
 
-      await handler(req, res);
+      await handler(req as unknown as NextApiRequest, res as unknown as NextApiResponse);
 
       // Invariant: Should default to GET
       expect(global.fetch).toHaveBeenCalledWith(
@@ -311,7 +312,7 @@ describe('Workflow API Routes - Integration Tests', () => {
           }),
         });
 
-        await workflowTestHandler(req, res);
+        await workflowTestHandler(req, res as unknown as NextApiResponse);
 
         // Invariant: Should validate step before execution
         expect(global.fetch).toHaveBeenCalled();
@@ -334,7 +335,7 @@ describe('Workflow API Routes - Integration Tests', () => {
           }),
         });
 
-        await workflowTestHandler(req, res);
+        await workflowTestHandler(req, res as unknown as NextApiResponse);
 
         // Invariant: Should return validation errors
         expect(res._getStatusCode()).toBeGreaterThanOrEqual(400);

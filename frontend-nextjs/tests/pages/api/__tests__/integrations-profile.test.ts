@@ -1,4 +1,5 @@
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 
 import asanaProfile from "@/pages/api/integrations/asana/profile";
 import boxProfile from "@/pages/api/integrations/box/profile";
@@ -44,7 +45,7 @@ describe.each(providers)(
   "pages/api/integrations/%s/profile",
   (provider, method, handler) => {
     const invoke = async (httpMethod: string) => {
-      const { req, res } = createMocks({ method: httpMethod }) as any;
+      const { req, res } = createMocks({ method: httpMethod as RequestMethod }) as any;
       await handler(req, res);
       return res;
     };

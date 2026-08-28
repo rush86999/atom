@@ -40,7 +40,7 @@ describe('lib/db', () => {
     process.env = { ...originalEnv };
     delete process.env.DATABASE_URL;
     delete process.env.DB_SSL_REJECT_UNAUTHORIZED;
-    process.env.NODE_ENV = 'test';
+    (process.env as { NODE_ENV?: string }).NODE_ENV = 'test';
   });
 
   afterEach(() => {
@@ -50,7 +50,7 @@ describe('lib/db', () => {
   });
 
   it('creates a real pool with SSL in production', () => {
-    process.env.NODE_ENV = 'production';
+    (process.env as { NODE_ENV?: string }).NODE_ENV = 'production';
     process.env.DATABASE_URL = 'postgresql://prod:5432/db';
     const db = loadDb({});
     expect(db.query).toBeDefined();
@@ -64,7 +64,7 @@ describe('lib/db', () => {
   });
 
   it('honors DB_SSL_REJECT_UNAUTHORIZED=false in production', () => {
-    process.env.NODE_ENV = 'production';
+    (process.env as { NODE_ENV?: string }).NODE_ENV = 'production';
     process.env.DATABASE_URL = 'postgresql://prod:5432/db';
     process.env.DB_SSL_REJECT_UNAUTHORIZED = 'false';
     loadDb({});
@@ -74,7 +74,7 @@ describe('lib/db', () => {
   });
 
   it('creates a pool with an undefined connection string in production without DATABASE_URL', () => {
-    process.env.NODE_ENV = 'production';
+    (process.env as { NODE_ENV?: string }).NODE_ENV = 'production';
     const db = loadDb({});
     expect(db.query).toBeDefined();
     expect(MockPool).toHaveBeenCalledWith(
@@ -86,7 +86,7 @@ describe('lib/db', () => {
   });
 
   it('reuses the global pool in development', () => {
-    process.env.NODE_ENV = 'development';
+    (process.env as { NODE_ENV?: string }).NODE_ENV = 'development';
     process.env.DATABASE_URL = 'postgresql://dev:5432/db';
     loadDb({});
     loadDb({});
@@ -94,7 +94,7 @@ describe('lib/db', () => {
   });
 
   it('uses the mock pool in development without DATABASE_URL', async () => {
-    process.env.NODE_ENV = 'development';
+    (process.env as { NODE_ENV?: string }).NODE_ENV = 'development';
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const db = loadDb({});
     expect(warnSpy).toHaveBeenCalled();

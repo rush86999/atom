@@ -2,7 +2,7 @@ const mockGetServerSession = jest.fn();
 jest.mock("next-auth/next", () => ({ getServerSession: mockGetServerSession }));
 jest.mock("@/lib/auth", () => ({ authOptions: { providers: [] } }));
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/agent/nlu";
 
 const mockFetch = jest.fn();
@@ -27,7 +27,7 @@ describe("pages/api/agent/nlu", () => {
 
   const invoke = async (method = "POST", body: any = {}, session: any = mockSession) => {
     mockGetServerSession.mockResolvedValue(session);
-    const { req, res } = createMocks({ method, body }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, body }) as any;
     await handler(req, res);
     return res;
   };

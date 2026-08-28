@@ -3,7 +3,7 @@
  * Placeholder for Zustand store
  */
 
-import create from 'zustand';
+import { create } from 'zustand';
 
 interface Agent {
   id: string;

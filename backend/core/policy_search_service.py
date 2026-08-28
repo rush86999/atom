@@ -4,7 +4,7 @@ Policy Search Service - Hybrid vector + text search for governance policies.
 This service provides semantic search capabilities for governance documents using:
 - PostgreSQL pgvector for similarity search (cosine distance)
 - Exact filters: category (domain), tags, status, and verification status
-- Query embedding generation via LLMService
+- Query embedding generation via EmbeddingService (local fastembed by default)
 """
 import hashlib
 import json
@@ -33,8 +33,12 @@ class PGPolicySearchService:
         Initialize policy search service.
         """
         self.db = db
-        from core.llm_service import LLMService
-        self.llm_service = LLMService()
+        # Embeddings go through EmbeddingService, which honors EMBEDDING_PROVIDER
+        # (local fastembed by default) and only routes to cloud LLM providers when
+        # explicitly configured — the previous direct-LLMService wiring required
+        # an OpenAI client and failed on installs without one.
+        from core.embedding_service import EmbeddingService
+        self.embedding_service = EmbeddingService()
 
     async def search(
         self,
@@ -111,6 +115,18 @@ class PGPolicySearchService:
                 except Exception:
                     continue
 
+            # pgvector Vector columns hand back pgvector.Vector/numpy objects,
+            # whose truthiness is ambiguous (`if obj` raises) — normalize to a
+            # plain list before the emptiness check.
+            if doc_embedding is not None and not isinstance(doc_embedding, (list, tuple)):
+                try:
+                    doc_embedding = doc_embedding.to_list()
+                except AttributeError:
+                    try:
+                        doc_embedding = list(doc_embedding)
+                    except TypeError:
+                        continue
+
             if doc_embedding:
                 similarity = self._cosine_similarity(doc_embedding, query_embedding)
                 documents_with_similarity.append((doc, similarity))
@@ -138,15 +154,12 @@ class PGPolicySearchService:
         Generate query embedding.
         """
         try:
-            # Use unified LLMService
-            embedding = await self.llm_service.generate_embedding(
-                text=query
-            )
-            return embedding
+            return await self.embedding_service.generate_embedding(query)
         except Exception as e:
             logger.error(f"Embedding generation failed: {e}")
-            # Return zero vector as fallback (dimensions 1536)
-            return [0.0] * 1536
+            # No vector → every cosine scores 0.0 (guard in _cosine_similarity),
+            # so filtered documents still surface, just unranked.
+            return []
 
     def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
         """

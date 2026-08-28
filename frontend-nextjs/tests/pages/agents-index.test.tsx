@@ -9,6 +9,7 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import AgentsDashboard from "@/pages/agents/index";
+import { handleSessionExpired } from "@/lib/auth-headers";
 
 const mockToast = jest.fn();
 const mockRouterPush = jest.fn();
@@ -42,6 +43,13 @@ jest.mock("@/hooks/useWebSocket", () => ({
   useWebSocket: () => wsState,
 }));
 
+// handleSessionExpired redirects via window.location.href, which jsdom
+// cannot navigate — mock it (implementation is set per-test because the
+// jest config resets mocks between tests).
+jest.mock("@/lib/auth-headers", () => ({
+  handleSessionExpired: jest.fn(() => true),
+}));
+
 jest.mock("@/components/Agents/AgentCard", () => {
   const MockAgentCard = ({ agent, onRun, onStop, onChat, onEdit, onViewReasoning }: any) => (
     <div data-testid={`agent-card-${agent.id}`}>
@@ -60,7 +68,7 @@ jest.mock("@/components/Agents/AgentTerminal", () => ({
   __esModule: true,
   default: ({ logs }: any) => (
     <div data-testid="agent-terminal">
-      {Array.isArray(logs) && logs.map((l: string, i: number) => <div key={i}>{l}</div>)}
+      {Array.isArray(logs) && logs.map((l: any, i: number) => <div key={i}>{l.text}</div>)}
     </div>
   ),
 }));
@@ -258,8 +266,13 @@ describe("AgentsDashboard", () => {
     );
   });
 
-  test("401 clears token and redirects to login", async () => {
+  test("401 clears token and delegates to the shared session-expired handler", async () => {
     localStorage.setItem("auth_token", "stale-token");
+    (handleSessionExpired as jest.Mock).mockImplementation(() => {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("token");
+      return true;
+    });
     mockFetch.mockResolvedValue({
       ok: false,
       status: 401,
@@ -267,7 +280,7 @@ describe("AgentsDashboard", () => {
       json: async () => ({}),
     });
     render(<AgentsDashboard />);
-    await waitFor(() => expect(mockRouterPush).toHaveBeenCalledWith("/login"));
+    await waitFor(() => expect(handleSessionExpired).toHaveBeenCalled());
     expect(localStorage.getItem("auth_token")).toBeNull();
   });
 

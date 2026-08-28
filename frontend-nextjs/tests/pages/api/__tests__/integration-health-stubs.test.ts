@@ -22,7 +22,7 @@ describe.each(cases)("pages/api/integrations/%s/health", (_name, handler, servic
   });
 
   it("rejects non-GET methods with 405", async () => {
-    for (const method of ["POST", "PUT", "DELETE"]) {
+    for (const method of ["POST", "PUT", "DELETE"] as const) {
       const { req, res } = createMocks({ method }) as any;
       await handler(req, res);
       expect(res._getStatusCode()).toBe(405);

@@ -15,7 +15,7 @@ const httpResponse = (ok: boolean, status: number, data: any): any => ({
 });
 
 describe("pages/api/integrations/discord (GET proxies)", () => {
-  const cases: Array<[string, any, string, string]> = [
+  const cases: Array<[string, any, string, string, string]> = [
     ["health", healthHandler, "GET", "/api/integrations/discord/health", "5059"],
     ["profile", profileHandler, "GET", "/api/discord/user", "5058"],
   ];
@@ -55,7 +55,7 @@ describe("pages/api/integrations/discord (GET proxies)", () => {
   });
 
   it.each(cases)("%s rejects non-GET with 405 and Allow header", async (name, handler) => {
-    for (const method of ["POST", "PUT"]) {
+    for (const method of ["POST", "PUT"] as const) {
       const { req, res } = createMocks({ method }) as any;
       await handler(req, res);
       expect(res._getStatusCode()).toBe(405);
@@ -113,7 +113,7 @@ describe("pages/api/integrations/discord (POST proxies)", () => {
   });
 
   it.each(cases)("%s rejects non-POST with 405 and Allow header", async (name, handler) => {
-    for (const method of ["GET", "DELETE"]) {
+    for (const method of ["GET", "DELETE"] as const) {
       const { req, res } = createMocks({ method }) as any;
       await handler(req, res);
       expect(res._getStatusCode()).toBe(405);

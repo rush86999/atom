@@ -4,6 +4,7 @@
  * Tests JSON Schema validation using AJV with custom constraints.
  */
 
+// @ts-expect-error - '@lib/src/*' resolves to src/lib/* at runtime via Jest moduleNameMapper
 import { validateSchema, SchemaValidationResult } from '@lib/src/validators/jsonSchema';
 
 describe('validateSchema', () => {

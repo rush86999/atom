@@ -69,7 +69,7 @@ describe('AgentWorkflowGenerator Component', () => {
         };
 
         expect(() => {
-            React.createElement(AgentWorkflowGenerator, minimalProps);
+            React.createElement(AgentWorkflowGenerator, minimalProps as any);
         }).not.toThrow();
     });
 

@@ -13,7 +13,7 @@ jest.mock("@/lib/api", () => ({
   },
 }));
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/auth/verify-email";
 
 const existingUser = { rows: [{ id: "user-1", email_verified: false }] };
@@ -37,7 +37,7 @@ describe("pages/api/auth/verify-email", () => {
   });
 
   const invoke = async (method = "POST", body: any = {}) => {
-    const { req, res } = createMocks({ method, body }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, body }) as any;
     await handler(req, res);
     return res;
   };

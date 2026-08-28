@@ -74,7 +74,7 @@ describe('IntegrationHealthDashboard', () => {
   // Test 1: renders the loading state while health checks are pending
   it('renders loading state while health checks are pending', () => {
     server.use(
-      rest.get('/api/integrations/:platform/health', () => new Promise(() => {})) // never resolves
+      rest.get('/api/integrations/:platform/health', () => new Promise<undefined>(() => {})) // never resolves
     );
 
     render(<IntegrationHealthDashboard />);

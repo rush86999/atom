@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/integrations/azure/storage-accounts";
 
 const jsonResponse = (ok: boolean, status: number, data: any): any => ({
@@ -22,7 +22,7 @@ describe("pages/api/integrations/azure/storage-accounts", () => {
   });
 
   const invoke = async (method = "GET", query: any = {}, body?: any) => {
-    const { req, res } = createMocks({ method, query, body }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, query, body }) as any;
     await handler(req, res);
     return res;
   };

@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import projectsHandler from "@/pages/api/integrations/figma/projects";
 import searchHandler from "@/pages/api/integrations/figma/search";
 import healthHandler from "@/pages/api/integrations/figma/health";
@@ -24,7 +24,7 @@ describe("pages/api/integrations/figma/projects", () => {
   });
 
   const invoke = async (body?: any, method = "POST") => {
-    const { req, res } = createMocks({ method, body }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, body }) as any;
     await projectsHandler(req, res);
     return res;
   };
@@ -97,7 +97,7 @@ describe("pages/api/integrations/figma/search", () => {
   });
 
   const invoke = async (body?: any, method = "POST") => {
-    const { req, res } = createMocks({ method, body }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, body }) as any;
     await searchHandler(req, res);
     return res;
   };
@@ -166,7 +166,7 @@ describe("pages/api/integrations/figma/health", () => {
   });
 
   const invoke = async (method = "GET") => {
-    const { req, res } = createMocks({ method }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod }) as any;
     await healthHandler(req, res);
     return res;
   };

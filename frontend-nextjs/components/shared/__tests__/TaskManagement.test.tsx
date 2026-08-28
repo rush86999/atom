@@ -664,7 +664,7 @@ describe('TaskManagement (extended coverage)', () => {
         initialTasks={[
           makeTask({ id: 't-1', status: 'completed', priority: 'medium' }),
           makeTask({ id: 't-2', status: 'blocked', priority: 'low' }),
-          makeTask({ id: 't-3', status: 'archived', priority: 'urgent' }),
+          makeTask({ id: 't-3', status: 'archived', priority: 'urgent' } as any),
         ]}
       />,
     );

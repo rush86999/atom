@@ -25,6 +25,7 @@ jest.mock("child_process", () => {
 
 import path from "path";
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/dev/desktop-bridge";
 
 describe("pages/api/dev/desktop-bridge", () => {
@@ -33,7 +34,7 @@ describe("pages/api/dev/desktop-bridge", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  const invoke = async (method = "POST", body: any = {}) => {
+  const invoke = async (method: RequestMethod = "POST", body: any = {}) => {
     const { req, res } = createMocks({ method, body }) as any;
     await handler(req, res);
     return res;

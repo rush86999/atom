@@ -254,7 +254,7 @@ describe('OutlookIntegration Component', () => {
       })
     );
 
-    renderWithProviders(<OutlookIntegration connected={true} />);
+    renderWithProviders(<OutlookIntegration {...({ connected: true } as any)} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test email')).toBeInTheDocument();

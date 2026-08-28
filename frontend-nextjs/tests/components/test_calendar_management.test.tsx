@@ -359,10 +359,7 @@ describe('CalendarManagement', () => {
 // ---------------------------------------------------------------------------
 import SharedCalendarManagement from '@/components/shared/CalendarManagement';
 
-const fmtLocal = (d: Date) => {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
+// fmtLocal (declared at the top of the file) is reused here.
 
 describe('SharedCalendarManagement (extended coverage)', () => {
   // R82: the old fixture used "today at 23:00" which is already in the past
@@ -384,8 +381,8 @@ describe('SharedCalendarManagement (extended coverage)', () => {
       start: futureEvent(10),
       end: futureEvent(10),
       location: 'Zoom',
-      status: 'confirmed',
-      platform: 'google',
+      status: 'confirmed' as const,
+      platform: 'google' as const,
       color: '#3182CE',
     },
   ];

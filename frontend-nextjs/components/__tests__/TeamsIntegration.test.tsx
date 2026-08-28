@@ -1584,7 +1584,9 @@ describe('TeamsIntegration (extended coverage 3)', () => {
     expect(screen.getByText('Eve Quant')).toBeInTheDocument();
 
     // Messages: unknown importance falls through to the default badge variant.
-    await user.click(screen.getByRole('button', { name: 'Teams', exact: true }));
+    // `exact: true` is the role-query default; cast options since the installed
+    // @testing-library/dom types predate the `exact` flag.
+    await user.click(screen.getByRole('button', { name: 'Teams', exact: true } as any));
     await selectTeamByCard(user, 'Engineering');
     await user.click(screen.getByRole('button', { name: /channels/i }));
     await user.click(await screen.findByText('General'));

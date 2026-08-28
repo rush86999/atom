@@ -15,7 +15,8 @@ const IV_LENGTH = 16; // GCM standard is 12, but 16 is accepted; keeping for bac
 export function encrypt(text: string): string {
     const iv = crypto.randomBytes(IV_LENGTH);
     const key = ENCRYPTION_KEY.slice(0, 32).padEnd(32, '0');
-    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    // Buffer from @types/node 17 doesn't satisfy the newer Uint8Array<ArrayBuffer> generic shapes
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv as unknown as crypto.BinaryLike);
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     const tag = cipher.getAuthTag();
@@ -36,8 +37,8 @@ export function decrypt(text: string): string {
     const iv = Buffer.from(ivHex, 'hex');
     const tag = Buffer.from(tagHex, 'hex');
     const key = ENCRYPTION_KEY.slice(0, 32).padEnd(32, '0');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-    decipher.setAuthTag(tag);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv as unknown as crypto.BinaryLike);
+    decipher.setAuthTag(tag as unknown as NodeJS.ArrayBufferView);
     let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;

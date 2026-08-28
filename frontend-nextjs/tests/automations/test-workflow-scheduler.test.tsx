@@ -37,7 +37,8 @@ describe('WorkflowScheduler Component', () => {
         const { default: WorkflowScheduler } = await import('@/components/Automations/WorkflowScheduler');
 
         expect(() => {
-            const element = React.createElement(WorkflowScheduler, {});
+            // rendering without required props is intentional here (smoke test)
+            const element = React.createElement(WorkflowScheduler, {} as any);
             expect(element).toBeTruthy();
         }).not.toThrow();
     });

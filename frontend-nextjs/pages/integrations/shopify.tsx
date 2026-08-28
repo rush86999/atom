@@ -55,7 +55,7 @@ const ShopifyPage: NextPage = () => {
                 { headers: token ? { Authorization: `Bearer ${token}` } : {} },
             );
             if (!res.ok) {
-                const data = await res.json().catch(() => null);
+                const data = await res.json().catch((): null => null);
                 throw new Error(data?.detail || "Failed to get authorization URL");
             }
             const data = await res.json();

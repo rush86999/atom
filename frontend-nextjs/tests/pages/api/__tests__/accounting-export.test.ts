@@ -1,4 +1,5 @@
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/accounting/export";
 
 const mockFetch = jest.fn();
@@ -45,7 +46,7 @@ describe("pages/api/accounting/export", () => {
 
   const invoke = async (
     query: any = {},
-    opts: { method?: string; headers?: any } = {},
+    opts: { method?: RequestMethod; headers?: any } = {},
   ) => {
     const { req, res } = createMocks({
       method: opts.method ?? "GET",

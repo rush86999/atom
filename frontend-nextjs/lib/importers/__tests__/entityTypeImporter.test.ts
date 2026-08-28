@@ -4,7 +4,9 @@
  * Tests entity type definition parsing, validation, and import functionality.
  */
 
+// @ts-expect-error - '@lib/src/*' resolves to src/lib/* at runtime via Jest moduleNameMapper
 import { parseEntityTypeDefinition, importEntityTypes, ImportError } from '@lib/src/importers/entityTypeImporter';
+// @ts-expect-error - '@lib/src/*' resolves to src/lib/* at runtime via Jest moduleNameMapper
 import { validateSchema } from '@lib/src/validators/jsonSchema';
 
 // Mock axios

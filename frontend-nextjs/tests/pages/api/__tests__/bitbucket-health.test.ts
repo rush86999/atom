@@ -1,6 +1,7 @@
 const mockFetch = jest.fn();
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/integrations/bitbucket/health";
 
 const okResponse = (data: any): any => ({
@@ -22,7 +23,7 @@ describe("pages/api/integrations/bitbucket/health", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  const invoke = async (query: any = {}, method = "GET") => {
+  const invoke = async (query: any = {}, method: RequestMethod = "GET") => {
     const { req, res } = createMocks({ method, query }) as any;
     await handler(req, res);
     return res;

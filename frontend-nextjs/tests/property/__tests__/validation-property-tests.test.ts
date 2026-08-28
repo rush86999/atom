@@ -164,7 +164,7 @@ describe('Validation Utilities - validateLength', () => {
   test('length validation rejects strings shorter than min', () => {
     fc.assert(
       fc.property(
-        fc.string({ maxLength: 4 }), fc.integer(5, 20),
+        fc.string({ maxLength: 4 }), ((fc.integer as any)(5, 20) as import('fast-check').Arbitrary<number>),
         (value, minLen) => {
           if (value.length > 0 && value.length < minLen) {
             const result = validateLength(value, { min: minLen });
@@ -180,7 +180,7 @@ describe('Validation Utilities - validateLength', () => {
   test('length validation rejects strings longer than max', () => {
     fc.assert(
       fc.property(
-        fc.string({ minLength: 15 }), fc.integer(5, 10),
+        fc.string({ minLength: 15 }), ((fc.integer as any)(5, 10) as import('fast-check').Arbitrary<number>),
         (value, maxLen) => {
           if (value.length > maxLen) {
             const result = validateLength(value, { max: maxLen });
@@ -468,7 +468,7 @@ describe('Validation Utilities - validateRange', () => {
   test('range validation accepts boundary values', () => {
     fc.assert(
       fc.property(
-        fc.integer(0, 100),
+        ((fc.integer as any)(0, 100) as import('fast-check').Arbitrary<number>),
         (min) => {
           const max = min + 100;
           const minResult = validateRange(min, { min, max });

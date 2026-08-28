@@ -72,7 +72,7 @@ describe('Provider Setup', () => {
     const mockPageProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     renderWithProviders(<MyApp {...mockPageProps} />);
 
@@ -86,7 +86,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
   });
@@ -95,7 +95,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     // Mock router to return non-auth path
     jest.mock('next/router', () => ({
@@ -119,7 +119,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     renderWithProviders(<MyApp {...mockAppProps} />);
 
@@ -132,7 +132,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     const { container } = renderWithProviders(<MyApp {...mockAppProps} />);
 
@@ -145,7 +145,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     // ToastProvider is part of the provider stack
     // We verify it by ensuring the app renders without errors
@@ -156,7 +156,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     // WakeWordProvider is mocked, so we just verify app renders
     expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
@@ -166,7 +166,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     const { container } = renderWithProviders(<MyApp {...mockAppProps} />);
 
@@ -180,7 +180,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     // SessionProvider should handle missing session gracefully
     expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
@@ -190,7 +190,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     // Mock router to simulate mounted state
     jest.mock('next/router', () => ({
@@ -212,7 +212,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     const { container } = renderWithProviders(<MyApp {...mockAppProps} />);
 
@@ -224,7 +224,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     // Multiple providers should work simultaneously
     expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
@@ -234,7 +234,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     // ToastProvider should be present (tested via app rendering)
     const { container } = renderWithProviders(<MyApp {...mockAppProps} />);
@@ -245,7 +245,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     // ChakraProvider should be present
     const { container } = renderWithProviders(<MyApp {...mockAppProps} />);
@@ -256,7 +256,7 @@ describe('Provider Setup', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     renderWithProviders(<MyApp {...mockAppProps} />);
 
@@ -272,7 +272,7 @@ describe('Provider Error Handling', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     // Even if a provider has issues, app should still render
     expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();
@@ -282,7 +282,7 @@ describe('Provider Error Handling', () => {
     const mockAppProps = {
       pageProps: {},
       Component: () => <div>Test Page</div>,
-    } as AppProps;
+    } as unknown as AppProps;
 
     // ChakraProvider should use default theme
     expect(() => renderWithProviders(<MyApp {...mockAppProps} />)).not.toThrow();

@@ -49,7 +49,7 @@ function BusinessFactsPage() {
   const fetchFacts = async () => {
     try {
       setLoading(true);
-      const response = await businessFactsAPI.listFacts(filters).catch(() => null);
+      const response = await businessFactsAPI.listFacts(filters).catch((): null => null);
       if (response && response.data) {
         const rawFacts = Array.isArray(response.data)
           ? response.data

@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import notionStartHandler from "@/pages/api/notion/start";
 import pocketStartHandler from "@/pages/api/pocket/oauth/start";
 import teamsStartHandler from "@/pages/api/teams/start";
@@ -40,7 +40,7 @@ const runAuthorizeSuite = (
 ) => {
   describe(describeName, () => {
     const invoke = async (query: any = { user_id: "user-1" }, method = "GET") => {
-      const { req, res } = createMocks({ method, query }) as any;
+      const { req, res } = createMocks({ method: method as RequestMethod, query }) as any;
       await handler(req, res);
       return res;
     };
@@ -138,7 +138,7 @@ runAuthorizeSuite(
 
 describe("pages/api/pocket/oauth/start", () => {
   const invoke = async (method = "GET") => {
-    const { req, res } = createMocks({ method }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod }) as any;
     await pocketStartHandler(req, res);
     return res;
   };

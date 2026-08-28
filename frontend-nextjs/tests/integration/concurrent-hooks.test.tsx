@@ -45,7 +45,7 @@ const mockCanvasAPI: any = {
   },
 
   getAllStates() {
-    return Array.from(this._state.entries()).map(([canvas_id, state]) => ({
+    return Array.from(this._state.entries()).map(([canvas_id, state]: any) => ({
       canvas_id,
       state
     }));
@@ -143,8 +143,8 @@ describe('useCanvasState concurrent operations', () => {
       // Verify final state is one of the updates (not null/undefined)
       expect(result.current.state).toHaveProperty('index');
       expect(result.current.state).toHaveProperty('data');
-      expect(result.current.state!.index).toBeGreaterThanOrEqual(0);
-      expect(result.current.state!.index).toBeLessThan(updateCount);
+      expect((result.current.state! as any).index).toBeGreaterThanOrEqual(0);
+      expect((result.current.state! as any).index).toBeLessThan(updateCount);
     });
   });
 
@@ -230,7 +230,7 @@ describe('useCanvasState concurrent operations', () => {
       expect(fetchedStates).toHaveLength(5);
       fetchedStates.forEach((state, index) => {
         expect(state).not.toBeNull();
-        expect(state!.id).toBe(canvasIds[index]);
+        expect((state! as any).id).toBe(canvasIds[index]);
       });
     });
 

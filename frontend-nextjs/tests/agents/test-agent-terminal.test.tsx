@@ -1,17 +1,21 @@
 import React from 'react';
 import { renderWithProviders, screen, waitFor } from '../test-utils';
-import { AgentTerminal } from '@/components/Agents/AgentTerminal';
+import { AgentTerminal, LogEntry } from '@/components/Agents/AgentTerminal';
 
 describe('AgentTerminal Component', () => {
-  const mockLogs = [
-    '[SYSTEM] Agent initialized',
-    '[GMAIL] Checking for new emails',
-    '[SLACK] Sending message to #general',
-    'Processing task...',
-    'Task completed successfully'
-  ];
+  // Fixed timestamps: the terminal must render the ts captured at append
+  // time, not the time of the latest re-render (a past regression).
+  const T1 = new Date('2026-01-01T10:00:00').getTime();
+  const T2 = new Date('2026-01-01T10:00:05').getTime();
 
-  const mockActiveTools = ['gmail', 'slack'];
+  const entry = (text: string, ts: number = T1): LogEntry => ({ text, ts });
+
+  const mockLogs: LogEntry[] = [
+    entry('Thought: Checking inventory levels'),
+    entry('Action: {"name": "search"}', T2),
+    entry('Observation: found 3 records', T2),
+    entry('Task completed successfully', T2),
+  ];
 
   // Render tests
   describe('Rendering', () => {
@@ -22,153 +26,125 @@ describe('AgentTerminal Component', () => {
 
     it('should render agent name in header', () => {
       renderWithProviders(<AgentTerminal agentName="TestAgent" logs={[]} status="idle" />);
-      expect(screen.getByText(/testagent/i)).toBeInTheDocument();
-      expect(screen.getByText(/execution_log/i)).toBeInTheDocument();
-    });
-
-    it('should render version badge', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={[]} status="idle" />);
-      expect(screen.getByText(/v2\.4\.0-cognitive/i)).toBeInTheDocument();
+      expect(screen.getByText('TestAgent')).toBeInTheDocument();
     });
 
     it('should render log messages', () => {
       renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(screen.getByText('[SYSTEM] Agent initialized')).toBeInTheDocument();
-      expect(screen.getByText('[GMAIL] Checking for new emails')).toBeInTheDocument();
+      expect(screen.getByText('Thought: Checking inventory levels')).toBeInTheDocument();
+      expect(screen.getByText('Observation: found 3 records')).toBeInTheDocument();
     });
 
     it('should render empty state when no logs', () => {
       renderWithProviders(<AgentTerminal agentName="TestAgent" logs={[]} status="idle" />);
-      expect(screen.getByText(/waiting for agent initiation/i)).toBeInTheDocument();
+      expect(screen.getByText(/no activity yet/i)).toBeInTheDocument();
+      expect(screen.getByText(/run an agent/i)).toBeInTheDocument();
     });
 
-    it('should render connection status indicators', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={[]} status="idle" />);
-      expect(screen.getByText(/SSH SECURE/i)).toBeInTheDocument();
-      expect(screen.getByText(/LATENCY:/i)).toBeInTheDocument();
+    it('should not render fabricated telemetry', () => {
+      // These were hardcoded decorations that claimed false system state.
+      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="running" />);
+      expect(screen.queryByText(/latency/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/ssh/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/54321/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/cognitive/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/ephemeral browser/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/sandbox isolated/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/execution_log/i)).not.toBeInTheDocument();
     });
   });
 
   // Status display tests
   describe('Status Display', () => {
-    it('should show active reasoning badge when running', () => {
+    it('should show Running badge when running', () => {
       renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="running" />);
-      expect(screen.getByText(/active reasoning/i)).toBeInTheDocument();
+      expect(screen.getByText('Running')).toBeInTheDocument();
     });
 
-    it('should not show active reasoning badge when idle', () => {
+    it('should show Completed badge on success', () => {
+      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="success" />);
+      expect(screen.getByText('Completed')).toBeInTheDocument();
+    });
+
+    it('should show Failed badge on failure', () => {
+      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="failed" />);
+      expect(screen.getByText('Failed')).toBeInTheDocument();
+    });
+
+    it('should show Idle badge when idle', () => {
       renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(screen.queryByText(/active reasoning/i)).not.toBeInTheDocument();
+      expect(screen.getByText('Idle')).toBeInTheDocument();
     });
 
-    it('should display status indicator animation', () => {
+    it('should show pulse animation while running', () => {
       const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="running" />);
-      // Check for animated ping element
-      const pingElement = container.querySelector('.animate-ping');
-      expect(pingElement).toBeInTheDocument();
+      expect(container.querySelector('.animate-ping')).toBeInTheDocument();
+    });
+
+    it('should not show pulse animation when idle', () => {
+      const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
+      expect(container.querySelector('.animate-ping')).not.toBeInTheDocument();
     });
   });
 
   // Log display tests
   describe('Log Display', () => {
-    it('should display system logs with purple styling', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      const systemLog = screen.getByText('[SYSTEM] Agent initialized');
-      expect(systemLog).toBeInTheDocument();
-    });
-
-    it('should display tool logs with blue styling', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(screen.getByText('[GMAIL] Checking for new emails')).toBeInTheDocument();
-      // Exact match against the full log string (getByText is exact by default).
-      expect(screen.getByText('[SLACK] Sending message to #general')).toBeInTheDocument();
-    });
-
     it('should display success logs with green styling', () => {
       renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(screen.getByText(/success/i)).toBeInTheDocument();
+      const successLog = screen.getByText('Task completed successfully');
+      expect(successLog.className).toMatch(/emerald/);
     });
 
     it('should display error logs with red styling', () => {
-      const errorLogs = [...mockLogs, '[ERROR] Connection failed'];
+      const errorLogs = [...mockLogs, entry('Error: Connection failed')];
       renderWithProviders(<AgentTerminal agentName="TestAgent" logs={errorLogs} status="idle" />);
-      expect(screen.getByText(/connection failed/i)).toBeInTheDocument();
+      const errorLog = screen.getByText('Error: Connection failed');
+      expect(errorLog.className).toMatch(/red/);
     });
 
-    it('should display timestamps for logs', () => {
+    it('should display final answer logs prominently', () => {
+      const logs = [...mockLogs, entry('Final Answer: 42')];
+      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={logs} status="idle" />);
+      const finalLog = screen.getByText('Final Answer: 42');
+      expect(finalLog.className).toMatch(/emerald/);
+      expect(finalLog.className).toMatch(/font-semibold/);
+    });
+
+    it('should render the timestamp captured at append time', () => {
       renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      // Timestamps are generated dynamically, check for timestamp pattern
-      const timestamps = screen.getAllByText(/\d{2}:\d{2}:\d{2}/);
-      expect(timestamps.length).toBeGreaterThan(0);
-    });
-  });
-
-  // Active tools tests
-  describe('Active Tools Display', () => {
-    it('should display active tool icons', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="running" activeTools={mockActiveTools} />);
-      // Tool icons are displayed in a sidebar
-      expect(screen.getByText(/testagent/i)).toBeInTheDocument();
+      // T1 and T2 were fixed when the entries were created; both must render
+      // regardless of when the component re-renders. Anchored so the footer's
+      // "Last event ..." label doesn't count as a line timestamp.
+      expect(screen.getAllByText(/^\d{2}:\d{2}:\d{2}$/).length).toBe(mockLogs.length);
     });
 
-    it('should show unique tools only', () => {
-      const duplicateTools = ['gmail', 'slack', 'gmail', 'slack'];
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="running" activeTools={duplicateTools} />);
-      // Should deduplicate tools
-      expect(screen.getByText(/testagent/i)).toBeInTheDocument();
-    });
-
-    it('should handle empty active tools array', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="running" activeTools={[]} />);
-      expect(screen.getByText(/testagent/i)).toBeInTheDocument();
-    });
-
-    it('should handle undefined active tools', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="running" />);
-      expect(screen.getByText(/testagent/i)).toBeInTheDocument();
-    });
-  });
-
-  // Sandbox environment display tests
-  describe('Sandbox Environment Display', () => {
-    it('should display ephemeral browser section', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(screen.getByText(/ephemeral browser/i)).toBeInTheDocument();
-    });
-
-    it('should display sandbox isolated message', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(screen.getByText(/sandbox isolated/i)).toBeInTheDocument();
-    });
-
-    it('should display security vault badge', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(screen.getByText(/self-hosted vault/i)).toBeInTheDocument();
-    });
-
-    it('should display security message', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(screen.getByText(/logs and credentials never leave your infrastructure/i)).toBeInTheDocument();
+    it('should keep per-line timestamps distinct after re-render', () => {
+      const { rerender } = renderWithProviders(
+        <AgentTerminal agentName="TestAgent" logs={[entry('First', T1)]} status="idle" />
+      );
+      rerender(<AgentTerminal agentName="TestAgent" logs={[entry('First', T1), entry('Second', T2)]} status="idle" />);
+      // The old line keeps its original timestamp instead of being redrawn
+      // with the current time.
+      expect(screen.getByText('10:00:00')).toBeInTheDocument();
+      expect(screen.getByText('10:00:05')).toBeInTheDocument();
     });
   });
 
   // Footer tests
   describe('Footer', () => {
-    it('should display SSH secure status', () => {
+    it('should display the real event count', () => {
       renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(screen.getByText(/SSH SECURE/i)).toBeInTheDocument();
+      expect(screen.getByTestId('terminal-event-count')).toHaveTextContent('4 events');
     });
 
-    it('should display latency information', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(screen.getByText(/LATENCY:/i)).toBeInTheDocument();
-      expect(screen.getByText(/42ms/i)).toBeInTheDocument();
+    it('should display singular event count', () => {
+      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={[entry('Only one')]} status="idle" />);
+      expect(screen.getByTestId('terminal-event-count')).toHaveTextContent('1 event');
     });
 
-    it('should display listening port', () => {
+    it('should display last event time', () => {
       renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(screen.getByText(/LISTENING_ON_PORT/i)).toBeInTheDocument();
-      expect(screen.getByText(/54321/i)).toBeInTheDocument();
+      expect(screen.getByText(/Last event/)).toBeInTheDocument();
     });
   });
 
@@ -177,55 +153,44 @@ describe('AgentTerminal Component', () => {
     it('should scroll to bottom when new logs arrive', async () => {
       const { rerender } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={[]} status="idle" />);
 
-      // Add new logs
       rerender(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
 
       await waitFor(() => {
-        expect(screen.getByText('[SYSTEM] Agent initialized')).toBeInTheDocument();
+        expect(screen.getByText('Thought: Checking inventory levels')).toBeInTheDocument();
       });
     });
 
-    it('should maintain scroll position on re-renders', async () => {
+    it('should keep log content stable across re-renders', async () => {
       const { rerender } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-
-      // Re-render with same logs
       rerender(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
 
       await waitFor(() => {
-        expect(screen.getByText('[SYSTEM] Agent initialized')).toBeInTheDocument();
+        expect(screen.getByText('Task completed successfully')).toBeInTheDocument();
       });
     });
   });
 
   // Edge cases
   describe('Edge Cases', () => {
-    // The component's props declare logs: string[] (required, no default) and
-    // its scroll effect reads logs.length at render, so null/undefined logs
-    // would crash. The valid "no logs" input is an empty array.
     it('should render with empty logs array', () => {
       const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={[]} status="idle" />);
       expect(container.querySelector('.bg-slate-950')).toBeInTheDocument();
     });
 
-    it('should render empty state with no logs', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={[]} status="idle" />);
-      expect(screen.getByText(/waiting for agent initiation/i)).toBeInTheDocument();
-    });
-
     it('should handle very long log messages', () => {
       const longLog = 'A'.repeat(1000);
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={[longLog]} status="idle" />);
+      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={[entry(longLog)]} status="idle" />);
       expect(screen.getByText(/A{100}/)).toBeInTheDocument();
     });
 
     it('should handle special characters in logs', () => {
       const specialLogs = [
-        '[SYSTEM] Test <script>alert("test")</script>',
-        '[ERROR] Error: "quoted" \'single\'',
-        '[DEBUG] Special chars: @#$%^&*()'
+        entry('Thought: Test <script>alert("test")</script>'),
+        entry('Error: "quoted" \'single\''),
+        entry('Special chars: @#$%^&*()'),
       ];
       renderWithProviders(<AgentTerminal agentName="TestAgent" logs={specialLogs} status="idle" />);
-      expect(screen.getByText(/system.*test.*script/i)).toBeInTheDocument();
+      expect(screen.getByText(/thought.*test.*script/i)).toBeInTheDocument();
     });
 
     it('should handle empty agent name', () => {
@@ -237,67 +202,24 @@ describe('AgentTerminal Component', () => {
       const { container } = renderWithProviders(<AgentTerminal agentId="agent-123" agentName="TestAgent" logs={mockLogs} status="idle" />);
       expect(container.querySelector('.bg-slate-950')).toBeInTheDocument();
     });
-  });
 
-  // Tool icon mapping tests
-  describe('Tool Icon Mapping', () => {
-    it('should display correct icon for gmail', () => {
-      const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={['[GMAIL] Test']} status="running" activeTools={['gmail']} />);
-      // Check that component renders without error
-      expect(container.querySelector('.bg-slate-950')).toBeInTheDocument();
-    });
-
-    it('should display correct icon for slack', () => {
-      const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={['[SLACK] Test']} status="running" activeTools={['slack']} />);
-      expect(container.querySelector('.bg-slate-950')).toBeInTheDocument();
-    });
-
-    it('should display correct icon for generic tool', () => {
-      const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={['[UNKNOWNTOOL] Test']} status="running" activeTools={['unknowntool']} />);
-      expect(container.querySelector('.bg-slate-950')).toBeInTheDocument();
-    });
-  });
-
-  // Accessibility tests
-  describe('Accessibility', () => {
-    it('should have proper role attributes', () => {
-      const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(container.querySelector('.bg-slate-950')).toBeInTheDocument();
-    });
-
-    it('should have readable text contrast', () => {
-      const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      const terminal = container.querySelector('.bg-slate-950');
-      expect(terminal).toBeInTheDocument();
-    });
-
-    it('should display status indicators', () => {
-      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="running" />);
-      expect(screen.getByText(/active reasoning/i)).toBeInTheDocument();
+    it('should fall back to Idle badge for unknown statuses', () => {
+      renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="some-new-status" />);
+      expect(screen.getByText('Idle')).toBeInTheDocument();
     });
   });
 
   // Visual structure tests
   describe('Visual Structure', () => {
-    it('should have glossy header', () => {
-      const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      const header = container.querySelector('.bg-gradient-to-r');
-      expect(header).toBeInTheDocument();
-    });
-
-    it('should have traffic light buttons', () => {
-      const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      const buttons = container.querySelectorAll('.rounded-full');
-      expect(buttons.length).toBeGreaterThanOrEqual(3);
+    it('should have a header with agent identity and status', () => {
+      const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="running" />);
+      expect(container.querySelector('.bg-slate-950')).toBeInTheDocument();
+      expect(screen.getByText('TestAgent')).toBeInTheDocument();
+      expect(screen.getByText('Running')).toBeInTheDocument();
     });
 
     it('should have log area with scroll', () => {
       const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="idle" />);
-      expect(container.querySelector('.bg-slate-950')).toBeInTheDocument();
-    });
-
-    it('should have sidebar for active tools', () => {
-      const { container } = renderWithProviders(<AgentTerminal agentName="TestAgent" logs={mockLogs} status="running" activeTools={mockActiveTools} />);
       expect(container.querySelector('.bg-slate-950')).toBeInTheDocument();
     });
   });

@@ -7,9 +7,11 @@ import asyncio
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import html as _html_mod
 import json
 import logging
 import os
+import re as _re_mod
 from typing import Any, Dict, List, Optional, Union
 import httpx
 
@@ -38,6 +40,24 @@ from core.knowledge_ingestion import get_knowledge_ingestion
 from .ingestion_models import RecordType
 
 logger = logging.getLogger(__name__)
+
+_HTML_TAG_RE = _re_mod.compile(r"<(script|style)[^>]*>.*?</\1>|<[^>]+>", _re_mod.DOTALL | _re_mod.IGNORECASE)
+_HTML_WS_RE = _re_mod.compile(r"[ \t]*\n[ \t\n]*")
+
+
+def _html_to_text(html_body: str) -> str:
+    """Graph email bodies arrive as HTML; strip tags so FTS/vector search
+    indexes readable text instead of markup. Never raises."""
+    if not html_body:
+        return ""
+    try:
+        text = _HTML_TAG_RE.sub("\n", html_body)
+        text = _html_mod.unescape(text)
+        return _HTML_WS_RE.sub("\n", text).strip()
+    except Exception:
+        return html_body
+
+
 
 SentenceTransformer = None
 _sentence_transformer_checked = False
@@ -127,6 +147,11 @@ class LanceDBMemoryManager:
         self.connections_table = None
         self.metadata_table = None
         self.model = None
+        # Metadata stats accumulate here and flush on a timer — see
+        # _update_metadata (per-message delete+add commits fragmented
+        # ingestion_metadata to 413MB once).
+        self._metadata_pending: Dict[str, int] = {}
+        self._metadata_last_flush = datetime.now()
         
     def initialize(self):
         """Initialize LanceDB connection and tables"""
@@ -456,41 +481,92 @@ class LanceDBMemoryManager:
             logger.error(f"Error getting communications by timeframe: {str(e)}")
             return []
     
+    METADATA_FLUSH_INTERVAL_SECONDS = 60
+
     def _update_metadata(self, app_type: str, message_count: int):
-        """Update ingestion metadata"""
+        """Update ingestion metadata (throttled).
+
+        Each flush is a delete+add — two Lance commits — and the poller used
+        to do that PER MESSAGE, fragmenting ingestion_metadata to 413MB here.
+        Counts now accumulate in memory and flush at most once a minute, plus
+        an explicit flush at each poll-cycle end and before maintenance."""
+        self._metadata_pending[app_type] = (
+            self._metadata_pending.get(app_type, 0) + message_count
+        )
+        elapsed = (datetime.now() - self._metadata_last_flush).total_seconds()
+        if elapsed >= self.METADATA_FLUSH_INTERVAL_SECONDS:
+            self._flush_metadata()
+
+    def _flush_metadata(self):
+        """Write accumulated per-app counts to ingestion_metadata. Best-effort:
+        a crash can lose the last minute of stats (never message data)."""
+        if getattr(self, "metadata_table", None) is None:
+            return  # store not opened yet — keep counts pending for the next flush
+        pending, self._metadata_pending = self._metadata_pending, {}
+        self._metadata_last_flush = datetime.now()
+        for app_type, count in pending.items():
+            try:
+                existing = self.metadata_table.search().where(
+                    f"app_type = '{app_type}'"
+                ).to_pandas()
+
+                if len(existing) > 0:
+                    current_count = existing.iloc[0]['total_messages']
+                    update_data = {
+                        "app_type": app_type,
+                        "last_ingested": datetime.now(),
+                        "total_messages": current_count + count,
+                        "status": "active"
+                    }
+                    self.metadata_table.delete(f"app_type = '{app_type}'")
+                    self.metadata_table.add([update_data])
+                else:
+                    metadata = {
+                        "app_type": app_type,
+                        "last_ingested": datetime.now(),
+                        "total_messages": count,
+                        "config": "{}",
+                        "status": "active"
+                    }
+                    self.metadata_table.add([metadata])
+            except Exception as e:
+                logger.error(f"Error updating metadata for {app_type}: {str(e)}")
+
+    def _maintain_tables(self):
+        """Compact fragments and purge superseded versions on the comms tables.
+
+        The poller commits one fragment per message; un-vacuumed that grew
+        atom_communications to 27GB of fragments + version manifests here
+        (Aug 2026). optimize() folds small fragments; cleanup_old_versions()
+        deletes unreachable ones (needs the optional pylance package)."""
         try:
-            # Get current metadata
-            existing = self.metadata_table.search().where(f"app_type = '{app_type}'").to_pandas()
-            
-            if len(existing) > 0:
-                # Update existing record
-                current_count = existing.iloc[0]['total_messages']
-                new_count = current_count + message_count
-                
-                update_data = {
-                    "app_type": app_type,
-                    "last_ingested": datetime.now(),
-                    "total_messages": new_count,
-                    "status": "active"
-                }
-                # Delete existing record
-                self.metadata_table.delete(f"app_type = '{app_type}'")
-                
-                # Add updated record
-                self.metadata_table.add([update_data])
-            else:
-                # Create new record
-                metadata = {
-                    "app_type": app_type,
-                    "last_ingested": datetime.now(),
-                    "total_messages": message_count,
-                    "config": "{}",
-                    "status": "active"
-                }
-                self.metadata_table.add([metadata])
-                
+            if self.db is None:
+                self.initialize()
+            if self.db is None:
+                return
+            table_names = self.db.table_names()
         except Exception as e:
-            logger.error(f"Error updating metadata: {str(e)}")
+            logger.warning(f"LanceDB maintenance skipped (no store): {e}")
+            return
+
+        for name in ("atom_communications", "ingestion_metadata"):
+            if name not in table_names:
+                continue
+            try:
+                table = self.db.open_table(name)
+                table.optimize()
+                try:
+                    table.cleanup_old_versions(older_than=timedelta(days=7))
+                except ImportError:
+                    logger.info(
+                        "pylance not installed — skipping version cleanup "
+                        "(pip install pylance)"
+                    )
+                logger.info(f"LanceDB maintenance: {name} ok")
+            except Exception as e:
+                logger.warning(f"LanceDB maintenance for {name} failed: {e}")
+        self._flush_metadata()
+
 
 def derive_actor(message_data: Dict[str, Any]) -> tuple:
     """
@@ -506,6 +582,53 @@ def derive_actor(message_data: Dict[str, Any]) -> tuple:
     return ("external", actor_id)
 
 
+def parse_message_timestamp(message_data: Dict[str, Any]) -> datetime:
+    """Best-effort received-time extraction shared by mail fetchers.
+
+    Resolution order: a ready ``timestamp``, the RFC 2822 ``Date`` header,
+    ``internalDate`` (Gmail, ms since epoch — naive int() parsing produced
+    dates in the year 50k), then poll time. Never raises."""
+    msg = message_data or {}
+
+    ts = msg.get("timestamp")
+    if isinstance(ts, datetime):
+        return ts
+    if isinstance(ts, (int, float)) or (
+        isinstance(ts, str) and ts.replace(".", "", 1).isdigit()
+    ):
+        try:
+            seconds = float(ts)
+            if seconds > 1e12:  # ms-since-epoch
+                seconds /= 1000.0
+            return datetime.fromtimestamp(seconds)
+        except Exception:
+            pass
+
+    date_header = msg.get("date")
+    if date_header:
+        try:
+            from email.utils import parsedate_to_datetime
+
+            parsed = parsedate_to_datetime(str(date_header))
+            if parsed.tzinfo is not None:
+                parsed = parsed.astimezone().replace(tzinfo=None)
+            return parsed
+        except Exception:
+            pass
+
+    internal_date = msg.get("internalDate")
+    if internal_date:
+        try:
+            seconds = float(internal_date)
+            if seconds > 1e12:
+                seconds /= 1000.0
+            return datetime.fromtimestamp(seconds)
+        except Exception:
+            pass
+
+    return datetime.now()
+
+
 class CommunicationIngestionPipeline:
     """Main ingestion pipeline for all communication apps"""
     
@@ -517,6 +640,24 @@ class CommunicationIngestionPipeline:
         self.app_configs = {}  # Store app-specific configurations
         self.webhook_enabled = {}  # Track which apps have webhooks enabled
 
+        # Poll dedup state: persisted cursors + known message ids. The
+        # cursor used to be memory-only, so every restart re-fetched the
+        # newest page and re-added it — one table on this dev machine grew
+        # to 21k duplicate rows / 20GB of Lance version manifests (Aug 2026).
+        self._seen_message_ids: set = set()
+        self._seen_ids_loaded = False
+        self._fetch_state_path = (
+            Path(str(getattr(memory_manager, "db_path", "./data/atom_memory")))
+            / "poll_fetch_state.json"
+        )
+        self._load_fetch_state()
+
+        # Maintenance state: the poller commits one fragment per message, so
+        # table health needs a periodic optimize + version purge (see
+        # memory_manager._maintain_tables) — un-vacuumed, atom_communications
+        # grew to 27GB of fragments/manifests here once (Aug 2026).
+        self._maintenance_task: Optional[asyncio.Task] = None
+
         # Import webhook processor (lazy import to avoid circular dependency)
         try:
             from core.webhook_handlers import get_webhook_processor
@@ -527,7 +668,80 @@ class CommunicationIngestionPipeline:
         except ImportError:
             self.webhook_processor = None
             logger.warning("Webhook handlers not available, real-time ingestion disabled")
-        
+
+    def _load_fetch_state(self) -> None:
+        """Restore fetch cursors + seen message ids across restarts."""
+        try:
+            if self._fetch_state_path.exists():
+                data = json.loads(self._fetch_state_path.read_text() or "{}")
+                for key, ts in (data.get("fetch_timestamps") or {}).items():
+                    try:
+                        self.fetch_timestamps[key] = datetime.fromisoformat(ts)
+                    except Exception:
+                        continue
+                self._seen_message_ids = set(data.get("seen_message_ids") or [])
+                logger.info(
+                    f"Restored poll fetch state: {len(self.fetch_timestamps)} cursors, "
+                    f"{len(self._seen_message_ids)} known message ids"
+                )
+        except Exception as e:
+            logger.warning(f"Could not restore poll fetch state: {e}")
+
+    def _save_fetch_state(self) -> None:
+        """Persist fetch cursors + a bounded seen-id set (atomic write)."""
+        try:
+            payload = {
+                "fetch_timestamps": {
+                    k: v.isoformat() for k, v in self.fetch_timestamps.items()
+                },
+                "seen_message_ids": list(self._seen_message_ids)[-20000:],
+            }
+            tmp = self._fetch_state_path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(payload))
+            tmp.replace(self._fetch_state_path)
+        except Exception as e:
+            logger.debug(f"Could not persist poll fetch state: {e}")
+
+    def _ensure_seen_ids_loaded(self) -> None:
+        """One-time seed of the dedup set from what's already in the store, so
+        a fresh state file (or a wiped cursor) can't re-add existing rows."""
+        if self._seen_ids_loaded:
+            return
+        self._seen_ids_loaded = True
+        try:
+            if self.memory_manager.db is None:
+                self.memory_manager.initialize()
+            table = self.memory_manager.connections_table
+            if table is not None:
+                ids = table.to_arrow().select(["id"]).to_pylist()
+                self._seen_message_ids.update(
+                    str(r["id"]) for r in ids if r.get("id")
+                )
+                logger.info(
+                    f"Loaded {len(self._seen_message_ids)} known message ids for poll dedup"
+                )
+        except Exception as e:
+            logger.debug(f"seen-id seeding skipped: {e}")
+
+    def _ensure_maintenance_loop(self):
+        """Start the periodic LanceDB maintenance task (idempotent)."""
+        if self._maintenance_task and not self._maintenance_task.done():
+            return
+        self._maintenance_task = asyncio.create_task(self._maintenance_loop())
+
+    async def _maintenance_loop(self):
+        """Daily optimize + old-version purge (LANCE_MAINTENANCE_INTERVAL_HOURS).
+        Runs alongside the poller so table health never depends on someone
+        remembering to vacuum by hand."""
+        interval_hours = max(float(os.getenv("LANCE_MAINTENANCE_INTERVAL_HOURS", "24")), 1.0)
+        await asyncio.sleep(600)  # let boot and the first sync settle
+        while True:
+            try:
+                await asyncio.to_thread(self.memory_manager._maintain_tables)
+            except Exception as e:
+                logger.warning(f"LanceDB maintenance pass failed: {e}")
+            await asyncio.sleep(interval_hours * 3600)
+
     def configure_app(self, app_type: CommunicationAppType, config: IngestionConfig):
         """Configure ingestion for specific app"""
         config_dict = {
@@ -590,6 +804,7 @@ class CommunicationIngestionPipeline:
             started = self.start_real_time_stream(CommunicationAppType.OUTLOOK.value)
             if started:
                 logger.info(f"Started Outlook poller (interval={config.polling_interval_seconds}s)")
+                self._ensure_maintenance_loop()
             return started
         except Exception as e:
             logger.error(f"Error starting Outlook poller: {e}")
@@ -723,7 +938,11 @@ class CommunicationIngestionPipeline:
         # Start async streaming task
         task = asyncio.create_task(self._real_time_ingestion(app_type))
         self.active_streams[app_type] = task
-        
+
+        # Table health applies to EVERY poller (one commit per message
+        # fragments LanceDB over time), not just Outlook's.
+        self._ensure_maintenance_loop()
+
         logger.info(f"Started real-time ingestion stream for {app_type}")
         return True
     
@@ -748,6 +967,9 @@ class CommunicationIngestionPipeline:
                             await self.ingest_message(app_type, message)
                         except Exception as e:
                             logger.error(f"Failed to ingest message from {app_type}: {e}")
+
+                # Land accumulated stats once per cycle (not per message)
+                await asyncio.to_thread(self.memory_manager._flush_metadata)
 
                 # Wait before next poll
                 await asyncio.sleep(polling_interval)
@@ -791,10 +1013,38 @@ class CommunicationIngestionPipeline:
             else:
                 logger.warning(f"No polling implementation for {app_type}")
 
-            # Update last fetch timestamp (only on success)
-            self.fetch_timestamps[last_fetch_key] = datetime.now()
+            # Re-fetch guard: drop messages already ingested. A cold cursor
+            # (fresh state file, wiped table, or clock overlap) used to mean
+            # the newest page was re-added in full on every restart.
+            self._ensure_seen_ids_loaded()
+            fresh: List[Dict[str, Any]] = []
+            for message in messages:
+                message_id = str(message.get("id") or "")
+                if message_id and message_id in self._seen_message_ids:
+                    continue
+                if message_id:
+                    self._seen_message_ids.add(message_id)
+                fresh.append(message)
+            if len(fresh) < len(messages):
+                logger.info(
+                    f"Skipped {len(messages) - len(fresh)} already-ingested "
+                    f"{app_type} messages (dedup)"
+                )
 
-            return messages
+            # Advance the cursor to the NEWEST message fetched (not "now"):
+            # a truncated walk (page cap) would otherwise skip the remainder,
+            # and "now" races messages that arrive mid-walk. The dedup guard
+            # absorbs any overlap re-fetch this causes. Falls back to now()
+            # for sources whose payloads carry no datetime timestamp.
+            newest: Optional[datetime] = None
+            for message in fresh:
+                ts = message.get("timestamp")
+                if isinstance(ts, datetime) and (newest is None or ts > newest):
+                    newest = ts
+            self.fetch_timestamps[last_fetch_key] = newest or datetime.now()
+            self._save_fetch_state()
+
+            return fresh
 
         except Exception as e:
             logger.error(f"Error fetching messages from {app_type}: {e}")
@@ -1368,8 +1618,21 @@ class CommunicationIngestionPipeline:
             mail.login(imap_user, imap_password)
             mail.select("INBOX")
 
-            # Search for new messages
-            since_date = last_fetch.strftime("%d-%b-%Y") if last_fetch else "01-Jan-1970"
+            # Search for new messages. IMAP SINCE is date-granular; the
+            # initial sync uses the user-configurable history window
+            # (default 3 months) instead of "since 1970".
+            if last_fetch:
+                since_date = last_fetch.strftime("%d-%b-%Y")
+            else:
+                history_days = 90
+                try:
+                    from core.automation_settings import get_automation_settings
+
+                    history_days = get_automation_settings().get_initial_sync_days("email")
+                except Exception:
+                    pass
+                since_date = (datetime.now() - timedelta(days=history_days)).strftime("%d-%b-%Y")
+                logger.info(f"IMAP initial sync: fetching {history_days} days of history")
             status, messages = mail.search(None, f'(SINCE "{since_date}")')
 
             messages_data = []
@@ -1483,13 +1746,23 @@ class CommunicationIngestionPipeline:
                 logger.warning("Gmail service not available after authentication attempt")
                 return []
 
-            # Build query for incremental fetching
-            query = ""
+            # Build query for fetching. Incremental polls use after:<cursor>;
+            # the initial sync ingests a user-configurable history window
+            # (default 3 months) instead of only the newest page.
             if last_fetch:
-                # Gmail search query for messages after a date
-                # Format: after:YYYY/MM/DD
                 date_str = last_fetch.strftime("%Y/%m/%d")
                 query = f"after:{date_str}"
+            else:
+                history_days = 90
+                try:
+                    from core.automation_settings import get_automation_settings
+
+                    history_days = get_automation_settings().get_initial_sync_days("gmail")
+                except Exception:
+                    pass
+                since = datetime.now() - timedelta(days=history_days)
+                query = f"after:{since.strftime('%Y/%m/%d')}"
+                logger.info(f"Gmail initial sync: fetching {history_days} days of history")
 
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
@@ -1502,15 +1775,8 @@ class CommunicationIngestionPipeline:
             normalized_messages = []
             for msg in messages:
                 try:
-                    # Parse timestamp from Gmail message
-                    timestamp_str = msg.get("timestamp")
-                    if timestamp_str:
-                        try:
-                            timestamp = datetime.fromisoformat(timestamp_str)
-                        except (ValueError, TypeError):
-                            timestamp = datetime.fromtimestamp(int(timestamp_str))
-                    else:
-                        timestamp = datetime.now()
+                    # Received time: Date header / internalDate / timestamp
+                    timestamp = parse_message_timestamp(msg)
 
                     # Extract sender name and email
                     sender = msg.get("sender", "")
@@ -1551,7 +1817,7 @@ class CommunicationIngestionPipeline:
                         "recipient": recipient,
                         "subject": msg.get("subject", ""),
                         "content": msg.get("body", ""),
-                        "content_type": "text",
+                        "content_type": msg.get("body_content_type", "text"),
                         "attachments": attachments,
                         "metadata": {
                             "thread_id": msg.get("threadId"),
@@ -1608,17 +1874,36 @@ class CommunicationIngestionPipeline:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Build filter for messages since last fetch
                 params = {"$top": 50}
+                max_fetches = 5
                 if last_fetch:
                     # Graph OData requires UTC 'Z' format — a bare isoformat()
                     # (no timezone marker) returns 400 InvalidFilter, which
                     # silently broke every incremental poll after the first.
                     ts = last_fetch.strftime("%Y-%m-%dT%H:%M:%SZ")
                     params["$filter"] = f"receivedDateTime gt {ts}"
+                else:
+                    # Initial sync: ingest a user-configurable history window
+                    # (default 3 months) instead of only the newest page.
+                    try:
+                        from core.automation_settings import get_automation_settings
+
+                        history_days = get_automation_settings().get_initial_sync_days("outlook")
+                    except Exception:
+                        history_days = 90
+                    since = (datetime.now() - timedelta(days=history_days))
+                    ts = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    params["$filter"] = f"receivedDateTime ge {ts}"
+                    # Enough pages to walk the window in one pass; if it
+                    # truncates, the cursor advances only to the newest
+                    # message seen and the next poll resumes the walk.
+                    max_fetches = 40
+                    logger.info(
+                        f"Outlook initial sync: fetching {history_days} days of history"
+                    )
 
                 # Pagination support
                 next_link = None
                 fetch_count = 0
-                max_fetches = 5  # Prevent infinite loops
 
                 while fetch_count < max_fetches:
                     try:
@@ -1797,15 +2082,45 @@ class CommunicationIngestionPipeline:
         
         # Email normalization
         elif app_type in [CommunicationAppType.EMAIL.value, CommunicationAppType.GMAIL.value, CommunicationAppType.OUTLOOK.value]:
+            # Field-name fallbacks: the Outlook poller (_fetch_outlook_messages)
+            # emits sender/sender_email/recipient/content/timestamp/direction,
+            # while other email sources use from/to/body/date. Without the
+            # fallbacks the poller's messages were stored with EMPTY
+            # sender/recipient/content (and meaningless embeddings) — the same
+            # bug class that hit Telegram.
+            sender = (
+                message_data.get("from")
+                or message_data.get("sender_email")
+                or message_data.get("sender")
+            )
+            recipient = message_data.get("to") or message_data.get("recipient")
+            content = (
+                message_data.get("body")
+                or message_data.get("content")
+                or ""
+            )
+            if str(message_data.get("content_type", "")).lower() == "html":
+                content = _html_to_text(content)
+            ts_raw = message_data.get("date") or message_data.get("timestamp")
+            timestamp = (
+                ts_raw
+                if isinstance(ts_raw, datetime)
+                else datetime.fromisoformat(
+                    ts_raw or datetime.now().isoformat()
+                )
+            )
+            direction = message_data.get("direction") or (
+                "outbound" if message_data.get("from") == "user" else "inbound"
+            )
             return {
                 "id": message_data.get("id", f"email_{datetime.now().isoformat()}"),
                 "app_type": app_type,
-                "timestamp": datetime.fromisoformat(message_data.get("date", datetime.now().isoformat())),
-                "direction": "inbound" if message_data.get("from") != "user" else "outbound",
-                "sender": message_data.get("from"),
-                "recipient": message_data.get("to"),
+                "timestamp": timestamp,
+                "direction": direction,
+                "sender": sender,
+                "recipient": recipient,
                 "subject": message_data.get("subject"),
-                "content": message_data.get("body", ""),
+                "content": content,
                 "attachments": message_data.get("attachments", []),
                 "metadata": {
                     "message_id": message_data.get("message_id"),

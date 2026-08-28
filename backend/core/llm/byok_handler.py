@@ -57,6 +57,14 @@ from core.llm_call_tracker import get_llm_call_tracker
 _CREDENTIAL_LOOP: Optional["asyncio.AbstractEventLoop"] = None
 _CREDENTIAL_LOOP_LOCK = threading.Lock()
 
+# Reasoning models reject the ``logprobs`` kwarg outright ("logprobs are not
+# supported with reasoning models"), so a soft-SC request to one ALWAYS fails
+# and then pays the retry. Cache that verdict per provider/model after the
+# first rejection so later calls skip the doomed attempt entirely — in a
+# ranking cascade over several models this removes one failed network
+# round-trip per structured call.
+_LOGPROBS_UNSUPPORTED: set = set()
+
 
 def _run_coroutine_sync(coro, timeout: float = 15.0):
     """Run ``coro`` synchronously from sync code — safe with or without a
@@ -1921,7 +1929,15 @@ class BYOKHandler:
                     except Exception:
                         pass  # Cache unavailable — allow the model (best-effort)
 
-                if "*" in allowed_models or model in allowed_models:
+                # Substring approval, mirroring is_model_approved() in the BPC
+                # path: the tier allowlists carry short names ("claude-3-haiku")
+                # while COST_EFFICIENT_MODELS carries dated variants
+                # ("claude-3-haiku-20240307"). Exact membership matched nothing,
+                # so a free-plan tenant got zero ranked models whenever BPC was
+                # unavailable (pricing cache down / cache-router failure).
+                if "*" in allowed_models or any(
+                    m.lower() in model.lower() for m in allowed_models
+                ):
                     ranked_options.append((provider_id, model))
                     
         # Phase 68-Q: Boost Qwen to top if available and requested
@@ -3534,14 +3550,17 @@ class BYOKHandler:
                         temperature=temperature,
                         max_tokens=1000,
                     )
-                    if _soft_sc_on:
+                    _logprobs_key = f"{provider_id}/{model}"
+                    if _soft_sc_on and _logprobs_key not in _LOGPROBS_UNSUPPORTED:
                         _create_kwargs["logprobs"] = True
                     try:
                         result = instructor_client.chat.completions.create(**_create_kwargs)
                     except Exception as _soft_exc:
-                        if not _soft_sc_on:
+                        if not _soft_sc_on or "logprobs" not in _create_kwargs:
                             raise
                         _create_kwargs.pop("logprobs", None)
+                        if "logprobs are not supported" in str(_soft_exc).lower():
+                            _LOGPROBS_UNSUPPORTED.add(_logprobs_key)
                         logger.warning(
                             f"soft-SC logprobs request failed for {provider_id}/{model} "
                             f"({_soft_exc}); retrying once without logprobs"

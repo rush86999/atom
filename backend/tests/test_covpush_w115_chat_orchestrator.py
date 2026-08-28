@@ -166,17 +166,40 @@ class TestEmitAgentStep:
         with patch("core.websockets.get_connection_manager") as gm:
             manager = gm.return_value
             manager.broadcast_event = AsyncMock()
-            await orch._emit_agent_step(2, "think", "act", "obs")
+            await orch._emit_agent_step("s1", "system_orchestrator", "exec-1", {
+                "step": 2, "thought": "think", "action": "act", "output": "obs",
+            })
             manager.broadcast_event.assert_awaited_once()
             kwargs = manager.broadcast_event.await_args
             assert kwargs.args[1] == "agent_step_update"
-            assert kwargs.args[2]["agent_id"] == "system_orchestrator"
+            payload = kwargs.args[2]
+            assert payload["agent_id"] == "system_orchestrator"
+            assert payload["execution_id"] == "exec-1"
+            assert payload["session_id"] == "s1"
+            # `output` from the meta-agent is normalized to `observation`
+            # (with the original key kept) for the workspace UI.
+            assert payload["step"]["observation"] == "obs"
+            assert payload["step"]["output"] == "obs"
+            assert payload["step"]["session_id"] == "s1"
+
+    async def test_status_emit(self):
+        orch = _make_orch()
+        with patch("core.websockets.get_connection_manager") as gm:
+            manager = gm.return_value
+            manager.broadcast_event = AsyncMock()
+            await orch._emit_agent_status("s1", "atom_main", "exec-1", "running")
+            manager.broadcast_event.assert_awaited_once()
+            kwargs = manager.broadcast_event.await_args
+            assert kwargs.args[1] == "agent_status_change"
+            assert kwargs.args[2]["status"] == "running"
+            assert kwargs.args[2]["execution_id"] == "exec-1"
 
     async def test_failure_swallowed(self):
         orch = _make_orch()
         with patch("core.websockets.get_connection_manager",
                    side_effect=RuntimeError("ws down")):
-            await orch._emit_agent_step(1, "t", "a", "o")
+            await orch._emit_agent_step("s1", "system_orchestrator", None, {"step": 1})
+            await orch._emit_agent_status("s1", "atom_main", None, "failed")
 
 
 class TestProcessChatMessage:
@@ -1198,8 +1221,11 @@ class TestAgentRequestHandler:
 
     async def test_success(self):
         orch = _make_orch()
+        orch._emit_agent_step = AsyncMock()
+        orch._emit_agent_status = AsyncMock()
         fake = self._fake_atom({
             "final_output": "Done!", "actions_executed": [{"a": 1}], "spawned_agent": None,
+            "execution_id": "exec-9",
         })
         with patch.dict(sys.modules, {"core.atom_meta_agent": fake}):
             result = await orch._handle_agent_request(
@@ -1215,10 +1241,44 @@ class TestAgentRequestHandler:
         assert execute.await_args.kwargs["trigger_mode"] == "manual"
         assert execute.await_args.kwargs["context"]["user_id"] == "u1"
         assert execute.await_args.kwargs["context"]["extra"] == 1
+        # Live trace: a step_callback is wired and the run is bracketed by
+        # running → success lifecycle broadcasts.
+        assert callable(execute.await_args.kwargs["step_callback"])
+        statuses = [c.args[3] for c in orch._emit_agent_status.await_args_list]
+        assert statuses == ["running", "success"]
+        assert orch._emit_agent_status.await_args_list[-1].args[2] == "exec-9"
+
+    async def test_step_callback_streams_normalized_steps(self):
+        orch = _make_orch()
+        orch._emit_agent_step = AsyncMock()
+        orch._emit_agent_status = AsyncMock()
+        captured = {}
+
+        async def execute_side_effect(**kwargs):
+            captured["callback"] = kwargs["step_callback"]
+            await kwargs["step_callback"]({
+                "step": 1, "thought": "t", "action": "a",
+                "output": "o", "execution_id": "exec-7",
+            })
+            return {"final_output": "ok", "execution_id": "exec-7"}
+
+        fake = self._fake_atom(None)
+        fake.get_atom_agent.return_value.execute = AsyncMock(side_effect=execute_side_effect)
+        with patch.dict(sys.modules, {"core.atom_meta_agent": fake}):
+            await orch._handle_agent_request(
+                "do a thing", _intent(co.ChatIntent.AGENT_REQUEST),
+                {"id": "s1", "user_id": "u1"}, None,
+            )
+        orch._emit_agent_step.assert_awaited_once_with("s1", "atom_main", "exec-7", {
+            "step": 1, "thought": "t", "action": "a",
+            "output": "o", "execution_id": "exec-7",
+        })
 
     async def test_budget_failure_propagated(self):
         orch = _make_orch()
-        fake = self._fake_atom({"final_output": None, "failure_reason": "cost cap"})
+        orch._emit_agent_step = AsyncMock()
+        orch._emit_agent_status = AsyncMock()
+        fake = self._fake_atom({"final_output": None, "failure_reason": "cost cap", "execution_id": "exec-2"})
         with patch.dict(sys.modules, {"core.atom_meta_agent": fake}):
             result = await orch._handle_agent_request(
                 "big job", _intent(co.ChatIntent.AGENT_REQUEST), {"id": "s1"}, None,
@@ -1227,9 +1287,13 @@ class TestAgentRequestHandler:
         assert result["success"] is False
         assert result["error_code"] == "budget_exceeded"
         assert result["failure_reason"] == "cost cap"
+        statuses = [c.args[3] for c in orch._emit_agent_status.await_args_list]
+        assert statuses == ["running", "failed"]
 
     async def test_exception(self):
         orch = _make_orch()
+        orch._emit_agent_step = AsyncMock()
+        orch._emit_agent_status = AsyncMock()
         fake = types.ModuleType("core.atom_meta_agent")
         fake.AgentTriggerMode = SimpleNamespace(MANUAL="manual")
         fake.get_atom_agent = MagicMock(side_effect=RuntimeError("atom down"))
@@ -1239,6 +1303,10 @@ class TestAgentRequestHandler:
             )
         assert result["status"] == "error"
         assert result["error"] == "agent_request_failed"
+        # get_atom_agent() itself raised before the running broadcast, so only
+        # the terminal failed status is emitted from the except path.
+        statuses = [c.args[3] for c in orch._emit_agent_status.await_args_list]
+        assert statuses == ["failed"]
 
 
 class TestCancellation:

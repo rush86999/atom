@@ -1,6 +1,7 @@
 const mockFetch = jest.fn();
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import jiraIssuesHandler from "@/pages/api/integrations/jira/issues";
 import jiraProjectsHandler from "@/pages/api/integrations/jira/projects";
 import linearIssuesHandler from "@/pages/api/integrations/linear/issues";
@@ -32,7 +33,7 @@ const runProxySuite = (
   failureMessage: string,
 ) => {
   describe(describeName, () => {
-    const invoke = async (method = "GET", query: any = {}, body?: any) => {
+    const invoke = async (method: RequestMethod = "GET", query: any = {}, body?: any) => {
       const { req, res } = createMocks({ method, query, body }) as any;
       await handler(req, res);
       return res;

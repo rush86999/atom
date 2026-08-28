@@ -616,7 +616,7 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
                 const result = await response.json();
 
                 if (result.data && result.data.skills) {
-                    const agentSkills: Piece[] = result.data.skills.map((s: any) => ({
+                    const agentSkills: Piece[] = result.data.skills.map((s: any): Piece => ({
                         id: `agent_skill_${s.skill_id}`,
                         name: s.skill_name || s.skill_id,
                         icon: Zap, // Default icon for Agent Skills

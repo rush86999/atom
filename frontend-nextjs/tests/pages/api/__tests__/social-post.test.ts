@@ -4,6 +4,7 @@ jest.mock("next-auth/next", () => ({ getServerSession: mockGetServerSession }));
 jest.mock("@/pages/api/auth/[...nextauth]", () => ({ authOptions: { providers: [] } }));
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/social/post";
 
 const mockFetch = jest.fn();
@@ -23,7 +24,7 @@ describe("pages/api/social/post", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  const invoke = async (method = "POST", body: any = {}, session: any = mockSession) => {
+  const invoke = async (method: RequestMethod = "POST", body: any = {}, session: any = mockSession) => {
     mockGetServerSession.mockResolvedValue(session);
     const { req, res } = createMocks({ method, body }) as any;
     await handler(req, res);

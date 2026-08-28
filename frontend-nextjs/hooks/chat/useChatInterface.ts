@@ -21,6 +21,9 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
     const [pendingApproval, setPendingApproval] = useState<{ action_id: string; tool: string; reason: string } | null>(null);
     const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
     const [sessionTitle, setSessionTitle] = useState("Current Session");
+    // The hire this chat is scoped to (from ?agent_id=…). Surfaced in the UI
+    // so the user can always see WHO they're talking to.
+    const [chatAgent, setChatAgent] = useState<{ name: string; category: string | null; status: string | null } | null>(null);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [tempTitle, setTempTitle] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -437,6 +440,32 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         setMessages(prev => [...prev, stopMsg]);
     };
 
+    // Resolve the hire this chat is scoped to (?agent_id=…) for the identity
+    // bar — independent of the welcome effect so restored sessions show it too.
+    useEffect(() => {
+        if (!initialAgentId) {
+            setChatAgent(null);
+            return;
+        }
+        let cancelled = false;
+        import('../../lib/api-client').then(({ apiClient }) => {
+            apiClient.get(`/api/agents/${initialAgentId}`, {
+                timeout: 5000,
+                // @ts-ignore
+                retry: false
+            })
+                .then((resp: any) => {
+                    if (cancelled) return;
+                    const a = resp?.data?.data ?? resp?.data;
+                    const name = a?.display_name || a?.name;
+                    if (!name) return;
+                    setChatAgent({ name, category: a?.category ?? null, status: a?.status ?? null });
+                })
+                .catch(() => { /* identity bar stays hidden */ });
+        });
+        return () => { cancelled = true; };
+    }, [initialAgentId]);
+
     useEffect(() => {
         if (sessionId && sessionId !== "new") {
             // BUG-106: Clear messages immediately so the previous session's
@@ -465,8 +494,38 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 }
             ]);
             setSessionTitle("New Chat");
+            // Chatting WITH a hire: greet as that employee, not the generic
+            // platform assistant. Falls back to the generic welcome if the
+            // agent can't be fetched.
+            if (initialAgentId) {
+                let cancelled = false;
+                import('../../lib/api-client').then(({ apiClient }) => {
+                    apiClient.get(`/api/agents/${initialAgentId}`, {
+                        timeout: 5000,
+                        // @ts-ignore
+                        retry: false
+                    })
+                        .then((resp: any) => {
+                            if (cancelled) return;
+                            const a = resp?.data?.data ?? resp?.data;
+                            const name = a?.display_name || a?.name;
+                            if (!name) return;
+                            const role = a?.category ? `${a.category} ` : "";
+                            setMessages([
+                                {
+                                    id: "welcome",
+                                    type: "assistant",
+                                    content: `Hello! I'm ${name}, your ${role}hire. How can I help you today?`,
+                                    timestamp: new Date(),
+                                }
+                            ]);
+                        })
+                        .catch(() => { /* keep generic welcome */ });
+                });
+                return () => { cancelled = true; };
+            }
         }
-    }, [sessionId]);
+    }, [sessionId, initialAgentId]);
 
     useEffect(() => {
         scrollToBottom();
@@ -483,17 +542,29 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         const msg = lastMessage as any;
 
         if (msg.type === "agent_step_update") {
+            // Emitters disagree on envelope: agent_routes broadcasts flat
+            // {step: {...}}, the chat orchestrator wraps in {data: {...}}.
+            // Only nested-object steps are appended; a bare number/absent
+            // step would otherwise append junk {step: 1} entries.
+            const payload = msg.data ?? msg;
+            const rawStep = payload?.step && typeof payload.step === "object" ? payload.step : null;
+            if (!rawStep) return;
+
+            // Ignore runs belonging to a different chat session
+            const evtSession = payload.session_id ?? rawStep.session_id;
+            if (evtSession && sessionId && evtSession !== sessionId) return;
+
             const step: ReasoningStep = {
-                step: msg.step?.step || 1,
-                thought: msg.step?.thought,
-                action: msg.step?.action,
-                observation: msg.step?.output,
-                final_answer: msg.step?.final_answer,
+                step: rawStep.step || 1,
+                thought: rawStep.thought,
+                action: rawStep.action,
+                observation: rawStep.observation ?? rawStep.output,
+                final_answer: rawStep.final_answer,
             };
 
-            if (msg.step?.action) {
-                setStatusMessage(`Executing ${msg.step.action.tool}...`);
-            } else if (msg.step?.thought) {
+            if (rawStep.action) {
+                setStatusMessage(`Executing ${rawStep.action.tool ?? rawStep.action}...`);
+            } else if (rawStep.thought) {
                 setStatusMessage("Thinking...");
             }
 
@@ -547,7 +618,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         if (msg.type === "streaming:start") {
             setCurrentStreamId(msg.id);
         }
-    }, [lastMessage, currentStreamId]);
+    }, [lastMessage, currentStreamId, sessionId]);
 
     return {
         input,
@@ -557,6 +628,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         messages,
         pendingApproval,
         sessionTitle,
+        chatAgent,
         isEditingTitle,
         setIsEditingTitle,
         tempTitle,

@@ -45,6 +45,15 @@ export interface TrainingCompletionResult {
   [key: string]: unknown;
 }
 
+/** Linked work evidence for a training session (backend-derived). */
+export interface SessionEvidence {
+  episodes: number;
+  successes: number;
+  success_ratio: number;
+  window_started_at: string | null;
+  required_episodes: number;
+}
+
 export interface ActionProposal {
   id: string;
   tenant_id?: string | null;
@@ -138,14 +147,27 @@ export async function rejectTrainingProposal(
   if (!res.ok) throw new Error(`Reject failed (${res.status})`);
 }
 
+/** Live linked-evidence counts for a training session. */
+export async function getTrainingSessionEvidence(
+  sessionId: string
+): Promise<SessionEvidence> {
+  const res = await fetchJson(
+    `/api/maturity/training/sessions/${sessionId}/evidence`
+  );
+  if (!res.ok) throw new Error(`Evidence fetch failed (${res.status})`);
+  return res.json();
+}
+
 export async function completeTrainingSession(
   sessionId: string,
   input: {
-    performance_score: number;
+    /** Supervisor's claimed score — the backend caps it by linked evidence. */
+    performance_score?: number;
     supervisor_feedback: string;
-    errors_count: number;
-    tasks_completed: number;
-    total_tasks: number;
+    errors_count?: number;
+    /** Ignored by the backend: task progress comes from the episode ledger. */
+    tasks_completed?: number;
+    total_tasks?: number;
     capabilities_developed?: string[];
     capability_gaps_remaining?: string[];
   }
@@ -162,7 +184,20 @@ export async function completeTrainingSession(
       }),
     }
   );
-  if (!res.ok) throw new Error(`Complete failed (${res.status})`);
+  if (!res.ok) {
+    // Surface the backend's structured reason (e.g. insufficient linked
+    // evidence) instead of a bare status code.
+    let message = `Complete failed (${res.status})`;
+    try {
+      const body = await res.json();
+      const detail = body?.detail;
+      if (typeof detail === 'string') message = detail;
+      else if (detail?.message) message = detail.message;
+    } catch {
+      // non-JSON error body — keep the generic message
+    }
+    throw new Error(message);
+  }
   return res.json();
 }
 

@@ -35,7 +35,8 @@ export {
 } from './handlers';
 
 // Re-export MSW utilities for convenience
-export { rest, RestHandler, DefaultRequestBodyType } from 'msw';
+export { rest, RestHandler } from 'msw';
+export type { DefaultBodyType } from 'msw';
 
 // Default export is the server instance
 export { default } from './server';

@@ -3,7 +3,7 @@ const mockGetServerSession = jest.fn();
 jest.mock("next-auth/next", () => ({ getServerSession: mockGetServerSession }));
 jest.mock("@/pages/api/auth/[...nextauth]", () => ({ authOptions: { providers: [] } }));
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/projects/competitor-analysis";
 
 const mockFetch = jest.fn();
@@ -25,7 +25,7 @@ describe("pages/api/projects/competitor-analysis", () => {
 
   const invoke = async (method = "POST", body: any = {}, session: any = mockSession) => {
     mockGetServerSession.mockResolvedValue(session);
-    const { req, res } = createMocks({ method, body }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, body }) as any;
     await handler(req, res);
     return res;
   };

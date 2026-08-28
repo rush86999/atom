@@ -29,7 +29,11 @@
  * @module tests/mocks/scenarios/retry-scenarios
  */
 
-import { rest, ResponseTransformer, RequestParams } from 'msw';
+import { rest, ResponseTransformer } from 'msw';
+
+// `RequestParams` is no longer exported by msw; alias it locally to keep the
+// handler signatures unchanged.
+type RequestParams = any;
 
 /**
  * Creates a flaky endpoint that fails N times before succeeding

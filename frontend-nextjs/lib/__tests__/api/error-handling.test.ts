@@ -22,6 +22,17 @@ import apiClient, { systemAPI } from '@/lib/api';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
 
+// Jest 30's types only allow one argument for `toBe`, but Jest itself ignores
+// an optional custom failure message. Widen the matcher type accordingly.
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace jest {
+    interface Matchers<R, T = {}> {
+      toBe<E = any>(expected: E, message?: string): R;
+    }
+  }
+}
+
 // The apiClient retry interceptor calls retry() from @lifeomic/attempt with
 // exponential backoff on retryable (5xx/network) errors. Swap it for an
 // immediate single attempt so 503/500 scenarios don't sleep through the
@@ -217,7 +228,7 @@ describe('API Error Handling - Network Failures', () => {
     it('should allow user to retry manually after DNS failure', async () => {
       let callCount = 0;
 
-      const customClient = Object.assign({}, apiClient);
+      const customClient = Object.assign({}, apiClient) as { get: (...args: any[]) => any };
       customClient.get = async (url: string) => {
         callCount++;
         if (callCount === 1) {
@@ -383,7 +394,8 @@ describe('API Error Handling - Network Failures', () => {
   describe('5. Request Abortion', () => {
     it('should handle request abortion when user navigates away', async () => {
       const abortController = new AbortController();
-      const abortClient = Object.assign({}, apiClient);
+      // The mocked `get` resolves a plain object, not the axios generic signature.
+      const abortClient = Object.assign({}, apiClient) as { get: (...args: any[]) => any };
 
       abortClient.get = async () => {
         // Simulate user navigating away

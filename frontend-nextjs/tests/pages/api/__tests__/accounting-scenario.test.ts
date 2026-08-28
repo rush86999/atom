@@ -1,4 +1,5 @@
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/accounting/scenario";
 
 const mockFetch = jest.fn();
@@ -20,7 +21,7 @@ describe("pages/api/accounting/scenario", () => {
     delete process.env.NEXT_PUBLIC_API_URL;
   });
 
-  const invoke = async (method = "POST", query: any = {}, headers: any = {}) => {
+  const invoke = async (method: RequestMethod = "POST", query: any = {}, headers: any = {}) => {
     const { req, res } = createMocks({ method, query, headers }) as any;
     await handler(req, res);
     return res;

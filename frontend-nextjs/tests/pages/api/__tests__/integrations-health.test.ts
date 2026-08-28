@@ -1,4 +1,4 @@
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 
 import asanaHealth from "@/pages/api/integrations/asana/health";
 import boxHealth from "@/pages/api/integrations/box/health";
@@ -22,7 +22,7 @@ const capitalize = (value: string) =>
 describe.each(providers)(
   "pages/api/integrations/%s/health",
   (provider, handler) => {
-    const invoke = async (httpMethod: string) => {
+    const invoke = async (httpMethod: RequestMethod) => {
       const { req, res } = createMocks({ method: httpMethod }) as any;
       await handler(req, res);
       return res;

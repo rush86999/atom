@@ -27,7 +27,7 @@ const errResponse = (status: number) => ({
 });
 
 const navigationErrors: string[] = [];
-const vc: any = window._virtualConsole;
+const vc = (window as any)._virtualConsole;
 if (vc && vc.on) {
   vc.on("jsdomError", (error: any) => {
     const message = String(error && (error.message || error));

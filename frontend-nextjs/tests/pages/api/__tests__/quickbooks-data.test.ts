@@ -1,6 +1,7 @@
 const mockFetch = jest.fn();
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import accountsHandler from "@/pages/api/quickbooks/accounts";
 import customersHandler from "@/pages/api/quickbooks/customers";
 import expensesHandler from "@/pages/api/quickbooks/expenses";
@@ -33,7 +34,7 @@ const runProxySuite = (
   failureMessage: string,
 ) => {
   describe(describeName, () => {
-    const invoke = async (method = "GET", query: any = {}, body?: any) => {
+    const invoke = async (method: RequestMethod = "GET", query: any = {}, body?: any) => {
       const { req, res } = createMocks({ method, query, body }) as any;
       await handler(req, res);
       return res;

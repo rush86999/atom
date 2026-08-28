@@ -138,7 +138,7 @@ describe('ChatMessage actions', () => {
     { type: 'view_calendar', label: 'Calendar' },
     { type: 'view_template', label: 'Template' },
     { type: 'open_builder', label: 'Builder' },
-    { type: 'mystery_type', label: 'Custom' },
+    { type: 'mystery_type', label: 'Custom' } as any,
   ];
 
   it('renders an action button per action and invokes onActionClick', () => {

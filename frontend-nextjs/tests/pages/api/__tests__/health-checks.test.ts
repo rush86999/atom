@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import zoomHealthHandler from "@/pages/api/integrations/zoom/health";
 import nextjsHealthHandler from "@/pages/api/nextjs/health";
 import googleWorkspaceHealthHandler from "@/pages/api/integrations/google-workspace/health";
@@ -30,7 +30,7 @@ describe("pages/api/integrations/zoom/health", () => {
   afterEach(resetEnv);
 
   const invoke = async (method = "GET") => {
-    const { req, res } = createMocks({ method }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod }) as any;
     await zoomHealthHandler(req, res);
     return res;
   };
@@ -93,7 +93,7 @@ describe("pages/api/nextjs/health", () => {
   afterEach(resetEnv);
 
   const invoke = async (method = "GET") => {
-    const { req, res } = createMocks({ method }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod }) as any;
     await nextjsHealthHandler(req, res);
     return res;
   };

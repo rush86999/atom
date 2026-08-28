@@ -1,5 +1,6 @@
 // API client for ATOM platform frontend-backend integration
 import axios from "axios";
+import type { AxiosInstance, AxiosRequestHeaders } from "axios";
 import {
   getUserFriendlyErrorMessage,
   getErrorAction,
@@ -17,6 +18,12 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
 const API_TIMEOUT = 10000; // 10 seconds
 const MAX_RETRIES = 3;
 
+// The shared instance gets a fetch-style helper patched on below, so its type
+// includes it (callers such as lib/boards-api.ts use apiClient.fetch(...)).
+type ApiClientWithFetch = AxiosInstance & {
+  fetch: (url: string, init?: RequestInit) => Promise<Response>;
+};
+
 // Create axios instance with default configuration
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -24,7 +31,7 @@ export const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-});
+}) as ApiClientWithFetch;
 
 // Request interceptor for adding auth tokens if available
 apiClient.interceptors.request.use(
@@ -88,9 +95,9 @@ apiClient.interceptors.response.use(
           minDelay: 500,
           maxDelay: 10000,
           timeout: API_TIMEOUT,
-          handleError: (attemptError: any) => {
+          handleError: ((attemptError: any) => {
             return isRetryableError(attemptError);
-          },
+          }) as (err: any) => void, // @lifeomic/attempt types handleError as a void hook; its (ignored) boolean result isn't part of the contract
           beforeAttempt: (context: any) => {
             if (context.attemptNum > 1) {
               console.log(`Retry attempt ${context.attemptNum} of ${MAX_RETRIES}`);
@@ -152,7 +159,9 @@ apiClient.interceptors.response.use(
     const response = await apiClient.request({
       url,
       method: init.method || "GET",
-      headers: init.headers,
+      // fetch's HeadersInit and axios' AxiosRequestHeaders have no overlap, so
+      // cast through unknown; axios serializes records and header pairs fine.
+      headers: init.headers as unknown as AxiosRequestHeaders,
       data: init.body,
       signal: init.signal,
       responseType: "json",

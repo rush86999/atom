@@ -149,15 +149,23 @@ export default function CanvasDetailPage() {
 
         try {
             const { apiClient } = await import("../../lib/api-client");
+            // Expanded-from-chat canvases coordinate with the SAME agent and
+            // the SAME conversation: session keeps continuity, agent_id keeps
+            // the hire's persona, role-aware memory and tier behavior.
+            const fromChat = router.query.from === "chat";
+            const chatSessionId = (router.query.session as string) || (fromChat ? undefined : "new");
+            const agentId = (router.query.agent_id as string) || undefined;
             const resp = await apiClient.post("/api/chat/message", {
                 message: chatInput,
                 user_id: userId,
-                session_id: "new",
+                session_id: chatSessionId || "new",
+                agent_id: agentId,
                 context: {
                     current_page: `/canvas/${canvasId}`,
                     canvas_id: canvasId,
                     canvas_type: canvasData?.canvas_type,
                     canvas_content: canvasData?.content,
+                    agent_id: agentId,
                     conversation_history: messages.slice(-5).map(m => ({
                         role: m.type === "user" ? "user" : "assistant",
                         content: m.content,
@@ -232,6 +240,20 @@ export default function CanvasDetailPage() {
                 {/* Canvas header bar */}
                 <div className="flex items-center justify-between border-b px-4 py-2 shrink-0">
                     <div className="flex items-center gap-3">
+                        {router.query.from === "chat" && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                data-testid="canvas-back-to-chat"
+                                title={router.query.agent_id ? "Back to the agent chat" : "Back to chat"}
+                                onClick={() => {
+                                    const agentId = router.query.agent_id;
+                                    router.push(agentId ? `/chat?agent_id=${agentId}` : "/chat");
+                                }}
+                            >
+                                <ArrowLeft className="h-4 w-4 mr-1" /> Back to chat
+                            </Button>
+                        )}
                         <Link href="/canvas">
                             <Button variant="ghost" size="sm">
                                 <ArrowLeft className="h-4 w-4 mr-1" /> All Canvases

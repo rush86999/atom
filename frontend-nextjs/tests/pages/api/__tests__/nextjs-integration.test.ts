@@ -1,6 +1,7 @@
 const mockFetch = jest.fn();
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import analyticsHandler from "@/pages/api/integrations/nextjs/analytics";
 import buildsHandler from "@/pages/api/integrations/nextjs/builds";
 import deployHandler from "@/pages/api/integrations/nextjs/deploy";
@@ -32,7 +33,7 @@ afterEach(() => {
   delete process.env.NEXT_PUBLIC_API_BASE_URL;
 });
 
-const invoke = async (handler: any, body?: any, method = "POST"): Promise<any> => {
+const invoke = async (handler: any, body?: any, method: RequestMethod = "POST"): Promise<any> => {
   const { req, res } = createMocks({ method, body }) as any;
   await handler(req, res);
   return res;

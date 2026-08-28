@@ -46,7 +46,8 @@ describe('SessionPersistence', () => {
         });
       }
       return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
-    });
+    // The mocked responses are partial fetch Responses; cast to satisfy the fetch signature.
+    }) as unknown as typeof global.fetch;
   });
 
   const renderPersistence = (props: Record<string, any> = {}) =>

@@ -315,6 +315,98 @@ async def get_chat_history(
         raise HTTPException(status_code=500, detail="Failed to retrieve chat history")
 
 
+@router.get("/trace/{session_id}")
+async def get_session_agent_trace(
+    session_id: str,
+    limit: int = 10,
+    db: _Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Get the agent execution trace (runs + reasoning steps) for a chat session.
+
+    Powers the Agent Workspace panel's history restore: chat-triggered
+    meta-agent runs persist AgentReasoningStep rows and are joined back to
+    the session via AgentExecution.metadata_json["session_id"]. Ownership is
+    enforced the same way as /history/{session_id}; unknown sessions simply
+    have no runs and return an empty list.
+    """
+    from sqlalchemy import func
+    from core.models import AgentExecution, AgentReasoningStep
+
+    try:
+        known = chat_orchestrator.conversation_sessions.get(session_id)
+        if known is not None and not _ensure_session_access(known, current_user):
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        limit = max(1, min(limit, 50))
+        executions = (
+            db.query(AgentExecution)
+            .filter(
+                func.json_extract(AgentExecution.metadata_json, '$.session_id')
+                == session_id
+            )
+            .order_by(AgentExecution.started_at.desc())
+            .limit(limit)
+            .all()
+        )
+        if not executions:
+            return {"runs": [], "session_id": session_id}
+
+        execution_ids = [e.id for e in executions]
+        steps = (
+            db.query(AgentReasoningStep)
+            .filter(AgentReasoningStep.execution_id.in_(execution_ids))
+            .order_by(AgentReasoningStep.step_number.asc())
+            .all()
+        )
+        steps_by_execution: Dict[str, list] = {}
+        for s in steps:
+            action_value = s.action
+            action_input = ""
+            if isinstance(action_value, dict):
+                action_input = str(action_value.get("params") or "")
+                action_value = str(action_value.get("tool") or action_value)
+            steps_by_execution.setdefault(s.execution_id, []).append({
+                "step_number": s.step_number,
+                "step_type": s.step_type,
+                "thought": s.thought,
+                "action": action_value if isinstance(action_value, str) else (str(action_value) if action_value else ""),
+                "action_input": action_input,
+                "observation": s.observation,
+                "confidence": s.confidence,
+                "verified": s.verified,
+                "verification_evidence": s.verification_evidence,
+                "duration_ms": s.duration_ms,
+                "resolved_model": s.resolved_model,
+                "feedback_score": s.feedback_score,
+                "feedback_text": s.feedback_text,
+                "timestamp": s.timestamp.isoformat() if s.timestamp else None,
+            })
+
+        runs = [
+            {
+                "execution_id": e.id,
+                "agent_id": e.agent_id,
+                "status": e.status,
+                "triggered_by": e.triggered_by,
+                "input_summary": e.input_summary,
+                "started_at": e.started_at.isoformat() if e.started_at else None,
+                "completed_at": e.completed_at.isoformat() if e.completed_at else None,
+                "duration_seconds": e.duration_seconds,
+                "steps": steps_by_execution.get(e.id, []),
+            }
+            for e in executions
+        ]
+        return {"runs": runs, "session_id": session_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve agent trace for session {session_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve agent trace")
+
+
 @router.get("/sessions")
 async def get_user_sessions(
     user_id: Optional[str] = "demo-user",

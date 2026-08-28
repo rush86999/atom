@@ -14,6 +14,10 @@
  */
 
 import { browser, $, $$ } from '@wdio/globals';
+// Type-only imports: loading webdriverio's global `WebdriverIO` namespace merges the
+// full command interface into the empty `WebdriverIO.Browser` declared by @wdio/globals.
+import type {} from 'webdriverio';
+import type { Cookie } from '@wdio/protocols';
 
 export class TauriDriver {
   /**
@@ -207,7 +211,7 @@ export class TauriDriver {
    * @param args - Arguments to pass to script
    * @returns Script result
    */
-  async executeScript(script: string | Function, ...args: any[]): Promise<any> {
+  async executeScript(script: string | ((...cbArgs: any[]) => any), ...args: any[]): Promise<any> {
     return await browser.execute(script, ...args);
   }
 

@@ -23,7 +23,8 @@ describe('StepControls', () => {
   beforeEach(() => {
     global.fetch = jest.fn(() =>
       Promise.resolve({ ok: true, json: async () => ({ success: true }) })
-    );
+    // The mocked response is a partial fetch Response; cast to satisfy the fetch signature.
+    ) as unknown as typeof global.fetch;
   });
 
   // Test 1: renders all five step action buttons with their labels

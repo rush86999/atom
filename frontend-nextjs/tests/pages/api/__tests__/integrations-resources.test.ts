@@ -1,4 +1,4 @@
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 
 import asanaResources from "@/pages/api/integrations/asana/resources";
 import boxResources from "@/pages/api/integrations/box/resources";
@@ -43,7 +43,7 @@ const capitalize = (value: string) =>
 describe.each(providers)(
   "pages/api/integrations/%s/resources",
   (provider, handler) => {
-    const invoke = async (httpMethod: string) => {
+    const invoke = async (httpMethod: RequestMethod) => {
       const { req, res } = createMocks({ method: httpMethod }) as any;
       await handler(req, res);
       return res;

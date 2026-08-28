@@ -529,15 +529,14 @@ class TestGatewayHelpersStandalone:
     def test_require_gateway_enabled_when_off(self):
         import core.llm.gateway.gateway_service as gs
 
-        old = gs.GATEWAY_ENABLED
-        gs.GATEWAY_ENABLED = False
-        try:
+        # require_gateway_enabled() consults the LIVE gateway_enabled()
+        # (env > runtime_settings DB row) — the GATEWAY_ENABLED module
+        # constant is an import-time snapshot no code path reads.
+        with patch("core.llm.gateway.gateway_service.gateway_enabled", return_value=False):
             with pytest.raises(HTTPException) as ei:
                 gs.require_gateway_enabled()
-            assert ei.value.status_code == 404
-            assert "Gateway disabled" in ei.value.detail
-        finally:
-            gs.GATEWAY_ENABLED = old
+        assert ei.value.status_code == 404
+        assert "Gateway disabled" in ei.value.detail
 
     def test_get_user_or_none(self):
         import core.llm.gateway.gateway_service as gs

@@ -189,7 +189,7 @@ describe('Canvas State Lifecycle Tests', () => {
           canvas_id: canvasId,
           canvas_type: canvasType,
           timestamp: timestamps[0]
-        };
+        } as any; // fc generates all 7 CanvasTypes, but AnyCanvasState only models 3 of them.
 
         mockCanvasStates.set(canvasId, initialState);
         mockSubscribers.get(canvasId)?.forEach((callback) => callback(initialState));
@@ -200,7 +200,7 @@ describe('Canvas State Lifecycle Tests', () => {
             canvas_id: canvasId, // Must remain the same
             canvas_type: canvasType,
             timestamp
-          };
+          } as any;
 
           mockCanvasStates.set(canvasId, updatedState);
           mockSubscribers.get(canvasId)?.forEach((callback) => callback(updatedState));
@@ -383,7 +383,7 @@ describe('Canvas State Lifecycle Tests', () => {
           canvas_id: canvasId,
           canvas_type: canvasType,
           timestamp: '2024-01-01T00:00:00Z'
-        };
+        } as any;
         mockSubscribers.get(canvasId)?.forEach((cb) => cb(state1));
 
         const countBeforeUnsubscribe = updateCount;
@@ -397,8 +397,8 @@ describe('Canvas State Lifecycle Tests', () => {
         const state2: AnyCanvasState = {
           canvas_id: canvasId,
           canvas_type: canvasType,
-          timestamp: '2024-01-01T00:01:00Z'
-        };
+          timestamp: '2024-01-01T00:00:00Z'
+        } as any;
         mockSubscribers.get(canvasId)?.forEach((cb) => cb(state2));
 
         // Update count should not change after unsubscribe
@@ -758,7 +758,7 @@ describe('Canvas State Consistency Tests', () => {
             canvas_id: canvasId,
             canvas_type: canvasType,
             timestamp
-          };
+          } as any;
 
           mockCanvasStates.set(canvasId, state);
           mockSubscribers.get(canvasId)?.forEach((cb) => cb(state));
@@ -796,7 +796,7 @@ describe('Canvas State Consistency Tests', () => {
             canvas_id: canvasId,
             canvas_type: canvasType,
             timestamp
-          };
+          } as any;
 
           mockCanvasStates.set(canvasId, state);
         });
@@ -1028,7 +1028,7 @@ describe('Global Canvas Subscription Tests', () => {
           canvas_id: specificCanvasId,
           canvas_type: canvasType,
           timestamp: '2024-01-01T00:00:00Z'
-        };
+        } as any;
         mockSubscribers.get(specificCanvasId)?.forEach((cb) => cb(specificState));
         mockGlobalSubscribers.forEach((cb) => {
           cb({
@@ -1100,7 +1100,7 @@ describe('Global Canvas Subscription Tests', () => {
           canvas_id: canvasId,
           canvas_type: canvasType,
           timestamp: '2024-01-01T00:00:00Z'
-        };
+        } as any;
         mockSubscribers.get(canvasId)?.forEach((cb) => cb(state));
 
         // Specific subscription should still work

@@ -33,7 +33,11 @@ import AgentWorkflowGenerator from '../AgentWorkflowGenerator';
 jest.mock('@/components/ui/use-toast', () => {
   const mockToast = jest.fn();
   return {
-    useToast: () => ({ toast: mockToast, dismiss: jest.fn(), toasts: [] }),
+    useToast: (): { toast: jest.Mock; dismiss: jest.Mock; toasts: unknown[] } => ({
+      toast: mockToast,
+      dismiss: jest.fn(),
+      toasts: [],
+    }),
     ToastProvider: ({ children }: any) => children,
     __mockToast: mockToast,
   };
@@ -128,6 +132,8 @@ describe('AgentWorkflowGenerator', () => {
     ttsApi().speak.mockClear();
     ttsApi().stop.mockClear();
     ttsApi().isSpeaking = false;
+    // Agent voice is opt-in and persisted; start each test muted.
+    window.localStorage.removeItem('atom_agent_autoread');
   });
 
   // ------------------------------------------------------------------
@@ -335,6 +341,8 @@ describe('AgentWorkflowGenerator', () => {
   });
 
   it('speaks the agent response when auto-read is enabled', async () => {
+    // Agent voice is opt-in: the persisted preference turns it on.
+    window.localStorage.setItem('atom_agent_autoread', '1');
     fetchSpy.mockResolvedValueOnce(jsonResponse(governanceAgents));
     fetchSpy.mockResolvedValueOnce(jsonResponse(generatedWorkflow));
     render(<AgentWorkflowGenerator />);
@@ -641,30 +649,32 @@ describe('AgentWorkflowGenerator', () => {
   // Voice toggle
   // ------------------------------------------------------------------
   it('toggles the agent voice and stops speech when muting', async () => {
+    // Voice ships muted (opt-in): the toggle first enables it.
     const { rerender } = render(<AgentWorkflowGenerator />);
     await selectSalesAgent();
 
-    const toggle = screen.getByTitle('Mute Agent Voice');
-    expect(screen.getByText('Voice On')).toBeInTheDocument();
-
-    fireEvent.click(toggle);
     expect(screen.getByTitle('Enable Agent Voice')).toBeInTheDocument();
     expect(screen.getByText('Voice Off')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle('Enable Agent Voice'));
+    expect(screen.getByTitle('Mute Agent Voice')).toBeInTheDocument();
+    expect(screen.getByText('Voice On')).toBeInTheDocument();
     expect(ttsApi().stop).not.toHaveBeenCalled();
 
     // with speech active, muting stops the current utterance; re-render so
     // the click handler closure picks up the fresh isSpeaking value
     ttsApi().isSpeaking = true;
     rerender(<AgentWorkflowGenerator />);
-    fireEvent.click(screen.getByTitle('Enable Agent Voice'));
+    fireEvent.click(screen.getByTitle('Mute Agent Voice'));
     expect(ttsApi().stop).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('Voice On')).toBeInTheDocument();
+    expect(screen.getByText('Voice Off')).toBeInTheDocument();
   });
 
   it('does not speak when auto-read is disabled', async () => {
+    // Default state: voice off — nothing is spoken even after a run.
     render(<AgentWorkflowGenerator />);
     await selectSalesAgent();
-    fireEvent.click(screen.getByTitle('Mute Agent Voice'));
+    expect(screen.getByTitle('Enable Agent Voice')).toBeInTheDocument();
 
     fetchSpy.mockResolvedValueOnce(jsonResponse(generatedWorkflow));
     typePrompt('quiet build');

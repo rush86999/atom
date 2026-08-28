@@ -309,25 +309,79 @@ class ChatOrchestrator:
         except Exception as e:
             logger.error(f"Failed to load persisted sessions: {e}")
 
-    async def _emit_agent_step(self, step: int, thought: str, action: str, observation: str):
-        """Emit an agent step update to the frontend via WebSockets"""
+    def _workspace_channels(self) -> list:
+        """Channels agent workspace events are broadcast to.
+
+        `workspace:default` is what the chat UI subscribes to; the
+        tenant-scoped channel keeps workspace-filtered listeners working.
+        """
+        channels = ["workspace:default"]
+        if self.tenant_id and self.tenant_id != "default":
+            channels.append(f"workspace:{self.tenant_id}")
+        return channels
+
+    @staticmethod
+    def _normalize_step_record(step_record: Dict) -> Dict:
+        """Normalize a ReAct step record to the shape the Agent Workspace renders.
+
+        The live emitters disagree on keys (AtomMetaAgent/GenericAgent use
+        `output`, the UI reads `observation`), so emit both and always stamp
+        execution/session identity for run grouping and session filtering.
+        """
+        step = dict(step_record or {})
+        observation = step.get("observation") or step.get("output") or ""
+        step.setdefault("action_input", "")
+        step["observation"] = observation
+        if not step.get("timestamp"):
+            step["timestamp"] = datetime.now().isoformat()
+        return step
+
+    async def _emit_agent_step(
+        self,
+        session_id: Optional[str],
+        agent_id: str,
+        execution_id: Optional[str],
+        step_record: Dict,
+    ):
+        """Stream one agent execution step to the workspace UI via WebSockets."""
         try:
             from core.websockets import get_connection_manager
             manager = get_connection_manager()
-            # Broadcast to default workspace channel for now
-            await manager.broadcast_event("workspace:default", "agent_step_update", {
-                "step": {
-                    "step": step,
-                    "thought": thought,
-                    "action": action,
-                    "action_input": "",
-                    "observation": observation,
-                    "timestamp": datetime.now().isoformat()
-                },
-                "agent_id": "system_orchestrator"
-            })
+            step = self._normalize_step_record(step_record)
+            step["execution_id"] = execution_id or step.get("execution_id")
+            step["session_id"] = session_id
+            payload = {
+                "step": step,
+                "agent_id": agent_id,
+                "execution_id": step["execution_id"],
+                "session_id": session_id,
+            }
+            for channel in self._workspace_channels():
+                await manager.broadcast_event(channel, "agent_step_update", payload)
         except Exception as e:
             logger.warning(f"Failed to emit agent step: {e}")
+
+    async def _emit_agent_status(
+        self,
+        session_id: Optional[str],
+        agent_id: str,
+        execution_id: Optional[str],
+        status: str,
+    ):
+        """Broadcast a run lifecycle event (running/success/failed) to the workspace UI."""
+        try:
+            from core.websockets import get_connection_manager
+            manager = get_connection_manager()
+            payload = {
+                "status": status,
+                "agent_id": agent_id,
+                "execution_id": execution_id,
+                "session_id": session_id,
+            }
+            for channel in self._workspace_channels():
+                await manager.broadcast_event(channel, "agent_status_change", payload)
+        except Exception as e:
+            logger.warning(f"Failed to emit agent status: {e}")
 
     def _initialize_feature_handlers(self):
         """Initialize handlers for all ATOM features"""
@@ -457,7 +511,8 @@ class ChatOrchestrator:
             # CRM write dispatch: when chatting AS a domain agent and the
             # message is a CRM mutation, execute it directly through the
             # Zoho adapter instead of hoping the LLM does it.
-            if agent_id and context and context.get("agent_id"):
+            _agent_id = (context or {}).get("agent_id")
+            if _agent_id:
                 _crm_result = await self._try_zoho_crm_write(message, context, user_id)
                 if _crm_result is not None:
                     return {
@@ -502,6 +557,40 @@ class ChatOrchestrator:
                 # silently absent, and feedback records a real model id.
                 used_model = "template"
                 used_provider = "template"
+
+            # Mentioned-file mini canvas: when the user refers to a specific
+            # file and data from it was actually ingested, open a canvas with
+            # the data preview for visual reference / editing / discussion.
+            try:
+                from core.agent_file_context import detect_file_mentions, lookup_file_records
+
+                for _filename in detect_file_mentions(message)[:1]:
+                    _lookup = lookup_file_records(
+                        resolve_user_workspace(user_id), _filename
+                    )
+                    if _lookup and _lookup.get("found"):
+                        _canvas_id = await self._create_file_mention_canvas(
+                            session["id"],
+                            user_id,
+                            (context or {}).get("agent_id"),
+                            _filename,
+                            _lookup,
+                        )
+                        if _canvas_id:
+                            main_message += (
+                                f"\n\n📋 I've opened a mini canvas — "
+                                f"'{_filename} — data preview' — with what I have "
+                                "from that file. Open it in the workspace panel "
+                                "and we can review or edit it together."
+                            )
+                    else:
+                        main_message += (
+                            f"\n\n(I couldn't find ingested data from "
+                            f"'{_filename}' — ingest the file first and then "
+                            "I can discuss its contents.)"
+                        )
+            except Exception as _file_err:
+                logger.debug(f"file-mention canvas hook failed: {_file_err}")
 
             # Build combined data from feature responses
             combined_data = {}
@@ -596,6 +685,123 @@ class ChatOrchestrator:
         except Exception as e:
             logger.debug(f"turn-fact extraction dispatch failed: {e}")
 
+    def _lookup_agent(self, agent_id: str):
+        """Fetch an AgentRegistry row for chat persona building. Best-effort:
+        any failure just means the caller falls back to the platform persona."""
+        try:
+            from core.models import AgentRegistry
+
+            db = SessionLocal()
+            try:
+                return (
+                    db.query(AgentRegistry)
+                    .filter(AgentRegistry.id == agent_id)
+                    .first()
+                )
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"agent lookup failed for {agent_id!r}: {e}")
+            return None
+
+    def _is_platform_agent(self, agent) -> bool:
+        """Platform-built agents keep the generic ATOM persona — they ARE the
+        platform (atom_main, system/Meta category), not domain hires."""
+        return (
+            (agent.id or "") in {"atom_main"}
+            or (agent.category or "").lower() in {"system", "meta"}
+            or agent.module_path == "core.atom_meta_agent"
+        )
+
+    async def _create_file_mention_canvas(
+        self,
+        session_id: str,
+        user_id: Optional[str],
+        agent_id: Optional[str],
+        filename: str,
+        lookup: Dict[str, Any],
+    ) -> Optional[str]:
+        """Mini canvas with the mentioned file's ingested data — the visual
+        reference/editing surface for training and discussion. Same Canvas +
+        CanvasAudit pattern as the chat_draft_to_canvas route, broadcast to
+        the session's workspace pane, and expandable to /canvas/{id}."""
+        try:
+            import uuid as _uuid
+
+            from core.agent_file_context import build_file_canvas_content
+            from core.models import Canvas, CanvasAudit
+            from core.websockets import manager as ws_manager
+
+            canvas_id = str(_uuid.uuid4())
+            created_by = user_id or "system"
+            content_text = build_file_canvas_content(filename, lookup)
+            db = SessionLocal()
+            try:
+                canvas = Canvas(
+                    id=canvas_id,
+                    tenant_id=self.tenant_id or "default",
+                    workspace_id=resolve_user_workspace(user_id),
+                    created_by=created_by,
+                    name=f"{filename} — data preview"[:200],
+                    canvas_type="document",
+                    content={
+                        "type": "doc",
+                        "content": content_text,
+                    },
+                    status="active",
+                )
+                db.add(canvas)
+                db.add(
+                    CanvasAudit(
+                        canvas_id=canvas_id,
+                        tenant_id=canvas.tenant_id,
+                        session_id=session_id,
+                        agent_id=agent_id,
+                        canvas_type="document",
+                        action_type="create",
+                        user_id=created_by,
+                        details_json={"source": "file_mention", "file": filename},
+                    )
+                )
+                db.commit()
+            finally:
+                db.close()
+
+            # Present it live in the chat's workspace pane (same channel the
+            # canvas tool uses), where it can be expanded to the full page.
+            # Fan out to BOTH the user channel and the session channel: the
+            # chat pane and the expanded /canvas/{id} page subscribe to
+            # different channels, and both must see the present event.
+            try:
+                channels = [f"user:{user_id or 'default'}"]
+                if session_id and user_id:
+                    channels.append(f"user:{user_id}:session:{session_id}")
+                for channel in channels:
+                    await ws_manager.broadcast(
+                        channel,
+                        {
+                            "type": "canvas:update",
+                            "data": {
+                                "action": "present",
+                                "component": "document",
+                                "canvas_id": canvas_id,
+                                "session_id": session_id,
+                                "title": f"{filename} — data preview",
+                                "data": {
+                                    "title": f"{filename} — data preview",
+                                    "content": content_text,
+                                },
+                            },
+                        },
+                    )
+            except Exception as broadcast_err:
+                logger.debug(f"file-mention canvas broadcast skipped: {broadcast_err}")
+
+            return canvas_id
+        except Exception as e:
+            logger.warning(f"file-mention canvas creation failed: {e}")
+            return None
+
     async def _get_qwen_response(
         self,
         message: str,
@@ -624,10 +830,7 @@ class ChatOrchestrator:
 
         try:
             # Build messages from history
-            messages = [
-                {
-                    "role": "system",
-                    "content": """You are ATOM, an AI-powered business automation assistant. You help users:
+            system_prompt = """You are ATOM, an AI-powered business automation assistant. You help users:
 - Manage leads and CRM (Zoho, Salesforce, HubSpot)
 - Automate workflows and processes
 - Schedule meetings and interviews
@@ -636,6 +839,42 @@ class ChatOrchestrator:
 - Coordinate tasks across Slack, Notion, Google Drive, Gmail
 
 When users ask to fetch live data (like CRM leads), acknowledge that the integration needs to be connected first and guide them on setup. Be helpful, specific, and actionable. Keep responses concise (2-4 sentences) unless detail is needed."""
+
+            # Chatting WITH a hire: the employee speaks as themselves, not as
+            # the platform. Persona and tier behavior come from the registry,
+            # so "chat with my SDR" answers as the SDR within its maturity
+            # limits instead of as a generic assistant.
+            if agent_id:
+                persona_agent = self._lookup_agent(agent_id)
+                if persona_agent and not self._is_platform_agent(persona_agent):
+                    tier = persona_agent.status or "student"
+                    tier_behavior = (
+                        "You are still learning: be honest about what you don't know yet, "
+                        "propose drafts rather than final actions, and flag anything that "
+                        "needs supervisor approval."
+                        if tier in ("student", "intern")
+                        else "Work autonomously within your declared capabilities."
+                    )
+                    role_line = (
+                        f"Your role: {persona_agent.description}"
+                        if persona_agent.description
+                        else f"Your role: {persona_agent.category or 'business'} employee."
+                    )
+                    system_prompt = (
+                        f"You are {persona_agent.display_name or persona_agent.name}, "
+                        f"a {persona_agent.category or 'business'} employee hired on the "
+                        f"ATOM platform. {role_line} "
+                        "Always speak in first person as this employee — never as 'Atom' "
+                        "or as an AI assistant. "
+                        f"Maturity tier: {tier}. {tier_behavior} "
+                        "Be helpful, specific, and actionable. Keep responses concise "
+                        "(2-4 sentences) unless detail is needed."
+                    )
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": system_prompt,
                 }
             ]
 
@@ -649,6 +888,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     assembly_enabled,
                 )
 
+                # Resolve agent identity for role-scoped recall
+                _agent_id = agent_id
+
                 if assembly_enabled():
                     # The integral AI-employee contract: memory must be
                     # retrieved from the USER's workspace, the same workspace
@@ -659,14 +901,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # synced records (RED→GREEN journey fix).
                     user_workspace = resolve_user_workspace(user_id)
 
-                    logger.info(f"[MEMCTX] agent_id={agent_id!r}")
+                    logger.info(f"[MEMCTX] agent_id={_agent_id!r}")
                     memory_block = await assemble_memory_context(
                         message=message,
                         workspace_id=user_workspace,
                         tenant_id=self.tenant_id,
                         # the hire's identity → role-aware recall: records
                         # synced FOR this employee surface first
-                        agent_id=agent_id,
+                        agent_id=_agent_id,
                     )
                     if memory_block:
                         messages.append({"role": "system", "content": memory_block})
@@ -687,7 +929,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _res = await DocumentsHybridSearch().search(
                         query=message[:500], limit=6
                     )
-                    _hits = (res or {}).get("results", []) or []
+                    _hits = (_res or {}).get("results", []) or []
                     if _hits:
                         _listing = "\n".join(
                             f"- [{h.get('source','')}] {h.get('title','')}: "
@@ -1712,27 +1954,50 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             
             # Get user from session if available
             user_id = session.get("user_id", "default_user")
+            session_id = session.get("id")
             
             # Get or create Atom instance
             atom = get_atom_agent()
-            
+
+            # Stream live ReAct steps to the Agent Workspace panel while the
+            # run executes. Emission is failure-isolated (the emitter swallows
+            # socket errors) so a dead WebSocket can never break the chat reply.
+            # The execution id rides on the first step record; it is unknown
+            # until the meta-agent creates its run.
+            seen_execution = {"id": None}
+
+            async def step_callback(step_record):
+                step_exec_id = (step_record or {}).get("execution_id") or seen_execution["id"]
+                seen_execution["id"] = step_exec_id
+                await self._emit_agent_step(session_id, "atom_main", step_exec_id, step_record)
+
+            await self._emit_agent_status(session_id, "atom_main", None, "running")
+
             # Execute through Atom
             result = await atom.execute(
                 request=message,
                 context={
                     "intent_analysis": intent_analysis,
-                    "session_id": session.get("id"),
+                    "session_id": session_id,
                     "user_id": user_id,
                     **(context or {})
                 },
-                trigger_mode=AgentTriggerMode.MANUAL
+                trigger_mode=AgentTriggerMode.MANUAL,
+                step_callback=step_callback,
             )
+            execution_id = result.get("execution_id") or seen_execution["id"]
             
             # Propagate the machine-readable budget-failure signal instead of
             # hardcoding "success". Previously the meta-agent's budget_exceeded
             # status was silently swallowed here, so no structured signal could
             # reach the HTTP layer (the user saw a normal assistant bubble).
             failure_reason = result.get("failure_reason")
+            await self._emit_agent_status(
+                session_id,
+                "atom_main",
+                execution_id,
+                "failed" if failure_reason else "success",
+            )
             return {
                 "status": "budget_exceeded" if failure_reason else "success",
                 "success": not failure_reason,
@@ -1746,6 +2011,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             
         except Exception as e:
             logger.error(f"Agent request handler failed: {e}")
+            try:
+                await self._emit_agent_status(
+                    session.get("id") if session else None, "atom_main", None, "failed"
+                )
+            except Exception:
+                pass
             return {
                 "status": "error",
                 "error": "agent_request_failed",

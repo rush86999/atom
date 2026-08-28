@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import projectHandler from "@/pages/api/integrations/gitlab/project";
 import statusHandler from "@/pages/api/integrations/gitlab/status";
 import triggerPipelineHandler from "@/pages/api/integrations/gitlab/trigger-pipeline";
@@ -33,7 +33,7 @@ const invoke = async (
   body?: any,
   method = "POST",
 ): Promise<any> => {
-  const { req, res } = createMocks({ method, body }) as any;
+  const { req, res } = createMocks({ method: method as RequestMethod, body }) as any;
   await handler(req, res);
   return res;
 };

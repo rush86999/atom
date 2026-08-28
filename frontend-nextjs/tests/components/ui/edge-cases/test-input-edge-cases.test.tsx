@@ -187,7 +187,7 @@ describe('Input Edge Cases', () => {
     it('should handle paste with newlines', () => {
       render(<Input />);
 
-      const input = screen.getByRole('textbox');
+      const input = screen.getByRole('textbox') as HTMLInputElement;
       const multiline = 'Line 1\nLine 2\nLine 3';
 
       fireEvent.change(input, { target: { value: multiline } });

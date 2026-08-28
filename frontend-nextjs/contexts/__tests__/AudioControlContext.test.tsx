@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { render, renderHook, act } from '@testing-library/react';
+// @ts-expect-error - '../AudioControlContext' resolves at runtime via Jest moduleNameMapper
 import { AudioControlProvider, useAudioControl } from '../AudioControlContext';
 
 describe('AudioControlContext', () => {
@@ -463,7 +464,6 @@ describe('AudioControlContext', () => {
 
       const currentState = result.current.state;
 
-      // @ts-expect-error - testing unknown action
       act(() => {
         result.current.dispatch({ type: 'UNKNOWN_ACTION' });
       });

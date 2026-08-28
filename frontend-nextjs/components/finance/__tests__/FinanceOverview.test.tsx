@@ -40,7 +40,7 @@ describe('FinanceOverview', () => {
 
   it('shows a loading spinner before the summary resolves', () => {
     server.use(
-      rest.get(summaryUrl, () => new Promise(() => {})) as never
+      rest.get(summaryUrl, () => new Promise<never>(() => {})) as never
     );
     render(<FinanceOverview />);
 

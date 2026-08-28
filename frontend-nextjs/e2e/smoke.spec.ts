@@ -5,7 +5,7 @@
  * Config: playwright.config.ts. Skipped automatically when no backend
  * is reachable (CI without services) via the health check in beforeEach.
  */
-import { test, expect, request } from "@playwright/test";
+import { test, expect, request, type Locator } from "@playwright/test";
 
 const BASE = process.env.SMOKE_BASE_URL || "http://localhost:3001";
 const API = process.env.SMOKE_API_URL || "http://localhost:8001";
@@ -74,7 +74,7 @@ test("6. settings renders with Account tab + Advanced links", async ({ page }) =
 test("7. integrations catalog lists Telegram", async ({ page }) => {
   await login(page);
   await page.goto(`${BASE}/integrations`);
-  await expect(page.locator("body").or(page)).toContainText(/Telegram/i);
+  await expect(page.locator("body").or(page as unknown as Locator)).toContainText(/Telegram/i);
 });
 
 test("8. agents page renders the maturity ladder", async ({ page }) => {

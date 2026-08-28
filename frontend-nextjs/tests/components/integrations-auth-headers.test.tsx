@@ -43,7 +43,7 @@ test("SlackIntegration sends Bearer token on proxied data calls", async () => {
       return Promise.resolve(jsonResponse({ status: "healthy" }));
     return Promise.resolve(jsonResponse({ success: true, data: {} }));
   }) as any);
-  global.fetch = fetchMock;
+  global.fetch = fetchMock as unknown as typeof global.fetch;
 
   renderWithProviders(<SlackIntegration />);
 
@@ -68,7 +68,7 @@ test("DiscordIntegration sends Bearer token on proxied data calls", async () => 
       return Promise.resolve(jsonResponse({ success: true }));
     return Promise.resolve(jsonResponse({}));
   }) as any);
-  global.fetch = fetchMock;
+  global.fetch = fetchMock as unknown as typeof global.fetch;
 
   renderWithProviders(<DiscordIntegration />);
 

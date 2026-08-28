@@ -1,11 +1,13 @@
 /**
  * pages/dashboard.tsx tests
  *
- * Covers the main ATOM dashboard page:
- * - Integration health grid (mixed connected/disconnected)
+ * Covers the main ATOM dashboard page (OAuth-driven integration grid):
  * - Financial + sales intelligence cards
- * - Quick action / navigation flows
- * - JSON parse fallbacks in safeParseJson
+ * - Integration cards derived from the real OAuth grant store
+ *   (GET /api/v1/auth/oauth/tokens → {integrations: [{provider, status}]}),
+ *   "Connected" for active grants / "Expired" otherwise
+ * - Quick action / navigation flows, Sync Now re-refresh
+ * - JSON parse fallbacks in safeParseJson + empty state
  *
  * Source: pages/dashboard.tsx
  */
@@ -22,7 +24,11 @@ jest.mock("next/router", () => ({
 
 const mockToast = jest.fn();
 jest.mock("@/components/ui/use-toast", () => ({
-  useToast: () => ({ toast: mockToast, dismiss: jest.fn(), toasts: [] }),
+  useToast: (): { toast: jest.Mock; dismiss: jest.Mock; toasts: unknown[] } => ({
+    toast: mockToast,
+    dismiss: jest.fn(),
+    toasts: [],
+  }),
 }));
 
 const okJson = (body: any) => ({
@@ -31,9 +37,29 @@ const okJson = (body: any) => ({
   json: async () => body,
 });
 
-const failing = () => ({ ok: false, headers: { get: () => null } });
+const failing = (): { ok: boolean; headers: { get: () => null } } => ({
+  ok: false,
+  headers: { get: () => null },
+});
 
-const HEALTHY = new Set(["box", "slack", "github"]);
+// 13 granted providers, 3 active — drives the Connected/Expired split.
+const ACTIVE = new Set(["box", "slack", "github"]);
+const OAUTH_PROVIDERS = [
+  "box", "slack", "github",
+  "zoho", "microsoft", "outlook", "google", "gmail",
+  "notion", "dropbox", "trello", "asana", "stripe",
+];
+const OAUTH_INTEGRATIONS: Array<{
+  provider: string;
+  status: string;
+  expires_at: null | string;
+}> = OAUTH_PROVIDERS.map(
+  (provider): { provider: string; status: string; expires_at: null | string } => ({
+    provider,
+    status: ACTIVE.has(provider) ? "active" : "inactive",
+    expires_at: null,
+  }),
+);
 
 const FINANCIALS = {
   total_cash: 125000,
@@ -57,9 +83,8 @@ describe("pages/dashboard", () => {
 
   const setupDefault = () => {
     mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/health")) {
-        const id = url.split("/integrations/")[1]?.split("/")[0];
-        return Promise.resolve(HEALTHY.has(id) ? okJson({ status: "healthy" }) : failing());
+      if (url.includes("/auth/oauth/tokens")) {
+        return Promise.resolve(okJson({ integrations: OAUTH_INTEGRATIONS }));
       }
       if (url.includes("/accounting/dashboard/summary")) {
         return Promise.resolve(okJson(FINANCIALS));
@@ -93,16 +118,16 @@ describe("pages/dashboard", () => {
     expect(screen.getByText("$8,000")).toBeInTheDocument();
   });
 
-  test("renders the integration grid with mixed health", async () => {
+  test("renders the integration grid from the OAuth store with mixed health", async () => {
     render(<DashboardPage />);
 
     expect(await screen.findByText("Box")).toBeInTheDocument();
     expect(screen.getByText("Slack")).toBeInTheDocument();
     expect(screen.getByText("GitHub")).toBeInTheDocument();
     expect(screen.getByText("Asana")).toBeInTheDocument();
-    // 3 of 13 connected
+    // 3 of 13 grants are active
     expect(screen.getAllByText("Connected").length).toBe(3);
-    expect(screen.getAllByText("Disconnected").length).toBe(10);
+    expect(screen.getAllByText("Expired").length).toBe(10);
     expect(screen.getAllByText("healthy").length).toBe(3);
     expect(screen.getAllByText("error").length).toBe(10);
   });
@@ -137,22 +162,30 @@ describe("pages/dashboard", () => {
     render(<DashboardPage />);
     await screen.findByText("Box");
 
-    const healthCallsBefore = mockFetch.mock.calls.filter(([u]: [string]) =>
-      String(u).includes("/health"),
+    const tokenCallsBefore = mockFetch.mock.calls.filter(([u]: [string]) =>
+      String(u).includes("/auth/oauth/tokens"),
     ).length;
     fireEvent.click(screen.getByRole("button", { name: /sync now/i }));
     await waitFor(() => {
       const after = mockFetch.mock.calls.filter(([u]: [string]) =>
-        String(u).includes("/health"),
+        String(u).includes("/auth/oauth/tokens"),
       ).length;
-      expect(after).toBeGreaterThan(healthCallsBefore);
+      expect(after).toBeGreaterThan(tokenCallsBefore);
     });
   });
 
   test("falls back to nulls when summaries are not ok", async () => {
     mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/health")) {
-        return Promise.resolve(failing());
+      if (url.includes("/auth/oauth/tokens")) {
+        // grants exist but none active
+        return Promise.resolve(
+          okJson({
+            integrations: OAUTH_INTEGRATIONS.map((i) => ({
+              ...i,
+              status: "inactive",
+            })),
+          }),
+        );
       }
       return Promise.resolve(failing());
     });
@@ -161,25 +194,29 @@ describe("pages/dashboard", () => {
 
     expect(await screen.findByText("Box")).toBeInTheDocument();
     expect(screen.getAllByText("$0").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Disconnected").length).toBe(13);
+    expect(screen.getAllByText("Expired").length).toBe(13);
+    expect(screen.queryByText("Connected")).not.toBeInTheDocument();
   });
 
-  test("tolerates rejecting health and summary fetches", async () => {
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/health")) {
-        // All health endpoints reject outright (network down).
-        return Promise.reject(new Error("network down"));
-      }
-      return Promise.reject(new Error("summaries down"));
-    });
+  test("tolerates rejecting token and summary fetches", async () => {
+    mockFetch.mockImplementation(() =>
+      Promise.reject(new Error("network down")),
+    );
 
     render(<DashboardPage />);
 
-    expect(await screen.findByText("Box")).toBeInTheDocument();
-    expect(screen.getAllByText("Disconnected").length).toBe(13);
+    // The tokens fetch rejects → the page falls back to an empty grant
+    // list (empty state) instead of crashing.
+    await waitFor(() => {
+      expect(
+        screen.getByText("No integrations connected yet"),
+      ).toBeInTheDocument();
+    });
     await waitFor(() => {
       expect(screen.getAllByText("$0").length).toBeGreaterThan(0);
     });
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(mockToast).not.toHaveBeenCalled();
   });
 
   test("shows a refresh-failed toast when fetch throws synchronously", async () => {
@@ -202,7 +239,11 @@ describe("pages/dashboard", () => {
 
   test("warns when a summary response has invalid JSON", async () => {
     mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/health")) return Promise.resolve(failing());
+      if (url.includes("/auth/oauth/tokens")) {
+        return Promise.resolve(
+          okJson({ integrations: [OAUTH_INTEGRATIONS[0]] }),
+        );
+      }
       return Promise.resolve({
         ok: true,
         headers: { get: () => "application/json" },

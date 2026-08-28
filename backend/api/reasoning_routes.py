@@ -21,6 +21,11 @@ class ReasoningStepFeedback(BaseModel):
     step_content: Dict[str, Any]  # The thought/action/observation payload
     feedback_type: str  # "thumbs_up", "thumbs_down"
     comment: Optional[str] = None
+    # When the step came from a persisted run, these identify the
+    # AgentReasoningStep row so the feedback is stamped directly on the trace
+    # (consumed by harness evolution / failure-pattern mining).
+    execution_id: Optional[str] = None
+    step_number: Optional[int] = None
 
 
 @router.get("/chain/{chain_id}")
@@ -87,9 +92,32 @@ async def submit_step_feedback(
             input_context=input_context
         )
 
+        # Write-through: when the reviewed step belongs to a persisted run,
+        # stamp the polarity + comment directly on the reasoning-step row so
+        # training consumers (harness evolution, failure-pattern mining) can
+        # query it without parsing AgentFeedback input_context blobs.
+        if feedback.execution_id and feedback.step_number is not None:
+            from core.models import AgentReasoningStep
+
+            step_row = (
+                db.query(AgentReasoningStep)
+                .filter(
+                    AgentReasoningStep.execution_id == feedback.execution_id,
+                    AgentReasoningStep.step_number == feedback.step_number,
+                )
+                .first()
+            )
+            if step_row is not None:
+                step_row.feedback_score = (
+                    1 if feedback.feedback_type == "thumbs_up" else -1
+                )
+                if feedback.comment:
+                    step_row.feedback_text = feedback.comment
+                db.commit()
+
         return router.success_response(
             data={"id": db_feedback.id},
-            message="Feedback submitted and processed by governance engine"
+            message="Feedback submitted and processed by governance engine",
         )
 
     except Exception as e:

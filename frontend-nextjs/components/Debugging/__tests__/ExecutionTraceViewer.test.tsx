@@ -41,7 +41,9 @@ const trace = (overrides: Record<string, any> = {}) => ({
 
 describe('ExecutionTraceViewer', () => {
   beforeEach(() => {
-    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => [] }));
+    global.fetch = jest.fn(
+      () => Promise.resolve({ ok: true, json: async () => [] })
+    ) as unknown as typeof fetch;
   });
 
   const renderViewer = (props: Record<string, any> = {}) =>

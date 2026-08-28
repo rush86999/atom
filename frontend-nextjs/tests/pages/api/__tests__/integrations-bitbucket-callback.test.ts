@@ -4,7 +4,7 @@ jest.mock("axios", () => ({
   default: { post: mockAxiosPost },
 }));
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/integrations/bitbucket/callback";
 
 describe("pages/api/integrations/bitbucket/callback", () => {
@@ -34,7 +34,7 @@ describe("pages/api/integrations/bitbucket/callback", () => {
   });
 
   const invoke = async (query: any = {}, method = "GET") => {
-    const { req, res } = createMocks({ method, query }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, query }) as any;
     await handler(req, res);
     return res;
   };

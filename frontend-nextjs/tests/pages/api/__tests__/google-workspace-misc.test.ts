@@ -14,6 +14,7 @@ jest.mock("@/pages/api/auth/[...nextauth]", () => ({
 const mockFetch = jest.fn();
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import docsHandler from "@/pages/api/integrations/google-workspace/docs";
 import authStartHandler from "@/pages/api/integrations/google-workspace/auth/start";
 
@@ -35,7 +36,7 @@ afterEach(() => {
 });
 
 describe("pages/api/integrations/google-workspace/docs", () => {
-  const invoke = async (method = "GET", query: any = {}, body?: any) => {
+  const invoke = async (method: RequestMethod = "GET", query: any = {}, body?: any) => {
     const { req, res } = createMocks({ method, query, body }) as any;
     await docsHandler(req, res);
     return res;
@@ -135,7 +136,7 @@ describe("pages/api/integrations/google-workspace/docs", () => {
 describe("pages/api/integrations/google-workspace/auth/start", () => {
   const mockSession = { user: { id: "user-1", email: "u@example.com" } };
 
-  const invoke = async (session: any = mockSession, method = "GET") => {
+  const invoke = async (session: any = mockSession, method: RequestMethod = "GET") => {
     mockGetServerSession.mockResolvedValue(session);
     const { req, res } = createMocks({
       method,

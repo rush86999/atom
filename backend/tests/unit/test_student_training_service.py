@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from core.database import Base
 from core.student_training_service import StudentTrainingService, TrainingDurationEstimate, TrainingOutcome
 from core.models import (
+    AgentEpisode,
     AgentRegistry,
     AgentStatus,
     User,
@@ -37,6 +38,37 @@ from core.models import (
     ProposalType,
     TriggerSource,
 )
+
+
+def _seed_session_evidence(db, agent_id, successes=3, failures=0):
+    """Seed outcome-tracked episodes inside the session's evidence window.
+
+    Round 87: completion requires recorded work runs in the session window
+    (default >= ATOM_TRAINING_MIN_EVIDENCE_EPISODES, i.e. 3). Completion-
+    mechanics tests seed this evidence so they exercise the completion flow,
+    not the evidence gate (covered in test_promotion_evidence_gate.py).
+    """
+    for _ in range(successes):
+        db.add(AgentEpisode(
+            agent_id=agent_id,
+            tenant_id="default",
+            maturity_at_time="student",
+            outcome="success",
+            success=True,
+            status="completed",
+            started_at=datetime.now(timezone.utc),
+        ))
+    for _ in range(failures):
+        db.add(AgentEpisode(
+            agent_id=agent_id,
+            tenant_id="default",
+            maturity_at_time="student",
+            outcome="failure",
+            success=False,
+            status="completed",
+            started_at=datetime.now(timezone.utc),
+        ))
+    db.commit()
 
 
 # =============================================================================
@@ -256,8 +288,9 @@ class TestCompleteTrainingSession:
     """Tests for complete_training_session method."""
 
     @pytest.mark.asyncio
-    async def test_complete_session_success(self, training_service, training_session):
+    async def test_complete_session_success(self, training_service, training_session, test_agent):
         """RED: Test completing training session successfully."""
+        _seed_session_evidence(db=training_service.db, agent_id=test_agent.id)
         outcome = TrainingOutcome(
             performance_score=0.85,
             supervisor_feedback="Good session",
@@ -299,6 +332,7 @@ class TestCompleteTrainingSession:
     @pytest.mark.asyncio
     async def test_complete_session_boosts_confidence(self, training_service, training_session, test_agent):
         """RED: Test completing session boosts agent confidence."""
+        _seed_session_evidence(db=training_service.db, agent_id=test_agent.id)
         initial_confidence = test_agent.confidence_score
 
         outcome = TrainingOutcome(

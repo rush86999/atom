@@ -49,6 +49,54 @@ npm run test:check-coverage
 npm run test:ci
 ```
 
+### Typechecking
+
+TypeScript is split into two projects so the deploy gate stays authoritative
+for app code while test-file debt is tracked separately:
+
+```bash
+# Typecheck APP CODE ONLY (gates predeploy; test files excluded)
+npm run type-check
+
+# Typecheck EVERYTHING incl. tests (fixtures have noImplicitAny relaxed)
+npm run type-check:tests
+```
+
+| Config | Covers | Strictness |
+|--------|--------|------------|
+| `tsconfig.json` | App code (test globs excluded) | `strict: true` |
+| `tsconfig.tests.json` | All files incl. tests | `strict` minus `noImplicitAny` |
+
+Rules of thumb when adding code:
+- New **app** code must keep `npm run type-check` clean — no `as any` escapes;
+  fix the types.
+- New **test** code should keep `npm run type-check:tests` clean; pragmatic
+  casts are acceptable in fixtures when precise typing is impractical.
+- `jest` runs through babel-jest, which strips types — type annotations and
+  casts never change test runtime, but refactors of statements do. Re-run the
+  affected suite after edits.
+
+### MSW / Network Mocking (tests are hermetic)
+
+`tests/setup.ts` starts the MSW node server globally and its
+`beforeAll(server.listen)` / `afterEach(server.resetHandlers)` /
+`afterAll(server.close)` hooks run for every suite. Tests must **not** depend
+on a live backend: relative `fetch()` calls in tests are intercepted by MSW
+handlers (`tests/mocks/handlers.ts`), and unhandled requests are logged as
+warnings (`onUnhandledRequest: 'warn'`).
+
+Historical note: an earlier bootstrap bug gated `server.listen()` behind a
+`typeof server` check on a variable scoped to a `try` block above it, so MSW
+never actually listened and suites silently passed (or failed) against
+whatever was running on `localhost:8000`. That is fixed — if a fetch-mocking
+test fails, add/adjust an MSW handler via `server.use(...)` instead of
+pointing at a running dev server.
+
+```ts
+// Per-test handler override pattern
+server.use(rest.get('*/api/endpoint', (req, res, ctx) => res(ctx.json({}))));
+```
+
 ### Coverage Trend Tracking
 
 ```bash

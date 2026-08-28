@@ -151,7 +151,7 @@ describe('useWebSocket Hook', () => {
       }).not.toThrow();
 
       // Error is handled silently, no error state exposed
-      expect(result.current.error).toBeUndefined();
+      expect((result.current as { error?: unknown }).error).toBeUndefined();
     });
 
     test('reconnects after disconnect', () => {
@@ -806,7 +806,7 @@ describe('useWebSocket Hook', () => {
       }).not.toThrow();
 
       // No error state exposed by hook
-      expect(result.current.error).toBeUndefined();
+      expect((result.current as { error?: unknown }).error).toBeUndefined();
     });
 
     test('handles JSON parse errors in onmessage', () => {

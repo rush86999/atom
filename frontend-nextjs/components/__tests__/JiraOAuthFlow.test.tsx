@@ -427,7 +427,7 @@ describe('JiraOAuthFlow', () => {
     // Clicking the resource card re-runs the resource selection flow
     const resourceCard = screen.getByText('acme.atlassian.net').closest('div[class*="cursor-pointer"]')!;
     await act(async () => {
-      resourceCard.click();
+      (resourceCard as HTMLElement).click();
       await new Promise((r) => setTimeout(r, 20));
     });
     expect(screen.getByText('acme.atlassian.net')).toBeInTheDocument();

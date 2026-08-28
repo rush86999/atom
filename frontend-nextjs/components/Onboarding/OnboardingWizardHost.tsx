@@ -34,7 +34,7 @@ export const OnboardingWizardHost: React.FC = () => {
                     }),
                     fetch(`${API_BASE}/api/users/me`, {
                         headers: { Authorization: `Bearer ${token}` },
-                    }).catch(() => null),
+                    }).catch((): Response | null => null),
                 ]);
 
                 // 401/5xx/etc: stay silent — the wizard is an enhancement, not
@@ -48,7 +48,7 @@ export const OnboardingWizardHost: React.FC = () => {
                 if (completed || cancelled) return;
 
                 if (userRes && userRes.ok) {
-                    const userData = await userRes.json().catch(() => null);
+                    const userData = await userRes.json().catch((): unknown => null);
                     setUser(userData?.data ?? userData ?? null);
                 }
                 if (!cancelled) setShow(true);

@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import cyclesHandler from "@/pages/api/integrations/linear/cycles";
 import projectsHandler from "@/pages/api/integrations/linear/projects";
 import teamsHandler from "@/pages/api/integrations/linear/teams";
@@ -51,7 +51,7 @@ proxyCases.forEach(([label, handler, backendPath, failureError]) => {
     });
 
     const invoke = async (method: string, body?: any) => {
-      const { req, res } = createMocks({ method, body }) as any;
+      const { req, res } = createMocks({ method: method as RequestMethod, body }) as any;
       await handler(req, res);
       return res;
     };

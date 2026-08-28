@@ -231,7 +231,7 @@ export default function AccountSettings() {
                 <Alert variant="destructive" className="max-w-md">
                     <AlertDescription className="space-y-4">
                         <p className="font-semibold">{error || 'Failed to load account information'}</p>
-                        <Button variant="outline" size="sm" onClick={fetchAccounts} className="w-full">
+                        <Button variant="outline" size="sm" onClick={fetchAccounts as unknown as React.MouseEventHandler<HTMLButtonElement>} className="w-full">
                             <span className="mr-2">↻</span> Retry
                         </Button>
                     </AlertDescription>

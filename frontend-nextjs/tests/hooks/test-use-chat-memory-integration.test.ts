@@ -447,7 +447,7 @@ describe('useChatMemory - Integration Tests', () => {
       );
 
       let syncCallCount = 0;
-      const syncToAPI = jest.fn(() => {
+      const syncToAPI: jest.Mock = jest.fn(() => {
         syncCallCount++;
       });
 

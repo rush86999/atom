@@ -7,6 +7,11 @@
  * @module @atom/test-utils/platform-guards
  */
 
+// React Native's Platform is only present in RN runtimes; every usage below is
+// guarded by a `typeof` check. Ambient declaration keeps that pattern intact
+// without importing react-native (which does not resolve in this web app).
+declare const Platform: any;
+
 /**
  * Check if running in web environment
  * Uses typeof checks to detect browser/jsdom environment

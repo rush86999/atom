@@ -25,6 +25,7 @@ progress block so UIs can show "2/3 sessions · 7/10 clean runs".
 """
 import os
 import tempfile
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine, exc
@@ -38,7 +39,11 @@ from core.models import (
     BlockedTriggerContext,
     TriggerSource,
 )
-from core.student_training_service import StudentTrainingService, TrainingOutcome
+from core.student_training_service import (
+    InsufficientTrainingEvidenceError,
+    StudentTrainingService,
+    TrainingOutcome,
+)
 
 
 @pytest.fixture
@@ -78,7 +83,11 @@ def _hire(db, agent_id="sales-rep-1", confidence=0.5):
     return agent
 
 
-def _seed_episodes(db, agent_id, successes, failures=0):
+def _seed_episodes(db, agent_id, successes, failures=0, started_at=None):
+    """Seed outcome-tracked episodes. ``started_at`` defaults to an hour ago
+    so pre-seeded history stays OUTSIDE any session's evidence window; the
+    in-session evidence helper stamps work inside the window instead."""
+    started_at = started_at or (datetime.now() - timedelta(hours=1))
     for i in range(successes):
         db.add(AgentEpisode(
             agent_id=agent_id,
@@ -87,6 +96,7 @@ def _seed_episodes(db, agent_id, successes, failures=0):
             outcome="success",
             success=True,
             status="completed",
+            started_at=started_at,
         ))
     for i in range(failures):
         db.add(AgentEpisode(
@@ -96,11 +106,16 @@ def _seed_episodes(db, agent_id, successes, failures=0):
             outcome="failure",
             success=False,
             status="completed",
+            started_at=started_at,
         ))
     db.commit()
 
 
-async def _run_session(db, agent, score=0.9):
+async def _run_session(db, agent, score=0.9, successes=3, failures=0):
+    """Approve a proposal, have the hire record ``successes``/``failures``
+    work runs INSIDE the session window, then complete it. Completion is
+    graded on those recorded runs, not on ``score`` (which the backend only
+    accepts up to the evidence ratio)."""
     service = StudentTrainingService(db)
     blocked = BlockedTriggerContext(
         agent_id=agent.id,
@@ -117,6 +132,7 @@ async def _run_session(db, agent, score=0.9):
     db.commit()
     proposal = await service.create_training_proposal(blocked)
     session = await service.approve_training(proposal.id, "supervisor", None)
+    _seed_episodes(db, agent.id, successes, failures, started_at=datetime.now())
     return await service.complete_training_session(session.id, TrainingOutcome(
         performance_score=score,
         supervisor_feedback="ok",
@@ -173,7 +189,8 @@ async def test_poor_work_record_blocks_promotion_despite_sessions(db, monkeypatc
     _seed_episodes(db, agent.id, successes=5, failures=5)  # ratio 0.5 < 0.7
 
     for _ in range(3):
-        result = await _run_session(db, agent)
+        # The in-session work is poor too — successes lift nothing.
+        result = await _run_session(db, agent, successes=2, failures=1)
 
     assert result["promoted_to_intern"] is False
     db.refresh(agent)
@@ -205,7 +222,8 @@ async def test_progress_block_reports_evidence_counts(db, monkeypatch):
     promo = result["promotion"]
     assert promo["training_sessions"] == 1
     assert promo["required_training_sessions"] == 3
-    assert promo["episodes"] == 4
+    # 4 seeded history runs + 3 in-session evidence runs
+    assert promo["episodes"] == 7
     assert promo["required_episodes"] == 10
 
 
@@ -214,6 +232,66 @@ async def test_progress_block_reports_evidence_counts(db, monkeypatch):
 # pathway — the platform's own agents must not be trapped behind an
 # apprenticeship designed for user-hired employees.
 # ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_completion_without_evidence_is_rejected(db, monkeypatch):
+    """Round 87: no recorded work in the session window -> completion is
+    refused and NOTHING mutates (session stays open, agent untouched)."""
+    monkeypatch.delenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", raising=False)
+    monkeypatch.delenv("ATOM_PROMOTION_MIN_EPISODES", raising=False)
+    agent = _hire(db)
+
+    with pytest.raises(InsufficientTrainingEvidenceError) as exc_info:
+        await _run_session(db, agent, successes=0)
+
+    assert exc_info.value.evidence["episodes"] == 0
+    assert exc_info.value.evidence["required_episodes"] == 3
+    db.refresh(agent)
+    assert agent.status == AgentStatus.STUDENT.value
+    assert agent.confidence_score == 0.5  # no boost leaked
+    from core.models import TrainingSession as TS
+    session = db.query(TS).filter(TS.agent_id == agent.id).first()
+    assert session.status != "completed"
+    assert session.performance_score is None
+
+
+@pytest.mark.asyncio
+async def test_claimed_score_is_capped_by_evidence_ratio(db, monkeypatch):
+    """A supervisor typing 0.9 cannot outscore the linked evidence: 1/3
+    successful runs caps the recorded performance at ~0.33."""
+    monkeypatch.delenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", raising=False)
+    monkeypatch.delenv("ATOM_PROMOTION_MIN_EPISODES", raising=False)
+    agent = _hire(db)
+
+    result = await _run_session(
+        db, agent, score=0.9, successes=1, failures=2
+    )  # evidence ratio 1/3, meets the 3-run floor
+
+    assert result["performance_score"] == pytest.approx(1 / 3)
+    from core.models import TrainingSession as TS
+    session = db.query(TS).filter(TS.agent_id == agent.id).first()
+    assert session.performance_score == pytest.approx(1 / 3)
+    recorded = session.outcomes
+    assert recorded["supervisor_claimed_performance_score"] == 0.9
+    assert recorded["tasks_completed"] == 1
+    assert recorded["total_tasks"] == 3
+
+
+@pytest.mark.asyncio
+async def test_evidence_requirement_kill_switch(db, monkeypatch):
+    """ATOM_TRAINING_REQUIRE_EVIDENCE=0 restores the legacy behavior for
+    deployments that need it — empty sessions complete on the claimed score."""
+    monkeypatch.delenv("ATOM_PROMOTION_MIN_TRAINING_SESSIONS", raising=False)
+    monkeypatch.delenv("ATOM_PROMOTION_MIN_EPISODES", raising=False)
+    monkeypatch.setenv("ATOM_TRAINING_REQUIRE_EVIDENCE", "0")
+    agent = _hire(db)
+
+    result = await _run_session(db, agent, score=0.9, successes=0)
+
+    assert result["performance_score"] == 0.9
+    db.refresh(agent)
+    assert agent.confidence_score > 0.5
+
 
 @pytest.mark.asyncio
 async def test_system_chat_assistant_promotes_immediately(db, monkeypatch):

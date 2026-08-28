@@ -170,7 +170,7 @@ export default function MarketplacePage() {
             })
 
             if (response.ok) {
-                const data = await response.json().catch(() => null)
+                const data = await response.json().catch((): null => null)
                 toast.success(
                     data?.editor_url
                         ? 'Workflow imported — opening the editor…'

@@ -1,4 +1,5 @@
 import { cn } from '../utils';
+import type { ClassValue } from 'clsx';
 
 describe('Utils (cn function)', () => {
   describe('Basic Functionality', () => {
@@ -78,13 +79,18 @@ describe('Utils (cn function)', () => {
   describe('Conditional Classes', () => {
     it('handles truthy conditions', () => {
       expect(cn('class1', true && 'class2')).toBe('class1 class2');
-      expect(cn('class1', 'class2' && 'class3')).toBe('class1 class3');
+      // widened so TS doesn't treat the operand as a literal (always-truthy)
+      const truthyString: string = 'class2';
+      expect(cn('class1', truthyString && 'class3')).toBe('class1 class3');
     });
 
     it('handles falsy conditions', () => {
       expect(cn('class1', false && 'class2')).toBe('class1');
-      expect(cn('class1', null && 'class2')).toBe('class1');
-      expect(cn('class1', undefined && 'class2')).toBe('class1');
+      // widened so TS doesn't treat the operand as a literal (always-falsy)
+      const nullValue: string | null = null;
+      const undefinedValue: string | undefined = undefined;
+      expect(cn('class1', nullValue && 'class2')).toBe('class1');
+      expect(cn('class1', undefinedValue && 'class2')).toBe('class1');
       expect(cn('class1', 0 && 'class2')).toBe('class1');
     });
 
@@ -147,8 +153,8 @@ describe('Utils (cn function)', () => {
 
   describe('Real-World Scenarios', () => {
     it('handles button variant classes', () => {
-      const variant = 'primary';
-      const size = 'lg';
+      const variant = 'primary' as string;
+      const size = 'lg' as string;
       const classes = cn(
         'base-class',
         variant === 'primary' && 'bg-blue-500 text-white',

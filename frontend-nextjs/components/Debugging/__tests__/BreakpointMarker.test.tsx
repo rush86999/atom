@@ -45,6 +45,7 @@ describe('BreakpointMarker', () => {
   beforeEach(() => {
     storedBreakpoints = [];
     postBody = null;
+    // The mocked responses are plain objects, not real Response instances.
     global.fetch = jest.fn((url: RequestInfo | URL, init?: RequestInit) => {
       const u = String(url);
       if (u.includes('/toggle')) {
@@ -71,7 +72,7 @@ describe('BreakpointMarker', () => {
         return Promise.resolve({ ok: true, json: async () => storedBreakpoints });
       }
       return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
-    });
+    }) as unknown as typeof fetch;
   });
 
   // Test 1: empty state with the add hint

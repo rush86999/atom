@@ -189,9 +189,9 @@ describe('Agent API Integration Tests - MSW Setup', () => {
     expect(handlers.length).toBeGreaterThan(0);
 
     // Verify handlers include our agent endpoints (wildcard-origin paths)
-    const chatHandler = handlers.find((h) => h.info.path === '*/api/atom-agent/chat/stream');
-    const executeHandler = handlers.find((h) => h.info.path === '*/api/atom-agent/execute-generated');
-    const statusHandler = handlers.find((h) => h.info.path.includes('*/api/atom-agent/agents/:agentId/status'));
+    const chatHandler = handlers.find((h) => (h.info as any).path === '*/api/atom-agent/chat/stream');
+    const executeHandler = handlers.find((h) => (h.info as any).path === '*/api/atom-agent/execute-generated');
+    const statusHandler = handlers.find((h) => (h.info as any).path.includes('*/api/atom-agent/agents/:agentId/status'));
 
     expect(chatHandler).toBeDefined();
     expect(executeHandler).toBeDefined();

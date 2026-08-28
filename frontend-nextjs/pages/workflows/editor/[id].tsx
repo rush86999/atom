@@ -40,6 +40,7 @@ export default function WorkflowEditorPage() {
     const [runResults, setRunResults] = useState<{
         steps: { step_id?: string; step_type?: string; status?: string; notes?: string | null }[];
         outputs: Record<string, any> | null;
+        error?: string | null;
     } | null>(null);
 
     useEffect(() => {
@@ -273,7 +274,7 @@ export default function WorkflowEditorPage() {
                 },
                 body: JSON.stringify(paramValues)
             });
-            const data = await res.json().catch(() => null);
+            const data = await res.json().catch((): null => null);
 
             if (!res.ok) {
                 throw new Error(data?.detail || data?.message || `Execution failed (${res.status})`);

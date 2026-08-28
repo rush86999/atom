@@ -113,6 +113,14 @@
   ],
   "exclude": [
     "node_modules",
-    "project"
+    "project",
+    "tests",
+    "wdio",
+    "shared/test-utils",
+    "shared/property-tests",
+    "**/__tests__",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts"
   ]
 }

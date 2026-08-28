@@ -46,16 +46,22 @@ def _check_redis() -> str:
 
 
 def _check_vector_store() -> str:
-    """Return 'operational' if the vector store is initialized, else 'degraded'."""
+    """Return 'operational' if the vector store is reachable, else 'degraded'."""
     try:
         from core.lancedb_handler import get_lancedb_handler
 
         handler = get_lancedb_handler()
-        # The handler lazy-loads via _ensure_db() — check if the underlying
-        # LanceDB connection is live (handler.db is not None and handler.db.db
-        # is set). The old check looked for a non-existent `_initialized`
-        # attribute that was always False.
-        if handler and handler.db is not None and getattr(handler.db, "db", None) is not None:
+        if not handler:
+            return "degraded"
+        # The handler lazy-loads via _ensure_db() — a healthy but never-used
+        # store reported "degraded" forever because nothing had triggered the
+        # connect yet. Force the (idempotent, guarded) lazy connect so the
+        # check measures reachability, not "did something else run first".
+        handler._ensure_db()
+        # A lancedb DB connection has no nested `.db` member — the old
+        # `handler.db.db is not None` clause could never be satisfied and
+        # kept the service permanently "degraded" even when healthy.
+        if handler.db is not None:
             return "operational"
         return "degraded"
     except Exception as exc:

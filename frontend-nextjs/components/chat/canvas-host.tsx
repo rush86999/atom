@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText, Table2, Presentation } from "lucide-react";
+import { useRouter } from "next/router";
+import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText, Table2, Presentation, Maximize2 } from "lucide-react";
 import { marked } from "marked";
 import { renderMarkdownSafe } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
@@ -24,9 +25,13 @@ interface CanvasState {
 
 interface CanvasHostProps {
     lastMessage: any;
+    /** Chat session the canvas belongs to — carried into the expanded page
+        so its agent chat panel continues the same conversation. */
+    sessionId?: string | null;
 }
 
-export function CanvasHost({ lastMessage }: CanvasHostProps) {
+export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
+    const router = useRouter();
     const [state, setState] = useState<CanvasState | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -116,7 +121,32 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
     };
 
     const handleSendEmail = async () => {
-        alert(`Sending email to ${emailMetadata.to}...`);
+        if (!emailMetadata.to.trim()) {
+            alert("Add a recipient before sending.");
+            return;
+        }
+        // Explicit confirm before dispatch — the send endpoint treats the
+        // human click as policy authorization for allow/approve decisions
+        // (same contract as the full-page CanvasPanel composer).
+        if (!window.confirm(`Send email to ${emailMetadata.to}?`)) return;
+        try {
+            const { apiClient } = await import("@/lib/api");
+            const res = await apiClient.post("/api/canvas/email/send", {
+                to: [emailMetadata.to].filter(Boolean),
+                cc: [],
+                subject: emailMetadata.subject || "",
+                body: localContentRef.current || "",
+                canvas_id: state?.id || undefined,
+            });
+            const data = (res as any)?.data || {};
+            if (data.success) {
+                alert(data.status === "sent" ? "Email sent." : `Email status: ${data.status}`);
+            } else {
+                alert(`Send blocked: ${data.error || data.message || "unknown error"}`);
+            }
+        } catch (e: any) {
+            alert(`Send failed: ${e?.response?.data?.message || e?.message || "unknown error"}`);
+        }
     };
 
     // ─── AI Accessibility: register canvas state for agent read-back ───
@@ -235,6 +265,24 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Expand into the independent full-page canvas (new tab
+                        keeps the chat alive); the canvas page links back. */}
+                    {state.id && (
+                        <button
+                            data-testid="canvas-expand"
+                            title="Expand into full page"
+                            onClick={() => {
+                                const agentId = router.query.agent_id;
+                                const params = new URLSearchParams({ from: "chat" });
+                                if (agentId) params.set("agent_id", String(agentId));
+                                if (sessionId) params.set("session", String(sessionId));
+                                window.open(`/canvas/${state.id}?${params.toString()}`, "_blank");
+                            }}
+                            className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                        >
+                            <Maximize2 className="h-4 w-4 text-zinc-500" />
+                        </button>
+                    )}
                     {state.component === "email" && (
                         <button
                             onClick={handleSendEmail}

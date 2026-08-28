@@ -11,7 +11,9 @@ import { useCanvasState } from '@/hooks/useCanvasState';
 import type {
   AnyCanvasState,
   CanvasStateAPI,
-  CanvasStateChangeEvent
+  CanvasStateChangeEvent,
+  ChartCanvasState,
+  FormCanvasState
 } from '@/components/canvas/types';
 
 // Mock Tauri environment type
@@ -638,7 +640,7 @@ describe('useCanvasState Hook in Tauri Environment', () => {
       };
 
       const retrieved1 = result.current.getState('test-canvas');
-      expect(retrieved1?.data_points).toHaveLength(1);
+      expect((retrieved1 as ChartCanvasState | null)?.data_points).toHaveLength(1);
 
       // Update to state 2 (same canvas ID)
       currentState = {
@@ -651,7 +653,7 @@ describe('useCanvasState Hook in Tauri Environment', () => {
       };
 
       const retrieved2 = result.current.getState('test-canvas');
-      expect(retrieved2?.data_points).toHaveLength(2);
+      expect((retrieved2 as ChartCanvasState | null)?.data_points).toHaveLength(2);
     });
 
     test('Unregistering canvas removes it from getAllStates', () => {
@@ -705,7 +707,7 @@ describe('useCanvasState Hook in Tauri Environment', () => {
       });
 
       expect(result.current.state).toEqual(newState);
-      expect(result.current.state?.form_data?.email).toBe('test@example.com');
+      expect((result.current.state as FormCanvasState | null)?.form_data?.email).toBe('test@example.com');
     });
 
     test('State update triggers callback for global subscription', () => {
@@ -771,8 +773,8 @@ describe('useCanvasState Hook in Tauri Environment', () => {
       }
 
       // Final state should be the last update
-      expect(result.current.state?.data_points).toHaveLength(1);
-      expect(result.current.state?.data_points[0].y).toBe(100);
+      expect((result.current.state as ChartCanvasState | null)?.data_points).toHaveLength(1);
+      expect((result.current.state as ChartCanvasState | null)?.data_points[0].y).toBe(100);
     });
 
     test('State update preserves canvas_type in event', () => {

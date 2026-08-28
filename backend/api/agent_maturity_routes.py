@@ -34,7 +34,11 @@ from core.models import (
     UserRole,
 )
 from core.proposal_service import ProposalService
-from core.student_training_service import StudentTrainingService, TrainingOutcome
+from core.student_training_service import (
+    InsufficientTrainingEvidenceError,
+    StudentTrainingService,
+    TrainingOutcome,
+)
 from core.personal_scope import resolve_tenant_id
 from core import role_template_registry
 
@@ -79,13 +83,19 @@ class ApproveTrainingRequest(BaseModel):
 
 
 class CompleteTrainingRequest(BaseModel):
-    """Request to complete a training session (feeds the learning loop)."""
+    """Request to complete a training session.
 
-    performance_score: float = Field(..., ge=0.0, le=1.0)
+    The recorded outcome is derived from the session's linked episode
+    evidence; ``performance_score`` is an optional supervisor claim that the
+    backend caps by that evidence, and the task counts here are ignored in
+    favor of the ledger.
+    """
+
+    performance_score: Optional[float] = Field(None, ge=0.0, le=1.0)
     supervisor_feedback: str
-    errors_count: int = Field(..., ge=0)
-    tasks_completed: int = Field(..., ge=0)
-    total_tasks: int = Field(..., gt=0)
+    errors_count: int = Field(0, ge=0)
+    tasks_completed: Optional[int] = Field(None, ge=0)
+    total_tasks: Optional[int] = Field(None, gt=0)
     capabilities_developed: List[str] = Field(default_factory=list)
     capability_gaps_remaining: List[str] = Field(default_factory=list)
 
@@ -318,11 +328,42 @@ async def complete_training_session(
         result = await StudentTrainingService(db).complete_training_session(
             session_id=session_id, outcome=outcome
         )
+    except InsufficientTrainingEvidenceError as e:
+        # 422 with the live counts so the panel can render "1/3 recorded
+        # runs" instead of a generic failure.
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INSUFFICIENT_TRAINING_EVIDENCE",
+                "message": str(e),
+                "evidence": e.evidence,
+            },
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     logger.info("Training completed: session=%s result_keys=%s", session_id, sorted(result.keys()))
     return result
+
+
+@router.get("/training/sessions/{session_id}/evidence")
+async def get_training_session_evidence(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Live linked-evidence counts for a training session.
+
+    Powers the supervisor panel: work runs the agent recorded since the
+    session was approved, its success ratio, and the completion floor.
+    """
+    _require_supervisor(db, current_user)
+    session = db.query(TrainingSession).filter(TrainingSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    service = StudentTrainingService(db)
+    evidence = service.get_session_evidence(session)
+    return {"session_id": session_id, **evidence}
 
 
 

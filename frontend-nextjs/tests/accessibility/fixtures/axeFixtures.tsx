@@ -1,5 +1,9 @@
-import { render, RenderResult } from '@testing-library/react';
-import { axe, toHaveNoViolations, AxeResults, Violation } from 'jest-axe';
+import { render } from '@testing-library/react';
+import { axe, toHaveNoViolations } from 'jest-axe';
+// jest-axe 10 ships no AxeResults/Violation exports; its types come from axe-core
+import type { AxeResults, Result } from 'axe-core';
+// a jest-axe "violation" is an axe-core Result
+type Violation = Result;
 import React, { ReactElement } from 'react';
 import { SessionProvider } from 'next-auth/react';
 
@@ -33,7 +37,7 @@ expect.extend(toHaveNoViolations);
 export function axeRender(
   ui: ReactElement,
   options?: { [key: string]: any }
-): RenderResult {
+) {
   return render(ui, options);
 }
 
@@ -198,7 +202,7 @@ export async function authenticatedAxeRender(
   ui: ReactElement,
   authToken: string = 'mock-token',
   options?: { [key: string]: any }
-): Promise<RenderResult> {
+) {
   // Mock localStorage for authentication
   const mockLocalStorage = {
     getItem: (key: string) => {

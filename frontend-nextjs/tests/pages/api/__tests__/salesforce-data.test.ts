@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import accountsHandler from "@/pages/api/integrations/salesforce/accounts";
 import contactsHandler from "@/pages/api/integrations/salesforce/contacts";
 import leadsHandler from "@/pages/api/integrations/salesforce/leads";
@@ -34,7 +34,7 @@ const runProxySuite = (
 ) => {
   describe(describeName, () => {
     const invoke = async (method = "GET", query: any = {}, body?: any) => {
-      const { req, res } = createMocks({ method, query, body }) as any;
+      const { req, res } = createMocks({ method: method as RequestMethod, query, body }) as any;
       await handler(req, res);
       return res;
     };

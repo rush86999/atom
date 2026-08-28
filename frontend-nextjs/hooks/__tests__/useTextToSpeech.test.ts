@@ -88,6 +88,17 @@ function setupSpeechSynthesis() {
 // Test Utilities
 // ============================================
 
+// The handlers installed by the hook under test are plain callbacks invoked
+// without a DOM event object, so loosen the event-bearing DOM signatures.
+type MockUtterance = Omit<
+  SpeechSynthesisUtterance,
+  'onstart' | 'onend' | 'onerror'
+> & {
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: any) => void) | null;
+};
+
 function createMockVoices(): SpeechSynthesisVoice[] {
   return [
     new MockSpeechSynthesisVoice('Google US English', 'en-US', true),
@@ -95,7 +106,7 @@ function createMockVoices(): SpeechSynthesisVoice[] {
     new MockSpeechSynthesisVoice('Google UK English Female', 'en-GB'),
     new MockSpeechSynthesisVoice('Google Español', 'es-ES'),
     new MockSpeechSynthesisVoice('Google Français', 'fr-FR')
-  ];
+  ] as unknown as SpeechSynthesisVoice[];
 }
 
 // ============================================
@@ -306,7 +317,7 @@ describe('useTextToSpeech - State Management', () => {
 
     // Get the utterance that was passed to speak()
     const speakCall = (mockSpeechSynthesis.speak as jest.Mock).mock.calls[0];
-    const utterance = speakCall[0] as SpeechSynthesisUtterance;
+    const utterance = speakCall[0] as MockUtterance;
 
     // Trigger onstart
     act(() => {
@@ -327,7 +338,7 @@ describe('useTextToSpeech - State Management', () => {
     });
 
     const speakCall = (mockSpeechSynthesis.speak as jest.Mock).mock.calls[0];
-    const utterance = speakCall[0] as SpeechSynthesisUtterance;
+    const utterance = speakCall[0] as MockUtterance;
 
     // Trigger onstart first
     act(() => {
@@ -357,7 +368,7 @@ describe('useTextToSpeech - State Management', () => {
     });
 
     const speakCall = (mockSpeechSynthesis.speak as jest.Mock).mock.calls[0];
-    const utterance = speakCall[0] as SpeechSynthesisUtterance;
+    const utterance = speakCall[0] as MockUtterance;
 
     // Trigger onstart first
     act(() => {
@@ -454,7 +465,7 @@ describe('useTextToSpeech - Stop', () => {
     });
 
     const speakCall = (mockSpeechSynthesis.speak as jest.Mock).mock.calls[0];
-    const utterance = speakCall[0] as SpeechSynthesisUtterance;
+    const utterance = speakCall[0] as MockUtterance;
 
     // Trigger onstart
     act(() => {

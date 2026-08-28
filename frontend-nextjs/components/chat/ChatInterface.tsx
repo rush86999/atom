@@ -35,6 +35,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         isProcessing,
         statusMessage,
         messages,
+        chatAgent,
         sessionTitle,
         isEditingTitle,
         setIsEditingTitle,
@@ -138,6 +139,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 }}
             />
 
+            {/* Who you're talking to: when the chat is scoped to a hire
+                (?agent_id=…), always show its identity and maturity tier so
+                the generic sidebar/title never leaves that ambiguous. */}
+            {chatAgent && (
+                <div
+                    data-testid="chat-agent-identity"
+                    className="mx-4 mt-2 flex items-center gap-2 rounded-md border border-purple-200 bg-purple-50 dark:bg-purple-950/30 dark:border-purple-800 px-3 py-1.5 text-sm"
+                >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-600 text-white text-xs font-semibold">
+                        {chatAgent.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {chatAgent.name}
+                    </span>
+                    {chatAgent.category && (
+                        <span className="text-xs text-muted-foreground">{chatAgent.category}</span>
+                    )}
+                    {chatAgent.status && (
+                        <span
+                            data-testid="chat-agent-tier"
+                            className="ml-auto rounded-full px-2 py-0.5 text-xs font-medium border bg-amber-100 text-amber-800 border-amber-300 capitalize"
+                        >
+                            {chatAgent.status}
+                        </span>
+                    )}
+                </div>
+            )}
+
             {/* P1.1: actionable recovery banner when no LLM provider is configured. */}
             {providerError && (
                 <div className="mx-4 mt-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-sm">
@@ -200,7 +229,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 isUploading={isUploading}
                 activeAttachments={activeAttachments}
                 setActiveAttachments={setActiveAttachments}
-                handleSend={handleSend}
+                // useChatInterface's handleSend resolves to a success boolean that
+                // ChatInput ignores; adapt to ChatInput's Promise<void> prop type.
+                handleSend={handleSend as unknown as (overrideText?: string) => Promise<void>}
                 handleStop={handleStop}
                 setIsVoiceModeOpen={setIsVoiceModeOpen}
                 uploadFile={uploadFile}

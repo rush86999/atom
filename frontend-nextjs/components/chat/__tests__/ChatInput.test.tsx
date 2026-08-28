@@ -469,6 +469,6 @@ describe('ChatInput', () => {
     // The attach button is disabled during upload (the send button remains
     // enabled — only input content gates it)
     const buttons = screen.getAllByRole('button');
-    expect(buttons[0].disabled).toBe(true);
+    expect((buttons[0] as HTMLButtonElement).disabled).toBe(true);
   });
 });

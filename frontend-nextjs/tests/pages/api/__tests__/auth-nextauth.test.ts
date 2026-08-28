@@ -243,7 +243,7 @@ describe("pages/api/auth/[...nextauth] authOptions", () => {
         session: { user: { id: "", email: "" } },
         token: { id: "tok-id", email: "tok@x.com", backendToken: "bt" } as any,
       } as any);
-      expect(session.user.id).toBe("tok-id");
+      expect((session.user as any).id).toBe("tok-id");
       expect(session.user.email).toBe("tok@x.com");
       expect((session as any).backendToken).toBe("bt");
     });

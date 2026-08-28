@@ -238,9 +238,9 @@ const OutlookIntegration: React.FC = () => {
     const checkConnection = async () => {
         try {
             const headers = getAuthHeaders();
-            let response = await fetch("/api/v1/integrations/outlook/health", { headers }).catch(() => null);
+            let response = await fetch("/api/v1/integrations/outlook/health", { headers }).catch((): null => null);
             if (!response || !response.ok) {
-                response = await fetch("/api/integrations/outlook/health", { headers }).catch(() => null);
+                response = await fetch("/api/integrations/outlook/health", { headers }).catch((): null => null);
             }
 
             if (response && response.ok) {

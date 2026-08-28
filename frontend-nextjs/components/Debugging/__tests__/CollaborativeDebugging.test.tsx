@@ -56,7 +56,7 @@ describe('CollaborativeDebugging', () => {
         return Promise.resolve({ ok: true, json: async () => ({ collaborators: storedCollabs }) });
       }
       return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
-    });
+    }) as unknown as typeof fetch;
   });
 
   const renderOwner = (props: Record<string, any> = {}) =>

@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 /**
  * Test Helpers for React Hooks
  *
@@ -176,7 +177,7 @@ export function createMockSpeechSynthesis() {
     cancel: jest.fn(),
     pause: jest.fn(),
     resume: jest.fn(),
-    getVoices: jest.fn(() => []),
+    getVoices: jest.fn((): unknown[] => []),
 
     // Helper method to trigger voiceschanged event
     triggerVoicesChanged: () => {

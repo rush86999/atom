@@ -19,9 +19,29 @@ interface PipelineSettingsPanelProps {
     onClose?: () => void;
 }
 
+interface MailHistorySettings {
+    outlook: string;
+    gmail: string;
+    imap: string;
+}
+
+const MAIL_HISTORY_FIELDS: { key: keyof MailHistorySettings; label: string }[] = [
+    { key: 'outlook', label: 'Outlook' },
+    { key: 'gmail', label: 'Gmail' },
+    { key: 'imap', label: 'IMAP / Other' },
+];
+
+const DEFAULT_HISTORY_DAYS = '90';
+
 export const PipelineSettingsPanel: React.FC<PipelineSettingsPanelProps> = ({ isOpen, onClose }) => {
     const [pipelineSettings, setPipelineSettings] = useState<PipelineSettings | null>(null);
+    const [historyDays, setHistoryDays] = useState<MailHistorySettings>({
+        outlook: DEFAULT_HISTORY_DAYS,
+        gmail: DEFAULT_HISTORY_DAYS,
+        imap: DEFAULT_HISTORY_DAYS,
+    });
     const [isSaving, setIsSaving] = useState(false);
+    const [isSavingHistory, setIsSavingHistory] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -37,6 +57,11 @@ export const PipelineSettingsPanel: React.FC<PipelineSettingsPanelProps> = ({ is
             if (res.ok) {
                 const data = await res.json();
                 setPipelineSettings(data.pipelines || {});
+                setHistoryDays({
+                    outlook: String(data.outlook_history_days ?? 90),
+                    gmail: String(data.gmail_history_days ?? 90),
+                    imap: String(data.email_history_days ?? 90),
+                });
             }
         } catch (error) {
             console.error('Failed to fetch pipeline settings:', error);
@@ -73,6 +98,39 @@ export const PipelineSettingsPanel: React.FC<PipelineSettingsPanelProps> = ({ is
             toast.error('Failed to update pipeline settings');
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const saveHistoryDays = async () => {
+        const payload: Record<string, number> = {};
+        for (const { key, label } of MAIL_HISTORY_FIELDS) {
+            const days = parseInt(historyDays[key], 10);
+            if (isNaN(days) || days < 1 || days > 3650) {
+                toast.error(`${label}: history must be between 1 and 3650 days`);
+                return;
+            }
+            const settingKey = key === 'imap' ? 'email_history_days' : `${key}_history_days`;
+            payload[settingKey] = days;
+        }
+
+        try {
+            setIsSavingHistory(true);
+            const res = await fetch('/api/v1/settings/automations/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                toast.success('Mail sync history saved — applies to each integration\u2019s first connect');
+            } else {
+                const err = await res.json().catch((): null => null);
+                toast.error(err?.detail || 'Failed to update history setting');
+            }
+        } catch (error) {
+            toast.error('Failed to update history setting');
+        } finally {
+            setIsSavingHistory(false);
         }
     };
 
@@ -123,6 +181,42 @@ export const PipelineSettingsPanel: React.FC<PipelineSettingsPanelProps> = ({ is
                         </div>
                     ))
                 )}
+                <div className="md:col-span-3 flex flex-col gap-3 p-3 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10">
+                    <div>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">Mail Sync History</span>
+                        <p className="text-[10px] text-muted-foreground">
+                            How much mailbox history each integration ingests on first connect (default: 3 months / 90 days)
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-end gap-3">
+                        {MAIL_HISTORY_FIELDS.map(({ key, label }) => (
+                            <div key={key} className="flex items-center gap-1.5">
+                                <label className="text-[11px] text-muted-foreground" htmlFor={`history-${key}`}>{label}</label>
+                                <input
+                                    id={`history-${key}`}
+                                    type="number"
+                                    min={1}
+                                    max={3650}
+                                    value={historyDays[key]}
+                                    onChange={(e) => setHistoryDays({ ...historyDays, [key]: e.target.value })}
+                                    className="w-20 h-7 rounded-md bg-white/60 dark:bg-black/40 border border-black/10 dark:border-white/10 px-2 text-xs text-gray-900 dark:text-white"
+                                    aria-label={`${label} history in days`}
+                                />
+                                <span className="text-[11px] text-muted-foreground">days</span>
+                            </div>
+                        ))}
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={isSavingHistory}
+                            className="h-7 text-[11px] hover:bg-primary/20 hover:text-primary transition-all"
+                            onClick={saveHistoryDays}
+                        >
+                            <Settings2 className={`w-3 h-3 mr-1.5 ${isSavingHistory ? 'animate-spin' : ''}`} />
+                            Save
+                        </Button>
+                    </div>
+                </div>
             </CardContent>
         </Card>
     );
