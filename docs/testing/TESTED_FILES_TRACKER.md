@@ -6,6 +6,21 @@
 
 ---
 
+## Session 2026-08-28d (Zoho WorkDrive teams scope — 500 F7007 "Invalid OAuth scope" on GET /teams)
+
+**Context**: After connect + mount + CSRF fixes, the page showed Connected and 3 private-workspace files, but NO teams/team-folders. Diagnostic (raw Zoho API with the stored token): `GET /api/v1/teams -> 500 {"errors":[{"id":"F7007","title":"Invalid OAuth scope."}]}` while `GET /users/me -> 200`. The granted scopes (files + teamfolders) lack `WorkDrive.teams.*` — Zoho requires it for the teams listing and team-folders picker. `H Drive` is NOT Zoho WorkDrive — it's a Windows/network drive (on-prem CNC docs per role-training-plan.md), so it cannot appear in the WorkDrive ingestion picker.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/oauth_handler.py` | `_ZOHO_DEFAULT_SCOPES` += `WorkDrive.teams.READ` (least-privilege read; covers GET /teams + team-folders picker) | `test_zoho_default_scopes_are_valid_names` RED→GREEN (assertion added first) |
+| `tests/test_zoho_oauth_provider_keys.py` | locks `WorkDrive.teams.READ` in the default set | 6 passed (full file) |
+
+**Verification**: `tests/test_zoho_oauth_provider_keys.py` 6/6. **Re-consent required**: Zoho grants scopes at consent time — the stored token still has the old scope set, so the user must Reconnect (new consent URL now includes `WorkDrive.teams.READ`).
+
+---
+
 ## Session 2026-08-28c (Zoho suite routes double-prefix — frontend 404 on /api/zoho-workdrive/*)
 
 **Context**: After the scope fix, Connect Zoho succeeded (tokens stored) but the WorkDrive page still showed disconnected + no files. Logs showed `GET /api/zoho-workdrive/health -> 404` on every health poll. Root cause: the "Standardized" refactor mounted every Zoho suite router (which carries its OWN prefix — `/api/zoho-workdrive`, `/api/integrations/zoho_*`) with an EXTRA `/api/v1/integrations/...` prefix, doubling every path to `…/zoho-workdrive/api/zoho-workdrive/…` — the frontend's bare calls all 404'd. Verified: bare = 404, doubled = 200.
