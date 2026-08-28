@@ -31,6 +31,20 @@ BYOK_KEYS_FILE = "./data/byok_keys.json"
 BYOK_ENC_KEY_FILE = "./data/byok_encryption_key"
 
 
+def _db_key_sync_enabled() -> bool:
+    """SaaS parity gate for the ``tenant_settings`` BYOK mirror.
+
+    Atom is single-tenant: the encrypted file store (``BYOK_KEYS_FILE``) is
+    the SINGLE source of truth for API keys. The DB mirror is a co-equal
+    second source only under SaaS parity mode (``ATOM_BYOK_DB_SYNC=true``);
+    locally it is off by default, so keys are stored/read/deleted in exactly
+    one place. Legacy DB rows remain deleteable either way (hygiene).
+    """
+    import os
+
+    return os.getenv("ATOM_BYOK_DB_SYNC", "false").strip().lower() in ("1", "true", "yes")
+
+
 @dataclass
 class AIProviderConfig:
     """Configuration for AI providers"""
@@ -658,8 +672,9 @@ class BYOKManager:
 
     def has_tenant_keys(self, tenant_id: str, db: Session = None) -> bool:
         """Check if a tenant has ANY API keys configured (self-provided only)."""
-        # 1. Check tenant settings in DB if provided
-        if db:
+        # 1. Check tenant settings in DB if provided (SaaS parity mode only —
+        # the file store is the single source of truth otherwise).
+        if db and _db_key_sync_enabled():
             from core.models import TenantSetting
             # Check for keys like OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
             # These are the keys added by users in the Settings UI
@@ -685,9 +700,9 @@ class BYOKManager:
         if not provider:
             raise ValueError(f"Provider {provider_id} not found")
             
-        # Check for tenant-specific key in DB
+        # Check for tenant-specific key in DB (SaaS parity mode only)
         has_tenant_key = False
-        if db:
+        if db and _db_key_sync_enabled():
             # Check tenant_settings table (aligned with frontend)
             # Keys are typically TAVILY_API_KEY, OPENAI_API_KEY, etc.
             setting_key = f"{provider_id.upper()}_API_KEY"
@@ -749,7 +764,9 @@ class BYOKManager:
         # 2. Sync with tenant_settings table for frontend compatibility.
         # R81: store the Fernet-encrypted value, not the plaintext — the
         # tenant_settings table previously held raw credentials at rest.
-        if db:
+        # SaaS-parity gated (single-tenant: the file store above is the only
+        # source of truth; a second live copy produced split-brain keys).
+        if db and _db_key_sync_enabled():
             setting_key = f"{provider_id.upper()}_API_KEY"
             setting = db.query(TenantSetting).filter(
                 TenantSetting.tenant_id == tenant_id,
@@ -781,10 +798,16 @@ class BYOKManager:
         environment: str = "production",
         db: Session = None
     ) -> Optional[str]:
-        """Retrieve and decrypt an API key for a specific tenant (Checks DB first)"""
-        
-        # 1. Check DB first (tenant_settings) - prioritized for SaaS scaling
-        if db:
+        """Retrieve and decrypt an API key for a specific tenant.
+
+        Source of truth is the manager's encrypted file store. The
+        ``tenant_settings`` DB copy is consulted only in SaaS parity mode
+        (:func:`_db_key_sync_enabled`) — keeping two live sources of truth
+        in single-tenant deployments produced split-brain credentials.
+        """
+
+        # 1. SaaS parity mode: DB (tenant_settings) first.
+        if db and _db_key_sync_enabled():
             setting_key = f"{provider_id.upper()}_API_KEY"
             setting = db.query(TenantSetting).filter(
                 TenantSetting.tenant_id == tenant_id,
@@ -1063,18 +1086,59 @@ async def delete_api_key(
     key_name: str = "default",
     environment: str = "production",
     current_user: User = Depends(get_current_user),
+    tenant: Tenant = Depends(get_current_tenant),
     byok_manager: BYOKManager = Depends(get_byok_manager),
+    db: Session = Depends(get_db),
 ):
-    """Delete an API key"""
+    """Delete an API key — across ALL the stores it may live in.
+
+    A provider's key can exist in three places (see store_tenant_api_key):
+    the manager's file store under a GLOBAL id (``{provider}_{key}_{env}``),
+    under TENANT-scoped ids (``tenant_{tenant}_{provider}_{key}_{env}``), and
+    synced into the ``tenant_settings`` table. The previous implementation
+    only removed the exact global id, so wizard/Settings-saved keys (custom
+    key_names, tenant-scoped, DB-synced) were undeletable from the UI — the
+    404 here, then the provider still showing "configured" from the DB row.
+
+    Semantics: an exact key_name match (including ``default``) removes that
+    named key everywhere it lives.
+    """
     key_id = f"{provider_id}_{key_name}_{environment}"
+    tenant_prefix = f"tenant_{tenant.id}_{provider_id}_"
 
-    if key_id not in byok_manager.api_keys:
-        raise HTTPException(status_code=404, detail="API key not found")
+    removed: list = []
 
-    del byok_manager.api_keys[key_id]
+    # 1. Manager file store — exact global id, then any tenant-scoped row
+    # for this provider+key_name+environment.
+    if key_id in byok_manager.api_keys:
+        del byok_manager.api_keys[key_id]
+        removed.append(key_id)
+    suffix = f"_{key_name}_{environment}"
+    for row_id in list(byok_manager.api_keys.keys()):
+        if row_id.startswith(tenant_prefix) and row_id.endswith(suffix):
+            del byok_manager.api_keys[row_id]
+            removed.append(row_id)
     byok_manager._save_configuration()
 
-    return ApiResponse(success=True, message=f"API key {key_id} deleted successfully")
+    # 2. DB sync (tenant_settings) — same row store_tenant_api_key writes.
+    try:
+        setting_key = f"{provider_id.upper()}_API_KEY"
+        setting = db.query(TenantSetting).filter(
+            TenantSetting.tenant_id == tenant.id,
+            TenantSetting.setting_key == setting_key,
+        ).first()
+        if setting:
+            db.delete(setting)
+            db.commit()
+            removed.append(f"tenant_settings:{setting_key}")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete {provider_id} key from tenant_settings: {e}")
+
+    if not removed:
+        raise HTTPException(status_code=404, detail="API key not found")
+
+    return ApiResponse(success=True, message=f"API key {provider_id}/{key_name} deleted", data={"removed": removed})
 
 
 @router.post("/api/ai/optimize-cost")

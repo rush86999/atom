@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast";
+import { authHeaders } from "@/lib/auth-headers";
 
 
 // Types shared across both frontends
@@ -41,6 +43,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   baseApiUrl = "/api",
   className = "",
 }) => {
+  const { toast } = useToast();
   const [userStatus, setUserStatus] = useState<UserAPIKeyStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,21 +131,30 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   const loadUserAPIKeyStatus = async () => {
     try {
       setLoading(true);
-      // Use the correct BYOK endpoint
-      const response = await fetch(`${baseApiUrl}/ai/providers`);
+      // Use the correct BYOK endpoint. GET /api/ai/providers is auth-gated
+      // (byok_routes.get_ai_providers) — round 80 documented this exact bug
+      // class: raw fetch() callers dropping the Authorization header.
+      const response = await fetch(`${baseApiUrl}/ai/providers`, {
+        headers: authHeaders(),
+      });
       if (!response.ok) {
         throw new Error("Failed to load AI providers");
       }
       const data = await response.json();
 
+      // The endpoint wraps its payload in the standard ApiResponse envelope
+      // ({success, data: {providers, ...}}); older callers read top-level
+      // `providers`, which is undefined → an empty/erroring page. Accept both.
+      const payload = data?.data?.providers ? data.data : data;
+
       // Transform backend response to expected state format
       // Backend returns { providers: [{provider: {...}, usage: {...}, has_api_keys: bool, status: str}], ... }
-      if (data.providers) {
+      if (payload.providers) {
         const statusMap: Record<string, AIProviderStatus> = {};
         let configuredCount = 0;
         let workingCount = 0;
 
-        data.providers.forEach((p: any) => {
+        payload.providers.forEach((p: any) => {
           statusMap[p.provider.id] = {
             configured: p.has_api_keys,
             test_result: {
@@ -166,7 +178,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
           user_id: userId,
           status: statusMap,
           summary: {
-            total_available: data.total_providers,
+            total_available: payload.total_providers,
             total_configured: configuredCount,
             total_working: workingCount
           }
@@ -191,7 +203,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
         `${baseApiUrl}/ai/providers/${provider}/keys?key_name=default`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ api_key: apiKey }),
         }
       );
@@ -221,6 +233,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
         `${baseApiUrl}/ai/providers/${provider}/keys/default`,
         {
           method: "DELETE",
+          headers: authHeaders(),
         },
       );
 
@@ -248,7 +261,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
       // the key against the provider. Now calls the backend test endpoint.
       const testResponse = await fetch(
         `${baseApiUrl}/ai/providers/${provider}/test`,
-        { method: "POST" }
+        { method: "POST", headers: authHeaders() }
       );
       if (testResponse.ok) {
         const testData = await testResponse.json();

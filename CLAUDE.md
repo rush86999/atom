@@ -20,6 +20,12 @@
 
 ## Architecture
 
+**Deployment model: SINGLE-TENANT.** Atom is a single-tenant, locally-owned app. All multi-tenant machinery (tenant_id columns, `get_current_tenant`, `tenant_settings`/tenant-scoped stores, SaaS plan gates) exists **only for feature parity with the SaaS offering — it is NOT the deployment model**. Decision rules that follow:
+- File-based stores (`./data/*.json`, LanceDB, SQLite) are FIRST-CLASS for this app, not a legacy gap. Don't propose "move it to the DB" as an improvement on their account.
+- Tenant-scoped paths (e.g. BYOK `store_tenant_api_key`/`tenant_settings`, tenant_id filters) are compatibility shims — keep them working, never treat them as load-bearing for local deployments, and don't build new features that require them.
+- Precedence for credentials/config: local store (file/env) wins in practice; DB sync targets exist for parity only. **BYOK keys specifically** (`api/byok_routes.py`): `data/byok_keys.json` is the single source of truth; the `tenant_settings` DB mirror is write/read-gated behind `ATOM_BYOK_DB_SYNC` (default OFF). Deleting a key must clean all stores (file rows tenant-scoped + global, DB row) — the DELETE endpoint does this unconditionally as hygiene.
+- When a bug involves tenant plumbing, the fix should preserve parity semantics but optimize for the single-operator case.
+
 **Storage**: Personal Edition = embedded LanceDB (`./data/lancedb`, `./data/atom_memory`) + SQLite default; Redis/Valkey optional (WS pub-sub only). SaaS flips `LANCEDB_CLOUD_ENABLED=true` (S3/R2).
 
 **Governance flow**: `User Request → AgentContextResolver → GovernanceCache → AgentGovernanceService → Agent Execution → Response`

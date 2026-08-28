@@ -58,8 +58,12 @@ const BYOKManager = () => {
             setLoading(true);
             const response = await fetch('/api/ai/providers', { headers: authHeaders() });
             const data = await response.json();
-            if (data.providers) {
-                setProviders(data.providers);
+            // The endpoint wraps its payload in the standard ApiResponse
+            // envelope ({success, data: {providers}}); reading top-level
+            // `providers` left the "Select provider" dropdown empty. Accept both.
+            const payload = data?.data?.providers ? data.data : data;
+            if (payload.providers) {
+                setProviders(payload.providers);
             }
         } catch (error) {
             console.error("Failed to fetch providers:", error);
@@ -102,11 +106,12 @@ const BYOKManager = () => {
             });
 
             const data = await response.json();
+            const payload = data?.data?.key_id ? data.data : data;
 
-            if (data.success) {
+            if (payload.success ?? payload.key_id) {
                 toast({
                     title: "API Key added",
-                    description: `Key '${data.key_name}' added for ${selectedProvider}`,
+                    description: `Key added for ${selectedProvider}`,
                     variant: "success",
                     duration: 3000,
                 });
