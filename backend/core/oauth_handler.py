@@ -349,8 +349,11 @@ _ZOHO_DEFAULT_SCOPES = [
     "ZohoCRM.modules.ALL",
     "ZohoProjects.portals.all",
     "ZohoProjects.projects.all",
-    "ZohoWorkDrive.files.READ",
-    "ZohoWorkDrive.teamfolders.READ",
+    # WorkDrive scopes are `WorkDrive.` prefixed with `.ALL` permissions
+    # (pilot doc §2). `ZohoWorkDrive.files.READ` / `...teamfolders.READ` are
+    # NOT valid Zoho names — one unknown scope fails the whole consent URL.
+    "WorkDrive.files.ALL",
+    "WorkDrive.teamfolders.ALL",
 ]
 _zoho_env_scopes = [
     s.strip()

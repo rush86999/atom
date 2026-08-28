@@ -6,6 +6,21 @@
 
 ---
 
+## Session 2026-08-28b (Zoho WorkDrive scope — the REAL "Scope does not exist" fix)
+
+**Context**: After the CRM/Projects scope fix, Connect Zoho STILL failed with `Invalid OAuth Scope / Scope does not exist`. Pilot doc `atom-self-hosted-pilot-instructions.md` §2 (the doc-verified source) showed WorkDrive scopes are **`WorkDrive.`-prefixed with `.ALL`** (`WorkDrive.files.ALL`, `WorkDrive.teamfolders.ALL`) — the defaults had `ZohoWorkDrive.files.READ` / `ZohoWorkDrive.teamfolders.READ` (wrong prefix + wrong permission), and the regression test locked the same bad names, so the bug survived the first fix. One unknown scope fails the whole consent URL.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/oauth_handler.py` | `_ZOHO_DEFAULT_SCOPES`: `ZohoWorkDrive.files.READ` → `WorkDrive.files.ALL`; `ZohoWorkDrive.teamfolders.READ` → `WorkDrive.teamfolders.ALL` (pilot-doc §2 verified names) | `test_zoho_default_scopes_are_valid_names` RED→GREEN (test first locked `ZohoWorkDrive.*` bad names — fixed assertions to the verified set + `not in` guards) |
+| `tests/test_zoho_oauth_provider_keys.py` | validation test now asserts `WorkDrive.files.ALL` + `WorkDrive.teamfolders.ALL` and rejects the old names. **Bonus pre-existing fixture fix**: 3 callback tests passed `config=MagicMock()` but `_handle_callback_logic` calls `urlparse(config.auth_url)` → deterministic TypeError aborted the provider fan-out (rows never added) → `config=MagicMock(auth_url=...)`; mock token scope updated to the verified names | 6 passed (full file) |
+
+**Verification**: `tests/test_zoho_oauth_provider_keys.py` 6/6 passed (was 3 failed pre-fix — 1 from the scope guard, 3 from the pre-existing MagicMock fixture bug). Connect flow unchanged: frontend buttons → `GET /api/v1/auth/oauth/zoho/{authorize,initiate}` → `OAuthHandler` with the fixed defaults (no `ZOHO_OAUTH_SCOPES` env override in `.env`).
+
+---
+
 ## Session 2026-08-28 (Role-template registry — training Phase 2: session canvas spawn + approvals cards)
 
 **Context**: Brennan's "when you say go" step — `docs/operations/role-training-plan.md` spec'd `{domain → canvas set, default tasks, trusted scope}` per role but the mini-canvas rendering was unimplemented. Approving a training proposal now spawns the role's typed-canvas set (ChatSession + Canvas + CanvasAudit stamped with the session id), so `/approvals` renders trainee work as visual cards instead of chat text.
