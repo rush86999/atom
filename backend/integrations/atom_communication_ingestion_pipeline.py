@@ -140,7 +140,16 @@ class LanceDBMemoryManager:
     
     def __init__(self, db_path: str = None, workspace_id: Optional[str] = None):
         self.workspace_id = workspace_id or "default"
-        base_path = db_path or os.getenv("LANCEDB_URI_BASE", "./data/atom_memory")
+        # Anchored to backend/ so the store is independent of the launch CWD
+        # (same treatment as core/lancedb_handler.py — a root-vs-backend
+        # launch previously pointed at two different memory stores).
+        base_path = db_path or os.getenv(
+            "LANCEDB_URI_BASE",
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "data", "atom_memory",
+            ),
+        )
         self.db_path = Path(base_path) / self.workspace_id
         self.db_path.mkdir(parents=True, exist_ok=True)
         self.db = None
@@ -235,11 +244,47 @@ class LanceDBMemoryManager:
                     self.connections_table = self.db.create_table("atom_communications", schema=schema)
                     logger.info(f"Recreated empty atom_communications at {dim}-dim")
                 elif str(dim) not in existing_dim:
-                    logger.warning(
-                        f"atom_communications has {existing_dim} vectors but active "
-                        f"embedder emits {dim} — new inserts will fail; "
-                        f"migrate or clear the table to match"
-                    )
+                    # Active embedder dim differs from the stored vectors
+                    # (e.g. table built under sentence-transformers 768, now
+                    # running FastEmbed 384): every insert and vector search
+                    # would fail with a dim-mismatch error. Migrate in place —
+                    # carry the rows over and re-embed content at the active
+                    # dim so history stays searchable.
+                    try:
+                        rows = self.connections_table.to_arrow().to_pylist()
+                        self.db.drop_table("atom_communications")
+                        self.connections_table = self.db.create_table(
+                            "atom_communications", schema=schema
+                        )
+                        migrated = 0
+                        batch = []
+                        for row in rows:
+                            vec = self.generate_embedding(row.get("content") or "")
+                            row["vector"] = vec
+                            row["search_vector"] = vec
+                            batch.append(row)
+                            if len(batch) >= 100:
+                                self.connections_table.add(batch)
+                                migrated += len(batch)
+                                batch = []
+                        if batch:
+                            self.connections_table.add(batch)
+                            migrated += len(batch)
+                        logger.info(
+                            f"Migrated atom_communications {existing_dim} -> "
+                            f"{dim}-dim ({migrated} rows re-embedded)"
+                        )
+                    except Exception as migrate_err:
+                        logger.error(
+                            f"atom_communications dim migration failed "
+                            f"({migrate_err}) — leaving the existing table"
+                        )
+                        try:
+                            self.connections_table = self.db.open_table(
+                                "atom_communications"
+                            )
+                        except Exception:
+                            pass
             except Exception as dim_err:
                 logger.debug(f"dim check skipped: {dim_err}")
             logger.info("Opened existing atom_communications table")
