@@ -44,16 +44,39 @@ def _env(name: str) -> Optional[str]:
     return raw.strip().lower() if raw and raw.strip() else None
 
 
-def _flag(name: str) -> Optional[bool]:
-    """Tri-state env resolution: True/False when explicitly set, else None."""
-    raw = _env(name)
+def _parse_flag(raw: Any) -> Optional[bool]:
     if raw is None:
         return None
-    if raw in ("1", "true", "yes", "on"):
+    text = str(raw).strip().lower()
+    if text in ("1", "true", "yes", "on"):
         return True
-    if raw in ("0", "false", "no", "off"):
+    if text in ("0", "false", "no", "off"):
         return False
     return None
+
+
+def _db_flag(name: str) -> Optional[bool]:
+    """UI-persisted override (runtime_settings DB row) for when the env var
+    is unset — resolution via the shared env > db > default resolver, so an
+    explicit env var always wins (kill-switch semantics). Never raises."""
+    try:
+        from core.runtime_settings import resolve_setting
+
+        res = resolve_setting(name)
+        if res.source == "db":
+            return _parse_flag(res.value)
+    except Exception:
+        pass
+    return None
+
+
+def _flag(name: str) -> Optional[bool]:
+    """Tri-state flag resolution: explicit env first (kill-switch), then a
+    UI-persisted DB override, else None (AUTO / evidence-driven)."""
+    explicit = _parse_flag(_env(name))
+    if explicit is not None:
+        return explicit
+    return _db_flag(name)
 
 
 def automation_enabled() -> bool:

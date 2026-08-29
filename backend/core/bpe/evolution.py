@@ -46,6 +46,33 @@ def evolution_enabled() -> bool:
     return os.getenv(EVOLUTION_FLAG, "false").strip().lower() in ("1", "true", "yes")
 
 
+def _explicit_apply_override() -> Optional[bool]:
+    """Explicit ATOM_BPE_EVOLUTION_ENABLED resolution: env first, then a
+    UI-persisted runtime-settings override, else None (automation decides).
+    'auto' (the catalog default) also resolves to None."""
+    raw = os.getenv(EVOLUTION_FLAG)
+    if raw is not None:
+        text = raw.strip().lower()
+        if text in ("1", "true", "yes"):
+            return True
+        if text in ("0", "false", "no", "off"):
+            return False
+        return None
+    try:
+        from core.runtime_settings import resolve_setting
+
+        res = resolve_setting(EVOLUTION_FLAG)
+        if res.source == "db":
+            text = str(res.value).strip().lower()
+            if text in ("1", "true", "yes"):
+                return True
+            if text in ("0", "false", "no", "off"):
+                return False
+    except Exception:
+        pass
+    return None
+
+
 def clamp_genome(genome: Dict[str, Any]) -> Dict[str, Any]:
     """Clamp/validate a genome against GENE_BOUNDS (invalid genes dropped)."""
     out: Dict[str, Any] = {}
@@ -195,20 +222,31 @@ def apply_best(family: str) -> Optional[Dict[str, Any]]:
         return None
 
     snap = population.snapshot().get(str(family), [])
-    explicit = os.getenv(EVOLUTION_FLAG)
-    explicit_flag = explicit.strip().lower() if explicit else None
-    if explicit_flag == "false":
+    explicit_flag = _explicit_apply_override()
+    if explicit_flag is False:
         logger.debug("bpe evolution: best genome held (kill-switch false)")
+        return None
+
+    from core.bpe.trust_bridge import evolution_veto, mark_applied
+
+    vetoed, veto_reason = evolution_veto()
+    if vetoed and explicit_flag is not True:
+        # Adjudicated corrections landed since the last apply: the fitness
+        # landscape is stale by the trusted channel's lights. Hold and let
+        # automation retry after fresh trials (human signal = veto, self
+        # fitness = throttle). An explicit operator override bypasses.
+        logger.info("bpe evolution: best genome held (%s)", veto_reason)
         return None
 
     evidence_ready = len(snap) >= 3 and max(
         (i.get("fitness") or 0.0) for i in snap
     ) >= EVOLUTION_APPLY_FITNESS
-    if explicit_flag != "true" and not (evolution_apply_enabled() and evidence_ready):
+    if explicit_flag is not True and not (evolution_apply_enabled() and evidence_ready):
         logger.debug("bpe evolution: best genome held (evidence pending)")
         return None
 
     applied = set_active_bounds(genome)
+    mark_applied()
     maybe_automation_flip(
         "evolution_apply",
         {"family": family, "genome": genome,

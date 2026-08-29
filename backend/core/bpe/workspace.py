@@ -465,3 +465,46 @@ def get_workspace(workspace_id: str, agent_id: str, scope_key: str) -> BPEWorksp
 def reset_registry() -> None:
     """Test helper: clear cached workspaces."""
     _workspaces.clear()
+
+
+def iter_agent_workspaces(agent_id: str) -> List["BPEWorkspace"]:
+    """All cached workspaces belonging to one agent (snapshot list).
+
+    Used by the trust bridge's de-inflation sweep (core/bpe/trust_bridge.py):
+    adjudicated corrections demote experience entries across every scope the
+    agent touched, without needing to know its workspace/scope keys.
+    """
+    return [ws for ws in list(_workspaces.values())
+            if ws.agent_id == str(agent_id)]
+
+
+def list_workspace_summaries() -> List[Dict[str, Any]]:
+    """Bounded summaries of cached workspaces (admin observability surface).
+
+    One row per cached scope: identity + state sizes, not full contents —
+    use :func:`get_workspace_snapshot` for a full dump of one scope.
+    """
+    summaries: List[Dict[str, Any]] = []
+    for ws in _workspaces.values():
+        summaries.append({
+            "workspace_id": ws.workspace_id,
+            "agent_id": ws.agent_id,
+            "scope_key": ws.scope_key,
+            "progress_count": len(ws.progress),
+            "progress_done": sum(1 for s in ws.progress if s.status == "done"),
+            "pending_notes": len(ws._pending_notes),
+            "experience_counts": {
+                cat: len(bucket)
+                for cat, bucket in ws.experience._categories.items()
+            },
+            "episode_consults": ws.episode_consults,
+        })
+    return summaries
+
+
+def get_workspace_snapshot(workspace_id: str, agent_id: str,
+                           scope_key: str) -> Optional[Dict[str, Any]]:
+    """Full serialized state for one cached workspace, or None when absent
+    (read-only: unlike :func:`get_workspace` this never creates one)."""
+    ws = _workspaces.get(workspace_key(workspace_id, agent_id, scope_key))
+    return ws.to_dict() if ws is not None else None

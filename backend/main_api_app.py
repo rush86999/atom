@@ -3905,6 +3905,15 @@ try:
     except (ImportError, NameError) as e:
         logger.warning(f"Admin runtime settings routes failed to load: {e}")
 
+    # 38c. BPE Workspace Admin Routes (agent-harness observability + management)
+    try:
+        from api.bpe_routes import router as bpe_admin_router
+
+        app.include_router(bpe_admin_router)
+        logger.info("✓ BPE Workspace Admin Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"BPE workspace admin routes failed to load: {e}")
+
     # 40. Fleet Router Management Routes (validation + approval queue)
     try:
         from api.fleet_router_routes import router as fleet_router_mgmt_router

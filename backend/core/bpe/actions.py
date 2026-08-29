@@ -26,13 +26,24 @@ logger = logging.getLogger(__name__)
 
 
 def bpe_enabled() -> bool:
-    """Flag gate (Switchyard convention: off → shadow-log only, prompt unchanged)."""
-    # Default ON (2026-08-29): the BPE workspace is a default feature of the
-    # platform. Set ATOM_BPE_WORKSPACE_ENABLED=false to opt out.
+    """Flag gate (Switchyard convention: off → shadow-log only, prompt unchanged).
+
+    Default ON (2026-08-29): the BPE workspace is a default platform feature.
+    Resolution: explicit ATOM_BPE_WORKSPACE_ENABLED env var (kill-switch)
+    wins, then a UI-persisted runtime-settings override, else ON.
+    """
     raw = os.getenv("ATOM_BPE_WORKSPACE_ENABLED")
-    if raw is None:
-        return True
-    return raw.strip().lower() not in ("0", "false", "no", "off")
+    if raw is not None:
+        return raw.strip().lower() not in ("0", "false", "no", "off")
+    try:
+        from core.runtime_settings import resolve_setting
+
+        res = resolve_setting("ATOM_BPE_WORKSPACE_ENABLED")
+        if res.source == "db" and isinstance(res.value, bool):
+            return res.value
+    except Exception:
+        pass
+    return True
 
 
 def _scope_from_context(context: Dict[str, Any]) -> Dict[str, str]:
