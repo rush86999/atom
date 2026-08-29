@@ -52,12 +52,23 @@ manager + singleton, which byok_handler / mcp_service / workflow code share.Secu
         return v
 
 # BYOK Configuration Storage
-BYOK_CONFIG_FILE = "./data/byok_config.json"
-BYOK_KEYS_FILE = "./data/byok_keys.json"
+# Anchored to <backend>/data regardless of the launch CWD — must match
+# api/byok_routes (see the rationale there). BYOK_* env vars override.
+BYOK_CONFIG_FILE = os.getenv("BYOK_CONFIG_FILE") or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data",
+    "byok_config.json"
+)
+BYOK_KEYS_FILE = os.getenv("BYOK_KEYS_FILE") or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data",
+    "byok_keys.json"
+)
 # R61: the runtime manager must share the SAME persisted Fernet key as the
 # admin manager (api/byok_routes) — otherwise keys stored via the admin API
 # are undecryptable by the LLM runtime, and every restart bricks stored keys.
-BYOK_ENC_KEY_FILE = "./data/byok_encryption_key"
+BYOK_ENC_KEY_FILE = os.getenv("BYOK_ENC_KEY_FILE") or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data",
+    "byok_encryption_key"
+)
 
 
 @dataclass
@@ -131,6 +142,10 @@ class BYOKManager:
         self.encryption_key = os.getenv("BYOK_ENCRYPTION_KEY")
         if not self.encryption_key:
             self.encryption_key = self._load_or_create_encryption_key()
+        else:
+            # Keep the persisted file in sync with the env override so keys
+            # survive even if .env is later lost or regenerated (see mirror).
+            self._mirror_encryption_key_file(self.encryption_key)
         self._load_configuration()
         self._initialize_default_providers()
 
@@ -678,6 +693,37 @@ class BYOKManager:
         """Generate a secure encryption key for Fernet"""
         return Fernet.generate_key().decode()
 
+    def _mirror_encryption_key_file(self, env_key: str) -> None:
+        """Mirror the env-var Fernet key into the persisted key file.
+
+        ``BYOK_ENCRYPTION_KEY`` wins over the file when both exist, but new
+        installs (quickstart-generated .env) therefore never write the file —
+        so losing or regenerating .env later made the next restart mint a
+        fresh key and brick every stored credential. Writing the winning env
+        key to the file keeps an env-less restart decryptable. A DIFFERENT
+        file key is left untouched: silently overwriting it could brick keys
+        stored under it (only a warning is logged).
+        """
+        try:
+            if os.path.exists(BYOK_ENC_KEY_FILE):
+                with open(BYOK_ENC_KEY_FILE, "r") as f:
+                    existing = f.read().strip()
+                if existing == env_key:
+                    return
+                if existing:
+                    logger.warning(
+                        "BYOK_ENCRYPTION_KEY differs from the persisted key "
+                        "file — keeping the env override. Credentials stored "
+                        "under the file's key will not decrypt."
+                    )
+                    return
+            os.makedirs(os.path.dirname(BYOK_ENC_KEY_FILE), exist_ok=True)
+            with open(BYOK_ENC_KEY_FILE, "w") as f:
+                f.write(env_key)
+            os.chmod(BYOK_ENC_KEY_FILE, 0o600)
+        except Exception as e:
+            logger.error(f"Failed to mirror BYOK encryption key file: {e}")
+
     def _load_or_create_encryption_key(self) -> str:
         """Load the persisted Fernet key, or generate and persist one (0600).
 
@@ -774,13 +820,15 @@ class BYOKManager:
         key_id = f"{provider_id}_{key_name}_{environment}"
 
         if key_id not in self.api_keys:
-            # Fallback to environment variable
+            # Fallback to environment variable — read-only. Deliberately NOT
+            # persisted: auto-storing env values here is what let the test
+            # suite's fake provider keys (set by conftest env setup) leak into
+            # the live key store. Callers needing a durable key must store it
+            # explicitly; the runtime handler applies its own env fallback.
             provider = self.providers.get(provider_id)
             if provider:
                 env_key = os.getenv(provider.api_key_env_var)
                 if env_key:
-                    # Store it for future use
-                    self.store_api_key(provider_id, env_key, key_name, environment)
                     return env_key
             return None
 

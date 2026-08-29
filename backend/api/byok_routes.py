@@ -23,12 +23,41 @@ from cryptography.fernet import Fernet
 from core.schemas import ApiResponse
 
 # BYOK Configuration Storage
-BYOK_CONFIG_FILE = "./data/byok_config.json"
-BYOK_KEYS_FILE = "./data/byok_keys.json"
+# Anchored to <backend>/data regardless of the launch CWD: the previous
+# "./data" form made the key store depend on where uvicorn was started
+# (repo root vs backend/), silently splitting credentials across two files.
+# The BYOK_* env vars override — tests/isolated installs rely on them.
+_BYOK_DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
+)
+BYOK_CONFIG_FILE = os.getenv("BYOK_CONFIG_FILE") or os.path.join(
+    _BYOK_DATA_DIR, "byok_config.json"
+)
+BYOK_KEYS_FILE = os.getenv("BYOK_KEYS_FILE") or os.path.join(
+    _BYOK_DATA_DIR, "byok_keys.json"
+)
 # R59: the Fernet encryption key must survive restarts — without persistence a
 # fresh random key is generated per process and every stored API key becomes
 # undecryptable (silent bricking of the BYOK system).
-BYOK_ENC_KEY_FILE = "./data/byok_encryption_key"
+BYOK_ENC_KEY_FILE = os.getenv("BYOK_ENC_KEY_FILE") or os.path.join(
+    _BYOK_DATA_DIR, "byok_encryption_key"
+)
+
+
+def _is_usable_api_key(key: Optional[str]) -> bool:
+    """True when a resolved key exists AND is not a known placeholder.
+
+    Mirrors the runtime dummy filter in core/llm/byok_handler (keys shorter
+    than 12 chars or "dummy"-prefixed are refused before any provider call),
+    so the UI's "active" badge means the key would actually be usable. A
+    stored leftover like "sk-test" therefore reports inactive instead of
+    presenting a broken provider as configured.
+    """
+    if not key:
+        return False
+    if key.startswith("60a9596d") or key.startswith("dummy") or len(key) < 12:
+        return False
+    return True
 
 
 def _db_key_sync_enabled() -> bool:
@@ -112,6 +141,10 @@ class BYOKManager:
         self.encryption_key = os.getenv("BYOK_ENCRYPTION_KEY")
         if not self.encryption_key:
             self.encryption_key = self._load_or_create_encryption_key()
+        else:
+            # Keep the persisted file in sync with the env override so keys
+            # survive even if .env is later lost or regenerated (see mirror).
+            self._mirror_encryption_key_file(self.encryption_key)
         self._load_configuration()
         self._initialize_default_providers()
 
@@ -436,6 +469,37 @@ class BYOKManager:
         """Generate a secure encryption key for Fernet"""
         return Fernet.generate_key().decode()
 
+    def _mirror_encryption_key_file(self, env_key: str) -> None:
+        """Mirror the env-var Fernet key into the persisted key file.
+
+        ``BYOK_ENCRYPTION_KEY`` wins over the file when both exist, but new
+        installs (quickstart-generated .env) therefore never write the file —
+        so losing or regenerating .env later made the next restart mint a
+        fresh key and brick every stored credential. Writing the winning env
+        key to the file keeps an env-less restart decryptable. A DIFFERENT
+        file key is left untouched: silently overwriting it could brick keys
+        stored under it (only a warning is logged).
+        """
+        try:
+            if os.path.exists(BYOK_ENC_KEY_FILE):
+                with open(BYOK_ENC_KEY_FILE, "r") as f:
+                    existing = f.read().strip()
+                if existing == env_key:
+                    return
+                if existing:
+                    logger.warning(
+                        "BYOK_ENCRYPTION_KEY differs from the persisted key "
+                        "file — keeping the env override. Credentials stored "
+                        "under the file's key will not decrypt."
+                    )
+                    return
+            os.makedirs(os.path.dirname(BYOK_ENC_KEY_FILE), exist_ok=True)
+            with open(BYOK_ENC_KEY_FILE, "w") as f:
+                f.write(env_key)
+            os.chmod(BYOK_ENC_KEY_FILE, 0o600)
+        except Exception as e:
+            logger.error(f"Failed to mirror BYOK encryption key file: {e}")
+
     def _load_or_create_encryption_key(self) -> str:
         """Load the persisted Fernet key, or generate and persist one (0600).
 
@@ -658,7 +722,7 @@ class BYOKManager:
         usage = self.get_tenant_usage("global").get(
             provider_id, ProviderUsage(provider_id=provider_id)
         )
-        has_keys = bool(self.get_api_key(provider_id))
+        has_keys = _is_usable_api_key(self.get_api_key(provider_id))
 
         if not provider:
             raise ValueError(f"Provider {provider_id} not found")
@@ -700,25 +764,14 @@ class BYOKManager:
         if not provider:
             raise ValueError(f"Provider {provider_id} not found")
             
-        # Check for tenant-specific key in DB (SaaS parity mode only)
-        has_tenant_key = False
-        if db and _db_key_sync_enabled():
-            # Check tenant_settings table (aligned with frontend)
-            # Keys are typically TAVILY_API_KEY, OPENAI_API_KEY, etc.
-            setting_key = f"{provider_id.upper()}_API_KEY"
-            setting = db.query(TenantSetting).filter(
-                TenantSetting.tenant_id == tenant_id,
-                TenantSetting.setting_key == setting_key
-            ).first()
-            if setting:
-                has_tenant_key = True
-        
-        # Fallback to BYOKManager's own tenant storage (JSON/encrypted)
-        if not has_tenant_key:
-            has_tenant_key = self.get_tenant_api_key(tenant_id, provider_id) is not None
-            
+        # Resolve the tenant's key value (DB mirror first under SaaS parity
+        # mode, then the encrypted file store). Decryption is attempted so a
+        # corrupted/legacy row counts as NOT configured instead of active.
+        tenant_key = self.get_tenant_api_key(tenant_id, provider_id, db=db)
+        has_tenant_key = _is_usable_api_key(tenant_key)
+
         # Overall status (has global key OR tenant key)
-        has_keys = has_tenant_key or bool(self.get_api_key(provider_id))
+        has_keys = has_tenant_key or _is_usable_api_key(self.get_api_key(provider_id))
         
         usage = self.get_tenant_usage(tenant_id).get(provider_id, ProviderUsage(provider_id=provider_id))
         

@@ -172,11 +172,16 @@ class TestKeyStorage:
         with pytest.raises(ValueError):
             manager.store_api_key("ghost", "sk-x")
 
-    def test_get_env_fallback_stores(self, manager):
+    def test_get_env_fallback_read_only(self, manager):
+        """Env fallback resolves the key but must NOT persist it.
+
+        Auto-storing env values here leaked test-suite fake keys
+        (conftest sets OPENAI/ANTHROPIC dummies) into the live key store.
+        """
         with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "env-ds-key"}, clear=True):
             key = manager.get_api_key("deepseek")
         assert key == "env-ds-key"
-        assert "deepseek_default_production" in manager.api_keys
+        assert "deepseek_default_production" not in manager.api_keys
 
     def test_get_missing_returns_none(self, manager):
         with patch.dict(os.environ, {}, clear=True):
