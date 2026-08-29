@@ -1211,7 +1211,6 @@ class TestRecallExperiencesRanking:
                         self._exp_result("exp-confident", confidence=0.95, score=0.2)]
             return []
         world_model_service.db.search = Mock(side_effect=_search)
-        world_model_service.db.search = Mock(side_effect=lambda *a, **k: [])
 
         result = await world_model_service.recall_experiences(agent, "do something", limit=2)
         experiences = result["experiences"]

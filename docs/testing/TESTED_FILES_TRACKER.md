@@ -8,7 +8,19 @@
 
 ---
 
-## Session 2026-08-28g (quality-score precedence + hermetic ranking tests — "fix all" sweep)
+## Session 2026-08-29 (last known red resolved — recall ranking judgment call, research-grounded)
+
+**Context**: `test_agent_world_model.py::TestRecallExperiencesRanking::test_ranks_by_similarity_not_confidence` — the one remaining core-sweep red. The immediate cause was a duplicate mock assignment left by earlier cleanup (the second `db.search = Mock(...)` overwrote the first with an always-[] stub). The deeper judgment call — is similarity-first ordering still the right contract under the multi-leg memory-unification assembly — was settled by (a) reading the WIP assembly: it deliberately sorts the experiences leg by semantic similarity descending ("Mirrors the recall_episodes fix") with other legs separate, and (b) web research: RRF (k=60) is the 2025-26 standard for ACROSS-leg fusion precisely because per-source scores aren't calibrated, while per-source quality gates (confidence) filter BEFORE fusion rather than sorting it — within a single leg, semantic similarity rank is the ordering signal. Atom already uses RRF for its documents hybrid (core/hybrid_search/documents_hybrid.py), so the design is internally consistent.
+
+**Judgment**: similarity-first within-leg ordering stands as the regression-guarded contract; the test stays unchanged (it guards the original confidence-first bug).
+
+| File | Change | Tests |
+|---|---|---|
+| `tests/core/test_agent_world_model.py` | removed duplicate `db.search` stub assignment (cleanup artifact from the sweep fixes) | agent_world_model + bughunt_byok suites green |
+
+**Verification**: agent_world_model + bughunt_byok suites pass; full-file frontend sweep 111094 passed (earlier); core sweep 8103 passed with all 29 triaged reds fixed across this + prior sessions.
+
+ (quality-score precedence + hermetic ranking tests — "fix all" sweep)
 
 **Context**: Post-push sweep found 4 reds. Headline root cause: `get_quality_score` let the dynamic benchmark fetcher's FUZZY partial match override the static table's EXACT entry — the local `data/benchmark_cache.json` holds `deepseek-chat-v3-0324 -> 15.2` (the old March-2024 generation), which substring-shadowed the current `deepseek-chat`'s curated score of 80, dropping it below every STANDARD(80)+ tier floor. Production routing distortion, not just a test bug.
 
