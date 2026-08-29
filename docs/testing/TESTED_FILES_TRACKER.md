@@ -6,13 +6,81 @@
 
 ---
 
-## Session 2026-08-28c (Zoho adapter default scope + tracker count fixes — PR #598 review follow-ups)
+---
 
-**Context**: Post-merge review follow-ups for PR #598, verified against the LIVE Zoho Canada authorize endpoint (`accounts.zohocloud.ca`, pilot client). Live matrix: `ZohoWorkDrive.files.READ` / `ZohoWorkDrive.teamfolders.READ` / `ZohoWorkDrive.files.ALL` → all rejected with "Invalid OAuth Scope / Scope does not exist" (error renders pre-login in a real browser; plain curl follows to the sign-in page and masks it); `WorkDrive.files.ALL` + `WorkDrive.teamfolders.ALL` → accepted, flow completes with a real grant code; the corrected 7-scope default list (`ZohoBooks.fullaccess.all,ZohoInventory.fullaccess.all,ZohoCRM.modules.ALL,ZohoProjects.portals.all,ZohoProjects.projects.all,WorkDrive.files.ALL,WorkDrive.teamfolders.ALL`) renders the real Atom consent page.
+## Session 2026-08-28g (quality-score precedence + hermetic ranking tests — "fix all" sweep)
+
+**Context**: Post-push sweep found 4 reds. Headline root cause: `get_quality_score` let the dynamic benchmark fetcher's FUZZY partial match override the static table's EXACT entry — the local `data/benchmark_cache.json` holds `deepseek-chat-v3-0324 -> 15.2` (the old March-2024 generation), which substring-shadowed the current `deepseek-chat`'s curated score of 80, dropping it below every STANDARD(80)+ tier floor. Production routing distortion, not just a test bug.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/benchmarks.py` | `get_quality_score` priority reordered: static EXACT match wins outright; dynamic fetcher applies only to models the table doesn't pin exactly (fresh-score purpose preserved); static partial + heuristics unchanged | bughunt suite 6 passed incl. restored original `deepseek-chat` assertion |
+| `tests/test_bughunt_byok.py` | `handler` fixture not hermetic (context-managed patches exited at fixture return; benchmark fetcher consulted at call time) → converted to STARTED patchers with yield/stop | 6 passed |
+| `tests/test_covpush_w64j_byok_handler.py` | gemini alt-provider test: fixture key `sk-g-alt` (8 chars) rejected by the production ≥12 placeholder filter — lengthened to a realistic key | w64j suite green |
+| `tests/test_lux_bpc_integration.py` | lux config/byok-fallback tests never activated `BYOKHandler`'s `"pytest" not in sys.modules` init gate — now use the suite's `_HidePytest` sys.modules proxy (pattern from the passing lux+ollama test) | lux suite 8 passed |
+| `tests/core/test_bpe_workspace.py` | flag-default test now `monkeypatch.delenv`s ambient `ATOM_BPE_WORKSPACE_ENABLED` (the local pilot sets it in backend/.env, which the test env inherits) | BPE suites green |
+
+**Verification**: 451 passed across 13 BYOK/BPE suites, run in two orderings (order-pollution check); pre-existing failures verified against base commit c9c55f6e5 via throwaway git worktree before fixing.
+
+
+---
+
 ## Session 2026-08-28f (BYOK single source of truth — DB mirror gated behind ATOM_BYOK_DB_SYNC)
 
 **Context**: Operator directive (now in CLAUDE.md Architecture): Atom is single-tenant; the encrypted file store `data/byok_keys.json` is THE source of truth for API keys; the `tenant_settings` DB mirror is SaaS parity only. Two live sources caused the day's entire BYOK bug class (DB-first reads outvoting the file, undeletable keys, resurrection on save).
 
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/integrations/adapters/zoho.py` | `get_oauth_url` default scopes: `ZohoWorkDrive.files.ALL` → `WorkDrive.files.ALL` (same invalid-prefix bug PR #598 fixed in `oauth_handler`; adapter path has no live callers today — data-plane imports only — but the default was live-proven broken) | adapter tests always pass explicit scopes (`test_covpush_w85c_adapters.py::...get_oauth_url(scopes=[...])`), default list unexercised; `tests/test_zoho_oauth_provider_keys.py` 6/6 still green |
+| `docs/testing/TESTED_FILES_TRACKER.md` | 2026-08-28 session rows corrected: registry suite is 17 tests (was recorded 12/13); `TestSessionCanvasesRoute` is 5 tests (was 6 — the tenant-scoped-read case lives in `TestSpawnSessionCanvases`) | `pytest tests/test_role_template_registry.py` 17/17 local |
+
+**Verification**: live authorize matrix above (browser flow, pilot client_id + localhost callback); `tests/test_zoho_oauth_provider_keys.py` 6 passed; `tests/test_role_template_registry.py` 17 passed.
+
+---
+
+## Session 2026-08-28e (BYOK delete — UI Remove was structurally unable to delete wizard-saved keys)
+
+**Context**: "Can't delete the openai key from UI." Root cause: keys saved via wizard/Settings live in THREE places — the manager file store under a TENANT-scoped id (`tenant_{tenant}_{provider}_{key}_{env}`), and synced into `tenant_settings` — while `DELETE /api/ai/providers/{provider_id}/keys/{key_name}` only removed the exact GLOBAL-format id (`{provider}_{key}_{env}`) and never touched the DB. Result: 404 "API key not found", and even on success the DB row kept `get_tenant_provider_status` (DB-first) reporting "configured". Also verified the stored "OpenAI" key was an OpenRouter key (sk-or-…, 401 from OpenAI — legacy of the dropdown bug) and removed it from both stores.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `api/byok_routes.py` | `delete_api_key` rewritten: removes the exact global id, ALL tenant-scoped rows for that provider+key_name+environment (other tenants untouched), AND the `tenant_settings` DB row (db.rollback on failure never blocks file deletion); 404 only when nothing was removed; response reports `removed` ids | `tests/api/test_byok_delete_key.py` (NEW) 5 passed: tenant+DB footprint, global+tenant together w/ other-tenant/other-provider isolation, named-key isolation, 404 on no match, DB-failure tolerance |
+| `data/byok_keys.json` + `tenant_settings` | purged bogus OpenAI rows (mislabeled sk-or key + stale t-1 row) from file AND DB. **Ops lesson (twice bitten)**: purging the file while an old process is live gets overwritten by its next `_save_configuration()` (in-memory state wins) — kill the server FIRST, then purge, then start | verified: file = 2 openrouter rows, DB = OPENROUTER_API_KEY only |
+
+**Verification**: 5 new backend tests; health 200 post-restart; OpenRouter initializes from BYOK credential; DELETE route now returns 403 unauthenticated (auth gate live).
+
+
+---
+
+## Session 2026-08-28d (BYOK settings journey — empty "Select provider" dropdown, end-to-end trace + gap fill)
+
+**Context**: "Select provider has no dropdown." Traced the BYOK journey end to end. Route ownership: `byok` (core.byok_endpoints) is NOT in the eager-load list (core/lazy_integration_registry.py ESSENTIAL_INTEGRATIONS), so api/byok_routes.py owns ALL `/api/ai/providers*` routes — every response is wrapped in the ApiResponse envelope (`{success, data: {providers}}`), and GET/POST are auth-gated. Three frontends read that endpoint.
+
+**Gaps found & filled**:
+
+| Surface | Gap | Fix |
+|---|---|---|
+| `src/components/AIProviders/AIProviderSettings.tsx` (Settings → AI) | fetched `/ai/providers` with NO Authorization header (→ 401) AND read top-level `data.providers` (→ undefined under the envelope) → error page; save/delete/test also dropped the auth header | `authHeaders()` on all four calls; envelope-unwrap accepting both shapes |
+| `components/DevStudio/BYOKManager.tsx` (Dev Studio) | same envelope miss → `providers` state stayed `[]` → **the empty "Select provider" dropdown**; save toast read `data.key_name` | unwrap in `fetchProviders` + save handler |
+| `components/Onboarding/OnboardingWizard.tsx` (wizard step 2) | "Select provider" dropdown was a hardcoded 4-item list (openai/anthropic/deepseek/glm) — **OpenRouter missing entirely**; stale sync comment | dropdown populated live from `GET /api/ai/providers` (excludes `ollama` — Card A owns it; skips inactive; keeps selection valid), falls back to seed list (incl. OpenRouter) on failure |
+
+**Flagged (not fixed, refactor-scale)**: duplicate route ownership — core.byok_endpoints registers the same paths but is unmounted; if eager-loaded, global-vs-tenant store semantics silently flip.
+
+**Verification**: 4 jest suites, 29 passed; tsc clean.
+
+
+---
+
+## Session 2026-08-28c (Zoho adapter default scope + tracker count fixes — PR #598 review follow-ups)
+
+**Context**: Post-merge review follow-ups for PR #598, verified against the LIVE Zoho Canada authorize endpoint (`accounts.zohocloud.ca`, pilot client). Live matrix: `ZohoWorkDrive.files.READ` / `ZohoWorkDrive.teamfolders.READ` / `ZohoWorkDrive.files.ALL` → all rejected with "Invalid OAuth Scope / Scope does not exist" (error renders pre-login in a real browser; plain curl follows to the sign-in page and masks it); `WorkDrive.files.ALL` + `WorkDrive.teamfolders.ALL` → accepted, flow completes with a real grant code; the corrected 7-scope default list (`ZohoBooks.fullaccess.all,ZohoInventory.fullaccess.all,ZohoCRM.modules.ALL,ZohoProjects.portals.all,ZohoProjects.projects.all,WorkDrive.files.ALL,WorkDrive.teamfolders.ALL`) renders the real Atom consent page.
 
 **Files tested/fixed**:
 
@@ -103,6 +171,45 @@ variable (memory-context injection silently skipped every turn).
 
 ---
 
+## Session 2026-08-28.3 (BPE gap closure — meta-agent parity, durable restore, evolution feed + AlphaEvolve-lite search)
+
+**Context**: Closing all remaining plan gaps: AtomMetaAgent never received the BPE block (parity), workspace state died on process restart, harness_evolution had no BPE signal, and the AlphaEvolve-style harness-config search (plan §2.7) was unimplemented.
+
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/oauth_handler.py` | `_ZOHO_DEFAULT_SCOPES`: `ZohoCRM.fullaccess.all` → `ZohoCRM.modules.ALL`; `ZohoProjects.fullaccess.all` → `ZohoProjects.portals.all` + `ZohoProjects.projects.all` (doc-verified combo). Books/Inventory/WorkDrive scopes unchanged | `test_zoho_oauth_provider_keys.py::test_zoho_default_scopes_are_valid_names` (RED first: fails against old names, GREEN after) |
+| `tests/test_zoho_oauth_provider_keys.py` | regression test locking the valid scope set | 1 passed |
+
+**Verification**: RED proven (test fails with old scopes), GREEN after fix. Pre-existing unrelated failures in the same file (3× `Token decryption failed` — Fernet key missing in test env) confirmed unchanged before/after via stash.
+
+---
+
+## Session 2026-08-28.1 (BPE runtime workspace — Phase 0 + Phase 1 landing)
+
+**Context**: Incorporating EvoHarness-RL (arXiv:2608.05446) per `docs/architecture/BPE_WORKSPACE_PLAN.md`: a policy-facing Belief/Progress/Experience workspace with `track`/`commit`/`recall`/`note` meta-actions, prompt-time (no training), behind `ATOM_BPE_WORKSPACE_ENABLED` (shadow-first, default off).
+
+**Files**: `core/bpe/__init__.py`, `workspace.py` (BPEWorkspace: Progress cap 8 done-drop-first, Experience 4 categories cap 80 LFU + top-3 keyword recall, note buffer + drain, async apply never raises, bounded render, to_dict/from_dict, registry), `adapter.py` (protocol/Null/Composite), `chat_adapter.py` (GraphRAG belief source), `telemetry.py` (`bpe.*` spans), `actions.py` (4 registry actions + `bpe_enabled()` gate), `core/generic_agent.py` (flag-gated block), `integrations/mcp_service.py` (tool visibility gating), `api/rpc_routes.py` (startup import).
+
+**Verification**: `tests/core/test_bpe_workspace.py` 41 passed; action-registry/mcp/rpc regressions 170 passed; generic/react suites 129 passed.
+
+
+---
+
+## Session 2026-08-28.2 (BPE Phase 2 + Phase 3 v1 — consult policy, consolidation, episode close-out)
+
+**Context**: Phase 2: cost-aware consult policy learned post-hoc (complexity gate + per-agent value EMA + recall-only annealing render). Phase 3 v1: deterministic note→Experience promotion (success-only, evidence-gate posture) wired into the nightly consolidation sweep. Memento/AlphaEvolve mapping added to plan doc §2.7.
+
+**Files**: `core/bpe/consult_policy.py` (NEW: EMA value gate ≥5 episodes, `ATOM_BPE_CONSULT_POLICY` shadow-first, annealing recall-only <10% share after ≥10 episodes, `harness_call_rate` metric), `core/bpe/consolidation.py` (NEW: classify_note routing, success-only promotion, `sweep_pending_notes` — **fix during session**: iterated dict keys not values, sweeps silently no-op'd), `core/bpe/workspace.py` (episode counters, `render(mode='recall_only')`), `core/generic_agent.py` (episode reset / policy-gated render / close-out / `metadata_trace` persistence).
+
+**Verification**: `tests/core/test_bpe_consult_policy.py` 20 passed; BPE total 61; core suites 152 passed.
+
+
+
+---
+
 ## Session 2026-08-27b (Zoho OAuth scope fix — "Scope does not exist")
 
 **Context**: Zoho connect failed with `Invalid OAuth Scope / Scope does not exist`. `core/oauth_handler.py`'s `_ZOHO_DEFAULT_SCOPES` used `ZohoCRM.fullaccess.all` + `ZohoProjects.fullaccess.all` — CRM/Projects do not have a `fullaccess.all` pattern, so Zoho rejects the WHOLE authorize URL (one unknown scope fails everything). The pilot doc (`atom-self-hosted-pilot-instructions.md` §2) already carried the verified names.
@@ -122,22 +229,6 @@ variable (memory-context injection silently skipped every turn).
 | auth + maturity + workflow-generator suites | updated to current contracts (callbackUrl router mock, registerWithBackend auto-login, evidence-gated completion, voice opt-in default) | 149 + 5 + 22 passed |
 
 **Verification**: `npm run type-check` 0 errors; `npm run type-check:tests` 0 errors; full jest 678 suites / 11,088 tests passed; backend suites touched modules 181 passed.
-
----
-
-## Session 2026-08-28c (BPE gap closure — meta-agent parity, durable restore, evolution feed + AlphaEvolve-lite search)
-
-**Context**: Closing all remaining plan gaps: AtomMetaAgent never received the BPE block (parity), workspace state died on process restart, harness_evolution had no BPE signal, and the AlphaEvolve-style harness-config search (plan §2.7) was unimplemented.
-
-
-**Files tested/fixed**:
-
-| File | Change | Tests |
-|---|---|---|
-| `core/oauth_handler.py` | `_ZOHO_DEFAULT_SCOPES`: `ZohoCRM.fullaccess.all` → `ZohoCRM.modules.ALL`; `ZohoProjects.fullaccess.all` → `ZohoProjects.portals.all` + `ZohoProjects.projects.all` (doc-verified combo). Books/Inventory/WorkDrive scopes unchanged | `test_zoho_oauth_provider_keys.py::test_zoho_default_scopes_are_valid_names` (RED first: fails against old names, GREEN after) |
-| `tests/test_zoho_oauth_provider_keys.py` | regression test locking the valid scope set | 1 passed |
-
-**Verification**: RED proven (test fails with old scopes), GREEN after fix. Pre-existing unrelated failures in the same file (3× `Token decryption failed` — Fernet key missing in test env) confirmed unchanged before/after via stash.
 
 ---
 
