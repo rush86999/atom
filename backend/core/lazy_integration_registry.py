@@ -17,7 +17,7 @@ INTEGRATION_REGISTRY = {
     "agent_routes": "api.agent_routes:router",
     "missing_endpoints": "core.missing_endpoints:router",
     "service_registry": "core.service_registry:router",
-    "byok": "core.byok_endpoints:router",
+    "byok": "api.byok_routes:router",  # was core.byok_endpoints:router — dead duplicate routes removed 2026-08-28
     "byok_competitive": "core.byok_competitive_endpoints:router",
     "system_status": "core.system_status:router",
     "service_health": "service_health_endpoints:router",

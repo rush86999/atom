@@ -14,6 +14,7 @@ TDD red-green targets:
   status 400 even when the client receives 502/503.
 """
 import hashlib
+import os
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -210,15 +211,17 @@ class TestDefaultMaxTokens:
 
         client = make_client(make_db(make_key_row(_KEY)))
         handler = _fake_handler()
-        old = routes.DEFAULT_MAX_TOKENS
-        routes.DEFAULT_MAX_TOKENS = 7777
+        # The routes module resolves defaults via default_max_tokens() (env /
+        # runtime-settings driven) — patch the function, not a constant.
+        old = routes.default_max_tokens
+        routes.default_max_tokens = lambda: 7777
         try:
             with patch("core.llm.gateway.gateway_service.BYOKHandler", return_value=handler):
                 r = client.post(
                     "/v1/chat/completions", headers=_KEY_HEADERS, json={"messages": _MSGS}
                 )
         finally:
-            routes.DEFAULT_MAX_TOKENS = old
+            routes.default_max_tokens = old
         assert r.status_code == 200
         assert handler.chat_completion.await_args.kwargs["max_tokens"] == 7777
 
@@ -227,17 +230,16 @@ class TestDefaultMaxTokens:
 
         client = make_client(make_db(make_key_row(_KEY)))
         handler = _fake_handler()
-        old = routes.DEFAULT_MAX_TOKENS
-        routes.DEFAULT_MAX_TOKENS = 4242
-        try:
+        # The /v1/messages body model binds default_max_tokens as a pydantic
+        # default_factory at class-definition time, so the env seam is the
+        # contract here (B2): ATOM_GATEWAY_DEFAULT_MAX_TOKENS must be honored.
+        with patch.dict(os.environ, {"ATOM_GATEWAY_DEFAULT_MAX_TOKENS": "4242"}):
             with patch("core.llm.gateway.gateway_service.BYOKHandler", return_value=handler):
                 r = client.post(
                     "/v1/messages",
                     headers={**_KEY_HEADERS, "anthropic-version": "2023-06-01"},
                     json={"messages": _MSGS},
                 )
-        finally:
-            routes.DEFAULT_MAX_TOKENS = old
         assert r.status_code == 200
         assert handler.chat_completion.await_args.kwargs["max_tokens"] == 4242
 
