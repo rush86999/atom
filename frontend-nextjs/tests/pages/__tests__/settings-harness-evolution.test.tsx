@@ -16,7 +16,7 @@ if (typeof globalThis.structuredClone !== "function") {
 }
 
 jest.mock("@/lib/api-client", () => ({
-  apiClient: { get: jest.fn() },
+  apiClient: { get: jest.fn(), post: jest.fn() },
 }));
 
 jest.mock("@/components/layout/Layout", () => ({
@@ -142,27 +142,53 @@ describe("HarnessEvolutionPage", () => {
     });
   });
 
-  it("re-mines on demand: refetches status and shows a success toast", async () => {
-    jest.useFakeTimers();
+  it("re-mines on demand: posts to the miner endpoint, refetches and toasts with counts", async () => {
+    const mockPost = (apiClient as any).post as jest.Mock;
+    mockPost.mockResolvedValue({
+      data: {
+        success: true,
+        pattern_count: 2,
+        total_failures: 7,
+        lookback_hours: 48,
+        mined_weaknesses: [],
+      },
+    });
     renderPage();
 
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await waitFor(() => expect(screen.getByText("Self-Evolving Harness")).toBeInTheDocument());
+    expect(mockGet).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole("button", { name: /mine & heal now/i }));
+    // The button renders spinner-only while the initial fetch is refreshing.
+    fireEvent.click(await screen.findByRole("button", { name: /re-mine now/i }));
 
-    await act(async () => {
-      jest.advanceTimersByTime(1000);
-    });
-
-    expect(mockGet).toHaveBeenCalledTimes(2);
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith("/api/chat/harness-evolution/mine")
+    );
+    await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2));
     expect(mockToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Weakness Miner Run Complete",
+        title: "Re-mine complete",
+        description: expect.stringContaining("2 failure pattern(s)"),
         variant: "success",
       })
     );
-    jest.useRealTimers();
+  });
+
+  it("shows an error toast when the re-mine call fails", async () => {
+    const mockPost = (apiClient as any).post as jest.Mock;
+    mockPost.mockRejectedValue(new Error("network down"));
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText("Self-Evolving Harness")).toBeInTheDocument());
+    fireEvent.click(await screen.findByRole("button", { name: /re-mine now/i }));
+
+    await waitFor(() =>
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Re-mine failed",
+          variant: "error",
+        })
+      )
+    );
   });
 });

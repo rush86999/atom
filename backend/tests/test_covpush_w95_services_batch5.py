@@ -680,11 +680,11 @@ class TestChatRenameSession:
 
     def test_rename_failed_and_500(self, chat_client, orch):
         orch.conversation_sessions = {"s1": _chat_session()}
-        orch.rename_session.return_value = False
+        orch.session_manager.rename_session.return_value = False
         assert chat_client.patch(
             "/api/chat/sessions/s1",
             json={"title": "n", "user_id": "u"}).status_code == 404
-        orch.rename_session.side_effect = RuntimeError("x")
+        orch.session_manager.rename_session.side_effect = RuntimeError("x")
         assert chat_client.patch(
             "/api/chat/sessions/s1",
             json={"title": "n", "user_id": "u"}).status_code == 500

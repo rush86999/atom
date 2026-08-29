@@ -1,44 +1,29 @@
-import React from "react";
-import Head from "next/head";
-import Link from "next/link";
-import { Box, Heading, Container, Text } from "@chakra-ui/react";
-import BPEManager from "@/src/components/BPE/BPEManager";
+import React, { useEffect } from "react";
+import { useRouter } from "next/router";
 
-const BPESettingsPage = () => {
+/**
+ * /settings/bpe → /admin/bpe
+ *
+ * The BPE (Belief/Progress/Experience) workspace is consolidated on the
+ * admin surface: /admin/bpe (sidebar: GOVERNANCE → BPE Workspace) — status
+ * cards, mode flags, consult policy, evolution population, workspace
+ * inspector and telemetry, all on /api/v1/admin/bpe/*. This page only
+ * forwards old links.
+ */
+const BpeRedirectPage = () => {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/admin/bpe");
+  }, [router]);
+
   return (
-    <>
-      <Head>
-        <title>BPE Workspace | Atom</title>
-      </Head>
-      <Container maxW="container.xl" py={8}>
-        <Box mb={8}>
-          <Heading as="h1" size="xl" mb={4}>BPE Workspace</Heading>
-        </Box>
-        <BPEManager />
-        <Box mt={8}>
-          <Link href="/settings/ai">
-            <Text color="blue.500" _hover={{ textDecoration: "underline" }} cursor="pointer">
-              AI Provider Settings →
-            </Text>
-          </Link>
-        </Box>
-        <Box mt={4}>
-          <Link href="/settings/harness-evolution">
-            <Text color="blue.500" _hover={{ textDecoration: "underline" }} cursor="pointer">
-              Self-Evolving Harness Dashboard →
-            </Text>
-          </Link>
-        </Box>
-        <Box mt={4}>
-          <Link href="/admin/bpe">
-            <Text color="blue.500" _hover={{ textDecoration: "underline" }} cursor="pointer">
-              BPE Workspace (full admin surface) →
-            </Text>
-          </Link>
-        </Box>
-      </Container>
-    </>
+    <div style={{ padding: "3rem", textAlign: "center" }}>
+      <p>
+        The BPE Workspace page moved to <a href="/admin/bpe">/admin/bpe</a>…
+      </p>
+    </div>
   );
 };
 
-export default BPESettingsPage;
+export default BpeRedirectPage;

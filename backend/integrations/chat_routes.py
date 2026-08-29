@@ -209,6 +209,46 @@ async def get_harness_evolution_status(
         db.close()
 
 
+@router.post("/harness-evolution/mine")
+async def remine_harness_weaknesses(
+    lookback_hours: int = 48,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Run a real weakness-mining pass over recent execution traces.
+
+    Read-only analysis (mine → report counts); patch proposal, sandbox
+    validation and deployment stay in their own governed flow. Mirrors the
+    GET's graceful failure: a mining error returns success with an empty
+    pattern list rather than a 500.
+    """
+    from core.harness_evolution_service import HarnessEvolutionService
+
+    db_gen = get_db()
+    db: _Session = next(db_gen)
+    try:
+        tenant_id = current_user.tenant_id or "default"
+        lookback = min(max(int(lookback_hours), 1), 24 * 30)
+        try:
+            service = HarnessEvolutionService(db)
+            patterns = await service.mine_weaknesses(
+                tenant_id=tenant_id, lookback_hours=lookback
+            )
+        except Exception as e:
+            logger.warning(f"Failed to re-mine weaknesses in API: {e}")
+            patterns = []
+        return {
+            "success": True,
+            "mined_weaknesses": patterns,
+            "pattern_count": len(patterns),
+            "total_failures": sum(
+                int(p.get("failure_count") or 0) for p in patterns
+            ),
+            "lookback_hours": lookback,
+        }
+    finally:
+        db.close()
+
+
 @router.get("/memory/{session_id}")
 async def get_chat_memory(
     session_id: str,
