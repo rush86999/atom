@@ -387,8 +387,8 @@ COST_EFFICIENT_MODELS = {
     "openrouter": {  # OpenRouter — gateway to 300+ models via one key
         QueryComplexity.SIMPLE: "openai/gpt-4o-mini",
         QueryComplexity.MODERATE: "openai/gpt-4o-mini",
-        QueryComplexity.COMPLEX: "anthropic/claude-3.5-sonnet",
-        QueryComplexity.ADVANCED: "anthropic/claude-3.5-sonnet",
+        QueryComplexity.COMPLEX: "anthropic/claude-sonnet-5",
+        QueryComplexity.ADVANCED: "anthropic/claude-sonnet-5",
     },
     "opencode-go": {  # OpenCode Go — low-cost subscription via OpenCode Zen gateway
         # https://opencode.ai/zen — tested+verified open coding models served
@@ -935,12 +935,12 @@ class BYOKHandler:
             True if model supports tools, False otherwise
         """
         capabilities = self.pricing_fetcher.get_model_capabilities(model_id)
-        # NOTE: get_model_capabilities returns an explicit supports_tools=False for
-        # models with no capability metadata, so a .get(..., True) fallback here
-        # would be dead code. Unknown models are conservatively treated as NOT
-        # tool-capable — this is intentional (routing an agentic request to a
-        # model that can't tool-call breaks the agent). To admit a model into
-        # agentic routing, set its supports_tools flag in the pricing cache.
+        # NOTE: models with an EXPLICIT supports_tools=False in the cache are
+        # hard-excluded (data-backed). Models ABSENT from the cache default to
+        # tool-capable (availability-first — see dynamic_pricing_fetcher.
+        # get_model_capabilities: the old conservative-False default barred
+        # every model that postdated the cache snapshot from agentic routing,
+        # producing a total agent outage on a stale cache).
         return bool(capabilities.get("supports_tools", False))
 
     def _model_supports_vision(self, model_id: str) -> bool:
@@ -1870,10 +1870,8 @@ class BYOKHandler:
             # operator's own credential (see env_key_providers note in
             # __init__), so plan allowlists must not zero out its candidates.
             def _plan_applies(provider_id: str) -> bool:
-                return (
-                    is_managed_service
-                    and provider_id not in self.env_key_providers
-                )
+                own_keys = getattr(self, "env_key_providers", set())
+                return is_managed_service and provider_id not in own_keys
 
             def is_model_approved(model_id: str, allowed_list: any) -> bool:
                 if (requires_tools or requires_structured) and not self._model_supports_tools(model_id):
@@ -1968,7 +1966,7 @@ class BYOKHandler:
                 # operator's own — see _plan_applies in the BPC path).
                 allowed_models = (
                     MODEL_TIER_RESTRICTIONS.get((tenant_plan or "free").lower(), MODEL_TIER_RESTRICTIONS["free"])
-                    if (is_managed_service and provider_id not in self.env_key_providers) else "*"
+                    if (is_managed_service and provider_id not in getattr(self, "env_key_providers", set())) else "*"
                 )
 
                 # Substring approval, mirroring is_model_approved() in the BPC

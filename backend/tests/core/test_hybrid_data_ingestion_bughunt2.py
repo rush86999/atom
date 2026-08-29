@@ -179,8 +179,17 @@ class TestSyncGating:
 
         records = [{"id": i, "type": "msg", "text": "x" * 20} for i in range(4)]
         handler = Mock()
-        # first call fails, rest succeed
-        handler.add_document.side_effect = [RuntimeError("boom"), True, True, True]
+        # first call fails, rest succeed — a CALLABLE so the contract holds
+        # regardless of how many times the upsert path invokes add_document
+        # (a finite side_effect list raises StopIteration on any extra call,
+        # which deadlocks the sync task instead of counting an error)
+        calls = {"n": 0}
+        def _add_document(**kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError("boom")
+            return True
+        handler.add_document.side_effect = _add_document
         service.memory_handler = handler
 
         with patch.object(service, "_fetch_integration_data", AsyncMock(return_value=records)):

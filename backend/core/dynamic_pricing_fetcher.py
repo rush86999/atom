@@ -730,9 +730,15 @@ class DynamicPricingFetcher:
         if model_data is not None:
             return self.infer_capabilities_for_model(model_name, model_data)
 
-        # Truly unknown model (conservative)
+        # Truly unknown model (absent from cache). Availability-first:
+        # defaulting tools to False here barred EVERY model that postdated the
+        # local cache snapshot from agentic routing — with a small/stale cache
+        # that meant a total agent outage ("No eligible LLM providers") even
+        # though unknown in practice overwhelmingly means a modern tool-capable
+        # model. Per-model failures are recoverable via the provider cascade;
+        # a zero-option ranking is not. Vision/reasoning stay conservative.
         return {
-            "supports_tools": False,  # Unknown models don't support tools
+            "supports_tools": True,
             "supports_vision": False,
             "supports_reasoning": False,
         }

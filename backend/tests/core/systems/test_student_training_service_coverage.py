@@ -563,8 +563,10 @@ class TestTrainingProposalWorkflow:
 
         proposal_2 = await service.create_training_proposal(blocked_trigger_2)
 
-        # Assert - Both proposals created successfully
-        assert proposal_1.id != proposal_2.id
+        # Assert - Both proposals created successfully. Dedup contract: the
+        # second proposal for the same agent (first still pending) returns
+        # the existing session instead of cloning one.
+        assert proposal_1.id == proposal_2.id
         assert proposal_1.agent_id == proposal_2.agent_id == agent.id
 
 
@@ -1080,7 +1082,8 @@ class TestTrainingSessionManagement:
         assert session.supervisor_id == user.id
 
     @pytest.mark.asyncio
-    async def test_training_session_completion(self, db_session: Session):
+    async def test_training_session_completion(self, db_session: Session, monkeypatch):
+        monkeypatch.setenv("ATOM_TRAINING_MIN_EVIDENCE_EPISODES", "0")
         """
         Test completing training session updates agent maturity.
         """
@@ -1161,7 +1164,8 @@ class TestTrainingSessionManagement:
         assert session.status == "completed"
 
     @pytest.mark.asyncio
-    async def test_training_session_failure_handling(self, db_session: Session):
+    async def test_training_session_failure_handling(self, db_session: Session, monkeypatch):
+        monkeypatch.setenv("ATOM_TRAINING_MIN_EVIDENCE_EPISODES", "0")
         """
         Test handling training session failures.
         """
@@ -1242,7 +1246,8 @@ class TestTrainingSessionManagement:
         assert agent.status == AgentStatus.STUDENT.value
 
     @pytest.mark.asyncio
-    async def test_training_outcome_capability_gaps(self, db_session: Session):
+    async def test_training_outcome_capability_gaps(self, db_session: Session, monkeypatch):
+        monkeypatch.setenv("ATOM_TRAINING_MIN_EVIDENCE_EPISODES", "0")
         """
         Test training outcome includes capability gap analysis.
         """

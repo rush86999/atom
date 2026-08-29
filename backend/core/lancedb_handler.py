@@ -994,17 +994,17 @@ class LanceDBHandler:
             if table is None:
                 return None
 
-            # SECURITY: escape single quotes in doc_id to prevent filter
-            # injection, matching the escaping in search().
-            safe_doc_id = str(doc_id).replace("'", "''")
             # Arrow filter, NOT table.search(): this is a point lookup —
             # routing it through the kNN query builder can bind the embedding
             # machinery (seconds per call, or a hang when no client is
             # configured) and never needs the vector column anyway.
+            # SECURITY: pc.equal is a parameterized comparison — values are
+            # matched as-is, so the old SQL-style quote-doubling must NOT be
+            # applied here (it would make a quoted doc_id unmatchable).
             import pyarrow.compute as _pc
 
             arrow = table.to_arrow().select(["id", "text", "source", "metadata", "created_at"])
-            rows = arrow.filter(_pc.equal(arrow.column("id"), safe_doc_id)).to_pylist()
+            rows = arrow.filter(_pc.equal(arrow.column("id"), str(doc_id))).to_pylist()
 
             if not rows:
                 return None

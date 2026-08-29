@@ -184,8 +184,11 @@ class TestAgentContextResolverCoverage:
         assert result_agent.category == "system"
         assert result_agent.module_path == "system"
         assert result_agent.class_name == "ChatAssistant"
-        assert result_agent.status == AgentStatus.STUDENT.value
-        assert result_agent.confidence_score == 0.5
+        # Round-86 heal: the fallback Chat Assistant is born/held at INTERN
+        # (confidence 0.6) — a STUDENT-tier fallback chat agent would be
+        # read-only and unable to answer anything.
+        assert result_agent.status == AgentStatus.INTERN.value
+        assert result_agent.confidence_score == 0.6
         assert "system_prompt" in result_agent.configuration
         assert "capabilities" in result_agent.configuration
 
