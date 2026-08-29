@@ -726,6 +726,15 @@ class GenericAgent:
                 _policy.record_episode(
                     str(self.id), _ws.episode_consults, _success, step_efficiency
                 )
+                # BPE automation: each finished run is a chance to auto-apply
+                # an evolved workspace genome (evidence-gated; see
+                # core/bpe/automation.py — no operator flip required).
+                try:
+                    from core.bpe.evolution import apply_best
+
+                    apply_best(str(self.id))
+                except Exception as _evo_err:
+                    logger.debug(f"bpe evolution apply skipped: {_evo_err}")
                 execution_result["bpe"] = {
                     "consults": _ws.episode_consults,
                     "consolidated": _bpe_consolidated,

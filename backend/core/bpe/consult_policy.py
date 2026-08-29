@@ -43,7 +43,14 @@ POLICY_FLAG = "ATOM_BPE_CONSULT_POLICY"
 
 
 def policy_gating_enabled() -> bool:
-    return os.getenv(POLICY_FLAG, "false").strip().lower() in ("1", "true", "yes")
+    """Auto by default: the value-gate is always active and self-regulating
+    (it only SUPPRESSES rendering when an agent's own episodes prove
+    consultation hurts, and resumes automatically on recovery). Explicit
+    ATOM_BPE_CONSULT_POLICY=true forces gating on with no evidence; false is
+    the kill-switch (shadow recording only)."""
+    from core.bpe.automation import consult_gating_active
+
+    return consult_gating_active()
 
 
 class AgentConsultState:

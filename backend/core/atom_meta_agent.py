@@ -1481,6 +1481,12 @@ class AtomMetaAgent:
                     _success,
                     1.0,  # meta runs carry no step_efficiency signal; neutral
                 )
+                try:
+                    from core.bpe.evolution import apply_best
+
+                    apply_best(_meta_agent_id)
+                except Exception as _evo_err:
+                    logger.debug(f"bpe evolution apply skipped: {_evo_err}")
                 result_payload["bpe"] = {
                     "consults": _bpe_ws.episode_consults,
                     "consolidated": _bpe_consolidated,

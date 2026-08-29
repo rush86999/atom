@@ -175,15 +175,43 @@ def get_population() -> Population:
 
 
 def apply_best(family: str) -> Optional[Dict[str, Any]]:
-    """Deploy the family's best genome to new workspaces — flag-gated.
+    """Deploy the family's best genome to new workspaces.
 
-    Flag off (default): proposal-only posture, returns None. Flag on:
-    applies via ``set_active_bounds`` and returns the effective bounds.
+    Automation (default): auto-applies once the population has enough
+    evaluated evidence (>= MIN_EVALUATED_GENOMES distinct genomes, best
+    fitness >= EVOLUTION_APPLY_FITNESS) — no operator flip required. The
+    explicit env overrides automation: ATOM_BPE_EVOLUTION=false is the
+    proposal-only kill-switch; true force-applies as soon as any genome
+    exists. Applications are announced via maybe_automation_flip.
     """
+    from core.bpe.automation import (
+        EVOLUTION_APPLY_FITNESS,
+        evolution_apply_enabled,
+        maybe_automation_flip,
+    )
+
     genome = population.best(family)
     if genome is None:
         return None
-    if not evolution_enabled():
-        logger.debug("bpe evolution: best genome held (flag off)")
+
+    snap = population.snapshot().get(str(family), [])
+    explicit = os.getenv(EVOLUTION_FLAG)
+    explicit_flag = explicit.strip().lower() if explicit else None
+    if explicit_flag == "false":
+        logger.debug("bpe evolution: best genome held (kill-switch false)")
         return None
-    return set_active_bounds(genome)
+
+    evidence_ready = len(snap) >= 3 and max(
+        (i.get("fitness") or 0.0) for i in snap
+    ) >= EVOLUTION_APPLY_FITNESS
+    if explicit_flag != "true" and not (evolution_apply_enabled() and evidence_ready):
+        logger.debug("bpe evolution: best genome held (evidence pending)")
+        return None
+
+    applied = set_active_bounds(genome)
+    maybe_automation_flip(
+        "evolution_apply",
+        {"family": family, "genome": genome,
+         "fitness": max(i["fitness"] for i in snap)},
+    )
+    return applied

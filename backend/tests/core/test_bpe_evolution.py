@@ -235,22 +235,82 @@ class TestEvolutionSearch:
         assert on_target > drifted
         assert fitness_from_signals(-1.0, 1.0) < 0
 
-    def test_apply_best_flag_gated(self, monkeypatch):
-        from core.bpe import evolution
+    def _pop_with(self, genomes_fitness):
         from core.bpe.evolution import Population
+        import random as _r
 
-        monkeypatch.delenv("ATOM_BPE_EVOLUTION_ENABLED", raising=False)
-        pop = Population()
-        genome = {g: (lo + hi) // 2 if isinstance(lo, int) else (lo + hi) / 2
-                  for g, (lo, hi) in GENE_BOUNDS.items()}
-        pop.report("fam", genome, 2.0)
+        pop = Population(rng=_r.Random(9))
+        for genome, fitness in genomes_fitness:
+            pop.report("fam", genome, fitness)
+        return pop
+
+    def _genome(self, mid=True):
+        from core.bpe.evolution import GENE_BOUNDS
+
+        return {g: (lo + hi) // 2 if isinstance(lo, int) else (lo + hi) / 2
+                for g, (lo, hi) in GENE_BOUNDS.items()}
+
+    def test_auto_applies_when_evidence_ready(self, monkeypatch):
+        from core.bpe import evolution
+        from core.bpe.automation import MIN_EVALUATED_GENOMES
+
+        monkeypatch.delenv(evolution.EVOLUTION_FLAG, raising=False)
+        monkeypatch.delenv("ATOM_BPE_AUTOMATION", raising=False)
+        import random as _r
+
+        rng = _r.Random(3)
+        distinct = []
+        for i in range(MIN_EVALUATED_GENOMES):
+            g = self._genome()
+            gene = list(evolution.GENE_BOUNDS)[i % len(evolution.GENE_BOUNDS)]
+            lo, hi = evolution.GENE_BOUNDS[gene]
+            g[gene] = lo + (hi - lo) * (0.2 * (i + 1))  # distinct each round
+            distinct.append((g, 1.0 + i * 0.1))
+        pop = self._pop_with(distinct)
+        del rng
         monkeypatch.setattr(evolution, "population", pop)
-        assert evolution.apply_best("fam") is None  # flag off → proposal only
 
-        monkeypatch.setenv("ATOM_BPE_EVOLUTION_ENABLED", "true")
         applied = evolution.apply_best("fam")
-        assert applied is not None
-        assert get_active_bounds() == genome
+        assert applied is not None  # evidence-ready → auto-applied
+        assert get_active_bounds()["max_subgoals"] == applied["max_subgoals"]
+
+    def test_auto_holds_until_evidence_ready(self, monkeypatch):
+        from core.bpe import evolution
+
+        monkeypatch.delenv(evolution.EVOLUTION_FLAG, raising=False)
+        monkeypatch.delenv("ATOM_BPE_AUTOMATION", raising=False)
+        pop = self._pop_with([(self._genome(), 2.0)])  # 1 genome: not explored
+        monkeypatch.setattr(evolution, "population", pop)
+        assert evolution.apply_best("fam") is None
+
+    def test_evidence_below_fitness_floor_holds(self, monkeypatch):
+        from core.bpe import evolution
+        from core.bpe.automation import MIN_EVALUATED_GENOMES, EVOLUTION_APPLY_FITNESS
+
+        monkeypatch.delenv(evolution.EVOLUTION_FLAG, raising=False)
+        monkeypatch.delenv("ATOM_BPE_AUTOMATION", raising=False)
+        genomes = [(self._genome(), EVOLUTION_APPLY_FITNESS - 0.5)
+                   for _ in range(MIN_EVALUATED_GENOMES)]
+        pop = self._pop_with(genomes)
+        monkeypatch.setattr(evolution, "population", pop)
+        assert evolution.apply_best("fam") is None
+
+    def test_explicit_false_is_kill_switch(self, monkeypatch):
+        from core.bpe import evolution
+
+        monkeypatch.setenv(evolution.EVOLUTION_FLAG, "false")
+        pop = self._pop_with([(self._genome(), 2.0) for _ in range(4)])
+        monkeypatch.setattr(evolution, "population", pop)
+        assert evolution.apply_best("fam") is None  # kill-switch wins over evidence
+
+    def test_explicit_true_forces_apply(self, monkeypatch):
+        from core.bpe import evolution
+
+        monkeypatch.setenv(evolution.EVOLUTION_FLAG, "true")
+        pop = self._pop_with([(self._genome(), 2.0)])  # 1 genome, low evidence
+        monkeypatch.setattr(evolution, "population", pop)
+        applied = evolution.apply_best("fam")
+        assert applied is not None  # explicit true force-applies
 
 
 # ---------------------------------------------------------------------------

@@ -46,10 +46,22 @@ class TestConsultPolicyGating:
         policy = ConsultPolicy()
         assert policy.should_render("a", "simple", workspace_nonempty=True) is False
 
-    def test_flag_off_renders_whenever_state_exists(self, monkeypatch):
+    def test_auto_mode_gating_active_but_healthy_renders(self, monkeypatch):
+        """Default (env unset) is AUTO: the value-gate is active but
+        self-regulating — a healthy agent (no negative evidence) renders."""
         monkeypatch.delenv("ATOM_BPE_CONSULT_POLICY", raising=False)
         policy = ConsultPolicy()
+        assert policy_gating_enabled() is True  # auto mode
+        assert policy.should_render("a", "moderate", workspace_nonempty=True) is True
+
+    def test_kill_switch_false_disables_gating(self, monkeypatch):
+        """Kill-switch: false = shadow recording only; rendering is never
+        suppressed even for a badly-failing agent."""
+        monkeypatch.setenv("ATOM_BPE_CONSULT_POLICY", "false")
+        policy = ConsultPolicy()
         assert policy_gating_enabled() is False
+        for _ in range(MIN_EPISODES_FOR_VALUE_GATE + 2):
+            policy.record_episode("a", consult_count=2, success=False, step_efficiency=2.0)
         assert policy.should_render("a", "moderate", workspace_nonempty=True) is True
 
     def test_default_off_allows_until_evidence(self, monkeypatch):
