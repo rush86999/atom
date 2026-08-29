@@ -10,7 +10,7 @@ Scope resolution: ``context['workspace_id']`` + ``context['agent_id']`` +
 ``context['session_id'] or context['execution_id']`` (execution scope when
 no session is bound). Maturity-gated visibility is enforced upstream by
 ``GenericAgent._custom_action_visible`` — these actions ship enabled for
-INTERN+ agents and behind ``ATOM_BPE_WORKSPACE_ENABLED`` (default off) for
+INTERN+ agents; ``ATOM_BPE_WORKSPACE_ENABLED`` defaults ON (set false to)
 shadow logging.
 """
 from __future__ import annotations
@@ -27,9 +27,12 @@ logger = logging.getLogger(__name__)
 
 def bpe_enabled() -> bool:
     """Flag gate (Switchyard convention: off → shadow-log only, prompt unchanged)."""
-    return os.getenv("ATOM_BPE_WORKSPACE_ENABLED", "false").strip().lower() in (
-        "1", "true", "yes",
-    )
+    # Default ON (2026-08-29): the BPE workspace is a default feature of the
+    # platform. Set ATOM_BPE_WORKSPACE_ENABLED=false to opt out.
+    raw = os.getenv("ATOM_BPE_WORKSPACE_ENABLED")
+    if raw is None:
+        return True
+    return raw.strip().lower() not in ("0", "false", "no", "off")
 
 
 def _scope_from_context(context: Dict[str, Any]) -> Dict[str, str]:

@@ -29,7 +29,7 @@ from core.database import get_db
 from core.agent_radio import radio_actions  # noqa: F401
 # Importing bpe.actions registers the 4 `workspace.*` meta-actions via
 # @register_action (side effect at import). Tool visibility is flag-gated in
-# mcp_service.get_all_tools (ATOM_BPE_WORKSPACE_ENABLED, shadow-first).
+# mcp_service.get_all_tools (ATOM_BPE_WORKSPACE_ENABLED, default ON).
 from core.bpe import actions as bpe_actions  # noqa: F401
 
 logger = logging.getLogger(__name__)

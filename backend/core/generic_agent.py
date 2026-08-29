@@ -1192,7 +1192,7 @@ class GenericAgent:
 
         # BPE workspace (docs/architecture/BPE_WORKSPACE_PLAN.md, Phase 1+2):
         # shadow-first — render the policy-facing (Belief/Progress/Experience)
-        # block only behind ATOM_BPE_WORKSPACE_ENABLED; flag off → prompt
+        # block gated by ATOM_BPE_WORKSPACE_ENABLED (default ON); flag off → prompt
         # unchanged, consult telemetry still flows through bpe.* spans. With
         # ATOM_BPE_CONSULT_POLICY on, the consult policy also gates rendering
         # by complexity + per-agent value EMA and may render recall-only.

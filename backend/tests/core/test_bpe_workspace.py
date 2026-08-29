@@ -387,12 +387,14 @@ class TestActionRegistration:
         ws = get_workspace("w", "a", "s")
         assert ws.progress[0].title == "e2e subgoal"
 
-    def test_flag_gating_default_off(self, monkeypatch):
+    def test_flag_default_on(self, monkeypatch):
         from core.bpe.actions import bpe_enabled
 
-        # The local backend/.env may legitimately set the flag for the pilot;
-        # this test pins the CODE default, so clear the ambient value first.
+        # The BPE workspace is a default platform feature (2026-08-29): with
+        # no env var set, the workspace is ON. false opts out.
         monkeypatch.delenv("ATOM_BPE_WORKSPACE_ENABLED", raising=False)
+        assert bpe_enabled() is True
+        monkeypatch.setenv("ATOM_BPE_WORKSPACE_ENABLED", "false")
         assert bpe_enabled() is False
 
     def test_flag_gating_on(self, monkeypatch):
