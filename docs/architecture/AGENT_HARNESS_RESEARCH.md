@@ -72,6 +72,7 @@
 | **ToolGate** (2026) | Hoare-style pre/postcondition gating — only verified tool outcomes commit state | [arXiv:2601.04688](https://arxiv.org/abs/2601.04688) |
 
 ## 6. Harnesses are finally measurable — and they matter more than the model
+(see also §6.1: self-evolving harnesses — the harness becomes trainable)
 
 Four controlled studies landed in 2026. This used to be unmeasurable folklore.
 
@@ -87,6 +88,22 @@ Four controlled studies landed in 2026. This used to be unmeasurable folklore.
 | **Agent Harness Survey** (Meng, Apr 2026) | First dedicated survey of harness/scaffold design, including automated "meta-harness" generation | [Preprints](https://www.preprints.org/manuscript/202604.0428/v1) · [curated list](https://github.com/RUCAIBox/awesome-agent-harness) |
 
 **Emerging consensus**: report **model–harness pairs**, not model names. See also the position paper ["'LLM Agent Performance' Is Not a Single Evaluation Target"](https://arxiv.org/abs/2602.03238).
+
+### 6.1 Self-evolving harnesses: memory, skills, and learned consultation
+
+The 2025–26 line where the harness stops being a fixed scaffold and becomes the thing that *learns*: memory distilled from trajectories, skill libraries, and learned policies for when to consult state at all.
+
+| Work | Finding | Link |
+|---|---|---|
+| **ReasoningBank** (Google, 2025) | Memory of reasoning distilled from successes AND failures outperforms raw-trajectory and success-only memory (WebArena gains) | [arXiv:2509.25140](https://arxiv.org/abs/2509.25140) · [Google blog](https://research.google/blog/reasoningbank-enabling-agents-to-learn-from-experience/) |
+| **SkillOS** (2026) | RL-learned skill curation — agents learn *which* reusable procedures to keep, not just how to use them | [arXiv:2605.06614](https://arxiv.org/html/2605.06614v1) |
+| **SkillRL** (ICLR 2026) | Trajectories → abstract skills → recursive skill-augmented RL; +14% over memory-based agent-tuning baselines | [OpenReview](https://openreview.net/pdf?id=56D2hjARkn) |
+| **Memento** (2025) | Case-based reasoning without weight updates: case bank + learned case-selection + memory rewriting; 79.4% GAIA — evidence that the consult *policy*, not the model, is the learnable layer | [arXiv:2508.16153](https://arxiv.org/abs/2508.16153) |
+| **RRF fusion practice** (2025–26 consensus) | For cross-source memory fusion, rank-based RRF (k=60) beats score blending precisely because per-source scores aren't calibrated; per-source quality gates filter *before* fusion | [Oracle hybrid retrieval](https://blogs.oracle.com/developers/hybrid-retrieval-for-agent-memory-vector-lexical-and-metadata-together) · [Mem0 retrieval strategies](https://mem0.ai/blog/memory-retrieval-strategies-for-ai-agents) |
+
+**Design consensus**: similarity orders *within* a retrieval leg; rank-based fusion orders *across* legs; confidence/quality gates filter before ranking rather than becoming the sort key; memory is actively consolidated (add/update/remove), never append-only.
+
+**Atom implementation**: the BPE runtime workspace (`core/bpe/`) is the substrate — Belief/Progress/Experience state with `track`/`commit`/`recall`/`note` meta-actions, a consult policy that learns per-agent value from episodes (Memento-style, training-free), nightly consolidation, and an AlphaEvolve-lite search over workspace bounds. Default-on; self-regulating via the automation module. See [BPE_WORKSPACE_PLAN.md](BPE_WORKSPACE_PLAN.md) (§2.6–2.7 for the full EvoHarness-RL / Memento / AlphaEvolve mapping).
 
 ## 7. Cost routing (bonus pattern)
 
@@ -125,6 +142,8 @@ The OWASP "least agency" principle (§1) says autonomy is earned, not default. A
 | Majority vote | Self-consistency voter (shadow mode, tri-state confidence) | [SELF_CONSISTENCY_VOTER.md](SELF_CONSISTENCY_VOTER.md) |
 | Hierarchy + re-delegation | Fleet orchestration (CSO→Division→Specialist), reviewer loop | [FLEET_ORCHESTRATION.md](FLEET_ORCHESTRATION.md), [REVIEWER_LOOP.md](REVIEWER_LOOP.md) |
 | Memory architecture | Per-turn fact extraction, bi-temporal GraphRAG, episodic memory | [CONTEXT_MEMORY.md](CONTEXT_MEMORY.md), [TEMPORAL_EVOLUTION.md](TEMPORAL_EVOLUTION.md) |
+| Self-evolving harness (BPE workspace) | Belief/Progress/Experience state, track/commit/recall/note meta-actions, learned consult policy, evolution search, nightly consolidation — default-on, self-regulating | [BPE_WORKSPACE_PLAN.md](BPE_WORKSPACE_PLAN.md) |
+| Cross-leg fusion | Documents hybrid search: BM25 + vector RRF (k=60) | [AGENT_HYBRID_SEARCH.md](AGENT_HYBRID_SEARCH.md) |
 | Verified outcomes | Postcondition oracle, two-tier confidence, verify-before-retry | [ORACLE_VERIFICATION.md](ORACLE_VERIFICATION.md) |
 | Cost routing | Cognitive tiers + learning router + stage router (shadow-first) | [SWITCHYARD_GAP_ANALYSIS.md](SWITCHYARD_GAP_ANALYSIS.md) |
 | Earned autonomy / apprenticeship loop | Supervisor training flow: training proposals → approval on `/approvals` → guided sessions → graduation episode; supervisor suggests tasks pinned to exact ingested records or scope filters (§8) | [training.md](../agents/training.md), [graduation.md](../agents/graduation.md) |
