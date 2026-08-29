@@ -1051,6 +1051,46 @@ try:
         """Root endpoint."""
         return {"name": "ATOM Platform API", "version": "8.0.0", "status": "running"}
 
+    # Process identity for /health: a stale backend (orphaned --reload worker,
+    # or a second instance on a different port) answers /health 200 exactly
+    # like a fresh one while serving old in-memory state. Surfacing boot time,
+    # pid and port makes that mismatch visible at a glance.
+    _PROCESS_STARTED_AT = datetime.now(timezone.utc)
+
+    def _process_identity() -> dict:
+        """Best-effort process identity for the health payload — never raises."""
+        info = {
+            "pid": os.getpid(),
+            "started_at": _PROCESS_STARTED_AT.isoformat(),
+            "cwd": os.getcwd(),
+            "git_commit": "unknown",
+        }
+        try:
+            if "--port" in sys.argv:
+                info["port"] = int(sys.argv[sys.argv.index("--port") + 1])
+        except Exception:
+            pass
+        try:
+            import subprocess as _sp
+            info["git_commit"] = _sp.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                capture_output=True, text=True, timeout=2,
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+            ).stdout.strip() or "unknown"
+        except Exception:
+            pass
+        try:
+            from core.database import DATABASE_URL as _db_url
+            info["database"] = _db_url.split("///")[-1] if "sqlite" in _db_url else "postgresql"
+        except Exception:
+            pass
+        try:
+            from api import byok_routes as _byok
+            info["byok_key_store"] = _byok.BYOK_KEYS_FILE
+        except Exception:
+            pass
+        return info
+
     @app.get("/health", tags=["System"])
     @app.get("/api/health", tags=["System"])
     async def health_check():
@@ -1075,6 +1115,7 @@ try:
             "version": "8.0.0",
             "deployed_sha": deployed_sha,
             "timestamp": datetime.now(timezone.utc).isoformat(),
+            "identity": _process_identity(),
             "database": health_data["services"]["database"],
             "redis": health_data["services"]["redis"],
             "vector_store": health_data["services"]["vector_store"],
@@ -3109,6 +3150,16 @@ try:
         logger.info("✓ Connection Management Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Connection routes not found: {e}")
+
+    # Register real per-integration connection status (Integrations page —
+    # DB connections + tenant connectors + env credentials, no health fakes)
+    try:
+        from api.integration_status_routes import router as integ_status_router
+
+        app.include_router(integ_status_router)
+        logger.info("✓ Integration Status Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Integration status routes not found: {e}")
 
     # 7. Chat Orchestrator Routes (Critical for chat functionality)
     # The chat router lives at integrations/chat_routes.py (prefix /api/chat
