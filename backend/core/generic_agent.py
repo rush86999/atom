@@ -77,7 +77,12 @@ class GenericAgent:
         # Others can be discovered
     ]
 
-    def __init__(self, agent_model: AgentRegistry, workspace_id: str = "default"):
+    def __init__(
+        self,
+        agent_model: AgentRegistry,
+        workspace_id: str = "default",
+        managed_overrides: Optional[Dict[str, Any]] = None,
+    ):
         self.id = agent_model.id
         self.name = agent_model.name
         self.config = agent_model.configuration or {}
@@ -126,7 +131,31 @@ class GenericAgent:
         # Extract Agent Config
         self.system_prompt = self.config.get("system_prompt", f"You are {self.name}, a helpful assistant.")
         self.allowed_tools = self.config.get("tools", "*")
-        
+
+        # Marketplace managed-agent overrides: for installed marketplace
+        # agents the stored configuration is only a reference — prompts,
+        # tool surface, and publisher guidance are resolved server-side from
+        # the template manifest (core.marketplace_runtime) and injected here,
+        # never persisted into the tenant's agent row.
+        self.blocked_tools: set = set()
+        self.managed_guidance: Optional[Dict[str, Any]] = None
+        if managed_overrides:
+            if managed_overrides.get("system_prompt"):
+                self.system_prompt = managed_overrides["system_prompt"]
+            if managed_overrides.get("allowed_tools"):
+                self.allowed_tools = managed_overrides["allowed_tools"]
+            self.blocked_tools = set(managed_overrides.get("blocked_tools") or [])
+            self.managed_guidance = managed_overrides.get("guidance")
+
+    def _managed_guidance_block(self) -> str:
+        """Read-only publisher playbook/sequences injected into the prompt."""
+        try:
+            from core.marketplace_runtime import render_guidance_block
+
+            return render_guidance_block(self.managed_guidance)
+        except Exception:
+            return ""
+
     async def execute(self, task_input: str, context: Dict[str, Any] = None, step_callback: Optional[callable] = None) -> Dict[str, Any]:
         """
         Execute a task using the ReAct (Reason-Act-Observe) loop.
@@ -490,7 +519,9 @@ class GenericAgent:
                         _stuck_keys.append(_stuck_key)
 
                         # Safety check
-                        if self.allowed_tools != "*" and tool_name not in self.allowed_tools:
+                        if (
+                            self.allowed_tools != "*" and tool_name not in self.allowed_tools
+                        ) or tool_name in self.blocked_tools:
                             observation = f"Error: Tool '{tool_name}' is not allowed."
                         else:
                             observation = await self._step_act(tool_name, tool_args, context, step_callback)
@@ -1073,8 +1104,12 @@ class GenericAgent:
         # If agent has explicit "allowed_tools", respect that (ignore core/lazy if restricted subset)
         # But if allowed_tools is "*", we use Lazy Loading
         if self.allowed_tools == "*":
-             # Core Tools + Session Tools
-             active_tools = [t for t in all_tools if t["name"] in self.CORE_TOOLS_NAMES]
+             # Core Tools + Session Tools (permission-profile blocks removed)
+             active_tools = [
+                 t
+                 for t in all_tools
+                 if t["name"] in self.CORE_TOOLS_NAMES and t["name"] not in self.blocked_tools
+             ]
              active_tools.extend(self.session_tools)
         else:
              # Explicit list in config
@@ -1218,6 +1253,13 @@ class GenericAgent:
         except Exception as e:
             logger.debug(f"bpe workspace render failed: {e}")
 
+        # Marketplace managed-agent guidance (read-only publisher playbook;
+        # empty for non-managed agents). Strictly additive.
+        try:
+            managed_guidance_block = self._managed_guidance_block()
+        except Exception:
+            managed_guidance_block = ""
+
         system_prompt = f"""{self.system_prompt}{mentorship_focus}
 
 {stage_handoff_note}
@@ -1227,6 +1269,7 @@ class GenericAgent:
 
 {utility_block}
 {bpe_block}
+{managed_guidance_block}
 AVAILABLE TOOLS:
 {tool_descriptions}
 

@@ -260,19 +260,26 @@ class TestSkillInstallation:
         assert call_kwargs['tenant_id'] == tenant_id
         assert call_kwargs['user_id'] == user_id
 
-    def test_install_agent_preloads_memory(self, marketplace_service, mock_template_data, mock_saas_client):
-        """Test install_agent pre-loads anonymized memory bundle."""
+    def test_install_agent_never_preloads_memory(self, marketplace_service, mock_template_data, mock_saas_client):
+        """Managed install: memory stays in the template manifest, never copied
+        into tenant tables; the agent configuration is a reference."""
         # Arrange
         template_id = "template-001"
         mock_saas_client.get_agent_template_sync.return_value = mock_template_data
 
         # Act
-        with patch('core.agent_marketplace_service.AgentRegistry'):
+        with patch('core.agent_marketplace_service.AgentRegistry') as mock_agent_class:
             with patch('core.agent_marketplace_service.OperationErrorResolution') as mock_resolution_class:
-                marketplace_service.install_agent(template_id, "tenant-uuid", "user-uuid")
+                result = marketplace_service.install_agent(template_id, "tenant-uuid", "user-uuid")
 
-        # Assert - should create 2 OperationErrorResolution entries (2 heuristics in bundle)
-        assert mock_resolution_class.call_count == 2
+        # Assert - zero OperationErrorResolution entries under the managed model
+        assert mock_resolution_class.call_count == 0
+        assert result["managed"] is True
+        call_kwargs = mock_agent_class.call_args[1]
+        config = call_kwargs['configuration']
+        assert config["marketplace_managed"] is True
+        assert config["template_id"] == template_id
+        assert "system_prompt" not in config
 
     def test_install_agent_connects_skills(self, marketplace_service, mock_template_data, mock_saas_client):
         """Test install_agent connects required skills to agent."""

@@ -4610,15 +4610,30 @@ class AgentTemplate(Base):
     version = Column(String, default="1.0.0")
     price = Column(Float, default=0.0)
 
-    # The actual contents
+    # The actual contents (SERVER-ONLY manifest — installed agents reference
+    # the template and resolve this at execution time via
+    # core.marketplace_runtime)
     configuration = Column(JSONColumn, default={})  # system prompts, constraints
     capabilities = Column(JSONColumn, default=list)  # list of skill IDs
-    canvas_ui_schemas = Column(JSONColumn, default=list)  # UI schemas
-    anonymized_memory_bundle = Column(JSONColumn, default={})  # scrubbed heuristics & operation graphs
+    canvas_ui_schemas = Column(JSONColumn, default=list)  # UI schemas (safe to expose)
+    anonymized_memory_bundle = Column(JSONColumn, default={})  # scrubbed heuristics & operation graphs (SERVER-ONLY)
+
+    # Buyer-tunable surface: keys of `configuration` publishers expose for
+    # per-installation override.
+    tunable_keys = Column(JSONColumn, default=list)
+
+    # Execution guardrails enforced at runtime by core.marketplace_runtime:
+    # {"allowed_tools": [..] | None, "blocked_tools": [..],
+    #  "max_session_minutes": int | None}
+    permission_profile = Column(JSONColumn, default={})
 
     # Marketplace metadata
     is_public = Column(Boolean, default=False)
     is_approved = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)  # kill switch
+    approved_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason = Column(Text, nullable=True)
     rating = Column(Float, default=0.0)
     rating_count = Column(Integer, default=0)
     installs = Column(Integer, default=0)
@@ -4649,6 +4664,11 @@ class AgentInstallation(Base):
 
     installed_version = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
+
+    # Buyer overrides for template.tunable_keys (validated at install/update)
+    tuning_overrides = Column(JSONColumn, default={})
+    # Version the installation was last synced to (update propagation)
+    last_synced_version = Column(String, nullable=True)
 
     installed_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -191,13 +191,31 @@ async def get_agent(
             "confidence_score": agent.confidence_score,
             "module_path": agent.module_path,
             "class_name": agent.class_name,
-            "configuration": agent.configuration,
+            "configuration": _safe_configuration_view(agent),
             "schedule_config": agent.schedule_config,
             "version": agent.version,
             "last_run": latest_job.isoformat() if latest_job else None
         },
         message="Agent retrieved successfully"
     )
+
+
+def _safe_configuration_view(agent: AgentRegistry) -> dict:
+    """
+    Buyer-safe configuration view. Marketplace-managed agents store only a
+    reference (template_id/version/capabilities/tunables) — never publisher
+    prompts or memory.
+    """
+    config = agent.configuration or {}
+    if config.get("marketplace_managed"):
+        return {
+            "marketplace_managed": True,
+            "template_id": config.get("template_id"),
+            "managed_version": config.get("managed_version"),
+            "capabilities": config.get("capabilities", []),
+            "tunables": config.get("tunables", {}),
+        }
+    return config
 
 
 @router.get("/{agent_id}/status")
@@ -669,7 +687,22 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
                         if k not in agent.configuration:
                             agent.configuration[k] = v
 
-                runner = GenericAgent(agent)
+                # Marketplace managed agents: resolve prompts/tools/guidance
+                # from the template manifest (raises if a kill switch tripped).
+                from core.marketplace_runtime import (
+                    ManagedAgentBlockedError,
+                    resolve_managed_agent,
+                )
+
+                try:
+                    managed_overrides = resolve_managed_agent(db, agent)
+                except ManagedAgentBlockedError as blocked:
+                    return router.error_response(
+                        message=f"This marketplace agent is unavailable: {blocked.reason}",
+                        status_code=403,
+                    )
+
+                runner = GenericAgent(agent, managed_overrides=managed_overrides)
 
                 # 3. Determine Input
                 # ReAct loop needs a natural language instruction.
