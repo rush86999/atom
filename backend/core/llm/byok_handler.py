@@ -1120,6 +1120,14 @@ class BYOKHandler:
                     credential_source = "env"
                     self.env_key_providers.add(provider_id)
 
+            # BYOK file-store credential (data/byok_keys.json): same ownership
+            # as an env key — the operator's own credential, not a
+            # platform-billed managed key. Plan allowlists exist to gate
+            # PLATFORM billing, so locally-stored keys must be exempt from
+            # plan gating (single-tenant: every key is the operator's own).
+            if api_key and credential_source == "byok":
+                self.env_key_providers.add(provider_id)
+
             # Filter out known dummy/invalid placeholder keys
             if api_key and (api_key.startswith("60a9596d") or api_key.startswith("dummy") or len(api_key) < 12):
                 logger.debug(f"Ignoring placeholder/invalid API key for {provider_id}")
@@ -1857,9 +1865,16 @@ class BYOKHandler:
             # Sort by Value Score (Descending)
             candidates.sort(key=lambda x: x["value_score"], reverse=True)
             
-            # Filter by plan restrictions
-            allowed_models = MODEL_TIER_RESTRICTIONS.get(tenant_plan.lower(), MODEL_TIER_RESTRICTIONS["free"]) if is_managed_service else "*"
-            
+            # Filter by plan restrictions. Plan gating is for MANAGED
+            # (platform-billed) keys only: an env-provided key IS the
+            # operator's own credential (see env_key_providers note in
+            # __init__), so plan allowlists must not zero out its candidates.
+            def _plan_applies(provider_id: str) -> bool:
+                return (
+                    is_managed_service
+                    and provider_id not in self.env_key_providers
+                )
+
             def is_model_approved(model_id: str, allowed_list: any) -> bool:
                 if (requires_tools or requires_structured) and not self._model_supports_tools(model_id):
                     return False
@@ -1873,9 +1888,32 @@ class BYOKHandler:
                 return any(m.lower() in model_id_lower for m in allowed_list)
 
             for c in candidates:
+                allowed_models = (
+                    MODEL_TIER_RESTRICTIONS.get((tenant_plan or "free").lower(), MODEL_TIER_RESTRICTIONS["free"])
+                    if _plan_applies(c["provider"]) else "*"
+                )
                 if is_model_approved(c["model"], allowed_models):
                     ranked_options.append((c["provider"], c["model"]))
-            
+
+            # Availability-first fail-open: the pricing cache's capability
+            # inference can mark genuinely tool-capable models False (and a
+            # failed cache refresh leaves it empty), so the filter can
+            # eliminate EVERY candidate — observed live as a total agent
+            # outage on a structured ReAct request. Structured-only requests
+            # degrade gracefully (instructor falls back to prompt-based
+            # extraction), so the capability filter fails open with a warning
+            # rather than zeroing out the fleet. requires_tools stays HARD —
+            # an agentic loop without tool-calling is broken no matter what.
+            # Plan/allowlist filtering also stays hard (that's entitlement).
+            if not ranked_options and candidates and not requires_tools:
+                logger.warning(
+                    "BPC capability filter eliminated all %d candidates "
+                    "(tools/structured metadata missing or conservative) — "
+                    "failing open so routing continues",
+                    len(candidates),
+                )
+                ranked_options = [(c["provider"], c["model"]) for c in candidates]
+
             if ranked_options:
                 logger.info(f"BPC Ranking Successful for {getattr(complexity, 'value', complexity)}: Top model {ranked_options[0][1]} (Value: {candidates[0]['value_score']:.2f})")
                 return AwaitableResult(ranked_options)
@@ -1885,49 +1923,53 @@ class BYOKHandler:
         
         # 2. Static Fallback (if BPC logic fails or cache empty)
         if complexity == QueryComplexity.SIMPLE:
-            provider_priority = ["deepseek", "minimax", "qwen", "moonshot", "gemini", "opencode-go", "openai", "anthropic"]
+            provider_priority = ["deepseek", "minimax", "qwen", "moonshot", "gemini", "opencode-go", "openai", "anthropic", "openrouter"]
         elif complexity == QueryComplexity.MODERATE:
-            provider_priority = ["deepseek", "minimax", "qwen", "gemini", "moonshot", "opencode-go", "openai", "anthropic"]
+            provider_priority = ["deepseek", "minimax", "qwen", "gemini", "moonshot", "opencode-go", "openai", "anthropic", "openrouter"]
         elif complexity == QueryComplexity.COMPLEX:
-            provider_priority = ["gemini", "deepseek", "anthropic", "qwen", "minimax", "opencode-go", "openai", "moonshot"]
+            provider_priority = ["gemini", "deepseek", "anthropic", "qwen", "minimax", "opencode-go", "openai", "moonshot", "openrouter"]
         else: # ADVANCED
-            provider_priority = ["openai", "deepseek", "opencode-go", "anthropic", "qwen", "gemini", "moonshot", "minimax"]
+            provider_priority = ["openai", "deepseek", "opencode-go", "anthropic", "qwen", "gemini", "moonshot", "minimax", "openrouter"]
         
+        capability_blocked_options: List[tuple] = []
+
         for provider_id in provider_priority:
             if provider_id in self.clients:
                 models = COST_EFFICIENT_MODELS.get(provider_id, {})
                 model = models.get(complexity, "gpt-4o-mini")
-                
-                if not is_managed_service:
-                    # Filter for tool support even in BYOK (Phase 6.6) - Use pricing cache lookup
-                    if (requires_tools or requires_structured) and not self._model_supports_tools(model):
-                        # Fallback to r2 if speciale is disallowed
-                        if provider_id == "deepseek" and model == "deepseek-v3.2-speciale":
-                            model = "deepseek-r2"
-                        else:
-                            continue
 
+                # Check Tool/Structured Support (Phase 6.6 / BUG-113): the
+                # dynamic pricing cache is authoritative for capabilities.
+                # requires_tools is a HARD requirement (an agentic loop
+                # without tool-calling is broken no matter what), while
+                # structured-only blocks are soft — instructor degrades to
+                # prompt-based extraction, so they may fail open below when
+                # the filter would otherwise zero out the whole ranking.
+                try:
+                    capability_blocked = (
+                        (requires_tools or requires_structured)
+                        and not self._model_supports_tools(model)
+                    )
+                except Exception:
+                    capability_blocked = False  # cache unavailable — best-effort
+                if capability_blocked and provider_id == "deepseek" and model == "deepseek-v3.2-speciale":
+                    # The r2 downgrade resolves the block outright (r2 is the
+                    # known tool-capable variant).
+                    model = "deepseek-r2"
+                    capability_blocked = False
+                if capability_blocked and requires_tools:
+                    continue
+
+                if not is_managed_service:
                     ranked_options.append((provider_id, model))
                     continue
 
-                allowed_models = MODEL_TIER_RESTRICTIONS.get(tenant_plan.lower(), MODEL_TIER_RESTRICTIONS["free"])
-                
-                # Check Tool/Structured Support (Phase 6.6)
-                # BUG-113: Previously used the stale hardcoded MODELS_WITHOUT_TOOLS
-                # set (deprecated). Now uses the dynamic pricing cache lookup,
-                # matching the BPC primary path.
-                if (requires_tools or requires_structured):
-                    try:
-                        from core.dynamic_pricing_fetcher import get_pricing_fetcher
-                        fetcher = get_pricing_fetcher()
-                        if fetcher and not self._model_supports_tools(model):
-                            # Try to downgrade to a model that supports tools
-                            if provider_id == "deepseek" and model == "deepseek-v3.2-speciale":
-                                model = "deepseek-r2"
-                            else:
-                                continue
-                    except Exception:
-                        pass  # Cache unavailable — allow the model (best-effort)
+                # Plan gating applies to managed keys only (env keys are the
+                # operator's own — see _plan_applies in the BPC path).
+                allowed_models = (
+                    MODEL_TIER_RESTRICTIONS.get((tenant_plan or "free").lower(), MODEL_TIER_RESTRICTIONS["free"])
+                    if (is_managed_service and provider_id not in self.env_key_providers) else "*"
+                )
 
                 # Substring approval, mirroring is_model_approved() in the BPC
                 # path: the tier allowlists carry short names ("claude-3-haiku")
@@ -1939,7 +1981,25 @@ class BYOKHandler:
                     m.lower() in model.lower() for m in allowed_models
                 ):
                     ranked_options.append((provider_id, model))
-                    
+                elif capability_blocked:
+                    # Blocked by capability AND outside the plan allowlist —
+                    # a fail-open candidate (plan check stays the hard
+                    # entitlement; see the fail-open below).
+                    capability_blocked_options.append((provider_id, model))
+
+        # Availability-first fail-open (mirrors the BPC path): structured-only
+        # requests degrade gracefully, so the capability filter fails open
+        # with a warning rather than returning zero options. requires_tools
+        # stays hard — a non-tool model is useless to an agentic loop.
+        if not ranked_options and capability_blocked_options and not requires_tools:
+            logger.warning(
+                "Static fallback capability filter eliminated all %d options "
+                "(tools/structured metadata missing or conservative) — failing "
+                "open so routing continues",
+                len(capability_blocked_options),
+            )
+            ranked_options = capability_blocked_options
+
         # Phase 68-Q: Boost Qwen to top if available and requested
         if "qwen" in self.clients:
             qwen_option = next(((p, m) for p, m in ranked_options if p == "qwen"), None)

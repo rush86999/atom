@@ -31,6 +31,12 @@ MODEL_TIER_RESTRICTIONS: Dict[str, List[str]] = {
         "kimi-k2.5",
         "minimax-m2.7",
         "qwen3.6-plus",
+        # OpenRouter gateway defaults — COST_EFFICIENT_MODELS routes
+        # openrouter COMPLEX/ADVANCED to anthropic/claude-3.5-sonnet (dotted
+        # id); without this entry the plan gate zeroed out free-plan ranking
+        # on openrouter-only deployments (same failure class as the
+        # OpenCode Go round above).
+        "claude-3.5-sonnet",
     ],
     "pro": [
         "gpt-4o",

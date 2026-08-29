@@ -25,7 +25,7 @@ Bugs covered:
 import hashlib
 import logging
 import os
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -318,3 +318,63 @@ class TestStreamErrorLeak:
         assert error_chunks, "expected an error chunk after all providers failed"
         assert secret not in "".join(chunks)
         assert "Please check your API key" in error_chunks[0]
+
+
+# ============================================================================
+# Availability: a cold/empty pricing cache must not zero out routing
+# ============================================================================
+
+class TestColdCacheFailOpen:
+    def test_structured_request_survives_empty_pricing_cache(self, handler):
+        """The 2026-08-28 live outage: ReAct requests are structured, the
+        pricing cache had no capability data (fetch failed), and the
+        conservative tools filter eliminated every candidate — 'No eligible
+        LLM providers found for your current plan'. Capability filtering is
+        best-effort; it must fail open when it would return zero options."""
+
+        fetcher = MagicMock()
+        fetcher.pricing_cache = {}
+        fetcher.get_model_capabilities.return_value = {}
+        handler.clients = {"openrouter": object()}
+        handler.cache_router = MagicMock()
+        handler.cache_router.calculate_effective_cost.return_value = 1e-7
+        handler.rate_tracker.get_max_context = MagicMock(return_value=None)
+        handler.rate_tracker.get_model_weight = MagicMock(return_value=1.0)
+
+        with patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync",
+                        return_value=fetcher), \
+             patch("core.llm.byok_handler.get_pricing_fetcher",
+                        return_value=fetcher):
+            options = list(handler.get_ranked_providers(
+                "moderate", prefer_cost=True, tenant_plan="free",
+                is_managed_service=True, requires_tools=False,
+                requires_structured=True, turn_index=0,
+            ))
+
+        assert options, "cold cache + structured request must fail open, not empty"
+        assert options[0][0] == "openrouter"
+
+    def test_warm_cache_tools_filter_still_applies(self, handler):
+        """Fail-open only rescues the zero-option case: with a populated cache
+        the conservative per-model filter still removes non-tool models."""
+        fetcher = MagicMock()
+        fetcher.pricing_cache = {
+            "deepseek-chat": _entry("deepseek", cost=1e-7, tools=True),
+        }
+        handler.clients = {"deepseek": object()}
+        handler.cache_router = MagicMock()
+        handler.cache_router.calculate_effective_cost.return_value = 1e-7
+        handler.rate_tracker.get_max_context = MagicMock(return_value=None)
+        handler.rate_tracker.get_model_weight = MagicMock(return_value=1.0)
+
+        with patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync",
+                        return_value=fetcher), \
+             patch("core.llm.byok_handler.get_pricing_fetcher",
+                        return_value=fetcher):
+            options = list(handler.get_ranked_providers(
+                QueryComplexity.MODERATE, prefer_cost=True, tenant_plan="pro",
+                is_managed_service=True, requires_tools=True, turn_index=0,
+            ))
+
+        assert options, "tool-capable model should rank normally"
+        assert all(handler._model_supports_tools(m) for _, m in options)
