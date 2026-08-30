@@ -53,8 +53,14 @@ class TestReadinessMetrics:
         metrics = svc.calculate_readiness_metrics(episodes)
         assert metrics["success_rate"] == 0.5
         assert metrics["zero_intervention_ratio"] == 0.5
-        assert metrics["avg_constitutional_score"] == 0.25  # (0.0 + 0.5)/2
-        assert metrics["avg_confidence_score"] == 0.2
+        # Recorded-only averaging (maturity-adjusted readiness): None means
+        # "no credit recorded", so the averages cover recorded episodes
+        # only and the counts expose how many that was — previously None
+        # averaged in as 0.0 and made tier thresholds unreachable.
+        assert metrics["avg_constitutional_score"] == 0.5  # over 1 recorded
+        assert metrics["constitutional_recorded"] == 1
+        assert metrics["avg_confidence_score"] == 0.4
+        assert metrics["confidence_recorded"] == 1
         assert metrics["episodes_by_outcome"] == {"success": 1, "failure": 1}
         assert metrics["total_interventions"] == 2
         assert metrics["avg_step_efficiency"] == 0.8  # only non-None counted
