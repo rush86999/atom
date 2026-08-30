@@ -344,7 +344,13 @@ def load_env():
     loaded = False
     for path in env_paths:
         if path.exists():
-            load_dotenv(path, override=True)
+            # Fallback search: fills variables the process environment did
+            # not set. It must NOT override them — explicit process env
+            # (docker -e, systemd, scripts/start-backend.sh, the e2e journey
+            # harness' fresh DATABASE_URL and mock provider credentials)
+            # always wins over .env files. override=True here silently
+            # discarded every one of those.
+            load_dotenv(path)
             logger.info("Configuration loaded", extra={"env_path": str(path)})
             loaded = True
             break
@@ -415,6 +421,17 @@ async def lifespan(app: FastAPI):
         from core.admin_bootstrap import ensure_admin_user
         from core.database import engine
         from core.models import Base
+
+        # SQLite schema-drift repair BEFORE create_all: a local DB whose
+        # schema lags the models makes every INSERT for the drifted table
+        # fail silently (agent_reasoning_steps lacked requested_model/
+        # resolved_model → no reasoning step ever persisted → the Agent
+        # Workspace "Tasks" panel was permanently empty).
+        try:
+            from core.sqlite_schema_repair import repair_known_drift
+            repair_known_drift()
+        except Exception as drift_err:
+            logger.warning(f"schema drift repair skipped: {drift_err}")
 
         # Base.metadata.create_all is safe to call but can be slow/hang in production with 12k lines
         try:
@@ -2842,10 +2859,14 @@ try:
 
         app.include_router(hubspot_router, prefix="/api/v1/integrations/hubspot")
 
-        # Zoho Suite (Standardized)
+        # Zoho Suite (Standardized). The router declares its own
+        # /api/zoho-workdrive prefix — the Integrations hub probes
+        # /api/zoho-workdrive/health through the next.config rewrite, so it
+        # must be mounted there. Re-prefixing it under /api/v1/integrations
+        # produced a double-prefixed path that nothing could reach.
         from api.zoho_workdrive_routes import router as zoho_router
 
-        app.include_router(zoho_router, prefix="/api/v1/integrations/zoho-workdrive")
+        app.include_router(zoho_router)
 
         from integrations.zoho_crm_routes import router as zoho_crm_router
 

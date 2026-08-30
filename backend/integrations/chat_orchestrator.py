@@ -391,6 +391,98 @@ class ChatOrchestrator:
         except Exception as e:
             logger.warning(f"Failed to emit agent status: {e}")
 
+    # ------------------------------------------------------------------ #
+    # Chat-path execution traces (Agent Workspace "Tasks" tab)
+    # ------------------------------------------------------------------ #
+
+    def _start_chat_execution(
+        self, session_id: str, agent_id: Optional[str], message: str
+    ) -> Optional[str]:
+        """Create an AgentExecution row for a chat turn so the workspace
+        panel has a run to group steps under — and so the trace survives
+        reloads (the trace route joins executions via
+        metadata_json.session_id). Never raises; None means no trace."""
+        try:
+            import uuid as _uuid
+            from core.database import get_db_session
+            from core.models import AgentExecution
+
+            execution_id = str(_uuid.uuid4())
+            with get_db_session() as db:
+                db.add(AgentExecution(
+                    id=execution_id,
+                    agent_id=agent_id,
+                    status="running",
+                    input_summary=(message or "")[:300],
+                    triggered_by="chat",
+                    metadata_json={"session_id": session_id, "surface": "chat"},
+                ))
+            return execution_id
+        except Exception as e:
+            logger.warning(f"chat execution row skipped: {e}")
+            return None
+
+    def _finish_chat_execution(
+        self, execution_id: Optional[str], status: str, result_summary: str = ""
+    ) -> None:
+        if not execution_id:
+            return
+        try:
+            from datetime import datetime as _dt
+            from core.database import get_db_session
+            from core.models import AgentExecution
+
+            with get_db_session() as db:
+                row = db.query(AgentExecution).filter(
+                    AgentExecution.id == execution_id
+                ).first()
+                if row:
+                    row.status = status
+                    row.completed_at = _dt.utcnow()
+                    row.result_summary = result_summary[:500]
+        except Exception as e:
+            logger.warning(f"chat execution finish skipped: {e}")
+
+    async def _record_chat_step(
+        self,
+        session_id: Optional[str],
+        agent_id: Optional[str],
+        execution_id: Optional[str],
+        step_number: int,
+        step_type: str,
+        action: Optional[Dict[str, Any]],
+        observation: str,
+    ) -> None:
+        """Persist + broadcast one chat-turn step for the workspace panel.
+        Best-effort on both legs: a DB failure still broadcasts, a broadcast
+        failure still persists."""
+        try:
+            from core.models import AgentReasoningStep
+            from core.database import get_db_session
+
+            with get_db_session() as db:
+                db.add(AgentReasoningStep(
+                    execution_id=execution_id,
+                    step_number=step_number,
+                    step_type=step_type,
+                    action=action,
+                    observation=(observation or "")[:2000],
+                ))
+        except Exception as e:
+            logger.warning(f"chat step persist skipped: {e}")
+        await self._emit_agent_step(
+            session_id,
+            agent_id or "chat",
+            execution_id,
+            {
+                "step_number": step_number,
+                "type": step_type,
+                "action": action,
+                "action_input": (action or {}).get("params") or "",
+                "observation": observation,
+            },
+        )
+
     def _initialize_feature_handlers(self):
         """Initialize handlers for all ATOM features"""
         self.feature_handlers = {
@@ -463,6 +555,7 @@ class ChatOrchestrator:
         try:
             # Create or get session
             session_id = session_id or str(uuid.uuid4())
+            _execution_id: Optional[str] = None  # chat-trace run (set below)
             session = self._get_or_create_session(user_id, session_id, context)
 
             # Auto-title from the first user turn — untitled sessions flooded
@@ -513,6 +606,16 @@ class ChatOrchestrator:
             # 1. Try Qwen AI conversational response first (real AI reply).
             # LKGP: pass the session's last-known-good provider/model as a
             # sticky hint so multi-turn conversations stay on the same model.
+            # Chat-path execution trace: one AgentExecution per turn so the
+            # Agent Workspace "Tasks" tab shows what this turn actually did
+            # (planner decision, tool calls, answer) — and survives reloads.
+            _trace_agent_id = (context or {}).get("agent_id") or "chat"
+            _execution_id = self._start_chat_execution(
+                session_id, (context or {}).get("agent_id"), message
+            )
+            await self._emit_agent_status(
+                session_id, _trace_agent_id, _execution_id, "running"
+            )
             sticky_hint = None
             try:
                 import os as _os
@@ -528,6 +631,8 @@ class ChatOrchestrator:
                 sticky_hint=sticky_hint, user_id=user_id,
                 agent_id=(context or {}).get('agent_id'),
                 planner_history=session.get("history", []),
+                session_id=session_id,
+                execution_id=_execution_id,
             )
 
             # Check for cancellation between steps.
@@ -671,10 +776,27 @@ class ChatOrchestrator:
             # Update session with new context
             self._update_session(session, message, response, intent_analysis)
 
+            await self._emit_agent_status(
+                session_id, _trace_agent_id, _execution_id,
+                "success" if response.get("success", True) else "failed",
+            )
+            self._finish_chat_execution(
+                _execution_id,
+                "success" if response.get("success", True) else "failed",
+                response.get("message", ""),
+            )
             return response
 
         except Exception as e:
             logger.error(f"Error processing chat message: {e}")
+            try:
+                await self._emit_agent_status(
+                    session_id, (context or {}).get("agent_id") or "chat",
+                    _execution_id, "failed",
+                )
+            except Exception:
+                pass
+            self._finish_chat_execution(_execution_id, "failed", str(e)[:300])
             # BUG-125: Persist the user's message even on error so it's not
             # lost from chat history. Previously _update_session was only
             # called on the success path.
@@ -838,6 +960,8 @@ class ChatOrchestrator:
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         planner_history: Optional[list] = None,
+        session_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -981,6 +1105,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # failed attempts — results placed before them lost to recency.
             _tool_block: Optional[str] = None
             _planned: Optional[str] = None
+            _step_n = 0
+
+            async def _trace(step_type: str, action: Optional[Dict[str, Any]], observation: str) -> None:
+                nonlocal _step_n
+                _step_n += 1
+                await self._record_chat_step(
+                    session_id, agent_id, execution_id,
+                    _step_n, step_type, action, observation,
+                )
+
             try:
                 from core.chat_tool_planner import execute_tool_plan, plan_tool_use
 
@@ -993,10 +1127,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 )
                 if _plan and _plan.use_tool:
                     _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
+                    await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
+                                 f"Planned live lookup: {_planned}")
                     _tool_block = await asyncio.wait_for(
                         execute_tool_plan(_plan, user_id, self.tenant_id),
                         timeout=30,
                     )
+                    _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
+                    await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
+                                 _first_line or "no results")
+                elif _plan is not None:
+                    await _trace("thought", {"tool": "tool_planner", "params": {}},
+                                 f"No live lookup needed: {(_plan.reason or 'conversation suffices')[:160]}")
             except Exception as tool_err:
                 logger.warning(f"tool planning skipped: {tool_err}")
 
@@ -1123,6 +1265,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _content = _rc
                 if not _content:
                     return None
+                if execution_id:
+                    try:
+                        await _trace("final_answer",
+                                     {"tool": "llm", "params": {"model": response_data.get("model")}},
+                                     _content[:300])
+                    except Exception:
+                        pass
                 return {
                     "content": _content,
                     "model": response_data.get("model"),
