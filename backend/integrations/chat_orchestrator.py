@@ -206,49 +206,6 @@ class ChatIntent(Enum):
 
 
 
-_EMAIL_SEARCH_RE = re.compile(
-    r"(find|search|look up|locate|check).{0,40}(email|mail)|"
-    r"(email|mail).{0,30}(from|about|regarding)|did you (ingest|receive|get).{0,40}email",
-    re.IGNORECASE,
-)
-
-
-def _is_email_search_query(message: str) -> bool:
-    return bool(message) and bool(_EMAIL_SEARCH_RE.search(message))
-
-
-# Command/template words stripped before a live mailbox search: the command
-# verbs name the action, and words like "name"/"company" appear in every
-# template email body — keeping them as search terms over-matches nothing
-# useful (KQL joins terms with implicit AND).
-_EMAIL_SEARCH_STOPWORDS = {
-    "find", "search", "look", "locate", "check", "show", "did", "you", "get",
-    "receive", "received", "the", "this", "that", "these", "those", "an", "a",
-    "email", "mail", "message", "emails", "mailbox", "inbox", "outlook",
-    "office", "in", "from", "on", "about", "regarding", "please", "and",
-    "for", "with", "name", "company", "phone", "subject", "postal", "code",
-    "try", "tries", "again", "what", "was", "were", "is", "are", "it", "its",
-    "do", "does", "did", "know", "see", "any", "me", "my", "we", "us", "our",
-    "got", "give", "tell", "say", "said", "can", "could", "would", "should",
-    "if", "or", "to", "of", "at", "by", "be", "been", "am", "not", "no",
-    "yes", "there", "here", "when", "where", "how", "why", "who", "which",
-}
-
-
-def _extract_live_search_terms(message: str) -> str:
-    """Reduce 'find this email in outlook: Name : Mark, Kellam' to the
-    distinctive terms ('mark kellam') for a Graph $search KQL query. Longest
-    first — longer tokens are rarer, and the live search only probes the
-    first few."""
-    tokens = re.findall(r"[A-Za-z0-9@._-]+", message or "")
-    terms = sorted(
-        {t for t in tokens if len(t) >= 2 and t.lower() not in _EMAIL_SEARCH_STOPWORDS},
-        key=len,
-        reverse=True,
-    )
-    return " ".join(terms[:6])
-
-
 _CONVERSATION_REF_RE = re.compile(
     r"\b(earlier|previously|previous|last time|just now|"
     r"you (found|mentioned|said|showed|gave|told|told me)|"
@@ -264,79 +221,6 @@ def _references_conversation(message: str) -> bool:
     ('the email you found earlier', 'try again') rather than at the world —
     the transcript, not retrieved memory, should then drive the answer."""
     return bool(message) and bool(_CONVERSATION_REF_RE.search(message))
-
-
-_RETRY_RE = re.compile(
-    r"^(try again|retry|re-?run( it| that)?|again\.?|go again|any luck|"
-    r"did (it|that|you) (work|find|get|check)|check again|one more time|"
-    r"still nothing|didn'?t work)\b",
-    re.IGNORECASE,
-)
-
-
-def _is_retry_query(message: str) -> bool:
-    """True for short conversational retry phrases ('try again', 'any luck?',
-    'still nothing'). These carry no new content — they mean RE-DO the last
-    action, so tool legs keyed to the earlier request should re-fire."""
-    m = (message or "").strip()
-    return bool(m) and len(m) <= 60 and bool(_RETRY_RE.search(m))
-
-
-def _history_has_email_search(history: List[Dict[str, Any]]) -> bool:
-    """True when any earlier user turn in this session asked for an email
-    search — the anchor for retry-phrased re-runs."""
-    for h in history or []:
-        msg = (h or {}).get("message")
-        if msg and _is_email_search_query(str(msg)):
-            return True
-    return False
-
-
-async def _live_mailbox_search(
-    user_id: Optional[str], terms: str, max_results: int = 10
-) -> List[Dict[str, Any]]:
-    """Search the chatting user's LIVE Outlook mailbox for the extracted terms.
-
-    Graph $search OR-ranks multi-word queries (even with an explicit AND —
-    tested), so a common token like "Mark" crowds the actual
-    'Name : Mark, Kellam' email out of the top hits. Searching each
-    distinctive term on its own and merging (hits that match more terms rank
-    first) surfaces it. Read-only; the caller gates on explicit email-search
-    phrasing. Never raises.
-    """
-    from integrations.outlook_service import outlook_service
-
-    tokens = [t for t in (terms or "").split() if t][:3]
-    if not tokens:
-        return []
-    merged: Dict[str, Dict[str, Any]] = {}
-    for term in tokens:
-        try:
-            hits = await asyncio.wait_for(
-                outlook_service.search_emails(
-                    user_id=user_id, query=term, max_results=max_results, quote=False
-                ),
-                timeout=12,
-            )
-        except Exception as e:
-            logger.warning(f"live mailbox term search failed ({term}): {e}")
-            continue
-        for e in hits or []:
-            eid = e.get("id")
-            if not eid:
-                continue
-            entry = merged.setdefault(eid, {"email": e, "score": 0})
-            entry["score"] += 1
-    ranked = sorted(merged.values(), key=lambda x: (-x["score"]))
-    return [x["email"] for x in ranked[:max_results]]
-
-
-# Command/template words stripped before a live mailbox search: the command
-# verbs name the action, and words like "name"/"company" appear in every
-# template email body — keeping them as search terms over-matches nothing
-# useful (KQL joins terms with implicit AND).
-
-
 
 
 class ChatOrchestrator:
@@ -967,11 +851,20 @@ class ChatOrchestrator:
 
         try:
             # Build messages from history
-            _MAIL_CAPABILITY = (
-                "You have a live, direct connection to the user's Outlook "
-                "mailbox: when they ask about email, the search runs "
-                "automatically and matched messages arrive to you as system "
-                "context. Never claim you cannot access their email."
+            _connected_line = "unknown"
+            try:
+                from core.chat_tool_planner import get_connected_services
+
+                _connected = get_connected_services(user_id)
+                _connected_line = ", ".join(_connected) if _connected else "none yet"
+            except Exception:
+                pass
+            _TOOL_CAPABILITY = (
+                f"Connected integrations: {_connected_line}. When a question "
+                "needs fresh data from one of them, the harness runs the "
+                "search/read automatically and matched results arrive to you "
+                "as system context. Never claim you cannot access a "
+                "connected service."
             )
             system_prompt = f"""You are ATOM, an AI-powered business automation assistant. You help users:
 - Manage leads and CRM (Zoho, Salesforce, HubSpot)
@@ -981,7 +874,7 @@ class ChatOrchestrator:
 - Analyze business data and priorities
 - Coordinate tasks across Slack, Notion, Google Drive, Gmail
 
-{_MAIL_CAPABILITY}
+{_TOOL_CAPABILITY}
 
 When users ask to fetch live data (like CRM leads), acknowledge that the integration needs to be connected first and guide them on setup. Be helpful, specific, and actionable. Keep responses concise (2-4 sentences) unless detail is needed."""
 
@@ -1012,7 +905,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "Always speak in first person as this employee — never as 'Atom' "
                         "or as an AI assistant. "
                         f"Maturity tier: {tier}. {tier_behavior} "
-                        f"{_MAIL_CAPABILITY} "
+                        f"{_TOOL_CAPABILITY} "
                         "Be helpful, specific, and actionable. Keep responses concise "
                         "(2-4 sentences) unless detail is needed."
                     )
@@ -1064,87 +957,33 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # invisible at chat time (no error, empty memory) — warn, don't debug.
                 logger.warning(f"memory context assembly skipped: {e}")
 
-            # Email lookup — two legs, both read-only:
-            #   1. the EXISTING hybrid stack (text + semantic + rerank over the
-            #      ingested mail memory); and
-            #   2. a LIVE Outlook mailbox search for the same query.
-            # Leg 2 exists because leg 1 only sees what the ingestion poller
-            # has already synced — an email that arrived after the last sync
-            # (or one the poller missed) was invisible, so "find this email in
-            # outlook" got answered from unrelated memory snippets. One gated
-            # Graph call per explicit email-search turn is not a rate-limit
-            # storm. Mutations stay gated by maturity/capability elsewhere.
-            # Retry phrases ("try again", "any luck?") re-fire the search when
-            # this session previously asked for one — "try again" means RE-DO
-            # the last action, and without this the model answered from a
-            # context with no search results and claimed it had no mail tool.
-            _run_email_search = _is_email_search_query(message) or (
-                _is_retry_query(message) and _history_has_email_search(history)
-            )
-            if _run_email_search:
-                # A retry's own text ("try again") has no search terms —
-                # search with the ORIGINAL request's terms instead.
-                _search_source = message
-                if not _is_email_search_query(message):
-                    for h in history or []:
-                        _prev = str((h or {}).get("message") or "")
-                        if _is_email_search_query(_prev):
-                            _search_source = _prev
-                            break
-                try:
-                    from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+            # Tool planning (LLM-based, ALL connected integrations): a cheap
+            # structured-output call reads the conversation and decides
+            # whether answering needs fresh data from one of the user's
+            # connected services — then the harness executes it read-only and
+            # injects results. This replaces the earlier Outlook-only regex
+            # gates (email-search detector, retry detector, stopword term
+            # extraction): the planner understands "find this email in
+            # outlook", "try again", "search slack for X", and every other
+            # integration, without per-service pattern hacks. The planner
+            # seeing the history is what makes retries work — "try again"
+            # means re-run the previous action, which an LLM infers naturally.
+            try:
+                from core.chat_tool_planner import execute_tool_plan, plan_tool_use
 
-                    _res = await DocumentsHybridSearch().search(
-                        query=_search_source[:500], limit=6
+                _plan = await asyncio.wait_for(
+                    plan_tool_use(message, history, user_id, self.llm_service),
+                    timeout=15,
+                )
+                if _plan and _plan.use_tool:
+                    _tool_block = await asyncio.wait_for(
+                        execute_tool_plan(_plan, user_id, self.tenant_id),
+                        timeout=30,
                     )
-                    _hits = (_res or {}).get("results", []) or []
-                    if _hits:
-                        _listing = "\n".join(
-                            f"- [{h.get('source','')}] {h.get('title','')}: "
-                            f"{str(h.get('preview',''))[:160]}"
-                            for h in _hits
-                        )
-                        messages.append({
-                            "role": "system",
-                            "content": (
-                                "MAILBOX SEARCH RESULTS (hybrid text+semantic over "
-                                "ingested email memory — use these to answer):\n"
-                                + _listing
-                            ),
-                        })
-                except Exception as email_err:
-                    logger.warning(f"hybrid email search failed: {email_err}")
-
-                try:
-                    _terms = _extract_live_search_terms(_search_source)
-                    if _terms:
-                        _live = await _live_mailbox_search(user_id or None, _terms)
-                        if _live:
-                            _live_listing = "\n".join(
-                                f"- From: {_e.get('from_field', {}).get('emailAddress', {}).get('address') or '?'} | "
-                                f"{str(_e.get('subject') or '(no subject)')[:120]} | "
-                                f"{str(_e.get('body_preview') or '')[:160]} | "
-                                f"received: {str(_e.get('received_date_time'))[:19]} | id: {_e.get('id')}"
-                                for _e in _live[:6]
-                            )
-                            messages.append({
-                                "role": "system",
-                                "content": (
-                                    "LIVE MAILBOX SEARCH RESULTS (current Outlook mailbox "
-                                    "via Graph — newer than ingested memory; use these to "
-                                    f"answer; query terms: {_terms}):\n" + _live_listing
-                                ),
-                            })
-                        else:
-                            messages.append({
-                                "role": "system",
-                                "content": (
-                                    f"LIVE MAILBOX SEARCH: no matches in the connected "
-                                    f"Outlook mailbox for: {_terms}"
-                                ),
-                            })
-                except Exception as live_err:
-                    logger.warning(f"live outlook search failed: {live_err}")
+                    if _tool_block:
+                        messages.append({"role": "system", "content": _tool_block})
+            except Exception as tool_err:
+                logger.warning(f"tool planning skipped: {tool_err}")
 
             # Add conversation history
             for h in history:
