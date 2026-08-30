@@ -66,7 +66,7 @@ async def read_canvas(
     """
     try:
         from core.database import get_db_session
-        from core.models import CanvasAudit
+        from core.models import Canvas, CanvasAudit
         from sqlalchemy import desc
 
         with get_db_session() as db:
@@ -93,6 +93,15 @@ async def read_canvas(
             raw_content = details.get("content")
             if raw_content is None:
                 raw_content = details.get("data")
+            if raw_content is None and "content" not in details and "data" not in details:
+                # Audit row carries no body key at all (writer divergence —
+                # e.g. chat_draft_to_canvas stored the document only on the
+                # Canvas row). Fall back to the Canvas.content column so the
+                # page renders the document instead of showing the details
+                # metadata ({source, title}) as if it were the body.
+                canvas_row = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+                if canvas_row is not None and canvas_row.content is not None:
+                    raw_content = canvas_row.content
             content = raw_content if raw_content is not None else details
             return {
                 "success": True,

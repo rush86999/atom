@@ -988,7 +988,15 @@ async def chat_draft_to_canvas(
         canvas_type="document",
         action_type="create",
         user_id=current_user.id,
-        details_json={"source": "chat_to_canvas", "title": title},
+        # Convention: canvas readers (tools/canvas_crud_tool.read_canvas) treat
+        # the audit trail as the source of truth and extract details.content —
+        # writing the body ONLY to the Canvas row made /canvas/{id} render an
+        # empty page (details had just source/title).
+        details_json={
+            "source": "chat_to_canvas",
+            "title": title,
+            "content": {"type": "doc", "content": content},
+        },
     )
     db.add(audit)
     db.commit()
