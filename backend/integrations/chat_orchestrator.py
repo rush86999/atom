@@ -266,6 +266,32 @@ def _references_conversation(message: str) -> bool:
     return bool(message) and bool(_CONVERSATION_REF_RE.search(message))
 
 
+_RETRY_RE = re.compile(
+    r"^(try again|retry|re-?run( it| that)?|again\.?|go again|any luck|"
+    r"did (it|that|you) (work|find|get|check)|check again|one more time|"
+    r"still nothing|didn'?t work)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_retry_query(message: str) -> bool:
+    """True for short conversational retry phrases ('try again', 'any luck?',
+    'still nothing'). These carry no new content — they mean RE-DO the last
+    action, so tool legs keyed to the earlier request should re-fire."""
+    m = (message or "").strip()
+    return bool(m) and len(m) <= 60 and bool(_RETRY_RE.search(m))
+
+
+def _history_has_email_search(history: List[Dict[str, Any]]) -> bool:
+    """True when any earlier user turn in this session asked for an email
+    search — the anchor for retry-phrased re-runs."""
+    for h in history or []:
+        msg = (h or {}).get("message")
+        if msg and _is_email_search_query(str(msg)):
+            return True
+    return False
+
+
 async def _live_mailbox_search(
     user_id: Optional[str], terms: str, max_results: int = 10
 ) -> List[Dict[str, Any]]:
@@ -941,13 +967,21 @@ class ChatOrchestrator:
 
         try:
             # Build messages from history
-            system_prompt = """You are ATOM, an AI-powered business automation assistant. You help users:
+            _MAIL_CAPABILITY = (
+                "You have a live, direct connection to the user's Outlook "
+                "mailbox: when they ask about email, the search runs "
+                "automatically and matched messages arrive to you as system "
+                "context. Never claim you cannot access their email."
+            )
+            system_prompt = f"""You are ATOM, an AI-powered business automation assistant. You help users:
 - Manage leads and CRM (Zoho, Salesforce, HubSpot)
 - Automate workflows and processes
 - Schedule meetings and interviews
 - Send and draft emails
 - Analyze business data and priorities
 - Coordinate tasks across Slack, Notion, Google Drive, Gmail
+
+{_MAIL_CAPABILITY}
 
 When users ask to fetch live data (like CRM leads), acknowledge that the integration needs to be connected first and guide them on setup. Be helpful, specific, and actionable. Keep responses concise (2-4 sentences) unless detail is needed."""
 
@@ -978,6 +1012,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "Always speak in first person as this employee — never as 'Atom' "
                         "or as an AI assistant. "
                         f"Maturity tier: {tier}. {tier_behavior} "
+                        f"{_MAIL_CAPABILITY} "
                         "Be helpful, specific, and actionable. Keep responses concise "
                         "(2-4 sentences) unless detail is needed."
                     )
@@ -1039,12 +1074,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # outlook" got answered from unrelated memory snippets. One gated
             # Graph call per explicit email-search turn is not a rate-limit
             # storm. Mutations stay gated by maturity/capability elsewhere.
-            if _is_email_search_query(message):
+            # Retry phrases ("try again", "any luck?") re-fire the search when
+            # this session previously asked for one — "try again" means RE-DO
+            # the last action, and without this the model answered from a
+            # context with no search results and claimed it had no mail tool.
+            _run_email_search = _is_email_search_query(message) or (
+                _is_retry_query(message) and _history_has_email_search(history)
+            )
+            if _run_email_search:
+                # A retry's own text ("try again") has no search terms —
+                # search with the ORIGINAL request's terms instead.
+                _search_source = message
+                if not _is_email_search_query(message):
+                    for h in history or []:
+                        _prev = str((h or {}).get("message") or "")
+                        if _is_email_search_query(_prev):
+                            _search_source = _prev
+                            break
                 try:
                     from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
                     _res = await DocumentsHybridSearch().search(
-                        query=message[:500], limit=6
+                        query=_search_source[:500], limit=6
                     )
                     _hits = (_res or {}).get("results", []) or []
                     if _hits:
@@ -1065,7 +1116,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     logger.warning(f"hybrid email search failed: {email_err}")
 
                 try:
-                    _terms = _extract_live_search_terms(message)
+                    _terms = _extract_live_search_terms(_search_source)
                     if _terms:
                         _live = await _live_mailbox_search(user_id or None, _terms)
                         if _live:
