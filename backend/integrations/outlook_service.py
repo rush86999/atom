@@ -11,6 +11,13 @@ from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
+# Microsoft Graph API base. MICROSOFT_GRAPH_BASE_URL overrides it for
+# self-contained journey/e2e environments (same pattern as ZOHO_ACCOUNTS_BASE
+# / ZOHO_DEFAULT_API_DOMAIN); unset in production the real Graph is used.
+GRAPH_API_BASE = os.getenv(
+    "MICROSOFT_GRAPH_BASE_URL", "https://graph.microsoft.com/v1.0"
+).rstrip("/")
+
 
 @dataclass
 class OutlookUser:
@@ -130,7 +137,7 @@ class OutlookService(IntegrationService):
         if config is None:
             config = {}
         super().__init__(tenant_id=tenant_id, config=config)
-        self.base_url = "https://graph.microsoft.com/v1.0"
+        self.base_url = GRAPH_API_BASE
         self.client_id = config.get("client_id") or os.getenv("MICROSOFT_CLIENT_ID") or os.getenv("AZURE_CLIENT_ID") or os.getenv("OUTLOOK_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("MICROSOFT_CLIENT_SECRET") or os.getenv("AZURE_CLIENT_SECRET") or os.getenv("OUTLOOK_CLIENT_SECRET")
         raw_tenant = config.get("tenant_id") or os.getenv("MICROSOFT_TENANT_ID") or os.getenv("AZURE_TENANT_ID") or os.getenv("OUTLOOK_TENANT_ID")
@@ -154,12 +161,9 @@ class OutlookService(IntegrationService):
                         IntegrationToken.status == "active"
                     ).first()
 
-                if not token_record:
-                    # Fallback to any active Outlook/Microsoft integration token
-                    token_record = db.query(IntegrationToken).filter(
-                        IntegrationToken.provider.in_(["outlook", "microsoft"]),
-                        IntegrationToken.status == "active"
-                    ).first()
+                # No cross-user fallback: grabbing any active token would serve
+                # one user's mailbox to every authenticated user. No row for
+                # THIS user means not connected — callers return empty/401.
 
                 if token_record and token_record.access_token:
                     # SQLite returns naive datetimes even for UTC-stored values;
@@ -218,8 +222,11 @@ class OutlookService(IntegrationService):
                 return None
 
             tenant = self.tenant_id_config if self.tenant_id_config and self.tenant_id_config not in ("default", "none", "") else (os.getenv("MICROSOFT_TENANT_ID") or "common")
+            authority = os.getenv(
+                "MICROSOFT_AUTHORITY_BASE", "https://login.microsoftonline.com"
+            ).rstrip("/")
             url = (
-                f"https://login.microsoftonline.com/{tenant}"
+                f"{authority}/{tenant}"
                 "/oauth2/v2.0/token"
             )
             data = {
@@ -248,18 +255,22 @@ class OutlookService(IntegrationService):
             from core.privsec.token_encryption import encrypt_token
 
             with get_db_session() as db:
-                record = db.query(IntegrationToken).filter(
+                # The OAuth callback fans the grant out to BOTH provider rows
+                # ("outlook" + "microsoft"); refresh must update both too, or
+                # the sibling "microsoft" row keeps serving an expired token.
+                records = db.query(IntegrationToken).filter(
                     IntegrationToken.user_id == user_id,
-                    IntegrationToken.provider == "outlook",
+                    IntegrationToken.provider.in_(["outlook", "microsoft"]),
                     IntegrationToken.status == "active",
-                ).first()
-                if record:
+                ).all()
+                for record in records:
                     record.access_token = encrypt_token(new_access_token)
                     record.refresh_token = encrypt_token(new_refresh_token)
                     if expires_in:
                         record.expires_at = datetime.now(timezone.utc) + timedelta(
                             seconds=int(expires_in)
                         )
+                if records:
                     db.commit()
 
             logger.info(f"Refreshed access token for user {user_id}")
@@ -916,14 +927,22 @@ class OutlookService(IntegrationService):
             return []
 
     async def search_emails(
-        self, user_id: str, query: str, max_results: int = 50, token: Optional[str] = None
+        self, user_id: str, query: str, max_results: int = 50, token: Optional[str] = None,
+        quote: bool = True
     ) -> List[Dict[str, Any]]:
-        """Search emails across all folders"""
+        """Search emails across all folders.
+
+        ``quote=True`` wraps the query as an exact phrase; ``quote=False``
+        passes it through as raw KQL (space-separated terms) — what the chat
+        path wants for "find this email … Name : Mark, Kellam", where the
+        phrase form would never match the body's punctuation.
+        """
         try:
+            # Graph rejects $orderby combined with $search on /me/messages —
+            # results come back relevance-ranked, so ordering is simply omitted.
             params = {
                 "$top": max_results,
-                "$search": f'"{query}"',
-                "$orderby": "receivedDateTime desc",
+                "$search": f'"{query}"' if quote else query,
             }
             query_string = urllib.parse.urlencode(params)
             endpoint = f"/me/messages?{query_string}"

@@ -8,6 +8,7 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 - Multi-agent coordination
 - Cross-platform workflow execution
 """
+import asyncio
 import logging
 import re
 from enum import Enum
@@ -214,6 +215,102 @@ _EMAIL_SEARCH_RE = re.compile(
 
 def _is_email_search_query(message: str) -> bool:
     return bool(message) and bool(_EMAIL_SEARCH_RE.search(message))
+
+
+# Command/template words stripped before a live mailbox search: the command
+# verbs name the action, and words like "name"/"company" appear in every
+# template email body — keeping them as search terms over-matches nothing
+# useful (KQL joins terms with implicit AND).
+_EMAIL_SEARCH_STOPWORDS = {
+    "find", "search", "look", "locate", "check", "show", "did", "you", "get",
+    "receive", "received", "the", "this", "that", "these", "those", "an", "a",
+    "email", "mail", "message", "emails", "mailbox", "inbox", "outlook",
+    "office", "in", "from", "on", "about", "regarding", "please", "and",
+    "for", "with", "name", "company", "phone", "subject", "postal", "code",
+    "try", "tries", "again", "what", "was", "were", "is", "are", "it", "its",
+    "do", "does", "did", "know", "see", "any", "me", "my", "we", "us", "our",
+    "got", "give", "tell", "say", "said", "can", "could", "would", "should",
+    "if", "or", "to", "of", "at", "by", "be", "been", "am", "not", "no",
+    "yes", "there", "here", "when", "where", "how", "why", "who", "which",
+}
+
+
+def _extract_live_search_terms(message: str) -> str:
+    """Reduce 'find this email in outlook: Name : Mark, Kellam' to the
+    distinctive terms ('mark kellam') for a Graph $search KQL query. Longest
+    first — longer tokens are rarer, and the live search only probes the
+    first few."""
+    tokens = re.findall(r"[A-Za-z0-9@._-]+", message or "")
+    terms = sorted(
+        {t for t in tokens if len(t) >= 2 and t.lower() not in _EMAIL_SEARCH_STOPWORDS},
+        key=len,
+        reverse=True,
+    )
+    return " ".join(terms[:6])
+
+
+_CONVERSATION_REF_RE = re.compile(
+    r"\b(earlier|previously|previous|last time|just now|"
+    r"you (found|mentioned|said|showed|gave|told|told me)|"
+    r"we (discussed|talked about|found)|"
+    r"that (email|lead|one|message|result|answer|person|company)|"
+    r"the (one you|same)|again|follow[- ]?up)\b",
+    re.IGNORECASE,
+)
+
+
+def _references_conversation(message: str) -> bool:
+    """True when the user's message points back at this conversation
+    ('the email you found earlier', 'try again') rather than at the world —
+    the transcript, not retrieved memory, should then drive the answer."""
+    return bool(message) and bool(_CONVERSATION_REF_RE.search(message))
+
+
+async def _live_mailbox_search(
+    user_id: Optional[str], terms: str, max_results: int = 10
+) -> List[Dict[str, Any]]:
+    """Search the chatting user's LIVE Outlook mailbox for the extracted terms.
+
+    Graph $search OR-ranks multi-word queries (even with an explicit AND —
+    tested), so a common token like "Mark" crowds the actual
+    'Name : Mark, Kellam' email out of the top hits. Searching each
+    distinctive term on its own and merging (hits that match more terms rank
+    first) surfaces it. Read-only; the caller gates on explicit email-search
+    phrasing. Never raises.
+    """
+    from integrations.outlook_service import outlook_service
+
+    tokens = [t for t in (terms or "").split() if t][:3]
+    if not tokens:
+        return []
+    merged: Dict[str, Dict[str, Any]] = {}
+    for term in tokens:
+        try:
+            hits = await asyncio.wait_for(
+                outlook_service.search_emails(
+                    user_id=user_id, query=term, max_results=max_results, quote=False
+                ),
+                timeout=12,
+            )
+        except Exception as e:
+            logger.warning(f"live mailbox term search failed ({term}): {e}")
+            continue
+        for e in hits or []:
+            eid = e.get("id")
+            if not eid:
+                continue
+            entry = merged.setdefault(eid, {"email": e, "score": 0})
+            entry["score"] += 1
+    ranked = sorted(merged.values(), key=lambda x: (-x["score"]))
+    return [x["email"] for x in ranked[:max_results]]
+
+
+# Command/template words stripped before a live mailbox search: the command
+# verbs name the action, and words like "name"/"company" appear in every
+# template email body — keeping them as search terms over-matches nothing
+# useful (KQL joins terms with implicit AND).
+
+
 
 
 class ChatOrchestrator:
@@ -469,25 +566,39 @@ class ChatOrchestrator:
                 pass  # titling is cosmetic; never block the chat path
 
             # Build conversation history for context.
-            # Session-dedup: replace byte-identical repeated text across turns
-            # with reference markers (exact-match only — zero information loss).
-            # Default ON (COMPRESS_SESSION_DEDUP_ENABLED).
+            # Session-dedup REMOVED from the read path (Aug 2026): it replaced
+            # each prior turn's own text with "[previously sent: <hash>]" in
+            # the session records — the write side indexes every turn, so the
+            # read side marker-ized the FIRST occurrence too. Follow-up
+            # questions ("the lead email you found earlier") then hit a
+            # transcript where the found details were an unresolvable
+            # placeholder, and the model answered "I don't have access".
+            # The [-6:] slice already bounds prompt size; recall beats the
+            # marginal token savings. Write-side indexing is harmless and
+            # stays, but nothing consumes it on the chat path anymore.
             history = session.get("history", [])[-6:]  # Last 3 turns
-            try:
-                from core.llm.compression import SESSION_DEDUP_ENABLED
-                if SESSION_DEDUP_ENABLED and history:
-                    from core.llm.compression.session_dedup import get_or_create_dedup_index
-                    dedup_idx = get_or_create_dedup_index(session)
-                    for h in history:
-                        if h.get("message"):
-                            h["message"], _ = dedup_idx.deduplicate(h["message"])
-                        resp_msg = (h.get("response") or {}).get("message", "")
-                        if resp_msg:
-                            deduped_resp, _ = dedup_idx.deduplicate(resp_msg)
-                            h["response"]["message"] = deduped_resp
-            except Exception:
-                pass  # dedup must never break the chat path
-
+            if not history:
+                # Belt-and-suspenders for restart survival: if DB hydration
+                # found nothing (fresh DB row, or the store failed), fall back
+                # to the conversation history the frontend sends with every
+                # turn (last 5 messages) instead of answering context-free.
+                # Only used for THIS turn's LLM context — not persisted, so it
+                # can never duplicate what _update_session already stores.
+                conv = (context or {}).get("conversation_history") or []
+                rebuilt: List[Dict[str, Any]] = []
+                for c in conv[-6:]:
+                    if not isinstance(c, dict) or not str(c.get("content") or "").strip():
+                        continue
+                    if c.get("role") == "user":
+                        rebuilt.append({"message": c["content"], "response": {"message": ""}, "intent": {}})
+                    else:
+                        rebuilt.append({"message": "", "response": {"message": c["content"]}, "intent": {}})
+                if rebuilt:
+                    history = rebuilt
+                    logger.info(
+                        f"In-memory history empty — using {len(rebuilt)} frontend-provided "
+                        f"message(s) as LLM context for session {session_id}"
+                    )
             # 1. Try Qwen AI conversational response first (real AI reply).
             # LKGP: pass the session's last-known-good provider/model as a
             # sticky hint so multi-turn conversations stay on the same model.
@@ -918,11 +1029,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # invisible at chat time (no error, empty memory) — warn, don't debug.
                 logger.warning(f"memory context assembly skipped: {e}")
 
-            # Email lookup via the EXISTING hybrid stack (text + semantic +
-            # rerank over the ingested mail memory) — no live Graph call, no
-            # rate-limit storms. Read-only: safe for every tier; mutations
-            # stay gated by maturity/capability elsewhere.
-            if agent_id and _is_email_search_query(message):
+            # Email lookup — two legs, both read-only:
+            #   1. the EXISTING hybrid stack (text + semantic + rerank over the
+            #      ingested mail memory); and
+            #   2. a LIVE Outlook mailbox search for the same query.
+            # Leg 2 exists because leg 1 only sees what the ingestion poller
+            # has already synced — an email that arrived after the last sync
+            # (or one the poller missed) was invisible, so "find this email in
+            # outlook" got answered from unrelated memory snippets. One gated
+            # Graph call per explicit email-search turn is not a rate-limit
+            # storm. Mutations stay gated by maturity/capability elsewhere.
+            if _is_email_search_query(message):
                 try:
                     from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
@@ -947,6 +1064,37 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 except Exception as email_err:
                     logger.warning(f"hybrid email search failed: {email_err}")
 
+                try:
+                    _terms = _extract_live_search_terms(message)
+                    if _terms:
+                        _live = await _live_mailbox_search(user_id or None, _terms)
+                        if _live:
+                            _live_listing = "\n".join(
+                                f"- From: {_e.get('from_field', {}).get('emailAddress', {}).get('address') or '?'} | "
+                                f"{str(_e.get('subject') or '(no subject)')[:120]} | "
+                                f"{str(_e.get('body_preview') or '')[:160]} | "
+                                f"received: {str(_e.get('received_date_time'))[:19]} | id: {_e.get('id')}"
+                                for _e in _live[:6]
+                            )
+                            messages.append({
+                                "role": "system",
+                                "content": (
+                                    "LIVE MAILBOX SEARCH RESULTS (current Outlook mailbox "
+                                    "via Graph — newer than ingested memory; use these to "
+                                    f"answer; query terms: {_terms}):\n" + _live_listing
+                                ),
+                            })
+                        else:
+                            messages.append({
+                                "role": "system",
+                                "content": (
+                                    f"LIVE MAILBOX SEARCH: no matches in the connected "
+                                    f"Outlook mailbox for: {_terms}"
+                                ),
+                            })
+                except Exception as live_err:
+                    logger.warning(f"live outlook search failed: {live_err}")
+
             # Add conversation history
             for h in history:
                 if h.get("message"):
@@ -954,6 +1102,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 resp_msg = h.get("response", {}).get("message", "")
                 if resp_msg:
                     messages.append({"role": "assistant", "content": resp_msg})
+
+            # Recency precedence: when the user refers to something from THIS
+            # conversation ("the email you found earlier"), the transcript is
+            # the authoritative source. Without this nudge the model answered
+            # "who was in that lead email?" from an older ingested lead in the
+            # RELEVANT MEMORY block instead of the record it had just found.
+            if history and _references_conversation(message):
+                messages.append({
+                    "role": "system",
+                    "content": (
+                        "PRIORITY: The user is referring to something from THIS "
+                        "conversation. Answer from the transcript above — it is the "
+                        "authoritative and most recent source. Treat any RELEVANT "
+                        "MEMORY block as background only, and use it solely to fill "
+                        "gaps the transcript does not already cover."
+                    ),
+                })
 
             messages.append({"role": "user", "content": message})
 
@@ -1031,6 +1196,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         db = SessionLocal()
         try:
             token = db.query(IntegrationToken).filter(
+                IntegrationToken.user_id == user_id,
                 IntegrationToken.provider == "zoho",
                 IntegrationToken.status == "active",
             ).first()
@@ -1812,6 +1978,72 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
     ) -> Dict[str, Any]:
         return {"success": True, "data": {"message": "Ecommerce logic here"}}
 
+    def _hydrate_session_history(self, session_id: str, session: Dict) -> None:
+        """Reload persisted turns from the ChatMessage store into an in-memory
+        session after a restart. Without this, a returning session's LLM
+        context is empty — `_update_session` writes every turn to the DB, but
+        nothing ever read them back, so after an app restart the agent saw no
+        prior conversation ("this looks like the start of our chat") even
+        though the sidebar still listed the messages. Best-effort: a DB
+        failure leaves the empty in-memory session and the chat still works.
+        """
+        if session.get("history"):
+            return
+        try:
+            from core.database import get_db_session
+            from core.models import ChatMessage as ChatMessageModel
+
+            with get_db_session() as db:
+                rows = (
+                    db.query(ChatMessageModel)
+                    .filter(ChatMessageModel.conversation_id == session_id)
+                    # Same-second user+assistant rows sort user-first because
+                    # "user" > "assistant" descending.
+                    .order_by(ChatMessageModel.created_at.asc(), ChatMessageModel.role.desc())
+                    .all()
+                )
+
+            turns: List[Dict[str, Any]] = []
+            pending_user: Optional[str] = None
+            for row in rows:
+                content = (row.content or "").strip()
+                if not content:
+                    continue
+                if row.role == "user":
+                    if pending_user is not None:
+                        turns.append({
+                            "message": pending_user,
+                            "response": {"message": ""},
+                            "intent": {},
+                            "timestamp": str(row.created_at or ""),
+                        })
+                    pending_user = content
+                else:
+                    turns.append({
+                        "message": pending_user or "",
+                        "response": {"message": content},
+                        "intent": {},
+                        "timestamp": str(row.created_at or ""),
+                    })
+                    pending_user = None
+            if pending_user is not None:
+                turns.append({
+                    "message": pending_user,
+                    "response": {"message": ""},
+                    "intent": {},
+                    "timestamp": "",
+                })
+
+            if turns:
+                session["history"] = turns[-12:]
+                logger.info(
+                    f"Hydrated {len(turns)} persisted turn(s) into session "
+                    f"{session_id} after restart"
+                )
+        except Exception as e:
+            logger.warning(f"Could not hydrate session history from DB (non-fatal): {e}")
+
+
     def _get_or_create_session(
         self, user_id: str, session_id: str, context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -1838,6 +2070,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "created_at": datetime.now().isoformat(),
                     "history": []
                 }
+            else:
+                # Sessions preloaded from the legacy file store at boot arrive
+                # with empty history — hydrate from the DB so a returning
+                # conversation isn't amnesiac after a restart. No-ops when
+                # history is already populated.
+                self._hydrate_session_history(session_id, existing)
             return self.conversation_sessions[session_id]
 
         # New session — create in-memory AND persist the ChatSession row.
@@ -1849,6 +2087,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "created_at": datetime.now().isoformat(),
             "history": []
         }
+        # Restart survival: the ChatMessage rows for this session may already
+        # exist from a previous app run — load them back so the LLM sees the
+        # full conversation, not just the turns after this restart.
+        self._hydrate_session_history(session_id, self.conversation_sessions[session_id])
         # Persist the session row so it survives restarts and appears in the
         # session list sidebar.
         try:

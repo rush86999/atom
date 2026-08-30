@@ -7,6 +7,7 @@ import asyncio
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import base64
 import html as _html_mod
 import json
 import logging
@@ -56,6 +57,101 @@ def _html_to_text(html_body: str) -> str:
         return _HTML_WS_RE.sub("\n", text).strip()
     except Exception:
         return html_body
+
+
+# Attachments: text-like formats get a real text layer extracted from
+# contentBytes; binary formats (pdf, docx, images) keep name + metadata
+# only — a cheap in-process extraction doesn't exist for them.
+_TEXT_ATTACHMENT_EXTENSIONS = {
+    ".txt", ".csv", ".tsv", ".json", ".md", ".xml", ".html", ".htm",
+    ".log", ".yml", ".yaml", ".ini", ".sql", ".py", ".js", ".ts",
+    ".css", ".rs", ".go", ".java",
+}
+_MAX_ATTACHMENT_DECODE_BYTES = 512 * 1024   # don't decode huge payloads
+_MAX_ATTACHMENT_TEXT_CHARS = 20_000         # indexed text per attachment
+
+
+def _attachment_field(attachment: Dict[str, Any], *names: str) -> Any:
+    """First non-empty value among camelCase/snake_case key variants."""
+    for name in names:
+        value = attachment.get(name)
+        if value:
+            return value
+    return None
+
+
+def _attachment_text_like(attachment: Dict[str, Any]) -> bool:
+    """True when the attachment looks like a format we can extract text from."""
+    name = (_attachment_field(attachment, "name", "filename") or "").lower()
+    ctype = (
+        _attachment_field(attachment, "contentType", "content_type", "mimetype", "mime_type")
+        or ""
+    ).lower()
+    ext = os.path.splitext(name)[1]
+    return ext in _TEXT_ATTACHMENT_EXTENSIONS or ctype.startswith(
+        ("text/", "application/json", "application/xml", "application/yaml")
+    )
+
+
+def _extract_attachment_text(attachment: Dict[str, Any]) -> Optional[str]:
+    """Best-effort text layer for one file attachment. Never raises.
+
+    Accepts the payload shapes each poller sees:
+    - `contentBytes` — Microsoft Graph file attachments
+    - `data`         — Gmail attachments.get (base64url)
+    - `content`      — Teams inline file attachments (base64; reference
+                       attachments carry a URL here instead and are skipped)
+
+    Returns readable text for text-like formats, or None for binary,
+    inline, or oversized attachments.
+    """
+    data = (
+        attachment.get("contentBytes")
+        or attachment.get("data")
+        or None
+    )
+    if not data:
+        # Teams inline file attachments: base64 payload in `content`
+        # (reference attachments hold a URL there — not decodable content).
+        if str(attachment.get("contentType") or "").lower() == "reference":
+            return None
+        content = attachment.get("content")
+        if content and not str(content).lower().startswith(("http://", "https://")):
+            data = content
+    if not data:
+        return None
+    if attachment.get("isInline", attachment.get("is_inline", False)):
+        return None
+    if not _attachment_text_like(attachment):
+        return None
+    try:
+        raw = base64.b64decode(data, validate=False)
+    except Exception:
+        try:
+            # Gmail uses base64url.
+            raw = base64.urlsafe_b64decode(data + "===")
+        except Exception:
+            return None
+    if not raw or len(raw) > _MAX_ATTACHMENT_DECODE_BYTES:
+        return None
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            text = raw.decode("latin-1")
+        except Exception:
+            return None
+    if not text:
+        return None
+    # Binary content that sneaked in under a text extension: reject when
+    # the sampled head is mostly non-printable.
+    sample = text[:2000]
+    printable = sum(ch.isprintable() or ch in "\r\n\t" for ch in sample)
+    if sample and printable / len(sample) < 0.9:
+        return None
+    if len(text) > _MAX_ATTACHMENT_TEXT_CHARS:
+        text = text[:_MAX_ATTACHMENT_TEXT_CHARS] + "\n…[truncated]"
+    return text
 
 
 
@@ -493,12 +589,30 @@ class LanceDBMemoryManager:
                 search_builder = search_builder.where(f"direction = '{safe_direction}'")
             
             results = search_builder.to_pandas()
-            
+
             return results.to_dict('records')
-            
-        except Exception as e:
-            logger.error(f"Error searching communications: {str(e)}")
-            return []
+
+        except Exception as hybrid_err:
+            # Dim mismatch (query embedder vs stored vectors) or any other
+            # hybrid failure used to discard the lexical matches too — every
+            # comm search returned [] and chat answered from unrelated memory.
+            # Retry FTS-only before giving up.
+            try:
+                if self.connections_table is None:
+                    return []
+                fts_results = (
+                    self.connections_table.search(query[:500], query_type="fts")
+                    .limit(limit)
+                    .to_pandas()
+                )
+                logger.warning(
+                    f"hybrid comm search failed ({str(hybrid_err)[:120]}) — "
+                    f"FTS-only fallback returned {len(fts_results)} rows"
+                )
+                return fts_results.to_dict('records')
+            except Exception as fts_err:
+                logger.error(f"Error searching communications: {fts_err}")
+                return []
     
     def get_communications_by_app(self, app_type: str, limit: int = 100) -> List[Dict]:
         """Get communications by app type"""
@@ -855,6 +969,60 @@ class CommunicationIngestionPipeline:
             logger.error(f"Error starting Outlook poller: {e}")
             return False
 
+    # Catalog integration ids -> CommunicationAppType for apps with a real
+    # _fetch_new_messages implementation. Keep this in sync with that
+    # dispatch; an app without a fetcher would poll forever and fetch nothing.
+    POLLABLE_APPS: Dict[str, CommunicationAppType] = {
+        "outlook": CommunicationAppType.OUTLOOK,
+        "gmail": CommunicationAppType.GMAIL,
+        "slack": CommunicationAppType.SLACK,
+        "teams": CommunicationAppType.MICROSOFT_TEAMS,
+        "whatsapp": CommunicationAppType.WHATSAPP,
+        "discord": CommunicationAppType.DISCORD,
+    }
+
+    def start_poller(self, app_type: str, polling_interval_seconds: int = 60) -> bool:
+        """
+        Start a real-time polling stream for any pollable app (idempotent).
+
+        Generalizes start_outlook_poller: builds an IngestionConfig with
+        real_time enabled, configures the app, and starts the shared
+        streaming loop. The per-app token lookup happens inside each
+        _fetch_*_messages implementation; apps without credentials log a
+        warning and fetch nothing rather than crashing the loop.
+        """
+        try:
+            enum_member = self.POLLABLE_APPS.get(app_type)
+            if enum_member is None:
+                logger.warning(f"No poller implementation for {app_type}")
+                return False
+            if app_type in self.active_streams:
+                logger.info(f"{app_type} poller already running")
+                return True
+
+            config = IngestionConfig(
+                app_type=enum_member,
+                enabled=True,
+                real_time=True,
+                batch_size=200,
+                ingest_attachments=True,
+                embed_content=True,
+                retention_days=365,
+                vector_dim=768,
+                polling_interval_seconds=max(30, int(polling_interval_seconds)),
+            )
+            self.configure_app(enum_member, config)
+            started = self.start_real_time_stream(enum_member.value)
+            if started:
+                logger.info(
+                    f"Started {app_type} poller (interval={config.polling_interval_seconds}s)"
+                )
+                self._ensure_maintenance_loop()
+            return started
+        except Exception as e:
+            logger.error(f"Error starting {app_type} poller: {e}")
+            return False
+
     async def _handle_webhook_message(self, message_data: Dict[str, Any]):
         """
         Handle incoming webhook message from real-time sources.
@@ -1142,11 +1310,20 @@ class CommunicationIngestionPipeline:
                                 "timestamp": ts_raw or datetime.now(timezone.utc).isoformat(),
                                 "direction": "inbound",
                                 "source_app": "discord",
+                                # Discord carries attachment metadata inline
+                                # (filename, url, content_type, size).
+                                "attachments": msg.get("attachments", []),
                             })
                         except Exception as msg_err:
                             logger.warning(f"Failed to normalize Discord message: {msg_err}")
 
             logger.info(f"Fetched {len(all_messages)} new messages from Discord")
+
+            # Attachment ingestion: download text-like files (public CDN
+            # URLs, budgeted) so their text layer gets indexed.
+            if all_messages and self._attachments_enabled("discord"):
+                await self._expand_discord_attachments(all_messages)
+
             return all_messages
         except Exception as e:
             logger.error(f"Error fetching messages from Discord: {e}")
@@ -1321,6 +1498,11 @@ class CommunicationIngestionPipeline:
 
             # Sort by timestamp (oldest first)
             all_messages.sort(key=lambda m: m["timestamp"])
+
+            # Attachment ingestion: download text-like files (budgeted) so
+            # the shared normalizer can extract their text layer.
+            if all_messages and bot_token and self._attachments_enabled("slack"):
+                await self._expand_slack_attachments(bot_token, all_messages)
 
             logger.info(f"Total Slack messages fetched: {len(all_messages)}")
             return all_messages
@@ -1816,6 +1998,11 @@ class CommunicationIngestionPipeline:
                 lambda: gmail_service.get_messages(query=query, max_results=100)
             )
 
+            # Attachment ingestion: Gmail metadata responses never carry the
+            # bytes — fetch them per attachment (budgeted, text-like only).
+            if messages and self._attachments_enabled("gmail"):
+                await self._expand_gmail_attachments(gmail_service, messages)
+
             # Normalize to unified message format
             normalized_messages = []
             for msg in messages:
@@ -1841,7 +2028,9 @@ class CommunicationIngestionPipeline:
                     recipient = msg.get("recipient", "")
                     recipients_list = recipient.split(",") if recipient else []
 
-                    # Parse attachments
+                    # Parse attachments — keep data (base64) so the shared
+                    # normalizer can extract the text layer; it strips the
+                    # raw bytes before storage.
                     attachments_data = msg.get("attachments", [])
                     attachments = []
                     for att in attachments_data:
@@ -1849,7 +2038,8 @@ class CommunicationIngestionPipeline:
                             "id": att.get("id"),
                             "filename": att.get("filename"),
                             "size": att.get("size"),
-                            "content_type": att.get("contentType")
+                            "content_type": att.get("contentType"),
+                            "data": att.get("data"),
                         })
 
                     normalized_msg = {
@@ -1892,6 +2082,190 @@ class CommunicationIngestionPipeline:
         except Exception as e:
             logger.error(f"Error fetching Gmail messages: {e}")
             return []
+
+    # Graph calls budgeted per fetched page of messages: one
+    # /attachments request per message flagged hasAttachments.
+    ATTACHMENT_EXPAND_BUDGET_PER_PAGE = 20
+
+    def _outlook_attachments_enabled(self) -> bool:
+        """Attachment expansion is gated on IngestionConfig.ingest_attachments."""
+        try:
+            return bool(
+                (self.ingestion_configs.get("outlook") or {}).get(
+                    "ingest_attachments", True
+                )
+            )
+        except Exception:
+            return True
+
+    def _attachments_enabled(self, app_type: str) -> bool:
+        try:
+            return bool(
+                (self.ingestion_configs.get(app_type) or {}).get(
+                    "ingest_attachments", True
+                )
+            )
+        except Exception:
+            return True
+
+    async def _download_text_attachments(
+        self,
+        messages: List[Dict[str, Any]],
+        attachment_key: str,
+        url_field: str,
+        headers: Optional[Dict[str, str]] = None,
+        data_field: str = "contentBytes",
+    ) -> None:
+        """Download text-like attachment files so their text can be indexed.
+
+        Shared by Slack (`url_private_download`, bearer token) and Discord
+        (public CDN `url`). Budget-capped per fetch cycle; only text-like
+        formats are fetched — binaries get no text layer, so the bytes
+        wouldn't be usable. Mutates messages in place; failures never fail
+        the fetch.
+        """
+        if not messages:
+            return
+        budget = self.ATTACHMENT_EXPAND_BUDGET_PER_PAGE
+        try:
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+                for msg in messages:
+                    if budget <= 0:
+                        return
+                    for att in msg.get(attachment_key, []) or []:
+                        if budget <= 0:
+                            return
+                        url = att.get(url_field)
+                        if not url or att.get(data_field):
+                            continue
+                        if not _attachment_text_like(att):
+                            continue
+                        try:
+                            response = await client.get(url, headers=headers)
+                            if response.status_code == 200 and response.content:
+                                att[data_field] = base64.b64encode(
+                                    response.content
+                                ).decode()
+                                budget -= 1
+                            else:
+                                logger.debug(
+                                    f"Attachment download {url} returned {response.status_code}"
+                                )
+                        except Exception as e:
+                            logger.debug(f"Attachment download failed for {url}: {e}")
+        except Exception as e:
+            logger.debug(f"Attachment download pass failed: {e}")
+
+    async def _expand_slack_attachments(
+        self, bot_token: str, messages: List[Dict[str, Any]]
+    ) -> None:
+        """Download text-like Slack files (url_private_download needs the bot token)."""
+        await self._download_text_attachments(
+            messages,
+            attachment_key="attachments",
+            url_field="url_private_download",
+            headers={"Authorization": f"Bearer {bot_token}"},
+        )
+
+    async def _expand_discord_attachments(
+        self, messages: List[Dict[str, Any]]
+    ) -> None:
+        """Download text-like Discord attachments (public CDN URLs, no auth)."""
+        await self._download_text_attachments(
+            messages,
+            attachment_key="attachments",
+            url_field="url",
+        )
+
+    async def _expand_gmail_attachments(
+        self, gmail_service: Any, messages: List[Dict[str, Any]]
+    ) -> None:
+        """Fetch Gmail attachment data for messages that have attachments.
+
+        Gmail list/get responses carry attachment metadata only; the bytes
+        need one attachments.get call each. Budget-capped per fetch cycle,
+        and only text-like attachments are fetched (binary formats get no
+        text layer, so the bytes wouldn't be usable). Blocking Google API
+        calls run in an executor. Mutates messages in place; failures never
+        fail the fetch.
+        """
+        budget = self.ATTACHMENT_EXPAND_BUDGET_PER_PAGE
+        loop = asyncio.get_running_loop()
+        for msg in messages:
+            if budget <= 0:
+                return
+            for att in msg.get("attachments", []) or []:
+                if budget <= 0:
+                    return
+                attachment_id = att.get("attachmentId") or att.get("id")
+                message_id = msg.get("id")
+                if not attachment_id or not message_id or att.get("data"):
+                    continue
+                if not _attachment_text_like(att):
+                    continue
+                try:
+                    content = await loop.run_in_executor(
+                        None,
+                        lambda mid=message_id, aid=attachment_id: (
+                            gmail_service.get_attachment_content(mid, aid)
+                        ),
+                    )
+                except Exception as e:
+                    logger.debug(
+                        f"Gmail attachment fetch failed for {message_id}/{attachment_id}: {e}"
+                    )
+                    continue
+                if content:
+                    att["data"] = base64.b64encode(content).decode()
+                    budget -= 1
+
+    async def _expand_outlook_attachments(
+        self,
+        client: "httpx.AsyncClient",
+        headers: Dict[str, str],
+        messages: List[Dict[str, Any]],
+    ) -> None:
+        """Attach the attachments collection to messages flagged hasAttachments.
+
+        Mutates `messages` in place. Budget-capped per page so a mailbox full
+        of attachments can't turn one poll into hundreds of Graph calls;
+        429s honor Retry-After once, then give up on that message. Failures
+        never fail the fetch — the message still ingests, minus attachments.
+        """
+        budget = self.ATTACHMENT_EXPAND_BUDGET_PER_PAGE
+        graph_base = os.getenv(
+            "MICROSOFT_GRAPH_BASE_URL",
+            "https://graph.microsoft.com/v1.0",
+        ).rstrip("/")
+        # No $select: Graph rejects selecting contentBytes (400) — the
+        # unqualified collection GET is what returns it.
+        for msg in messages:
+            if budget <= 0:
+                return
+            if not msg.get("hasAttachments") or not msg.get("id"):
+                continue
+            try:
+                response = await client.get(
+                    f"{graph_base}/me/messages/{msg['id']}/attachments",
+                    headers=headers,
+                )
+                if response.status_code == 429 and budget > 1:
+                    retry_after = int(response.headers.get("Retry-After", 5))
+                    await asyncio.sleep(retry_after)
+                    response = await client.get(
+                        f"{graph_base}/me/messages/{msg['id']}/attachments",
+                        headers=headers,
+                    )
+                if response.status_code == 200:
+                    msg["attachments"] = response.json().get("value", [])
+                    budget -= 1
+                else:
+                    logger.debug(
+                        f"Attachment fetch for message {msg.get('id')} "
+                        f"returned {response.status_code}"
+                    )
+            except Exception as e:
+                logger.debug(f"Attachment fetch failed for {msg.get('id')}: {e}")
 
     async def _fetch_outlook_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
         """
@@ -1955,8 +2329,12 @@ class CommunicationIngestionPipeline:
                         if next_link:
                             response = await client.get(next_link, headers=headers)
                         else:
+                            graph_base = os.getenv(
+                                "MICROSOFT_GRAPH_BASE_URL",
+                                "https://graph.microsoft.com/v1.0",
+                            ).rstrip("/")
                             response = await client.get(
-                                "https://graph.microsoft.com/v1.0/me/messages",
+                                f"{graph_base}/me/messages",
                                 headers=headers,
                                 params=params
                             )
@@ -1974,6 +2352,15 @@ class CommunicationIngestionPipeline:
 
                         data = response.json()
                         messages = data.get("value", [])
+
+                        # Attachment ingestion: the list endpoint never
+                        # returns the attachments collection — fetch it
+                        # per-message for anything with attachments, so the
+                        # normalizer sees names + contentBytes.
+                        if self._outlook_attachments_enabled():
+                            await self._expand_outlook_attachments(
+                                client, headers, messages
+                            )
 
                         # Normalize messages
                         for msg in messages:
@@ -2003,7 +2390,9 @@ class CommunicationIngestionPipeline:
                                 body_content = body_data.get("content", "")
                                 body_type = body_data.get("contentType", "text")
 
-                                # Parse attachments
+                                # Parse attachments — keep contentBytes so the
+                                # email normalizer can extract the text layer;
+                                # it strips the raw bytes before storage.
                                 attachments_data = msg.get("attachments", [])
                                 attachments = []
                                 for att in attachments_data:
@@ -2012,7 +2401,8 @@ class CommunicationIngestionPipeline:
                                         "name": att.get("name"),
                                         "size": att.get("size"),
                                         "content_type": att.get("contentType"),
-                                        "is_inline": att.get("isInline", False)
+                                        "is_inline": att.get("isInline", False),
+                                        "contentBytes": att.get("contentBytes"),
                                     })
 
                                 normalized_msg = {
@@ -2074,10 +2464,87 @@ class CommunicationIngestionPipeline:
             logger.error(f"Error fetching Outlook messages: {e}")
             return []
     
+    def _index_attachments(
+        self, content: str, attachments: List[Dict[str, Any]]
+    ) -> tuple:
+        """Fold attachment metadata + extracted text into the record content.
+
+        Returns (content, cleaned_attachments). The cleaned list never keeps
+        raw `contentBytes` (base64 bloat in the LanceDB JSON column) — the
+        extracted text lives once, in `content`, where FTS/embeddings index
+        it. Names and metadata are kept for every attachment, text layer or
+        not, so binary files (pdf, images) are still findable by name.
+        """
+        sections: List[str] = []
+        cleaned: List[Dict[str, Any]] = []
+        for att in attachments:
+            if not isinstance(att, dict):
+                continue
+            att = dict(att)
+            text = _extract_attachment_text(att)
+            # Raw payload bytes never persist — the extracted text lives
+            # once, in `content`.
+            att.pop("contentBytes", None)
+            att.pop("data", None)
+            ctype = (
+                _attachment_field(att, "contentType", "content_type", "mimetype") or ""
+            ).lower()
+            content_val = att.get("content")
+            if (
+                ctype != "reference"
+                and content_val
+                and not str(content_val).lower().startswith(("http://", "https://"))
+            ):
+                # Teams inline file attachments: base64 payload.
+                att.pop("content", None)
+            att["extracted_text"] = bool(text)
+            cleaned.append(att)
+            label = (
+                _attachment_field(att, "name", "filename") or att.get("id") or "attachment"
+            )
+            meta = " / ".join(
+                filter(
+                    None,
+                    [
+                        _attachment_field(
+                            att, "contentType", "content_type", "mimetype", "mime_type"
+                        ),
+                        f"{att.get('size')} bytes" if att.get("size") else None,
+                    ],
+                )
+            )
+            section = f"- {label}" + (f" ({meta})" if meta else "")
+            if text:
+                section += f"\n{text}"
+            sections.append(section)
+        if not sections:
+            return content, cleaned
+        header = "--- Attachments ---"
+        appended = header + "\n" + "\n".join(sections)
+        return ((content + "\n\n" + appended) if content else appended), cleaned
+
     def _normalize_message(self, app_type: str, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize message data from different apps to unified format,
         stamped with actor provenance (metadata.actor_type / actor_id)."""
         normalized = self._normalize_message_impl(app_type, message_data)
+
+        # Attachment ingestion, for every app: index attachment names into
+        # the record content (so binary files are findable by name) plus the
+        # extracted text layer for text-like ones (FTS/embeddings). Gated on
+        # the app's IngestionConfig.ingest_attachments; raw payload bytes
+        # (contentBytes/data/content) are stripped from stored metadata.
+        attachments = normalized.get("attachments") or []
+        if attachments and bool(
+            (self.ingestion_configs.get(app_type) or {}).get(
+                "ingest_attachments", True
+            )
+        ):
+            content, cleaned = self._index_attachments(
+                normalized.get("content") or "", attachments
+            )
+            normalized["content"] = content
+            normalized["attachments"] = cleaned
+
         try:
             actor_type, actor_id = derive_actor(message_data)
             meta = normalized.get("metadata")

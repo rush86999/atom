@@ -782,8 +782,11 @@ async def assemble_memory_context(
         if len(body) > TOTAL_CHAR_BUDGET:
             body = body[:TOTAL_CHAR_BUDGET] + "…"
         return (
-            "RELEVANT MEMORY (auto-retrieved; may be incomplete — verify before "
-            "acting on specifics):\n\n" + body
+            "RELEVANT MEMORY (auto-retrieved background from ingested data — NOT "
+            "from this conversation; may be incomplete or stale. When the user "
+            "refers to something said in this conversation, the transcript "
+            "always takes precedence over these snippets. Verify before acting "
+            "on specifics):\n\n" + body
         )
     except Exception as e:
         logger.info(f"memory assembler: assembly failed cleanly: {e}")

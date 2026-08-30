@@ -385,10 +385,14 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.ADVANCED: "llama-3.3-70b-versatile",
     },
     "openrouter": {  # OpenRouter — gateway to 300+ models via one key
+        # COMPLEX/ADVANCED: Chinese flagships (DeepSeek V4 Pro) match
+        # Claude Sonnet-5-class capability at $0.51/$1.02 vs $2/$10 per M
+        # tokens — 4-10x cheaper (OpenRouter catalog, Aug 2026, tool-
+        # capable). SIMPLE/MODERATE stay on gpt-4o-mini.
         QueryComplexity.SIMPLE: "openai/gpt-4o-mini",
         QueryComplexity.MODERATE: "openai/gpt-4o-mini",
-        QueryComplexity.COMPLEX: "anthropic/claude-sonnet-5",
-        QueryComplexity.ADVANCED: "anthropic/claude-sonnet-5",
+        QueryComplexity.COMPLEX: "deepseek/deepseek-v4-pro",
+        QueryComplexity.ADVANCED: "deepseek/deepseek-v4-pro",
     },
     "opencode-go": {  # OpenCode Go — low-cost subscription via OpenCode Zen gateway
         # https://opencode.ai/zen — tested+verified open coding models served
@@ -1473,21 +1477,33 @@ class BYOKHandler:
 
         # 2. Regex-based vocabulary analysis
         # Using word boundaries \b to avoid matches inside other words
+        # Code vocabulary: words that double as everyday English ("try",
+        # "return", "import", "class", "print", "final"…) were removed after
+        # "try again" scored +3 and routed a trivial chat turn to the premium
+        # tier. What remains is unambiguous in business chat; the leftover
+        # weight still requires corroboration (code fence or a 2nd match).
         patterns = {
             "simple": (r"\b(hello|hi|thanks|greetings|summarize|translate|list|what is|who is|define|how do i|simplify|brief|basic|short|quick|simple)\b", -2),
             "moderate": (r"\b(analyze|compare|evaluate|synthesize|explain|describe|detailed|background|concept|history|nuance|opinion|critique|pros and cons|advantages|disadvantages)\b", 1),
             "technical": (r"\b(calculate|equation|formula|solve|integral|derivative|calculus|geometry|algebra|math|maths|theorem|statistics|probability|regression|vector|matrix|tensor|log|exp|pow|sqrt|abs|sin|cos|tan|pi|infinity|prime|physics|chemistry|biology|science)\b", 3),
-            "code": (r"\b(code|coding|function|class|method|script|scripting|debug|debugging|optimize|optimization|refactor|refactoring|snippet|implementation|interface|api|endpoint|webhook|database|sql|postgresql|mongodb|redis|schema|migration|json|xml|yaml|config|docker|kubernetes|aws|lambda|gcp|azure|def|var|let|const|import|return|print|async|await|try|except|catch|throw|public|private|static|final|struct|typedef|typedefs)\b", 3),
+            "code": (r"\b(code|coding|debug|debugging|optimize|optimization|refactor|refactoring|snippet|api|endpoint|webhook|sql|postgresql|mongodb|redis|json|xml|yaml|docker|kubernetes|aws|lambda|gcp|azure|async|await|typedef)\b", 3),
             "advanced": (r"\b(architecture|architecting|security audit|vulnerability|cryptography|encryption|decryption|authentication|authorization|auth|oauth|jwt|performance|bottleneck|concurrency|multithread|parallel|distributed|scale|scaling|load balance|cluster|proprietary|reverse engineer|obfuscate|obfuscation|enterprise|global|large-scale|purchase order|purchase orders)\b", 5)
         }
 
         # Check for code blocks (significant weight)
-        if "```" in prompt:
+        has_code_fence = "```" in prompt
+        if has_code_fence:
             complexity_score += 3
 
+        code_vocab_matches = len(re.findall(patterns["code"][0], prompt, re.IGNORECASE))
         for name, (pattern, weight) in patterns.items():
-            if re.search(pattern, prompt, re.IGNORECASE):
-                complexity_score += weight
+            if not re.search(pattern, prompt, re.IGNORECASE):
+                continue
+            if name == "code" and not has_code_fence and code_vocab_matches < 2:
+                # A lone technical word ("send the api docs") must not flip the
+                # tier on its own — require a code fence or a second match.
+                continue
+            complexity_score += weight
 
         # 3. Task type override
         if task_type:
@@ -2050,6 +2066,7 @@ class BYOKHandler:
         cognitive_tier: Optional[str] = None,  # x-atom-tier override
         intent_override: Optional[str] = None,  # x-atom-intent override
         sticky_hint: Optional[tuple] = None,  # LKGP (provider, model) hint
+        messages: Optional[List[Dict[str, Any]]] = None,  # Full conversation (chat path)
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -2352,10 +2369,18 @@ class BYOKHandler:
                         failed_providers.add(provider_id)
                         continue
                     
-                    # Construct Messages (Phase 14: Multimodal)
-                    messages = []
-                    messages.append({"role": "system", "content": system_instruction})
-                    
+                    # Construct Messages (Phase 14: Multimodal).
+                    # Callers that built a real conversation (system blocks +
+                    # transcript + current message — the chat path) pass it
+                    # via `messages`; flattening that to prompt+system threw
+                    # the transcript away, so follow-up questions referencing
+                    # earlier turns were answered blind.
+                    if messages:
+                        messages = [dict(m) for m in messages]
+                    else:
+                        messages = []
+                        messages.append({"role": "system", "content": system_instruction})
+
                     if image_payload:
                         # OpenAI / Compatible Vision Format
                         user_content = [
