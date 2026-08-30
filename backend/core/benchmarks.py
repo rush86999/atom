@@ -15,6 +15,20 @@ logger = logging.getLogger(__name__)
 # Quality scores (0-100) - Updated Jan 2026
 # STATIC FALLBACK - Used only when all external sources fail
 MODEL_QUALITY_SCORES = {
+    # OpenRouter-hosted Chinese models — VETTED for BPC value ranking.
+    # Exact-ID entries only: the partial matcher crosses model families
+    # wildly on openrouter IDs (a roleplay finetune scored 92 while
+    # deepseek-v4-flash scored 42), so get_ranked_providers restricts
+    # openrouter candidates to this vetted set and ranks the rest out.
+    # Scores align with their bare-ID siblings; pricing per OpenRouter
+    # catalog (Aug 2026), all tool-capable.
+    "deepseek/deepseek-v4-flash": 88,   # $0.08/$0.16 per M
+    "deepseek/deepseek-v4-pro": 96,     # $0.51/$1.02 per M — flagship
+    "qwen/qwen3-max": 94,               # $0.78/$3.90 per M
+    "moonshotai/kimi-k2.5": 92,         # $0.60/$3.00 per M
+    "minimax/minimax-m3": 89,           # $0.30/$1.20 per M
+    "qwen/qwen3.7-flash": 82,           # $0.03/$0.13 per M — routine chat
+
     # absolute frontier (early 2026)
     "gemini-3-pro": 100,
     "gpt-5.2": 100,

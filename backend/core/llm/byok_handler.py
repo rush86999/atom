@@ -26,7 +26,7 @@ except ImportError:
     INSTRUCTOR_AVAILABLE = False
 
 # Core imports (moved from inline for better testability)
-from core.benchmarks import get_quality_score, get_capability_score
+from core.benchmarks import get_quality_score, get_capability_score, MODEL_QUALITY_SCORES
 import core.byok_endpoints
 def get_byok_manager(*args, **kwargs):
     return core.byok_endpoints.get_byok_manager(*args, **kwargs)
@@ -385,12 +385,14 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.ADVANCED: "llama-3.3-70b-versatile",
     },
     "openrouter": {  # OpenRouter — gateway to 300+ models via one key
-        # COMPLEX/ADVANCED: Chinese flagships (DeepSeek V4 Pro) match
-        # Claude Sonnet-5-class capability at $0.51/$1.02 vs $2/$10 per M
-        # tokens — 4-10x cheaper (OpenRouter catalog, Aug 2026, tool-
-        # capable). SIMPLE/MODERATE stay on gpt-4o-mini.
-        QueryComplexity.SIMPLE: "openai/gpt-4o-mini",
-        QueryComplexity.MODERATE: "openai/gpt-4o-mini",
+        # Chinese models throughout (OpenRouter catalog, Aug 2026, all
+        # tool-capable): flash tier for routine work ($0.08/$0.16 per M —
+        # ~2-8x cheaper than gpt-4o-mini), DeepSeek V4 Pro for heavy turns
+        # ($0.51/$1.02 — Sonnet-5 class at 4-10x less than claude-sonnet-5's
+        # $2/$10). BPC value ranking overrides this map per-call when the
+        # pricing cache has openrouter entries; this is the fallback.
+        QueryComplexity.SIMPLE: "deepseek/deepseek-v4-flash",
+        QueryComplexity.MODERATE: "deepseek/deepseek-v4-flash",
         QueryComplexity.COMPLEX: "deepseek/deepseek-v4-pro",
         QueryComplexity.ADVANCED: "deepseek/deepseek-v4-pro",
     },
@@ -1691,6 +1693,20 @@ class BYOKHandler:
                 active_provider = next((p for p in available_providers if p in model_id.lower() or p == litellm_provider), None)
                 if not active_provider:
                     continue
+
+                if active_provider == "openrouter":
+                    # OpenRouter hosts 480+ models; only a vetted allowlist
+                    # (exact entries in MODEL_QUALITY_SCORES) may rank. The
+                    # partial-match quality scorer crosses model families on
+                    # openrouter IDs (a roleplay finetune outscored deepseek
+                    # flagship 92-to-42), so unvetted candidates would win on
+                    # garbage scores. ":batch"/":floor" suffixes are offline
+                    # gateway variants, never interactive chat. Within the
+                    # vetted pool the value score (quality²/cost) then always
+                    # picks the CHEAPEST model above the tier's quality floor,
+                    # adapting automatically as prices change.
+                    if ":" in model_id or model_id not in MODEL_QUALITY_SCORES:
+                        continue
                 
                 # Check context window (clamped by the provider's custom
                 # max_context limit, if configured — e.g. opencode-go caps the

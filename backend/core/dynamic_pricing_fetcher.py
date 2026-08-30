@@ -378,7 +378,7 @@ class DynamicPricingFetcher:
 
         # Merge capabilities into pricing cache
         for model_name, caps in capabilities.items():
-            if model_name in self.pricing_cache:
+            if model_name in self.pricing_cache and caps:
                 self.pricing_cache[model_name].update(caps)
 
         self.last_fetch = datetime.now()
@@ -685,11 +685,17 @@ class DynamicPricingFetcher:
         else:
             supports_reasoning = False
 
-            return {
-                "supports_tools": supports_tools,
-                "supports_vision": supports_vision,
-                "supports_reasoning": supports_reasoning,
-            }
+        # NOTE: this return must sit at method level. It used to be indented
+        # inside the else-branch above, so any mode=="reasoning" model made
+        # this function return None — and refresh_pricing then crashed on
+        # caps.update(None), aborting the whole pricing refresh before the
+        # OpenRouter catalog could be saved. The cache froze on its last
+        # good state and BPC value-ranking silently lost all candidates.
+        return {
+            "supports_tools": supports_tools,
+            "supports_vision": supports_vision,
+            "supports_reasoning": supports_reasoning,
+        }
 
     def _infer_capabilities(self, model_data: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, bool]]:
         """Batch wrapper over :meth:`infer_capabilities_for_model`."""
