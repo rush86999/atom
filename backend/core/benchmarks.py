@@ -22,12 +22,17 @@ MODEL_QUALITY_SCORES = {
     # openrouter candidates to this vetted set and ranks the rest out.
     # Scores align with their bare-ID siblings; pricing per OpenRouter
     # catalog (Aug 2026), all tool-capable.
-    "deepseek/deepseek-v4-flash": 88,   # $0.08/$0.16 per M
+    # Scores are RECALL-CALIBRATED (Aug 30): measured against a
+    # follow-up-recall task with the full transcript in context —
+    # minimax-m3 answered correctly; both flash models ignored the
+    # assistant turn and claimed no access, so they score below the
+    # conversational floor (85) regardless of their general aptitude.
+    "deepseek/deepseek-v4-flash": 84,   # $0.08/$0.16 per M — fails recall
     "deepseek/deepseek-v4-pro": 96,     # $0.51/$1.02 per M — flagship
     "qwen/qwen3-max": 94,               # $0.78/$3.90 per M
     "moonshotai/kimi-k2.5": 92,         # $0.60/$3.00 per M
-    "minimax/minimax-m3": 89,           # $0.30/$1.20 per M
-    "qwen/qwen3.7-flash": 82,           # $0.03/$0.13 per M — routine chat
+    "minimax/minimax-m3": 89,           # $0.30/$1.20 per M — recall ✓
+    "qwen/qwen3.7-flash": 76,           # $0.03/$0.13 per M — fails recall
 
     # absolute frontier (early 2026)
     "gemini-3-pro": 100,

@@ -386,13 +386,13 @@ COST_EFFICIENT_MODELS = {
     },
     "openrouter": {  # OpenRouter — gateway to 300+ models via one key
         # Chinese models throughout (OpenRouter catalog, Aug 2026, all
-        # tool-capable): flash tier for routine work ($0.08/$0.16 per M —
-        # ~2-8x cheaper than gpt-4o-mini), DeepSeek V4 Pro for heavy turns
-        # ($0.51/$1.02 — Sonnet-5 class at 4-10x less than claude-sonnet-5's
-        # $2/$10). BPC value ranking overrides this map per-call when the
-        # pricing cache has openrouter entries; this is the fallback.
-        QueryComplexity.SIMPLE: "deepseek/deepseek-v4-flash",
-        QueryComplexity.MODERATE: "deepseek/deepseek-v4-flash",
+        # tool-capable): minimax-m3 for routine turns ($0.30/$1.20 per M —
+        # recall-capable and ~7x cheaper than claude-sonnet-5), DeepSeek V4
+        # Pro for heavy turns ($0.51/$1.02 — Sonnet-5 class at 4-10x less).
+        # BPC value ranking overrides this map per-call when the pricing
+        # cache has openrouter entries; this is the fallback.
+        QueryComplexity.SIMPLE: "minimax/minimax-m3",
+        QueryComplexity.MODERATE: "minimax/minimax-m3",
         QueryComplexity.COMPLEX: "deepseek/deepseek-v4-pro",
         QueryComplexity.ADVANCED: "deepseek/deepseek-v4-pro",
     },
@@ -1626,7 +1626,16 @@ class BYOKHandler:
                 logger.debug(f"Using CognitiveTier {cognitive_tier.value} quality threshold: {min_quality}")
             else:
                 MIN_QUALITY_BY_COMPLEXITY = {
-                    QueryComplexity.SIMPLE: 0,
+                    # SIMPLE floor is 85, not 0: "simple" query != "any model".
+                    # Short conversational follow-ups ("who was that lead
+                    # again?") classify SIMPLE yet need transcript recall —
+                    # measured on Aug 30, sub-85 models (qwen3.7-flash,
+                    # deepseek-v4-flash) ignored their own prior answers and
+                    # claimed no access. Every chat turn gets a model that
+                    # passes recall; cost efficiency picks WITHIN the capable
+                    # pool (minimax-m3 at $0.30/$1.20 is still ~7x cheaper
+                    # than claude-sonnet-5).
+                    QueryComplexity.SIMPLE: 85,
                     QueryComplexity.MODERATE: 80,
                     QueryComplexity.COMPLEX: 88,
                     QueryComplexity.ADVANCED: 94

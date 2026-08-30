@@ -7,6 +7,7 @@ import asyncio
 from datetime import datetime, timedelta
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import httpx
@@ -22,8 +23,19 @@ OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 # OpenCode Zen models endpoint (OpenCode Go subscription gateway)
 OPENCODE_MODELS_URL = "https://opencode.ai/zen/v1/models"
 
-# Cache file path
-PRICING_CACHE_PATH = Path("./data/ai_pricing_cache.json")
+# Cache file path — anchored to backend/ so the store is independent of the
+# launch CWD. A root-vs-backend launch previously maintained TWO divergent
+# caches: a launch from the repo root silently read a stale snapshot without
+# the OpenRouter catalog, and every refresh wrote to the other file
+# (same class of bug as the LanceDB/DATABASE_URL anchoring).
+def _anchor_data_path(filename: str) -> Path:
+    path = Path(filename)
+    if path.is_absolute():
+        return path
+    return Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) / filename
+
+
+PRICING_CACHE_PATH = _anchor_data_path("data/ai_pricing_cache.json")
 
 # Cache duration (24 hours)
 CACHE_DURATION_HOURS = 24
@@ -32,7 +44,7 @@ CACHE_DURATION_HOURS = 24
 # openrouter slice of the cache + BPC-side expired-candidate counters.
 # Measurement ONLY — decides whether a server-side query-param candidate path
 # is ever worth building (see docs/testing/TESTED_FILES_TRACKER.md).
-STALENESS_STATS_PATH = Path("./data/pricing_staleness_stats.json")
+STALENESS_STATS_PATH = _anchor_data_path("data/pricing_staleness_stats.json")
 STALENESS_HISTORY_CAP = 50
 
 
