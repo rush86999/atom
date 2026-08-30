@@ -1985,10 +1985,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         nothing ever read them back, so after an app restart the agent saw no
         prior conversation ("this looks like the start of our chat") even
         though the sidebar still listed the messages. Best-effort: a DB
-        failure leaves the empty in-memory session and the chat still works.
+        failure leaves the existing in-memory session and the chat works.
+
+        The DB is AUTHORITATIVE: a session restored from the legacy file
+        cache may hold stale-but-non-empty history (the file lags the DB by
+        a restart), so a non-empty in-memory history does NOT skip the
+        reload — otherwise turns newer than the last file flush vanish from
+        the model's context. The DB result replaces the in-memory history
+        whenever it holds at least as many turns.
         """
-        if session.get("history"):
-            return
         try:
             from core.database import get_db_session
             from core.models import ChatMessage as ChatMessageModel
@@ -2034,12 +2039,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "timestamp": "",
                 })
 
-            if turns:
+            existing = session.get("history") or []
+            if len(turns) >= len(existing) and len(turns) > 0:
                 session["history"] = turns[-12:]
-                logger.info(
-                    f"Hydrated {len(turns)} persisted turn(s) into session "
-                    f"{session_id} after restart"
-                )
+                if len(turns) != len(existing):
+                    logger.info(
+                        f"Hydrated {len(turns)} persisted turn(s) into session "
+                        f"{session_id} after restart"
+                    )
         except Exception as e:
             logger.warning(f"Could not hydrate session history from DB (non-fatal): {e}")
 
