@@ -18,6 +18,17 @@
 
 ---
 
+## Decision Standards (read before any fix/design)
+
+Full version: `AGENTS.md`. The short form:
+
+1. **Whole-repo context, not narrow fixes.** Trace callers/consumers of what you touch; check for an existing general mechanism (40+ integrations sit behind `UniversalIntegrationService` — never hardcode a ONE-integration special case where the general layer applies); check known cross-cutting bug classes (relative-path anchoring, message flattening, stale caches shadowing the DB); read `git log` + `notes/AGENT_COORDINATION.md` so you don't undo another agent's deliberate change.
+2. **Evidence over plausibility.** Diagnose from logs, captured payloads (intercept the real call), and live reproduction; verify end-to-end at the boundary the user touches, including restarts when persistence is involved; benchmark instead of guessing when comparing options; unit-test any heuristic you add.
+3. **Research established practice for architectural decisions.** Web-search how mature harnesses solve it and cite findings in the commit; prefer patterns with production adoption over bespoke cleverness.
+4. **Leave a trail.** Commits explain root cause + evidence + verified-how, scoped to your files only; update the coordination doc; flag behavior changes affecting other callers.
+
+---
+
 ## Architecture
 
 **Deployment model: SINGLE-TENANT.** Atom is a single-tenant, locally-owned app. All multi-tenant machinery (tenant_id columns, `get_current_tenant`, `tenant_settings`/tenant-scoped stores, SaaS plan gates) exists **only for feature parity with the SaaS offering — it is NOT the deployment model**. Decision rules that follow:
