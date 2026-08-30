@@ -1630,7 +1630,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "message": f"I've added '{task_req.title}' to your Tasks.",
                         "task_id": task_id
                     },
-                    "suggested_actions": ["View My Tasks", "Add a deadline", "Assign to team"]
+                    "suggested_actions": [
+                        # URL action: a real navigation, not a prompt.
+                        # Text actions prefill the chat input on click
+                        # (frontend) — never auto-send in the user's voice.
+                        {"label": "View My Tasks", "url": "/tasks"},
+                        {"label": "Add a deadline"},
+                        {"label": "Assign to team"},
+                    ]
                 }
             else:
                 return {"success": False, "error": "Internal task creation failed."}

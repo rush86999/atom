@@ -59,8 +59,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         providerError,
     } = useChatInterface({ sessionId, initialAgentId, onSessionCreated });
 
-    // Suggested actions now DO something (UI gap #12): an action with text
-    // sends it as the next user message; one with a URL navigates.
+    // Suggested actions (UI gap #12, revised Aug 30): an action with a URL
+    // navigates; a text suggestion PREFILLS the input instead of auto-
+    // sending. Auto-sending made it look like the app spoke in the user's
+    // voice ("Add a deadline" started a deadline conversation out of
+    // nowhere) — prefill keeps the chip one keystroke away without the
+    // surprise, and lets the user edit before sending.
     const handleActionClick = (action: any) => {
         if (!action) return;
         const text = typeof action === "string" ? action : (action.label || action.text || action.action);
@@ -69,7 +73,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
             return;
         }
         if (text) {
-            handleSend(String(text));
+            setInput(String(text));
         }
     };
 
