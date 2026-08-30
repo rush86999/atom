@@ -9,6 +9,7 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 - Cross-platform workflow execution
 """
 import asyncio
+import json
 import logging
 import re
 from enum import Enum
@@ -1015,6 +1016,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 for h in history:
                     if h.get("message"):
                         messages.append({"role": "user", "content": h["message"]})
+                    # Error turns (failed attempts) are skipped: they anchor
+                    # weak models into refusals and carry no answer content.
+                    if h.get("error"):
+                        continue
                     resp_msg = h.get("response", {}).get("message", "")
                     if resp_msg:
                         messages.append({"role": "assistant", "content": resp_msg})
@@ -1994,14 +1999,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "response": {"message": ""},
                             "intent": {},
                             "timestamp": str(row.created_at or ""),
+                            "error": False,
                         })
                     pending_user = content
                 else:
+                    _row_error = False
+                    try:
+                        _meta = json.loads(row.metadata_json or "{}")
+                        _row_error = _meta.get("quality") == "error"
+                    except Exception:
+                        pass
                     turns.append({
                         "message": pending_user or "",
-                        "response": {"message": content},
+                        "response": {"message": "" if _row_error else content},
                         "intent": {},
                         "timestamp": str(row.created_at or ""),
+                        "error": _row_error,
                     })
                     pending_user = None
             if pending_user is not None:
@@ -2010,6 +2023,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "response": {"message": ""},
                     "intent": {},
                     "timestamp": "",
+                    "error": False,
                 })
 
             existing = session.get("history") or []
@@ -2086,11 +2100,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         return self.conversation_sessions[session_id]
 
     def _update_session(self, session: Dict, message: str, response: Dict, intent: Dict):
+        # Error-turn detection: a reply that is a known failure artifact (no
+        # provider, cancelled, budget-halted, protocol residue) must never
+        # enter the model's context later — in a long session they stack into
+        # a refusal wall that anchors weak models into failing again even
+        # when a fresh, successful answer is available. Flagged turns stay in
+        # the DB and UI (history is history) but are skipped at prompt-build.
+        _resp_msg = (response or {}).get("message", "") if isinstance(response, dict) else ""
+        _is_error_turn = bool(
+            not (response or {}).get("success", True)
+            or (response or {}).get("cancelled")
+            or (response or {}).get("error_code") in ("no_llm_provider", "budget_exceeded")
+            or "<tool_call>" in _resp_msg
+            or "</mm:think>" in _resp_msg
+        )
         session["history"].append({
             "message": message,
             "response": response,
             "intent": intent,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "error": _is_error_turn,
         })
 
         # Session-dedup write-side: index this turn's content so future turns
@@ -2142,7 +2171,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         role="user",
                         content=message,
                     ))
-                    # Store the assistant response.
+                    # Store the assistant response; error turns carry a
+                    # metadata flag so hydration can exclude them from the
+                    # model's context (they remain visible in the UI).
                     resp_content = response.get("message", "") if isinstance(response, dict) else str(response)
                     if resp_content:
                         db.add(ChatMessageModel(
@@ -2150,6 +2181,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             tenant_id=tenant_id,
                             role="assistant",
                             content=resp_content,
+                            metadata_json=json.dumps({"quality": "error"}) if _is_error_turn else None,
                         ))
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
