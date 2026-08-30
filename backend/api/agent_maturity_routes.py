@@ -54,6 +54,11 @@ _SUPERVISOR_ROLES = [
     UserRole.SUPER_ADMIN.value,
 ]
 
+# Statuses under which a training session can still be worked (and completed
+# by the supervisor). Historical values kept for rows created before the
+# status vocabulary settled.
+_ACTIVE_SESSION_STATUSES = ["scheduled", "active", "in_progress", "pending"]
+
 
 def _require_supervisor(db, current_user: User) -> None:
     """Require a supervisor-grade role (TEAM_LEAD+), 403 otherwise."""
@@ -151,7 +156,7 @@ async def list_training_proposals(
             db.query(_TS)
             .filter(
                 _TS.proposal_id == p.id,
-                _TS.status.in_(["scheduled", "active", "in_progress", "pending"]),
+                _TS.status.in_(_ACTIVE_SESSION_STATUSES),
             )
             .order_by(_TS.started_at.desc())
             .first()
@@ -445,6 +450,190 @@ def get_training_session_canvases(
         db, session_id, tenant_id=session.tenant_id
     )
     return {"session_id": session_id, "canvases": canvases}
+
+
+@router.get("/training/context")
+async def get_canvas_training_context(
+    canvas_id: str = Query(..., description="Canvas the training panel is opened on"),
+    agent_id: Optional[str] = Query(
+        None, description="Optional agent hint (chat-expanded canvases carry ?agent_id=)"
+    ),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Training context for a canvas — powers the training panel on /canvas/{id}.
+
+    The canvas IS a training surface (the supervisor edits the hire's draft
+    ON the canvas; the edit-diff is the learning signal), so the panel needs
+    to know WHO is being trained here and which session this canvas belongs
+    to. Read-only: every mutation flows through the existing session
+    endpoints above — this only resolves identity and linkage.
+
+    Resolution order:
+    - agent: client hint -> CanvasAudit.agent_id (canvas provenance) ->
+      training-canvas content.student.id -> linked session's agent.
+    - session: an audit session_id that keys a TrainingSession row (the
+      training_session_started stamp / role-canvas spawn) -> a session whose
+      mini-canvas IS this canvas (supervisor_guidance.canvas_id) -> the
+      agent's most recent ACTIVE session (draft canvases still train).
+    """
+    from core.models import AgentRegistry, Canvas, CanvasAudit
+
+    # Role flag, not a gate: employees legitimately open this panel (teach +
+    # progress only); the UI hides supervisor controls when False.
+    viewer_is_supervisor = True
+    try:
+        _require_supervisor(db, current_user)
+    except HTTPException:
+        viewer_is_supervisor = False
+
+    tenant_id = resolve_tenant_id(current_user)
+    canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+    # IDOR: a foreign-tenant canvas must 404 with no existence leak (same
+    # guard as get_training_session_canvases).
+    if not canvas or (canvas.tenant_id or "default") != tenant_id:
+        raise HTTPException(status_code=404, detail=f"Canvas {canvas_id} not found")
+
+    content = canvas.content if isinstance(canvas.content, dict) else {}
+    audit_rows = (
+        db.query(CanvasAudit)
+        .filter(CanvasAudit.canvas_id == canvas_id)
+        .order_by(CanvasAudit.created_at.desc())
+        .all()
+    )
+
+    # Linkage 1: audit rows on THIS canvas that reference a training session
+    # (the mini-canvas stamp or a role-canvas spawn wrote them).
+    linked: Optional[TrainingSession] = None
+    seen_session_ids = set()
+    for row in audit_rows:
+        if row.session_id and row.session_id not in seen_session_ids:
+            seen_session_ids.add(row.session_id)
+            candidate = (
+                db.query(TrainingSession)
+                .filter(TrainingSession.id == row.session_id)
+                .first()
+            )
+            if candidate:
+                linked = candidate
+                break
+
+    # Linkage 2: the session whose mini-canvas IS this canvas.
+    if linked is None:
+        candidates = (
+            db.query(TrainingSession)
+            .filter(TrainingSession.tenant_id == (canvas.tenant_id or "default"))
+            .order_by(TrainingSession.started_at.desc())
+            .limit(50)
+            .all()
+        )
+        for candidate in candidates:
+            guidance = (
+                candidate.supervisor_guidance
+                if isinstance(candidate.supervisor_guidance, dict)
+                else {}
+            )
+            if guidance.get("canvas_id") == canvas_id:
+                linked = candidate
+                break
+
+    # Agent identity — canvas provenance (audit rows) after the client hint;
+    # the training-canvas content and the linked session carry it too.
+    agent: Optional[AgentRegistry] = None
+    candidate_agent_ids = [agent_id] + [row.agent_id for row in audit_rows if row.agent_id]
+    if content.get("type") == "training_session":
+        student = content.get("student") if isinstance(content.get("student"), dict) else {}
+        if student.get("id"):
+            candidate_agent_ids.append(student["id"])
+    if linked is not None:
+        candidate_agent_ids.append(linked.agent_id)
+    for candidate_id in candidate_agent_ids:
+        if not candidate_id:
+            continue
+        row = db.query(AgentRegistry).filter(AgentRegistry.id == candidate_id).first()
+        if row is not None and (row.tenant_id or "default") == tenant_id:
+            agent = row
+            break
+
+    # Draft/role canvases carry no session stamp, and a canvas linked to a
+    # COMPLETED round may coexist with a newer active one — the panel shows
+    # the session currently being trained, falling back to the linked one.
+    session = linked
+    if session is None or (session.status or "").lower() not in _ACTIVE_SESSION_STATUSES:
+        active = None
+        if agent is not None:
+            active = (
+                db.query(TrainingSession)
+                .filter(
+                    TrainingSession.agent_id == agent.id,
+                    TrainingSession.status.in_(_ACTIVE_SESSION_STATUSES),
+                )
+                .order_by(TrainingSession.started_at.desc())
+                .first()
+            )
+        session = active or linked
+
+    pending_proposal = None
+    if agent is not None:
+        pending_proposal = (
+            db.query(AgentProposal)
+            .filter(
+                AgentProposal.agent_id == agent.id,
+                AgentProposal.proposal_type == ProposalType.WORKFLOW.value,
+                AgentProposal.status == ProposalStatus.PENDING_APPROVAL.value,
+            )
+            .order_by(AgentProposal.created_at.desc())
+            .first()
+        )
+
+    def _session_payload(s: TrainingSession) -> Dict[str, Any]:
+        guidance = s.supervisor_guidance if isinstance(s.supervisor_guidance, dict) else {}
+        return {
+            "id": s.id,
+            "agent_id": s.agent_id,
+            "status": s.status,
+            "started_at": s.started_at.isoformat() if s.started_at else None,
+            "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+            "lesson_plan": guidance.get("lesson_plan") or None,
+            "supervisor_note": guidance.get("supervisor_note"),
+            "canvas_id": guidance.get("canvas_id"),
+            "promoted_to_intern": bool(s.promoted_to_intern),
+            "performance_score": s.performance_score,
+            "evidence": StudentTrainingService(db).get_session_evidence(s),
+        }
+
+    def _proposal_payload(p: AgentProposal) -> Dict[str, Any]:
+        data: Dict[str, Any] = p.proposal_data if isinstance(p.proposal_data, dict) else {}
+        return {
+            "id": p.id,
+            "agent_id": p.agent_id,
+            "agent_name": p.agent_name,
+            "title": p.title,
+            "description": p.description,
+            "status": str(p.status) if p.status else None,
+            "capability_gaps": data.get("capability_gaps", []),
+            "learning_objectives": data.get("learning_objectives", []),
+            "estimated_duration_hours": data.get("estimated_duration_hours"),
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        }
+
+    return {
+        "canvas_id": canvas_id,
+        "agent": (
+            {
+                "id": agent.id,
+                "name": agent.name,
+                "tier": agent.status,
+                "confidence": agent.confidence_score,
+                "domain": (agent.category or "").lower(),
+            }
+            if agent is not None
+            else None
+        ),
+        "linked_session": _session_payload(session) if session is not None else None,
+        "pending_proposal": _proposal_payload(pending_proposal) if pending_proposal else None,
+        "viewer_is_supervisor": viewer_is_supervisor,
+    }
 
 
 @router.get("/agents/{agent_id}/training-history")

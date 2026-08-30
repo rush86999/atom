@@ -53,6 +53,18 @@ jest.mock("@/components/canvas/MiniAppHarness", () => ({
   ),
 }));
 
+jest.mock("@/components/canvas/TrainingPanel", () => ({
+  TrainingPanel: (props: any) => (
+    <div
+      data-testid="training-panel-mock"
+      data-canvas-id={props.canvasId}
+      data-hint={props.agentIdHint ?? ""}
+    >
+      TrainingPanel
+    </div>
+  ),
+}));
+
 jest.mock("@/components/layout/Layout", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="layout">{children}</div>,
@@ -487,6 +499,77 @@ describe("CanvasDetailPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /^$/ }));
     await waitFor(() =>
       expect(screen.queryByText("Version History")).not.toBeInTheDocument()
+    );
+  });
+
+  // ── Training side panel (co-editor ↔ training tabs) ──────────────────────
+
+  test("training: co-editor tab is the default side panel", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    expect(screen.getByPlaceholderText("Ask the agent to edit…")).toBeInTheDocument();
+    expect(screen.queryByTestId("training-panel-mock")).not.toBeInTheDocument();
+    expect(screen.getByTestId("canvas-side-tab-training")).toHaveAttribute(
+      "aria-selected",
+      "false"
+    );
+  });
+
+  test("training: header graduation button switches to the training panel", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("canvas-training-button"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("training-panel-mock")).toBeInTheDocument()
+    );
+    expect(screen.getByTestId("training-panel-mock").dataset.canvasId).toBe("cv1");
+    expect(screen.queryByPlaceholderText("Ask the agent to edit…")).not.toBeInTheDocument();
+  });
+
+  test("training: side tabs toggle between co-editor and training", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("canvas-side-tab-training"));
+    await waitFor(() =>
+      expect(screen.getByTestId("training-panel-mock")).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByTestId("canvas-side-tab-chat"));
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText("Ask the agent to edit…")).toBeInTheDocument()
+    );
+    expect(screen.queryByTestId("training-panel-mock")).not.toBeInTheDocument();
+  });
+
+  test("training: passes the agent query hint to the panel", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("canvas-side-tab-training"));
+    await waitFor(() =>
+      expect(screen.getByTestId("training-panel-mock").dataset.hint).toBe("")
+    );
+  });
+
+  test("training: training-session canvases open on the training tab", async () => {
+    mockGet.mockImplementation(async (url: string) => {
+      if (url.endsWith("/history")) return { data: { count: 1 } };
+      return {
+        data: {
+          canvas_id: "cv1",
+          title: "Training: Hire One",
+          canvas_type: "document",
+          content: { type: "training_session", objective: "Triage inbox" },
+        },
+      };
+    });
+    render(<CanvasDetailPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("training-panel-mock")).toBeInTheDocument()
     );
   });
 });

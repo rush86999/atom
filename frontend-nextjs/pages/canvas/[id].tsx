@@ -7,12 +7,14 @@ import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Send, ArrowLeft, RefreshCw, History, Trash2 } from "lucide-react";
+import { Send, ArrowLeft, RefreshCw, History, Trash2, GraduationCap, MessageSquare } from "lucide-react";
 import { CanvasPanel } from "@/components/canvas/CanvasPanel";
 import { MiniAppHarness } from "@/components/canvas/MiniAppHarness";
+import { TrainingPanel } from "@/components/canvas/TrainingPanel";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import { getCurrentUserId } from "@/lib/identity";
+import type { CanvasTrainingContext } from "@/lib/maturity-api";
 
 interface CanvasMessage {
     id: string;
@@ -40,12 +42,26 @@ export default function CanvasDetailPage() {
     // WebSocket — page-agnostic, auto-subscribes to user:{userId}
     const { lastMessage, isConnected } = useWebSocket({});
 
+    // Training panel state: the sidebar hosts the co-editor chat and the
+    // agent training panel (approve, teach, score, graduate) side by side.
+    const [sideTab, setSideTab] = useState<"chat" | "training">("chat");
+    const [trainingCtx, setTrainingCtx] = useState<CanvasTrainingContext | null>(null);
+
     // Register canvas state for AI accessibility
     const canvasState = canvasData ? {
         type: canvasData.canvas_type || "generic",
         component: canvasData.canvas_type || "generic",
         title: canvasData.title || canvasId as string,
         data: canvasData.content,
+        // Training read-back: the agent can see it is being trained on this
+        // canvas, by whom, and in which session.
+        ...(trainingCtx?.agent ? {
+            training: {
+                agent_id: trainingCtx.agent.id,
+                session_id: trainingCtx.linked_session?.id ?? null,
+                tier: trainingCtx.agent.tier,
+            },
+        } : {}),
     } : null;
     useCanvasStateRegistration(canvasId as string, canvasState as any);
 
@@ -83,6 +99,12 @@ export default function CanvasDetailPage() {
     useEffect(() => {
         loadCanvas();
     }, [loadCanvas]);
+
+    // Training-session canvases ARE the supervised pass — open straight onto
+    // the training tab so the supervisor can teach/score without hunting.
+    useEffect(() => {
+        if (canvasData?.content?.type === "training_session") setSideTab("training");
+    }, [canvasData?.content?.type]);
 
     // Listen for live canvas updates via WebSocket
     useEffect(() => {
@@ -151,10 +173,12 @@ export default function CanvasDetailPage() {
             const { apiClient } = await import("../../lib/api-client");
             // Expanded-from-chat canvases coordinate with the SAME agent and
             // the SAME conversation: session keeps continuity, agent_id keeps
-            // the hire's persona, role-aware memory and tier behavior.
+            // the hire's persona, role-aware memory and tier behavior. On
+            // standalone canvases the training panel's resolved agent fills
+            // the identity in (audit-row provenance).
             const fromChat = router.query.from === "chat";
             const chatSessionId = (router.query.session as string) || (fromChat ? undefined : "new");
-            const agentId = (router.query.agent_id as string) || undefined;
+            const agentId = (router.query.agent_id as string) || trainingCtx?.agent?.id || undefined;
             const resp = await apiClient.post("/api/chat/message", {
                 message: chatInput,
                 user_id: userId,
@@ -269,6 +293,15 @@ export default function CanvasDetailPage() {
                         )}
                     </div>
                     <div className="flex items-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSideTab("training")}
+                            title="Agent training — teach, score, graduate"
+                            data-testid="canvas-training-button"
+                        >
+                            <GraduationCap className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={loadCanvas} title="Refresh">
                             <RefreshCw className="h-4 w-4" />
                         </Button>
@@ -308,8 +341,48 @@ export default function CanvasDetailPage() {
                         )}
                     </div>
 
-                    {/* Side chat panel (right, collapsible) */}
+                    {/* Side panel (right): agent co-editor chat ↔ agent training */}
                     <div className="w-80 border-l flex flex-col bg-muted/30 shrink-0">
+                        {/* Panel tabs */}
+                        <div className="px-2 pt-1.5 border-b bg-background/50 shrink-0" role="tablist" aria-label="Agent panel">
+                            <div className="flex gap-1">
+                                <button
+                                    role="tab"
+                                    aria-selected={sideTab === "chat"}
+                                    onClick={() => setSideTab("chat")}
+                                    className={`px-2.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 flex items-center gap-1.5 ${
+                                        sideTab === "chat"
+                                            ? "border-primary text-foreground"
+                                            : "border-transparent text-muted-foreground hover:text-foreground"
+                                    }`}
+                                    data-testid="canvas-side-tab-chat"
+                                >
+                                    <MessageSquare className="h-3.5 w-3.5" /> Co-Editor
+                                </button>
+                                <button
+                                    role="tab"
+                                    aria-selected={sideTab === "training"}
+                                    onClick={() => setSideTab("training")}
+                                    className={`px-2.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 flex items-center gap-1.5 ${
+                                        sideTab === "training"
+                                            ? "border-primary text-foreground"
+                                            : "border-transparent text-muted-foreground hover:text-foreground"
+                                    }`}
+                                    data-testid="canvas-side-tab-training"
+                                >
+                                    <GraduationCap className="h-3.5 w-3.5" /> Training
+                                </button>
+                            </div>
+                        </div>
+
+                        {sideTab === "training" ? (
+                            <TrainingPanel
+                                canvasId={canvasId as string}
+                                agentIdHint={(router.query.agent_id as string) || undefined}
+                                onContextLoaded={setTrainingCtx}
+                            />
+                        ) : (
+                            <>
                         {/* Chat header */}
                         <div className="px-3 py-2 border-b bg-background/50 shrink-0">
                             <div className="flex items-center gap-2">
@@ -365,6 +438,8 @@ export default function CanvasDetailPage() {
                                 </Button>
                             </div>
                         </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
