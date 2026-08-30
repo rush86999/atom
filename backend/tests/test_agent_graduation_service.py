@@ -545,19 +545,35 @@ class TestMaturityTransitions:
 
     @pytest.mark.asyncio
     async def test_promote_supervised_to_autonomous(self, graduation_service, mock_agent):
-        """Test SUPERVISED → AUTONOMOUS promotion."""
+        """Test SUPERVISED → AUTONOMOUS promotion.
+
+        AUTONOMOUS is the STRATEGIC governance tier: promote_agent
+        re-evaluates the graduation policy against live episode evidence
+        before granting it, so the test supplies passing evidence.
+        """
+        from types import SimpleNamespace
+
         # Arrange
         mock_agent.status = "SUPERVISED"
         graduation_service.db.query().filter().first.return_value = mock_agent
 
-        # Act
-        result = await graduation_service.promote_agent(
-            agent_id="agent-001",
-            new_maturity="AUTONOMOUS",
-            validated_by="supervisor-001"
+        strong_readiness = SimpleNamespace(
+            readiness_score=0.96, zero_intervention_ratio=0.95,
+            avg_constitutional_score=0.97, avg_confidence_score=0.93,
+            success_rate=0.97, episodes_analyzed=60,
         )
 
+        # Act
+        with patch("core.agent_graduation_service.EpisodeService") as episode_svc:
+            episode_svc.return_value.get_graduation_readiness.return_value = strong_readiness
+            result = await graduation_service.promote_agent(
+                agent_id="agent-001",
+                new_maturity="AUTONOMOUS",
+                validated_by="supervisor-001"
+            )
+
         # Assert
+        assert result is True
         assert graduation_service.db.commit.called
 
     @pytest.mark.asyncio

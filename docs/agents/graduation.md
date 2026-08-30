@@ -159,78 +159,85 @@ Promotion to `AUTONOMOUS` state is governed by the **Dynamic Streak Rule**:
 
 ## Readiness Score Calculation
 
-### ⚡ UPDATED FORMULA (Current Implementation)
+### ⚡ MATURITY-ADJUSTED FORMULA (Current Implementation)
 
-The readiness score now uses a **6-component weighted formula** that provides more comprehensive assessment:
+The readiness score uses **per-target-level weights**, and each agent is
+scored only on the factors its maturity tier can actually evidence. Factors
+whose weight is nonzero but which have **no recorded evidence** for the
+agent (e.g. constitutional scores for chat-segmented episodes, supervision
+when no proposal-linked episodes exist) are **excluded and the remaining
+weights renormalized**:
 
 ```
-Readiness Score =
-    (Zero Intervention Ratio × 30%) +
-    (Average Constitutional Score × 25%) +
-    (Average Confidence Score × 15%) +
-    (Success Rate × 10%) +
-    (Supervision Success Rate × 10%) +
-    (Skill Diversity Score × 10%)
+readiness = Σ(value_i × weight_i) / Σ(weight_i)   over factors with
+                                                  weight > 0 AND recorded evidence
 ```
 
-**Component Breakdown**:
+**Per-level base weights** (source: `core/episode_service.py::ReadinessWeights`):
 
-| Component | Weight | Description | Calculation |
-|-----------|--------|-------------|-------------|
-| **Zero Intervention Ratio** | 30% | Episodes with zero human interventions | `zero_interventions / total_episodes` |
-| **Average Constitutional Score** | 25% | Compliance with domain rules | `avg(constitutional_scores)` |
-| **Average Confidence Score** | 15% | Agent's self-assessed confidence | `agent.confidence_score` |
-| **Success Rate** | 10% | Overall task success rate | `successful_tasks / total_tasks` |
-| **Supervision Success Rate** | 10% | Performance during supervision | `supervision_tasks_with_4_5_star / total_supervision` |
-| **Skill Diversity Score** | 10% | Variety of skills used | Encourages broader capability |
+| Factor | student → intern | intern → supervised | supervised → autonomous |
+|--------|-----------------:|--------------------:|------------------------:|
+| Zero Intervention Ratio | 35% | 25% | 30% |
+| Average Constitutional Score | 25% | 20% | 25% |
+| Average Confidence Score | 20% | 15% | 15% |
+| Success Rate | 20% | 25% | 20% |
+| Supervision Success Rate | — | 15% | 10% |
+| Skill Diversity Score | — | — | — |
+| Proposal Quality Score | — | — | — |
+
+**Why the weights differ per maturity (practical basis)**:
+
+- **Students cannot create proposals** (hard block in `ProposalService`) —
+  supervision evidence is structurally unreachable at the student tier, so
+  it carries no weight there.
+- **Interns route every action through a proposal** whose decision episode
+  records `human_intervention_count = 1` by design, capping
+  zero-intervention near 0.5 — so it carries a reduced weight, and
+  supervision (approval rate) is live instead.
+- **Skill diversity and proposal quality carry 0% at every tier**: no
+  episode writer currently stamps `skill_type="openclaw"` or
+  `episode_type="meta_agent_proposal"` metadata. Enabling one in promotion
+  scoring is a deliberate weight change in `ReadinessWeights`, not a side
+  effect of adding a writer.
+- **Supervision success rate** blends approval rate (60%) and
+  execution-followed rate (40%) only when follow-through was recorded;
+  with no follow-through telemetry it equals the approval rate alone.
 
 **Example Calculation**:
 
-**Scenario**: Agent seeking promotion to INTERN
+**Scenario**: Chat-trained student seeking promotion to INTERN — 12
+episodes, all successful with zero interventions, episode confidence 0.5,
+no constitutional scores recorded (chat segmentation does not record one),
+no proposals:
 
-**Metrics**:
-- Episodes: 12 (min required: 10)
-- Zero intervention episodes: 10/12 = 83%
-- Avg constitutional score: 0.78
-- Avg confidence score: 0.72
-- Success rate: 0.85
-- Supervision success rate: 0.80
-- Skill diversity score: 0.60 (used 6 different skills)
+```
+Applied factors (constitutional excluded — nothing recorded):
+  Zero Intervention: 1.00 × 0.35 = 0.350
+  Confidence:        0.50 × 0.20 = 0.100
+  Success:           1.00 × 0.20 = 0.200
+Renormalize over applied weight 0.75:
+  readiness = 0.650 / 0.75 = 0.867  ≥ 0.70 threshold → READY
+```
 
-**Score**:
-```
-Zero Intervention: 0.83 × 30 = 24.9
-Constitutional: 0.78 × 25 = 19.5
-Confidence: 0.72 × 15 = 10.8
-Success Rate: 0.85 × 10 = 8.5
-Supervision: 0.80 × 10 = 8.0
-Skill Diversity: 0.60 × 10 = 6.0
----
-Total = 77.7/100 (Ready for promotion!)
-```
+Previously the unrecorded constitutional score averaged in as 0.0 and the
+formula included structurally-zero factors, so this same agent scored
+0.475 and could never cross the threshold — perfect runs included.
 
 ### Key Changes from Previous Formula
 
-| Old Formula | New Formula | Change |
-|-------------|-------------|--------|
-| 3 components | 6 components | +3 new metrics |
-| Episode/Intervention/Constitutional only | Adds confidence, success, supervision, skills | More comprehensive |
-| Episode Score (40%) | Split into multiple metrics | Better granularity |
-| No skill tracking | Skill diversity bonus | Encourages broader learning |
+| Old Formula | Maturity-Adjusted Formula | Change |
+|-------------|---------------------------|--------|
+| One 6/7-component formula for all tiers | Per-tier weight tables | Each tier scored on evidence it can produce |
+| Unrecorded scores averaged in as 0.0 | Unrecorded factors excluded + renormalized | Missing telemetry ≠ zero score |
+| Skill diversity 10% (later 7%) + proposal quality 3% | Both 0% (no telemetry writers) | Dead factors no longer cap scores below thresholds |
+| Supervision capped at 0.6 (dead follow-through column) | Approval-rate fallback when unrecorded | Supervision credit usable at intern tier |
 
-### Skill Diversity Bonus
+### Skill Diversity (currently weight 0%)
 
-Agents are rewarded for using a diverse set of skills:
-
-```python
-skill_diversity_score = min(unique_skills_used / 20, 1.0)
-```
-
-- **0 skills**: 0% score
-- **10 skills**: 50% score
-- **20+ skills**: 100% score (max bonus)
-
-This encourages agents to develop broader capabilities rather than specializing in a narrow domain.
+`skill_diversity_score = min(unique_skills_used / 10, 1.0)` — variety of
+skills successfully executed. No writer currently stamps the required
+episode metadata, so the factor is disabled (0%) until one does; it
+re-enters scoring only by giving it a weight in `ReadinessWeights`.
 
 ---
 
@@ -692,32 +699,34 @@ def weekly_readiness_check():
 **Symptoms**: High episode count, low interventions, but score < 70
 
 **Possible Causes**:
-1. Low constitutional score dragging down average
+1. Low constitutional score dragging down average (or constitutional not recorded → factor excluded, check breakdown)
 2. Low confidence score from recent self-assessments
 3. Poor success rate despite low interventions
-4. Low supervision success rate
-5. Limited skill diversity (not using varied capabilities)
+4. Low supervision success rate (intern/supervised tiers — approval-driven)
+5. Below the minimum episode count for the target level (10/25/50)
 
 **Solution**:
 ```python
-# Check each component separately
+# Check each component separately (weights are per target level — see
+# ReadinessWeights; the example below uses the student→intern table)
+weights = {"zero_intervention": 35, "constitutional": 25, "confidence": 20, "success": 20}
+
 zero_intervention = zero_interventions / total_episodes
-constitutional = avg_constitutional_score
-confidence = agent.confidence_score
+constitutional = avg_constitutional_score       # None/absent → factor excluded
+confidence = avg(episode.confidence_score)      # None/absent → factor excluded
 success = successful_tasks / total_tasks
-supervision = supervision_4_5_star / total_supervision
-skill_diversity = min(unique_skills / 20, 1.0)
 
-print(f"Zero Intervention (30%): {zero_intervention:.2f} → {zero_intervention * 30:.1f}/30")
-print(f"Constitutional (25%): {constitutional:.2f} → {constitutional * 25:.1f}/25")
-print(f"Confidence (15%): {confidence:.2f} → {confidence * 15:.1f}/15")
-print(f"Success Rate (10%): {success:.2f} → {success * 10:.1f}/10")
-print(f"Supervision (10%): {supervision:.2f} → {supervision * 10:.1f}/10")
-print(f"Skill Diversity (10%): {skill_diversity:.2f} → {skill_diversity * 10:.1f}/10")
+print(f"Zero Intervention ({weights['zero_intervention']}%): {zero_intervention:.2f}")
+print(f"Constitutional ({weights['constitutional']}%): {constitutional if constitutional is not None else 'NOT RECORDED → excluded'}")
+print(f"Confidence ({weights['confidence']}%): {confidence if confidence is not None else 'NOT RECORDED → excluded'}")
+print(f"Success Rate ({weights['success']}%): {success:.2f}")
 
-print(f"\nTotal: {(zero_intervention * 30 + constitutional * 25 + confidence * 15 + success * 10 + supervision * 10 + skill_diversity * 10):.1f}/100")
+# Unrecorded factors are dropped and the rest renormalized — the readiness
+# breakdown from EpisodeService.get_graduation_readiness() reports exactly
+# which weights were applied and which factors were excluded.
+print(f"\nBreakdown: {readiness.breakdown['weights']}")
 
-# Address the weakest component
+# Address the weakest applied component
 ```
 
 ### Problem: Interventions Not Tracking
@@ -742,47 +751,70 @@ if human_correction_made:
 
 ## Enhanced Governance Integration (2026) ✨
 
+> **Status:** implemented and wired (reintroduced 2026-08-30). The original
+> general-purpose version was removed 2026-08-20 because it was never wired
+> into any live path; this version is scoped to graduation decisions and
+> enforced in `GraduationExamService.execute_graduation_exam` (Stage 5.5)
+> and `AgentGraduationService.promote_agent` — see
+> `tests/test_governance_graduation_integration.py`.
+
 ### Three-Layer Governance
 
-Graduation decisions now integrate with **enhanced three-layer governance architecture**:
+Graduation decisions route through **three governance layers**
+(`core/governance/dynamic_governance.py`):
 
-| Layer | Graduation Role | Decision Type |
-|-------|----------------|---------------|
-| **OPERATIONAL** | Routine graduation checks | Automated (<10ms) |
-| **TACTICAL** | Graduation with policy review | Adaptive (<100ms) |
-| **STRATEGIC** | Critical promotions (AUTONOMOUS) | Human-in-the-loop |
+| Layer | Graduation Role | Decision Type | Wired at |
+|-------|----------------|---------------|----------|
+| **OPERATIONAL** | student → intern checks | Automated | Exam Stage 5.5 |
+| **TACTICAL** | intern → supervised with policy review | Adaptive (policy floors) | Exam Stage 5.5 |
+| **STRATEGIC** | supervised → autonomous | **Human-in-the-loop** | Exam Stage 5.5 + promote gate |
+
+**STRATEGIC semantics:** when a supervised agent passes every exam gate
+for AUTONOMOUS, the exam records `passed=True` but **withholds the
+promotion** (`promoted=False`, `awaiting_human_approval=True`). A
+supervisor then completes it via `POST /api/episodes/graduation/promote`,
+which re-evaluates the same policy against live evidence. Agents can no
+longer auto-promote to AUTONOMOUS.
 
 **Usage:**
 ```python
-from core.governance.dynamic_governance import DynamicGovernanceManager, GovernanceLayer
+from core.governance import DynamicGovernanceManager, GovernanceLayer
 
 manager = DynamicGovernanceManager()
 
-# OPERATIONAL layer - Standard graduation checks
+# OPERATIONAL layer - standard graduation checks (automated allow)
 decision = manager.decide(
     agent_id="agent_123",
     action="graduate_to_intern",
-    layer=GovernanceLayer.OPERATIONAL
+    layer=GovernanceLayer.OPERATIONAL,
+    context={"episode_count": 12, "readiness_score": 0.75, ...},
 )
+assert decision.allowed and not decision.requires_human
 
-# STRATEGIC layer - AUTONOMOUS promotion requires human approval
+# STRATEGIC layer - policies pass AND human approval required
 decision = manager.decide(
     agent_id="agent_123",
     action="graduate_to_autonomous",
-    layer=GovernanceLayer.STRATEGIC
+    layer=GovernanceLayer.STRATEGIC,
+    context={"episode_count": 60, "readiness_score": 0.96, ...},
 )
+assert decision.allowed and decision.requires_human
 ```
 
 ### Policy-Based Graduation
 
-Graduation criteria can be enforced via policy engine:
+Graduation criteria are enforced by the policy engine
+(`core/governance/policy_engine.py`). **Default policies are derived from
+`ReadinessThresholds` and the per-level minimum episode counts** (10 / 25 /
+50), so the policy layer cannot drift from the exam's own gates. A rule
+whose evidence is missing counts as violated.
 
 ```python
-from core.governance.policy_engine import PolicyEngine, GovernancePolicy
+from core.governance.policy_engine import PolicyEngine, GovernancePolicy, PolicyPriority
 
-engine = PolicyEngine()
+engine = PolicyEngine()  # seeds the default graduation policies
 
-# Define graduation policy
+# Custom policies can extend the defaults
 policy = GovernancePolicy(
     policy_id="graduation_policy",
     priority=PolicyPriority.HIGH,
@@ -812,16 +844,15 @@ result = engine.evaluate(
 # Result: DENIED (episodes < 50, intervention > 0%, score < 0.95)
 ```
 
-### Enhanced Performance Metrics
+Rule → context-key mapping: `min_episodes` → `episode_count`,
+`max_intervention_rate` → `intervention_rate`; the rest match by name
+(`readiness_score`, `success_rate`, `constitutional_score`,
+`confidence_score`).
 
-| Metric | Target | Status |
-|--------|--------|--------|
-| Graduation Decision Latency P50 | <10ms | ✅ Tests passing |
-| Graduation Decision Latency P95 | <50ms | ✅ Tests passing |
-| Policy Evaluation Time | <100ms | ✅ Tests passing |
-| Human Intervention Rate | <5% operational | ✅ Framework ready |
-
-See [VALIDATION_METRICS.md](../../backend/docs/VALIDATION_METRICS.md) for complete validation framework.
+See [Agent Governance](governance.md) for the full governance
+architecture, and
+`backend/tests/test_governance_graduation_integration.py` for the
+enforcement contract in executable form.
 
 ---
 

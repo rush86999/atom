@@ -684,6 +684,51 @@ class AgentGraduationService:
             logger.error(f"Agent {agent_id} not found for promotion")
             return False
 
+        # STRATEGIC governance gate: AUTONOMOUS promotions must pass the
+        # graduation policy against the agent's live episode evidence
+        # (core/governance/). This endpoint IS the human approval — a
+        # supervisor calling it — so the policy supplies the evidence
+        # floors the human decision is checked against. Lower tiers stay
+        # supervisor-judgment here; their numeric floors are enforced by
+        # the graduation exam's governance gate.
+        if str(new_maturity).upper() == "AUTONOMOUS":
+            from core.governance import DynamicGovernanceManager, GovernanceLayer
+
+            try:
+                readiness = EpisodeService(self.db).get_graduation_readiness(
+                    agent_id=agent_id,
+                    tenant_id=agent.tenant_id or "default",
+                    target_level="autonomous",
+                )
+                governance_context = {
+                    "episode_count": readiness.episodes_analyzed,
+                    "readiness_score": readiness.readiness_score,
+                    "success_rate": readiness.success_rate,
+                    "constitutional_score": readiness.avg_constitutional_score,
+                    "intervention_rate": round(1.0 - readiness.zero_intervention_ratio, 4),
+                    "confidence_score": readiness.avg_confidence_score,
+                }
+            except Exception as readiness_err:
+                # Evidence unreadable → do not hand out autonomy blind.
+                logger.error(
+                    f"Autonomous promotion for {agent_id} denied: readiness "
+                    f"evidence unavailable ({readiness_err})"
+                )
+                return False
+
+            decision = DynamicGovernanceManager().decide(
+                agent_id=agent_id,
+                action="graduate_to_autonomous",
+                layer=GovernanceLayer.STRATEGIC,
+                context=governance_context,
+            )
+            if not decision.allowed:
+                logger.warning(
+                    f"Autonomous promotion DENIED by governance policy for "
+                    f"{agent_id}: {'; '.join(decision.reasons)}"
+                )
+                return False
+
         # Update maturity
         try:
             agent.status = AgentStatus[new_maturity.upper()]
