@@ -23,6 +23,7 @@ to "no tool block" and the model answers from transcript/memory, never
 raising into the chat path.
 """
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
@@ -91,14 +92,22 @@ enough.
 
 Rules:
 - Retry phrases ("try again", "any luck?", "still nothing", "didn't work")
-  mean RE-RUN the most recent tool action: use_tool=true with the same
-  service and the same query terms as before.
+  mean RE-RUN the most recent data request in the conversation — EVEN IF
+  that earlier attempt failed or the assistant earlier said it couldn't.
+  A failed attempt plus "try again" is precisely a request to attempt it
+  again now. Plan use_tool=true with the same service and query terms.
 - query must be the minimal search terms (names, companies, subjects,
   keywords) — not the whole user message.
 - Read-only: only search/list intents. Never plan sends, writes, or deletes.
 - If the conversation or memory already clearly answers it, use_tool=false.
 - If the needed integration is NOT in the connected list, use_tool=false and
   say which integration is missing in `reason`."""
+
+# Pin the planner to a known-reachable vetted model: unpinned "auto" routing
+# prefers the free local Ollama client by value, which is frequently
+# unreachable — the structured path retries then fails, and the whole plan
+# is lost. Planner prompts are tiny; the cheap vetted workhorse is ideal.
+PLANNER_MODEL = os.getenv("ATOM_TOOL_PLANNER_MODEL", "minimax/minimax-m3")
 
 
 class ToolPlan(BaseModel):
@@ -157,14 +166,16 @@ def _catalog_line(connected: List[str]) -> str:
 
 
 def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
+    """USER turns only. What tool action the user wants is a function of
+    their requests; assistant replies add nothing here and actively hurt:
+    in a session with several failed attempts the transcript is a wall of
+    refusals, which both bloats the prompt past the timeout budget and
+    biases the planner into agreeing that 'there is nothing to retry'."""
     lines: List[str] = []
-    for h in (history or [])[-4:]:
+    for h in (history or [])[-10:]:
         u = str((h or {}).get("message") or "").strip()
-        a = str(((h or {}).get("response") or {}).get("message") or "").strip()
         if u:
-            lines.append(f"User: {u[:220]}")
-        if a:
-            lines.append(f"Assistant: {a[:220]}")
+            lines.append(f"User: {u[:200]}")
     lines.append(f"User: {current[:400]}")
     return "\n".join(lines)
 
@@ -190,11 +201,25 @@ async def plan_tool_use(
     )
     from core.llm_service import LLMService
 
-    plan = await llm_service.generate_structured(
+    # Pin (provider, model): `model=` on generate_structured maps to
+    # task_type, NOT model selection — unpinned routing preferred the free
+    # local Ollama client by value, which is frequently unreachable; the
+    # connection-error retries ate ~6s and often lost the plan entirely.
+    # generate_structured_response forwards provider_model into the handler,
+    # pinning the option list to one reachable (provider, model).
+    kwargs: Dict[str, Any] = {}
+    try:
+        if "openrouter" in llm_service._get_handler().clients:
+            kwargs["provider_model"] = ("openrouter", PLANNER_MODEL)
+    except Exception:
+        pass
+
+    plan = await llm_service.generate_structured_response(
         prompt=prompt,
         response_model=ToolPlan,
         system_instruction="You return only the requested JSON object.",
         temperature=0.0,
+        **kwargs,
     )
     if plan is None:
         return None

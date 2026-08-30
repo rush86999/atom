@@ -522,7 +522,12 @@ class ChatOrchestrator:
                         sticky_hint = (_p, _m)
             except Exception:
                 pass
-            ai_response = await self._get_qwen_response(message, history, routing_overrides, sticky_hint=sticky_hint, user_id=user_id, agent_id=(context or {}).get('agent_id'))
+            ai_response = await self._get_qwen_response(
+                message, history, routing_overrides,
+                sticky_hint=sticky_hint, user_id=user_id,
+                agent_id=(context or {}).get('agent_id'),
+                planner_history=session.get("history", []),
+            )
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
@@ -831,6 +836,7 @@ class ChatOrchestrator:
         sticky_hint: Optional[tuple] = None,
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
+        planner_history: Optional[list] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -960,55 +966,94 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # Tool planning (LLM-based, ALL connected integrations): a cheap
             # structured-output call reads the conversation and decides
             # whether answering needs fresh data from one of the user's
-            # connected services — then the harness executes it read-only and
-            # injects results. This replaces the earlier Outlook-only regex
-            # gates (email-search detector, retry detector, stopword term
-            # extraction): the planner understands "find this email in
-            # outlook", "try again", "search slack for X", and every other
-            # integration, without per-service pattern hacks. The planner
-            # seeing the history is what makes retries work — "try again"
-            # means re-run the previous action, which an LLM infers naturally.
+            # connected services — then the harness executes it read-only.
+            # This replaces the earlier Outlook-only regex gates (email-search
+            # detector, retry detector, stopword term extraction): the planner
+            # understands "find this email in outlook", "try again", "search
+            # slack for X", and every other integration, without per-service
+            # pattern hacks. The planner seeing the history is what makes
+            # retries work — "try again" means re-run the previous action,
+            # which an LLM infers naturally.
+            # The results block is injected AFTER the transcript (below), not
+            # here: weak models anchor on the most recent messages, and the
+            # transcript of a long-running session often contains earlier
+            # failed attempts — results placed before them lost to recency.
+            _tool_block: Optional[str] = None
+            _planned: Optional[str] = None
             try:
                 from core.chat_tool_planner import execute_tool_plan, plan_tool_use
 
+                # Full hydrated history for the planner (not the [-6:] main-
+                # model window): in retry-heavy sessions the original request
+                # sits several turns back, and user-only lines are tiny.
                 _plan = await asyncio.wait_for(
-                    plan_tool_use(message, history, user_id, self.llm_service),
-                    timeout=15,
+                    plan_tool_use(message, planner_history or history, user_id, self.llm_service),
+                    timeout=25,
                 )
                 if _plan and _plan.use_tool:
+                    _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
                     _tool_block = await asyncio.wait_for(
                         execute_tool_plan(_plan, user_id, self.tenant_id),
                         timeout=30,
                     )
-                    if _tool_block:
-                        messages.append({"role": "system", "content": _tool_block})
             except Exception as tool_err:
                 logger.warning(f"tool planning skipped: {tool_err}")
 
-            # Add conversation history
-            for h in history:
-                if h.get("message"):
-                    messages.append({"role": "user", "content": h["message"]})
-                resp_msg = h.get("response", {}).get("message", "")
-                if resp_msg:
-                    messages.append({"role": "assistant", "content": resp_msg})
+            # Add conversation history. When fresh tool results exist for
+            # this turn, include ONLY the user turns as context: measured
+            # (Aug 30), a transcript full of earlier failed attempts anchors
+            # weak models into refusing again even with a fresh result
+            # injected last — but dropping context ENTIRELY made them emit
+            # raw tool-call syntax instead of answering. User turns alone
+            # give grounding without the refusal wall. They remain fully in
+            # the DB/UI; only this turn's prompt changes.
+            if _tool_block:
+                for h in history[-3:]:
+                    if h.get("message"):
+                        messages.append({"role": "user", "content": h["message"]})
+            else:
+                for h in history:
+                    if h.get("message"):
+                        messages.append({"role": "user", "content": h["message"]})
+                    resp_msg = h.get("response", {}).get("message", "")
+                    if resp_msg:
+                        messages.append({"role": "assistant", "content": resp_msg})
 
-            # Recency precedence: when the user refers to something from THIS
-            # conversation ("the email you found earlier"), the transcript is
-            # the authoritative source. Without this nudge the model answered
-            # "who was in that lead email?" from an older ingested lead in the
-            # RELEVANT MEMORY block instead of the record it had just found.
-            if history and _references_conversation(message):
-                messages.append({
-                    "role": "system",
-                    "content": (
-                        "PRIORITY: The user is referring to something from THIS "
-                        "conversation. Answer from the transcript above — it is the "
-                        "authoritative and most recent source. Treat any RELEVANT "
-                        "MEMORY block as background only, and use it solely to fill "
-                        "gaps the transcript does not already cover."
-                    ),
-                })
+                # Recency precedence: when the user refers to something from
+                # THIS conversation ("the email you found earlier"), the
+                # transcript is the authoritative source. Without this nudge
+                # the model answered "who was in that lead email?" from an
+                # older ingested lead in the RELEVANT MEMORY block instead of
+                # the record it had just found.
+                if history and _references_conversation(message):
+                    messages.append({
+                        "role": "system",
+                        "content": (
+                            "PRIORITY: The user is referring to something from THIS "
+                            "conversation. Answer from the transcript above — it is the "
+                            "authoritative and most recent source. Treat any RELEVANT "
+                            "MEMORY block as background only, and use it solely to fill "
+                            "gaps the transcript does not already cover."
+                        ),
+                    })
+
+            # Fresh tool results go LAST — closest to the question they answer.
+            # (Earlier failures in the transcript stay where they belong: in
+            # the past. The newest data wins.) The block also explicitly
+            # overrides stale refusals: long sessions of earlier failed
+            # attempts otherwise anchor weak models into repeating "I can't
+            # do that" even when a fresh result is in front of them.
+            if _tool_block:
+                messages.append({"role": "system", "content": (
+                    "TOOL EXECUTION RESULT — the harness ran this JUST NOW, "
+                    "successfully, on your behalf. Any earlier statement about "
+                    "lacking access or tools is OUTDATED: ignore it. Do NOT emit "
+                    "tool-call, XML, or protocol syntax, and do not attempt to call "
+                    "tools yourself — the harness handles tools. Answer the user's "
+                    "current message in plain language using this fresh result:\n"
+                    + _tool_block
+                )})
+                logger.info(f"tool plan executed: {_planned}")
 
             messages.append({"role": "user", "content": message})
 
@@ -1035,8 +1080,46 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             )
             
             if response_data.get("success"):
+                # Reasoning/protocol-tag hygiene: some models (minimax m3 via
+                # OpenRouter) leak chain-of-thought fragments ("</mm:think>")
+                # or raw tool-call XML ("<tool_call>…</tool_call>") into
+                # content. Strip paired blocks and stray tags before the
+                # reply is stored or displayed — otherwise they persist into
+                # the transcript and the next turn's context.
+                _content = str(response_data.get("content") or "").strip()
+                _content = re.sub(r"<think>.*?</think>", "", _content, flags=re.DOTALL)
+                _content = re.sub(r"<tool_call>.*?</tool_call>", "", _content, flags=re.DOTALL)
+                _content = re.sub(r"</?(?:mm:)?think>", "", _content)
+                _content = re.sub(r"\]?<\]?minimax\[>?", "", _content)
+                _content = _content.strip()
+                if _tool_block and len(_content) < 20:
+                    # The model emitted protocol syntax instead of an answer
+                    # (sanitized away). One firm retry; if it still fails,
+                    # fall through to the template path — never store junk.
+                    logger.info("tool-turn reply was protocol syntax; retrying firmly")
+                    _retry = await self.llm_service.generate_completion(
+                        messages=messages + [{
+                            "role": "system",
+                            "content": (
+                                "IMPORTANT: You have already received the tool result. "
+                                "Reply with a plain-language answer to the user now. "
+                                "No tool calls, no XML, no tags."
+                            ),
+                        }],
+                        model=forced_model,
+                        tenant_id=self.tenant_id,
+                        **extra_kwargs,
+                    )
+                    if _retry.get("success"):
+                        _rc = str(_retry.get("content") or "").strip()
+                        _rc = re.sub(r"<tool_call>.*?</tool_call>", "", _rc, flags=re.DOTALL)
+                        _rc = re.sub(r"</?(?:mm:)?think>|\]?<\]?minimax\[>?", "", _rc).strip()
+                        if len(_rc) >= 20:
+                            _content = _rc
+                if not _content:
+                    return None
                 return {
-                    "content": response_data.get("content", "").strip(),
+                    "content": _content,
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,
