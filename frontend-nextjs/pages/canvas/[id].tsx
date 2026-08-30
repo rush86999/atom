@@ -11,9 +11,11 @@ import { Send, ArrowLeft, RefreshCw, History, Trash2, GraduationCap, MessageSqua
 import { CanvasPanel } from "@/components/canvas/CanvasPanel";
 import { MiniAppHarness } from "@/components/canvas/MiniAppHarness";
 import { TrainingPanel } from "@/components/canvas/TrainingPanel";
+import { ChatFeedbackControls, ChatFeedbackType } from "@/components/canvas/ChatFeedbackControls";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import { getCurrentUserId } from "@/lib/identity";
+import { submitStepFeedback } from "@/lib/agent-trace-api";
 import type { CanvasTrainingContext } from "@/lib/maturity-api";
 
 interface CanvasMessage {
@@ -21,6 +23,10 @@ interface CanvasMessage {
     type: "user" | "assistant" | "system";
     content: string;
     timestamp: Date;
+    // Training feedback state + attribution for the feedback calls.
+    feedback?: ChatFeedbackType | null;
+    model?: string | null;
+    provider?: string | null;
 }
 
 export default function CanvasDetailPage() {
@@ -38,6 +44,8 @@ export default function CanvasDetailPage() {
     const [messages, setMessages] = useState<CanvasMessage[]>([]);
     const [chatInput, setChatInput] = useState("");
     const [isAgentResponding, setIsAgentResponding] = useState(false);
+    // Transient confirmation under the chat input after a feedback submit.
+    const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
 
     // WebSocket — page-agnostic, auto-subscribes to user:{userId}
     const { lastMessage, isConnected } = useWebSocket({});
@@ -203,6 +211,9 @@ export default function CanvasDetailPage() {
                     type: "assistant",
                     content: data.message,
                     timestamp: new Date(),
+                    // Attribution for the message-level feedback call.
+                    model: data.model ?? null,
+                    provider: data.provider ?? null,
                 }]);
             } else if (data.error_code === "no_llm_provider") {
                 setMessages(prev => [...prev, {
@@ -221,6 +232,57 @@ export default function CanvasDetailPage() {
             }]);
         } finally {
             setIsAgentResponding(false);
+        }
+    };
+
+    // Thumbs/note feedback on an assistant reply — the "chat for training"
+    // channel. Two loops, two calls:
+    // - /api/reasoning/feedback is the TRAINING loop: governance stores an
+    //   AgentFeedback row, adjudicates it, and moves the agent's confidence
+    //   + learning log (same endpoint AgentWorkspace uses per step).
+    // - /api/chat/feedback keeps the model-routing learner in parity with
+    //   the main chat (best-effort; the backend never errors it either).
+    // A note submits as thumbs_down + text (corrective) so adjudication
+    // reads the polarity; clicking the already-chosen thumb just clears it.
+    const handleFeedback = async (msg: CanvasMessage, type: ChatFeedbackType, comment?: string) => {
+        if (!comment && msg.feedback === type) {
+            setMessages(prev => prev.map(m => (m.id === msg.id ? { ...m, feedback: null } : m)));
+            return;
+        }
+        setMessages(prev => prev.map(m => (m.id === msg.id ? { ...m, feedback: type } : m)));
+        setFeedbackNotice(null);
+        const agentId = (router.query.agent_id as string) || trainingCtx?.agent?.id || undefined;
+        try {
+            if (agentId) {
+                await submitStepFeedback({
+                    agentId,
+                    runId: "canvas",
+                    stepIndex: -1,
+                    stepContent: {
+                        input_summary: msg.content.slice(0, 200),
+                        canvas_id: canvasId,
+                        source: "canvas_chat",
+                    },
+                    feedbackType: type,
+                    comment,
+                });
+            }
+            try {
+                const { apiClient } = await import("../../lib/api-client");
+                await apiClient.post("/api/chat/feedback", {
+                    message_id: msg.id,
+                    feedback: type,
+                    comment,
+                    model: msg.model ?? undefined,
+                    provider: msg.provider ?? undefined,
+                });
+            } catch {
+                // router-learning feedback is best-effort by design
+            }
+            setFeedbackNotice("✅ Feedback recorded — it feeds the agent's training.");
+            setTimeout(() => setFeedbackNotice(null), 4000);
+        } catch {
+            setFeedbackNotice("⚠️ Feedback could not be recorded — try again.");
         }
     };
 
@@ -413,6 +475,12 @@ export default function CanvasDetailPage() {
                                     }`}>
                                         {msg.content}
                                     </div>
+                                    {msg.type === "assistant" && (
+                                        <ChatFeedbackControls
+                                            selected={msg.feedback ?? null}
+                                            onFeedback={(type, comment) => handleFeedback(msg, type, comment)}
+                                        />
+                                    )}
                                 </div>
                             ))}
                             {isAgentResponding && (
@@ -424,6 +492,11 @@ export default function CanvasDetailPage() {
 
                         {/* Chat input */}
                         <div className="p-3 border-t shrink-0">
+                            {feedbackNotice && (
+                                <p role="status" data-testid="canvas-feedback-notice" className="text-[10px] text-green-600 dark:text-green-400 pb-1.5">
+                                    {feedbackNotice}
+                                </p>
+                            )}
                             <div className="flex gap-2">
                                 <Input
                                     value={chatInput}

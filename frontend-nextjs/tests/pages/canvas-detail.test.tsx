@@ -13,18 +13,12 @@ import CanvasDetailPage from "@/pages/canvas/[id]";
 
 const mockRouterPush = jest.fn();
 
+// Mutable router mock (wsState pattern) so tests can vary the query —
+// e.g. ?agent_id= for the chat-feedback training-loop tests.
+let mockRouterState: any;
+
 jest.mock("next/router", () => ({
-  useRouter: () => ({
-    push: mockRouterPush,
-    replace: jest.fn(),
-    prefetch: jest.fn(),
-    back: jest.fn(),
-    reload: jest.fn(),
-    pathname: "/canvas/cv1",
-    query: { id: "cv1" },
-    asPath: "/canvas/cv1",
-    events: { on: jest.fn(), off: jest.fn(), emit: jest.fn() },
-  }),
+  useRouter: () => mockRouterState,
 }));
 
 let wsState: any = { lastMessage: null, isConnected: true };
@@ -93,6 +87,17 @@ describe("CanvasDetailPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     wsState = { lastMessage: null, isConnected: true };
+    mockRouterState = {
+      push: mockRouterPush,
+      replace: jest.fn(),
+      prefetch: jest.fn(),
+      back: jest.fn(),
+      reload: jest.fn(),
+      pathname: "/canvas/cv1",
+      query: { id: "cv1" },
+      asPath: "/canvas/cv1",
+      events: { on: jest.fn(), off: jest.fn(), emit: jest.fn() },
+    };
     mockGet.mockResolvedValue({ data: CANVAS });
     mockPost.mockResolvedValue({
       data: { success: true, message: "I added a row." },
@@ -571,5 +576,124 @@ describe("CanvasDetailPage", () => {
     await waitFor(() =>
       expect(screen.getByTestId("training-panel-mock")).toBeInTheDocument()
     );
+  });
+
+  // ── Co-editor chat feedback (thumbs + notes → training loop) ───────────────────────
+
+  async function sendChatMessage(text: string) {
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: text } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() => expect(screen.getByText(text)).toBeInTheDocument());
+  }
+
+  test("feedback: assistant replies carry thumbs; thumbs up feeds chat feedback with attribution", async () => {
+    mockPost.mockResolvedValue({
+      data: { success: true, message: "I added a row.", model: "gpt-x", provider: "openai" },
+    });
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    await sendChatMessage("add a row");
+    await waitFor(() => expect(screen.getByText("I added a row.")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText("Thumbs up"));
+
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/chat/feedback",
+        expect.objectContaining({
+          feedback: "thumbs_up",
+          model: "gpt-x",
+          provider: "openai",
+        })
+      )
+    );
+    // No agent resolved (no ?agent_id=, no training context) — the training
+    // loop call is skipped rather than misattributed.
+    expect(mockPost).not.toHaveBeenCalledWith("/api/reasoning/feedback", expect.anything());
+    await waitFor(() =>
+      expect(screen.getByTestId("canvas-feedback-notice")).toBeInTheDocument()
+    );
+  });
+
+  test("feedback: with an agent present, thumbs also feed the training loop", async () => {
+    mockRouterState.query = { id: "cv1", agent_id: "agent-9" };
+    mockPost.mockResolvedValue({ data: { success: true, message: "Done." } });
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    await sendChatMessage("hi");
+    await waitFor(() => expect(screen.getByText("Done.")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText("Thumbs down"));
+
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/reasoning/feedback",
+        expect.objectContaining({
+          agent_id: "agent-9",
+          feedback_type: "thumbs_down",
+          step_index: -1,
+          step_content: expect.objectContaining({
+            source: "canvas_chat",
+            canvas_id: "cv1",
+          }),
+        })
+      )
+    );
+    expect(mockPost).toHaveBeenCalledWith(
+      "/api/chat/feedback",
+      expect.objectContaining({ feedback: "thumbs_down" })
+    );
+  });
+
+  test("feedback: note submits corrective feedback carrying the comment", async () => {
+    mockRouterState.query = { id: "cv1", agent_id: "agent-9" };
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    await sendChatMessage("draft a summary");
+    await waitFor(() => expect(screen.getByText("I added a row.")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText("Add note"));
+    fireEvent.change(screen.getByLabelText("Feedback note"), {
+      target: { value: "Use bullets, not prose" },
+    });
+    fireEvent.click(screen.getByLabelText("Send feedback note"));
+
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/reasoning/feedback",
+        expect.objectContaining({ feedback_type: "thumbs_down", comment: "Use bullets, not prose" })
+      )
+    );
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/chat/feedback",
+        expect.objectContaining({ feedback: "thumbs_down", comment: "Use bullets, not prose" })
+      )
+    );
+  });
+
+  test("feedback: clicking the chosen thumb again clears it without re-sending", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    await sendChatMessage("hi");
+    await waitFor(() => expect(screen.getByText("I added a row.")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText("Thumbs up"));
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith("/api/chat/feedback", expect.anything())
+    );
+    expect(screen.getByLabelText("Thumbs up").querySelector("svg")).toHaveClass("text-green-500");
+
+    const feedbackCalls = mockPost.mock.calls.filter((c: any[]) => c[0] === "/api/chat/feedback");
+    fireEvent.click(screen.getByLabelText("Thumbs up"));
+    // Toggle-off is local only: no new feedback POST, chosen state cleared.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mockPost.mock.calls.filter((c: any[]) => c[0] === "/api/chat/feedback")).toHaveLength(feedbackCalls.length);
+    expect(screen.getByLabelText("Thumbs up").querySelector("svg")).not.toHaveClass("text-green-500");
   });
 });
