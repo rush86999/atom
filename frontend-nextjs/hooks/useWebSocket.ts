@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { getApiBase } from "@/lib/api-base";
 import { useSession } from "next-auth/react";
 
 interface WebSocketMessage {
@@ -71,21 +72,14 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     // never existed (badge stuck on "Offline", live logs dead) while REST
     // kept working via its PYTHON_BACKEND_URL fallback.
     const resolveWsBase = (): string => {
-        let apiBase = (
-            process.env.NEXT_PUBLIC_API_URL ||
-            process.env.API_BASE_URL ||
-            process.env.PYTHON_BACKEND_URL ||
-            ""
-        ).replace(/\/$/, "");
-        if (!apiBase && typeof window !== "undefined") {
-            // Same-origin by default; in dev the backend runs on its own port
-            // (Makefile PORT ?= 8001) while the frontend is on :3000.
-            const host = process.env.NODE_ENV === "development"
-                ? `${window.location.protocol}//${window.location.hostname}:8001`
-                : window.location.origin;
-            apiBase = host.replace(/\/$/, "");
+        // Shared resolver (lib/api-base.ts) — env first, dev backend port.
+        // An EMPTY base is never valid for WebSocket (a relative URL throws
+        // SyntaxError), so same-origin deployments resolve from location.
+        let base = getApiBase();
+        if (!base && typeof window !== "undefined") {
+            base = window.location.origin;
         }
-        return apiBase.replace(/^http/, "ws"); // http:// -> ws://, https:// -> wss://
+        return base.replace(/^http/, "ws"); // http:// -> ws://, https:// -> wss://
     };
 
     const connect = useCallback(() => {

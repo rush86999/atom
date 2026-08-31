@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LayoutDashboard, Sparkles, GraduationCap } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { getApiBase } from "@/lib/api-base";
 import {
     Dialog,
     DialogContent,
@@ -34,7 +35,7 @@ import { useProviderStatus } from "@/hooks/useProviderStatus";
 import { ProviderRequiredBanner } from "@/components/shared/ProviderRequiredBanner";
 import { handleSessionExpired } from "@/lib/auth-headers";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+const API_BASE = getApiBase();
 
 // The backend list payload carries the maturity TIER in `status`
 // (student/intern/supervised/autonomous/paused/...). The card expects
