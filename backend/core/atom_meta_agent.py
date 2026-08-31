@@ -393,7 +393,7 @@ def ensure_atom_registry_persisted(db) -> "AgentRegistry":
     row = AgentRegistry(
         id="atom_main",
         name="Atom",
-        category="Meta",  # Special category for the main agent
+        category="system",  # System-agent label — matches the Chat Assistant seed convention
         description="Central orchestrator agent",
         # NOT NULL without defaults — the in-memory _get_atom_registry()
         # template omits these, which only surfaces when persisting.
