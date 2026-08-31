@@ -356,6 +356,147 @@ async def get_session_history(
         }
 
 @router.post(
+    "/sessions/{session_id}/fork",
+    summary="Fork Chat Session",
+    description=(
+        "Fork an existing chat session: create a new session owned by the "
+        "same user and copy the conversation into it, so the user can "
+        "explore a different direction without polluting the original. "
+        "Optionally pass up_to_message_id to fork from a specific point in "
+        "the conversation ('fork from here'). External channel/thread "
+        "bindings are NOT inherited — a fork is a fresh local conversation."
+    ),
+    tags=["Agent", "Sessions"],
+    responses={
+        200: {
+            "description": "Session forked successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "session_id": "session_new456",
+                        "forked_from": "session_abc123",
+                        "messages_copied": 12,
+                        "title": "Fork: Weekly Reports Chat"
+                    }
+                }
+            }
+        },
+        404: {"description": "Session (or up_to_message_id) not found"},
+        403: {"description": "Session belongs to another user"}
+    },
+    openapi_extra={
+        "x-auth-required": True,
+        "x-rate-limit": "30/minute"
+    },
+)
+async def fork_session(
+    session_id: str,
+    payload: Dict[str, Any] = Body(default=None),
+    current_user: User = Depends(get_current_user)
+):
+    """Fork a chat session: new session + copied conversation history."""
+    payload = payload or {}
+    up_to_message_id = payload.get("up_to_message_id")
+
+    try:
+        session_manager = get_chat_session_manager("default")
+        chat_history = get_chat_history_manager("default")
+
+        # Verify source session exists and user owns it (same checks as
+        # get_session_history — a fork must not leak another user's chat)
+        session = session_manager.get_session(session_id)
+        if not session:
+            return {"success": False, "error": "Session not found"}
+        if session.get("user_id") != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden: session belongs to another user"
+            )
+
+        # Fetch the source conversation (chronological). Cap the copy so a
+        # runaway session can't stampede embeddings — the newest messages
+        # matter most for continuing a fork.
+        messages = chat_history.get_session_history(session_id, limit=500)
+        if up_to_message_id:
+            idx = next(
+                (i for i, m in enumerate(messages) if m.get("id") == up_to_message_id),
+                None,
+            )
+            if idx is None:
+                return {
+                    "success": False,
+                    "error": f"up_to_message_id {up_to_message_id} not found in session"
+                }
+            messages = messages[: idx + 1]
+
+        # New session records its lineage; channel/thread bindings are
+        # deliberately NOT inherited (external replies must stay routed to
+        # the original conversation).
+        new_session_id = session_manager.create_session(
+            user_id=current_user.id,
+            metadata={
+                "forked_from": session_id,
+                "forked_at": datetime.now(timezone.utc).isoformat(),
+                "fork_message_count": len(messages),
+            },
+        )
+
+        copied = 0
+        for msg in messages:
+            # Strip the source session/user identity from copied metadata
+            # so the LIKE-substring history filter can never surface the
+            # fork's messages under the ORIGINAL session id (or the
+            # original's under the fork).
+            meta = {
+                k: v for k, v in (msg.get("metadata") or {}).items()
+                if k not in ("session_id", "user_id")
+            }
+            meta["forked"] = True
+            meta["forked_from"] = session_id
+            ok = chat_history.save_message(
+                session_id=new_session_id,
+                user_id=current_user.id,
+                role=msg.get("role", "user"),
+                content=msg.get("text", ""),
+                metadata=meta,
+            )
+            copied += 1 if ok else 0
+
+        if copied < len(messages):
+            logger.warning(
+                f"Fork of {session_id}: copied {copied}/{len(messages)} messages "
+                f"(some saves failed)"
+            )
+
+        # Surface the fork in the session list with a recognizable title and
+        # an accurate message count.
+        source_title = session.get("title")
+        fork_title = f"Fork: {source_title}" if source_title else "Forked Chat"
+        session_manager.rename_session(new_session_id, fork_title)
+        session_manager.update_session_activity(
+            new_session_id, history=[{} for _ in range(copied)]
+        )
+
+        logger.info(
+            f"Forked session {session_id} -> {new_session_id} "
+            f"({copied} messages) for user {current_user.id}"
+        )
+        return {
+            "success": True,
+            "session_id": new_session_id,
+            "forked_from": session_id,
+            "messages_copied": copied,
+            "title": fork_title,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fork session {session_id}: {e}", exc_info=True)
+        return {"success": False, "error": "Internal server error"}
+
+@router.post(
     "/chat",
     summary="Chat with AI Agent",
     description=(
@@ -2067,9 +2208,14 @@ Provide helpful, concise responses. When you need to take actions, describe what
                         execution.completed_at = end_time
                         db.commit()
 
-                        # Record outcome for confidence scoring
+                        # Record outcome for confidence scoring; the task
+                        # text rides along so R86c domain attribution can
+                        # ledger this run's business role (super-mentor
+                        # evidence for generalists like atom_main).
                         governance_service = AgentGovernanceService(db)
-                        await governance_service.record_outcome(agent.id, success=True)
+                        await governance_service.record_outcome(
+                            agent.id, success=True, task_summary=request.message[:200]
+                        )
 
                         logger.info(f"Agent execution {execution.id} completed successfully")
 
@@ -2098,9 +2244,13 @@ Provide helpful, concise responses. When you need to take actions, describe what
                         execution.completed_at = datetime.now()
                         db.commit()
 
-                        # Record failure for confidence scoring
+                        # Record failure for confidence scoring (with task
+                        # text for domain attribution — failures ledger too;
+                        # only successes count as wins).
                         governance_service = AgentGovernanceService(db)
-                        await governance_service.record_outcome(agent.id, success=False)
+                        await governance_service.record_outcome(
+                            agent.id, success=False, task_summary=request.message[:200]
+                        )
 
             # Send error via WebSocket
             await ws_manager.broadcast(user_channel, {

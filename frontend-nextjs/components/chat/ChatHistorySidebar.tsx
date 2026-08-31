@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, GitFork } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AGENT_CHAT } from "@/src/lib/testIds";
 import { getCurrentUserId } from "@/lib/identity";
@@ -25,6 +25,7 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
     const [history, setHistory] = useState<ChatSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+    const [forkingId, setForkingId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchChatHistory();
@@ -104,6 +105,33 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
         onSelectSession("new");
     };
 
+    // Fork a session: backend copies the conversation into a fresh session
+    // (same user). On success, refresh the list and jump into the fork.
+    const handleForkChat = async (e: React.MouseEvent, sessionId: string) => {
+        e.stopPropagation(); // don't trigger the row's session select
+        if (forkingId) return;
+        setForkingId(sessionId);
+        try {
+            const { apiClient } = await import('../../lib/api-client');
+            const response = await apiClient.post(
+                `/api/atom-agent/sessions/${sessionId}/fork`,
+                {},
+                { timeout: 15000 }
+            );
+            const data = response?.data;
+            if (data?.success && data?.session_id) {
+                await fetchChatHistory();
+                onSelectSession(data.session_id);
+            } else {
+                console.error("Fork failed:", data?.error || "unknown error");
+            }
+        } catch (error) {
+            console.error("Error forking session:", error);
+        } finally {
+            setForkingId(null);
+        }
+    };
+
     const filteredHistory = history.filter(session =>
         session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         session.preview.toLowerCase().includes(searchQuery.toLowerCase())
@@ -143,13 +171,25 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
                                 onClick={() => onSelectSession(session.id)}
                                 data-testid={`${AGENT_CHAT.HISTORY_ITEM}-${index}`}
                                 className={cn(
-                                    "flex flex-col gap-1 p-3 rounded-xl cursor-pointer transition-all hover:bg-slate-800/50",
+                                    "group flex flex-col gap-1 p-3 rounded-xl cursor-pointer transition-all hover:bg-slate-800/50",
                                     selectedSessionId === session.id ? "bg-slate-800 border border-indigo-500/30 shadow-lg shadow-indigo-500/5" : "border border-transparent"
                                 )}
                             >
                                 <div className="flex items-center justify-between">
                                     <span className={`font-medium text-sm truncate ${selectedSessionId === session.id ? 'text-indigo-300' : 'text-slate-200'}`}>{session.title}</span>
-                                    <span className="text-[10px] text-slate-500 dark:text-slate-400">{session.date}</span>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <span className="text-[10px] text-slate-500 dark:text-slate-400">{session.date}</span>
+                                        <button
+                                            onClick={(e) => handleForkChat(e, session.id)}
+                                            disabled={forkingId === session.id}
+                                            title={forkingId === session.id ? "Forking..." : "Fork this chat (copy the conversation into a new chat)"}
+                                            aria-label="Fork this chat"
+                                            data-testid={`${AGENT_CHAT.FORK_BUTTON}-${index}`}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-slate-700/60 disabled:opacity-50 disabled:cursor-wait"
+                                        >
+                                            <GitFork className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
                                 </div>
                                 <p className="text-xs text-slate-400 truncate opacity-60">{session.preview}</p>
                             </div>
