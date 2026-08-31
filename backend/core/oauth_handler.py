@@ -253,6 +253,10 @@ MICROSOFT_OAUTH_CONFIG = OAuthConfig(
     scopes=[
         "https://graph.microsoft.com/Calendars.ReadWrite",
         "https://graph.microsoft.com/Mail.ReadWrite",
+        # Mail.Send is a SEPARATE Graph permission from Mail.ReadWrite —
+        # without it /me/sendMail returns 403 notAllowed even though the
+        # token can read and draft mail.
+        "https://graph.microsoft.com/Mail.Send",
         "https://graph.microsoft.com/Files.ReadWrite.All",
         "https://graph.microsoft.com/Contacts.Read",
         "https://graph.microsoft.com/User.Read",
