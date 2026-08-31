@@ -1464,6 +1464,32 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"canvas store refresh skipped: {e}")
         return canvas
 
+    def _recent_canvas_corrections(
+        self, user_id: str, canvas_id: Any, limit: int = 3
+    ) -> List[Dict[str, Any]]:
+        """The supervisor's hand-edits of the agent's drafts are the co-editor's
+        promised training signal ("fix it here and I'll learn"). Recording them
+        (AgentFeedback → maturity) changes a score; passing the recent ones
+        into the edit PLAN is what changes the next draft. Fault-isolated:
+        no context or DB trouble → empty list, never blocks the edit."""
+        if not canvas_id:
+            return []
+        try:
+            from core.database import get_db_session
+            from core.service_factory import ServiceFactory
+
+            with get_db_session() as db:
+                service = ServiceFactory.get_canvas_context_service(
+                    db, tenant_id=self.tenant_id
+                )
+                context = service.get_context(str(canvas_id), user_id)
+                if context is None or not context.user_corrections:
+                    return []
+                return list(context.user_corrections)[-limit:]
+        except Exception as e:
+            logger.debug(f"canvas corrections lookup skipped: {e}")
+            return []
+
     async def _try_canvas_edit(
         self,
         message: str,
@@ -1481,10 +1507,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         from core.chat_canvas_editor import apply_canvas_edit, plan_canvas_edit
 
         canvas = await self._refresh_canvas_from_store(user_id, canvas)
+        corrections = self._recent_canvas_corrections(user_id, canvas.get("canvas_id"))
 
         try:
             plan = await asyncio.wait_for(
-                plan_canvas_edit(message, history, canvas, self.llm_service),
+                plan_canvas_edit(
+                    message, history, canvas, self.llm_service,
+                    corrections=corrections,
+                ),
                 timeout=30,
             )
         except Exception as e:

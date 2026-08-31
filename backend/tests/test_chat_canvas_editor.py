@@ -117,6 +117,48 @@ async def test_editor_prompt_demands_preservation_and_excludes_sends():
 
 
 @pytest.mark.asyncio
+async def test_plan_prompt_includes_recent_supervisor_corrections():
+    """Corrections are the RLHF signal reaching the point of generation:
+    AFTER (what the supervisor kept) is shown as the preferred wording."""
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(wants_edit=True))
+    corrections = [{
+        "original": {"type": "canvas_edit", "content": "Are you an end user?", "author": "agent"},
+        "corrected": {"type": "canvas_edit", "content": "Do you stock the 115C line?", "author": "supervisor"},
+    }]
+    await plan_canvas_edit(
+        "update the question", [], _canvas(content="Draft body"), llm,
+        corrections=corrections,
+    )
+    prompt = llm.generate_structured_response.call_args.kwargs["prompt"]
+    assert "supervisor corrections" in prompt
+    assert "Are you an end user?" in prompt         # BEFORE
+    assert "Do you stock the 115C line?" in prompt  # AFTER
+    assert "never revert it" in prompt
+
+
+@pytest.mark.asyncio
+async def test_plan_prompt_omits_corrections_section_when_empty():
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(wants_edit=True))
+    await plan_canvas_edit("edit", [], _canvas(), llm, corrections=[])
+    prompt = llm.generate_structured_response.call_args.kwargs["prompt"]
+    assert "supervisor corrections" not in prompt
+
+
+def test_corrections_section_bounds_huge_entries():
+    from core.chat_canvas_editor import _corrections_section
+    huge = "x" * 5000
+    out = _corrections_section([{
+        "original": {"content": huge},
+        "corrected": {"content": huge},
+    }])
+    assert len(out) < 1200  # per-entry bound keeps the structured call cheap
+
+
+@pytest.mark.asyncio
 async def test_patch_ops_match_is_validated_against_current_content():
     llm = MagicMock()
     llm._get_handler.return_value.clients = {}
@@ -219,7 +261,7 @@ async def test_canvas_edit_plans_against_durable_store_content():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm):
+    async def fake_plan(message, history, canvas, llm, corrections=None):
         seen["content"] = canvas.get("content")
         return plan
 
@@ -238,6 +280,64 @@ async def test_canvas_edit_plans_against_durable_store_content():
         )
     assert resp and resp["success"]
     assert seen["content"] == {"body": "fresh DB body"}
+
+
+@pytest.mark.asyncio
+async def test_canvas_edit_passes_supervisor_corrections_to_planner():
+    """The edits the supervisor made ON the canvas are the training signal
+    ("fix it here and I'll learn"). Recording them feeds maturity; the edit
+    plan must ALSO see them, or the next draft repeats the corrected mistake."""
+    orch = _orch()
+    plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
+    seen = {}
+
+    async def fake_plan(message, history, canvas, llm, corrections=None):
+        seen["corrections"] = corrections
+        return plan
+
+    ctx_row = MagicMock()
+    ctx_row.user_corrections = [
+        {"original": {"content": "Are you an end user?", "author": "agent"},
+         "corrected": {"content": "Do you stock the 115C line?", "author": "supervisor"}},
+    ]
+    ctx_svc = MagicMock()
+    ctx_svc.get_context.return_value = ctx_row
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
+         patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
+             return_value={"success": True})), \
+         patch("core.service_factory.ServiceFactory.get_canvas_context_service",
+               return_value=ctx_svc):
+        resp = await orch._try_canvas_edit(
+            "tighten it", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
+        )
+    assert resp and resp["success"]
+    assert seen["corrections"] == ctx_row.user_corrections
+    ctx_svc.get_context.assert_called_once_with("c-123", "user-1")
+
+
+@pytest.mark.asyncio
+async def test_canvas_edit_survives_corrections_lookup_failure():
+    """No context row / DB down → empty corrections, the edit still runs."""
+    orch = _orch()
+    plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
+    seen = {}
+
+    async def fake_plan(message, history, canvas, llm, corrections=None):
+        seen["corrections"] = corrections
+        return plan
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
+         patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
+             return_value={"success": True})), \
+         patch("core.database.get_db_session", side_effect=RuntimeError("db down")):
+        resp = await orch._try_canvas_edit(
+            "tighten it", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
+        )
+    assert resp and resp["success"]
+    assert seen["corrections"] == []
 
 
 @pytest.mark.asyncio

@@ -193,17 +193,59 @@ def _apply_patch_ops(content: Any, ops: List["CanvasPatchOp"]) -> tuple:
     return content, list(ops)  # sheets/lists/etc. don't patch — force fallback
 
 
+def _brief(value: Any, limit: int = 300) -> str:
+    """Any correction payload as bounded single-line text."""
+    if isinstance(value, str):
+        text = value
+    else:
+        try:
+            text = json.dumps(value, default=str)
+        except Exception:
+            text = str(value)
+    text = " ".join(text.split())
+    return text[:limit] + ("…" if len(text) > limit else "")
+
+
+def _corrections_section(corrections: Optional[List[Dict[str, Any]]]) -> str:
+    """The supervisor's hand-edits of the agent's drafts, as planner-visible
+    lessons. Capture alone (AgentFeedback/maturity) changes a score, not the
+    next draft — this is the feedback actually reaching the edit decision."""
+    if not corrections:
+        return ""
+    lines: List[str] = []
+    for i, c in enumerate(corrections[-3:], 1):
+        c = c or {}
+        original = c.get("original") if isinstance(c.get("original"), dict) else {}
+        corrected = c.get("corrected") if isinstance(c.get("corrected"), dict) else {}
+        lines.append(
+            f"[{i}] BEFORE: {_brief(original.get('content') or original)}\n"
+            f"    AFTER:  {_brief(corrected.get('content') or corrected)}"
+        )
+    if not lines:
+        return ""
+    return (
+        "Recent supervisor corrections on THIS canvas — the supervisor hand-edited "
+        "the agent's draft; AFTER is what they kept. Treat AFTER as the preferred "
+        "wording/structure: never revert it, match its style in new edits, and keep "
+        "every current-content part the request doesn't touch.\n"
+        + "\n".join(lines) + "\n\n"
+    )
+
+
 async def plan_canvas_edit(
     message: str,
     history: List[Dict[str, Any]],
     canvas: Dict[str, Any],
     llm_service: Any,
+    corrections: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[CanvasEditPlan]:
     """Decide (via cheap structured LLM output) whether this turn edits the
     open canvas, and produce the edit — patch ops by default, complete
-    content for explicit rewrites. Patch ops are validated against the
-    current content here: a mis-copied "find" gets ONE re-ask in replace
-    mode (still under the preservation duty) rather than a broken write.
+    content for explicit rewrites. ``corrections`` are the supervisor's
+    recent on-canvas edits of this canvas (the RLHF signal, returned to the
+    point of generation). Patch ops are validated against the current
+    content here: a mis-copied "find" gets ONE re-ask in replace mode
+    (still under the preservation duty) rather than a broken write.
     Returns None on any failure — the caller then falls through to the
     conversational path."""
     if llm_service is None or not canvas.get("canvas_id"):
@@ -211,6 +253,7 @@ async def plan_canvas_edit(
 
     prompt = (
         f"{_EDITOR_SYSTEM}\n\n"
+        f"{_corrections_section(corrections)}"
         f"Canvas type: {canvas.get('canvas_type') or 'generic'}\n"
         f"Current canvas content:\n{_serialize_content(canvas.get('content'))}\n\n"
         f"Recent conversation:\n{_history_transcript(history, message)}\n\n"
