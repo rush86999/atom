@@ -6,6 +6,22 @@
 
 ---
 
+## Session 2026-08-31d (Review-readiness: consolidate stale WorkDrive tests + repair Zoho journey suite)
+
+**Context**: Before handing off for review, the full Zoho suite was run. Two issues: (1) the old `test_zoho_workdrive_teams_fallback.py` (PR #594) had gone stale — `test_org_team_fetch_non_200_warns` asserted `[]` but the service now appends an id-only team entry — 1 failing test + duplicate confusing filename. (2) `test_zoho_user_journey.py` had 4 failing callback tests: the documented `MagicMock(auth_url=...)` fix was missing there, and `test_j2` asserted default fleet-wide token fan-out which R88 deliberately made opt-in (`ATOM_OAUTH_SHARED_INTEGRATION_TOKENS`).
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `tests/test_zoho_workdrive_team_fallback.py` | Consolidated canonical file (10 tests, one mock style): the 4 fallback tests + ported pagination regression guard, JSON:API display_name normalization, id-only entry on team-detail failure, shared_status/role_id mapping, short-circuit guards | 10 passed |
+| `tests/test_zoho_workdrive_teams_fallback.py` | DELETED — stale duplicate (1 failing assertion vs new id-only-entry behavior); coverage moved to the canonical file | — |
+| `tests/test_zoho_user_journey.py` | `_run_zoho_callback` config mock gets `auth_url="https://accounts.zoho.com/oauth/v2/auth"` (fixes urlparse crash at `oauth_routes.py:317`); `test_j2_role_fanout` sets `ATOM_OAUTH_SHARED_INTEGRATION_TOKENS=true` via monkeypatch (R88 opt-in fan-out) | 14 passed |
+
+**Verification**: full Zoho suite green — `test_zoho_workdrive_team_fallback.py` 10, `test_zoho_oauth_provider_keys.py` 6, `test_zoho_user_journey.py` 14, `test_zoho_workdrive_ingest_xls.py` + `test_zoho_workdrive_service_team_folders.py` + `test_covpush_w38_zoho_workdrive.py` 28 → **58 passed**. Frontend `components/Settings/ZohoWorkDriveIngestion.tsx` — no diagnostics. Live endpoints re-verified earlier: teams + team-folders (incl. H Drive) 200 through both direct and frontend-proxied paths.
+
+---
+
 ## Session 2026-08-31c (WorkDrive teams WITHOUT the teams scope — /users/me preferred_team_id fallback)
 
 **Context**: Teams stayed `[]` because the pilot client rejects `WorkDrive.teams.READ` (not enabled in the API Console; user confirmed no scopes step exists in the console at all — not even for new clients). Raw API probe proved the org team id is advertised on `GET /users/me` (`preferred_team_id`, 200 with current scopes) and `GET /teams/{id}/teamfolders` works with `WorkDrive.teamfolders.ALL` alone — only the /teams LIST and /teams/{id} detail need the missing teams scope. The service's existing org-team fallback only ran on "200-but-empty" — the 500 path returned `[]` before reaching it.
