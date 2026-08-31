@@ -158,7 +158,10 @@ describe('TrainingPanel', () => {
         session_id: 'training-chat-sess-1',
         agent_id: 'agent-1',
         user_id: 'user-1',
-      })
+      }),
+      // Agent-loop calls take minutes, not the 10s axios default — the
+      // per-request override from the timeout fix.
+      { timeout: 120000, retry: false }
     ));
     await waitFor(() =>
       expect(mockApi.updateTrainingGuidance).toHaveBeenCalledWith(

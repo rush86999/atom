@@ -26,7 +26,6 @@ interface JourneyEvent {
     content_preview?: string;
     content?: string | null;
     subject?: string;
-    title?: string;
 }
 
 export function JourneyPanel({ canvasId }: { canvasId: string }) {
