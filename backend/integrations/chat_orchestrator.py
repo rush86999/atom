@@ -1439,6 +1439,31 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.warning(f"Zoho CRM write failed: {e}")
             return None
 
+    async def _refresh_canvas_from_store(
+        self, user_id: str, canvas: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Latest CanvasAudit row over the client-sent content. The panel can
+        send stale canvas_content (missed WS broadcast, the autosave debounce
+        window); planning an edit against it and writing the result back
+        silently reverted the user's saved on-canvas edits — the durable
+        store is authoritative, the context only identifies WHICH canvas.
+        Fault-isolated: an unreadable store falls back to the client content
+        rather than blocking the turn."""
+        try:
+            from tools.canvas_crud_tool import read_canvas
+
+            fresh = await read_canvas(user_id, str(canvas.get("canvas_id") or ""))
+            if fresh.get("success") and fresh.get("content") is not None:
+                return {
+                    **canvas,
+                    "content": fresh["content"],
+                    "canvas_type": fresh.get("canvas_type") or canvas.get("canvas_type"),
+                    "title": fresh.get("title") or canvas.get("title"),
+                }
+        except Exception as e:
+            logger.debug(f"canvas store refresh skipped: {e}")
+        return canvas
+
     async def _try_canvas_edit(
         self,
         message: str,
@@ -1454,6 +1479,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         response. Returns None when the turn is NOT a canvas edit (or
         anything fails) — the normal conversational path then runs."""
         from core.chat_canvas_editor import apply_canvas_edit, plan_canvas_edit
+
+        canvas = await self._refresh_canvas_from_store(user_id, canvas)
 
         try:
             plan = await asyncio.wait_for(
@@ -1605,6 +1632,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         (including on every failure — the turn degrades to conversation).
         """
         from core.chat_canvas_editor import plan_canvas_action
+
+        # Same durable-store rule as edits: a send planned from the panel's
+        # (possibly stale) content would dispatch an out-of-date draft.
+        canvas = await self._refresh_canvas_from_store(user_id, canvas)
 
         try:
             plan = await asyncio.wait_for(

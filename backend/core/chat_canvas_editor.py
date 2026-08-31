@@ -9,11 +9,13 @@ the draft" message became TASK_MANAGEMENT and created a junk local task).
 
 This module is the write-side counterpart of ``core.chat_tool_planner``
 (which stays read-only): a cheap structured-output LLM call decides whether
-the message asks to change THE OPEN CANVAS; if so it produces the complete
-new content, and ``apply_canvas_edit`` persists it through the existing
-general mechanism — ``tools.canvas_crud_tool.update_canvas_content``
-(append-only CanvasAudit + WS ``canvas:update`` broadcast that the canvas
-page already renders live).
+the message asks to change THE OPEN CANVAS; if so the edit is PATCH-FIRST —
+exact find→replace ops against the current content (anything the ops don't
+touch is preserved byte-for-byte, so the user's manual on-canvas edits
+survive), with complete-content replacement reserved for explicit rewrites.
+``apply_canvas_edit`` persists it through the existing general mechanism —
+``tools.canvas_crud_tool.update_canvas_content`` (append-only CanvasAudit +
+WS ``canvas:update`` broadcast that the canvas page already renders live).
 
 Every leg is fault-isolated like the planner: any failure returns None and
 the turn falls through to the normal conversational path — never raises into
@@ -39,11 +41,34 @@ CANVAS_EDITOR_MODEL = os.getenv("ATOM_CANVAS_EDITOR_MODEL", "minimax/minimax-m3"
 _MAX_CONTENT_CHARS = 6000
 
 
+class CanvasPatchOp(BaseModel):
+    """One surgical find→replace against the CURRENT canvas content.
+
+    ``find`` is matched exactly (first occurrence) and must be copied
+    verbatim from the content shown to the planner; ``field`` names the key
+    to edit inside object-shaped content (e.g. an email's "body") and is
+    None for plain string canvases. Everything an op doesn't touch is
+    preserved byte-for-byte — that's the guarantee full-content regeneration
+    could never make (real case: a narrow "update the email from your
+    findings" request rewrote the whole draft and silently dropped the
+    supervisor's manual on-canvas edits)."""
+    field: Optional[str] = None
+    find: str = ""
+    replace: str = ""
+
+
 class CanvasEditPlan(BaseModel):
     wants_edit: bool = False
-    # Complete new canvas content as a JSON-encoded string — strings survive
-    # every structured-output provider (weak models mangle free-form object
-    # fields far more often than string fields).
+    # "patch" (default): ops carry the surgical find→replace edits.
+    # "replace": updated_content_json carries the complete new content —
+    # reserved for explicit rewrite requests; then every section unrelated
+    # to the request must still be reproduced EXACTLY as the current content
+    # has it.
+    edit_mode: Optional[str] = None
+    ops: List[CanvasPatchOp] = []
+    # Complete new canvas content as a JSON-encoded string (replace mode) —
+    # strings survive every structured-output provider (weak models mangle
+    # free-form object fields far more often than string fields).
     updated_content_json: Optional[str] = None
     title: Optional[str] = None
     reply: str = ""
@@ -52,24 +77,48 @@ class CanvasEditPlan(BaseModel):
 _EDITOR_SYSTEM = """You are the canvas editor for an AI co-editing panel.
 The user is chatting next to an OPEN canvas whose current content is shown
 below. Decide whether their latest message asks you to CHANGE that canvas
-(edit, revise, rewrite, shorten, expand, remove, add, reformat, translate,
-fill in, or produce the final version of it), and if so produce the new
-content.
+(edit, revise, shorten, expand, remove, add, reformat, translate, fill in),
+and if so produce the edit.
 
-Rules:
-- wants_edit=true ONLY for requests that change this canvas's content.
-  Questions, discussion, or requests about other things (e.g. "send it",
-  "what do you think", "search my email") are wants_edit=false.
-- updated_content_json must be the COMPLETE new canvas content, JSON-encoded,
-  in EXACTLY the same shape as the current content shown below (same keys,
-  same types). Never return a fragment, a diff, or an explanation — the
-  harness stores it verbatim as the new canvas content.
-- Apply the user's instruction faithfully to the whole content. Remove any
-  meta-commentary ("Here's your draft...", "Want me to adjust...") from the
-  content itself — the canvas holds only the artifact.
+Preservation rules — the canvas may hold MANUAL EDITS by the user that are
+newer than anything in the conversation. The current content shown below is
+the authority, NOT your memory of earlier drafts:
+- Default to edit_mode="patch": return ops, each an exact find→replace.
+  Copy "find" VERBATIM from the current content (every character and
+  newline); the first match is replaced by "replace". Text the ops don't
+  touch is preserved exactly as-is — that is the point of patch mode.
+- Touch ONLY the parts the request targets. Never reword, reorder, or drop
+  text the request doesn't mention, and never revert the user's own wording
+  to an earlier draft.
+- For object content (e.g. an email {to, cc, subject, body}) set "field" to
+  the key you are editing (usually "body"); the op applies inside that field
+  only, and the other keys stay untouched.
+- edit_mode="replace" ONLY when the user explicitly asked for a rewrite /
+  fresh draft, or no patch can express the change (e.g. reformat
+  everything): then updated_content_json is the COMPLETE new content, in
+  EXACTLY the same shape as the current content (same keys, same types),
+  and every part unrelated to the request must stay IDENTICAL to the
+  current content. Never return a fragment or an explanation.
+- Remove meta-commentary ("Here's your draft...", "Want me to adjust...")
+  from the content itself — the canvas holds only the artifact.
+- Send/dispatch requests ("send it", "email it to Mark", "try sending
+  again") are NOT edits: wants_edit=false — a separate step owns actions.
+- Questions, discussion, or requests about other things ("what do you
+  think", "search my email") are wants_edit=false too.
 - reply is one or two short sentences telling the user what you changed.
   For wants_edit=false, reply is a short conversational answer based on the
   canvas content (or empty if another step will answer)."""
+
+# Fallback prompt when patch ops fail to match the current content (the
+# model mis-copied "find"): one re-ask for complete content under the same
+# preservation duty. Deterministic safety, not a second chance to patch.
+_REPLACE_FALLBACK_SUFFIX = (
+    "Your ops did not match the current content exactly, so they were "
+    "discarded. Try again with edit_mode=\"replace\": return the COMPLETE "
+    "new content in EXACTLY the current shape, applying the user's request "
+    "and keeping every part the request doesn't touch IDENTICAL to the "
+    "current content shown below."
+)
 
 
 def _serialize_content(content: Any) -> str:
@@ -87,15 +136,61 @@ def _serialize_content(content: Any) -> str:
 
 
 def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
-    """User turns only, mirroring the planner: follow-ups like "now make it
-    shorter" are only interpretable against the earlier request."""
+    """Recent turns, user AND agent lines: follow-ups like "now make it
+    shorter" and "update the draft based on your findings" hang off earlier
+    requests AND the agent's own replies — the findings ("WFS is a dealer")
+    live in the agent's message, not the user's. Error turns are skipped:
+    flagged failure artifacts must not anchor the plan."""
     lines: List[str] = []
-    for h in (history or [])[-6:]:
-        u = str((h or {}).get("message") or "").strip()
+    for h in (history or [])[-8:]:
+        h = h or {}
+        u = str(h.get("message") or "").strip()
         if u:
             lines.append(f"User: {u[:200]}")
+        if h.get("error"):
+            continue
+        resp = h.get("response")
+        a = str((resp or {}).get("message") if isinstance(resp, dict) else (resp or "")).strip()
+        if a:
+            lines.append(f"Agent: {a[:300]}")
     lines.append(f"User: {current[:600]}")
     return "\n".join(lines)
+
+
+def _apply_patch_ops(content: Any, ops: List["CanvasPatchOp"]) -> tuple:
+    """Apply surgical find→replace ops against the current content.
+
+    Deterministic and all-or-nothing per op: a op whose ``find`` doesn't
+    appear is REPORTED, never guessed at. Returns (new_content, failed_ops)
+    — callers decide between committing (no failures) and falling back.
+    Object content is edited per-key (op.field); other keys keep their
+    identity, so untouched data can't drift."""
+    if not ops:
+        return content, []
+    failed: List[CanvasPatchOp] = []
+    if isinstance(content, str):
+        text = content
+        for op in ops:
+            find = op.find or ""
+            if find and find in text:
+                text = text.replace(find, op.replace, 1)
+            else:
+                failed.append(op)
+        return text, failed
+    if isinstance(content, dict):
+        result = dict(content)
+        for op in ops:
+            key = op.field
+            if key and isinstance(result.get(key), str):
+                find = op.find or ""
+                if find and find in result[key]:
+                    result[key] = result[key].replace(find, op.replace, 1)
+                else:
+                    failed.append(op)
+            else:
+                failed.append(op)
+        return result, failed
+    return content, list(ops)  # sheets/lists/etc. don't patch — force fallback
 
 
 async def plan_canvas_edit(
@@ -105,8 +200,12 @@ async def plan_canvas_edit(
     llm_service: Any,
 ) -> Optional[CanvasEditPlan]:
     """Decide (via cheap structured LLM output) whether this turn edits the
-    open canvas, and produce the full new content. Returns None on any
-    failure — the caller then falls through to the conversational path."""
+    open canvas, and produce the edit — patch ops by default, complete
+    content for explicit rewrites. Patch ops are validated against the
+    current content here: a mis-copied "find" gets ONE re-ask in replace
+    mode (still under the preservation duty) rather than a broken write.
+    Returns None on any failure — the caller then falls through to the
+    conversational path."""
     if llm_service is None or not canvas.get("canvas_id"):
         return None
 
@@ -135,7 +234,54 @@ async def plan_canvas_edit(
         temperature=0.0,
         **kwargs,
     )
+    if plan is None or not plan.wants_edit:
+        return plan
+
+    # Patch validation: ops must match the current content EXACTLY. A
+    # failed match discards the ops (never a partial write) and re-asks once
+    # for complete content — the user's request still lands, without
+    # guess-based fuzzy matching corrupting the artifact.
+    if plan.ops:
+        _, failed = _apply_patch_ops(canvas.get("content"), plan.ops)
+        if not failed:
+            return plan
+        logger.info(
+            f"canvas edit: {len(failed)}/{len(plan.ops)} patch op(s) failed to "
+            f"match — falling back to a replace-mode re-ask"
+        )
+        replan = await llm_service.generate_structured_response(
+            prompt=f"{prompt}\n\n{_REPLACE_FALLBACK_SUFFIX}",
+            response_model=CanvasEditPlan,
+            system_instruction="You return only the requested JSON object.",
+            temperature=0.0,
+            **kwargs,
+        )
+        if replan is None or not replan.wants_edit:
+            return None
+        # Only a usable replace plan rescues the turn; another broken patch
+        # set does not — fall through to conversation instead of guessing.
+        if replan.updated_content_json and replan.updated_content_json.strip():
+            return replan
+        if replan.ops:
+            _, failed2 = _apply_patch_ops(canvas.get("content"), replan.ops)
+            if not failed2:
+                return replan
+        return None
     return plan
+
+
+def _decode_replace_content(plan: CanvasEditPlan, current: Any) -> Optional[Any]:
+    """Decode replace-mode content. If the model returned a bare string for
+    a canvas whose content IS a plain string (markdown/doc bodies), a failed
+    JSON parse still yields a usable value — accept it only for that shape."""
+    raw = (plan.updated_content_json or "").strip()
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        if isinstance(current, str):
+            return raw
+        logger.warning("canvas edit: updated_content_json is not valid JSON — discarding")
+        return None
 
 
 async def apply_canvas_edit(
@@ -143,26 +289,28 @@ async def apply_canvas_edit(
     user_id: str,
     canvas: Dict[str, Any],
 ) -> Optional[Dict[str, Any]]:
-    """Persist the planned content through the general canvas CRUD layer
-    (CanvasAudit append + WS broadcast). Returns the update result dict on
-    success, None on any failure or malformed plan (caller falls through to
+    """Persist the planned edit through the general canvas CRUD layer
+    (CanvasAudit append + WS broadcast). Patch ops are re-applied
+    deterministically against the canvas content the plan validated against;
+    replace plans store their complete content verbatim. Returns the update
+    result dict on success, None on any failure (caller falls through to
     the conversational path instead of storing garbage)."""
-    if not plan or not plan.wants_edit or not (plan.updated_content_json or "").strip():
+    if not plan or not plan.wants_edit:
         return None
 
-    raw = plan.updated_content_json.strip()
     current = canvas.get("content")
-    # Decode the JSON string. If the model returned a bare string for a
-    # canvas whose content IS a plain string (markdown/doc bodies), a failed
-    # JSON parse still yields a usable value — accept it only for that shape.
-    try:
-        new_content = json.loads(raw)
-    except (json.JSONDecodeError, ValueError):
-        if isinstance(current, str):
-            new_content = raw
-        else:
-            logger.warning("canvas edit: updated_content_json is not valid JSON — discarding")
+    new_content: Any = None
+
+    if plan.ops:
+        new_content, failed = _apply_patch_ops(current, plan.ops)
+        if failed:
+            # The plan validated in plan_canvas_edit; a mismatch here means
+            # the content moved between the two steps — refuse rather than
+            # write a partial edit on top of a state nobody saw.
+            logger.warning("canvas edit: patch ops no longer match — refusing partial write")
             return None
+    else:
+        new_content = _decode_replace_content(plan, current)
 
     if new_content is None:
         return None
@@ -210,8 +358,11 @@ Rules:
 - ``to``: the recipient(s) from the message (emails or names). Empty if the
   message doesn't say — never invent addresses.
 - ``subject``: from the message or the canvas title; empty if unclear.
-- ``body``: the FULL email body to send. Default to the canvas draft content
-  (cleaned of any meta notes) unless the message specifies changes.
+- ``body``: the canvas draft content VERBATIM — it may hold manual edits by
+  the user that outrank anything in the conversation. Do NOT rewrite,
+  "improve", or restructure it when the message only says to send; strip
+  obvious meta notes that aren't part of the artifact itself. Deviate only
+  when the message itself asks for content changes.
 - ``action``: exactly "send_email" for any send/dispatch request.
 - ``reply``: one short sentence describing what you will do."""
 

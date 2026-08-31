@@ -567,7 +567,14 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-hidden relative">
+            <div
+                className="flex-1 overflow-hidden relative"
+                // Leaving the editor (e.g. to type in the co-editor chat)
+                // must not race the 3s autosave window: the backend plans
+                // canvas edits against the durable store, so keystrokes
+                // still pending autosave would be invisible to it.
+                onBlur={() => { if (hasUnsavedChanges) void flushAutosave(); }}
+            >
                 <CanvasContent
                     component={state.component}
                     data={state.data}

@@ -14,9 +14,23 @@ import pytest
 
 from core.chat_canvas_editor import (
     CanvasEditPlan,
+    CanvasPatchOp,
     apply_canvas_edit,
     plan_canvas_edit,
 )
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_canvas_store():
+    """Default read_canvas to "not found" so the orchestrator's durable-store
+    refresh falls back to the client context instead of touching a real DB.
+    Tests that exercise the refresh patch read_canvas themselves — their mock
+    applies inside this one and wins for the duration."""
+    with patch(
+        "tools.canvas_crud_tool.read_canvas",
+        new=AsyncMock(return_value={"success": False, "error": "Canvas c-123 not found"}),
+    ):
+        yield
 
 
 def _canvas(content=None):
@@ -66,6 +80,204 @@ async def test_plan_survives_history_with_no_user_turns():
     llm._get_handler.return_value.clients = {}
     llm.generate_structured_response = AsyncMock(return_value=None)
     assert await plan_canvas_edit("hi", [{}], _canvas(), llm) is None
+
+
+# ─────────── preservation: patch-first edits (Aug 31 regression) ───────────
+# Real case: a narrow "update the email based on your findings" request made
+# the editor regenerate the WHOLE draft from conversation memory, silently
+# dropping the supervisor's manual on-canvas edits. Ops make preservation
+# structural; the prompt makes the current content the authority; and
+# send-requests ("try sending it again") must never land in the edit step.
+
+def test_history_transcript_includes_agent_findings_and_skips_errors():
+    from core.chat_canvas_editor import _history_transcript
+
+    history = [
+        {"message": "search the web for WFS Ltd",
+         "response": {"message": "WFS Ltd is a dealer/distributor (a Grainger company)."}},
+        {"message": "earlier failed turn",
+         "response": {"message": "provider down"}, "error": True},
+    ]
+    out = _history_transcript(history, "update the draft based on your findings")
+    assert "Agent: WFS Ltd is a dealer" in out      # findings are visible…
+    assert "provider down" not in out               # …error turns never anchor
+    assert "User: update the draft based on your findings" in out
+
+
+@pytest.mark.asyncio
+async def test_editor_prompt_demands_preservation_and_excludes_sends():
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(wants_edit=False))
+    await plan_canvas_edit("try sending it again", [], _canvas(), llm)
+    prompt = llm.generate_structured_response.call_args.kwargs["prompt"]
+    assert "MANUAL EDITS" in prompt                 # user edits outrank memory
+    assert 'edit_mode="patch"' in prompt            # surgical by default
+    assert "NOT edits" in prompt                    # sends route to the action step
+
+
+@pytest.mark.asyncio
+async def test_patch_ops_match_is_validated_against_current_content():
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    plan = CanvasEditPlan(
+        wants_edit=True, edit_mode="patch",
+        ops=[CanvasPatchOp(find="stocking the 115C?", replace="carrying the 115C line?")],
+    )
+    llm.generate_structured_response = AsyncMock(return_value=plan)
+    content = "Hi Mark,\n\nAre you stocking the 115C?\n\nBest regards,"
+    p = await plan_canvas_edit("tighten the question", [], _canvas(content=content), llm)
+    assert p is not None and p.ops
+    llm.generate_structured_response.assert_awaited_once()  # no re-ask needed
+
+
+@pytest.mark.asyncio
+async def test_failed_patch_ops_get_one_replace_mode_reask():
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    bad = CanvasEditPlan(wants_edit=True, ops=[CanvasPatchOp(find="NOT PRESENT", replace="x")])
+    rescued = CanvasEditPlan(wants_edit=True, updated_content_json='"full new text"')
+    llm.generate_structured_response = AsyncMock(side_effect=[bad, rescued])
+    p = await plan_canvas_edit("update the price line", [], _canvas(content="current"), llm)
+    assert p is rescued
+    assert llm.generate_structured_response.await_count == 2
+    reask_prompt = llm.generate_structured_response.await_args_list[1].kwargs["prompt"]
+    assert "did not match" in reask_prompt and "IDENTICAL" in reask_prompt
+
+
+@pytest.mark.asyncio
+async def test_double_failed_patch_plan_returns_none():
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    bad1 = CanvasEditPlan(wants_edit=True, ops=[CanvasPatchOp(find="NOPE", replace="x")])
+    bad2 = CanvasEditPlan(wants_edit=True, ops=[CanvasPatchOp(find="ALSO NOPE", replace="y")])
+    llm.generate_structured_response = AsyncMock(side_effect=[bad1, bad2])
+    # No salvageable plan → conversation path; a guessed write is worse.
+    assert await plan_canvas_edit("edit it", [], _canvas(content="current"), llm) is None
+
+
+@pytest.mark.asyncio
+async def test_apply_patch_preserves_untouched_bytes():
+    content = "Hi Mark,\n\nWe discussed the 115C.\n\nBest regards,\nAlex"
+    plan = CanvasEditPlan(
+        wants_edit=True,
+        ops=[CanvasPatchOp(find="We discussed the 115C.",
+                           replace="We discussed the 115C bandsaw quote.")],
+    )
+    with patch("tools.canvas_crud_tool.update_canvas_content", new=AsyncMock(
+        return_value={"success": True}
+    )) as upd:
+        result = await apply_canvas_edit(plan, "user-1", _canvas(content=content))
+    assert result and result["success"]
+    assert upd.await_args.args[2] == (
+        "Hi Mark,\n\nWe discussed the 115C bandsaw quote.\n\nBest regards,\nAlex"
+    )
+
+
+@pytest.mark.asyncio
+async def test_apply_patch_edits_only_the_named_field_of_object_content():
+    content = {
+        "to": "mkellam@wfsltd.ca", "cc": "dng@wfsltd.ca",
+        "subject": "Re: Baxter 115C",
+        "body": "Hi Mark,\n\nAre you stocking the 115C?\n\nBest regards,\nAlex",
+    }
+    plan = CanvasEditPlan(
+        wants_edit=True,
+        ops=[CanvasPatchOp(field="body", find="Are you stocking the 115C?",
+                           replace="As a Grainger dealer, do you carry the 115C line?")],
+    )
+    with patch("tools.canvas_crud_tool.update_canvas_content", new=AsyncMock(
+        return_value={"success": True}
+    )) as upd:
+        result = await apply_canvas_edit(plan, "user-1", _canvas(content=content))
+    assert result and result["success"]
+    out = upd.await_args.args[2]
+    assert "Grainger dealer" in out["body"]
+    assert "stocking" not in out["body"]
+    # Untouched keys are the SAME objects/bytes — a field-targeted op can't
+    # drift them the way whole-content regeneration did.
+    assert out["to"] == content["to"] and out["cc"] == content["cc"]
+    assert out["subject"] == content["subject"]
+
+
+@pytest.mark.asyncio
+async def test_apply_refuses_patch_when_content_moved_under_the_plan():
+    plan = CanvasEditPlan(wants_edit=True, ops=[CanvasPatchOp(find="old", replace="new")])
+    with patch("tools.canvas_crud_tool.update_canvas_content", new=AsyncMock()) as upd:
+        assert await apply_canvas_edit(plan, "user-1", _canvas(content="different")) is None
+    upd.assert_not_awaited()
+
+
+# ───────────── orchestrator: plan against the durable store ─────────────
+
+@pytest.mark.asyncio
+async def test_canvas_edit_plans_against_durable_store_content():
+    """The panel can send stale canvas_content (missed broadcast, autosave
+    window). Planning must read the latest audit row — a plan built on stale
+    content is what silently reverted the supervisor's saved edits."""
+    orch = _orch()
+    plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
+    seen = {}
+
+    async def fake_plan(message, history, canvas, llm):
+        seen["content"] = canvas.get("content")
+        return plan
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("tools.canvas_crud_tool.read_canvas", new=AsyncMock(return_value={
+             "success": True, "canvas_id": "c-123", "canvas_type": "email",
+             "title": "T", "content": {"body": "fresh DB body"}})), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
+         patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
+             return_value={"success": True})):
+        resp = await orch._try_canvas_edit(
+            "update it", [],
+            {"canvas_id": "c-123", "canvas_type": "email", "title": "stale",
+             "content": "stale client body"},
+            "user-1", "s-1", "exec-1", None,
+        )
+    assert resp and resp["success"]
+    assert seen["content"] == {"body": "fresh DB body"}
+
+
+@pytest.mark.asyncio
+async def test_canvas_action_plans_against_durable_store_content():
+    """A send planned from the panel's stale content would dispatch an
+    out-of-date draft — actions read the store first too."""
+    import contextlib
+
+    from core.autonomy_policy import MODE_HUMAN_ALWAYS
+    from core.chat_canvas_editor import CanvasActionPlan
+
+    orch = _orch()
+    plan = CanvasActionPlan(wants_action=True, action="send_email",
+                            to="m@x", reply="r")
+    seen = {}
+
+    async def fake_plan(message, history, canvas, llm):
+        seen["content"] = canvas.get("content")
+        return plan
+
+    @contextlib.contextmanager
+    def db_session():
+        yield MagicMock()
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("tools.canvas_crud_tool.read_canvas", new=AsyncMock(return_value={
+             "success": True, "canvas_id": "c-123", "canvas_type": "email",
+             "title": "T", "content": {"body": "fresh DB body"}})), \
+         patch("core.chat_canvas_editor.plan_canvas_action", new=AsyncMock(side_effect=fake_plan)), \
+         patch("core.autonomy_policy.get_effective_mode", return_value=MODE_HUMAN_ALWAYS), \
+         patch("core.database.get_db_session", side_effect=lambda: db_session()), \
+         patch.object(orch, "_create_send_email_proposal", return_value="prop-x"):
+        resp = await orch._try_canvas_action(
+            "send it", [],
+            {"canvas_id": "c-123", "canvas_type": "email", "title": "stale",
+             "content": "stale client body"},
+            "user-1", "s-1", "exec-1", "hire-1",
+        )
+    assert resp and resp["data"]["canvas_action"]["needs_approval"] is True
+    assert seen["content"] == {"body": "fresh DB body"}
 
 
 # ───────────────────────── apply_canvas_edit ─────────────────────────
