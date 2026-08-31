@@ -377,6 +377,10 @@ _ZOHO_DEFAULT_SCOPES = [
     # WorkDrive scopes are `WorkDrive.` prefixed with `.ALL` permissions
     # (pilot doc §2). `ZohoWorkDrive.files.READ` / `...teamfolders.READ` are
     # NOT valid Zoho names — one unknown scope fails the whole consent URL.
+    # WorkDrive.teams.READ is intentionally NOT in the defaults: the pilot
+    # client (1000.9FTW…) rejects it with "Scope does not exist" until it is
+    # enabled for the client in the Zoho API Console (api-console.zoho.ca →
+    # client → scopes). Keep the defaults to the client-verified set.
     "WorkDrive.files.ALL",
     "WorkDrive.teamfolders.ALL",
 ]
