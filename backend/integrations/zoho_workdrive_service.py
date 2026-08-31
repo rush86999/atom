@@ -215,6 +215,10 @@ class ZohoWorkDriveService(IntegrationService):
                         break
                     offset += self.PAGE_SIZE
             except Exception as e:
+                # Deliberate degradation, not a bug: if a LATER page fails
+                # after earlier pages parsed, the partial team list is kept
+                # (real teams beat the single org-team fallback) and only the
+                # warning below marks the truncation.
                 logger.warning(f"GET /teams listing failed ({e}); using org-team fallback")
 
             if not teams:
