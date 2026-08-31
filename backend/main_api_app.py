@@ -1607,14 +1607,16 @@ if not is_test_mode:
             if mod not in _loaded_integrations:
                 router = load_integration(mod, registry="api_routers")
                 if router:
-                    if mod in ("zoho_workdrive", "zoho_crm", "zoho_books", "zoho_inventory"):
-                        # These routers define their OWN prefix
-                        # (/api/zoho-workdrive, /api/integrations/zoho_*) —
-                        # adding /api/v1/integrations/... on top doubled every
-                        # path and 404'd the frontend's bare calls. Include
-                        # bare so the router prefix holds.
+                    # General rule, not a per-app list: a router that declares
+                    # its own prefix (e.g. /api/zoho-workdrive,
+                    # /api/integrations/zoho_crm) is mounted bare — adding
+                    # /api/v1/integrations/... on top doubled every path and
+                    # 404'd the frontend's bare calls. Prefix-less routers get
+                    # the standard integration prefix.
+                    router_prefix = getattr(router, "prefix", "")
+                    if router_prefix:
                         app.include_router(router, tags=[mod])
-                        logger.info(f"  ✓ {mod} (router-prefixed bare mount)")
+                        logger.info(f"  ✓ {mod} (router-prefixed bare mount at {router_prefix})")
                     else:
                         prefix = "/api/integrations/outlook" if mod == "outlook" else f"/api/v1/integrations/{mod.replace('_', '-')}"
                         app.include_router(router, prefix=prefix, tags=[mod])
