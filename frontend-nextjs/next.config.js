@@ -156,7 +156,12 @@ const nextConfig = {
       },
       {
         source: "/api/auth/:path*",
-        destination: "http://127.0.0.1:8000/api/v1/auth/:path*",
+        // Keep the SAME path — the backend mounts auth at /api/auth/* (the
+        // CSRF middleware exempts exactly /api/auth/). Mapping to
+        // /api/v1/auth/* sent login POSTs into the CSRF-protected zone
+        // (403 csrf_token_invalid → the login form showed "Incorrect
+        // username or password") and 404'd next-auth's /api/auth/session.
+        destination: "http://127.0.0.1:8000/api/auth/:path*",
       },
       {
         source: "/api/shopify/:path*",

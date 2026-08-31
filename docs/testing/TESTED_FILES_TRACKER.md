@@ -6,6 +6,20 @@
 
 ---
 
+## Session 2026-08-31 (Login broken — /api/auth rewrite mapped to /api/v1/auth → CSRF 403 "Incorrect username or password")
+
+**Context**: Browser login failed with "Incorrect username or password" while direct curl login succeeded. `next.config.js` rewrote `/api/auth/:path*` → `http://127.0.0.1:8000/api/v1/auth/:path*` — the backend mounts auth at `/api/auth/*` and the CSRF middleware exempts exactly `/api/auth/`. The rewritten `/api/v1/auth/login` landed in the CSRF-protected zone (403 csrf_token_invalid), which the login form surfaced as a generic credential error. The same rewrite 404'd next-auth's `/api/auth/session` ("CLIENT_FETCH_ERROR Not Found").
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `frontend-nextjs/next.config.js` | `/api/auth/:path*` destination → `http://127.0.0.1:8000/api/auth/:path*` (same path, like every other rewrite) | live verification: login via proxy 200 + token; files/list via proxy 200 + 3 files |
+
+**Verification (live, proxy :3000)**: `POST /api/auth/login` → 200 + access_token (was 403); `POST /api/zoho-workdrive/files/list` with Bearer → 200 + 3 files; `GET /api/zoho-workdrive/teams` → 200. Also on this session: PYTHONPATH set permanently at User level (fixes recurring `--reload` "Could not import module main_api_app" when started from a fresh shell).
+
+---
+
 ## Session 2026-08-28d (Zoho WorkDrive teams scope — 500 F7007 "Invalid OAuth scope" on GET /teams)
 
 **Context**: After connect + mount + CSRF fixes, the page showed Connected and 3 private-workspace files, but NO teams/team-folders. Diagnostic (raw Zoho API with the stored token): `GET /api/v1/teams -> 500 {"errors":[{"id":"F7007","title":"Invalid OAuth scope."}]}` while `GET /users/me -> 200`. The granted scopes (files + teamfolders) lack `WorkDrive.teams.*` — Zoho requires it for the teams listing and team-folders picker. `H Drive` is NOT Zoho WorkDrive — it's a Windows/network drive (on-prem CNC docs per role-training-plan.md), so it cannot appear in the WorkDrive ingestion picker.
