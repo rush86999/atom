@@ -58,10 +58,11 @@ def test_zoho_default_scopes_are_valid_names():
     assert "WorkDrive.teamfolders.ALL" in scopes
     assert "ZohoWorkDrive.files.READ" not in scopes
     assert "ZohoWorkDrive.teamfolders.READ" not in scopes
-    # WorkDrive /teams + teamfolders listing requires WorkDrive.teams.* —
-    # without it Zoho returns 500 F7007 "Invalid OAuth scope" on GET /teams
-    # and the ingestion picker silently shows no teams.
-    assert "WorkDrive.teams.READ" in scopes
+    # WorkDrive.teams.READ must NOT be in the defaults — the pilot client
+    # (1000.9FTW…) rejects it with "Scope does not exist" (not enabled in
+    # the API Console for the client); one unknown scope fails the WHOLE
+    # consent URL, so it stays out until the client supports it.
+    assert "WorkDrive.teams.READ" not in scopes
 
 
 def _make_db():

@@ -6,6 +6,21 @@
 
 ---
 
+## Session 2026-08-31b (Reconnect broke — WorkDrive.teams.READ rejected by the pilot client)
+
+**Context**: After adding `WorkDrive.teams.READ` to the defaults, Reconnect failed with `Invalid OAuth Scope / Scope does not exist` — the 7-scope set (without teams) had worked on Aug 28, so teams.READ was the only new variable. The scope name is likely valid generally, but the pilot client `1000.9FTW…` does not have it enabled — Zoho rejects any scope not configured on the client, and ONE unknown scope fails the WHOLE consent URL.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/oauth_handler.py` | `WorkDrive.teams.READ` removed from `_ZOHO_DEFAULT_SCOPES` (client-verified set restored — consent URL works again); comment documents why it stays out + how to enable (api-console.zoho.ca → client → scopes) | `test_zoho_default_scopes_are_valid_names` GREEN (now asserts teams.READ NOT in defaults) |
+| `tests/test_zoho_oauth_provider_keys.py` | assertion flipped `in` → `not in` with the client-config reason | 6 passed (full file) |
+
+**Verification**: `tests/test_zoho_oauth_provider_keys.py` 6/6. Reconnect will work again with the 7-scope list. Teams listing stays `[]` (GET /teams → 500 F7007) until the client has the teams scope enabled in the console and the scope is re-added.
+
+---
+
 ## Session 2026-08-31 (Login broken — /api/auth rewrite mapped to /api/v1/auth → CSRF 403 "Incorrect username or password")
 
 **Context**: Browser login failed with "Incorrect username or password" while direct curl login succeeded. `next.config.js` rewrote `/api/auth/:path*` → `http://127.0.0.1:8000/api/v1/auth/:path*` — the backend mounts auth at `/api/auth/*` and the CSRF middleware exempts exactly `/api/auth/`. The rewritten `/api/v1/auth/login` landed in the CSRF-protected zone (403 csrf_token_invalid), which the login form surfaced as a generic credential error. The same rewrite 404'd next-auth's `/api/auth/session` ("CLIENT_FETCH_ERROR Not Found").
