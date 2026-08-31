@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
   CheckCircle,
   AlertTriangle,
@@ -29,6 +30,7 @@ import {
 
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { authHeaders } from "@/lib/auth-headers";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -517,22 +519,30 @@ const SalesforceIntegration: React.FC = () => {
 
   const checkConnection = useCallback(async () => {
     try {
-      const response = await fetch("/api/integrations/salesforce/health");
+      // Real per-integration connection state (DB connections + OAuth
+      // grants + env credentials). The /health route is a liveness probe
+      // that returns 200 unconditionally — it must not decide "connected".
+      const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
       if (response.ok) {
-        setConnected(true);
-        setHealthStatus("healthy");
-        loadUserProfile();
-        loadLeads();
-        loadOpportunities();
-        loadAccounts();
-        loadContacts();
-        loadCases();
+          const data = await response.json().catch((): null => null);
+          const providers = data?.data?.providers ?? data?.providers ?? {};
+          const isConnected = providers?.salesforce?.connected === true;
+          setConnected(isConnected);
+          setHealthStatus(isConnected ? "healthy" : "error");
+          if (isConnected) {
+            loadUserProfile();
+            loadLeads();
+            loadOpportunities();
+            loadAccounts();
+            loadContacts();
+            loadCases();
+          }
       } else {
         setConnected(false);
         setHealthStatus("error");
       }
     } catch (error) {
-      console.error("Health check failed:", error);
+      console.error("Connection status check failed:", error);
       setConnected(false);
       setHealthStatus("error");
     }

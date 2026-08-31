@@ -41,6 +41,12 @@ export const AGENT_CHAT = {
 
   /** Individual history item (append index, e.g., history-item-0) */
   HISTORY_ITEM: 'history-item',
+
+  /** Per-session fork button in the history sidebar (append index) */
+  FORK_BUTTON: 'fork-session-button',
+
+  /** Per-message "fork from here" button on assistant replies */
+  FORK_MESSAGE_BUTTON: 'fork-message-button',
 } as const;
 
 // ===========================================================================

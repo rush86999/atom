@@ -12,6 +12,11 @@ class AutomationSettingsUpdate(BaseModel):
     enable_automatic_knowledge_extraction: Optional[bool] = None
     enable_out_of_workflow_automations: Optional[bool] = None
     document_processing_auto_trigger: Optional[bool] = None
+    # Per-integration initial-sync history windows (days); the shared
+    # email_history_days covers any mail integration without its own key.
+    outlook_history_days: Optional[int] = None
+    gmail_history_days: Optional[int] = None
+    email_history_days: Optional[int] = None
     pipelines: Optional[Dict[str, Any]] = None
 
 @router.get("/")
@@ -27,10 +32,20 @@ async def update_settings(
 ):
     """Update global automation settings"""
     manager = get_automation_settings()
-    
+
     # Only update provided fields
     update_data = {k: v for k, v in update.dict().items() if v is not None}
-    
+
+    history_fields = ("outlook_history_days", "gmail_history_days", "email_history_days")
+    for field in history_fields:
+        if field in update_data:
+            days = update_data[field]
+            if not isinstance(days, int) or not (1 <= days <= 3650):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"{field} must be an integer between 1 and 3650",
+                )
+
     updated = manager.update_settings(update_data)
     
     # Trigger scheduler refresh if pipelines were updated

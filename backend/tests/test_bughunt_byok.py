@@ -25,7 +25,7 @@ Bugs covered:
 import hashlib
 import logging
 import os
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -73,24 +73,41 @@ def _entry(provider, window=131072, cost=1e-7, tools=True):
 
 @pytest.fixture
 def handler():
-    """BYOKHandler with all external dependencies mocked."""
-    with patch("core.llm.byok_handler.get_byok_manager") as mock_manager:
-        mock_manager.return_value = Mock()
-        with patch("core.llm.byok_handler.CognitiveTierService"):
-            with patch("core.provider_health_monitor.get_provider_health_monitor") as mock_health:
-                monitor = Mock()
-                monitor.health_scores = {}
-                monitor.get_health_score = Mock(return_value=1.0)
-                monitor.record_call = Mock()
-                mock_health.return_value = monitor
-                h = BYOKHandler(
-                    workspace_id="test-ws",
-                    tenant_id="test-t",
-                    provider_id="auto",
-                )
-    h.rate_tracker = ProviderRateTracker()
-    h.excluded_models = set()
-    return h
+    """BYOKHandler with all external dependencies mocked.
+
+    Patchers are STARTED (not context-managed) so they stay active for the
+    duration of the TEST, not just construction: get_quality_score consults
+    the dynamic benchmark fetcher at call time, and the fetcher substring-
+    matches model names across GENERATIONS (a cached deepseek-chat-v3-0324
+    entry scores the current deepseek-chat 15 instead of the table's 80).
+    Without this, ranking tests depend on the ambient local benchmark cache.
+    """
+    patchers = [
+        patch("core.dynamic_benchmark_fetcher.get_benchmark_fetcher"),
+        patch("core.llm.byok_handler.get_byok_manager"),
+        patch("core.llm.byok_handler.CognitiveTierService"),
+        patch("core.provider_health_monitor.get_provider_health_monitor"),
+    ]
+    bench_mock, manager_mock, _tier_mock, health_mock = (p.start() for p in patchers)
+    bench_mock.return_value = Mock(get_benchmark_score=Mock(return_value=None))
+    manager_mock.return_value = Mock()
+    monitor = Mock()
+    monitor.health_scores = {}
+    monitor.get_health_score = Mock(return_value=1.0)
+    monitor.record_call = Mock()
+    health_mock.return_value = monitor
+    try:
+        h = BYOKHandler(
+            workspace_id="test-ws",
+            tenant_id="test-t",
+            provider_id="auto",
+        )
+        h.rate_tracker = ProviderRateTracker()
+        h.excluded_models = set()
+        yield h
+    finally:
+        for p in patchers:
+            p.stop()
 
 
 # ============================================================================
@@ -301,3 +318,63 @@ class TestStreamErrorLeak:
         assert error_chunks, "expected an error chunk after all providers failed"
         assert secret not in "".join(chunks)
         assert "Please check your API key" in error_chunks[0]
+
+
+# ============================================================================
+# Availability: a cold/empty pricing cache must not zero out routing
+# ============================================================================
+
+class TestColdCacheFailOpen:
+    def test_structured_request_survives_empty_pricing_cache(self, handler):
+        """The 2026-08-28 live outage: ReAct requests are structured, the
+        pricing cache had no capability data (fetch failed), and the
+        conservative tools filter eliminated every candidate — 'No eligible
+        LLM providers found for your current plan'. Capability filtering is
+        best-effort; it must fail open when it would return zero options."""
+
+        fetcher = MagicMock()
+        fetcher.pricing_cache = {}
+        fetcher.get_model_capabilities.return_value = {}
+        handler.clients = {"openrouter": object()}
+        handler.cache_router = MagicMock()
+        handler.cache_router.calculate_effective_cost.return_value = 1e-7
+        handler.rate_tracker.get_max_context = MagicMock(return_value=None)
+        handler.rate_tracker.get_model_weight = MagicMock(return_value=1.0)
+
+        with patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync",
+                        return_value=fetcher), \
+             patch("core.llm.byok_handler.get_pricing_fetcher",
+                        return_value=fetcher):
+            options = list(handler.get_ranked_providers(
+                "moderate", prefer_cost=True, tenant_plan="free",
+                is_managed_service=True, requires_tools=False,
+                requires_structured=True, turn_index=0,
+            ))
+
+        assert options, "cold cache + structured request must fail open, not empty"
+        assert options[0][0] == "openrouter"
+
+    def test_warm_cache_tools_filter_still_applies(self, handler):
+        """Fail-open only rescues the zero-option case: with a populated cache
+        the conservative per-model filter still removes non-tool models."""
+        fetcher = MagicMock()
+        fetcher.pricing_cache = {
+            "deepseek-chat": _entry("deepseek", cost=1e-7, tools=True),
+        }
+        handler.clients = {"deepseek": object()}
+        handler.cache_router = MagicMock()
+        handler.cache_router.calculate_effective_cost.return_value = 1e-7
+        handler.rate_tracker.get_max_context = MagicMock(return_value=None)
+        handler.rate_tracker.get_model_weight = MagicMock(return_value=1.0)
+
+        with patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync",
+                        return_value=fetcher), \
+             patch("core.llm.byok_handler.get_pricing_fetcher",
+                        return_value=fetcher):
+            options = list(handler.get_ranked_providers(
+                QueryComplexity.MODERATE, prefer_cost=True, tenant_plan="pro",
+                is_managed_service=True, requires_tools=True, turn_index=0,
+            ))
+
+        assert options, "tool-capable model should rank normally"
+        assert all(handler._model_supports_tools(m) for _, m in options)

@@ -27,7 +27,7 @@ import { server } from '@/tests/mocks/server';
 // interacted with (trigger -> open content -> click item calls onValueChange).
 jest.mock('@/components/ui/select', () => {
   const { createContext, useContext, useState } = jest.requireActual('react');
-  const SelectCtx = createContext<any>(null);
+  const SelectCtx = createContext(null as any);
 
   const Select = ({ value, onValueChange, children }: any) => {
     const [open, setOpen] = useState(false);
@@ -60,8 +60,14 @@ jest.mock('@/components/ui/select', () => {
 });
 
 const jiraHandlers = [
-  rest.get('/api/integrations/jira/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ providers: { jira: { connected: true, source: 'user_connection' } } })
+    );
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { jira: { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.post('/api/integrations/jira/profile', (req, res, ctx) => {
@@ -182,7 +188,7 @@ const settleData = async (text: RegExp) => {
 
 const setDisconnected = () => {
   server.use(
-    rest.get('/api/integrations/jira/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(404));
     })
   );
@@ -378,7 +384,7 @@ describe('JiraIntegration', () => {
   // Test 13: handles connection error
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/jira/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500));
       })
     );
@@ -708,7 +714,7 @@ describe('JiraIntegration (extended coverage)', () => {
 
   test('treats a health-check network failure as disconnected', async () => {
     server.use(
-      rest.get('/api/integrations/jira/health', (req, res) =>
+      rest.get('/api/integrations/connection-status', (req, res) =>
         res.networkError('boom')
       )
     );
@@ -716,7 +722,7 @@ describe('JiraIntegration (extended coverage)', () => {
     render(<JiraIntegration />);
 
     await waitFor(() => {
-      expect(errorSpy).toHaveBeenCalledWith('Health check failed:', expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith('Connection status check failed:', expect.anything());
       expect(
         screen.getByRole('button', { name: /connect jira account/i })
       ).toBeInTheDocument();

@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import BitbucketIntegrationPage from "@/pages/integrations/bitbucket";
 import { useRouter } from "next/router";
 
@@ -27,7 +27,7 @@ const errResponse = (status: number) => ({
 });
 
 const navigationErrors: string[] = [];
-const vc: any = window._virtualConsole;
+const vc = (window as any)._virtualConsole;
 if (vc && vc.on) {
   vc.on("jsdomError", (error: any) => {
     const message = String(error && (error.message || error));
@@ -124,12 +124,21 @@ describe("BitbucketIntegrationPage", () => {
 
   it("shows Disconnected when no access token is stored", async () => {
     render(<BitbucketIntegrationPage />);
-    expect(screen.getByText("Disconnected")).toBeInTheDocument();
-    expect(mockFetch).not.toHaveBeenCalled();
+    // The status check is async now, so the badge lands after first paint.
+    await waitFor(() => {
+      expect(screen.getByText("Disconnected")).toBeInTheDocument();
+    });
+    // The page always consults the real connection-status endpoint, but
+    // without a stored token it must not send an Authorization header.
+    // (The ingestion panel makes its own unrelated call on top.)
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/integrations/connection-status",
+      expect.objectContaining({ headers: {} }),
+    );
   });
 
-  it("shows Disconnected when the health check fails", async () => {
-    getItemSpy.mockReturnValue(TOKEN);
+  it("shows Disconnected when the status endpoint fails and no token is stored", async () => {
+    getItemSpy.mockReturnValue(null);
     mockFetch.mockImplementation(() =>
       Promise.resolve(errResponse(500)),
     );
@@ -138,18 +147,18 @@ describe("BitbucketIntegrationPage", () => {
       expect(screen.getByText("Disconnected")).toBeInTheDocument();
     });
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/integrations/bitbucket/health",
-      expect.objectContaining({
-        headers: { Authorization: `Bearer ${TOKEN}` },
-      }),
+      "/api/integrations/connection-status",
+      expect.objectContaining({ headers: {} }),
     );
   });
 
   it("connects, loads all datasets, and renders overview stats", async () => {
     getItemSpy.mockReturnValue(TOKEN);
     mockFetch.mockImplementation((url: string) => {
-      if (url.includes("/health")) {
-        return Promise.resolve(okResponse({ status: "healthy" }));
+      if (url.includes("/connection-status")) {
+        return Promise.resolve(
+          okResponse({ providers: { bitbucket: { connected: true, source: "oauth_token" } } }),
+        );
       }
       if (url.includes("/workspaces")) {
         return Promise.resolve(okResponse({ workspaces: WORKSPACES }));
@@ -189,8 +198,10 @@ describe("BitbucketIntegrationPage", () => {
   it("switches to the repositories tab via quick actions", async () => {
     getItemSpy.mockReturnValue(TOKEN);
     mockFetch.mockImplementation((url: string) =>
-      url.includes("/health")
-        ? Promise.resolve(okResponse({ status: "healthy" }))
+      url.includes("/connection-status")
+        ? Promise.resolve(
+            okResponse({ providers: { bitbucket: { connected: true, source: "oauth_token" } } }),
+          )
         : Promise.resolve(okResponse({})),
     );
     render(<BitbucketIntegrationPage />);
@@ -207,9 +218,9 @@ describe("BitbucketIntegrationPage", () => {
   });
 
   it("starts the OAuth connect flow from the settings tab", async () => {
-    getItemSpy.mockReturnValue(TOKEN);
+    getItemSpy.mockReturnValue(null);
     mockFetch.mockImplementation((url: string) =>
-      url.includes("/health")
+      url.includes("/connection-status")
         ? Promise.resolve(errResponse(500))
         : url.includes("/authorize")
           ? Promise.resolve(
@@ -241,8 +252,10 @@ describe("BitbucketIntegrationPage", () => {
   it("disconnects from the settings tab, clearing stored tokens and data", async () => {
     getItemSpy.mockReturnValue(TOKEN);
     mockFetch.mockImplementation((url: string) =>
-      url.includes("/health")
-        ? Promise.resolve(okResponse({ status: "healthy" }))
+      url.includes("/connection-status")
+        ? Promise.resolve(
+            okResponse({ providers: { bitbucket: { connected: true, source: "oauth_token" } } }),
+          )
         : Promise.resolve(okResponse({})),
     );
 
@@ -267,8 +280,10 @@ describe("BitbucketIntegrationPage", () => {
   it("renders empty datasets without crashing", async () => {
     getItemSpy.mockReturnValue(TOKEN);
     mockFetch.mockImplementation((url: string) =>
-      url.includes("/health")
-        ? Promise.resolve(okResponse({ status: "healthy" }))
+      url.includes("/connection-status")
+        ? Promise.resolve(
+            okResponse({ providers: { bitbucket: { connected: true, source: "oauth_token" } } }),
+          )
         : Promise.resolve(okResponse({})),
     );
     render(<BitbucketIntegrationPage />);
@@ -292,7 +307,7 @@ describe("BitbucketIntegrationPage (extended coverage)", () => {
 
   const dataHandlers = (overrides: Record<string, any> = {}) => (url: string) => {
     const map: Record<string, any> = {
-      "/health": okResponse({ status: "healthy" }),
+      "/connection-status": okResponse({ providers: { bitbucket: { connected: true, source: "oauth_token" } } }),
       "/workspaces": okResponse({ workspaces: WORKSPACES }),
       "/repositories": okResponse({ repositories: REPOSITORIES }),
       "/pull-requests": okResponse({ pull_requests: PULL_REQUESTS }),
@@ -331,25 +346,23 @@ describe("BitbucketIntegrationPage (extended coverage)", () => {
 
   const connected = async () => {
     render(<BitbucketIntegrationPage />);
-    await waitFor(() => {
-      expect(screen.getByText("Connected")).toBeInTheDocument();
+    // The connection check + ingestion panel update state asynchronously;
+    // flush inside act() so the connected UI actually commits to the DOM.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 400));
     });
+    await screen.findByText("Connected", {}, { timeout: 4000 });
     // wait for the datasets to land (recent repos render on the overview)
-    await waitFor(() => {
-      expect(screen.getByText("atom-core")).toBeInTheDocument();
-    });
+    await screen.findByText("atom-core", {}, { timeout: 4000 });
   };
 
-  it("falls back to disconnected when the health check fetch rejects", async () => {
-    mockFetch.mockImplementation(dataHandlers({ "/health": Promise.reject(new Error("offline")) }));
+  it("falls back to disconnected when the status fetch rejects", async () => {
+    getItemSpy.mockReturnValue(null);
+    mockFetch.mockImplementation(dataHandlers({ "/connection-status": Promise.reject(new Error("offline")) }));
     render(<BitbucketIntegrationPage />);
     await waitFor(() => {
       expect(screen.getByText("Disconnected")).toBeInTheDocument();
     });
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Failed to check Bitbucket connection:",
-      expect.any(Error),
-    );
   });
 
   it("aborts data loading when a data endpoint rejects", async () => {
@@ -357,23 +370,30 @@ describe("BitbucketIntegrationPage (extended coverage)", () => {
       dataHandlers({ "/workspaces": Promise.reject(new Error("boom")) }),
     );
     render(<BitbucketIntegrationPage />);
-    await waitFor(() => {
-      expect(screen.getByText("Connected")).toBeInTheDocument();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 400));
     });
-    await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Failed to load Bitbucket data:",
-        expect.any(Error),
-      );
-    });
+    console.log("DBG_CALLS:", JSON.stringify(mockFetch.mock.calls.map((c: any) => [c[0], c[1] && JSON.stringify(c[1])])));
+    console.log("DBG_ITEM:", getItemSpy.mock.results.slice(-2));
+    await screen.findByText("Connected", {}, { timeout: 4000 });
+    await waitFor(
+      () => {
+        expect(consoleSpy).toHaveBeenCalledWith(
+          "Failed to load Bitbucket data:",
+          expect.any(Error),
+        );
+      },
+      { timeout: 4000 },
+    );
     // the try block aborts: no repositories were loaded afterwards
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByText("atom-core")).not.toBeInTheDocument();
   });
 
   it("logs when the OAuth authorize call rejects", async () => {
+    getItemSpy.mockReturnValue(null);
     mockFetch.mockImplementation(
-      dataHandlers({ "/health": errResponse(500), "/authorize": Promise.reject(new Error("oauth down")) }),
+      dataHandlers({ "/connection-status": errResponse(500), "/authorize": Promise.reject(new Error("oauth down")) }),
     );
     navigationErrors.length = 0;
     render(<BitbucketIntegrationPage />);

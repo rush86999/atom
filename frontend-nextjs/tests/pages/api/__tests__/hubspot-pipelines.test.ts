@@ -1,6 +1,7 @@
 const mockFetch = jest.fn();
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/hubspot/pipelines";
 
 const jsonResponse = (ok: boolean, status: number, data: any): any => ({
@@ -21,7 +22,7 @@ describe("pages/api/hubspot/pipelines", () => {
     delete process.env.PYTHON_API_SERVICE_BASE_URL;
   });
 
-  const invoke = async (method = "GET", query: any = {}, body?: any) => {
+  const invoke = async (method: RequestMethod = "GET", query: any = {}, body?: any) => {
     const { req, res } = createMocks({ method, query, body }) as any;
     await handler(req, res);
     return res;

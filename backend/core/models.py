@@ -1399,6 +1399,29 @@ class HITLAction(Base):
     workspace = relationship("Workspace", backref="hitl_actions")
     reviewer = relationship("User", foreign_keys=[reviewed_by], backref="reviewed_hitl_actions")
 
+
+class ActionAutonomyPolicy(Base):
+    """Per-user autonomy policy for a TOPIC of agent actions.
+
+    The owner decides which topics ALWAYS need a human in the loop
+    ("human_always" — the agent may only propose) versus which the agent
+    handles autonomously once its maturity tier allows it
+    ("auto_if_mature" — governance decides per action).
+    """
+    __tablename__ = "action_autonomy_policies"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, nullable=False, index=True)
+    topic = Column(String, nullable=False, index=True)
+    mode = Column(String, nullable=False, default="auto_if_mature")  # human_always | auto_if_mature
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                        onupdate=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        {"sqlite_autoincrement": True},
+    )
+
+
 class ActionProposal(Base):
     """Represents an agent action proposal awaiting user approval (Canvas Workflow)"""
     __tablename__ = "action_proposals"
@@ -1491,6 +1514,13 @@ class BudgetEnforcementMode(str, enum.Enum):
     HARD_STOP = "hard_stop"    # Halt all operations immediately
     APPROVAL = "approval"      # Require admin approval to continue
 
+# Starting confidence for newly created agents. Single source of truth for
+# every creation path (column default, meta-agent spawns, governance
+# auto-provisioning, the /api/agents hire route). Must sit clearly below
+# the INTERN band floor (0.5) — tier is a pure function of confidence, and
+# a 0.5 start made STUDENT→INTERN happen on the first outcome drip.
+NEW_AGENT_CONFIDENCE = 0.35
+
 class AgentRegistry(Base):
     """Registry for AI Agents and their governance state"""
     __tablename__ = "agent_registry"
@@ -1519,7 +1549,11 @@ class AgentRegistry(Base):
     
     # Governance
     status = Column(String, default=AgentStatus.STUDENT.value)
-    confidence_score = Column(Float, default=0.5) # 0.0 to 1.0
+    # New hires start clearly BELOW the INTERN band floor (0.5, see
+    # AgentGovernanceService._update_confidence_score): the old 0.5 default
+    # sat exactly on it, so the first +0.01 outcome drip promoted
+    # STUDENT→INTERN immediately and the student phase was unreachable.
+    confidence_score = Column(Float, default=NEW_AGENT_CONFIDENCE) # 0.0 to 1.0
     required_role_for_autonomy = Column(String, default=UserRole.TEAM_LEAD.value)
     self_healed_count = Column(Integer, default=0)  # Track self-healing recovery
     is_system_agent = Column(Boolean, default=False)  # System agents can use workspace tokens
@@ -4610,15 +4644,30 @@ class AgentTemplate(Base):
     version = Column(String, default="1.0.0")
     price = Column(Float, default=0.0)
 
-    # The actual contents
+    # The actual contents (SERVER-ONLY manifest — installed agents reference
+    # the template and resolve this at execution time via
+    # core.marketplace_runtime)
     configuration = Column(JSONColumn, default={})  # system prompts, constraints
     capabilities = Column(JSONColumn, default=list)  # list of skill IDs
-    canvas_ui_schemas = Column(JSONColumn, default=list)  # UI schemas
-    anonymized_memory_bundle = Column(JSONColumn, default={})  # scrubbed heuristics & operation graphs
+    canvas_ui_schemas = Column(JSONColumn, default=list)  # UI schemas (safe to expose)
+    anonymized_memory_bundle = Column(JSONColumn, default={})  # scrubbed heuristics & operation graphs (SERVER-ONLY)
+
+    # Buyer-tunable surface: keys of `configuration` publishers expose for
+    # per-installation override.
+    tunable_keys = Column(JSONColumn, default=list)
+
+    # Execution guardrails enforced at runtime by core.marketplace_runtime:
+    # {"allowed_tools": [..] | None, "blocked_tools": [..],
+    #  "max_session_minutes": int | None}
+    permission_profile = Column(JSONColumn, default={})
 
     # Marketplace metadata
     is_public = Column(Boolean, default=False)
     is_approved = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)  # kill switch
+    approved_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason = Column(Text, nullable=True)
     rating = Column(Float, default=0.0)
     rating_count = Column(Integer, default=0)
     installs = Column(Integer, default=0)
@@ -4649,6 +4698,11 @@ class AgentInstallation(Base):
 
     installed_version = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
+
+    # Buyer overrides for template.tunable_keys (validated at install/update)
+    tuning_overrides = Column(JSONColumn, default={})
+    # Version the installation was last synced to (update propagation)
+    last_synced_version = Column(String, nullable=True)
 
     installed_at = Column(DateTime(timezone=True), server_default=func.now())
 

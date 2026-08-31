@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from "@/lib/auth-headers";
 import { Plus, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -56,10 +57,14 @@ const BYOKManager = () => {
     const fetchProviders = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/ai/providers', { headers: authHeaders() });
+            const response = await authFetch('/api/ai/providers', { headers: authHeaders() });
             const data = await response.json();
-            if (data.providers) {
-                setProviders(data.providers);
+            // The endpoint wraps its payload in the standard ApiResponse
+            // envelope ({success, data: {providers}}); reading top-level
+            // `providers` left the "Select provider" dropdown empty. Accept both.
+            const payload = data?.data?.providers ? data.data : data;
+            if (payload.providers) {
+                setProviders(payload.providers);
             }
         } catch (error) {
             console.error("Failed to fetch providers:", error);
@@ -90,7 +95,7 @@ const BYOKManager = () => {
 
         try {
             // SECURE: Use POST body instead of query params
-            const response = await fetch(`/api/ai/providers/${selectedProvider}/keys`, {
+            const response = await authFetch(`/api/ai/providers/${selectedProvider}/keys`, {
                 method: 'POST',
                 headers: authHeaders({
                     'Content-Type': 'application/json',
@@ -102,11 +107,12 @@ const BYOKManager = () => {
             });
 
             const data = await response.json();
+            const payload = data?.data?.key_id ? data.data : data;
 
-            if (data.success) {
+            if (payload.success ?? payload.key_id) {
                 toast({
                     title: "API Key added",
-                    description: `Key '${data.key_name}' added for ${selectedProvider}`,
+                    description: `Key added for ${selectedProvider}`,
                     variant: "success",
                     duration: 3000,
                 });
@@ -130,7 +136,7 @@ const BYOKManager = () => {
 
     const handleDeleteKey = async (providerId: string, keyName: string = 'default') => {
         try {
-            const response = await fetch(`/api/ai/providers/${providerId}/keys/${keyName}`, {
+            const response = await authFetch(`/api/ai/providers/${providerId}/keys/${keyName}`, {
                 method: 'DELETE',
                 headers: authHeaders(),
             });

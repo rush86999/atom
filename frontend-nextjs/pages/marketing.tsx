@@ -40,10 +40,10 @@ const MarketingDashboard: React.FC = () => {
             const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
             const res = await fetch("/api/marketing/dashboard/summary", {
                 headers: token ? { "Authorization": `Bearer ${token}` } : {},
-            }).catch(() => null);
+            }).catch((): null => null);
 
             if (res && res.ok) {
-                const data = await res.json().catch(() => null);
+                const data = await res.json().catch((): null => null);
                 if (data) {
                     setSummary(data);
                     return;

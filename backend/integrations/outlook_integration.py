@@ -32,7 +32,7 @@ class OutlookIntegration(MemoryIntegrationMixin):
     async def get_user_info(self) -> Optional[Dict]:
         try:
             endpoint = self._get_user_endpoint()
-            response = requests.get(endpoint, headers=self.get_headers())
+            response = requests.get(endpoint, headers=self.get_headers(), timeout=15)
             if response.status_code == 200:
                 return response.json()
             else:
@@ -45,7 +45,7 @@ class OutlookIntegration(MemoryIntegrationMixin):
     async def list_items(self) -> List[Dict]:
         try:
             endpoint = self._get_list_endpoint()
-            response = requests.get(endpoint, headers=self.get_headers())
+            response = requests.get(endpoint, headers=self.get_headers(), timeout=15)
             if response.status_code == 200:
                 return response.json()
             else:
@@ -58,7 +58,7 @@ class OutlookIntegration(MemoryIntegrationMixin):
     async def create_item(self, item_data: Dict) -> Optional[Dict]:
         try:
             endpoint = self._get_create_endpoint()
-            response = requests.post(endpoint, json=item_data, headers=self.get_headers())
+            response = requests.post(endpoint, json=item_data, headers=self.get_headers(), timeout=15)
             if response.status_code in [200, 201]:
                 return response.json()
             else:
@@ -142,7 +142,7 @@ class OutlookIntegration(MemoryIntegrationMixin):
             # Build endpoint
             endpoint = f"{self.api_endpoint}/v1.0/me/messages?$filter={filter_query}&$top={limit}&$select=id,subject,from,toRecipients,ccRecipients,receivedDateTime,body,sender"
 
-            response = requests.get(endpoint, headers=self.get_headers())
+            response = requests.get(endpoint, headers=self.get_headers(), timeout=15)
 
             if response.status_code == 200:
                 data = response.json()

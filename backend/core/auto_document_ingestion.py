@@ -656,6 +656,27 @@ class AutoDocumentIngestionService:
                 if _upsert_status == "written":
                     chars_ingested = len(text)
                     logger.info(f"Ingested {file_name} ({chars_ingested} chars) from {source}")
+                    # Aligned PG mirror row: id == the vector doc_id (join-key
+                    # bridge). Without it this path's rows are invisible to the
+                    # Knowledge VFS ls/grep and the lexical search leg — the
+                    # Aug 2026 journey trace found 69 connector ingests with 0
+                    # PG rows. Best-effort: never fail the ingest for the mirror.
+                    try:
+                        self._mirror_pg_row(
+                            doc_id=_file_doc_id,
+                            workspace_id=ws_id,
+                            file_name=file_name,
+                            file_path=f"{source}:{file_name}",
+                            file_type=file_ext,
+                            integration_id=source,
+                            file_size_bytes=len(content),
+                            content_preview=text[:500],
+                            external_id=_external_id or f"vector:{_file_doc_id}",
+                            content_hash=_content_hash,
+                            role=str(_meta.get("role")) if _meta.get("role") else None,
+                        )
+                    except Exception as mirror_err:  # noqa: BLE001 — mirror is best-effort
+                        logger.warning(f"PG mirror row skipped for {_file_doc_id}: {mirror_err}")
                 else:
                     return {
                         "status": "skipped",
@@ -972,6 +993,65 @@ class AutoDocumentIngestionService:
         from core.database import SessionLocal
         return SessionLocal()
 
+    def _mirror_pg_row(
+        self,
+        *,
+        doc_id: str,
+        workspace_id: str,
+        file_name: str,
+        file_path: str,
+        file_type: str,
+        integration_id: str,
+        file_size_bytes: int,
+        content_preview: str,
+        external_id: str,
+        content_hash: str,
+        role: Optional[str] = None,
+    ) -> None:
+        """Upsert the IngestedDocument mirror row for a vector-first ingest.
+
+        Keyed on ``id == doc_id`` — the same content-addressed/source-scoped
+        identity used as the LanceDB doc_id — so hybrid search resolves the
+        hit (bridged:true), the Knowledge VFS lists it under
+        ``knowledge/documents/<id>``, and the FTS lexical leg indexes the
+        preview. Idempotent across re-ingests: the identity contract in
+        ``process_file_bytes`` yields a stable doc_id per (source, external_id)
+        or per content hash.
+        """
+        from core.models import IngestedDocument as IngestedDocumentModel
+
+        session = self._freshness_session()
+        try:
+            now = datetime.now(timezone.utc)
+            row = (
+                session.query(IngestedDocumentModel)
+                .filter(IngestedDocumentModel.id == doc_id)
+                .first()
+            )
+            if row is None:
+                row = IngestedDocumentModel(
+                    id=doc_id,
+                    workspace_id=workspace_id or "default",
+                    external_id=external_id,
+                    integration_id=integration_id,
+                )
+                session.add(row)
+            row.file_name = file_name
+            row.file_path = file_path
+            row.file_type = file_type
+            row.integration_id = integration_id
+            row.file_size_bytes = file_size_bytes
+            row.content_preview = content_preview
+            row.source_content_hash = content_hash
+            row.last_verified_at = now
+            row.ingested_at = now
+            row.freshness_status = "fresh"
+            if role:
+                row.role = role
+            session.commit()
+        finally:
+            session.close()
+
     def _persist_freshness_on_ingest(
         self,
         doc: IngestedDocument,
@@ -1014,13 +1094,34 @@ class AutoDocumentIngestionService:
                 )
                 session.add(existing)
             else:
-                # Keep columns in sync with the freshly fetched version.
-                existing.file_name = doc.file_name
-                existing.file_path = doc.file_path
-                existing.file_type = doc.file_type
-                existing.file_size_bytes = doc.file_size_bytes
-                existing.content_preview = doc.content_preview
-                existing.external_modified_at = doc.external_modified_at
+                if existing.id != doc.id:
+                    # Join-key realignment: the caller rewrote the vector row
+                    # under doc.id and deleted the row under existing.id, so
+                    # keeping the old PG id would leave cat/search resolving to
+                    # a deleted vector row and the new one bridged:false.
+                    session.delete(existing)
+                    session.flush()
+                    existing = IngestedDocumentModel(
+                        id=doc.id,
+                        workspace_id=doc.workspace_id,
+                        file_name=doc.file_name,
+                        file_path=doc.file_path,
+                        file_type=doc.file_type,
+                        integration_id=doc.integration_id,
+                        file_size_bytes=doc.file_size_bytes,
+                        content_preview=doc.content_preview,
+                        external_id=doc.external_id,
+                        external_modified_at=doc.external_modified_at,
+                    )
+                    session.add(existing)
+                else:
+                    # Keep columns in sync with the freshly fetched version.
+                    existing.file_name = doc.file_name
+                    existing.file_path = doc.file_path
+                    existing.file_type = doc.file_type
+                    existing.file_size_bytes = doc.file_size_bytes
+                    existing.content_preview = doc.content_preview
+                    existing.external_modified_at = doc.external_modified_at
 
             svc = DocFreshnessService(session, workspace_id=doc.workspace_id)
             svc.mark_on_ingest(

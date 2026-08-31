@@ -1201,17 +1201,16 @@ class TestRecallExperiencesRanking:
         # expA: high confidence (0.95) but LOW similarity (0.2) — irrelevant.
         # expB: lower confidence (0.5) but HIGH similarity (0.95) — relevant.
         # db.search returns similarity-ranked results (expB first).
-        world_model_service.db.search = Mock(return_value=[
-            self._exp_result("exp-relevant", confidence=0.5, score=0.95),
-            self._exp_result("exp-confident", confidence=0.95, score=0.2),
-        ])
-        # Second search call (general knowledge) returns empty.
-        # recall_experiences calls self.db.search twice; configure side_effect.
-        world_model_service.db.search = Mock(side_effect=[
-            [self._exp_result("exp-relevant", confidence=0.5, score=0.95),
-             self._exp_result("exp-confident", confidence=0.95, score=0.2)],
-            [],  # documents search
-        ])
+        # First search leg returns the two experiences; every later leg
+        # (knowledge, documents, …) returns [].
+        calls = {"n": 0}
+        def _search(*a, **k):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return [self._exp_result("exp-relevant", confidence=0.5, score=0.95),
+                        self._exp_result("exp-confident", confidence=0.95, score=0.2)]
+            return []
+        world_model_service.db.search = Mock(side_effect=_search)
 
         result = await world_model_service.recall_experiences(agent, "do something", limit=2)
         experiences = result["experiences"]

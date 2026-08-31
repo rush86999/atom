@@ -58,8 +58,20 @@ def _run_record(result: dict, monkeypatch, db):
         def __init__(self, *_a, **_k):
             pass
 
-        async def record_outcome(self, agent_id, success, **kwargs):
+        async def record_outcome(self, agent_id, success, task_summary=None, **kwargs):
             captured["gov_success"] = success
+            # Mirrors the shared R86c wiring: domain attribution happens
+            # inside AgentGovernanceService.record_outcome (the meta agent
+            # no longer writes the ledger itself — that double-ledgered).
+            if task_summary:
+                from core import domain_attribution as da
+
+                domain = da.resolve_domain(task_summary)
+                if domain:
+                    da.record_domain_outcome(
+                        None, agent_id, domain,
+                        success=success, task_summary=task_summary,
+                    )
 
     def _fake_ledger(db_, agent_id, domain, success, task_summary=None):
         captured["ledger_success"] = success

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useToast } from "@/components/ui/use-toast";
 import AgentCard, { AgentInfo, GraduationProgress } from "@/components/Agents/AgentCard";
-import AgentTerminal from "@/components/Agents/AgentTerminal";
+import AgentTerminal, { LogEntry } from "@/components/Agents/AgentTerminal";
 import { MaturityProgression } from "@/components/Agents/MaturityProgression";
 import MaturityApprovalPanel from "@/components/Agents/MaturityApprovalPanel";
 import { EmployeeOnboardingGuide } from "@/components/Agents/EmployeeOnboardingGuide";
@@ -13,8 +13,10 @@ import { GuidedAgentCreator } from "@/components/Agents/GuidedAgentCreator";
 import { AutomationSuggestionsPanel } from "@/components/Agents/AutomationSuggestionsPanel";
 import { AgentMaturityGuideDialog } from "@/components/Agents/AgentMaturityGuide";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LayoutDashboard, Sparkles, GraduationCap } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { getApiBase } from "@/lib/api-base";
 import {
     Dialog,
     DialogContent,
@@ -31,8 +33,9 @@ import { Brain } from "lucide-react";
 import ReasoningChainViewer from "@/components/ReasoningChainViewer";
 import { useProviderStatus } from "@/hooks/useProviderStatus";
 import { ProviderRequiredBanner } from "@/components/shared/ProviderRequiredBanner";
+import { handleSessionExpired } from "@/lib/auth-headers";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+const API_BASE = getApiBase();
 
 // The backend list payload carries the maturity TIER in `status`
 // (student/intern/supervised/autonomous/paused/...). The card expects
@@ -55,14 +58,24 @@ const extractErrorMessage = (json: any, fallback: string): string => {
     return json?.error?.message || json?.detail || json?.message || fallback;
 };
 
+// Cap the live-log buffer so a chatty agent can't grow page state unbounded.
+const MAX_LOG_LINES = 200;
+
 const AgentsDashboard = () => {
     const router = useRouter();
     const providerStatus = useProviderStatus();
     const [agents, setAgents] = useState<AgentInfo[]>([]);
     const [progressByAgent, setProgressByAgent] = useState<Record<string, GraduationProgress | null>>({});
     const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
-    const [logs, setLogs] = useState<string[]>([]);
+    const [logs, setLogs] = useState<LogEntry[]>([]);
     const { toast } = useToast();
+
+    // The timestamp is fixed at append time so re-renders never rewrite the
+    // history of older lines.
+    const appendLog = useCallback((text: string) => {
+        if (!text) return;
+        setLogs(prev => [...prev, { text, ts: Date.now() }].slice(-MAX_LOG_LINES));
+    }, []);
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -96,7 +109,15 @@ const AgentsDashboard = () => {
         if (lastMessage) {
             if (lastMessage.type === "agent_step_update") {
                 const { agent_id, step } = lastMessage.data || (lastMessage as any).step || lastMessage;
-                if (agent_id === activeAgentId) {
+                // Fleet feed by default: with no agent focused, show EVERY
+                // agent's steps (name-prefixed) — agents broadcast real step
+                // updates from canvas chats, training and runs, and the old
+                // activeAgentId-only filter left the terminal permanently
+                // empty ("0 events") because that id is only set by the Run
+                // dialog on this page. Focused view stays for your own run.
+                const watching = activeAgentId === null || agent_id === activeAgentId;
+                if (watching) {
+                    const name = agents.find(a => a.id === agent_id)?.name || String(agent_id || "").slice(0, 8) || "agent";
                     const stepText = step.thought || step.output || JSON.stringify(step.action);
                     if (stepText) {
                         let prefix = "";
@@ -104,25 +125,26 @@ const AgentsDashboard = () => {
                         else if (step.action) prefix = "Action: ";
                         else if (step.output) prefix = "Observation: ";
 
-                        setLogs(prev => [...prev, `${prefix}${stepText}`]);
+                        const tag = activeAgentId === null ? `[${name}] ` : "";
+                        appendLog(`${tag}${prefix}${stepText}`);
                         if (step.final_answer) {
-                            setLogs(prev => [...prev, `Final Answer: ${step.final_answer}`]);
+                            appendLog(`${tag}Final Answer: ${step.final_answer}`);
                         }
                     }
                 }
             } else if (lastMessage.type === "agent_status_change") {
                 const { agent_id, status, error } = lastMessage.data || lastMessage as any;
-                if (agent_id === activeAgentId) {
-                    setLogs(prev => [...prev, `Status Changed: ${status}${error ? ` - Error: ${error}` : ''}`]);
-                    if (status === "success" || status === "failed") {
-                        // Optionally clear active agent after delay or keep for logs
-                    }
+                const watching = activeAgentId === null || agent_id === activeAgentId;
+                if (watching) {
+                    const name = agents.find(a => a.id === agent_id)?.name || "agent";
+                    const tag = activeAgentId === null ? `[${name}] ` : "";
+                    appendLog(`${tag}Status Changed: ${status}${error ? ` - Error: ${error}` : ''}`);
                 }
                 // Refresh list to update badges
                 fetchAgents();
             }
         }
-    }, [lastMessage, activeAgentId]);
+    }, [lastMessage, activeAgentId, appendLog, agents]);
 
     // Fetch Agents
     const fetchAgents = async () => {
@@ -135,7 +157,6 @@ const AgentsDashboard = () => {
 
         try {
             setError(null);
-            console.log("Fetching agents with token:", token ? token.substring(0, 10) + "..." : "NONE");
             // Direct backend connection to bypass proxy issues
             const res = await fetch(`${API_BASE}/api/agents/`, {
                 headers: {
@@ -151,9 +172,10 @@ const AgentsDashboard = () => {
                 const data = Array.isArray(json) ? json : (json.data ?? []);
                 setAgents(data.map(normalizeAgent));
             } else if (res.status === 401 || res.status === 403) {
-                setError("Unauthorized: Session expired. Redirecting...");
-                localStorage.removeItem('auth_token'); // Clear invalid token
-                router.push('/login');
+                // Token no longer valid (expired/revoked) — clear it and go
+                // to login, same behavior as the axios 401 interceptor.
+                setError("Session expired. Redirecting to login...");
+                handleSessionExpired();
             } else {
                 // Surface the backend's structured error (W45): the list
                 // endpoint now returns {error: {message}} on failure so the
@@ -196,6 +218,10 @@ const AgentsDashboard = () => {
                     const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(a.id)}/graduation-progress`, {
                         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                     });
+                    if (res.status === 401 || res.status === 403) {
+                        handleSessionExpired();
+                        return;
+                    }
                     if (res.ok) {
                         const json = await res.json();
                         map[a.id] = (json?.data ?? json) as GraduationProgress;
@@ -225,7 +251,10 @@ const AgentsDashboard = () => {
 
         setIsRunning(true);
         setActiveAgentId(selectedAgentId);
-        setLogs([`Initializing agent: ${selectedAgentId}...`, "Connecting to real-time stream...", `Instructions: ${runInstructions || "Default behavior"}`]);
+        setLogs([]);
+        appendLog(`Initializing agent: ${selectedAgentId}...`);
+        appendLog("Connecting to real-time stream...");
+        appendLog(`Instructions: ${runInstructions || "Default behavior"}`);
 
         try {
             const res = await fetch(`${API_BASE}/api/agents/${selectedAgentId}/run/`, {
@@ -249,10 +278,14 @@ const AgentsDashboard = () => {
                 });
                 setIsRunDialogOpen(false); // Close dialog on success
             } else {
+                if (res.status === 401 || res.status === 403) {
+                    handleSessionExpired();
+                    return;
+                }
                 const err = await res.json();
                 const message = extractErrorMessage(err, 'Unknown error');
                 toast({ title: "Failed to start", description: message, variant: "error" });
-                setLogs(prev => [...prev, `Error: ${message}`]);
+                appendLog(`Error: ${message}`);
             }
         } catch (e) {
             toast({ title: "Error", description: "Network error", variant: "error" });
@@ -277,9 +310,13 @@ const AgentsDashboard = () => {
 
             if (res.ok) {
                 toast({ title: "Agent Stopped", description: `Agent ${id} termination requested.` });
-                setLogs(prev => [...prev, "Termination requested by user..."]);
+                appendLog("Termination requested by user...");
                 fetchAgents();
             } else {
+                if (res.status === 401 || res.status === 403) {
+                    handleSessionExpired();
+                    return;
+                }
                 const err = await res.json();
                 toast({ title: "Failed to stop", description: extractErrorMessage(err, 'Unknown error'), variant: "error" });
             }
@@ -313,6 +350,35 @@ const AgentsDashboard = () => {
         setIsReasoningModalOpen(true);
     };
 
+    // Delete is destructive and cascades server-side (episodes, audits,
+    // learning rows for that agent), so it gets an explicit name-bearing
+    // confirm — and a visible reason when the backend refuses (running
+    // tasks, protected main agent).
+    const handleDelete = async (id: string, name: string) => {
+        if (!window.confirm(`Delete agent "${name}"? Its episodes, training history and audit rows are removed too. This cannot be undone.`)) return;
+        try {
+            const token = localStorage.getItem('auth_token');
+            const res = await fetch(`${API_BASE}/api/agents/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (res.ok) {
+                await fetchAgents();
+            } else if (res.status === 401 || res.status === 403) {
+                handleSessionExpired();
+            } else {
+                let detail = res.statusText || "Unknown error";
+                try {
+                    const body = await res.json();
+                    detail = body?.error?.message || body?.message || body?.detail || detail;
+                } catch { /* keep statusText */ }
+                setError(`Could not delete "${name}": ${detail}`);
+            }
+        } catch (e) {
+            setError(`Could not delete "${name}": ${e instanceof Error ? e.message : String(e)}`);
+        }
+    };
+
     const handleStepFeedback = async (stepId: string, score: number, comment?: string) => {
         try {
             // POST to the correct reasoning-step feedback endpoint
@@ -341,6 +407,10 @@ const AgentsDashboard = () => {
                 })
             });
 
+            if (res.status === 401 || res.status === 403) {
+                handleSessionExpired();
+                return;
+            }
             if (res.ok) {
                 toast({ title: "Feedback Recorded", description: "The agent will learn from this correction." });
             }
@@ -370,6 +440,10 @@ const AgentsDashboard = () => {
                 setIsEditDialogOpen(false);
                 fetchAgents();
             } else {
+                if (res.status === 401 || res.status === 403) {
+                    handleSessionExpired();
+                    return;
+                }
                 const err = await res.json();
                 toast({ title: "Failed to update", description: extractErrorMessage(err, 'Unknown error'), variant: "error" });
             }
@@ -482,12 +556,17 @@ const AgentsDashboard = () => {
                                     onChat={handleChat}
                                     onEdit={handleEdit}
                                     onViewReasoning={handleViewReasoning}
+                                    onDelete={handleDelete}
                                 />
                             ))}
                         </div>
                     </div>
 
-                    {/* Terminal Panel */}
+                    {/* Live activity column: the terminal is the point of this
+                        column, so it goes first. Maturity, approvals, and
+                        automation suggestions are supporting panels — tabs
+                        keep them reachable without pushing the logs below
+                        the fold. */}
                     <div className="space-y-4">
                         <div className="flex justify-between items-center">
                             <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Live Logs</h2>
@@ -495,47 +574,45 @@ const AgentsDashboard = () => {
                                 {isConnected ? "Live Connection" : "Offline"}
                             </Badge>
                         </div>
-                        <MaturityProgression
-                            currentLevel={activeAgentMaturity}
-                            className="mb-4"
-                        />
-                        <div className="mb-4">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full"
-                                data-testid="active-agent-maturity-guide-button"
-                                disabled={!activeAgentId}
-                                onClick={() => setIsMaturityGuideOpen(true)}
-                            >
-                                <GraduationCap className="mr-1.5 h-4 w-4" />
-                                When will {activeAgentName === "Terminal" ? "this agent" : activeAgentName} be useful?
-                            </Button>
-                        </div>
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mb-4">
-                            <AutomationSuggestionsPanel
-                                onCreateAgent={(goal) => {
-                                    setGuidedPresetGoal(goal);
-                                    setIsGuidedCreatorOpen(true);
-                                }}
-                            />
-                        </div>
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mb-4">
-                            <MaturityApprovalPanel />
-                        </div>
                         <AgentTerminal
                             agentName={activeAgentName}
                             logs={logs}
                             status={activeAgentStatus}
-                            activeTools={['outlook', 'zoho', 'whatsapp', 'excel']} // For Demo
                         />
-
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mt-4">
-                            <h3 className="font-semibold mb-2 text-sm text-gray-700 dark:text-gray-100">System Capability</h3>
-                            <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-100 dark:border-blue-800">
-                                WebSocket stream active. Real-time updates from GenericAgent ReAct loop.
-                            </div>
-                        </div>
+                        <Tabs defaultValue="career">
+                            <TabsList className="w-full grid grid-cols-3">
+                                <TabsTrigger value="career">Career path</TabsTrigger>
+                                <TabsTrigger value="approvals">Approvals</TabsTrigger>
+                                <TabsTrigger value="automate">Automate</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="career" className="mt-3 space-y-3">
+                                <MaturityProgression
+                                    currentLevel={activeAgentMaturity}
+                                />
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full"
+                                    data-testid="active-agent-maturity-guide-button"
+                                    disabled={!activeAgentId}
+                                    onClick={() => setIsMaturityGuideOpen(true)}
+                                >
+                                    <GraduationCap className="mr-1.5 h-4 w-4" />
+                                    When will {activeAgentName === "Terminal" ? "this agent" : activeAgentName} be useful?
+                                </Button>
+                            </TabsContent>
+                            <TabsContent value="approvals" className="mt-3 bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm">
+                                <MaturityApprovalPanel onChanged={fetchAgents} />
+                            </TabsContent>
+                            <TabsContent value="automate" className="mt-3 bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm">
+                                <AutomationSuggestionsPanel
+                                    onCreateAgent={(goal) => {
+                                        setGuidedPresetGoal(goal);
+                                        setIsGuidedCreatorOpen(true);
+                                    }}
+                                />
+                            </TabsContent>
+                        </Tabs>
                     </div>
                 </div>
             </div>
@@ -573,7 +650,7 @@ const AgentsDashboard = () => {
                             placeholder="e.g. Reconcile inventory for SKU-123 and SKU-999..."
                             value={runInstructions}
                             onChange={(e) => setRunInstructions(e.target.value)}
-                            className="min-h-[100px]"
+                            className="min-h-[100px] text-base"
                         />
                         {/* data-testid="run-dialog-guidance" */}
                         <div data-testid="run-dialog-guidance" className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 rounded p-3 space-y-1">

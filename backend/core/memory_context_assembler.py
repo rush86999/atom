@@ -35,6 +35,8 @@ import re
 import time
 from typing import Any, Dict, List, Optional
 
+from core.agent_file_context import detect_file_mentions
+
 logger = logging.getLogger(__name__)
 
 ENV_FLAG = "MEMORY_CONTEXT_ASSEMBLY"
@@ -156,7 +158,9 @@ _INVENTORY_RE = re.compile(
     r"[^.?!]*?(ingest|have|got|know|stored)|"
     r"what have you (ingested|been fed|stored|learned)|"
     r"\binventory\b|data sources|list .{0,20}(sources|records|data)|"
-    r"how many (leads|records|files|documents|emails))",
+    r"how many (leads|records|files|documents|emails)|"
+    r"\bontology\b|\bknowledge graph\b|\brelationships?\b|"
+    r"what (entities|objects) (do you|have you))",
     re.IGNORECASE,
 )
 
@@ -245,12 +249,145 @@ async def _inventory_leg(workspace_id: str) -> Optional[str]:
                 )
             except Exception:
                 pass
+            # ingested documents + how to browse them. Without this pointer
+            # agents answer "what documents do you have?" from thin air even
+            # when the Knowledge VFS serves every one of them (Aug 2026).
+            try:
+                doc_table = handler.db.open_table("documents")
+                doc_total = doc_table.count_rows()
+                if doc_total:
+                    lines.append(
+                        f"- documents (ingested files): {doc_total} — full text is "
+                        "browsable: documents.ls('knowledge/documents') to list, "
+                        "documents.cat('knowledge/documents/<id>/content.lines') "
+                        "to read, documents.grep(pattern, 'knowledge') to search"
+                    )
+            except Exception:
+                pass
             return "\n".join(lines) if lines else None
         except Exception as e:
             logger.debug(f"inventory leg failed: {e}")
             return None
 
     return await asyncio.to_thread(_counts)
+
+
+async def _ontology_leg(workspace_id: str, tenant_id: str) -> Optional[str]:
+    """Ontology inventory: the object types and relationship types the graph
+    learned from ingestion, with counts and recent examples. This is what
+    "what have you learned?" needs beyond raw record counts — it lets the
+    agent describe its world model during training, instruction and
+    discussion. Runs in a thread (sync DB I/O)."""
+
+    def _summary() -> Optional[str]:
+        from sqlalchemy import func
+
+        from core.database import SessionLocal
+        from core.models import GraphEdge, GraphNode
+
+        db = SessionLocal()
+        try:
+            lines: List[str] = []
+
+            # Object (entity) types learned
+            node_total = (
+                db.query(func.count(GraphNode.id))
+                .filter(GraphNode.workspace_id == workspace_id)
+                .scalar()
+            ) or 0
+            if node_total:
+                type_rows = (
+                    db.query(GraphNode.type, func.count(GraphNode.id))
+                    .filter(GraphNode.workspace_id == workspace_id)
+                    .group_by(GraphNode.type)
+                    .order_by(func.count(GraphNode.id).desc())
+                    .limit(10)
+                    .all()
+                )
+                breakdown = ", ".join(f"{t} {c}" for t, c in type_rows)
+                lines.append(f"objects: {node_total} total ({breakdown})")
+                recent = (
+                    db.query(GraphNode.name, GraphNode.type)
+                    .filter(GraphNode.workspace_id == workspace_id)
+                    .order_by(GraphNode.created_at.desc())
+                    .limit(5)
+                    .all()
+                )
+                if recent:
+                    ex = ", ".join(f"{n} ({t})" for n, t in recent)
+                    lines.append(f"recent objects: {ex}")
+
+            # Relationship types learned (bi-temporal: live facts only)
+            live = [
+                GraphEdge.workspace_id == workspace_id,
+                GraphEdge.invalid_at.is_(None),
+            ]
+            edge_total = (
+                db.query(func.count(GraphEdge.id)).filter(*live).scalar()
+            ) or 0
+            if edge_total:
+                rel_rows = (
+                    db.query(GraphEdge.relationship_type, func.count(GraphEdge.id))
+                    .filter(*live)
+                    .group_by(GraphEdge.relationship_type)
+                    .order_by(func.count(GraphEdge.id).desc())
+                    .limit(10)
+                    .all()
+                )
+                breakdown = ", ".join(f"{t} {c}" for t, c in rel_rows)
+                lines.append(f"relationships: {edge_total} total ({breakdown})")
+                src = db.query(GraphNode).filter(
+                    GraphNode.workspace_id == workspace_id
+                ).subquery()
+                tgt = db.query(GraphNode).filter(
+                    GraphNode.workspace_id == workspace_id
+                ).subquery()
+                recent = (
+                    db.query(
+                        src.c.name.label("s"),
+                        GraphEdge.relationship_type.label("r"),
+                        tgt.c.name.label("o"),
+                    )
+                    .join(src, GraphEdge.source_node_id == src.c.id)
+                    .join(tgt, GraphEdge.target_node_id == tgt.c.id)
+                    .filter(*live)
+                    .order_by(GraphEdge.created_at.desc())
+                    .limit(5)
+                    .all()
+                )
+                if recent:
+                    ex = "; ".join(f"{s} -[{r}]-> {o}" for s, r, o in recent)
+                    lines.append(f"recent relationships: {ex}")
+
+            return "\n".join(lines) if lines else None
+        except Exception as e:
+            logger.debug(f"ontology leg failed: {e}")
+            return None
+        finally:
+            db.close()
+
+    return await asyncio.to_thread(_summary)
+
+
+async def _file_mention_leg(message: str, workspace_id: str) -> Optional[str]:
+    """The user mentioned a specific file ("check the acme_invoices.xlsx
+    data") — report whether data from that file is actually available from
+    ingestion, with samples, so the conversation can discuss real contents
+    instead of hallucinating them. Runs in a thread (sync LanceDB I/O)."""
+    from core.agent_file_context import build_file_block, lookup_file_records
+
+    mentions = detect_file_mentions(message)
+    if not mentions:
+        return None
+
+    def _build() -> Optional[str]:
+        parts: List[str] = []
+        for filename in mentions[:3]:
+            lookup = lookup_file_records(workspace_id, filename)
+            parts.append(build_file_block(filename, lookup))
+        return "\n\n".join(parts)
+
+    return await asyncio.to_thread(_build)
 
 
 
@@ -595,13 +732,33 @@ async def assemble_memory_context(
                     break
 
         blocks: List[str] = []
-        # Inventory queries ("what data have you ingested?") need live counts,
-        # not the top-k semantically-similar rows the vector legs return.
+        # Inventory queries ("what data have you ingested?", "what have you
+        # learned?") need live counts, not the top-k semantically-similar rows
+        # the vector legs return. Raw records AND the learned ontology
+        # (object/relationship types) both ground the answer.
         if _is_inventory_query(message):
-            inventory = await _safe(_inventory_leg(workspace_id), "inventory")
+            inventory, ontology = await asyncio.gather(
+                _safe(_inventory_leg(workspace_id), "inventory"),
+                _safe(_ontology_leg(workspace_id, tenant_id), "ontology"),
+            )
             if inventory:
                 blocks.append(
                     "MEMORY INVENTORY (live counts of everything ingested):\n" + inventory
+                )
+            if ontology:
+                blocks.append(
+                    "ONTOLOGY OBJECTS & RELATIONSHIPS (learned from ingestion — "
+                    "the agent's world model):\n" + ontology
+                )
+        # The user referred to a specific file — ground the chat in what was
+        # actually ingested from it (availability + samples).
+        if detect_file_mentions(message):
+            file_block = await _safe(
+                _file_mention_leg(message, workspace_id), "file-mention"
+            )
+            if file_block:
+                blocks.append(
+                    "MENTIONED FILE — DATA AVAILABILITY:\n" + file_block
                 )
         if graph_ctx:
             blocks.append("KNOWLEDGE GRAPH CONTEXT:\n" + graph_ctx)
@@ -621,13 +778,21 @@ async def assemble_memory_context(
         if not blocks:
             return None
 
-        body = "\n\n".join(blocks)
-        if len(body) > TOTAL_CHAR_BUDGET:
-            body = body[:TOTAL_CHAR_BUDGET] + "…"
-        return (
-            "RELEVANT MEMORY (auto-retrieved; may be incomplete — verify before "
-            "acting on specifics):\n\n" + body
+        header = (
+            "RELEVANT MEMORY (auto-retrieved background from ingested data — NOT "
+            "from this conversation; may be incomplete or stale. When the user "
+            "refers to something said in this conversation, the transcript "
+            "always takes precedence over these snippets. Verify before acting "
+            "on specifics):\n\n"
         )
+        body = "\n\n".join(blocks)
+        # The header rides inside the budget: trimming only the body and
+        # prepending the ~280-char preamble afterwards made the final block
+        # exceed TOTAL_CHAR_BUDGET on every saturated assembly.
+        body_budget = TOTAL_CHAR_BUDGET - len(header)
+        if len(body) > body_budget:
+            body = body[:body_budget] + "…"
+        return header + body
     except Exception as e:
         logger.info(f"memory assembler: assembly failed cleanly: {e}")
         return None

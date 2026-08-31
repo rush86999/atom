@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { getApiBase } from "@/lib/api-base";
 import { useSession } from "next-auth/react";
 
 interface WebSocketMessage {
@@ -6,6 +7,13 @@ interface WebSocketMessage {
     data?: any;
     workspace_id?: string;
     timestamp?: string;
+    // Flat fields some emitters broadcast without the `data` wrapper
+    // (e.g. agent_routes task streaming sends agent_id/step at top level).
+    agent_id?: string;
+    status?: string;
+    session_id?: string;
+    execution_id?: string;
+    step?: any;
 }
 
 interface UseWebSocketOptions {
@@ -56,11 +64,22 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     // Use deep comparison key for channels array to avoid ref instability
     const channelKey = JSON.stringify(options.initialChannels || []);
 
-    // Derive the default WebSocket host from NEXT_PUBLIC_API_URL so the client
-    // talks to the same backend the REST API uses (and respects wss in prod).
+    // Derive the default WebSocket host so the client talks to the same
+    // backend the REST API uses. MUST mirror lib/api.ts's fallback chain:
+    // reading NEXT_PUBLIC_API_URL alone left wsBase empty whenever that one
+    // var wasn't inlined into the build, and new WebSocket("/ws?...") throws
+    // a SyntaxError inside the connect effect — the socket then silently
+    // never existed (badge stuck on "Offline", live logs dead) while REST
+    // kept working via its PYTHON_BACKEND_URL fallback.
     const resolveWsBase = (): string => {
-        const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-        return apiBase.replace(/^http/, "ws"); // http:// -> ws://, https:// -> wss://
+        // Shared resolver (lib/api-base.ts) — env first, dev backend port.
+        // An EMPTY base is never valid for WebSocket (a relative URL throws
+        // SyntaxError), so same-origin deployments resolve from location.
+        let base = getApiBase();
+        if (!base && typeof window !== "undefined") {
+            base = window.location.origin;
+        }
+        return base.replace(/^http/, "ws"); // http:// -> ws://, https:// -> wss://
     };
 
     const connect = useCallback(() => {

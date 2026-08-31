@@ -640,7 +640,7 @@ class TestAtomMetaAgentCoverageExtend:
     def test_core_tools_names_constant(self):
         """Cover CORE_TOOLS_NAMES constant definition."""
         assert isinstance(AtomMetaAgent.CORE_TOOLS_NAMES, list)
-        assert len(AtomMetaAgent.CORE_TOOLS_NAMES) == 23
+        assert len(AtomMetaAgent.CORE_TOOLS_NAMES) == 28
         # Verify no duplicates
         assert len(AtomMetaAgent.CORE_TOOLS_NAMES) == len(set(AtomMetaAgent.CORE_TOOLS_NAMES))
 

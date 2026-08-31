@@ -149,6 +149,32 @@ def reset_document_ingestion_singleton():
     adi_module._doc_ingestion_service = original_instance
 
 
+@pytest.fixture(autouse=True)
+def isolated_ingestion_db(monkeypatch):
+    """Hermetic DB boundary.
+
+    The service's freshness/mirror helpers persist through
+    ``core.database.SessionLocal`` — without this swap those writes (PG
+    mirror rows, freshness stamps, deletions) land in the real dev database
+    (Aug 2026 journey trace: test rows leaked into data/atom.db).
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    import core.database as core_db
+    from core.database import Base
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(core_db, "SessionLocal", sessionmaker(bind=engine))
+    yield
+
+
 class TestDocumentParser:
     """Test DocumentParser class."""
 

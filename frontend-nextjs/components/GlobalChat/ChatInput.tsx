@@ -50,7 +50,7 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask ATOM to schedule meetings, send emails..."
-                    className="min-h-[44px] max-h-[120px] resize-none pr-36 py-3"
+                    className="min-h-[52px] max-h-[160px] resize-none px-4 py-3 pr-36 text-base"
                     disabled={isLoading}
                 />
 
@@ -66,7 +66,7 @@ export function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
                         size="icon"
                         onClick={handleSend}
                         disabled={!input.trim() || isLoading}
-                        className="h-8 w-8 shrink-0"
+                        className="h-9 w-9 shrink-0"
                     >
                         {isLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin" />

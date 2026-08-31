@@ -9,6 +9,7 @@ interface TooltipProviderProps {
 
 interface TooltipProps {
     children: React.ReactNode
+    delayDuration?: number
 }
 
 interface TooltipTriggerProps {
@@ -19,6 +20,7 @@ interface TooltipTriggerProps {
 interface TooltipContentProps extends React.HTMLAttributes<HTMLDivElement> {
     children: React.ReactNode
     sideOffset?: number
+    side?: "top" | "right" | "bottom" | "left"
 }
 
 const TooltipContext = React.createContext<{ open: boolean; setOpen: (open: boolean) => void } | null>(null)

@@ -58,6 +58,16 @@ def svc():
     return StudentTrainingService(Mock())
 
 
+@pytest.fixture(autouse=True)
+def _virgin_deployment(monkeypatch):
+    """These suites mock the whole db and sequence query-chain returns;
+    the mentor bootstrap's ledger pre-check would consume one. Pin it to
+    "virgin deployment" so the meta-agent bootstrap behaves as before."""
+    monkeypatch.setattr(
+        StudentTrainingService, "_meta_has_any_domain_record", lambda self: False
+    )
+
+
 class TestTrainingOutcome:
     def test_outcome_attrs(self):
         outcome = TrainingOutcome(

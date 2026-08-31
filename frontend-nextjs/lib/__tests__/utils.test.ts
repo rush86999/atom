@@ -124,8 +124,8 @@ describe('cn() - classnames utility', () => {
 
   describe('real-world use cases', () => {
     it('should handle button component classes', () => {
-      const variant = 'primary';
-      const size = 'lg';
+      const variant: string = 'primary';
+      const size: string = 'lg';
       const className = 'custom-class';
 
       const result = cn(

@@ -56,7 +56,9 @@ interface MaturityProgressionProps {
 }
 
 export function MaturityProgression({ currentLevel, className }: MaturityProgressionProps) {
-    const currentIndex = TIERS.findIndex(t => t.id === currentLevel)
+    // Unknown levels (e.g. a paused/legacy status leaking into the prop)
+    // fall back to the first tier instead of indexing TIERS[-1] and crashing.
+    const currentIndex = Math.max(0, TIERS.findIndex(t => t.id === currentLevel))
 
     return (
         <div className={cn("p-6 rounded-2xl bg-white border border-slate-100 shadow-sm", className)}>

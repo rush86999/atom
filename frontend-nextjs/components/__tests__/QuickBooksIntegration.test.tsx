@@ -31,7 +31,7 @@ const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 // the invoice/bill create dialogs can render and be interacted with
 // (trigger -> open content -> click item calls onValueChange).
 jest.mock('@/components/ui/select', () => {
-  const { createContext, useContext, useState } = jest.requireActual('react');
+  const { createContext, useContext, useState } = jest.requireActual('react') as typeof import('react');
   const SelectCtx = createContext<any>(null);
 
   const Select = ({ value, onValueChange, children }: any) => {
@@ -79,8 +79,11 @@ jest.mock('@/components/ui/select', () => {
 });
 
 const qbHandlers = [
-  rest.get('/api/integrations/quickbooks/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ providers: { quickbooks: { connected: true, source: 'user_connection' } } })
+    );
   }),
 
   rest.post('/api/integrations/quickbooks/company', (req, res, ctx) => {
@@ -324,7 +327,7 @@ const qbHandlers = [
 
 const setDisconnected = () => {
   server.use(
-    rest.get('/api/integrations/quickbooks/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(404));
     })
   );
@@ -343,9 +346,10 @@ describe('QuickBooksIntegration', () => {
   beforeAll(async () => {
     // MSW cold-start warm-up: the first intercepted request in a fresh worker
     // process can take >1s to resolve through the interceptor pipeline, which
-    // races the component's mount-time health check. Prime it with a
-    // throwaway request (handled by the global handlers.ts /health handler).
-    await fetch('/api/integrations/quickbooks/health');
+    // races the component's mount-time connection check. Prime it with a
+    // throwaway request (handled by the global handlers.ts /api/health
+    // handler — at this point the per-file qbHandlers aren't registered yet).
+    await fetch('/api/health');
   });
 
   beforeEach(() => {
@@ -479,7 +483,7 @@ describe('QuickBooksIntegration', () => {
   // Test 9: handles connection error
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/quickbooks/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500));
       })
     );
@@ -505,8 +509,10 @@ describe('QuickBooksIntegration', () => {
   // Test 11: handles health check network failure
   test('handles health check network failure', async () => {
     server.use(
-      rest.get('/api/integrations/quickbooks/health', (req, res, ctx) => {
-        return res(ctx.networkError('boom'));
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+        // msw 1.x has no ctx.networkError; MSW turns the resulting handler
+        // exception into a network error, so keep calling through `as any`.
+        return res((ctx as any).networkError('boom'));
       })
     );
 
@@ -894,7 +900,9 @@ describe('QuickBooksIntegration', () => {
   test('create customer network failure shows an error toast', async () => {
     server.use(
       rest.post('/api/integrations/quickbooks/customers/create', (req, res, ctx) => {
-        return res(ctx.networkError('boom'));
+        // msw 1.x has no ctx.networkError; MSW turns the resulting handler
+        // exception into a network error, so keep calling through `as any`.
+        return res((ctx as any).networkError('boom'));
       })
     );
 
@@ -923,7 +931,9 @@ describe('QuickBooksIntegration', () => {
   test('create invoice network failure shows an error toast', async () => {
     server.use(
       rest.post('/api/integrations/quickbooks/invoices/create', (req, res, ctx) => {
-        return res(ctx.networkError('boom'));
+        // msw 1.x has no ctx.networkError; MSW turns the resulting handler
+        // exception into a network error, so keep calling through `as any`.
+        return res((ctx as any).networkError('boom'));
       })
     );
 
@@ -1038,7 +1048,9 @@ describe('QuickBooksIntegration', () => {
   test('create bill network failure shows an error toast', async () => {
     server.use(
       rest.post('/api/integrations/quickbooks/bills/create', (req, res, ctx) => {
-        return res(ctx.networkError('boom'));
+        // msw 1.x has no ctx.networkError; MSW turns the resulting handler
+        // exception into a network error, so keep calling through `as any`.
+        return res((ctx as any).networkError('boom'));
       })
     );
 

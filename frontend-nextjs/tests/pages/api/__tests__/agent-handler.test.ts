@@ -21,11 +21,11 @@ describe("pages/api/agent/handler", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     clearGlobals();
-    process.env.NODE_ENV = "test";
+    (process.env as any).NODE_ENV = "test";
   });
 
   afterAll(() => {
-    process.env.NODE_ENV = originalNodeEnv;
+    (process.env as any).NODE_ENV = originalNodeEnv;
     clearGlobals();
   });
 
@@ -70,7 +70,7 @@ describe("pages/api/agent/handler", () => {
 
     it("falls back to development user in development mode", () => {
       const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
       expect(getCurrentUserId()).toBe("dev_postgraphile_user_001");
       expect(warnSpy).toHaveBeenCalled();
       warnSpy.mockRestore();
@@ -84,13 +84,13 @@ describe("pages/api/agent/handler", () => {
     });
 
     it("returns global postgraphile userId in production", () => {
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
       (global as any).__postgraphile = { userId: "prod-user-5" };
       expect(getCurrentUserId()).toBe("prod-user-5");
     });
 
     it("throws in production when no authenticated user exists", () => {
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
       expect(() => getCurrentUserId()).toThrow(
         "User authentication required via PostGraphile JWT/session context",
       );

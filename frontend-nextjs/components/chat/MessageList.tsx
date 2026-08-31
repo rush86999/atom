@@ -18,6 +18,7 @@ interface MessageListProps {
     handleActionClick: (action: any) => void;
     handleFeedback: (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => Promise<void>;
     handleRegenerate?: (messageId: string) => void;
+    handleForkFromHere?: (messageId: string) => void;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -30,6 +31,7 @@ export const MessageList: React.FC<MessageListProps> = ({
     handleActionClick,
     handleFeedback,
     handleRegenerate,
+    handleForkFromHere,
 }) => {
     return (
         <ScrollArea className="flex-1 p-4" data-testid="message-list">
@@ -41,6 +43,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                         onActionClick={handleActionClick}
                         onFeedback={handleFeedback}
                         onRegenerate={handleRegenerate}
+                        onFork={handleForkFromHere}
                     />
                 ))}
 

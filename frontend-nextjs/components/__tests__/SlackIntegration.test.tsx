@@ -102,8 +102,8 @@ const mockSlackUsers = [
 
 // Handlers that put the component into its connected state: the health check
 // must succeed and the workspace fetch must resolve for the main UI to render.
-const healthOkHandler = rest.get('*/api/integrations/slack/health', (req, res, ctx) => {
-  return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+const connectedStatusHandler = rest.get('*/api/integrations/connection-status', (req, res, ctx) => {
+  return res(ctx.status(200), ctx.json({ providers: { slack: { connected: true, source: 'user_connection' } } }));
 });
 const workspaceOkHandler = rest.post('*/api/integrations/slack/workspace', (req, res, ctx) => {
   return res(
@@ -152,7 +152,7 @@ describe('SlackIntegration Component', () => {
       // The shared MSW server answers health with 200, so force a failing
       // health check to put the component into the disconnected state
       server.use(
-        rest.get('*/api/integrations/slack/health', (req, res, ctx) => {
+        rest.get('*/api/integrations/connection-status', (req, res, ctx) => {
           return res(ctx.status(503), ctx.json({ error: 'unhealthy' }));
         })
       );
@@ -173,7 +173,7 @@ describe('SlackIntegration Component', () => {
       // The shared MSW server answers health with 200 — force the
       // disconnected state so the connect form (and button) render
       server.use(
-        rest.get('*/api/integrations/slack/health', (req, res, ctx) => {
+        rest.get('*/api/integrations/connection-status', (req, res, ctx) => {
           return res(ctx.status(503), ctx.json({ error: 'unhealthy' }));
         })
       );
@@ -201,7 +201,7 @@ describe('SlackIntegration Component', () => {
     });
 
     it('shows connected state when health check succeeds', async () => {
-      server.use(healthOkHandler, workspaceOkHandler);
+      server.use(connectedStatusHandler, workspaceOkHandler);
 
       renderWithProviders(<SlackIntegration />);
 
@@ -216,7 +216,7 @@ describe('SlackIntegration Component', () => {
 
     it('shows connect form when health check fails', async () => {
       server.use(
-        rest.get('*/api/integrations/slack/health', (req, res, ctx) => {
+        rest.get('*/api/integrations/connection-status', (req, res, ctx) => {
           return res(ctx.status(500), ctx.json({ error: 'unhealthy' }));
         })
       );
@@ -231,7 +231,7 @@ describe('SlackIntegration Component', () => {
 
   describe('Channel Management', () => {
     it('fetches and displays channels after connection', async () => {
-      server.use(healthOkHandler, workspaceOkHandler, channelsHandler);
+      server.use(connectedStatusHandler, workspaceOkHandler, channelsHandler);
 
       renderWithProviders(<SlackIntegration />);
 
@@ -244,7 +244,7 @@ describe('SlackIntegration Component', () => {
     it('filters channels by search query', async () => {
       const user = userEvent.setup();
 
-      server.use(healthOkHandler, workspaceOkHandler, channelsHandler);
+      server.use(connectedStatusHandler, workspaceOkHandler, channelsHandler);
 
       renderWithProviders(<SlackIntegration />);
 
@@ -258,7 +258,7 @@ describe('SlackIntegration Component', () => {
     });
 
     it('shows channel member count', async () => {
-      server.use(healthOkHandler, workspaceOkHandler, channelsHandler);
+      server.use(connectedStatusHandler, workspaceOkHandler, channelsHandler);
 
       renderWithProviders(<SlackIntegration />);
 
@@ -284,7 +284,7 @@ describe('SlackIntegration Component', () => {
     it('fetches and displays messages for selected channel', async () => {
       const user = userEvent.setup();
 
-      server.use(healthOkHandler, workspaceOkHandler, channelsHandler, messagesHandler);
+      server.use(connectedStatusHandler, workspaceOkHandler, channelsHandler, messagesHandler);
 
       renderWithProviders(<SlackIntegration />);
 
@@ -306,7 +306,7 @@ describe('SlackIntegration Component', () => {
       const user = userEvent.setup();
 
       server.use(
-        healthOkHandler,
+        connectedStatusHandler,
         workspaceOkHandler,
         channelsHandler,
         messagesHandler,
@@ -369,7 +369,7 @@ describe('SlackIntegration Component', () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
       server.use(
-        healthOkHandler,
+        connectedStatusHandler,
         workspaceOkHandler,
         channelsHandler,
         messagesHandler,
@@ -428,7 +428,7 @@ describe('SlackIntegration Component', () => {
     it('fetches and displays team members', async () => {
       const user = userEvent.setup();
 
-      server.use(healthOkHandler, workspaceOkHandler, usersHandler);
+      server.use(connectedStatusHandler, workspaceOkHandler, usersHandler);
 
       renderWithProviders(<SlackIntegration />);
 
@@ -444,7 +444,7 @@ describe('SlackIntegration Component', () => {
     it('shows user profile details', async () => {
       const user = userEvent.setup();
 
-      server.use(healthOkHandler, workspaceOkHandler, usersHandler);
+      server.use(connectedStatusHandler, workspaceOkHandler, usersHandler);
 
       renderWithProviders(<SlackIntegration />);
 
@@ -458,7 +458,7 @@ describe('SlackIntegration Component', () => {
 
   describe('Webhook Handling', () => {
     it('does not expose client-side webhook management (webhooks are server-side)', async () => {
-      server.use(healthOkHandler, workspaceOkHandler);
+      server.use(connectedStatusHandler, workspaceOkHandler);
 
       renderWithProviders(<SlackIntegration />);
 
@@ -478,7 +478,7 @@ describe('SlackIntegration Component', () => {
       const fetchSpy = jest.spyOn(global, 'fetch');
 
       server.use(
-        healthOkHandler,
+        connectedStatusHandler,
         workspaceOkHandler,
         channelsHandler,
         rest.post('*/api/integrations/slack/channels/create', (req, res, ctx) => {
@@ -533,7 +533,7 @@ describe('SlackIntegration Component', () => {
       // the app must not crash; it logs the failure and stays in the
       // connected UI
       server.use(
-        healthOkHandler,
+        connectedStatusHandler,
         rest.post('*/api/integrations/slack/workspace', (req, res) => {
           return new Promise((resolve, reject) => {
             setTimeout(() => reject(new Error('network error')), 10);
@@ -555,7 +555,7 @@ describe('SlackIntegration Component', () => {
 
     it('does not render channels when the channels fetch fails', async () => {
       server.use(
-        healthOkHandler,
+        connectedStatusHandler,
         workspaceOkHandler,
         rest.get('*/api/integrations/slack/channels', (req, res, ctx) => {
           return res(
@@ -577,7 +577,7 @@ describe('SlackIntegration Component', () => {
 
     it('handles API rate limiting gracefully', async () => {
       server.use(
-        healthOkHandler,
+        connectedStatusHandler,
         workspaceOkHandler,
         rest.get('*/api/integrations/slack/channels', (req, res, ctx) => {
           return res(
@@ -604,7 +604,7 @@ describe('SlackIntegration Component', () => {
   describe('Loading States', () => {
     it('shows loading indicator during channel fetch', async () => {
       server.use(
-        healthOkHandler,
+        connectedStatusHandler,
         workspaceOkHandler,
         rest.get('*/api/integrations/slack/channels', async (req, res, ctx) => {
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -631,7 +631,7 @@ describe('SlackIntegration Component', () => {
 
   describe('Disconnection', () => {
     it('does not expose a client-side disconnect control', async () => {
-      server.use(healthOkHandler, workspaceOkHandler);
+      server.use(connectedStatusHandler, workspaceOkHandler);
 
       renderWithProviders(<SlackIntegration />);
 

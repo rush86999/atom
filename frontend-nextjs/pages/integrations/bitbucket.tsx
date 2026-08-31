@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import IngestionStatusPanel from "@/components/integrations/IngestionStatusPanel";
 import { NextPage } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -22,25 +23,30 @@ const BitbucketIntegrationPage: NextPage = () => {
   });
 
   useEffect(() => {
-    // Check Bitbucket connection status
+    // Check Bitbucket connection status. Real per-integration connection
+    // state (DB connections + OAuth grants + env credentials), plus a
+    // locally stored OAuth token from this page's own authorize flow — the
+    // /health route is a liveness probe that returns 200 unconditionally.
     const checkConnection = async () => {
       try {
         const accessToken = localStorage.getItem("bitbucket_access_token");
-        if (accessToken) {
-          const response = await fetch("/api/integrations/bitbucket/health", {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-          if (response.ok) {
-            const data = await response.json();
-            setIsConnected(data.status === "healthy");
-            if (data.status === "healthy") {
-              loadInitialData(accessToken);
-            }
-          }
-        } else {
-          setIsConnected(false);
+        let connected = false;
+        const appToken =
+          localStorage.getItem("auth_token") || localStorage.getItem("token");
+        const response = await fetch("/api/integrations/connection-status", {
+          headers: appToken ? { Authorization: `Bearer ${appToken}` } : {},
+        });
+        if (response && response.ok) {
+          const data = await response.json().catch((): null => null);
+          const providers = data?.data?.providers ?? data?.providers ?? {};
+          connected = providers?.bitbucket?.connected === true;
+        }
+        if (!connected && accessToken) {
+          connected = true;
+        }
+        setIsConnected(connected);
+        if (connected && accessToken) {
+          loadInitialData(accessToken);
         }
       } catch (error) {
         console.error("Failed to check Bitbucket connection:", error);
@@ -799,6 +805,11 @@ const BitbucketIntegrationPage: NextPage = () => {
           content="Bitbucket integration for ATOM platform"
         />
       </Head>
+  {/* Memory-ingestion progress (uniform across integration pages) */}
+  <div className="p-6 pb-0 max-w-[1400px] mx-auto w-full">
+    <IngestionStatusPanel integrationId="bitbucket" />
+  </div>
+
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-800">
         {/* Header */}

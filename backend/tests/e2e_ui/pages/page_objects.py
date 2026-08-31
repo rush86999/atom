@@ -669,6 +669,11 @@ class ChatPage(BasePage):
         return self.page.get_by_test_id("streaming-indicator")
 
     @property
+    def fork_message_button(self) -> Locator:
+        """Per-assistant-message "fork from here" button locators."""
+        return self.page.get_by_test_id("fork-message-button")
+
+    @property
     def agent_selector(self) -> Locator:
         """Agent maturity level dropdown selector."""
         return self.page.get_by_test_id("agent-selector")

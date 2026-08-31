@@ -278,11 +278,23 @@ def consolidate_workspace(workspace_id: str = "default") -> Dict[str, Any]:
     edge_report = consolidate_edges(workspace_id)
     fact_report = consolidate_turn_facts(workspace_id)
     retention_report = apply_retention_policy(workspace_id)
+    # BPE workspaces (docs/architecture/BPE_WORKSPACE_PLAN.md, Phase 3):
+    # drain stale note buffers into Experience stores. Optional dependency —
+    # missing/failed module never blocks the nightly sweep.
+    bpe_report: Dict[str, int] = {}
+    try:
+        from core.bpe.consolidation import sweep_pending_notes
+        from core.bpe.workspace import _workspaces as bpe_workspaces
+
+        bpe_report = sweep_pending_notes(dict(bpe_workspaces))
+    except Exception as e:
+        logger.debug(f"bpe consolidation skipped: {e}")
     return {
         "workspace": workspace_id,
         "edges_invalidated": edge_report["invalidated"],
         "facts_superseded": fact_report["superseded"],
         "facts_expired": retention_report.get("invalidated", 0),
+        "bpe_notes_consolidated": bpe_report,
         "ran_at": started.isoformat(),
     }
 

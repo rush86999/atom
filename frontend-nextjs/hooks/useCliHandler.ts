@@ -10,7 +10,7 @@ export const useCliHandler = () => {
 
     useEffect(() => {
         const checkCli = async () => {
-            if (typeof window === 'undefined' || !window.__TAURI__) return;
+            if (typeof window === 'undefined' || !(window as any).__TAURI__) return;
 
             try {
                 // Adapt to Upstream Tauri plugin pattern

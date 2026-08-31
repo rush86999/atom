@@ -4,7 +4,7 @@
  * Tests conversion between JSON Schema and field configurations.
  */
 
-import { schemaToFields, fieldsToSchema, FieldConfig } from '@lib/src/schema/jsonSchemaToForm';
+import { schemaToFields, fieldsToSchema, FieldConfig } from '../../../src/lib/schema/jsonSchemaToForm';
 import { JSONSchema7 } from 'json-schema';
 
 describe('jsonSchemaToForm', () => {
@@ -357,7 +357,7 @@ describe('jsonSchemaToForm', () => {
 
       const schema = fieldsToSchema(fields);
 
-      expect(schema.properties.age.type).toBe('number');
+      expect((schema.properties.age as JSONSchema7).type).toBe('number');
     });
 
     it('should convert boolean fields', () => {
@@ -367,7 +367,7 @@ describe('jsonSchemaToForm', () => {
 
       const schema = fieldsToSchema(fields);
 
-      expect(schema.properties.active.type).toBe('boolean');
+      expect((schema.properties.active as JSONSchema7).type).toBe('boolean');
     });
 
     it('should convert array fields with items', () => {
@@ -437,7 +437,7 @@ describe('jsonSchemaToForm', () => {
 
       const schema = fieldsToSchema(fields);
 
-      expect(schema.properties.level1.properties.level2.properties.level3).toBeDefined();
+      expect(((schema.properties.level1 as JSONSchema7).properties.level2 as JSONSchema7).properties.level3).toBeDefined();
     });
 
     it('should handle mixed field types', () => {
@@ -455,10 +455,10 @@ describe('jsonSchemaToForm', () => {
 
       const schema = fieldsToSchema(fields);
 
-      expect(schema.properties.name.type).toBe('string');
-      expect(schema.properties.age.type).toBe('number');
-      expect(schema.properties.active.type).toBe('boolean');
-      expect(schema.properties.tags.type).toBe('array');
+      expect((schema.properties.name as JSONSchema7).type).toBe('string');
+      expect((schema.properties.age as JSONSchema7).type).toBe('number');
+      expect((schema.properties.active as JSONSchema7).type).toBe('boolean');
+      expect((schema.properties.tags as JSONSchema7).type).toBe('array');
       expect(schema.required).toEqual(['name']);
     });
 
@@ -469,7 +469,7 @@ describe('jsonSchemaToForm', () => {
 
       const schema = fieldsToSchema(fields);
 
-      expect(schema.properties.field_name.title).toBe('field_name');
+      expect((schema.properties.field_name as JSONSchema7).title).toBe('field_name');
     });
   });
 
@@ -531,8 +531,8 @@ describe('jsonSchemaToForm', () => {
       const fields = schemaToFields(originalSchema);
       const convertedSchema = fieldsToSchema(fields);
 
-      expect(convertedSchema.properties.user.properties.name).toBeDefined();
-      expect(convertedSchema.properties.user.properties.email).toBeDefined();
+      expect((convertedSchema.properties.user as JSONSchema7).properties.name).toBeDefined();
+      expect((convertedSchema.properties.user as JSONSchema7).properties.email).toBeDefined();
     });
   });
 

@@ -86,6 +86,13 @@ const nextConfig = {
   // Silence Turbopack + webpack config conflict
   turbopack: {},
   async rewrites() {
+    // Single source of truth for the backend the UI talks to:
+    // NEXT_PUBLIC_API_URL in frontend-nextjs/.env.local (default
+    // http://localhost:8001). The destinations below are written with a
+    // "127.0.0.1:8000" PLACEHOLDER that gets replaced with backendUrl at the
+    // end of this function — the 8000s here are NOT the real target. Don't
+    // "fix" them; change .env.local (or start the backend with
+    // scripts/start-backend.sh, which reads it) instead.
     const backendUrl = (process.env.NEXT_PUBLIC_API_URL || nextPublicApiUrl || "http://127.0.0.1:8000").replace(/\/$/, "");
     const rawRewrites = [
       {
@@ -99,6 +106,16 @@ const nextConfig = {
       {
         source: "/api/integrations/:path*",
         destination: "http://127.0.0.1:8000/api/integrations/:path*",
+      },
+      // Data-ingestion + memory endpoints (sync status, ingestion progress,
+      // memory records) — previously only reachable via NEXT_PUBLIC_API_URL.
+      {
+        source: "/api/data-ingestion/:path*",
+        destination: "http://127.0.0.1:8000/api/data-ingestion/:path*",
+      },
+      {
+        source: "/api/memory/:path*",
+        destination: "http://127.0.0.1:8000/api/memory/:path*",
       },
       // Round 80b: journey pages (dropbox/telegram/gitlab/xero/monday/whatsapp)
       // call these bare prefixes; the backend boot-mounts the real routers at

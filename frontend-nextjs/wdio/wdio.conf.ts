@@ -14,6 +14,9 @@
  * @see frontend-nextjs/wdio/README.md for feasibility assessment
  */
 
+// `browser` is a WebdriverIO global injected by the wdio test runner
+declare const browser: any;
+
 export const config = {
   /**
    * Runner configuration

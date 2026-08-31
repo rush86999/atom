@@ -325,7 +325,7 @@ describe('api-admin', () => {
     it('should call createFact endpoint with request body', () => {
       mockPost.mockResolvedValue({ data: { id: 'fact-123' } });
 
-      const request = { statement: 'Test fact', citations: [] };
+      const request = { statement: 'Test fact', citations: [] } as any;
       businessFactsAPI.createFact(request);
 
       expect(mockPost).toHaveBeenCalledWith('/api/admin/governance/facts', request);
@@ -339,7 +339,7 @@ describe('api-admin', () => {
     it('should call updateFact endpoint with fact ID and request body', () => {
       mockPut.mockResolvedValue({ data: { id: 'fact-123' } });
 
-      const request = { statement: 'Updated fact' };
+      const request = { statement: 'Updated fact' } as any;
       businessFactsAPI.updateFact('fact-123', request);
 
       expect(mockPut).toHaveBeenCalledWith('/api/admin/governance/facts/fact-123', request);

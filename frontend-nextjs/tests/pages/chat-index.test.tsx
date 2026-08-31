@@ -165,3 +165,115 @@ describe("ChatPage", () => {
     expect(screen.getAllByTestId("agent-workspace").length).toBe(1);
   });
 });
+
+describe("ChatPage workspace auto-show/hide", () => {
+  let getItemSpy: jest.SpyInstance;
+  let setItemSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockQuery = {};
+    sidebarInstances = [];
+    chatInstances = [];
+    workspaceInstances = [];
+    getItemSpy = jest.spyOn(Storage.prototype, "getItem").mockReturnValue(undefined);
+    setItemSpy = jest.spyOn(Storage.prototype, "setItem");
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("starts open and toggles between panel and rail", () => {
+    render(<ChatPage />);
+    expect(latest(workspaceInstances).collapsed).toBe(false);
+
+    act(() => {
+      latest(workspaceInstances).onToggleCollapsed();
+    });
+    expect(latest(workspaceInstances).collapsed).toBe(true);
+
+    act(() => {
+      latest(workspaceInstances).onToggleCollapsed();
+    });
+    expect(latest(workspaceInstances).collapsed).toBe(false);
+  });
+
+  test("auto-opens on agent activity while collapsed and auto-hides after settle", () => {
+    render(<ChatPage />);
+    act(() => {
+      latest(workspaceInstances).onToggleCollapsed(); // user closes
+    });
+    expect(latest(workspaceInstances).collapsed).toBe(true);
+
+    // a new run streams in → panel auto-opens
+    act(() => {
+      latest(workspaceInstances).onAgentActivity("run_start");
+    });
+    expect(latest(workspaceInstances).collapsed).toBe(false);
+
+    act(() => {
+      latest(workspaceInstances).onAgentActivity("step");
+      latest(workspaceInstances).onRunSettled();
+    });
+    // grace period: still open right after the run settles
+    expect(latest(workspaceInstances).collapsed).toBe(false);
+
+    act(() => {
+      jest.advanceTimersByTime(8000);
+    });
+    expect(latest(workspaceInstances).collapsed).toBe(true);
+  });
+
+  test("manual close suppresses auto-open for the run; re-armed on run start", () => {
+    render(<ChatPage />);
+    act(() => {
+      latest(workspaceInstances).onToggleCollapsed(); // manual close wins…
+    });
+    act(() => {
+      latest(workspaceInstances).onAgentActivity("step"); // …same run stays closed
+    });
+    expect(latest(workspaceInstances).collapsed).toBe(true);
+
+    act(() => {
+      latest(workspaceInstances).onAgentActivity("run_start"); // new run re-arms
+    });
+    expect(latest(workspaceInstances).collapsed).toBe(false);
+  });
+
+  test("user interaction cancels the pending auto-hide", () => {
+    render(<ChatPage />);
+    act(() => {
+      latest(workspaceInstances).onToggleCollapsed();
+      latest(workspaceInstances).onAgentActivity("run_start");
+      latest(workspaceInstances).onRunSettled();
+      latest(workspaceInstances).onUserInteraction();
+      jest.advanceTimersByTime(10000);
+    });
+    expect(latest(workspaceInstances).collapsed).toBe(false);
+  });
+
+  test("auto-hide off keeps the panel open after settle and persists the pref", () => {
+    render(<ChatPage />);
+    act(() => {
+      latest(workspaceInstances).onAutoHideToggle(false);
+    });
+    expect(setItemSpy).toHaveBeenCalledWith("atom_workspace_autohide", "off");
+
+    // separate act blocks so each callback is read from the latest render
+    act(() => {
+      latest(workspaceInstances).onToggleCollapsed();
+    });
+    act(() => {
+      latest(workspaceInstances).onAgentActivity("run_start");
+    });
+    act(() => {
+      latest(workspaceInstances).onRunSettled();
+    });
+    act(() => {
+      jest.advanceTimersByTime(10000);
+    });
+    expect(latest(workspaceInstances).collapsed).toBe(false);
+  });
+});

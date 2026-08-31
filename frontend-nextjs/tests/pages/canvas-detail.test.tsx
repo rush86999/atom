@@ -13,18 +13,12 @@ import CanvasDetailPage from "@/pages/canvas/[id]";
 
 const mockRouterPush = jest.fn();
 
+// Mutable router mock (wsState pattern) so tests can vary the query —
+// e.g. ?agent_id= for the chat-feedback training-loop tests.
+let mockRouterState: any;
+
 jest.mock("next/router", () => ({
-  useRouter: () => ({
-    push: mockRouterPush,
-    replace: jest.fn(),
-    prefetch: jest.fn(),
-    back: jest.fn(),
-    reload: jest.fn(),
-    pathname: "/canvas/cv1",
-    query: { id: "cv1" },
-    asPath: "/canvas/cv1",
-    events: { on: jest.fn(), off: jest.fn(), emit: jest.fn() },
-  }),
+  useRouter: () => mockRouterState,
 }));
 
 let wsState: any = { lastMessage: null, isConnected: true };
@@ -53,6 +47,18 @@ jest.mock("@/components/canvas/MiniAppHarness", () => ({
   ),
 }));
 
+jest.mock("@/components/canvas/TrainingPanel", () => ({
+  TrainingPanel: (props: any) => (
+    <div
+      data-testid="training-panel-mock"
+      data-canvas-id={props.canvasId}
+      data-hint={props.agentIdHint ?? ""}
+    >
+      TrainingPanel
+    </div>
+  ),
+}));
+
 jest.mock("@/components/layout/Layout", () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="layout">{children}</div>,
@@ -62,11 +68,14 @@ jest.mock("@/components/layout/Layout", () => ({
 const mockGet = jest.fn();
 const mockPost = jest.fn();
 const mockDelete = jest.fn();
+const mockFetch = jest.fn();
 jest.mock("../../lib/api-client", () => ({
   apiClient: {
     get: (...args: any[]) => mockGet(...args),
     post: (...args: any[]) => mockPost(...args),
     delete: (...args: any[]) => mockDelete(...args),
+    // maturity-api's fetchJson routes through apiClient.fetch
+    fetch: (...args: any[]) => mockFetch(...args),
   },
 }));
 
@@ -81,6 +90,17 @@ describe("CanvasDetailPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     wsState = { lastMessage: null, isConnected: true };
+    mockRouterState = {
+      push: mockRouterPush,
+      replace: jest.fn(),
+      prefetch: jest.fn(),
+      back: jest.fn(),
+      reload: jest.fn(),
+      pathname: "/canvas/cv1",
+      query: { id: "cv1" },
+      asPath: "/canvas/cv1",
+      events: { on: jest.fn(), off: jest.fn(), emit: jest.fn() },
+    };
     mockGet.mockResolvedValue({ data: CANVAS });
     mockPost.mockResolvedValue({
       data: { success: true, message: "I added a row." },
@@ -256,6 +276,116 @@ describe("CanvasDetailPage", () => {
 
     await waitFor(() => expect(mockPost).toHaveBeenCalled());
     expect(screen.getByText("via enter")).toBeInTheDocument();
+  });
+
+  test("side panel: all four tabs render and Journey panel opens", async () => {
+    // Regression: the four-tab flex row overflowed the w-80 panel and the
+    // Journey/Autonomy tabs were clipped out of view entirely.
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    for (const tid of ["canvas-side-tab-chat", "canvas-side-tab-training",
+                       "canvas-side-tab-journey", "canvas-side-tab-autonomy"]) {
+      expect(screen.getByTestId(tid)).toBeVisible();
+    }
+
+    fireEvent.click(screen.getByTestId("canvas-side-tab-journey"));
+    await waitFor(() => expect(screen.getByTestId("journey-panel")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("canvas-side-tab-autonomy"));
+    await waitFor(() => expect(screen.getByTestId("autonomy-panel")).toBeInTheDocument());
+  });
+
+  test("chat: canvas agent resolved on load is sent with the turn", async () => {
+    // The canvas's hire must be known on the CHAT tab (not only when the
+    // training panel opens) so co-editor turns run as the agent.
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        canvas_id: "cv1",
+        agent: { id: "hire-cv1", name: "SDR Hire", tier: "student" },
+        linked_session: null,
+        pending_proposal: null,
+        viewer_is_supervisor: true,
+      }),
+    });
+
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/maturity/training/context"),
+        undefined
+      )
+    );
+
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "tighten the draft" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalled());
+    expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
+      agent_id: "hire-cv1",
+      context: expect.objectContaining({ agent_id: "hire-cv1" }),
+    }));
+  });
+
+  test("chat: server-bound session hydrates panel history after refresh", async () => {
+    mockGet.mockImplementation(async (url: string) => {
+      if (url.startsWith("/api/chat/history/sess-h1")) {
+        return {
+          data: {
+            session_id: "sess-h1",
+            messages: [
+              { message: "clean up the draft", response: { message: "Cleaned it up." }, timestamp: "2026-08-30T15:00:00" },
+            ],
+          },
+        };
+      }
+      if (url.endsWith("/context")) {
+        return { data: { data: { current_state: { chat_session_id: "sess-h1" } } } };
+      }
+      if (url.endsWith("/history")) return { data: { count: 1 } };
+      return { data: CANVAS };
+    });
+
+    render(<CanvasDetailPage />);
+    // Prior conversation reappears without sending anything (binding came
+    // from the server, so this also works on a fresh browser/device).
+    await waitFor(() => expect(screen.getByText("clean up the draft")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Cleaned it up.")).toBeInTheDocument());
+
+    // And the next send continues the SAME session instead of "new".
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "make it shorter" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() => expect(mockPost).toHaveBeenCalled());
+    expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
+      session_id: "sess-h1",
+    }));
+  });
+
+  test("chat: failed hydration drops the stale session and starts fresh", async () => {
+    mockGet.mockImplementation(async (url: string) => {
+      if (url.startsWith("/api/chat/history/sess-dead")) throw new Error("403");
+      if (url.endsWith("/context")) {
+        return { data: { data: { current_state: { chat_session_id: "sess-dead" } } } };
+      }
+      if (url.endsWith("/history")) return { data: { count: 1 } };
+      return { data: CANVAS };
+    });
+
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() => expect(mockPost).toHaveBeenCalled());
+    // Stale id must not be reused — the turn starts a new session.
+    expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
+      session_id: "new",
+    }));
   });
 
   test("chat: no_llm_provider error renders system message", async () => {
@@ -488,5 +618,195 @@ describe("CanvasDetailPage", () => {
     await waitFor(() =>
       expect(screen.queryByText("Version History")).not.toBeInTheDocument()
     );
+  });
+
+  // ── Training side panel (co-editor ↔ training tabs) ──────────────────────
+
+  test("training: co-editor tab is the default side panel", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    expect(screen.getByPlaceholderText("Ask the agent to edit…")).toBeInTheDocument();
+    expect(screen.queryByTestId("training-panel-mock")).not.toBeInTheDocument();
+    expect(screen.getByTestId("canvas-side-tab-training")).toHaveAttribute(
+      "aria-selected",
+      "false"
+    );
+  });
+
+  test("training: header graduation button switches to the training panel", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("canvas-training-button"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("training-panel-mock")).toBeInTheDocument()
+    );
+    expect(screen.getByTestId("training-panel-mock").dataset.canvasId).toBe("cv1");
+    expect(screen.queryByPlaceholderText("Ask the agent to edit…")).not.toBeInTheDocument();
+  });
+
+  test("training: side tabs toggle between co-editor and training", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("canvas-side-tab-training"));
+    await waitFor(() =>
+      expect(screen.getByTestId("training-panel-mock")).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByTestId("canvas-side-tab-chat"));
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText("Ask the agent to edit…")).toBeInTheDocument()
+    );
+    expect(screen.queryByTestId("training-panel-mock")).not.toBeInTheDocument();
+  });
+
+  test("training: passes the agent query hint to the panel", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("canvas-side-tab-training"));
+    await waitFor(() =>
+      expect(screen.getByTestId("training-panel-mock").dataset.hint).toBe("")
+    );
+  });
+
+  test("training: training-session canvases open on the training tab", async () => {
+    mockGet.mockImplementation(async (url: string) => {
+      if (url.endsWith("/history")) return { data: { count: 1 } };
+      return {
+        data: {
+          canvas_id: "cv1",
+          title: "Training: Hire One",
+          canvas_type: "document",
+          content: { type: "training_session", objective: "Triage inbox" },
+        },
+      };
+    });
+    render(<CanvasDetailPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("training-panel-mock")).toBeInTheDocument()
+    );
+  });
+
+  // ── Co-editor chat feedback (thumbs + notes → training loop) ────────────
+
+  async function sendChatMessage(text: string) {
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: text } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() => expect(screen.getByText(text)).toBeInTheDocument());
+  }
+
+  test("feedback: assistant replies carry thumbs; thumbs up feeds chat feedback with attribution", async () => {
+    mockPost.mockResolvedValue({
+      data: { success: true, message: "I added a row.", model: "gpt-x", provider: "openai" },
+    });
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    await sendChatMessage("add a row");
+    await waitFor(() => expect(screen.getByText("I added a row.")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText("Thumbs up"));
+
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/chat/feedback",
+        expect.objectContaining({
+          feedback: "thumbs_up",
+          model: "gpt-x",
+          provider: "openai",
+        })
+      )
+    );
+    // No agent resolved (no ?agent_id=, no training context) — the training
+    // loop call is skipped rather than misattributed.
+    expect(mockPost).not.toHaveBeenCalledWith("/api/reasoning/feedback", expect.anything());
+    await waitFor(() =>
+      expect(screen.getByTestId("canvas-feedback-notice")).toBeInTheDocument()
+    );
+  });
+
+  test("feedback: with an agent present, thumbs also feed the training loop", async () => {
+    mockRouterState.query = { id: "cv1", agent_id: "agent-9" };
+    mockPost.mockResolvedValue({ data: { success: true, message: "Done." } });
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    await sendChatMessage("hi");
+    await waitFor(() => expect(screen.getByText("Done.")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText("Thumbs down"));
+
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/reasoning/feedback",
+        expect.objectContaining({
+          agent_id: "agent-9",
+          feedback_type: "thumbs_down",
+          step_index: -1,
+          step_content: expect.objectContaining({
+            source: "canvas_chat",
+            canvas_id: "cv1",
+          }),
+        })
+      )
+    );
+    expect(mockPost).toHaveBeenCalledWith(
+      "/api/chat/feedback",
+      expect.objectContaining({ feedback: "thumbs_down" })
+    );
+  });
+
+  test("feedback: note submits corrective feedback carrying the comment", async () => {
+    mockRouterState.query = { id: "cv1", agent_id: "agent-9" };
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    await sendChatMessage("draft a summary");
+    await waitFor(() => expect(screen.getByText("I added a row.")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText("Add note"));
+    fireEvent.change(screen.getByLabelText("Feedback note"), {
+      target: { value: "Use bullets, not prose" },
+    });
+    fireEvent.click(screen.getByLabelText("Send feedback note"));
+
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/reasoning/feedback",
+        expect.objectContaining({ feedback_type: "thumbs_down", comment: "Use bullets, not prose" })
+      )
+    );
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith(
+        "/api/chat/feedback",
+        expect.objectContaining({ feedback: "thumbs_down", comment: "Use bullets, not prose" })
+      )
+    );
+  });
+
+  test("feedback: clicking the chosen thumb again clears it without re-sending", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    await sendChatMessage("hi");
+    await waitFor(() => expect(screen.getByText("I added a row.")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText("Thumbs up"));
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith("/api/chat/feedback", expect.anything())
+    );
+    expect(screen.getByLabelText("Thumbs up").querySelector("svg")).toHaveClass("text-green-500");
+
+    const feedbackCalls = mockPost.mock.calls.filter((c: any[]) => c[0] === "/api/chat/feedback");
+    fireEvent.click(screen.getByLabelText("Thumbs up"));
+    // Toggle-off is local only: no new feedback POST, chosen state cleared.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mockPost.mock.calls.filter((c: any[]) => c[0] === "/api/chat/feedback")).toHaveLength(feedbackCalls.length);
+    expect(screen.getByLabelText("Thumbs up").querySelector("svg")).not.toHaveClass("text-green-500");
   });
 });

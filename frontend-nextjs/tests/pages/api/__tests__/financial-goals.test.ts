@@ -1,4 +1,4 @@
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/financial/goals";
 
 describe("pages/api/financial/goals", () => {
@@ -8,7 +8,7 @@ describe("pages/api/financial/goals", () => {
   });
 
   const invoke = async (method = "GET", body: any = {}, query: any = {}) => {
-    const { req, res } = createMocks({ method, body, query }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, body, query }) as any;
     await handler(req, res);
     return res;
   };

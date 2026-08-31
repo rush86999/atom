@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 
 import zendeskAnalytics from "@/pages/api/zendesk/analytics";
 import zendeskUsers from "@/pages/api/zendesk/users";
@@ -44,7 +44,7 @@ describe.each(routes)(
     });
 
     const invoke = async (method: string, body?: any) => {
-      const { req, res } = createMocks({ method, body }) as any;
+      const { req, res } = createMocks({ method: method as RequestMethod, body }) as any;
       await handler(req, res);
       return res;
     };

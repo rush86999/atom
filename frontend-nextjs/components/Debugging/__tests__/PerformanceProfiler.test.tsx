@@ -35,9 +35,10 @@ const report = {
 
 describe('PerformanceProfiler', () => {
   beforeEach(() => {
+    // fixture returns a partial Response object; cast the completed mock
     global.fetch = jest.fn(() =>
       Promise.resolve({ ok: true, json: async () => report })
-    );
+    ) as unknown as typeof fetch;
   });
 
   afterEach(() => {

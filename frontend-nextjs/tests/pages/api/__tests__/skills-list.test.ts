@@ -4,6 +4,7 @@ jest.mock("next-auth/jwt", () => ({ getToken: mockGetToken }));
 jest.mock("next-auth/react", () => ({ getSession: mockGetSession }));
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/skills/list";
 
 const mockFetch = jest.fn();
@@ -48,7 +49,7 @@ describe("pages/api/skills/list", () => {
     delete process.env.BACKEND_API_URL;
   });
 
-  const invoke = async (method = "GET", query: any = {}) => {
+  const invoke = async (method: RequestMethod = "GET", query: any = {}) => {
     const { req, res } = createMocks({ method, query }) as any;
     await handler(req, res);
     return res;

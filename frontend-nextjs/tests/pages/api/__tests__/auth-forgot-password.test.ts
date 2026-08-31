@@ -31,7 +31,7 @@ describe("pages/api/auth/forgot-password", () => {
     (global as any).fetch = mockFetch;
     mockApiState.useBackendApi = false;
     process.env.NEXTAUTH_URL = "http://localhost:3000";
-    process.env.NODE_ENV = "test";
+    (process.env as any).NODE_ENV = "test";
     delete process.env.NEXT_PUBLIC_API_URL;
     mockSendEmail.mockResolvedValue(true);
     mockQuery.mockImplementation(async (text: string) => {
@@ -44,11 +44,11 @@ describe("pages/api/auth/forgot-password", () => {
 
   afterEach(() => {
     delete process.env.NEXT_PUBLIC_API_URL;
-    process.env.NODE_ENV = "test";
+    (process.env as any).NODE_ENV = "test";
   });
 
   const invoke = async (method = "POST", body: any = {}) => {
-    const { req, res } = createMocks({ method, body }) as any;
+    const { req, res } = createMocks({ method, body } as any) as any;
     await handler(req, res);
     return res;
   };
@@ -157,7 +157,7 @@ describe("pages/api/auth/forgot-password", () => {
   });
 
   it("includes the resetLink in development mode", async () => {
-    process.env.NODE_ENV = "development";
+    (process.env as any).NODE_ENV = "development";
     mockQuery.mockImplementation(async (text: string) => {
       if (text.includes("SELECT id FROM users")) {
         return { rows: [{ id: "user-1" }] };

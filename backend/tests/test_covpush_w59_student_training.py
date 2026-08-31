@@ -68,6 +68,16 @@ def svc():
     return StudentTrainingService(_arm_evidence_queries(Mock()))
 
 
+@pytest.fixture(autouse=True)
+def _virgin_deployment(monkeypatch):
+    """These suites mock the whole db and sequence query-chain returns;
+    the mentor bootstrap's ledger pre-check would consume one. Pin it to
+    "virgin deployment" so the meta-agent bootstrap behaves as before."""
+    monkeypatch.setattr(
+        StudentTrainingService, "_meta_has_any_domain_record", lambda self: False
+    )
+
+
 class TestCreateProposal:
     async def test_missing_agent_raises(self, svc):
         svc.db.query.return_value.filter.return_value.first.return_value = None

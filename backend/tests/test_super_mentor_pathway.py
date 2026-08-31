@@ -251,3 +251,108 @@ async def test_more_proven_role_senior_beats_super_mentor(db, monkeypatch):
     service = StudentTrainingService(db)
     mentor = service._find_mentor(agent)
     assert mentor is not None and mentor.id == "senior-sales"
+
+
+# ---------------------------------------------------------------------------
+# Shared-path attribution wiring (record_outcome ledgers domains)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_record_outcome_attributes_sales_work(db, monkeypatch):
+    """The production gap this closes: user-facing runs complete through
+    AgentGovernanceService.record_outcome — sales work there must land in
+    the domain ledger so a generalist can EARN super-mentor status."""
+    import core.domain_attribution as da
+
+    monkeypatch.setattr(da, "_VOCAB_CACHE", {"at": 0.0, "vocab": {}})
+    from core.agent_governance_service import AgentGovernanceService
+
+    svc = AgentGovernanceService(db, workspace_id="default")
+    db.add(AgentRegistry(
+        id="gm-1", name="Generalist", category="General",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        workspace_id="default", status="autonomous", confidence_score=0.95,
+    ))
+    db.commit()
+
+    await svc.record_outcome(
+        "gm-1", success=True,
+        task_summary="Draft a follow-up email with the quote for the Mark deal",
+    )
+    row = db.query(DomainExperienceLedger).one()
+    assert row.domain == "sales"
+    assert row.outcome == "success"
+    assert "Mark deal" in row.task_summary
+
+
+@pytest.mark.asyncio
+async def test_record_outcome_without_domain_text_skips_ledger(db):
+    from core.agent_governance_service import AgentGovernanceService
+
+    svc = AgentGovernanceService(db, workspace_id="default")
+    db.add(AgentRegistry(
+        id="gm-2", name="Generalist", category="General",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        workspace_id="default", status="autonomous", confidence_score=0.95,
+    ))
+    db.commit()
+
+    await svc.record_outcome("gm-2", success=True, task_summary="What is the weather like")
+    assert db.query(DomainExperienceLedger).count() == 0
+
+
+@pytest.mark.asyncio
+async def test_record_outcome_failure_ledgers_but_is_not_a_win(db):
+    import core.domain_attribution as da
+
+    from core.agent_governance_service import AgentGovernanceService
+
+    da._VOCAB_CACHE.update({"at": 0.0, "vocab": {}})
+    svc = AgentGovernanceService(db, workspace_id="default")
+    db.add(AgentRegistry(
+        id="gm-3", name="Generalist", category="General",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        workspace_id="default", status="autonomous", confidence_score=0.95,
+    ))
+    db.commit()
+
+    await svc.record_outcome(
+        "gm-3", success=False, task_summary="Update the CRM pipeline for the deal"
+    )
+    row = db.query(DomainExperienceLedger).one()
+    assert row.outcome == "failure"
+    assert count_domain_wins(db, "gm-3", "sales") == 0
+
+
+@pytest.mark.asyncio
+async def test_earned_domain_wins_make_generalist_a_mentor(db):
+    """End-to-end contract: a generalist that did 5 successful sales runs
+    (via the shared outcome path) can teach a Sales student."""
+    import core.domain_attribution as da
+
+    from core.agent_governance_service import AgentGovernanceService
+
+    da._VOCAB_CACHE.update({"at": 0.0, "vocab": {}})
+    db.add(AgentRegistry(
+        id="atom_main", name="Atom", category="Meta",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        workspace_id="default", status="autonomous", confidence_score=1.0,
+    ))
+    db.add(AgentRegistry(
+        id="stud-1", name="Sales Hire", category="Sales",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        workspace_id="default", status="student", confidence_score=0.4,
+    ))
+    db.commit()
+
+    svc = AgentGovernanceService(db, workspace_id="default")
+    for _ in range(5):
+        await svc.record_outcome(
+            "atom_main", success=True, task_summary="Score the new lead and update the CRM deal",
+        )
+    assert count_domain_wins(db, "atom_main", "sales") == 5
+
+    training = StudentTrainingService(db)
+    student = db.query(AgentRegistry).filter(AgentRegistry.id == "stud-1").one()
+    mentor = training._find_mentor(student)
+    assert mentor is not None and mentor.id == "atom_main"

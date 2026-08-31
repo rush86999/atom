@@ -35,6 +35,20 @@ class OAuthConfig:
         self.scopes = scopes
         self.additional_params = additional_params or {}
 
+        # Journey/e2e overrides: point any provider's endpoints at a local
+        # mock (same pattern as MICROSOFT_AUTHORITY_BASE / ZOHO_ACCOUNTS_BASE,
+        # generalized). Derived from the client-id env name — GOOGLE_CLIENT_ID
+        # -> GOOGLE_AUTHORIZE_URL / GOOGLE_TOKEN_URL (TRELLO_API_KEY ->
+        # TRELLO_AUTHORIZE_URL). Unset in production.
+        if client_id_env.endswith("_CLIENT_ID"):
+            _prefix = client_id_env[: -len("_CLIENT_ID")]
+        elif client_id_env.endswith("_API_KEY"):
+            _prefix = client_id_env[: -len("_API_KEY")]
+        else:
+            _prefix = client_id_env
+        self.auth_url = os.getenv(f"{_prefix}_AUTHORIZE_URL", self.auth_url)
+        self.token_url = os.getenv(f"{_prefix}_TOKEN_URL", self.token_url)
+
     @property
     def client_id(self) -> Optional[str]:
         return os.getenv(self._client_id_env)
@@ -224,16 +238,27 @@ GOOGLE_OAUTH_CONFIG = OAuthConfig(
 # apps created after 2018 (AADSTS50194). Set MICROSOFT_TENANT_ID (tenant
 # GUID or verified domain); default 'common' only fits multi-tenant apps.
 _MS_TENANT = os.getenv("MICROSOFT_TENANT_ID", "common")
+# Authority override for self-contained journey/e2e environments (same
+# pattern as ZOHO_ACCOUNTS_BASE): points the authorize/token endpoints at a
+# local mock standing in for login.microsoftonline.com. Unset in production.
+_MS_AUTHORITY = os.getenv(
+    "MICROSOFT_AUTHORITY_BASE", "https://login.microsoftonline.com"
+).rstrip("/")
 MICROSOFT_OAUTH_CONFIG = OAuthConfig(
     client_id_env="MICROSOFT_CLIENT_ID",
     client_secret_env="MICROSOFT_CLIENT_SECRET",
     redirect_uri_env="MICROSOFT_REDIRECT_URI",
-    auth_url=f"https://login.microsoftonline.com/{_MS_TENANT}/oauth2/v2.0/authorize",
-    token_url=f"https://login.microsoftonline.com/{_MS_TENANT}/oauth2/v2.0/token",
+    auth_url=f"{_MS_AUTHORITY}/{_MS_TENANT}/oauth2/v2.0/authorize",
+    token_url=f"{_MS_AUTHORITY}/{_MS_TENANT}/oauth2/v2.0/token",
     scopes=[
         "https://graph.microsoft.com/Calendars.ReadWrite",
         "https://graph.microsoft.com/Mail.ReadWrite",
+        # Mail.Send is a SEPARATE Graph permission from Mail.ReadWrite —
+        # without it /me/sendMail returns 403 notAllowed even though the
+        # token can read and draft mail.
+        "https://graph.microsoft.com/Mail.Send",
         "https://graph.microsoft.com/Files.ReadWrite.All",
+        "https://graph.microsoft.com/Contacts.Read",
         "https://graph.microsoft.com/User.Read",
         "offline_access",
     ]

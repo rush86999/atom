@@ -195,7 +195,25 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
 
     // TTS Integration
     const { speak, stop, isSpeaking } = useTextToSpeech();
-    const [isAutoRead, setIsAutoRead] = useState(true);
+    // Agent voice is strictly opt-in: default muted, and the choice persists
+    // only after the user explicitly toggles it. Defaulting this to true made
+    // the laptop start reading agent responses out of nowhere.
+    const [isAutoRead, setIsAutoRead] = useState<boolean>(() => {
+        if (typeof window === "undefined") return false;
+        return window.localStorage.getItem("atom_agent_autoread") === "1";
+    });
+
+    const toggleAutoRead = () => {
+        setIsAutoRead((prev) => {
+            const next = !prev;
+            try {
+                window.localStorage.setItem("atom_agent_autoread", next ? "1" : "0");
+            } catch {
+                // storage unavailable (private mode) — toggle still applies for this session
+            }
+            return next;
+        });
+    };
 
     // Fetch agent governance data from API on mount
     useEffect(() => {
@@ -528,7 +546,7 @@ const AgentWorkflowGenerator: React.FC<AgentWorkflowGeneratorProps> = ({ onDeplo
                                         className={cn("h-7 px-2 text-xs", isAutoRead ? "text-violet-600 bg-violet-50" : "text-gray-400")}
                                         onClick={() => {
                                             if (isSpeaking) stop();
-                                            setIsAutoRead(!isAutoRead);
+                                            toggleAutoRead();
                                         }}
                                         title={isAutoRead ? "Mute Agent Voice" : "Enable Agent Voice"}
                                     >

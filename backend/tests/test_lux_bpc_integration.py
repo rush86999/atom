@@ -11,6 +11,19 @@ Tests verify:
 5. Model ID consistency across the BPC system
 """
 
+import sys
+
+class _HidePytest(dict):
+    """dict proxy hiding 'pytest' from ``in`` checks only — BYOKHandler gates
+    some provider init behind ``"pytest" not in sys.modules``; this activates
+    those branches without re-importing pytest."""
+
+    def __contains__(self, key):
+        if key == "pytest":
+            return False
+        return super().__contains__(key)
+
+
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
@@ -48,6 +61,8 @@ class TestLUXBPCIntegration:
         assert MODEL_QUALITY_SCORES["lux-1.0"] == 88, \
             f"lux-1.0 score should be 88, got {MODEL_QUALITY_SCORES['lux-1.0']}"
 
+
+
     @patch('core.lux_config.lux_config.get_anthropic_key')
     @patch('core.llm.byok_handler.get_byok_manager')
     def test_lux_client_initialization_from_config(self, mock_byok, mock_lux_key):
@@ -55,7 +70,8 @@ class TestLUXBPCIntegration:
         mock_lux_key.return_value = "test-anthropic-key"
         mock_byok.return_value = Mock()
 
-        handler = BYOKHandler()
+        with patch.object(sys, "modules", _HidePytest(sys.modules)):
+            handler = BYOKHandler()
 
         assert "lux" in handler.clients, "LUX client should be initialized"
         # Verify Anthropic client was created (OpenAI class is used for Anthropic API)
@@ -72,7 +88,8 @@ class TestLUXBPCIntegration:
         mock_byok_instance.is_configured.return_value = True
         mock_byok.return_value = mock_byok_instance
 
-        handler = BYOKHandler()
+        with patch.object(sys, "modules", _HidePytest(sys.modules)):
+            handler = BYOKHandler()
 
         # LUX should be initialized via BYOK fallback
         assert "lux" in handler.clients or handler.clients == {}, \
@@ -130,7 +147,8 @@ class TestLUXBPCIntegration:
         mock_lux_key.return_value = "test-anthropic-key"
         mock_byok.return_value = Mock()
 
-        handler = BYOKHandler()
+        with patch.object(sys, "modules", _HidePytest(sys.modules)):
+            handler = BYOKHandler()
 
         # All complexity levels should use lux-1.0
         for complexity in QueryComplexity:

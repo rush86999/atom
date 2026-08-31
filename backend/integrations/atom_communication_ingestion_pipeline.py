@@ -7,9 +7,12 @@ import asyncio
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+import base64
+import html as _html_mod
 import json
 import logging
 import os
+import re as _re_mod
 from typing import Any, Dict, List, Optional, Union
 import httpx
 
@@ -38,6 +41,119 @@ from core.knowledge_ingestion import get_knowledge_ingestion
 from .ingestion_models import RecordType
 
 logger = logging.getLogger(__name__)
+
+_HTML_TAG_RE = _re_mod.compile(r"<(script|style)[^>]*>.*?</\1>|<[^>]+>", _re_mod.DOTALL | _re_mod.IGNORECASE)
+_HTML_WS_RE = _re_mod.compile(r"[ \t]*\n[ \t\n]*")
+
+
+def _html_to_text(html_body: str) -> str:
+    """Graph email bodies arrive as HTML; strip tags so FTS/vector search
+    indexes readable text instead of markup. Never raises."""
+    if not html_body:
+        return ""
+    try:
+        text = _HTML_TAG_RE.sub("\n", html_body)
+        text = _html_mod.unescape(text)
+        return _HTML_WS_RE.sub("\n", text).strip()
+    except Exception:
+        return html_body
+
+
+# Attachments: text-like formats get a real text layer extracted from
+# contentBytes; binary formats (pdf, docx, images) keep name + metadata
+# only — a cheap in-process extraction doesn't exist for them.
+_TEXT_ATTACHMENT_EXTENSIONS = {
+    ".txt", ".csv", ".tsv", ".json", ".md", ".xml", ".html", ".htm",
+    ".log", ".yml", ".yaml", ".ini", ".sql", ".py", ".js", ".ts",
+    ".css", ".rs", ".go", ".java",
+}
+_MAX_ATTACHMENT_DECODE_BYTES = 512 * 1024   # don't decode huge payloads
+_MAX_ATTACHMENT_TEXT_CHARS = 20_000         # indexed text per attachment
+
+
+def _attachment_field(attachment: Dict[str, Any], *names: str) -> Any:
+    """First non-empty value among camelCase/snake_case key variants."""
+    for name in names:
+        value = attachment.get(name)
+        if value:
+            return value
+    return None
+
+
+def _attachment_text_like(attachment: Dict[str, Any]) -> bool:
+    """True when the attachment looks like a format we can extract text from."""
+    name = (_attachment_field(attachment, "name", "filename") or "").lower()
+    ctype = (
+        _attachment_field(attachment, "contentType", "content_type", "mimetype", "mime_type")
+        or ""
+    ).lower()
+    ext = os.path.splitext(name)[1]
+    return ext in _TEXT_ATTACHMENT_EXTENSIONS or ctype.startswith(
+        ("text/", "application/json", "application/xml", "application/yaml")
+    )
+
+
+def _extract_attachment_text(attachment: Dict[str, Any]) -> Optional[str]:
+    """Best-effort text layer for one file attachment. Never raises.
+
+    Accepts the payload shapes each poller sees:
+    - `contentBytes` — Microsoft Graph file attachments
+    - `data`         — Gmail attachments.get (base64url)
+    - `content`      — Teams inline file attachments (base64; reference
+                       attachments carry a URL here instead and are skipped)
+
+    Returns readable text for text-like formats, or None for binary,
+    inline, or oversized attachments.
+    """
+    data = (
+        attachment.get("contentBytes")
+        or attachment.get("data")
+        or None
+    )
+    if not data:
+        # Teams inline file attachments: base64 payload in `content`
+        # (reference attachments hold a URL there — not decodable content).
+        if str(attachment.get("contentType") or "").lower() == "reference":
+            return None
+        content = attachment.get("content")
+        if content and not str(content).lower().startswith(("http://", "https://")):
+            data = content
+    if not data:
+        return None
+    if attachment.get("isInline", attachment.get("is_inline", False)):
+        return None
+    if not _attachment_text_like(attachment):
+        return None
+    try:
+        raw = base64.b64decode(data, validate=False)
+    except Exception:
+        try:
+            # Gmail uses base64url.
+            raw = base64.urlsafe_b64decode(data + "===")
+        except Exception:
+            return None
+    if not raw or len(raw) > _MAX_ATTACHMENT_DECODE_BYTES:
+        return None
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            text = raw.decode("latin-1")
+        except Exception:
+            return None
+    if not text:
+        return None
+    # Binary content that sneaked in under a text extension: reject when
+    # the sampled head is mostly non-printable.
+    sample = text[:2000]
+    printable = sum(ch.isprintable() or ch in "\r\n\t" for ch in sample)
+    if sample and printable / len(sample) < 0.9:
+        return None
+    if len(text) > _MAX_ATTACHMENT_TEXT_CHARS:
+        text = text[:_MAX_ATTACHMENT_TEXT_CHARS] + "\n…[truncated]"
+    return text
+
+
 
 SentenceTransformer = None
 _sentence_transformer_checked = False
@@ -120,13 +236,27 @@ class LanceDBMemoryManager:
     
     def __init__(self, db_path: str = None, workspace_id: Optional[str] = None):
         self.workspace_id = workspace_id or "default"
-        base_path = db_path or os.getenv("LANCEDB_URI_BASE", "./data/atom_memory")
+        # Anchored to backend/ so the store is independent of the launch CWD
+        # (same treatment as core/lancedb_handler.py — a root-vs-backend
+        # launch previously pointed at two different memory stores).
+        base_path = db_path or os.getenv(
+            "LANCEDB_URI_BASE",
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "data", "atom_memory",
+            ),
+        )
         self.db_path = Path(base_path) / self.workspace_id
         self.db_path.mkdir(parents=True, exist_ok=True)
         self.db = None
         self.connections_table = None
         self.metadata_table = None
         self.model = None
+        # Metadata stats accumulate here and flush on a timer — see
+        # _update_metadata (per-message delete+add commits fragmented
+        # ingestion_metadata to 413MB once).
+        self._metadata_pending: Dict[str, int] = {}
+        self._metadata_last_flush = datetime.now()
         
     def initialize(self):
         """Initialize LanceDB connection and tables"""
@@ -210,11 +340,47 @@ class LanceDBMemoryManager:
                     self.connections_table = self.db.create_table("atom_communications", schema=schema)
                     logger.info(f"Recreated empty atom_communications at {dim}-dim")
                 elif str(dim) not in existing_dim:
-                    logger.warning(
-                        f"atom_communications has {existing_dim} vectors but active "
-                        f"embedder emits {dim} — new inserts will fail; "
-                        f"migrate or clear the table to match"
-                    )
+                    # Active embedder dim differs from the stored vectors
+                    # (e.g. table built under sentence-transformers 768, now
+                    # running FastEmbed 384): every insert and vector search
+                    # would fail with a dim-mismatch error. Migrate in place —
+                    # carry the rows over and re-embed content at the active
+                    # dim so history stays searchable.
+                    try:
+                        rows = self.connections_table.to_arrow().to_pylist()
+                        self.db.drop_table("atom_communications")
+                        self.connections_table = self.db.create_table(
+                            "atom_communications", schema=schema
+                        )
+                        migrated = 0
+                        batch = []
+                        for row in rows:
+                            vec = self.generate_embedding(row.get("content") or "")
+                            row["vector"] = vec
+                            row["search_vector"] = vec
+                            batch.append(row)
+                            if len(batch) >= 100:
+                                self.connections_table.add(batch)
+                                migrated += len(batch)
+                                batch = []
+                        if batch:
+                            self.connections_table.add(batch)
+                            migrated += len(batch)
+                        logger.info(
+                            f"Migrated atom_communications {existing_dim} -> "
+                            f"{dim}-dim ({migrated} rows re-embedded)"
+                        )
+                    except Exception as migrate_err:
+                        logger.error(
+                            f"atom_communications dim migration failed "
+                            f"({migrate_err}) — leaving the existing table"
+                        )
+                        try:
+                            self.connections_table = self.db.open_table(
+                                "atom_communications"
+                            )
+                        except Exception:
+                            pass
             except Exception as dim_err:
                 logger.debug(f"dim check skipped: {dim_err}")
             logger.info("Opened existing atom_communications table")
@@ -423,12 +589,30 @@ class LanceDBMemoryManager:
                 search_builder = search_builder.where(f"direction = '{safe_direction}'")
             
             results = search_builder.to_pandas()
-            
+
             return results.to_dict('records')
-            
-        except Exception as e:
-            logger.error(f"Error searching communications: {str(e)}")
-            return []
+
+        except Exception as hybrid_err:
+            # Dim mismatch (query embedder vs stored vectors) or any other
+            # hybrid failure used to discard the lexical matches too — every
+            # comm search returned [] and chat answered from unrelated memory.
+            # Retry FTS-only before giving up.
+            try:
+                if self.connections_table is None:
+                    return []
+                fts_results = (
+                    self.connections_table.search(query[:500], query_type="fts")
+                    .limit(limit)
+                    .to_pandas()
+                )
+                logger.warning(
+                    f"hybrid comm search failed ({str(hybrid_err)[:120]}) — "
+                    f"FTS-only fallback returned {len(fts_results)} rows"
+                )
+                return fts_results.to_dict('records')
+            except Exception as fts_err:
+                logger.error(f"Error searching communications: {fts_err}")
+                return []
     
     def get_communications_by_app(self, app_type: str, limit: int = 100) -> List[Dict]:
         """Get communications by app type"""
@@ -456,41 +640,92 @@ class LanceDBMemoryManager:
             logger.error(f"Error getting communications by timeframe: {str(e)}")
             return []
     
+    METADATA_FLUSH_INTERVAL_SECONDS = 60
+
     def _update_metadata(self, app_type: str, message_count: int):
-        """Update ingestion metadata"""
+        """Update ingestion metadata (throttled).
+
+        Each flush is a delete+add — two Lance commits — and the poller used
+        to do that PER MESSAGE, fragmenting ingestion_metadata to 413MB here.
+        Counts now accumulate in memory and flush at most once a minute, plus
+        an explicit flush at each poll-cycle end and before maintenance."""
+        self._metadata_pending[app_type] = (
+            self._metadata_pending.get(app_type, 0) + message_count
+        )
+        elapsed = (datetime.now() - self._metadata_last_flush).total_seconds()
+        if elapsed >= self.METADATA_FLUSH_INTERVAL_SECONDS:
+            self._flush_metadata()
+
+    def _flush_metadata(self):
+        """Write accumulated per-app counts to ingestion_metadata. Best-effort:
+        a crash can lose the last minute of stats (never message data)."""
+        if getattr(self, "metadata_table", None) is None:
+            return  # store not opened yet — keep counts pending for the next flush
+        pending, self._metadata_pending = self._metadata_pending, {}
+        self._metadata_last_flush = datetime.now()
+        for app_type, count in pending.items():
+            try:
+                existing = self.metadata_table.search().where(
+                    f"app_type = '{app_type}'"
+                ).to_pandas()
+
+                if len(existing) > 0:
+                    current_count = existing.iloc[0]['total_messages']
+                    update_data = {
+                        "app_type": app_type,
+                        "last_ingested": datetime.now(),
+                        "total_messages": current_count + count,
+                        "status": "active"
+                    }
+                    self.metadata_table.delete(f"app_type = '{app_type}'")
+                    self.metadata_table.add([update_data])
+                else:
+                    metadata = {
+                        "app_type": app_type,
+                        "last_ingested": datetime.now(),
+                        "total_messages": count,
+                        "config": "{}",
+                        "status": "active"
+                    }
+                    self.metadata_table.add([metadata])
+            except Exception as e:
+                logger.error(f"Error updating metadata for {app_type}: {str(e)}")
+
+    def _maintain_tables(self):
+        """Compact fragments and purge superseded versions on the comms tables.
+
+        The poller commits one fragment per message; un-vacuumed that grew
+        atom_communications to 27GB of fragments + version manifests here
+        (Aug 2026). optimize() folds small fragments; cleanup_old_versions()
+        deletes unreachable ones (needs the optional pylance package)."""
         try:
-            # Get current metadata
-            existing = self.metadata_table.search().where(f"app_type = '{app_type}'").to_pandas()
-            
-            if len(existing) > 0:
-                # Update existing record
-                current_count = existing.iloc[0]['total_messages']
-                new_count = current_count + message_count
-                
-                update_data = {
-                    "app_type": app_type,
-                    "last_ingested": datetime.now(),
-                    "total_messages": new_count,
-                    "status": "active"
-                }
-                # Delete existing record
-                self.metadata_table.delete(f"app_type = '{app_type}'")
-                
-                # Add updated record
-                self.metadata_table.add([update_data])
-            else:
-                # Create new record
-                metadata = {
-                    "app_type": app_type,
-                    "last_ingested": datetime.now(),
-                    "total_messages": message_count,
-                    "config": "{}",
-                    "status": "active"
-                }
-                self.metadata_table.add([metadata])
-                
+            if self.db is None:
+                self.initialize()
+            if self.db is None:
+                return
+            table_names = self.db.table_names()
         except Exception as e:
-            logger.error(f"Error updating metadata: {str(e)}")
+            logger.warning(f"LanceDB maintenance skipped (no store): {e}")
+            return
+
+        for name in ("atom_communications", "ingestion_metadata"):
+            if name not in table_names:
+                continue
+            try:
+                table = self.db.open_table(name)
+                table.optimize()
+                try:
+                    table.cleanup_old_versions(older_than=timedelta(days=7))
+                except ImportError:
+                    logger.info(
+                        "pylance not installed — skipping version cleanup "
+                        "(pip install pylance)"
+                    )
+                logger.info(f"LanceDB maintenance: {name} ok")
+            except Exception as e:
+                logger.warning(f"LanceDB maintenance for {name} failed: {e}")
+        self._flush_metadata()
+
 
 def derive_actor(message_data: Dict[str, Any]) -> tuple:
     """
@@ -506,6 +741,53 @@ def derive_actor(message_data: Dict[str, Any]) -> tuple:
     return ("external", actor_id)
 
 
+def parse_message_timestamp(message_data: Dict[str, Any]) -> datetime:
+    """Best-effort received-time extraction shared by mail fetchers.
+
+    Resolution order: a ready ``timestamp``, the RFC 2822 ``Date`` header,
+    ``internalDate`` (Gmail, ms since epoch — naive int() parsing produced
+    dates in the year 50k), then poll time. Never raises."""
+    msg = message_data or {}
+
+    ts = msg.get("timestamp")
+    if isinstance(ts, datetime):
+        return ts
+    if isinstance(ts, (int, float)) or (
+        isinstance(ts, str) and ts.replace(".", "", 1).isdigit()
+    ):
+        try:
+            seconds = float(ts)
+            if seconds > 1e12:  # ms-since-epoch
+                seconds /= 1000.0
+            return datetime.fromtimestamp(seconds)
+        except Exception:
+            pass
+
+    date_header = msg.get("date")
+    if date_header:
+        try:
+            from email.utils import parsedate_to_datetime
+
+            parsed = parsedate_to_datetime(str(date_header))
+            if parsed.tzinfo is not None:
+                parsed = parsed.astimezone().replace(tzinfo=None)
+            return parsed
+        except Exception:
+            pass
+
+    internal_date = msg.get("internalDate")
+    if internal_date:
+        try:
+            seconds = float(internal_date)
+            if seconds > 1e12:
+                seconds /= 1000.0
+            return datetime.fromtimestamp(seconds)
+        except Exception:
+            pass
+
+    return datetime.now()
+
+
 class CommunicationIngestionPipeline:
     """Main ingestion pipeline for all communication apps"""
     
@@ -517,6 +799,24 @@ class CommunicationIngestionPipeline:
         self.app_configs = {}  # Store app-specific configurations
         self.webhook_enabled = {}  # Track which apps have webhooks enabled
 
+        # Poll dedup state: persisted cursors + known message ids. The
+        # cursor used to be memory-only, so every restart re-fetched the
+        # newest page and re-added it — one table on this dev machine grew
+        # to 21k duplicate rows / 20GB of Lance version manifests (Aug 2026).
+        self._seen_message_ids: set = set()
+        self._seen_ids_loaded = False
+        self._fetch_state_path = (
+            Path(str(getattr(memory_manager, "db_path", "./data/atom_memory")))
+            / "poll_fetch_state.json"
+        )
+        self._load_fetch_state()
+
+        # Maintenance state: the poller commits one fragment per message, so
+        # table health needs a periodic optimize + version purge (see
+        # memory_manager._maintain_tables) — un-vacuumed, atom_communications
+        # grew to 27GB of fragments/manifests here once (Aug 2026).
+        self._maintenance_task: Optional[asyncio.Task] = None
+
         # Import webhook processor (lazy import to avoid circular dependency)
         try:
             from core.webhook_handlers import get_webhook_processor
@@ -527,7 +827,80 @@ class CommunicationIngestionPipeline:
         except ImportError:
             self.webhook_processor = None
             logger.warning("Webhook handlers not available, real-time ingestion disabled")
-        
+
+    def _load_fetch_state(self) -> None:
+        """Restore fetch cursors + seen message ids across restarts."""
+        try:
+            if self._fetch_state_path.exists():
+                data = json.loads(self._fetch_state_path.read_text() or "{}")
+                for key, ts in (data.get("fetch_timestamps") or {}).items():
+                    try:
+                        self.fetch_timestamps[key] = datetime.fromisoformat(ts)
+                    except Exception:
+                        continue
+                self._seen_message_ids = set(data.get("seen_message_ids") or [])
+                logger.info(
+                    f"Restored poll fetch state: {len(self.fetch_timestamps)} cursors, "
+                    f"{len(self._seen_message_ids)} known message ids"
+                )
+        except Exception as e:
+            logger.warning(f"Could not restore poll fetch state: {e}")
+
+    def _save_fetch_state(self) -> None:
+        """Persist fetch cursors + a bounded seen-id set (atomic write)."""
+        try:
+            payload = {
+                "fetch_timestamps": {
+                    k: v.isoformat() for k, v in self.fetch_timestamps.items()
+                },
+                "seen_message_ids": list(self._seen_message_ids)[-20000:],
+            }
+            tmp = self._fetch_state_path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(payload))
+            tmp.replace(self._fetch_state_path)
+        except Exception as e:
+            logger.debug(f"Could not persist poll fetch state: {e}")
+
+    def _ensure_seen_ids_loaded(self) -> None:
+        """One-time seed of the dedup set from what's already in the store, so
+        a fresh state file (or a wiped cursor) can't re-add existing rows."""
+        if self._seen_ids_loaded:
+            return
+        self._seen_ids_loaded = True
+        try:
+            if self.memory_manager.db is None:
+                self.memory_manager.initialize()
+            table = self.memory_manager.connections_table
+            if table is not None:
+                ids = table.to_arrow().select(["id"]).to_pylist()
+                self._seen_message_ids.update(
+                    str(r["id"]) for r in ids if r.get("id")
+                )
+                logger.info(
+                    f"Loaded {len(self._seen_message_ids)} known message ids for poll dedup"
+                )
+        except Exception as e:
+            logger.debug(f"seen-id seeding skipped: {e}")
+
+    def _ensure_maintenance_loop(self):
+        """Start the periodic LanceDB maintenance task (idempotent)."""
+        if self._maintenance_task and not self._maintenance_task.done():
+            return
+        self._maintenance_task = asyncio.create_task(self._maintenance_loop())
+
+    async def _maintenance_loop(self):
+        """Daily optimize + old-version purge (LANCE_MAINTENANCE_INTERVAL_HOURS).
+        Runs alongside the poller so table health never depends on someone
+        remembering to vacuum by hand."""
+        interval_hours = max(float(os.getenv("LANCE_MAINTENANCE_INTERVAL_HOURS", "24")), 1.0)
+        await asyncio.sleep(600)  # let boot and the first sync settle
+        while True:
+            try:
+                await asyncio.to_thread(self.memory_manager._maintain_tables)
+            except Exception as e:
+                logger.warning(f"LanceDB maintenance pass failed: {e}")
+            await asyncio.sleep(interval_hours * 3600)
+
     def configure_app(self, app_type: CommunicationAppType, config: IngestionConfig):
         """Configure ingestion for specific app"""
         config_dict = {
@@ -590,9 +963,64 @@ class CommunicationIngestionPipeline:
             started = self.start_real_time_stream(CommunicationAppType.OUTLOOK.value)
             if started:
                 logger.info(f"Started Outlook poller (interval={config.polling_interval_seconds}s)")
+                self._ensure_maintenance_loop()
             return started
         except Exception as e:
             logger.error(f"Error starting Outlook poller: {e}")
+            return False
+
+    # Catalog integration ids -> CommunicationAppType for apps with a real
+    # _fetch_new_messages implementation. Keep this in sync with that
+    # dispatch; an app without a fetcher would poll forever and fetch nothing.
+    POLLABLE_APPS: Dict[str, CommunicationAppType] = {
+        "outlook": CommunicationAppType.OUTLOOK,
+        "gmail": CommunicationAppType.GMAIL,
+        "slack": CommunicationAppType.SLACK,
+        "teams": CommunicationAppType.MICROSOFT_TEAMS,
+        "whatsapp": CommunicationAppType.WHATSAPP,
+        "discord": CommunicationAppType.DISCORD,
+    }
+
+    def start_poller(self, app_type: str, polling_interval_seconds: int = 60) -> bool:
+        """
+        Start a real-time polling stream for any pollable app (idempotent).
+
+        Generalizes start_outlook_poller: builds an IngestionConfig with
+        real_time enabled, configures the app, and starts the shared
+        streaming loop. The per-app token lookup happens inside each
+        _fetch_*_messages implementation; apps without credentials log a
+        warning and fetch nothing rather than crashing the loop.
+        """
+        try:
+            enum_member = self.POLLABLE_APPS.get(app_type)
+            if enum_member is None:
+                logger.warning(f"No poller implementation for {app_type}")
+                return False
+            if app_type in self.active_streams:
+                logger.info(f"{app_type} poller already running")
+                return True
+
+            config = IngestionConfig(
+                app_type=enum_member,
+                enabled=True,
+                real_time=True,
+                batch_size=200,
+                ingest_attachments=True,
+                embed_content=True,
+                retention_days=365,
+                vector_dim=768,
+                polling_interval_seconds=max(30, int(polling_interval_seconds)),
+            )
+            self.configure_app(enum_member, config)
+            started = self.start_real_time_stream(enum_member.value)
+            if started:
+                logger.info(
+                    f"Started {app_type} poller (interval={config.polling_interval_seconds}s)"
+                )
+                self._ensure_maintenance_loop()
+            return started
+        except Exception as e:
+            logger.error(f"Error starting {app_type} poller: {e}")
             return False
 
     async def _handle_webhook_message(self, message_data: Dict[str, Any]):
@@ -723,7 +1151,11 @@ class CommunicationIngestionPipeline:
         # Start async streaming task
         task = asyncio.create_task(self._real_time_ingestion(app_type))
         self.active_streams[app_type] = task
-        
+
+        # Table health applies to EVERY poller (one commit per message
+        # fragments LanceDB over time), not just Outlook's.
+        self._ensure_maintenance_loop()
+
         logger.info(f"Started real-time ingestion stream for {app_type}")
         return True
     
@@ -748,6 +1180,9 @@ class CommunicationIngestionPipeline:
                             await self.ingest_message(app_type, message)
                         except Exception as e:
                             logger.error(f"Failed to ingest message from {app_type}: {e}")
+
+                # Land accumulated stats once per cycle (not per message)
+                await asyncio.to_thread(self.memory_manager._flush_metadata)
 
                 # Wait before next poll
                 await asyncio.sleep(polling_interval)
@@ -791,10 +1226,38 @@ class CommunicationIngestionPipeline:
             else:
                 logger.warning(f"No polling implementation for {app_type}")
 
-            # Update last fetch timestamp (only on success)
-            self.fetch_timestamps[last_fetch_key] = datetime.now()
+            # Re-fetch guard: drop messages already ingested. A cold cursor
+            # (fresh state file, wiped table, or clock overlap) used to mean
+            # the newest page was re-added in full on every restart.
+            self._ensure_seen_ids_loaded()
+            fresh: List[Dict[str, Any]] = []
+            for message in messages:
+                message_id = str(message.get("id") or "")
+                if message_id and message_id in self._seen_message_ids:
+                    continue
+                if message_id:
+                    self._seen_message_ids.add(message_id)
+                fresh.append(message)
+            if len(fresh) < len(messages):
+                logger.info(
+                    f"Skipped {len(messages) - len(fresh)} already-ingested "
+                    f"{app_type} messages (dedup)"
+                )
 
-            return messages
+            # Advance the cursor to the NEWEST message fetched (not "now"):
+            # a truncated walk (page cap) would otherwise skip the remainder,
+            # and "now" races messages that arrive mid-walk. The dedup guard
+            # absorbs any overlap re-fetch this causes. Falls back to now()
+            # for sources whose payloads carry no datetime timestamp.
+            newest: Optional[datetime] = None
+            for message in fresh:
+                ts = message.get("timestamp")
+                if isinstance(ts, datetime) and (newest is None or ts > newest):
+                    newest = ts
+            self.fetch_timestamps[last_fetch_key] = newest or datetime.now()
+            self._save_fetch_state()
+
+            return fresh
 
         except Exception as e:
             logger.error(f"Error fetching messages from {app_type}: {e}")
@@ -847,11 +1310,20 @@ class CommunicationIngestionPipeline:
                                 "timestamp": ts_raw or datetime.now(timezone.utc).isoformat(),
                                 "direction": "inbound",
                                 "source_app": "discord",
+                                # Discord carries attachment metadata inline
+                                # (filename, url, content_type, size).
+                                "attachments": msg.get("attachments", []),
                             })
                         except Exception as msg_err:
                             logger.warning(f"Failed to normalize Discord message: {msg_err}")
 
             logger.info(f"Fetched {len(all_messages)} new messages from Discord")
+
+            # Attachment ingestion: download text-like files (public CDN
+            # URLs, budgeted) so their text layer gets indexed.
+            if all_messages and self._attachments_enabled("discord"):
+                await self._expand_discord_attachments(all_messages)
+
             return all_messages
         except Exception as e:
             logger.error(f"Error fetching messages from Discord: {e}")
@@ -1026,6 +1498,11 @@ class CommunicationIngestionPipeline:
 
             # Sort by timestamp (oldest first)
             all_messages.sort(key=lambda m: m["timestamp"])
+
+            # Attachment ingestion: download text-like files (budgeted) so
+            # the shared normalizer can extract their text layer.
+            if all_messages and bot_token and self._attachments_enabled("slack"):
+                await self._expand_slack_attachments(bot_token, all_messages)
 
             logger.info(f"Total Slack messages fetched: {len(all_messages)}")
             return all_messages
@@ -1368,8 +1845,21 @@ class CommunicationIngestionPipeline:
             mail.login(imap_user, imap_password)
             mail.select("INBOX")
 
-            # Search for new messages
-            since_date = last_fetch.strftime("%d-%b-%Y") if last_fetch else "01-Jan-1970"
+            # Search for new messages. IMAP SINCE is date-granular; the
+            # initial sync uses the user-configurable history window
+            # (default 3 months) instead of "since 1970".
+            if last_fetch:
+                since_date = last_fetch.strftime("%d-%b-%Y")
+            else:
+                history_days = 90
+                try:
+                    from core.automation_settings import get_automation_settings
+
+                    history_days = get_automation_settings().get_initial_sync_days("email")
+                except Exception:
+                    pass
+                since_date = (datetime.now() - timedelta(days=history_days)).strftime("%d-%b-%Y")
+                logger.info(f"IMAP initial sync: fetching {history_days} days of history")
             status, messages = mail.search(None, f'(SINCE "{since_date}")')
 
             messages_data = []
@@ -1483,13 +1973,23 @@ class CommunicationIngestionPipeline:
                 logger.warning("Gmail service not available after authentication attempt")
                 return []
 
-            # Build query for incremental fetching
-            query = ""
+            # Build query for fetching. Incremental polls use after:<cursor>;
+            # the initial sync ingests a user-configurable history window
+            # (default 3 months) instead of only the newest page.
             if last_fetch:
-                # Gmail search query for messages after a date
-                # Format: after:YYYY/MM/DD
                 date_str = last_fetch.strftime("%Y/%m/%d")
                 query = f"after:{date_str}"
+            else:
+                history_days = 90
+                try:
+                    from core.automation_settings import get_automation_settings
+
+                    history_days = get_automation_settings().get_initial_sync_days("gmail")
+                except Exception:
+                    pass
+                since = datetime.now() - timedelta(days=history_days)
+                query = f"after:{since.strftime('%Y/%m/%d')}"
+                logger.info(f"Gmail initial sync: fetching {history_days} days of history")
 
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
@@ -1498,19 +1998,17 @@ class CommunicationIngestionPipeline:
                 lambda: gmail_service.get_messages(query=query, max_results=100)
             )
 
+            # Attachment ingestion: Gmail metadata responses never carry the
+            # bytes — fetch them per attachment (budgeted, text-like only).
+            if messages and self._attachments_enabled("gmail"):
+                await self._expand_gmail_attachments(gmail_service, messages)
+
             # Normalize to unified message format
             normalized_messages = []
             for msg in messages:
                 try:
-                    # Parse timestamp from Gmail message
-                    timestamp_str = msg.get("timestamp")
-                    if timestamp_str:
-                        try:
-                            timestamp = datetime.fromisoformat(timestamp_str)
-                        except (ValueError, TypeError):
-                            timestamp = datetime.fromtimestamp(int(timestamp_str))
-                    else:
-                        timestamp = datetime.now()
+                    # Received time: Date header / internalDate / timestamp
+                    timestamp = parse_message_timestamp(msg)
 
                     # Extract sender name and email
                     sender = msg.get("sender", "")
@@ -1530,7 +2028,9 @@ class CommunicationIngestionPipeline:
                     recipient = msg.get("recipient", "")
                     recipients_list = recipient.split(",") if recipient else []
 
-                    # Parse attachments
+                    # Parse attachments — keep data (base64) so the shared
+                    # normalizer can extract the text layer; it strips the
+                    # raw bytes before storage.
                     attachments_data = msg.get("attachments", [])
                     attachments = []
                     for att in attachments_data:
@@ -1538,7 +2038,8 @@ class CommunicationIngestionPipeline:
                             "id": att.get("id"),
                             "filename": att.get("filename"),
                             "size": att.get("size"),
-                            "content_type": att.get("contentType")
+                            "content_type": att.get("contentType"),
+                            "data": att.get("data"),
                         })
 
                     normalized_msg = {
@@ -1551,7 +2052,7 @@ class CommunicationIngestionPipeline:
                         "recipient": recipient,
                         "subject": msg.get("subject", ""),
                         "content": msg.get("body", ""),
-                        "content_type": "text",
+                        "content_type": msg.get("body_content_type", "text"),
                         "attachments": attachments,
                         "metadata": {
                             "thread_id": msg.get("threadId"),
@@ -1582,6 +2083,190 @@ class CommunicationIngestionPipeline:
             logger.error(f"Error fetching Gmail messages: {e}")
             return []
 
+    # Graph calls budgeted per fetched page of messages: one
+    # /attachments request per message flagged hasAttachments.
+    ATTACHMENT_EXPAND_BUDGET_PER_PAGE = 20
+
+    def _outlook_attachments_enabled(self) -> bool:
+        """Attachment expansion is gated on IngestionConfig.ingest_attachments."""
+        try:
+            return bool(
+                (self.ingestion_configs.get("outlook") or {}).get(
+                    "ingest_attachments", True
+                )
+            )
+        except Exception:
+            return True
+
+    def _attachments_enabled(self, app_type: str) -> bool:
+        try:
+            return bool(
+                (self.ingestion_configs.get(app_type) or {}).get(
+                    "ingest_attachments", True
+                )
+            )
+        except Exception:
+            return True
+
+    async def _download_text_attachments(
+        self,
+        messages: List[Dict[str, Any]],
+        attachment_key: str,
+        url_field: str,
+        headers: Optional[Dict[str, str]] = None,
+        data_field: str = "contentBytes",
+    ) -> None:
+        """Download text-like attachment files so their text can be indexed.
+
+        Shared by Slack (`url_private_download`, bearer token) and Discord
+        (public CDN `url`). Budget-capped per fetch cycle; only text-like
+        formats are fetched — binaries get no text layer, so the bytes
+        wouldn't be usable. Mutates messages in place; failures never fail
+        the fetch.
+        """
+        if not messages:
+            return
+        budget = self.ATTACHMENT_EXPAND_BUDGET_PER_PAGE
+        try:
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+                for msg in messages:
+                    if budget <= 0:
+                        return
+                    for att in msg.get(attachment_key, []) or []:
+                        if budget <= 0:
+                            return
+                        url = att.get(url_field)
+                        if not url or att.get(data_field):
+                            continue
+                        if not _attachment_text_like(att):
+                            continue
+                        try:
+                            response = await client.get(url, headers=headers)
+                            if response.status_code == 200 and response.content:
+                                att[data_field] = base64.b64encode(
+                                    response.content
+                                ).decode()
+                                budget -= 1
+                            else:
+                                logger.debug(
+                                    f"Attachment download {url} returned {response.status_code}"
+                                )
+                        except Exception as e:
+                            logger.debug(f"Attachment download failed for {url}: {e}")
+        except Exception as e:
+            logger.debug(f"Attachment download pass failed: {e}")
+
+    async def _expand_slack_attachments(
+        self, bot_token: str, messages: List[Dict[str, Any]]
+    ) -> None:
+        """Download text-like Slack files (url_private_download needs the bot token)."""
+        await self._download_text_attachments(
+            messages,
+            attachment_key="attachments",
+            url_field="url_private_download",
+            headers={"Authorization": f"Bearer {bot_token}"},
+        )
+
+    async def _expand_discord_attachments(
+        self, messages: List[Dict[str, Any]]
+    ) -> None:
+        """Download text-like Discord attachments (public CDN URLs, no auth)."""
+        await self._download_text_attachments(
+            messages,
+            attachment_key="attachments",
+            url_field="url",
+        )
+
+    async def _expand_gmail_attachments(
+        self, gmail_service: Any, messages: List[Dict[str, Any]]
+    ) -> None:
+        """Fetch Gmail attachment data for messages that have attachments.
+
+        Gmail list/get responses carry attachment metadata only; the bytes
+        need one attachments.get call each. Budget-capped per fetch cycle,
+        and only text-like attachments are fetched (binary formats get no
+        text layer, so the bytes wouldn't be usable). Blocking Google API
+        calls run in an executor. Mutates messages in place; failures never
+        fail the fetch.
+        """
+        budget = self.ATTACHMENT_EXPAND_BUDGET_PER_PAGE
+        loop = asyncio.get_running_loop()
+        for msg in messages:
+            if budget <= 0:
+                return
+            for att in msg.get("attachments", []) or []:
+                if budget <= 0:
+                    return
+                attachment_id = att.get("attachmentId") or att.get("id")
+                message_id = msg.get("id")
+                if not attachment_id or not message_id or att.get("data"):
+                    continue
+                if not _attachment_text_like(att):
+                    continue
+                try:
+                    content = await loop.run_in_executor(
+                        None,
+                        lambda mid=message_id, aid=attachment_id: (
+                            gmail_service.get_attachment_content(mid, aid)
+                        ),
+                    )
+                except Exception as e:
+                    logger.debug(
+                        f"Gmail attachment fetch failed for {message_id}/{attachment_id}: {e}"
+                    )
+                    continue
+                if content:
+                    att["data"] = base64.b64encode(content).decode()
+                    budget -= 1
+
+    async def _expand_outlook_attachments(
+        self,
+        client: "httpx.AsyncClient",
+        headers: Dict[str, str],
+        messages: List[Dict[str, Any]],
+    ) -> None:
+        """Attach the attachments collection to messages flagged hasAttachments.
+
+        Mutates `messages` in place. Budget-capped per page so a mailbox full
+        of attachments can't turn one poll into hundreds of Graph calls;
+        429s honor Retry-After once, then give up on that message. Failures
+        never fail the fetch — the message still ingests, minus attachments.
+        """
+        budget = self.ATTACHMENT_EXPAND_BUDGET_PER_PAGE
+        graph_base = os.getenv(
+            "MICROSOFT_GRAPH_BASE_URL",
+            "https://graph.microsoft.com/v1.0",
+        ).rstrip("/")
+        # No $select: Graph rejects selecting contentBytes (400) — the
+        # unqualified collection GET is what returns it.
+        for msg in messages:
+            if budget <= 0:
+                return
+            if not msg.get("hasAttachments") or not msg.get("id"):
+                continue
+            try:
+                response = await client.get(
+                    f"{graph_base}/me/messages/{msg['id']}/attachments",
+                    headers=headers,
+                )
+                if response.status_code == 429 and budget > 1:
+                    retry_after = int(response.headers.get("Retry-After", 5))
+                    await asyncio.sleep(retry_after)
+                    response = await client.get(
+                        f"{graph_base}/me/messages/{msg['id']}/attachments",
+                        headers=headers,
+                    )
+                if response.status_code == 200:
+                    msg["attachments"] = response.json().get("value", [])
+                    budget -= 1
+                else:
+                    logger.debug(
+                        f"Attachment fetch for message {msg.get('id')} "
+                        f"returned {response.status_code}"
+                    )
+            except Exception as e:
+                logger.debug(f"Attachment fetch failed for {msg.get('id')}: {e}")
+
     async def _fetch_outlook_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
         """
         Fetch new Outlook messages via Microsoft Graph API.
@@ -1608,25 +2293,48 @@ class CommunicationIngestionPipeline:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Build filter for messages since last fetch
                 params = {"$top": 50}
+                max_fetches = 5
                 if last_fetch:
                     # Graph OData requires UTC 'Z' format — a bare isoformat()
                     # (no timezone marker) returns 400 InvalidFilter, which
                     # silently broke every incremental poll after the first.
                     ts = last_fetch.strftime("%Y-%m-%dT%H:%M:%SZ")
                     params["$filter"] = f"receivedDateTime gt {ts}"
+                else:
+                    # Initial sync: ingest a user-configurable history window
+                    # (default 3 months) instead of only the newest page.
+                    try:
+                        from core.automation_settings import get_automation_settings
+
+                        history_days = get_automation_settings().get_initial_sync_days("outlook")
+                    except Exception:
+                        history_days = 90
+                    since = (datetime.now() - timedelta(days=history_days))
+                    ts = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    params["$filter"] = f"receivedDateTime ge {ts}"
+                    # Enough pages to walk the window in one pass; if it
+                    # truncates, the cursor advances only to the newest
+                    # message seen and the next poll resumes the walk.
+                    max_fetches = 40
+                    logger.info(
+                        f"Outlook initial sync: fetching {history_days} days of history"
+                    )
 
                 # Pagination support
                 next_link = None
                 fetch_count = 0
-                max_fetches = 5  # Prevent infinite loops
 
                 while fetch_count < max_fetches:
                     try:
                         if next_link:
                             response = await client.get(next_link, headers=headers)
                         else:
+                            graph_base = os.getenv(
+                                "MICROSOFT_GRAPH_BASE_URL",
+                                "https://graph.microsoft.com/v1.0",
+                            ).rstrip("/")
                             response = await client.get(
-                                "https://graph.microsoft.com/v1.0/me/messages",
+                                f"{graph_base}/me/messages",
                                 headers=headers,
                                 params=params
                             )
@@ -1644,6 +2352,15 @@ class CommunicationIngestionPipeline:
 
                         data = response.json()
                         messages = data.get("value", [])
+
+                        # Attachment ingestion: the list endpoint never
+                        # returns the attachments collection — fetch it
+                        # per-message for anything with attachments, so the
+                        # normalizer sees names + contentBytes.
+                        if self._outlook_attachments_enabled():
+                            await self._expand_outlook_attachments(
+                                client, headers, messages
+                            )
 
                         # Normalize messages
                         for msg in messages:
@@ -1673,7 +2390,9 @@ class CommunicationIngestionPipeline:
                                 body_content = body_data.get("content", "")
                                 body_type = body_data.get("contentType", "text")
 
-                                # Parse attachments
+                                # Parse attachments — keep contentBytes so the
+                                # email normalizer can extract the text layer;
+                                # it strips the raw bytes before storage.
                                 attachments_data = msg.get("attachments", [])
                                 attachments = []
                                 for att in attachments_data:
@@ -1682,7 +2401,8 @@ class CommunicationIngestionPipeline:
                                         "name": att.get("name"),
                                         "size": att.get("size"),
                                         "content_type": att.get("contentType"),
-                                        "is_inline": att.get("isInline", False)
+                                        "is_inline": att.get("isInline", False),
+                                        "contentBytes": att.get("contentBytes"),
                                     })
 
                                 normalized_msg = {
@@ -1744,10 +2464,87 @@ class CommunicationIngestionPipeline:
             logger.error(f"Error fetching Outlook messages: {e}")
             return []
     
+    def _index_attachments(
+        self, content: str, attachments: List[Dict[str, Any]]
+    ) -> tuple:
+        """Fold attachment metadata + extracted text into the record content.
+
+        Returns (content, cleaned_attachments). The cleaned list never keeps
+        raw `contentBytes` (base64 bloat in the LanceDB JSON column) — the
+        extracted text lives once, in `content`, where FTS/embeddings index
+        it. Names and metadata are kept for every attachment, text layer or
+        not, so binary files (pdf, images) are still findable by name.
+        """
+        sections: List[str] = []
+        cleaned: List[Dict[str, Any]] = []
+        for att in attachments:
+            if not isinstance(att, dict):
+                continue
+            att = dict(att)
+            text = _extract_attachment_text(att)
+            # Raw payload bytes never persist — the extracted text lives
+            # once, in `content`.
+            att.pop("contentBytes", None)
+            att.pop("data", None)
+            ctype = (
+                _attachment_field(att, "contentType", "content_type", "mimetype") or ""
+            ).lower()
+            content_val = att.get("content")
+            if (
+                ctype != "reference"
+                and content_val
+                and not str(content_val).lower().startswith(("http://", "https://"))
+            ):
+                # Teams inline file attachments: base64 payload.
+                att.pop("content", None)
+            att["extracted_text"] = bool(text)
+            cleaned.append(att)
+            label = (
+                _attachment_field(att, "name", "filename") or att.get("id") or "attachment"
+            )
+            meta = " / ".join(
+                filter(
+                    None,
+                    [
+                        _attachment_field(
+                            att, "contentType", "content_type", "mimetype", "mime_type"
+                        ),
+                        f"{att.get('size')} bytes" if att.get("size") else None,
+                    ],
+                )
+            )
+            section = f"- {label}" + (f" ({meta})" if meta else "")
+            if text:
+                section += f"\n{text}"
+            sections.append(section)
+        if not sections:
+            return content, cleaned
+        header = "--- Attachments ---"
+        appended = header + "\n" + "\n".join(sections)
+        return ((content + "\n\n" + appended) if content else appended), cleaned
+
     def _normalize_message(self, app_type: str, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize message data from different apps to unified format,
         stamped with actor provenance (metadata.actor_type / actor_id)."""
         normalized = self._normalize_message_impl(app_type, message_data)
+
+        # Attachment ingestion, for every app: index attachment names into
+        # the record content (so binary files are findable by name) plus the
+        # extracted text layer for text-like ones (FTS/embeddings). Gated on
+        # the app's IngestionConfig.ingest_attachments; raw payload bytes
+        # (contentBytes/data/content) are stripped from stored metadata.
+        attachments = normalized.get("attachments") or []
+        if attachments and bool(
+            (self.ingestion_configs.get(app_type) or {}).get(
+                "ingest_attachments", True
+            )
+        ):
+            content, cleaned = self._index_attachments(
+                normalized.get("content") or "", attachments
+            )
+            normalized["content"] = content
+            normalized["attachments"] = cleaned
+
         try:
             actor_type, actor_id = derive_actor(message_data)
             meta = normalized.get("metadata")
@@ -1797,15 +2594,45 @@ class CommunicationIngestionPipeline:
         
         # Email normalization
         elif app_type in [CommunicationAppType.EMAIL.value, CommunicationAppType.GMAIL.value, CommunicationAppType.OUTLOOK.value]:
+            # Field-name fallbacks: the Outlook poller (_fetch_outlook_messages)
+            # emits sender/sender_email/recipient/content/timestamp/direction,
+            # while other email sources use from/to/body/date. Without the
+            # fallbacks the poller's messages were stored with EMPTY
+            # sender/recipient/content (and meaningless embeddings) — the same
+            # bug class that hit Telegram.
+            sender = (
+                message_data.get("from")
+                or message_data.get("sender_email")
+                or message_data.get("sender")
+            )
+            recipient = message_data.get("to") or message_data.get("recipient")
+            content = (
+                message_data.get("body")
+                or message_data.get("content")
+                or ""
+            )
+            if str(message_data.get("content_type", "")).lower() == "html":
+                content = _html_to_text(content)
+            ts_raw = message_data.get("date") or message_data.get("timestamp")
+            timestamp = (
+                ts_raw
+                if isinstance(ts_raw, datetime)
+                else datetime.fromisoformat(
+                    ts_raw or datetime.now().isoformat()
+                )
+            )
+            direction = message_data.get("direction") or (
+                "outbound" if message_data.get("from") == "user" else "inbound"
+            )
             return {
                 "id": message_data.get("id", f"email_{datetime.now().isoformat()}"),
                 "app_type": app_type,
-                "timestamp": datetime.fromisoformat(message_data.get("date", datetime.now().isoformat())),
-                "direction": "inbound" if message_data.get("from") != "user" else "outbound",
-                "sender": message_data.get("from"),
-                "recipient": message_data.get("to"),
+                "timestamp": timestamp,
+                "direction": direction,
+                "sender": sender,
+                "recipient": recipient,
                 "subject": message_data.get("subject"),
-                "content": message_data.get("body", ""),
+                "content": content,
                 "attachments": message_data.get("attachments", []),
                 "metadata": {
                     "message_id": message_data.get("message_id"),

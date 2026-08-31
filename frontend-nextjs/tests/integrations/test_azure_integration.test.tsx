@@ -132,8 +132,11 @@ const appServices = [
 ];
 
 const azureHandlers = [
-  rest.get('/api/integrations/azure/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { azure: { connected: true, source: 'user_connection' } } }));
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { azure: { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.post('/api/integrations/azure/subscriptions', (req, res, ctx) => {
@@ -159,7 +162,7 @@ const azureHandlers = [
 
 const setNotConnected = () => {
   server.use(
-    rest.get('/api/integrations/azure/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(500), ctx.json({ error: 'not connected' }));
     })
   );
@@ -328,7 +331,7 @@ describe('AzureIntegration', () => {
   // Test 13: handles connection error as disconnected
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/azure/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500), ctx.json({ error: 'Server error' }));
       })
     );
@@ -829,13 +832,13 @@ describe('AzureIntegration (extended coverage)', () => {
 
   test('treats health check network failure as disconnected', async () => {
     server.use(
-      rest.get('/api/integrations/azure/health', (req, res) => res.networkError('boom'))
+      rest.get('/api/integrations/connection-status', (req, res) => res.networkError('boom'))
     );
 
     render(<AzureIntegration />);
 
     await waitFor(() => {
-      expect(errorSpy).toHaveBeenCalledWith('Health check failed:', expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith('Connection status check failed:', expect.anything());
       expect(
         screen.getByRole('button', { name: /connect azure account/i })
       ).toBeInTheDocument();

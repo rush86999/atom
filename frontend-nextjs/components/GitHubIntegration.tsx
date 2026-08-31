@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
     CheckCircle,
@@ -166,18 +167,26 @@ const GitHubIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/github/health", { headers: authHeaders() });
+            // Real per-integration connection state (DB connections + OAuth
+            // grants + env credentials). The /health route is a liveness probe
+            // that returns 200 unconditionally — it must not decide "connected".
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
-                setConnected(true);
-                setHealthStatus("healthy");
-                loadUserProfile();
-                loadRepositories();
+                const data = await response.json().catch((): null => null);
+                const providers = data?.data?.providers ?? data?.providers ?? {};
+                const isConnected = providers?.github?.connected === true;
+                setConnected(isConnected);
+                setHealthStatus(isConnected ? "healthy" : "error");
+                if (isConnected) {
+                    loadUserProfile();
+                    loadRepositories();
+                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
             }
         } catch (error) {
-            console.error("Health check failed:", error);
+            console.error("Connection status check failed:", error);
             setConnected(false);
             setHealthStatus("error");
         }
@@ -187,7 +196,7 @@ const GitHubIntegration: React.FC = () => {
     const loadUserProfile = async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
-            const response = await fetch("/api/integrations/github/profile", {
+            const response = await authFetch("/api/integrations/github/profile", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -209,7 +218,7 @@ const GitHubIntegration: React.FC = () => {
     const loadRepositories = async () => {
         setLoading((prev) => ({ ...prev, repositories: true }));
         try {
-            const response = await fetch("/api/integrations/github/repositories", {
+            const response = await authFetch("/api/integrations/github/repositories", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -238,7 +247,7 @@ const GitHubIntegration: React.FC = () => {
     const loadIssues = async (repoName?: string) => {
         setLoading((prev) => ({ ...prev, issues: true }));
         try {
-            const response = await fetch("/api/integrations/github/issues", {
+            const response = await authFetch("/api/integrations/github/issues", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -264,7 +273,7 @@ const GitHubIntegration: React.FC = () => {
         if (!newIssue.title || !newIssue.repository) return;
 
         try {
-            const response = await fetch("/api/integrations/github/issues/create", {
+            const response = await authFetch("/api/integrations/github/issues/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({

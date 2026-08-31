@@ -78,7 +78,7 @@ export const createMockWebSocket = (connected = true): MockWebSocket => {
 export const createMockFn = <T extends (...args: unknown[]) => unknown>(
   implementation: T
 ): jest.MockedFunction<T> => {
-  return jest.fn(implementation) as jest.MockedFunction<T>;
+  return jest.fn(implementation) as unknown as jest.MockedFunction<T>;
 };
 
 /**
@@ -111,5 +111,5 @@ export const createMockAsyncFn = <
 >(
   implementation: T
 ): jest.MockedFunction<T> => {
-  return jest.fn(implementation) as jest.MockedFunction<T>;
+  return jest.fn(implementation) as unknown as jest.MockedFunction<T>;
 };

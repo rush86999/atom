@@ -18,6 +18,7 @@ from core.models import (
     GovernanceDocStatus,
     GovernanceImpactLevel,
     HITLAction,
+    NEW_AGENT_CONFIDENCE,
     HITLActionStatus,
     User,
     UserRole,
@@ -371,7 +372,7 @@ class AgentGovernanceService:
                 workspace_id=self.workspace_id,
                 tenant_id=self.tenant_id,
                 status=AgentStatus.STUDENT.value,
-                confidence_score=0.5
+                confidence_score=NEW_AGENT_CONFIDENCE
             )
             self.db.add(agent)
             logger.info(f"Registered new agent: {name}")
@@ -467,6 +468,24 @@ class AgentGovernanceService:
                 self.continuous_learning.update_from_feedback(feedback)
             except Exception as e:
                 logger.warning(f"Continuous learning update failed: {e}")
+
+            # Trust bridge (BPE): an accepted human correction is the one
+            # error-independent signal — it bypasses the workspace value
+            # gate, holds evolution application, and de-inflates Experience
+            # entries that overlap the rejected output. Never breaks
+            # adjudication on failure.
+            try:
+                from core.bpe.trust_bridge import record_adjudication
+
+                record_adjudication(
+                    agent.id,
+                    accepted=True,
+                    is_correction=not is_approval,
+                    original_output=feedback.original_output or "",
+                    user_correction=feedback.user_correction or "",
+                )
+            except Exception as e:
+                logger.debug(f"BPE trust bridge update skipped: {e}")
         else:
             feedback.status = FeedbackStatus.PENDING.value
             feedback.ai_reasoning = "Pending specialty review."
@@ -498,7 +517,10 @@ class AgentGovernanceService:
         ).first()
         if not agent: return
 
-        current = agent.confidence_score or 0.5
+        # NULL-confidence rows start from the shared new-agent baseline —
+        # the old `or 0.5` fallback sat exactly on the INTERN floor, so a
+        # NULL row's first update promoted it out of STUDENT immediately.
+        current = agent.confidence_score if agent.confidence_score is not None else NEW_AGENT_CONFIDENCE
         if magnitude is not None:
             boost = penalty = abs(magnitude)
         else:
@@ -513,10 +535,11 @@ class AgentGovernanceService:
         agent.confidence_score = new_score
         
         prev_status = agent.status
-        if new_score >= 0.9: agent.status = AgentStatus.AUTONOMOUS.value
-        elif new_score >= 0.7: agent.status = AgentStatus.SUPERVISED.value
-        elif new_score >= 0.5: agent.status = AgentStatus.INTERN.value
-        else: agent.status = AgentStatus.STUDENT.value
+        if new_score >= 0.9: banded = AgentStatus.AUTONOMOUS.value
+        elif new_score >= 0.7: banded = AgentStatus.SUPERVISED.value
+        elif new_score >= 0.5: banded = AgentStatus.INTERN.value
+        else: banded = AgentStatus.STUDENT.value
+        agent.status = self._resolve_promotion(agent, prev_status, banded)
 
         if agent.status != prev_status:
             logger.info(f"Agent {agent.name} transitioned: {prev_status} -> {agent.status}")
@@ -529,8 +552,95 @@ class AgentGovernanceService:
                     metadata={'old_status': prev_status, 'new_status': agent.status, 'confidence': new_score}
                 )
             get_governance_cache().invalidate(agent_id)
-        
+
         self.db.commit()
+
+    # Maturity ladder used by the promotion gate below. Tier is still a
+    # function of confidence, but MOVING UP now requires evidence — the
+    # R86/R86b contract. Non-tier statuses (paused/stopped/deprecated) are
+    # lifecycle states: a confidence update must not resurrect them.
+    _MATURITY_RANK = {"student": 0, "intern": 1, "supervised": 2, "autonomous": 3}
+
+    def _resolve_promotion(self, agent: AgentRegistry, prev_status: str, banded: str) -> str:
+        """Apply the score-derived tier, gating upward moves on evidence.
+
+        Score drips (outcome hooks, feedback adjudication) previously
+        promoted an agent purely by band — bypassing the R86b evidence gate
+        (student_training_service) for STUDENT→INTERN and the graduation
+        readiness framework for the higher rungs, which defeated their
+        purpose: confidence accrues automatically, evidence does not.
+        Demotions stay score-based (re-earning a rung re-gates it), and
+        ATOM_PROMOTION_EVIDENCE_GATE=0 restores score-only behavior.
+        """
+        import os as _os
+
+        if _os.getenv("ATOM_PROMOTION_EVIDENCE_GATE", "1").lower() not in ("1", "true", "yes", "on"):
+            return banded
+
+        prev_rank = self._MATURITY_RANK.get(prev_status)
+        new_rank = self._MATURITY_RANK.get(banded)
+        if prev_rank is None:
+            # Lifecycle state (paused/stopped/…): keep it; tiers only.
+            return prev_status
+        if new_rank is None or new_rank <= prev_rank:
+            return banded
+
+        # Walk the ladder upward: each rung between the current tier and
+        # the score's band must independently pass its evidence gate; the
+        # agent lands on the highest rung that did.
+        landed = prev_rank
+        for rank in range(prev_rank + 1, new_rank + 1):
+            level = next(name for name, r in self._MATURITY_RANK.items() if r == rank)
+            ok, detail = self._promotion_evidence_met(agent, level)
+            if not ok:
+                logger.info(
+                    f"Agent {agent.name} evidence gate blocked {level}: "
+                    f"{(detail or {}).get('reason') or 'requirements not met'}"
+                )
+                if self.activity_publisher:
+                    self.activity_publisher.publish_activity(
+                        tenant_id=self.workspace_id,
+                        agent_id=str(agent.id),
+                        activity_type='learning',
+                        state='promotion_blocked',
+                        metadata={'target_level': level, 'confidence': agent.confidence_score, 'detail': detail or {}},
+                    )
+                break
+            landed = rank
+        return next(name for name, r in self._MATURITY_RANK.items() if r == landed)
+
+    def _promotion_evidence_met(self, agent: AgentRegistry, level: str):
+        """Evidence gate for one rung: the R86b multi-pathway evaluator for
+        INTERN (sessions/episodes/mentor/system-agent), the graduation
+        readiness framework's threshold for SUPERVISED/AUTONOMOUS."""
+        try:
+            from core.student_training_service import StudentTrainingService
+
+            training = StudentTrainingService(self.db)
+            if level == "intern":
+                readiness = training._evaluate_intern_readiness(agent)
+                return bool(readiness.get("ready")), readiness
+            if training._is_system_agent(agent):
+                # Platform-built agents bootstrap the product (R86 parity
+                # with the intern pathway's system_agent route).
+                return True, {"pathway": "system_agent"}
+            from core.episode_service import EpisodeService
+
+            resp = EpisodeService(self.db).get_graduation_readiness(
+                agent_id=str(agent.id),
+                tenant_id=agent.tenant_id or "default",
+                target_level=level,
+            )
+            return bool(resp.threshold_met), {
+                "readiness_score": resp.readiness_score,
+                "episodes_analyzed": resp.episodes_analyzed,
+                "reason": "graduation readiness threshold not met",
+            }
+        except Exception as e:
+            # Gate failures are fail-closed: without a working evaluator
+            # there is no evidence, so the rung is not earned.
+            logger.warning(f"Promotion evidence gate error for {agent.id} -> {level}: {e}")
+            return False, {"reason": f"gate error: {e}"}
 
     # --- ADVANCED GOVERNANCE (SaaS Port) ---
 
@@ -914,11 +1024,40 @@ class AgentGovernanceService:
             "reviewed_at": hitl.reviewed_at
         }
 
-    async def record_outcome(self, agent_id: str, success: bool) -> None:
-        """Record the success/failure of an action for learning"""
-        # Placeholder for outcome recording logic
+    async def record_outcome(
+        self, agent_id: str, success: bool, task_summary: Optional[str] = None
+    ) -> None:
+        """Record the success/failure of an action for learning.
+
+        R86c wiring: when ``task_summary`` carries business-role signals,
+        the outcome is ALSO attributed to that domain in the
+        DomainExperienceLedger — the evidence layer the super-mentor gate
+        counts. Without this, only the meta agent's internal path
+        attributed domains, so a generalist could never actually EARN
+        teaching rights for a role it demonstrably works in (the ledger
+        stayed empty in production). Attribution is a learning
+        side-channel: it never raises and never touches the agent's own
+        tier evidence (anti-laundering, see core/domain_attribution).
+        """
         logger.info(f"Recorded outcome for {agent_id}: {'success' if success else 'failure'}")
         self._update_confidence_score(agent_id, positive=success, impact_level="low")
+        if not task_summary:
+            return
+        try:
+            from core.domain_attribution import (
+                get_vocabulary,
+                record_domain_outcome,
+                resolve_domain,
+            )
+
+            domain = resolve_domain(task_summary, vocabulary=get_vocabulary(self.db))
+            if domain:
+                record_domain_outcome(
+                    self.db, agent_id, domain,
+                    success=success, task_summary=task_summary[:200],
+                )
+        except Exception as e:
+            logger.debug(f"domain attribution skipped for {agent_id}: {e}")
 
     # =========================================================================
     # Evolution directive validation (the misevolution defense)

@@ -461,7 +461,7 @@ describe('GoogleDriveIntegration', () => {
   // Test 18: connection check failure shows the error and disconnected state
   test('connection check failure shows the error and disconnected state', async () => {
     server.use(
-      rest.get('/api/gdrive/connection-status', (req, res, ctx) => res(ctx.networkError('boom')))
+      rest.get('/api/gdrive/connection-status', (req, res, ctx) => res((ctx as any).networkError('boom')))
     );
 
     render(<GoogleDriveIntegration />);

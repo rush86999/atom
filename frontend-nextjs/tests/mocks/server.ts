@@ -47,7 +47,7 @@ import { allHandlers } from './handlers';
  * - onUnhandledRequest: 'error' - Fails tests for unhandled API requests
  * - All default handlers from handlers.ts loaded
  */
-export const server: SetupServerApi = setupServer(...allHandlers);
+export const server: SetupServerApi = setupServer(...allHandlers) as unknown as SetupServerApi;
 
 // ============================================================================
 // Utility Functions

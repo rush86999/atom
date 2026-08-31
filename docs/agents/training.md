@@ -57,8 +57,9 @@ Added 4 new models with comprehensive tracking:
 
 **Key Methods**:
 - `create_training_proposal()` - Generate training from blocked triggers
-- `approve_training()` - Approve proposal and create session
-- `complete_training_session()` - Process training and update maturity
+- `approve_training()` - Approve proposal, open the session's evidence window, and create session
+- `complete_training_session()` - Grade the session from its **linked episode evidence** and update maturity
+- `get_session_evidence()` - Live counts of work runs recorded in the session window
 - `estimate_training_duration()` - AI-based duration estimation
 
 **AI Duration Estimation Factors**:
@@ -586,6 +587,55 @@ The Student Agent Training System is now fully operational with:
 - ✅ Test suite with >90% coverage targets
 
 **Ready for**: Frontend development, monitoring/analytics, and production deployment.
+
+---
+
+## Round 87 (2026-08-28): Linked-Evidence Completion
+
+Training completion is now graded on **recorded work, not supervisor claims**.
+Previously the approval panel could complete a session with a typed-in
+performance score and hardcoded `10/10` tasks — promoting hires that never
+ran (the evidence gate then counted those self-declared sessions).
+
+**Contract** (`StudentTrainingService.complete_training_session`):
+
+- `approve_training()` stamps `session.started_at` — the **evidence window** opens at approval.
+- Completion collects `AgentEpisode` ledger rows for the agent with
+  `started_at >= session.started_at` (execution-backed work only) via
+  `get_session_evidence()`.
+- Fewer than `ATOM_TRAINING_MIN_EVIDENCE_EPISODES` (default **3**) recorded
+  runs → `InsufficientTrainingEvidenceError`; the API maps it to **HTTP 422**
+  with the live counts (`GET /api/maturity/training/sessions/{id}/evidence`
+  returns them anytime). Nothing is mutated on rejection.
+- The recorded `performance_score` = `min(supervisor claim, evidence success
+  ratio)`; task counts come from the ledger. Claimed values are kept in
+  `session.outcomes` for audit.
+- Kill switch: `ATOM_TRAINING_REQUIRE_EVIDENCE=0` restores the legacy
+  behavior for deployments/tests that need it.
+
+This stacks on the Round 86 promotion gate (min completed sessions, min
+episodes, min success ratio — env-tunable, dynamically tuned per domain by
+`core/promotion_policy_service.py`). Session completion evidence is what the
+gate counts; the supervisor panel (`MaturityApprovalPanel`) now renders the
+live evidence counts and keeps "Mark completed" disabled until the floor is
+met. Tests: `backend/tests/test_promotion_evidence_gate.py` (14 cases
+incl. rejection, score-cap, and kill-switch).
+
+---
+
+## Round 88 (2026-08-28): Step-Level Feedback Write-Through
+
+Human thumbs on agent work now land directly in the trace the training
+pipeline mines. The Agent Workspace panel (`components/chat/AgentWorkspace.tsx`)
+collects per-step and per-run thumbs (plus correction notes) during chat, and
+`POST /api/reasoning/feedback` (`api/reasoning_routes.py`) — when given
+`execution_id` + `step_number` — stamps the polarity onto the reasoning row:
+`AgentReasoningStep.feedback_score = 1 | -1` (+ `feedback_text`). The
+governance `AgentFeedback` adjudication flow is unchanged; the write-through
+adds a directly queryable column for `harness_evolution_service`
+failure-pattern mining, which already reads `feedback_score`. Full pipeline:
+[Agent Workspace Live Trace](agent-workspace-trace.md). Tests:
+`backend/tests/test_chat_agent_trace.py`.
 
 ---
 

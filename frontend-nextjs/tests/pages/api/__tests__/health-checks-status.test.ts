@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import quickbooksIntegrationsHealthHandler from "@/pages/api/integrations/quickbooks/health";
 import quickbooksHealthHandler from "@/pages/api/quickbooks/health";
 import zendeskHealthHandler from "@/pages/api/integrations/zendesk/health";
@@ -101,7 +101,7 @@ describe("pages/api/health", () => {
   });
 
   const invoke = async (method = "GET", res?: any) => {
-    const mocks = createMocks({ method }) as any;
+    const mocks = createMocks({ method: method as RequestMethod }) as any;
     await rootHealthHandler(mocks.req, res ?? mocks.res);
     return mocks.res;
   };

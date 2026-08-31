@@ -45,6 +45,15 @@ export interface TrainingCompletionResult {
   [key: string]: unknown;
 }
 
+/** Linked work evidence for a training session (backend-derived). */
+export interface SessionEvidence {
+  episodes: number;
+  successes: number;
+  success_ratio: number;
+  window_started_at: string | null;
+  required_episodes: number;
+}
+
 export interface ActionProposal {
   id: string;
   tenant_id?: string | null;
@@ -138,14 +147,27 @@ export async function rejectTrainingProposal(
   if (!res.ok) throw new Error(`Reject failed (${res.status})`);
 }
 
+/** Live linked-evidence counts for a training session. */
+export async function getTrainingSessionEvidence(
+  sessionId: string
+): Promise<SessionEvidence> {
+  const res = await fetchJson(
+    `/api/maturity/training/sessions/${sessionId}/evidence`
+  );
+  if (!res.ok) throw new Error(`Evidence fetch failed (${res.status})`);
+  return res.json();
+}
+
 export async function completeTrainingSession(
   sessionId: string,
   input: {
-    performance_score: number;
+    /** Supervisor's claimed score — the backend caps it by linked evidence. */
+    performance_score?: number;
     supervisor_feedback: string;
-    errors_count: number;
-    tasks_completed: number;
-    total_tasks: number;
+    errors_count?: number;
+    /** Ignored by the backend: task progress comes from the episode ledger. */
+    tasks_completed?: number;
+    total_tasks?: number;
     capabilities_developed?: string[];
     capability_gaps_remaining?: string[];
   }
@@ -162,7 +184,20 @@ export async function completeTrainingSession(
       }),
     }
   );
-  if (!res.ok) throw new Error(`Complete failed (${res.status})`);
+  if (!res.ok) {
+    // Surface the backend's structured reason (e.g. insufficient linked
+    // evidence) instead of a bare status code.
+    let message = `Complete failed (${res.status})`;
+    try {
+      const body = await res.json();
+      const detail = body?.detail;
+      if (typeof detail === 'string') message = detail;
+      else if (detail?.message) message = detail.message;
+    } catch {
+      // non-JSON error body — keep the generic message
+    }
+    throw new Error(message);
+  }
   return res.json();
 }
 
@@ -175,6 +210,155 @@ export async function getTrainingHistory(
   );
   const body = await res.json();
   return body.training_history ?? [];
+}
+
+// ── Canvas training panel (/canvas/{id} training tab) ───────────────────────
+
+export interface CanvasTrainingAgent {
+  id: string;
+  name: string | null;
+  tier: string | null;
+  confidence: number | null;
+  domain: string | null;
+}
+
+export interface CanvasTrainingSession {
+  id: string;
+  agent_id: string;
+  status: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  lesson_plan: Record<string, unknown> | null;
+  supervisor_note?: string | null;
+  canvas_id?: string | null;
+  promoted_to_intern?: boolean;
+  performance_score?: number | null;
+  evidence: SessionEvidence;
+}
+
+export interface CanvasTrainingContext {
+  canvas_id: string;
+  agent: CanvasTrainingAgent | null;
+  linked_session: CanvasTrainingSession | null;
+  pending_proposal: TrainingProposal | null;
+  viewer_is_supervisor: boolean;
+}
+
+/**
+ * Everything the canvas training panel needs in one read: which agent is
+ * being trained on this canvas, the linked training session (with live
+ * evidence), any pending training proposal, and whether the viewer may use
+ * the supervisor controls.
+ */
+export async function getCanvasTrainingContext(
+  canvasId: string,
+  agentIdHint?: string
+): Promise<CanvasTrainingContext> {
+  const res = await fetchJson(
+    `/api/maturity/training/context${query({
+      canvas_id: canvasId,
+      agent_id: agentIdHint,
+    })}`
+  );
+  if (!res.ok) throw new Error(`Context fetch failed (${res.status})`);
+  return res.json();
+}
+
+/** Deliver a mentor lesson to a STUDENT agent (the learning channel). */
+export async function teachAgent(
+  agentId: string,
+  lesson: string,
+  topic?: string
+): Promise<{ status: string; [key: string]: unknown }> {
+  const res = await fetchJson(`/api/agents/${agentId}/teach`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lesson, topic }),
+  });
+  if (!res.ok) throw new Error(`Teach failed (${res.status})`);
+  return res.json();
+}
+
+/** Supervisor edits the mentor-proposed lesson plan for a session. */
+export async function updateTrainingGuidance(
+  sessionId: string,
+  lessonPlan: Record<string, unknown>,
+  supervisorNote?: string
+): Promise<{ success: boolean; lesson_plan: Record<string, unknown> | null }> {
+  const res = await fetchJson(
+    `/api/maturity/training/sessions/${sessionId}/guidance`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        supervisorNote !== undefined
+          ? { lesson_plan: lessonPlan, supervisor_note: supervisorNote }
+          : { lesson_plan: lessonPlan }
+      ),
+    }
+  );
+  if (!res.ok) throw new Error(`Guidance save failed (${res.status})`);
+  return res.json();
+}
+
+export interface GraduationReadiness {
+  ready?: boolean;
+  score?: number;
+  episode_count?: number;
+  intervention_rate?: number;
+  recommendation?: string;
+  gaps?: string[];
+  current_maturity?: string;
+  target_maturity?: string;
+  [key: string]: unknown;
+}
+
+export async function getGraduationReadiness(
+  agentId: string,
+  targetMaturity = 'INTERN'
+): Promise<GraduationReadiness> {
+  const res = await fetchJson(
+    `/api/episodes/graduation/readiness/${agentId}${query({
+      target_maturity: targetMaturity,
+    })}`
+  );
+  if (!res.ok) throw new Error(`Readiness fetch failed (${res.status})`);
+  return res.json();
+}
+
+/** Promote an agent to the next tier (graduation). Supervisor-only backend. */
+export async function promoteAgent(
+  agentId: string,
+  newMaturity: string
+): Promise<{ agent_id: string; new_maturity: string; promoted: boolean }> {
+  // This endpoint takes query params, not a JSON body.
+  const res = await fetchJson(
+    `/api/episodes/graduation/promote${query({
+      agent_id: agentId,
+      new_maturity: newMaturity,
+    })}`,
+    { method: 'POST' }
+  );
+  if (!res.ok) throw new Error(`Promote failed (${res.status})`);
+  return res.json();
+}
+
+export interface GraduationProgress {
+  current_tier?: string;
+  next_tier?: string | null;
+  episodes_to_next?: number | null;
+  next_threshold_episodes?: number | null;
+  episode_count?: number;
+  [key: string]: unknown;
+}
+
+/** Tier progress from the shared /api/agents surface (AgentCard badge data). */
+export async function getAgentGraduationProgress(
+  agentId: string
+): Promise<GraduationProgress> {
+  const res = await fetchJson(`/api/agents/${agentId}/graduation-progress`);
+  if (!res.ok) throw new Error(`Progress fetch failed (${res.status})`);
+  return res.json();
 }
 
 // ── Action proposals (INTERN journey) ───────────────────────────────────────

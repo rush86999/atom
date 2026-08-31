@@ -7,6 +7,11 @@
  * @module @atom/test-utils/cleanup
  */
 
+// Injected at runtime by platform-guard test setup when platform/device mocks
+// are active; declared ambiently so the guarded lookups below typecheck.
+declare const restorePlatform: unknown;
+declare const restoreDevice: unknown;
+
 /**
  * Reset all mocks and timers to clean state
  * Call in beforeEach for consistent test isolation

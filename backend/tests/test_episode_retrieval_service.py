@@ -13,6 +13,7 @@ from typing import Dict, Any
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from core.episode_retrieval_service import (
     EpisodeRetrievalService,
@@ -448,6 +449,9 @@ class TestContextualRetrieval:
         # Mock query chain
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_episode_obj
+        # retrieve_contextual batch-fetches candidates with .all() (Bug #12
+        # N+1 fix) — the chain must be iterable or the map-build raises.
+        mock_query.filter.return_value.all.return_value = [mock_episode_obj]
         mock_db.query.return_value = mock_query
 
         with patch('core.episode_retrieval_service.get_lancedb_handler'):
@@ -508,6 +512,9 @@ class TestContextualRetrieval:
         # Mock query chain
         mock_query = Mock()
         mock_query.filter.return_value.first.return_value = mock_episode_obj
+        # retrieve_contextual batch-fetches candidates with .all() (Bug #12
+        # N+1 fix) — the chain must be iterable or the map-build raises.
+        mock_query.filter.return_value.all.return_value = [mock_episode_obj]
         mock_db.query.return_value = mock_query
 
         with patch('core.episode_retrieval_service.get_lancedb_handler'):
@@ -583,3 +590,42 @@ class TestRetrievalLogging:
 # Total tests: 24 (within 20-25 target)
 # Coverage areas: Enums (5), Result (2), Init (2), Temporal (4), Semantic (2),
 #                  Sequential (2), Contextual (2), Logging (2)
+
+
+class TestLogAccess:
+    """Regression: agent-less retrieval must not attempt an audit INSERT.
+
+    ``accessed_by_agent`` is NOT NULL; plain user chats call retrieval with
+    agent_id=None, and the attempted insert failed on EVERY chat turn — the
+    failed flush then left the session rolled back so the rest of the memory
+    assembler's episodes leg died too ("transaction has been rolled back").
+    """
+
+    @pytest.fixture
+    def mock_db(self):
+        return Mock(spec=Session)
+
+    @pytest.mark.asyncio
+    async def test_no_agent_skips_audit_entirely(self, mock_db):
+        with patch('core.episode_retrieval_service.get_lancedb_handler'), \
+             patch('core.episode_retrieval_service.AgentGovernanceService') as mock_gov:
+            mock_gov.return_value.can_perform_action.return_value = {"allowed": False}
+            service = EpisodeRetrievalService(mock_db)
+
+            await service._log_access(None, "temporal", {"allowed": False}, None, 0)
+
+        mock_db.add.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_failed_insert_rolls_back_and_never_poisons_session(self, mock_db):
+        mock_db.commit.side_effect = IntegrityError("stmt", "params", Exception("boom"))
+        with patch('core.episode_retrieval_service.get_lancedb_handler'), \
+             patch('core.episode_retrieval_service.AgentGovernanceService'):
+            service = EpisodeRetrievalService(mock_db)
+
+            # Must not raise — and must roll the session back so later queries
+            # in the same request still work.
+            await service._log_access("ep-1", "temporal", {"allowed": True}, "agent-1", 3)
+
+        mock_db.rollback.assert_called_once()

@@ -1102,7 +1102,12 @@ class TestReasoningRoutes:
     @pytest.fixture
     def client(self):
         from api.reasoning_routes import router
-        return _auth_app(router, db=MagicMock(), raise_exc=True)
+        db = MagicMock()
+        # The /feedback idempotency guard queries AgentFeedback.first() —
+        # a truthy MagicMock reads as "duplicate" and short-circuits every
+        # submission before governance is ever called.
+        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
+        return _auth_app(router, db=db, raise_exc=True)
 
     def test_all_endpoints_require_auth(self):
         from api.reasoning_routes import router

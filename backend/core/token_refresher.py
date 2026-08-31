@@ -238,7 +238,9 @@ if os.getenv("WHATSAPP_APP_ID"):
 if os.getenv("GMAIL_CLIENT_ID"):
    token_refresher.register_service("google", refresh_google_token)
 
-if os.getenv("OUTLOOK_CLIENT_ID"):
+# The Microsoft OAuth setup lives in MICROSOFT_CLIENT_ID (backend/.env);
+# OUTLOOK_CLIENT_ID is a legacy alias for the same app.
+if os.getenv("MICROSOFT_CLIENT_ID") or os.getenv("OUTLOOK_CLIENT_ID"):
     token_refresher.register_service("microsoft", refresh_microsoft_token)
 
 if os.getenv("SALESFORCE_CLIENT_ID"):

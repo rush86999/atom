@@ -7,6 +7,7 @@ Excel (.xlsx), and PowerPoint (.pptx) documents without native Office dependenci
 
 import logging
 import os
+import re
 import io
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -145,6 +146,36 @@ class ExcelManager:
         except Exception as e:
             logger.error(f"Error reading Excel range: {e}")
             return {"success": False, "error": "Failed to read Excel range"}
+
+    def create_spreadsheet(self, file_path: str, rows: List[List[Any]]) -> Dict[str, Any]:
+        """Create a new .xlsx from row data (chat-table drafts → office
+        canvas). One workbook open/save, unlike per-cell write_cell.
+        Numeric-looking strings become real numbers so Excel formulas and
+        sums work instead of tripping over text cells."""
+        def coerce(value: Any) -> Any:
+            if isinstance(value, str):
+                stripped = value.strip()
+                if re.fullmatch(r"-?\d+", stripped):
+                    return int(stripped)
+                if re.fullmatch(r"-?\d*\.\d+", stripped):
+                    return float(stripped)
+            return value
+
+        try:
+            file_path = _validate_office_path(file_path)
+        except ValueError as e:
+            return {"success": False, "error": str(e)}
+        try:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Sheet1"
+            for row in rows or []:
+                ws.append([coerce(cell) for cell in row])
+            os.makedirs(os.path.dirname(file_path) or ".", exist_ok=True)
+            wb.save(file_path)
+            return {"success": True, "file_path": file_path, "rows": len(rows or [])}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def write_cell(self, file_path: str, cell_path: str, value: Any, is_formula: bool = False) -> Dict[str, Any]:
         """Write value or formula to a cell."""

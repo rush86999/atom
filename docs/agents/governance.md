@@ -1,12 +1,18 @@
 # Agent Governance System
 
-> **Removed (2026-08-20):** the bespoke three-layer policy engine
+> **History:** the original general-purpose three-layer policy engine
 > (`core/governance/` — `policy_engine.py`, `dynamic_governance.py`,
-> `governance_service.py`) has been deleted. It was never wired into the live
-> dispatch path (live governance is `core/agent_governance_service.py`,
-> `core/governance_engine.py`, and the Gatekeeper middleware). Code samples
-> below referencing it are historical. For external policy-as-code, integrate
-> an OPA sidecar (roadmap).
+> `governance_service.py`) was deleted 2026-08-20 because it was never
+> wired into any live path. **Reintroduced 2026-08-30, scoped to
+> graduation decisions and actually wired in**: `policy_engine.py` and
+> `dynamic_governance.py` now gate
+> `GraduationExamService.execute_graduation_exam` (Stage 5.5) and
+> `AgentGraduationService.promote_agent` (STRATEGIC human-in-the-loop for
+> AUTONOMOUS promotions). `governance_service.py` (Governance-as-a-Service
+> multi-tenant API) was NOT reintroduced. Live action governance remains
+> `core/agent_governance_service.py`, `core/governance_engine.py`, and the
+> Gatekeeper middleware. For external policy-as-code, an OPA sidecar
+> remains on the roadmap.
 
 
 **Last Updated**: June 18, 2026
@@ -570,11 +576,16 @@ allowed = cache.is_allowed(agent_id, action_type)
 
 Based on [Governance-as-a-Service: Multi-Agent Framework](https://arxiv.org/html/2508.18765v1)
 
+Scoped to **graduation decisions** (the reintroduced `core/governance/`):
+the layers map to maturity transitions and are enforced inside
+`GraduationExamService.execute_graduation_exam` and
+`AgentGraduationService.promote_agent`.
+
 | Layer | Scope | Response Time | Human Involvement |
 |-------|-------|---------------|-------------------|
-| **OPERATIONAL** | Fast, routine decisions | <10ms | Fully automated |
-| **TACTICAL** | Adaptive, performance-based | <100ms | Minimal (<5%) |
-| **STRATEGIC** | Policy, cross-tenant decisions | Variable | Human-in-the-loop |
+| **OPERATIONAL** | student → intern checks | in-process, automated | Fully automated |
+| **TACTICAL** | intern → supervised, policy floors | in-process, adaptive | Policy-driven |
+| **STRATEGIC** | supervised → autonomous | Variable | **Human-in-the-loop** |
 
 **Usage:**
 ```python
@@ -582,96 +593,92 @@ from core.governance.dynamic_governance import DynamicGovernanceManager, Governa
 
 manager = DynamicGovernanceManager()
 
-# Operational layer (fast, automated)
+# Operational layer (automated student→intern graduation)
 decision = manager.decide(
     agent_id="agent_123",
-    action="read_chart",
-    layer=GovernanceLayer.OPERATIONAL
+    action="graduate_to_intern",
+    layer=GovernanceLayer.OPERATIONAL,
+    context={"episode_count": 12, "readiness_score": 0.75, ...},
 )
 
-# Strategic layer (human-in-the-loop for policy changes)
+# Strategic layer (AUTONOMOUS promotion: policies pass AND a human
+# must approve — the exam withholds the promotion until then)
 decision = manager.decide(
     agent_id="agent_123",
-    action="delete_database",
-    layer=GovernanceLayer.STRATEGIC
+    action="graduate_to_autonomous",
+    layer=GovernanceLayer.STRATEGIC,
+    context={"episode_count": 60, "readiness_score": 0.96, ...},
 )
+assert decision.allowed and decision.requires_human
 ```
 
 ### Policy Engine
 
-Context-aware policy evaluation with priority-based resolution:
+Context-aware policy evaluation with priority-based resolution. Default
+policies are derived from `ReadinessThresholds` and the per-level minimum
+episode counts, so they cannot drift from the exam's own gates:
 
 ```python
-from core.governance.policy_engine import PolicyEngine, GovernancePolicy
+from core.governance.policy_engine import PolicyEngine, GovernancePolicy, PolicyPriority
 
-engine = PolicyEngine()
+engine = PolicyEngine()  # seeds default graduation policies
 
-# Register policy with priority
+# Register an additional policy (conditions support `action == '<name>'`)
 policy = GovernancePolicy(
-    policy_id="data_access_policy",
+    policy_id="stricter_autonomous_floor",
     priority=PolicyPriority.HIGH,
-    condition="action.startswith('delete_')",
+    condition="action == 'graduate_to_autonomous'",
     effect="DENY",
-    layer="operational"
+    layer="strategic",
+    rules={"min_episodes": 50, "max_intervention_rate": 0.0, "min_constitutional_score": 0.95},
 )
 
 engine.register_policy(policy)
 
-# Evaluate request
+# Evaluate request — missing evidence counts as a violated rule
 result = engine.evaluate(
     agent_id="agent_123",
-    action="delete_user_data",
-    layer="operational",
-    context={"resource_type": "user"}
+    action="graduate_to_autonomous",
+    layer="strategic",
+    context={"episode_count": 48, "intervention_rate": 0.02, "constitutional_score": 0.92},
 )
+# decision="deny": episodes < 50, intervention > 0%, score < 0.95
 ```
 
 ### Governance-as-a-Service
 
-Multi-tenant governance API with caching and rate limiting:
+**Not reintroduced.** The deleted `governance_service.py`
+(`GovernanceAsAService` multi-tenant API with caching/rate limiting) has
+no live consumers; reintroduce it only together with a wired caller. For
+external policy-as-code, an OPA sidecar remains on the roadmap.
 
-```python
-from core.governance.governance_service import GovernanceAsAService
+### Enforcement contract
 
-service = GovernanceAsAService()
-
-# Multi-tenant permission check
-response = service.check_permission(
-    tenant_id="tenant_123",
-    user_id="user_456",
-    agent_id="agent_789",
-    action="submit_form",
-    resource="customer_data"
-)
-```
-
-### Performance Metrics (Enhanced)
-
-| Metric | Target | Status |
-|--------|--------|--------|
-| Decision Latency P50 | <10ms | ✅ Tests passing |
-| Decision Latency P95 | <50ms | ✅ Tests passing |
-| Human Intervention Rate | <5% operational | ✅ Framework ready |
-| Policy Evaluation | <100ms | ✅ Tests passing |
-
-See [VALIDATION_METRICS.md](../../backend/docs/VALIDATION_METRICS.md) for complete validation framework.
+The enforcement wiring is pinned by executable tests:
+`backend/tests/test_governance_graduation_integration.py` —
+- policy DENY fails the exam with per-rule reasons;
+- a STRATEGIC pass records `awaiting_human_approval` and does NOT change
+  the agent's maturity;
+- `promote_agent("...", "AUTONOMOUS", ...)` re-evaluates the strategic
+  policy against live episode evidence and refuses on violation.
 
 ### Migration Notes
 
 **From Original to Enhanced:**
 1. **Original governance still works** - No breaking changes
-2. **Enhanced features opt-in** - Use new modules when needed
-3. **Three-layer architecture** - Add for complex multi-tenant scenarios
-4. **Policy engine** - Replace hardcoded action complexity
-5. **Governance-as-a-Service** - Use for multi-tenant API exposure
+2. **Graduation gating is automatic** - exams and promotions consult the
+   policy engine; no opt-in needed
+3. **Custom graduation policies** - register on the shared `PolicyEngine`
+   or pass your own to `DynamicGovernanceManager(engine=...)`
+4. **Governance-as-a-Service** - not reintroduced (see above)
 
 **When to Use Each Approach:**
 
 | Scenario | Recommended Approach |
 |----------|---------------------|
-| Single-tenant, simple governance | Original `AgentGovernanceService` |
-| Multi-tenant with policies | `GovernanceAsAService` |
-| Complex decision layers | `DynamicGovernanceManager` |
+| Action-level maturity/permission governance | `AgentGovernanceService` |
+| Graduation/promotion gating | `DynamicGovernanceManager` + `PolicyEngine` |
+| External policy-as-code | OPA sidecar (roadmap) |
 | Policy-based evaluation | `PolicyEngine` |
 | Production validation | See `VALIDATION_METRICS.md` |
 

@@ -32,10 +32,14 @@ const steps = [
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
-// P1.2 — providers offered in the inline API-key card. Must stay in sync with
-// the valid_providers list on the backend store endpoint (byok_endpoints.py).
+// P1.2 — seed providers for the inline API-key card. The dropdown is
+// populated live from GET /api/ai/providers (tenant-scoped provider registry,
+// api/byok_routes.py) when the user reaches step 2, so it stays in sync with
+// what the backend can actually store — it used to be hardcoded and was
+// missing OpenRouter and others. This list remains as the offline fallback.
 const API_KEY_PROVIDERS = [
     { id: "openai", label: "OpenAI", placeholder: "sk-..." },
+    { id: "openrouter", label: "OpenRouter", placeholder: "sk-or-..." },
     { id: "anthropic", label: "Anthropic", placeholder: "sk-ant-..." },
     { id: "deepseek", label: "DeepSeek", placeholder: "sk-..." },
     { id: "glm", label: "GLM (z.ai)", placeholder: "..." },
@@ -65,6 +69,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     const [apiKeyProvider, setApiKeyProvider] = useState<string>("openai");
     const [apiKeyValue, setApiKeyValue] = useState<string>("");
     const [apiKeySaving, setApiKeySaving] = useState(false);
+    const [providerOptions, setProviderOptions] = useState(API_KEY_PROVIDERS);
 
     const handleNext = async () => {
         if (activeStep === steps.length - 1) {
@@ -104,6 +109,46 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
         })();
         return () => { cancelled = true; };
     }, [activeStep, ollamaReachable]);
+
+    // Fetch the live provider registry when the user reaches step 2 so the
+    // dropdown reflects what the backend can actually store. Falls back to
+    // the hardcoded seed list on any failure (offline, 401, empty registry).
+    useEffect(() => {
+        if (activeStep !== 2) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const token = localStorage.getItem("token");
+                const res = await fetch(`${API_BASE}/api/ai/providers`, {
+                    headers: token ? { "Authorization": `Bearer ${token}` } : {},
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                // GET /api/ai/providers wraps its payload in the standard
+                // ApiResponse envelope ({success, data: {providers}}).
+                const payload = data?.data?.providers ? data.data : data;
+                const dynamic = ((payload?.providers || []) as any[])
+                    .filter((r) => r?.provider?.id
+                        && r.provider.id !== "ollama" // Card A owns the Ollama path
+                        && r.provider.is_active !== false)
+                    .map((r) => ({
+                        id: r.provider.id as string,
+                        label: r.provider.name as string,
+                        placeholder: "API key",
+                    }));
+                if (!cancelled && dynamic.length > 0) {
+                    setProviderOptions(dynamic);
+                    // Keep the selection valid when the seeded default is absent.
+                    setApiKeyProvider((current) =>
+                        dynamic.some((p) => p.id === current) ? current : dynamic[0].id
+                    );
+                }
+            } catch {
+                // keep seed list
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [activeStep]);
 
     // P1.2 — Card A: store the Ollama provider via the existing keys endpoint.
     // Ollama doesn't need a real secret; we send a placeholder that the BYOK
@@ -399,13 +444,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                                         value={apiKeyProvider}
                                         onChange={(e) => setApiKeyProvider(e.target.value)}
                                     >
-                                        {API_KEY_PROVIDERS.map((p) => (
+                                        {providerOptions.map((p) => (
                                             <option key={p.id} value={p.id}>{p.label}</option>
                                         ))}
                                     </select>
                                     <Input
                                         type="password"
-                                        placeholder={API_KEY_PROVIDERS.find(p => p.id === apiKeyProvider)?.placeholder || "API key"}
+                                        placeholder={providerOptions.find(p => p.id === apiKeyProvider)?.placeholder || "API key"}
                                         value={apiKeyValue}
                                         onChange={(e) => setApiKeyValue(e.target.value)}
                                     />

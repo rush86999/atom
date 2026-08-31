@@ -34,7 +34,7 @@ const variable = (overrides: Record<string, any> = {}) => ({
 
 describe('VariableInspector', () => {
   beforeEach(() => {
-    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => [] }));
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: async () => [] })) as unknown as typeof fetch;
   });
 
   const renderInspector = (props: Record<string, any> = {}) =>

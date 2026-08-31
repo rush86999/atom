@@ -2,20 +2,19 @@
  * IntegrationHealthDashboard Component Tests
  *
  * Tests verify the real IntegrationHealthDashboard component
- * (components/integrations/IntegrationHealthDashboard.tsx):
- * - Fetches a fixed list of 9 integration health endpoints
- *   (/api/integrations/{id}/health) and derives healthy/warning/error status
- * - Loading state, summary stats cards, overall health progress
- * - Integration list with per-status badges and connected badges
- * - Refresh button refetch, last-updated timestamp, status legend
- * - autoRefresh interval and showDetails prop
+ * (components/integrations/IntegrationHealthDashboard.tsx), which renders
+ * GET /api/integrations/health-status — the backend's real connection state
+ * (UserConnection rows, tenant connectors, env credentials) plus live
+ * provider verification where a credential is exercisable:
+ * - healthy       connected + live provider call succeeded
+ * - unreachable   connected + live provider call failed
+ * - connected     connected, credential not exercisable in one call
+ * - not_connected no connection or credential exists
  *
  * Uses the shared MSW server (tests/mocks/server.ts). Real timers are used
  * throughout (fake timers break MSW + RTL waitFor). The ui/spinner module is
  * mocked (its source references React without importing it, which throws
  * "React is not defined" whenever the loading state renders the real Spinner).
- * useSession is mocked because there is no SessionProvider in tests; without a
- * token the hook skips connecting, so the health fetch is unaffected.
  */
 
 import React from 'react';
@@ -24,10 +23,6 @@ import '@testing-library/jest-dom';
 import IntegrationHealthDashboard from '../IntegrationHealthDashboard';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
-
-jest.mock('next-auth/react', () => ({
-  useSession: () => ({ data: null }),
-}));
 
 // The ui/spinner module references React without importing it, which throws
 // "React is not defined" in the test runtime whenever the loading state
@@ -39,31 +34,61 @@ jest.mock('@/components/ui/spinner', () => ({
   ),
 }));
 
-const healthy = (req: any, res: any, ctx: any) =>
-  res(ctx.status(200), ctx.json({ connected: true, status: 'healthy' }));
+const providers = (extra: Record<string, any> = {}) => ({
+  checked_at: '2026-08-29T00:00:00Z',
+  providers: {
+    github: {
+      name: 'GitHub',
+      category: 'development',
+      connected: true,
+      source: 'env',
+      status: 'healthy',
+      verified: true,
+      response_time_ms: 212,
+      error: null,
+      checked_at: '2026-08-29T00:00:00Z',
+    },
+    slack: {
+      name: 'Slack',
+      category: 'communication',
+      connected: true,
+      source: 'user_connection',
+      status: 'unreachable',
+      verified: true,
+      response_time_ms: 140,
+      error: 'HTTP 401',
+      checked_at: '2026-08-29T00:00:00Z',
+    },
+    salesforce: {
+      name: 'Salesforce',
+      category: 'crm',
+      connected: true,
+      source: 'user_connection',
+      status: 'connected',
+      verified: false,
+      response_time_ms: null,
+      error: null,
+      checked_at: '2026-08-29T00:00:00Z',
+    },
+    stripe: {
+      name: 'Stripe',
+      category: 'finance',
+      connected: false,
+      source: 'none',
+      status: 'not_connected',
+      verified: false,
+      response_time_ms: null,
+      error: null,
+      checked_at: null,
+    },
+    ...extra,
+  },
+});
 
-const allHealthy = [
-  rest.get('/api/integrations/:platform/health', healthy),
-];
-
-const allError = [
-  rest.get('/api/integrations/:platform/health', (req, res, ctx) => {
-    return res(ctx.status(500), ctx.json({ connected: false, status: 'error' }));
-  }),
-];
-
-const mixedStatuses = [
-  rest.get('/api/integrations/:platform/health', (req, res, ctx) => {
-    const platform = req.params.platform;
-    if (platform === 'github') {
-      return res(ctx.status(200), ctx.json({ connected: true, status: 'healthy' }));
-    }
-    if (platform === 'azure') {
-      return res(ctx.status(200), ctx.json({ connected: false, status: 'warning' }));
-    }
-    return res(ctx.status(500), ctx.json({ connected: false, status: 'error' }));
-  }),
-];
+const healthStatus = (body: any) =>
+  rest.get('/api/integrations/health-status', (req, res, ctx) =>
+    res(ctx.status(200), ctx.json(body))
+  );
 
 describe('IntegrationHealthDashboard', () => {
   beforeEach(() => {
@@ -71,10 +96,10 @@ describe('IntegrationHealthDashboard', () => {
     server.resetHandlers();
   });
 
-  // Test 1: renders the loading state while health checks are pending
-  it('renders loading state while health checks are pending', () => {
+  // Test 1: renders the loading state while the status fetch is pending
+  it('renders loading state while the health-status fetch is pending', () => {
     server.use(
-      rest.get('/api/integrations/:platform/health', () => new Promise(() => {})) // never resolves
+      rest.get('/api/integrations/health-status', () => new Promise<undefined>(() => {})) // never resolves
     );
 
     render(<IntegrationHealthDashboard />);
@@ -85,83 +110,88 @@ describe('IntegrationHealthDashboard', () => {
     expect(screen.getByTestId('spinner')).toBeInTheDocument();
   });
 
-  // Test 2: renders the dashboard with the full integration list
-  it('shows the list of integrations with health status', async () => {
-    server.use(...allHealthy);
+  // Test 2: renders every provider reported by the backend
+  it('shows the providers reported by health-status', async () => {
+    server.use(healthStatus(providers()));
 
     render(<IntegrationHealthDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText('Integration Status')).toBeInTheDocument();
       expect(screen.getByText('GitHub')).toBeInTheDocument();
-      expect(screen.getByText('Azure')).toBeInTheDocument();
-      expect(screen.getByText('Microsoft 365')).toBeInTheDocument();
-      expect(screen.getByText('Notion')).toBeInTheDocument();
-      expect(screen.getByText('Salesforce')).toBeInTheDocument();
       expect(screen.getByText('Slack')).toBeInTheDocument();
+      expect(screen.getByText('Salesforce')).toBeInTheDocument();
       expect(screen.getByText('Stripe')).toBeInTheDocument();
-      expect(screen.getByText('Microsoft Teams')).toBeInTheDocument();
-      expect(screen.getByText('Zoom')).toBeInTheDocument();
     });
   });
 
-  // Test 3: shows green/yellow/red health indicators
-  it('shows green/yellow/red health indicators', async () => {
-    server.use(...mixedStatuses);
+  // Test 3: shows the four real statuses
+  it('shows healthy/unverified/unreachable/not-connected indicators', async () => {
+    server.use(healthStatus(providers()));
 
     render(<IntegrationHealthDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText('HEALTHY')).toBeInTheDocument();
-      expect(screen.getByText('WARNING')).toBeInTheDocument();
+      expect(screen.getByText('UNREACHABLE')).toBeInTheDocument();
+      expect(screen.getByText('UNVERIFIED')).toBeInTheDocument();
+      expect(screen.getByText('NOT CONNECTED')).toBeInTheDocument();
     });
-
-    // github healthy, azure warning, the other 7 errored
-    expect(screen.getAllByText('ERROR')).toHaveLength(7);
-    expect(screen.getByText('CONNECTED')).toBeInTheDocument(); // github only
   });
 
-  // Test 4: displays summary stats cards
+  // Test 4: surfaces the real provider error and measured response time
+  it('shows the real error and response time details', async () => {
+    server.use(healthStatus(providers()));
+
+    render(<IntegrationHealthDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('HTTP 401')).toBeInTheDocument();
+      expect(screen.getByText('212ms')).toBeInTheDocument();
+      expect(screen.getByText('Source: environment credentials')).toBeInTheDocument();
+      expect(screen.getAllByText('Source: in-app connection')).toHaveLength(2);
+    });
+  });
+
+  // Test 5: displays summary stats cards
   it('displays summary stats cards', async () => {
-    server.use(...allHealthy);
+    server.use(healthStatus(providers()));
 
     render(<IntegrationHealthDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('Total Integrations')).toBeInTheDocument();
-      expect(screen.getByText('Healthy')).toBeInTheDocument();
-      expect(screen.getByText('Warnings')).toBeInTheDocument();
-      expect(screen.getByText('Errors')).toBeInTheDocument();
-      expect(screen.getByText('All configured')).toBeInTheDocument();
-      expect(screen.getByText('Running smoothly')).toBeInTheDocument();
-      expect(screen.getByText('Needs attention')).toBeInTheDocument();
-      expect(screen.getByText('Requires action')).toBeInTheDocument();
+      expect(screen.getByText('Connected')).toBeInTheDocument();
+      expect(screen.getByText('Verified healthy')).toBeInTheDocument();
+      expect(screen.getByText('Unreachable')).toBeInTheDocument();
+      expect(screen.getByText('Unverified')).toBeInTheDocument();
+      expect(screen.getByText('of 4 known integrations')).toBeInTheDocument();
+      expect(screen.getByText('Live provider API call succeeded')).toBeInTheDocument();
+      expect(screen.getByText('Credential rejected or provider failed')).toBeInTheDocument();
+      expect(screen.getByText('Connected, credential not exercisable')).toBeInTheDocument();
     });
-
-    // All 9 healthy: Total = 9 and Healthy = 9
-    expect(screen.getAllByText('9')).toHaveLength(2);
-    expect(screen.getByText('9/9 healthy')).toBeInTheDocument();
   });
 
-  // Test 5: displays the overall health progress card
-  it('displays overall health progress bar', async () => {
-    server.use(...allHealthy);
+  // Test 6: displays the connections progress card
+  it('displays the connections progress card', async () => {
+    server.use(healthStatus(providers()));
 
     render(<IntegrationHealthDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('Overall Health')).toBeInTheDocument();
-      expect(screen.getByText('9/9 healthy')).toBeInTheDocument();
+      expect(screen.getByText('Connections')).toBeInTheDocument();
+      expect(screen.getByText('3/4 connected')).toBeInTheDocument();
+      expect(screen.getByText('1 not connected')).toBeInTheDocument();
+      expect(screen.getByText('1 verified healthy')).toBeInTheDocument();
     });
   });
 
-  // Test 6: refresh button refetches health status
+  // Test 7: refresh button refetches health status
   it('handles refresh button click', async () => {
-    let healthCalls = 0;
+    let calls = 0;
     server.use(
-      rest.get('/api/integrations/:platform/health', (req, res, ctx) => {
-        healthCalls += 1;
-        return res(ctx.status(200), ctx.json({ connected: true, status: 'healthy' }));
+      rest.get('/api/integrations/health-status', (req, res, ctx) => {
+        calls += 1;
+        return res(ctx.status(200), ctx.json(providers()));
       })
     );
 
@@ -170,18 +200,18 @@ describe('IntegrationHealthDashboard', () => {
     const refreshButton = await screen.findByRole('button', {
       name: /refresh/i,
     });
-    expect(healthCalls).toBe(9); // initial load
+    expect(calls).toBe(1); // initial load
 
     refreshButton.click();
 
     await waitFor(() => {
-      expect(healthCalls).toBe(18);
+      expect(calls).toBe(2);
     });
   });
 
-  // Test 7: shows the last updated timestamp
+  // Test 8: shows the last updated timestamp
   it('shows last updated timestamp', async () => {
-    server.use(...allHealthy);
+    server.use(healthStatus(providers()));
 
     render(<IntegrationHealthDashboard />);
 
@@ -190,61 +220,76 @@ describe('IntegrationHealthDashboard', () => {
     });
   });
 
-  // Test 8: displays the status legend
+  // Test 9: displays the status legend
   it('displays status legend', async () => {
-    server.use(...allHealthy);
+    server.use(healthStatus(providers()));
 
     render(<IntegrationHealthDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText('Status Legend')).toBeInTheDocument();
       expect(
-        screen.getByText('Healthy - Integration is working properly')
+        screen.getByText('Healthy — connected and a live provider API call succeeded')
       ).toBeInTheDocument();
       expect(
-        screen.getByText('Warning - Minor issues detected')
+        screen.getByText(
+          'Unreachable — connected but the credential was rejected or the provider failed'
+        )
       ).toBeInTheDocument();
       expect(
-        screen.getByText('Error - Integration requires attention')
+        screen.getByText(
+          'Unverified — connected, but the credential needs an interactive flow to test'
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Not connected — no connection or stored credential for this integration'
+        )
       ).toBeInTheDocument();
     });
   });
 
-  // Test 9: fetch failures surface as error status with error counts
-  it('handles failed health checks as errors', async () => {
-    server.use(...allError);
+  // Test 10: a failing status fetch must not crash the dashboard
+  it('handles a failing health-status fetch without crashing', async () => {
+    server.use(
+      rest.get('/api/integrations/health-status', (req, res, ctx) =>
+        res(ctx.status(500))
+      )
+    );
 
     render(<IntegrationHealthDashboard />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('ERROR')).toHaveLength(9);
-      expect(screen.getAllByText('1 errors')).toHaveLength(9);
-      expect(screen.getByText('0/9 healthy')).toBeInTheDocument();
+      expect(screen.getByText('Integration Status')).toBeInTheDocument();
     });
+    // No provider rows rendered
+    expect(screen.queryByText('GitHub')).not.toBeInTheDocument();
   });
 
-  // Test 10: respects the showDetails prop (hides per-integration details)
+  // Test 11: respects the showDetails prop (hides per-integration details)
   it('respects showDetails prop', async () => {
-    server.use(...allError);
+    server.use(healthStatus(providers()));
 
     render(<IntegrationHealthDashboard showDetails={false} />);
 
     await waitFor(() => {
       expect(screen.getByText('Integration Status')).toBeInTheDocument();
-      expect(screen.getAllByText('ERROR')).toHaveLength(9);
+      expect(screen.getByText('UNREACHABLE')).toBeInTheDocument();
     });
 
-    // Detail rows (error counts) are hidden when showDetails is false
-    expect(screen.queryByText('1 errors')).not.toBeInTheDocument();
+    // Detail rows (error, response time, source) are hidden when showDetails is false
+    expect(screen.queryByText('HTTP 401')).not.toBeInTheDocument();
+    expect(screen.queryByText('212ms')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Source:/)).not.toBeInTheDocument();
   });
 
-  // Test 11: auto-refreshes when autoRefresh is true
+  // Test 12: auto-refreshes when autoRefresh is true
   it('auto-refreshes when autoRefresh prop is true', async () => {
-    let healthCalls = 0;
+    let calls = 0;
     server.use(
-      rest.get('/api/integrations/:platform/health', (req, res, ctx) => {
-        healthCalls += 1;
-        return res(ctx.status(200), ctx.json({ connected: true, status: 'healthy' }));
+      rest.get('/api/integrations/health-status', (req, res, ctx) => {
+        calls += 1;
+        return res(ctx.status(200), ctx.json(providers()));
       })
     );
 
@@ -253,11 +298,10 @@ describe('IntegrationHealthDashboard', () => {
     );
 
     await screen.findByText('Integration Status');
-    expect(healthCalls).toBe(9); // initial load
+    expect(calls).toBe(1); // initial load
 
-    // The 100ms interval refetches all 9 integrations after loading settles
     await waitFor(() => {
-      expect(healthCalls).toBeGreaterThan(18);
+      expect(calls).toBeGreaterThan(2);
     });
   });
 });

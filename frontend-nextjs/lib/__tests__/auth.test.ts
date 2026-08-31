@@ -47,13 +47,13 @@ describe('auth.ts - NextAuth Configuration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseBackendApi = false;
-    process.env.NODE_ENV = 'test';
+    (process.env as any).NODE_ENV = 'test';
     process.env.JWT_SECRET = 'test-secret';
     process.env.NEXTAUTH_SECRET = 'test-nextauth-secret';
   });
 
   afterEach(() => {
-    delete process.env.NODE_ENV;
+    delete (process.env as any).NODE_ENV;
     delete process.env.JWT_SECRET;
     delete process.env.NEXTAUTH_SECRET;
   });
@@ -262,7 +262,9 @@ describe('auth.ts - NextAuth Configuration', () => {
     const result = await authOptions.callbacks.jwt({
       token: mockToken,
       user: mockUser,
-    });
+      // lib/auth.ts's jwt callback ignores `account`; it is required by the
+      // next-auth callback signature but irrelevant to this fixture.
+    } as any);
 
     expect(result.id).toBe('user-123');
     expect(result.email).toBe('user@example.com');
@@ -282,7 +284,7 @@ describe('auth.ts - NextAuth Configuration', () => {
     const result = await authOptions.callbacks.jwt({
       token: mockToken,
       user: undefined,
-    });
+    } as any);
 
     expect(result.id).toBe('user-123');
     expect(result.email).toBe('user@example.com');
@@ -308,10 +310,12 @@ describe('auth.ts - NextAuth Configuration', () => {
       user: {},
     };
 
-    const result = await authOptions.callbacks.session({
+    // Fixture uses a partial Session and an enriched user (extra token claims
+    // copied by the callback), so bypass next-auth's strict Session typing.
+    const result = (await authOptions.callbacks.session({
       session: mockSession,
       token: mockToken,
-    });
+    } as any)) as any;
 
     expect(result.user.id).toBe('user-123');
     expect(result.user.email).toBe('user@example.com');
@@ -701,7 +705,7 @@ describe('auth.ts - NextAuth Configuration', () => {
   test('authOptions should throw in production without NEXTAUTH_SECRET', () => {
     const previousNodeEnv = process.env.NODE_ENV;
     const previousSecret = process.env.NEXTAUTH_SECRET;
-    process.env.NODE_ENV = 'production';
+    (process.env as any).NODE_ENV = 'production';
     delete process.env.NEXTAUTH_SECRET;
     try {
       expect(() => {
@@ -710,7 +714,7 @@ describe('auth.ts - NextAuth Configuration', () => {
         });
       }).toThrow('CRITICAL: NEXTAUTH_SECRET is required in production');
     } finally {
-      process.env.NODE_ENV = previousNodeEnv;
+      (process.env as any).NODE_ENV = previousNodeEnv;
       process.env.NEXTAUTH_SECRET = previousSecret;
     }
   });

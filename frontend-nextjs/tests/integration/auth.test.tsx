@@ -68,7 +68,8 @@ describe('Authentication Flow Integration', () => {
 
       expect(result).toBeDefined();
       expect(result.ok).toBe(true);
-      expect(result.user).toEqual({
+      // The mock adds `user`, which next-auth's SignInResponse type doesn't declare.
+      expect((result as any).user).toEqual({
         id: 'user-123',
         email: 'test@example.com',
       });
@@ -154,7 +155,7 @@ describe('Authentication Flow Integration', () => {
       });
 
       expect(result.ok).toBe(true);
-      expect(result.user).toBeDefined();
+      expect((result as any).user).toBeDefined();
     });
 
     it('should show error for invalid 2FA code', async () => {
@@ -229,9 +230,9 @@ describe('Authentication Flow Integration', () => {
         redirect: false,
       });
 
-      expect(result.session).toBeDefined();
-      expect(result.session.accessToken).toBe('mock-access-token');
-      expect(result.session.refreshToken).toBe('mock-refresh-token');
+      expect((result as any).session).toBeDefined();
+      expect((result as any).session.accessToken).toBe('mock-access-token');
+      expect((result as any).session.refreshToken).toBe('mock-refresh-token');
     });
 
     it('should retrieve session from storage', async () => {
@@ -247,7 +248,8 @@ describe('Authentication Flow Integration', () => {
 
       expect(session).toEqual(mockSession);
       expect(session.user).toBeDefined();
-      expect(session.accessToken).toBeDefined();
+      // accessToken is added by the backend session callback, not in next-auth's Session type.
+      expect((session as any).accessToken).toBeDefined();
     });
 
     it('should return null when no session exists', async () => {
@@ -374,7 +376,8 @@ describe('Authentication Flow Integration', () => {
 
       (useSession as jest.Mock).mockReturnValue([mockSession, false, null]);
 
-      const [session, loading, error] = useSession();
+      // Mock returns the legacy array shape rather than next-auth's session object.
+      const [session, loading, error] = useSession() as unknown as [any, boolean, any];
 
       expect(session).toEqual(mockSession);
       expect(loading).toBe(false);
@@ -384,7 +387,8 @@ describe('Authentication Flow Integration', () => {
     it('should useSession hook handle loading state', () => {
       (useSession as jest.Mock).mockReturnValue([null, true, null]);
 
-      const [session, loading, error] = useSession();
+      // Mock returns the legacy array shape rather than next-auth's session object.
+      const [session, loading, error] = useSession() as unknown as [any, boolean, any];
 
       expect(session).toBeNull();
       expect(loading).toBe(true);
@@ -396,7 +400,8 @@ describe('Authentication Flow Integration', () => {
 
       (useSession as jest.Mock).mockReturnValue([null, false, mockError]);
 
-      const [session, loading, error] = useSession();
+      // Mock returns the legacy array shape rather than next-auth's session object.
+      const [session, loading, error] = useSession() as unknown as [any, boolean, any];
 
       expect(session).toBeNull();
       expect(loading).toBe(false);

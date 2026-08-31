@@ -7,6 +7,7 @@ import asyncio
 from datetime import datetime, timedelta
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import httpx
@@ -22,8 +23,19 @@ OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 # OpenCode Zen models endpoint (OpenCode Go subscription gateway)
 OPENCODE_MODELS_URL = "https://opencode.ai/zen/v1/models"
 
-# Cache file path
-PRICING_CACHE_PATH = Path("./data/ai_pricing_cache.json")
+# Cache file path — anchored to backend/ so the store is independent of the
+# launch CWD. A root-vs-backend launch previously maintained TWO divergent
+# caches: a launch from the repo root silently read a stale snapshot without
+# the OpenRouter catalog, and every refresh wrote to the other file
+# (same class of bug as the LanceDB/DATABASE_URL anchoring).
+def _anchor_data_path(filename: str) -> Path:
+    path = Path(filename)
+    if path.is_absolute():
+        return path
+    return Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) / filename
+
+
+PRICING_CACHE_PATH = _anchor_data_path("data/ai_pricing_cache.json")
 
 # Cache duration (24 hours)
 CACHE_DURATION_HOURS = 24
@@ -32,7 +44,7 @@ CACHE_DURATION_HOURS = 24
 # openrouter slice of the cache + BPC-side expired-candidate counters.
 # Measurement ONLY — decides whether a server-side query-param candidate path
 # is ever worth building (see docs/testing/TESTED_FILES_TRACKER.md).
-STALENESS_STATS_PATH = Path("./data/pricing_staleness_stats.json")
+STALENESS_STATS_PATH = _anchor_data_path("data/pricing_staleness_stats.json")
 STALENESS_HISTORY_CAP = 50
 
 
@@ -378,7 +390,7 @@ class DynamicPricingFetcher:
 
         # Merge capabilities into pricing cache
         for model_name, caps in capabilities.items():
-            if model_name in self.pricing_cache:
+            if model_name in self.pricing_cache and caps:
                 self.pricing_cache[model_name].update(caps)
 
         self.last_fetch = datetime.now()
@@ -621,9 +633,14 @@ class DynamicPricingFetcher:
         else:
             return "unknown"
 
-    def _infer_capabilities(self, model_data: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, bool]]:
-        """
-        Infer model capabilities from model metadata.
+    def infer_capabilities_for_model(self, model_name: str, metadata: Dict[str, Any]) -> Dict[str, bool]:
+        """Infer capabilities for ONE model from its metadata + name.
+
+        Read-time fallback for cache entries that were merged WITHOUT
+        capability annotations (e.g. OpenRouter payloads for dated flagship
+        variants): without this, get_model_capabilities classified any
+        annotation-less entry as conservatively tool-incapable, which zeroed
+        out agentic routing for exactly the flagship models.
 
         Infers three capabilities:
         - supports_tools: Can the model use function calling/tools?
@@ -634,65 +651,70 @@ class DynamicPricingFetcher:
         1. Model mode field (if available)
         2. Model name patterns (provider-specific keywords)
         3. Provider behavior
-
-        Args:
-            model_data: Dict mapping model names to their metadata
-
-        Returns:
-            Dict mapping model names to their inferred capabilities
         """
-        capabilities = {}
+        model_lower = model_name.lower()
 
-        for model_name, metadata in model_data.items():
-            model_lower = model_name.lower()
+        # Get mode from metadata, default to "chat"
+        mode = metadata.get("mode", "chat").lower()
 
-            # Get mode from metadata, default to "chat"
-            mode = metadata.get("mode", "chat").lower()
+        # Infer supports_tools
+        # Reasoning models and small models don't support tools
+        if mode == "reasoning":
+            supports_tools = False
+        elif "speciale" in model_lower:
+            supports_tools = False
+        else:
+            # Most models support tools — including the small/cheap tiers
+            # (gpt-4o-mini, claude-haiku): the earlier "haiku/mini/tiny ->
+            # False" keyword rule wrongly demoted flagship-cheap models and,
+            # combined with the conservative unknown-model default, zeroed
+            # out agentic (tools-required) routing entirely.
+            supports_tools = True
 
-            # Infer supports_tools
-            # Reasoning models and small models don't support tools
-            if mode == "reasoning":
-                supports_tools = False
-            elif any(keyword in model_lower for keyword in ["haiku", "mini", "tiny"]):
-                supports_tools = False
-            elif "speciale" in model_lower:
-                supports_tools = False
-            else:
-                supports_tools = True  # Most models support tools
+        # Infer supports_vision
+        # Vision mode, or specific model capabilities
+        if mode == "vision":
+            supports_vision = True
+        elif any(keyword in model_lower for keyword in ["vision", "vl", "multimodal"]):
+            supports_vision = True
+        elif any(keyword in model_lower for keyword in ["gpt-4o", "gemini-2.5", "gemini-2-flash", "gemini-3-flash", "gemini-3.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"]):
+            supports_vision = True
+        elif any(keyword in model_lower for keyword in ["claude-3.5-sonnet", "claude-3-opus", "claude-mythos", "claude-fable"]):
+            supports_vision = True
+        elif "kimi-k3" in model_lower or "gpt-5.6" in model_lower:
+            supports_vision = True
+        else:
+            supports_vision = False
 
-            # Infer supports_vision
-            # Vision mode, or specific model capabilities
-            if mode == "vision":
-                supports_vision = True
-            elif any(keyword in model_lower for keyword in ["vision", "vl", "multimodal"]):
-                supports_vision = True
-            elif any(keyword in model_lower for keyword in ["gpt-4o", "gemini-2.5", "gemini-2-flash", "gemini-3-flash", "gemini-3.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"]):
-                supports_vision = True
-            elif any(keyword in model_lower for keyword in ["claude-3.5-sonnet", "claude-3-opus", "claude-mythos", "claude-fable"]):
-                supports_vision = True
-            elif "kimi-k3" in model_lower or "gpt-5.6" in model_lower:
-                supports_vision = True
-            else:
-                supports_vision = False
+        # Infer supports_reasoning
+        # Specific model families indicate reasoning capability
+        if mode == "reasoning":
+            supports_reasoning = True
+        elif any(keyword in model_lower for keyword in ["o3", "o1", "-reasoner", "-thinking", "r1"]):
+            supports_reasoning = True
+        elif "speciale" in model_lower:
+            supports_reasoning = True
+        else:
+            supports_reasoning = False
 
-            # Infer supports_reasoning
-            # Specific model families indicate reasoning capability
-            if mode == "reasoning":
-                supports_reasoning = True
-            elif any(keyword in model_lower for keyword in ["o3", "o1", "-reasoner", "-thinking", "r1"]):
-                supports_reasoning = True
-            elif "speciale" in model_lower:
-                supports_reasoning = True
-            else:
-                supports_reasoning = False
+        # NOTE: this return must sit at method level. It used to be indented
+        # inside the else-branch above, so any mode=="reasoning" model made
+        # this function return None — and refresh_pricing then crashed on
+        # caps.update(None), aborting the whole pricing refresh before the
+        # OpenRouter catalog could be saved. The cache froze on its last
+        # good state and BPC value-ranking silently lost all candidates.
+        return {
+            "supports_tools": supports_tools,
+            "supports_vision": supports_vision,
+            "supports_reasoning": supports_reasoning,
+        }
 
-            capabilities[model_name] = {
-                "supports_tools": supports_tools,
-                "supports_vision": supports_vision,
-                "supports_reasoning": supports_reasoning,
-            }
-
-        return capabilities
+    def _infer_capabilities(self, model_data: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, bool]]:
+        """Batch wrapper over :meth:`infer_capabilities_for_model`."""
+        return {
+            model_name: self.infer_capabilities_for_model(model_name, metadata)
+            for model_name, metadata in model_data.items()
+        }
 
     def get_model_capabilities(self, model_name: str) -> Dict[str, bool]:
         """
@@ -705,19 +727,36 @@ class DynamicPricingFetcher:
             Dict with supports_tools, supports_vision, supports_reasoning
             Returns default (False for all) if model not in cache
         """
-        model_data = self.pricing_cache.get(model_name, {})
+        model_data = self.pricing_cache.get(model_name)
 
-        # If model has capabilities in cache, return them
-        if "supports_tools" in model_data:
+        # Entry present WITH annotations: return them. A None value (upstream
+        # data sources return null for "unknown") must fall back to the
+        # default — a raw None leaks out as a falsy "not supported" in bool()
+        # contexts and silently demotes tool-capable models.
+        if model_data is not None and "supports_tools" in model_data:
+            st = model_data.get("supports_tools")
+            sv = model_data.get("supports_vision")
+            sr = model_data.get("supports_reasoning")
             return {
-                "supports_tools": model_data.get("supports_tools", True),
-                "supports_vision": model_data.get("supports_vision", False),
-                "supports_reasoning": model_data.get("supports_reasoning", False),
+                "supports_tools": True if st is None else bool(st),
+                "supports_vision": False if sv is None else bool(sv),
+                "supports_reasoning": False if sr is None else bool(sr),
             }
 
-        # Default capabilities for unknown models (conservative)
+        # Entry present but WITHOUT annotations: infer from the name/mode —
+        # these are known models, not unknown ones.
+        if model_data is not None:
+            return self.infer_capabilities_for_model(model_name, model_data)
+
+        # Truly unknown model (absent from cache). Availability-first:
+        # defaulting tools to False here barred EVERY model that postdated the
+        # local cache snapshot from agentic routing — with a small/stale cache
+        # that meant a total agent outage ("No eligible LLM providers") even
+        # though unknown in practice overwhelmingly means a modern tool-capable
+        # model. Per-model failures are recoverable via the provider cascade;
+        # a zero-option ranking is not. Vision/reasoning stay conservative.
         return {
-            "supports_tools": False,  # Unknown models don't support tools
+            "supports_tools": True,
             "supports_vision": False,
             "supports_reasoning": False,
         }

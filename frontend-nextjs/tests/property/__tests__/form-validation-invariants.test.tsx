@@ -22,6 +22,10 @@
  */
 
 import fc from 'fast-check';
+
+// fast-check v4 declares nat() as single-arity; the legacy two-arg calls below
+// still run unchanged (extra arg ignored at runtime) — cast to the legacy shape.
+const natRange = fc.nat as unknown as (min: number, max: number) => fc.Arbitrary<number>;
 import {
   validateRequired,
   validateLength,
@@ -246,7 +250,7 @@ describe('Form Validation Invariants - String Length', () => {
   test('text field rejects strings shorter than minLength', () => {
     fc.assert(
       fc.property(
-        fc.string(), fc.nat(5, 20),
+        fc.string(), natRange(5, 20),
         (value, minLen) => {
           const minLength = minLen;
           const maxLength = minLen + 20;
@@ -269,7 +273,7 @@ describe('Form Validation Invariants - String Length', () => {
   test('text field rejects strings longer than maxLength', () => {
     fc.assert(
       fc.property(
-        fc.string(), fc.nat(5, 20),
+        fc.string(), natRange(5, 20),
         (value, minLen) => {
           const minLength = minLen;
           const maxLength = minLen + 20;
@@ -309,7 +313,7 @@ describe('Form Validation Invariants - String Length', () => {
   test('text field accepts boundary length values', () => {
     fc.assert(
       fc.property(
-        fc.nat({ min: 1, max: 20 }),
+        fc.nat({ min: 1, max: 20 } as unknown as Parameters<typeof fc.nat>[0]),
         (length) => {
           // Create string of exact length
           const value = 'a'.repeat(length);

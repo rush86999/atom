@@ -44,6 +44,32 @@ class FakeDocStore:
         return True
 
 
+@pytest.fixture(autouse=True)
+def isolated_ingestion_db(monkeypatch):
+    """Hermetic DB boundary.
+
+    process_file_bytes persists a PG mirror row through
+    ``core.database.SessionLocal`` — without this swap those writes land in
+    the real dev database (Aug 2026 journey trace: test rows leaked into
+    data/atom.db).
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    import core.database as core_db
+    from core.database import Base
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(core_db, "SessionLocal", sessionmaker(bind=engine))
+    yield
+
+
 @pytest.fixture
 def ingestor():
     from core.auto_document_ingestion import AutoDocumentIngestionService

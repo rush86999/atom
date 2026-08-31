@@ -35,6 +35,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         isProcessing,
         statusMessage,
         messages,
+        chatAgent,
         sessionTitle,
         isEditingTitle,
         setIsEditingTitle,
@@ -58,8 +59,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         providerError,
     } = useChatInterface({ sessionId, initialAgentId, onSessionCreated });
 
-    // Suggested actions now DO something (UI gap #12): an action with text
-    // sends it as the next user message; one with a URL navigates.
+    // Suggested actions (UI gap #12, revised Aug 30): an action with a URL
+    // navigates; a text suggestion PREFILLS the input instead of auto-
+    // sending. Auto-sending made it look like the app spoke in the user's
+    // voice ("Add a deadline" started a deadline conversation out of
+    // nowhere) — prefill keeps the chip one keystroke away without the
+    // surprise, and lets the user edit before sending.
     const handleActionClick = (action: any) => {
         if (!action) return;
         const text = typeof action === "string" ? action : (action.label || action.text || action.action);
@@ -68,7 +73,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
             return;
         }
         if (text) {
-            handleSend(String(text));
+            setInput(String(text));
         }
     };
 
@@ -81,6 +86,89 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
     };
 
     const showEmptyState = messages.length === 0 && !providerError;
+
+    // Fork from here: copy the conversation up to (and including) the chosen
+    // reply into a brand-new session and jump into it. Only history-loaded
+    // messages carry the durable backend id the fork endpoint needs — live
+    // messages use timestamp ids the backend can't resolve (a reload mints
+    // real ids), so those get an explanatory toast instead of a failed call.
+    const [forkingMessageId, setForkingMessageId] = React.useState<string | null>(null);
+    const handleForkFromHere = async (messageId: string) => {
+        if (!sessionId || sessionId === "new" || forkingMessageId) return;
+        if (/^\d+$/.test(messageId)) {
+            toast({
+                title: "Can't fork this message yet",
+                description: "Reload the conversation, then fork from an earlier reply.",
+                variant: "warning",
+            });
+            return;
+        }
+        setForkingMessageId(messageId);
+        try {
+            const { apiClient } = await import("../../lib/api-client");
+            const res = await apiClient.post(
+                `/api/chat/sessions/${sessionId}/fork`,
+                { up_to_message_id: messageId },
+                { timeout: 15000 }
+            );
+            const data = res?.data;
+            if (data?.success && data.session_id) {
+                toast({
+                    title: "Forked",
+                    description: `New chat with ${data.messages_copied} messages copied.`,
+                });
+                onSessionCreated?.(data.session_id);
+            } else {
+                toast({
+                    title: "Fork failed",
+                    description: data?.error || "Could not fork this conversation.",
+                    variant: "warning",
+                });
+            }
+        } catch (error: any) {
+            console.error("Error forking from message:", error);
+            toast({
+                title: "Fork failed",
+                description: error?.response?.data?.detail || "Could not fork this conversation.",
+                variant: "warning",
+            });
+        } finally {
+            setForkingMessageId(null);
+        }
+    };
+
+    // Expand the latest assistant draft into a co-editable canvas
+    const [openingCanvas, setOpeningCanvas] = React.useState(false);
+    const lastAssistant = [...messages].reverse().find((m) => m.type === "assistant" && m.content?.trim());
+    // Recent assistant contents, newest-first: the backend picks the most
+    // recent EMAIL-draft-shaped one, so the button opens the draft even
+    // when the chat moved on ("one more question…") after it landed.
+    const draftCandidates = [...messages]
+        .reverse()
+        .filter((m) => m.type === "assistant" && m.content?.trim())
+        .slice(0, 10)
+        .map((m) => m.content);
+    const openInCanvas = async () => {
+        if (!lastAssistant || openingCanvas) return;
+        setOpeningCanvas(true);
+        try {
+            const { apiClient } = await import("../../lib/api-client");
+            const res = await apiClient.post("/api/chat/to-canvas", {
+                content: lastAssistant.content,
+                candidates: draftCandidates,
+                title: `Draft — ${String(lastAssistant.content).slice(0, 60)}`,
+                session_id: sessionId,
+                agent_id: initialAgentId,
+            }, { timeout: 30000 });
+            if (res.data?.url) {
+                window.location.href = res.data.url;
+            }
+        } catch {
+            // backend may still be processing; the canvas is created server-side
+        } finally {
+            setOpeningCanvas(false);
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-background relative" data-testid="chat-container">
@@ -113,6 +201,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                     setIsEditingTitle(true);
                 }}
             />
+
+            {/* Who you're talking to: when the chat is scoped to a hire
+                (?agent_id=…), always show its identity and maturity tier so
+                the generic sidebar/title never leaves that ambiguous. */}
+            {chatAgent && (
+                <div
+                    data-testid="chat-agent-identity"
+                    className="mx-4 mt-2 flex items-center gap-2 rounded-md border border-purple-200 bg-purple-50 dark:bg-purple-950/30 dark:border-purple-800 px-3 py-1.5 text-sm"
+                >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-600 text-white text-xs font-semibold">
+                        {chatAgent.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {chatAgent.name}
+                    </span>
+                    {chatAgent.category && (
+                        <span className="text-xs text-muted-foreground">{chatAgent.category}</span>
+                    )}
+                    {chatAgent.status && (
+                        <span
+                            data-testid="chat-agent-tier"
+                            className="ml-auto rounded-full px-2 py-0.5 text-xs font-medium border bg-amber-100 text-amber-800 border-amber-300 capitalize"
+                        >
+                            {chatAgent.status}
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* P1.1: actionable recovery banner when no LLM provider is configured. */}
             {providerError && (
@@ -167,6 +283,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 handleActionClick={handleActionClick}
                 handleFeedback={handleFeedback}
                 handleRegenerate={handleRegenerate}
+                handleForkFromHere={handleForkFromHere}
             />
 
             <ChatInput
@@ -176,13 +293,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 isUploading={isUploading}
                 activeAttachments={activeAttachments}
                 setActiveAttachments={setActiveAttachments}
-                handleSend={handleSend}
+                // useChatInterface's handleSend resolves to a success boolean that
+                // ChatInput ignores; adapt to ChatInput's Promise<void> prop type.
+                handleSend={handleSend as unknown as (overrideText?: string) => Promise<void>}
                 handleStop={handleStop}
                 setIsVoiceModeOpen={setIsVoiceModeOpen}
                 uploadFile={uploadFile}
                 toast={toast}
                 messagesCount={messages.length}
             />
+
+            {/* Expand the latest draft into a co-editable canvas (training surface) */}
+            {lastAssistant && !isProcessing && (
+                <div className="mx-4 mb-2 flex justify-end">
+                    <button
+                        onClick={openInCanvas}
+                        disabled={openingCanvas}
+                        className="px-3 py-1.5 rounded-lg border border-sky-500 text-sky-400 hover:bg-sky-950/40 text-xs font-medium disabled:opacity-50"
+                    >
+                        {openingCanvas ? "Opening…" : "Open latest draft in canvas"}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

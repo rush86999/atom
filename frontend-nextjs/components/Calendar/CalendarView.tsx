@@ -73,10 +73,10 @@ const CalendarView = () => {
             const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
             const response = await fetch('/api/dashboard/events', {
                 headers: token ? { "Authorization": `Bearer ${token}` } : {},
-            }).catch(() => null);
+            }).catch((): Response | null => null);
 
             if (response && response.ok) {
-                const data = await response.json().catch(() => null);
+                const data = await response.json().catch((): unknown => null);
                 const rawEvents = Array.isArray(data) ? data : (data?.events || []);
                 const parsedEvents = rawEvents.map((event: any) => ({
                     ...event,

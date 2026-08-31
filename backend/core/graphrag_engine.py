@@ -112,6 +112,23 @@ class GraphRAGEngine:
             tenant_id=self.tenant_id,
             db=db
         )
+        # Query embeddings go through EmbeddingService, which honors
+        # EMBEDDING_PROVIDER (local fastembed by default) — the previous
+        # direct-LLMService call required an OpenAI client and failed on
+        # installs that only configure a local/cloud-gateway provider,
+        # permanently zeroing the vector leg of hybrid start-node discovery.
+        # When the service can't start, query_embedding stays None below and
+        # the keyword leg handles discovery — never a cloud attempt.
+        try:
+            from core.embedding_service import EmbeddingService
+
+            self.embedding_service: Optional[Any] = EmbeddingService(
+                workspace_id=self.workspace_id,
+                tenant_id=self.tenant_id,
+            )
+        except Exception as emb_err:
+            logger.warning(f"EmbeddingService unavailable, vector leg disabled: {emb_err}")
+            self.embedding_service = None
 
     def get_stats(self, user_id: str = None) -> Dict[str, Any]:
         """Return basic GraphRAG engine statistics.
@@ -1304,14 +1321,13 @@ class GraphRAGEngine:
                 #    Vector anchors semantic matches; keyword ensures exact/partial name hits
                 #    (IDs, acronyms, proper nouns) are never dropped.
                 query_embedding = None
-                try:
-                    query_embedding = _run_sync(
-                        self.llm_service.generate_embedding(
-                            query, workspace_id=ws_id, tenant_id=tid
+                if self.embedding_service is not None:
+                    try:
+                        query_embedding = _run_sync(
+                            self.embedding_service.generate_embedding(query)
                         )
-                    )
-                except Exception as emb_err:
-                    logger.debug(f"Could not generate query embedding for local_search: {emb_err}")
+                    except Exception as emb_err:
+                        logger.debug(f"Could not generate query embedding for local_search: {emb_err}")
 
                 is_postgres = (session.bind.dialect.name == "postgresql") if session.bind else True
 

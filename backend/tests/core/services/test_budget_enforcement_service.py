@@ -615,9 +615,10 @@ class TestEdgeCases:
     """Tests for edge cases around the exceed boundary."""
 
     @pytest.mark.asyncio
-    async def test_zero_budget_blocks_any_spend(self, budget_service):
-        """A zero limit with zero spend still counts as exceeded
-        (current_spend >= budget_limit)."""
+    async def test_zero_budget_means_unconfigured_allows(self, budget_service):
+        """Zero limit = 'no budget configured' = unlimited (deliberate): the
+        old contract read 0.0 as a real limit and blocked every new agent
+        episode on fresh installs the moment any spend existed."""
         budget_service.spend_service.update_tenant_spend = Mock(return_value={
             "current_spend_usd": 0.0,
             "budget_limit_usd": 0.0,
@@ -631,7 +632,7 @@ class TestEdgeCases:
         result = await budget_service.check_budget_before_action(
             tenant_id="tenant-1", agent_id="agent-1", action="llm_call"
         )
-        assert result["allowed"] is False
+        assert result["allowed"] is True
 
     @pytest.mark.asyncio
     async def test_zero_remaining_blocks(self, budget_service):

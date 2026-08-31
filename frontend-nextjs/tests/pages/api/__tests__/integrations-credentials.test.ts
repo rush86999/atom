@@ -20,6 +20,7 @@ jest.mock("@/lib/crypto", () => ({
 }));
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/integrations/credentials";
 
 const mockSession = { user: { id: "user-1", email: "u@example.com" } };
@@ -42,7 +43,7 @@ describe("pages/api/integrations/credentials", () => {
     mockGetServerSession.mockResolvedValue(
       opts.session === undefined ? mockSession : opts.session,
     );
-    const { req, res } = createMocks({ method, ...opts }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, ...opts }) as any;
     await handler(req, res);
     return res;
   };

@@ -430,7 +430,7 @@ describe('Navigation Components', () => {
       it('handles empty children', () => {
         renderWithProviders(
           <Dialog open={true} onOpenChange={jest.fn()}>
-            <DialogContent />
+            <DialogContent>{null}</DialogContent>
           </Dialog>
         );
 

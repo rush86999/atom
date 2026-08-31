@@ -28,6 +28,9 @@ jest.mock('reactflow', () => {
   };
 });
 
+// AddStepEdge only reads id/data in these tests (BaseEdge/EdgeLabelRenderer
+// are stubbed), so the required edge source/target node ids are satisfied via
+// a cast instead of inventing node ids.
 const baseProps = {
   id: 'edge-1',
   sourceX: 0,
@@ -36,7 +39,7 @@ const baseProps = {
   targetY: 100,
   sourcePosition: 'right' as const,
   targetPosition: 'left' as const,
-};
+} as unknown as React.ComponentProps<typeof AddStepEdge>;
 
 describe('AddStepEdge', () => {
   it('renders the edge path, label renderer and add-step button', () => {

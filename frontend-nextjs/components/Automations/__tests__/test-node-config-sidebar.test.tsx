@@ -45,7 +45,7 @@ jest.mock('@/components/ui/use-toast', () => {
 
 jest.mock('@/components/ui/select', () => {
   const { createContext, useContext, useState } = jest.requireActual('react');
-  const SelectCtx = createContext<any>(null);
+  const SelectCtx = createContext(null);
 
   const Select = ({ value, onValueChange, children }: any) => {
     const [open, setOpen] = useState(false);
@@ -96,7 +96,7 @@ const toastMock = () =>
 const mcmApi = () =>
   (jest.requireMock('../ManageConnectionsModal') as any).__testApi;
 
-const jsonResponse = (body: any, ok = true) => ({
+const jsonResponse = (body: any, ok = true, _status?: number) => ({
   ok,
   status: ok ? 200 : 500,
   statusText: ok ? 'OK' : 'Error',

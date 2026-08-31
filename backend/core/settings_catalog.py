@@ -73,6 +73,7 @@ C_ONTOLOGY = "Ontology Drafts"
 C_ORG = "Org Politics"
 C_GATEWAY = "LLM Gateway"
 C_SEC = "Security & Webhooks"
+C_BPE = "BPE Agent Workspace"
 
 
 SETTING_CATALOG: tuple[SettingSpec, ...] = (
@@ -284,6 +285,9 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     B("ATOM_GATEWAY_ENABLED", True, C_GATEWAY, "/v1/* inbound surface master switch"),
     B("ATOM_GATEWAY_PREFER_COST", True, C_GATEWAY, "Cost-aware routing default"),
     B("ATOM_GATEWAY_LOG_BODIES", False, C_GATEWAY, "Persist full (redacted) bodies"),
+    # ------------------------------------------------------------------
+    # BPE runtime workspace (Belief/Progress/Experience)
+    # ------------------------------------------------------------------
     I("ATOM_GATEWAY_DEFAULT_MAX_TOKENS", 1000, C_GATEWAY, "Default completion cap"),
     B("ATOM_GATEWAY_BUDGET_ALERTS", False, C_GATEWAY, "Threshold spend alerts"),
     I("ATOM_GATEWAY_LOG_RETENTION_DAYS", 30, C_GATEWAY, "Log sweep retention"),
@@ -307,6 +311,21 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     # Internal knobs for this layer itself
     # ------------------------------------------------------------------
     F("ATOM_SETTINGS_CACHE_TTL", 60.0, C_MON, "Runtime-settings cache TTL seconds"),
+    # ------------------------------------------------------------------
+    # BPE agent workspace (Belief/Progress/Experience harness)
+    # ------------------------------------------------------------------
+    B("ATOM_BPE_WORKSPACE_ENABLED", True, C_BPE,
+      "Workspace + meta-actions (track/commit/recall/note); false = shadow logging only"),
+    S("ATOM_BPE_AUTOMATION", "auto", C_BPE,
+      "Master automation mode: auto (self-regulating) | off (kill all automatic flips)"),
+    S("ATOM_BPE_CONSULT_POLICY", "auto", C_BPE,
+      "Consult value-gate: auto (evidence-driven) | true (force on) | false (shadow only)"),
+    S("ATOM_BPE_EVOLUTION", "auto", C_BPE,
+      "Genome application: auto (evidence-gated) | true (force apply) | false (proposal only)"),
+    S("ATOM_BPE_EVOLUTION_ENABLED", "auto", C_BPE,
+      "Legacy per-family apply override: auto | true (force) | false (hold)"),
+    S("ATOM_BPE_DATA_DIR", "backend/data/bpe_workspaces", C_BPE,
+      "Durable workspace snapshot directory"),
 )
 
 _SPEC_INDEX: dict[str, SettingSpec] = {s.key: s for s in SETTING_CATALOG}

@@ -160,7 +160,7 @@ describe('WorkflowBuilder - State Management Tests', () => {
         edges: [],
       };
 
-      const getItem = jest.fn(() => JSON.stringify(savedState));
+      const getItem: jest.Mock = jest.fn(() => JSON.stringify(savedState));
       const localStorage = { getItem };
 
       // Load state
@@ -172,7 +172,7 @@ describe('WorkflowBuilder - State Management Tests', () => {
     });
 
     it('should handle corrupted localStorage data', () => {
-      const getItem = jest.fn(() => 'invalid-json{');
+      const getItem: jest.Mock = jest.fn(() => 'invalid-json{');
       const localStorage = { getItem };
 
       try {

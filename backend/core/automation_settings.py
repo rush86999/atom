@@ -23,6 +23,12 @@ class AutomationSettingsManager:
         "enable_sales_automations": True,
         "response_control_mode": "suggest", # suggest, draft, auto_send
         "enable_integration_enrichment": True,
+        # How much mailbox history an integration's FIRST sync ingests, in
+        # days. User-guided via /api/v1/settings/automations; 3 months by
+        # default. Per-app keys override the shared mail default.
+        "email_history_days": 90,
+        "outlook_history_days": 90,
+        "gmail_history_days": 90,
         "pipelines": {
             "sales": {"mode": "scheduled", "cron": "*/30 * * * *"},
             "projects": {"mode": "scheduled", "cron": "*/15 * * * *"},
@@ -82,6 +88,27 @@ class AutomationSettingsManager:
     def is_sales_enabled(self) -> bool:
         """Check if sales automations are enabled"""
         return self._settings.get("enable_sales_automations", True)
+
+    def get_initial_sync_days(self, app_type: str) -> int:
+        """Mailbox history window (days) for an integration's FIRST sync.
+
+        Resolves the per-app key (e.g. ``outlook_history_days``) and falls
+        back to the shared mail default (``email_history_days``), then 90.
+        Clamped to a sane range so a typo can't trigger an unbounded walk."""
+        key = f"{app_type}_history_days"
+        try:
+            days = int(
+                self._settings.get(
+                    key, self._settings.get("email_history_days", 90)
+                )
+            )
+        except (TypeError, ValueError):
+            return 90
+        return max(1, min(days, 3650))
+
+    def get_outlook_history_days(self) -> int:
+        """Backward-compatible alias for the Outlook history window."""
+        return self.get_initial_sync_days("outlook")
 
 # Global Manager Instance
 automation_settings_manager = AutomationSettingsManager()

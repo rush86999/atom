@@ -66,9 +66,9 @@ function JITVerificationDashboardContent() {
   const fetchDashboardData = async () => {
     try {
       const [workerRes, cacheRes, healthRes] = await Promise.all([
-        jitVerificationAPI.getWorkerMetrics().catch(() => null),
-        jitVerificationAPI.getCacheStats().catch(() => null),
-        jitVerificationAPI.getHealth().catch(() => null),
+        jitVerificationAPI.getWorkerMetrics().catch((): null => null),
+        jitVerificationAPI.getCacheStats().catch((): null => null),
+        jitVerificationAPI.getHealth().catch((): null => null),
       ]);
 
       if (workerRes?.data) setWorkerMetrics(workerRes.data);
@@ -120,9 +120,9 @@ function JITVerificationDashboardContent() {
     if (autoRefresh) {
       poller.start(
         () => Promise.all([
-          jitVerificationAPI.getWorkerMetrics().catch(() => null),
-          jitVerificationAPI.getCacheStats().catch(() => null),
-          jitVerificationAPI.getHealth().catch(() => null),
+          jitVerificationAPI.getWorkerMetrics().catch((): null => null),
+          jitVerificationAPI.getCacheStats().catch((): null => null),
+          jitVerificationAPI.getHealth().catch((): null => null),
         ]),
         ([workerRes, cacheRes, healthRes]) => {
           if (workerRes?.data) setWorkerMetrics(workerRes.data);

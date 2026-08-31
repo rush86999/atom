@@ -142,7 +142,7 @@ describe('useChatMemory Hook (failure branches)', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'success', memory_id: 'm2' }) }); // stats refresh
     const { result } = render({ autoStoreMessages: true });
     await act(async () => {
-      await result.current.autoStoreMessage('user', 'remember this');
+      await (result.current as any).autoStoreMessage('user', 'remember this');
     });
     await waitFor(() => {
       expect(result.current.memories[0].content).toBe('remember this');

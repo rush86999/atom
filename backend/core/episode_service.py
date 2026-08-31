@@ -161,6 +161,66 @@ class ReadinessThresholds:
     }
 
 
+class ReadinessWeights:
+    """Per-target-level readiness factor weights.
+
+    Adjusted per maturity for practical reasons: each tier is scored only
+    on the evidence its work mode can actually produce. A factor whose
+    telemetry has no writer today carries weight 0.00 — enabling one in
+    promotion scoring must be a conscious decision here, not a side effect
+    of adding a writer elsewhere.
+
+    - student→intern: students cannot create proposals (hard block in
+      ProposalService.create_action_proposal), so supervision evidence is
+      structurally unreachable; their evidence is supervised training runs.
+    - intern→supervised: every intern action routes through a proposal whose
+      decision episode records human_intervention_count=1 BY DESIGN, so
+      zero-intervention is structurally capped near 0.5 and carries a
+      reduced weight; supervision (approval rate) IS live at this tier.
+    - supervised→autonomous: direct monitored execution produces full
+      episode telemetry; supervision weight is small because only approval
+      telemetry is live (execution_followed_proposal has no writer).
+    - skill_diversity / proposal_quality: no episode writers stamp
+      skill_type="openclaw" or episode_type="meta_agent_proposal" metadata
+      → weight 0.00 at every tier until one exists.
+
+    Factors included in a tier's table but with NO recorded evidence for a
+    given agent are dropped and the remaining weights renormalized (see
+    EpisodeService._compute_readiness_score) — missing telemetry must not
+    read as a zero score.
+    """
+
+    STUDENT_TO_INTERN = {
+        "zero_intervention": 0.35,
+        "constitutional": 0.25,
+        "confidence": 0.20,
+        "success": 0.20,
+        "supervision": 0.00,
+        "skill_diversity": 0.00,
+        "proposal_quality": 0.00,
+    }
+
+    INTERN_TO_SUPERVISED = {
+        "zero_intervention": 0.25,
+        "constitutional": 0.20,
+        "confidence": 0.15,
+        "success": 0.25,
+        "supervision": 0.15,
+        "skill_diversity": 0.00,
+        "proposal_quality": 0.00,
+    }
+
+    SUPERVISED_TO_AUTONOMOUS = {
+        "zero_intervention": 0.30,
+        "constitutional": 0.25,
+        "confidence": 0.15,
+        "success": 0.20,
+        "supervision": 0.10,
+        "skill_diversity": 0.00,
+        "proposal_quality": 0.00,
+    }
+
+
 class ReadinessResponse:
     """Graduation readiness calculation response
 
@@ -622,25 +682,40 @@ class EpisodeService:
         """
         Calculate graduation readiness score for an agent.
 
-        UPDATED READINESS FORMULA (with skill diversity integration):
-        readiness = (zero_intervention_ratio * 0.30) +
-                    (avg_constitutional_score * 0.25) +
-                    (avg_confidence_score * 0.15) +
-                    (success_rate * 0.10) +
-                    (supervision_success_rate * 0.10) +
-                    (skill_diversity_score * 0.10)
+        MATURITY-ADJUSTED READINESS FORMULA:
+        The factor weights are per target level (see ReadinessWeights) and
+        are renormalized over the factors that actually have recorded
+        evidence for this agent:
 
-        The new skill_diversity_score metric tracks the variety of skills
-        an agent has successfully executed, showing broader capability.
+            readiness = Σ(value_i × weight_i) / Σ(weight_i)
+                        over factors i with weight > 0 AND recorded evidence
+
+        Per-level base weights (before renormalization):
+        - student→intern:   zero_intervention .35, constitutional .25,
+                            confidence .20, success .20
+        - intern→supervised: zero_intervention .25, constitutional .20,
+                            confidence .15, success .25, supervision .15
+        - supervised→autonomous: zero_intervention .30, constitutional .25,
+                            confidence .15, success .20, supervision .10
+
+        skill_diversity and proposal_quality carry 0.00 at every tier (no
+        episode writer records their telemetry yet). Factors with weight
+        but no recorded evidence (e.g. constitutional for chat-segmented
+        episodes, supervision when no proposal-linked episodes exist) are
+        excluded and the rest renormalized — previously a missing value
+        averaged in as 0.0, which made some tiers' thresholds unreachable
+        no matter how well the agent performed.
 
         Args:
             agent_id: ID of the agent
             tenant_id: ID of the tenant
             episode_count: Number of recent episodes to analyze (default: 30)
             target_level: Target maturity level (if None, determines next level)
+            min_episodes_override: Override the per-level minimum episode count
 
         Returns:
-            ReadinessResponse with readiness score and breakdown (including skill metrics)
+            ReadinessResponse with readiness score and breakdown (including
+            the weights actually applied)
         """
         # Get agent
         agent = self.db.query(AgentRegistry).filter(
@@ -701,18 +776,15 @@ class EpisodeService:
             tenant_id=tenant_id
         )
 
-        # Calculate overall readiness score (UPDATED FORMULA with proposal quality)
-        # Adjusted weights to accommodate proposal quality factor:
-        # - Reduced skill_diversity from 0.10 to 0.07
-        # - Added proposal_quality at 0.03 (small but meaningful)
-        readiness_score = (
-            metrics["zero_intervention_ratio"] * 0.30 +  # Unchanged
-            metrics["avg_constitutional_score"] * 0.25 +  # Unchanged
-            metrics["avg_confidence_score"] * 0.15 +  # Unchanged
-            metrics["success_rate"] * 0.10 +  # Unchanged
-            supervision_metrics["supervision_success_rate"] * 0.10 +  # Unchanged
-            skill_metrics["skill_diversity_score"] * 0.07 +  # Reduced from 0.10
-            proposal_quality_metrics["proposal_quality_score"] * 0.03  # NEW (Phase 224-04)
+        # Maturity-adjusted weighted score, renormalized over factors with
+        # recorded evidence (see ReadinessWeights for the per-tier rationale).
+        weights = self._readiness_weights_for(target_level)
+        readiness_score, applied_weights, excluded_factors = self._compute_readiness_score(
+            weights=weights,
+            metrics=metrics,
+            supervision_metrics=supervision_metrics,
+            skill_metrics=skill_metrics,
+            proposal_quality_metrics=proposal_quality_metrics,
         )
 
         # Get threshold for target level
@@ -745,9 +817,92 @@ class EpisodeService:
                 "avg_step_efficiency": round(metrics.get("avg_step_efficiency", 1.0), 4),
                 "supervision_metrics": supervision_metrics,
                 "skill_metrics": skill_metrics,  # Skill diversity breakdown
-                "proposal_quality_metrics": proposal_quality_metrics  # NEW (Phase 224-04)
+                "proposal_quality_metrics": proposal_quality_metrics,  # NEW (Phase 224-04)
+                "weights": {
+                    "base": weights,
+                    "applied": applied_weights,
+                    "excluded_no_evidence": excluded_factors,
+                },
             }
         )
+
+    @staticmethod
+    def _readiness_weights_for(target_level: str) -> Dict[str, float]:
+        """Base readiness factor weights for a target maturity level."""
+        mapping = {
+            AgentStatus.INTERN.value: ReadinessWeights.STUDENT_TO_INTERN,
+            AgentStatus.SUPERVISED.value: ReadinessWeights.INTERN_TO_SUPERVISED,
+            AgentStatus.AUTONOMOUS.value: ReadinessWeights.SUPERVISED_TO_AUTONOMOUS,
+        }
+        return mapping.get(target_level, ReadinessWeights.STUDENT_TO_INTERN)
+
+    @staticmethod
+    def _compute_readiness_score(
+        weights: Dict[str, float],
+        metrics: Dict[str, Any],
+        supervision_metrics: Dict[str, Any],
+        skill_metrics: Dict[str, Any],
+        proposal_quality_metrics: Dict[str, Any],
+    ) -> tuple:
+        """Weighted readiness over factors WITH recorded evidence.
+
+        Factors whose weight is 0 are skipped outright. Factors with weight
+        but no recorded evidence for this agent (constitutional/confidence
+        when no episode recorded one, supervision when no proposal-linked
+        episode exists) are excluded and the remaining weights renormalized
+        so the score stays on a 0..1 scale comparable to the thresholds.
+
+        Returns (score, applied_weights, excluded_factors).
+        """
+        factors = {
+            "zero_intervention": (
+                metrics.get("zero_intervention_ratio", 0.0),
+                True,  # derived from every episode — always defined
+            ),
+            "constitutional": (
+                metrics.get("avg_constitutional_score", 0.0),
+                metrics.get("constitutional_recorded", 0) > 0,
+            ),
+            "confidence": (
+                metrics.get("avg_confidence_score", 0.0),
+                metrics.get("confidence_recorded", 0) > 0,
+            ),
+            "success": (
+                metrics.get("success_rate", 0.0),
+                True,  # derived from every episode — always defined
+            ),
+            "supervision": (
+                supervision_metrics.get("supervision_success_rate", 0.0),
+                supervision_metrics.get("total_proposals", 0) > 0,
+            ),
+            "skill_diversity": (
+                skill_metrics.get("skill_diversity_score", 0.0),
+                skill_metrics.get("unique_skill_count", 0) > 0,
+            ),
+            "proposal_quality": (
+                proposal_quality_metrics.get("proposal_quality_score", 0.0),
+                proposal_quality_metrics.get("proposal_episode_count", 0) > 0,
+            ),
+        }
+
+        numerator = 0.0
+        denominator = 0.0
+        applied: Dict[str, float] = {}
+        excluded: list = []
+        for name, (value, available) in factors.items():
+            weight = weights.get(name, 0.0)
+            if weight <= 0.0:
+                continue
+            if not available:
+                excluded.append(name)
+                continue
+            numerator += value * weight
+            denominator += weight
+            applied[name] = weight
+
+        if denominator <= 0.0:
+            return 0.0, applied, excluded
+        return numerator / denominator, applied, excluded
 
     def calculate_readiness_metrics(self, episodes: List[AgentEpisode]) -> Dict[str, Any]:
         """
@@ -761,7 +916,9 @@ class EpisodeService:
                 "success_rate": 0.0,
                 "zero_intervention_ratio": 0.0,
                 "avg_constitutional_score": 0.0,
+                "constitutional_recorded": 0,
                 "avg_confidence_score": 0.0,
+                "confidence_recorded": 0,
                 "episodes_by_outcome": {},
                 "total_interventions": 0,
                 "avg_step_efficiency": 0.0
@@ -775,17 +932,32 @@ class EpisodeService:
         zero_interventions = sum(1 for e in episodes if e.human_intervention_count == 0)
         zero_intervention_ratio = zero_interventions / len(episodes)
 
-        # Average constitutional score.
-        # Episodes created via the proposal workflow (and legacy rows) may have
-        # constitutional_score=None. Treating None as 0 keeps the mean defined
-        # and reflects "no compliance credit recorded" — previously a single
-        # None crashed the whole readiness calc with TypeError.
-        constitutional_scores = [e.constitutional_score or 0.0 for e in episodes]
-        avg_constitutional_score = sum(constitutional_scores) / len(episodes)
+        # Average constitutional score over the episodes that RECORDED one.
+        # Episodes created via the chat-segmentation path (and proposal
+        # decision episodes) leave constitutional_score=None — that is
+        # "no compliance credit recorded", not a violation. Averaging None
+        # in as 0.0 previously made tier thresholds unreachable for
+        # chat-trained agents; the factor is now excluded (see
+        # _compute_readiness_score) when nothing was recorded, and averaged
+        # over recorded values only when some were.
+        constitutional_scores = [
+            e.constitutional_score for e in episodes
+            if e.constitutional_score is not None
+        ]
+        avg_constitutional_score = (
+            sum(constitutional_scores) / len(constitutional_scores)
+            if constitutional_scores else 0.0
+        )
 
-        # Average confidence score (same None-safety as constitutional score).
-        confidence_scores = [e.confidence_score or 0.0 for e in episodes]
-        avg_confidence_score = sum(confidence_scores) / len(episodes)
+        # Average confidence score — same recorded-only rule.
+        confidence_scores = [
+            e.confidence_score for e in episodes
+            if e.confidence_score is not None
+        ]
+        avg_confidence_score = (
+            sum(confidence_scores) / len(confidence_scores)
+            if confidence_scores else 0.0
+        )
 
         # Episodes by outcome
         episodes_by_outcome = {}
@@ -806,7 +978,9 @@ class EpisodeService:
             "success_rate": success_rate,
             "zero_intervention_ratio": zero_intervention_ratio,
             "avg_constitutional_score": avg_constitutional_score,
+            "constitutional_recorded": len(constitutional_scores),
             "avg_confidence_score": avg_confidence_score,
+            "confidence_recorded": len(confidence_scores),
             "episodes_by_outcome": episodes_by_outcome,
             "total_interventions": total_interventions,
             "avg_step_efficiency": avg_step_efficiency
@@ -881,7 +1055,19 @@ class EpisodeService:
         # Overall supervision success rate:
         # Combines approval rate and execution success rate
         # High approval rate + high execution success = high supervision success
-        supervision_success_rate = (approval_rate * 0.6) + (execution_success_rate * 0.4)
+        #
+        # execution_followed_proposal currently has NO writer, so until one
+        # exists the follow-through component is only blended in when some
+        # episode actually recorded it — otherwise the rate would be
+        # structurally capped at 0.6 for every agent.
+        has_follow_data = any(
+            e.execution_followed_proposal is not None
+            for e in supervision_episodes
+        )
+        if has_follow_data:
+            supervision_success_rate = (approval_rate * 0.6) + (execution_success_rate * 0.4)
+        else:
+            supervision_success_rate = approval_rate
 
         return {
             "total_proposals": total_proposals,

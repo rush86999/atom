@@ -23,13 +23,18 @@ export const HelpTooltip: React.FC<HelpTooltipProps> = ({
 }) => {
   return (
     <TooltipProvider>
-      <Tooltip delayDuration={300}>
+      {/* the local Tooltip/TooltipContent wrappers don't declare radix-style
+          props, so pass them via a cast (runtime spreads/ignores them as before) */}
+      <Tooltip {...({ delayDuration: 300 } as any)}>
         <TooltipTrigger asChild>
           <button className="inline-flex">
             <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side={side} className="max-w-xs">
+        <TooltipContent
+          {...({ side } as any)}
+          className="max-w-xs"
+        >
           <p className="text-sm">{content}</p>
         </TooltipContent>
       </Tooltip>

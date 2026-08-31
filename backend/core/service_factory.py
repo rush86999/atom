@@ -56,8 +56,12 @@ class ServiceFactory:
     """
     Centralized factory for creating and managing service instances.
 
-    Uses thread-local storage to ensure thread safety while allowing
-    service instance reuse within a single thread/request context.
+    Services that bind a caller's DB session are constructed PER CALL —
+    caching them on a thread pinned the first session for the process
+    lifetime, holding read transactions open (frozen snapshots: external
+    writes invisible until restart) and defeating per-request scoping.
+    Thread-local caching is reserved for services that hold no DB session
+    (LLM service, engines, processors).
 
     Example:
         # In API routes
@@ -81,16 +85,20 @@ class ServiceFactory:
 
     @classmethod
     def get_governance_service(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> AgentGovernanceService:
-        """Get or create an AgentGovernanceService instance."""
-        if not hasattr(cls._thread_local, 'governance_service'):
-            publisher = cls.get_activity_publisher()
-            cls._thread_local.governance_service = AgentGovernanceService(
-                db, 
-                workspace_id=workspace_id, 
-                tenant_id=tenant_id, 
-                activity_publisher=publisher
-            )
-        return cls._thread_local.governance_service
+        """Construct an AgentGovernanceService for this caller's db session.
+
+        Per-call: this service binds the caller's db session, and a
+        thread-local cache would pin the FIRST session a thread ever handed
+        us for the process lifetime (holding read transactions open and
+        freezing that connection's snapshot — external writes became
+        invisible until restart; see notes/AGENT_COORDINATION.md 2026-08-30).
+        """
+        return AgentGovernanceService(
+            db,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+            activity_publisher=cls.get_activity_publisher(),
+        )
 
     @classmethod
     def get_context_resolver(cls, db: Session) -> AgentContextResolver:
@@ -103,9 +111,8 @@ class ServiceFactory:
         Returns:
             AgentContextResolver instance
         """
-        if not hasattr(cls._thread_local, 'context_resolver'):
-            cls._thread_local.context_resolver = AgentContextResolver(db)
-        return cls._thread_local.context_resolver
+        # Per-call: binds the caller's db session (see class note).
+        return AgentContextResolver(db)
 
     @classmethod
     def get_governance_cache(cls) -> GovernanceCache:
@@ -191,31 +198,26 @@ class ServiceFactory:
     @classmethod
     def get_canvas_context_service(cls, db: Session, tenant_id: str) -> CanvasContextService:
         """Get or create CanvasContextService instance."""
-        if not hasattr(cls._thread_local, 'canvas_context_service'):
-            cls._thread_local.canvas_context_service = CanvasContextService(db, tenant_id=tenant_id)
-        return cls._thread_local.canvas_context_service
+        # Per-call: binds the caller's db session (see class note).
+        return CanvasContextService(db, tenant_id=tenant_id)
 
     @classmethod
     def get_canvas_recording_service(cls, db: Session, tenant_id: str) -> CanvasRecordingService:
         """Get or create CanvasRecordingService instance."""
-        if not hasattr(cls._thread_local, 'canvas_recording_service'):
-            cls._thread_local.canvas_recording_service = CanvasRecordingService(db, tenant_id=tenant_id)
-        return cls._thread_local.canvas_recording_service
+        # Per-call: binds the caller's db session (see class note).
+        return CanvasRecordingService(db, tenant_id=tenant_id)
 
     @classmethod
     def get_canvas_summary_service(cls, db: Session, tenant_id: str) -> CanvasPresentationSummaryService:
         """Get or create CanvasPresentationSummaryService instance."""
-        if not hasattr(cls._thread_local, 'canvas_summary_service'):
-            cls._thread_local.canvas_summary_service = CanvasPresentationSummaryService(db)
-        return cls._thread_local.canvas_summary_service
+        # Per-call: binds the caller's db session (see class note).
+        return CanvasPresentationSummaryService(db)
 
     @classmethod
     def get_episode_service(cls, db: Session, workspace_id: str = "default", tenant_id: str = "default") -> EpisodeService:
         """Get or create EpisodeService instance."""
-        if not hasattr(cls._thread_local, 'episode_service'):
-            publisher = cls.get_activity_publisher()
-            cls._thread_local.episode_service = EpisodeService(db, tenant_api_key=None, activity_publisher=publisher)
-        return cls._thread_local.episode_service
+        # Per-call: binds the caller's db session (see class note).
+        return EpisodeService(db, tenant_api_key=None, activity_publisher=cls.get_activity_publisher())
 
     @classmethod
     def get_activity_publisher(cls) -> ActivityPublisher:
@@ -228,14 +230,13 @@ class ServiceFactory:
     @classmethod
     def get_guardrails_service(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> Any:
         """Get or create AutonomousGuardrailService instance."""
-        if not hasattr(cls._thread_local, 'guardrails_service'):
-            from core.autonomous_guardrails import AutonomousGuardrailService
-            cls._thread_local.guardrails_service = AutonomousGuardrailService(
-                db, 
-                workspace_id=workspace_id, 
-                tenant_id=tenant_id
-            )
-        return cls._thread_local.guardrails_service
+        from core.autonomous_guardrails import AutonomousGuardrailService
+        # Per-call: binds the caller's db session (see class note).
+        return AutonomousGuardrailService(
+            db,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id
+        )
 
     @classmethod
     def get_memory_consolidation_service(cls, workspace_id: str = "default", tenant_id: Optional[str] = None) -> Any:
@@ -309,10 +310,9 @@ class ServiceFactory:
     @classmethod
     def get_queen_agent(cls, db: Session, workspace_id: str = "default", tenant_id: str = "default") -> QueenAgent:
         """Get or create QueenAgent instance."""
-        if not hasattr(cls._thread_local, 'queen_agent'):
-            llm = cls.get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id)
-            cls._thread_local.queen_agent = QueenAgent(db, llm, workspace_id=workspace_id, tenant_id=tenant_id)
-        return cls._thread_local.queen_agent
+        # Per-call: binds the caller's db session (see class note).
+        return QueenAgent(db, cls.get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id),
+                          workspace_id=workspace_id, tenant_id=tenant_id)
 
     @classmethod
     def get_atom_meta_agent(cls, workspace_id: str = "default", tenant_id: str = "default", user: Optional[User] = None) -> AtomMetaAgent:
@@ -324,10 +324,9 @@ class ServiceFactory:
     @classmethod
     def get_skill_creation_agent(cls, db: Session, workspace_id: str = "default", tenant_id: str = "default") -> SkillCreationAgent:
         """Get or create SkillCreationAgent instance."""
-        if not hasattr(cls._thread_local, 'skill_creation_agent'):
-            llm = cls.get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id)
-            cls._thread_local.skill_creation_agent = SkillCreationAgent(db, llm, workspace_id=workspace_id, tenant_id=tenant_id)
-        return cls._thread_local.skill_creation_agent
+        # Per-call: binds the caller's db session (see class note).
+        return SkillCreationAgent(db, cls.get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id),
+                                  workspace_id=workspace_id, tenant_id=tenant_id)
 
     @classmethod
     def get_king_agent(cls, workspace_id: str = "default", tenant_id: str = "default", user: Optional[User] = None) -> KingAgent:
@@ -339,33 +338,29 @@ class ServiceFactory:
     @classmethod
     def get_autoresearch_agent(cls, db: Session, workspace_id: str = "default", tenant_id: str = "default") -> AutoresearchAgent:
         """Get or create AutoresearchAgent instance."""
-        if not hasattr(cls._thread_local, 'autoresearch_agent'):
-            llm = cls.get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id)
-            cls._thread_local.autoresearch_agent = AutoresearchAgent(db, llm, workspace_id=workspace_id, tenant_id=tenant_id)
-        return cls._thread_local.autoresearch_agent
+        # Per-call: binds the caller's db session (see class note).
+        return AutoresearchAgent(db, cls.get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id),
+                                 workspace_id=workspace_id, tenant_id=tenant_id)
 
     @classmethod
     def get_group_reflection_service(cls, db: Session) -> GroupReflectionService:
         """Get or create GroupReflectionService instance."""
-        if not hasattr(cls._thread_local, 'group_reflection_service'):
-            cls._thread_local.group_reflection_service = GroupReflectionService(db)
-        return cls._thread_local.group_reflection_service
+        # Per-call: binds the caller's db session (see class note).
+        return GroupReflectionService(db)
 
     @classmethod
     def get_push_notification_service(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> "PushNotificationService":
         """Get or create push notification service."""
-        if not hasattr(cls._thread_local, 'push_notification_service'):
-            from core.push_notifications import PushNotificationService
-            cls._thread_local.push_notification_service = PushNotificationService(db, workspace_id=workspace_id, tenant_id=tenant_id)
-        return cls._thread_local.push_notification_service
+        from core.push_notifications import PushNotificationService
+        # Per-call: binds the caller's db session (see class note).
+        return PushNotificationService(db, workspace_id=workspace_id, tenant_id=tenant_id)
 
     @classmethod
     def get_workflow_analytics_engine(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> "WorkflowAnalyticsEngine":
         """Get or create WorkflowAnalyticsEngine instance."""
-        if not hasattr(cls._thread_local, 'workflow_analytics_engine'):
-            from core.workflow_analytics_engine import WorkflowAnalyticsEngine
-            cls._thread_local.workflow_analytics_engine = WorkflowAnalyticsEngine(db, workspace_id=workspace_id, tenant_id=tenant_id)
-        return cls._thread_local.workflow_analytics_engine
+        from core.workflow_analytics_engine import WorkflowAnalyticsEngine
+        # Per-call: binds the caller's db session (see class note).
+        return WorkflowAnalyticsEngine(db, workspace_id=workspace_id, tenant_id=tenant_id)
 
     @classmethod
     def get_goal_engine(cls) -> GoalEngine:
@@ -377,65 +372,56 @@ class ServiceFactory:
     @classmethod
     def get_zoho_adapter(cls, db: Session, workspace_id: str = "default", instance_url: Optional[str] = None) -> ZohoAdapter:
         """Get or create Universal ZohoAdapter instance."""
-        if not hasattr(cls._thread_local, 'zoho_adapter'):
-            cls._thread_local.zoho_adapter = ZohoAdapter(db=db, workspace_id=workspace_id, instance_url=instance_url)
-        return cls._thread_local.zoho_adapter
+        # Per-call: binds the caller's db session (see class note).
+        return ZohoAdapter(db=db, workspace_id=workspace_id, instance_url=instance_url)
 
     @classmethod
     def get_hubspot_adapter(cls, db: Session, workspace_id: str = "default") -> HubSpotAdapter:
         """Get or create HubSpotAdapter instance."""
-        if not hasattr(cls._thread_local, 'hubspot_adapter'):
-            cls._thread_local.hubspot_adapter = HubSpotAdapter(db=db, workspace_id=workspace_id)
-        return cls._thread_local.hubspot_adapter
+        # Per-call: binds the caller's db session (see class note).
+        return HubSpotAdapter(db=db, workspace_id=workspace_id)
 
     @classmethod
     def get_notion_adapter(cls, db: Session, workspace_id: str = "default") -> NotionAdapter:
         """Get or create NotionAdapter instance."""
-        if not hasattr(cls._thread_local, 'notion_adapter'):
-            cls._thread_local.notion_adapter = NotionAdapter(db=db, workspace_id=workspace_id)
-        return cls._thread_local.notion_adapter
+        # Per-call: binds the caller's db session (see class note).
+        return NotionAdapter(db=db, workspace_id=workspace_id)
 
     @classmethod
     def get_airtable_adapter(cls, db: Session, workspace_id: str = "default") -> AirtableAdapter:
         """Get or create AirtableAdapter instance."""
-        if not hasattr(cls._thread_local, 'airtable_adapter'):
-            cls._thread_local.airtable_adapter = AirtableAdapter(db=db, workspace_id=workspace_id)
-        return cls._thread_local.airtable_adapter
+        # Per-call: binds the caller's db session (see class note).
+        return AirtableAdapter(db=db, workspace_id=workspace_id)
 
     @classmethod
     def get_jira_adapter(cls, db: Session, workspace_id: str = "default", site_url: Optional[str] = None) -> JiraAdapter:
         """Get or create JiraAdapter instance."""
-        if not hasattr(cls._thread_local, 'jira_adapter'):
-            cls._thread_local.jira_adapter = JiraAdapter(db=db, workspace_id=workspace_id, site_url=site_url)
-        return cls._thread_local.jira_adapter
+        # Per-call: binds the caller's db session (see class note).
+        return JiraAdapter(db=db, workspace_id=workspace_id, site_url=site_url)
 
     @classmethod
     def get_hybrid_ingestion_service(cls, db: Session, workspace_id: str = "default", tenant_id: str = "default") -> HybridDataIngestionService:
         """Get or create HybridDataIngestionService instance."""
-        if not hasattr(cls._thread_local, 'hybrid_ingestion'):
-            cls._thread_local.hybrid_ingestion = HybridDataIngestionService(db=db, workspace_id=workspace_id, tenant_id=tenant_id)
-        return cls._thread_local.hybrid_ingestion
+        # Per-call: binds the caller's db session (see class note).
+        return HybridDataIngestionService(db=db, workspace_id=workspace_id, tenant_id=tenant_id)
 
     @classmethod
     def get_integration_catalog(cls, db: Session) -> IntegrationCatalogService:
         """Get or create IntegrationCatalogService instance."""
-        if not hasattr(cls._thread_local, 'integration_catalog'):
-            cls._thread_local.integration_catalog = IntegrationCatalogService(db)
-        return cls._thread_local.integration_catalog
+        # Per-call: binds the caller's db session (see class note).
+        return IntegrationCatalogService(db)
 
     @classmethod
     def get_budget_enforcement(cls, db: Session) -> BudgetEnforcementService:
         """Get or create BudgetEnforcementService instance."""
-        if not hasattr(cls._thread_local, 'budget_enforcement'):
-            cls._thread_local.budget_enforcement = BudgetEnforcementService(db)
-        return cls._thread_local.budget_enforcement
+        # Per-call: binds the caller's db session (see class note).
+        return BudgetEnforcementService(db)
 
     @classmethod
     def get_policy_search(cls, db: Session) -> PGPolicySearchService:
         """Get or create PGPolicySearchService instance."""
-        if not hasattr(cls._thread_local, 'policy_search'):
-            cls._thread_local.policy_search = PGPolicySearchService(db)
-        return cls._thread_local.policy_search
+        # Per-call: binds the caller's db session (see class note).
+        return PGPolicySearchService(db)
 
     @classmethod
     def get_docling_processor(cls) -> DoclingDocumentProcessor:
@@ -452,16 +438,14 @@ class ServiceFactory:
     @classmethod
     def get_messaging_dispatcher(cls, db: Optional[Session] = None) -> MessagingActionDispatcher:
         """Get or create MessagingActionDispatcher instance."""
-        if not hasattr(cls._thread_local, 'messaging_dispatcher'):
-            cls._thread_local.messaging_dispatcher = MessagingActionDispatcher(db)
-        return cls._thread_local.messaging_dispatcher
+        # Per-call: binds the caller's db session (see class note).
+        return MessagingActionDispatcher(db)
 
     @classmethod
     def get_communication_bridge(cls, db: Session) -> UniversalCommunicationBridge:
         """Get or create UniversalCommunicationBridge instance."""
-        if not hasattr(cls._thread_local, 'communication_bridge'):
-            cls._thread_local.communication_bridge = UniversalCommunicationBridge(db)
-        return cls._thread_local.communication_bridge
+        # Per-call: binds the caller's db session (see class note).
+        return UniversalCommunicationBridge(db)
 
 
 class GovernanceServiceFactory:

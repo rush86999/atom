@@ -37,15 +37,11 @@ interface CanvasCloseResponse {
 }
 
 // Mock global window.atom.canvas API
+// Must match the canonical Window.atom declaration in components/canvas/types
 declare global {
   interface Window {
     atom?: {
-      canvas: {
-        getState: (canvasId: string) => any;
-        getAllStates: () => Array<{ canvas_id: string; state: any }>;
-        subscribe: (callback: (state: any) => void) => () => void;
-        subscribeAll: (callback: (event: any) => void) => () => void;
-      };
+      canvas?: import('@/components/canvas/types').CanvasStateAPI;
     };
   }
 }
@@ -659,7 +655,8 @@ describe('Canvas API Integration Tests - useCanvasState Hook', () => {
 
     await waitFor(() => {
       expect(result.current.state).toEqual(updatedState);
-      expect(result.current.state.data.updated).toBe(true);
+      // AnyCanvasState union includes members without `data`
+      expect((result.current.state as any).data.updated).toBe(true);
     });
   });
 
@@ -764,7 +761,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
         submission_id: submissionId,
         governance_check: { allowed: true }
       }),
-      headers: {},
+      headers: {} as Headers,
       bodyUsed: false,
       redirected: false,
       statusText: 'OK',
@@ -775,7 +772,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const formData = {
       name: 'John Doe',
@@ -811,7 +808,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
         submission_id: 'sub-456',
         governance_check: { allowed: true }
       }),
-      headers: {},
+      headers: {} as Headers,
       bodyUsed: false,
       redirected: false,
       statusText: 'OK',
@@ -822,7 +819,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const textFormData = { field: 'text value' };
     const selectFormData = { option: 'option2' };
@@ -862,7 +859,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
           action_complexity: 3
         }
       }),
-      headers: {},
+      headers: {} as Headers,
       bodyUsed: false,
       redirected: false,
       statusText: 'OK',
@@ -873,7 +870,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const formData = { field: 'value' };
 
@@ -910,7 +907,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
           reason: 'Agent maturity STUDENT cannot perform action submit_form (complexity 3)'
         }
       }),
-      headers: {},
+      headers: {} as Headers,
       bodyUsed: false,
       redirected: false,
       statusText: 'Forbidden',
@@ -921,7 +918,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const formData = { field: 'value' };
 
@@ -957,7 +954,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
           { field: 'name', message: 'Name is required' }
         ]
       }),
-      headers: {},
+      headers: {} as Headers,
       bodyUsed: false,
       redirected: false,
       statusText: 'Bad Request',
@@ -968,7 +965,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const invalidFormData = {
       email: 'not-an-email',
@@ -1008,7 +1005,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
         submission_id: 'sub-retry-123',
         governance_check: { allowed: true }
       }),
-      headers: {},
+      headers: {} as Headers,
       bodyUsed: false,
       redirected: false,
       statusText: 'OK',
@@ -1019,7 +1016,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const formData = { field: 'value' };
 
@@ -1071,7 +1068,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
           { field: 'document', filename: 'test.pdf', size: 1024000 }
         ]
       }),
-      headers: {},
+      headers: {} as Headers,
       bodyUsed: false,
       redirected: false,
       statusText: 'OK',
@@ -1082,7 +1079,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const fileData = {
       field: 'document',
@@ -1118,7 +1115,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
         error: 'File too large',
         details: 'Maximum file size is 10MB'
       }),
-      headers: {},
+      headers: {} as Headers,
       bodyUsed: false,
       redirected: false,
       statusText: 'Payload Too Large',
@@ -1129,7 +1126,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const largeFile = {
       field: 'document',
@@ -1161,7 +1158,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
         allowed_types: ['.pdf', '.doc', '.docx', '.txt'],
         provided_type: '.exe'
       }),
-      headers: {},
+      headers: {} as Headers,
       bodyUsed: false,
       redirected: false,
       statusText: 'Unsupported Media Type',
@@ -1172,7 +1169,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const invalidFile = {
       field: 'document',
@@ -1210,7 +1207,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
           confirmed_at: '2024-02-28T10:00:00Z'
         };
       },
-      headers: {},
+      headers: {} as Headers,
       bodyUsed: false,
       redirected: false,
       statusText: 'OK',
@@ -1221,7 +1218,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const formData = { field: 'value' };
 
@@ -1257,7 +1254,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
           submitted_at: '2024-02-28T10:00:00Z'
         }
       }),
-      headers: {},
+      headers: {} as Headers,
       bodyUsed: false,
       redirected: false,
       statusText: 'OK',
@@ -1268,7 +1265,7 @@ describe('Canvas API Integration Tests - Form Submission with Governance', () =>
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const canvasState = createMockCanvasState('generic');
     api._setState('canvas-123', canvasState);

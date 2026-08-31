@@ -368,6 +368,10 @@ class TestStreamExtraKwargs:
         h.health_monitor = MagicMock()
         h.health_monitor.record_call = MagicMock()
         h._stash_decision_features = MagicMock(return_value=None)
+        # The P4 prompt-taint gate is consulted in the stream path; an
+        # un-stubbed MagicMock returns a truthy "block reason" and the stream
+        # yields an error token instead of model output.
+        h._llm_taint_check = MagicMock(return_value=None)
         h._track_llm_call = MagicMock()
         h._track_rate_usage = MagicMock()
         h.rate_tracker = MagicMock()
@@ -607,14 +611,14 @@ class TestRequestLoggerUnits:
         assert _sanitize_body(None, True) is None
 
     def test_sanitize_body_serialize_and_redact(self):
-        with patch("core.llm.gateway.request_logger.GATEWAY_LOG_BODIES", True):
-            out = _sanitize_body({"msg": "hi", "nested": [1, 2]}, True)
+        # _sanitize_body takes include_body directly; the ATOM_GATEWAY_LOG_BODIES
+        # setting is resolved by log_bodies() at the call sites.
+        out = _sanitize_body({"msg": "hi", "nested": [1, 2]}, True)
         assert json.loads(out) == {"msg": "hi", "nested": [1, 2]}
 
     def test_sanitize_body_dumps_failure_falls_back_to_str(self):
         body = SimpleNamespace()  # not JSON-serializable
-        with patch("core.llm.gateway.request_logger.GATEWAY_LOG_BODIES", True):
-            out = _sanitize_body(body, True)
+        out = _sanitize_body(body, True)
         assert "namespace" in out.lower() or "object" in out.lower()
 
     def test_estimate_cost_fetcher_path(self):
@@ -659,7 +663,7 @@ class TestLogGatewayRequestDb:
 
     def test_writes_body_when_enabled(self, worker_database):
         session = worker_database()
-        with patch("core.llm.gateway.request_logger.GATEWAY_LOG_BODIES", True):
+        with patch("core.llm.gateway.request_logger.log_bodies", return_value=True):
             log_id = log_gateway_request(
                 session, _identity(), provider="openai", model="m",
                 request_body={"messages": [{"role": "user", "content": "hello"}]},
@@ -1113,16 +1117,15 @@ class TestGatewayServiceRouting:
         )
         from core.llm.gateway import gateway_service as gs
 
-        assert get_gateway_enabled() == gs.GATEWAY_ENABLED
-        old = gs.GATEWAY_ENABLED
-        try:
-            gs.GATEWAY_ENABLED = False
+        # gateway_enabled() resolves live (env > runtime-settings DB row);
+        # patch the function, not the import-time module constant.
+        with patch("core.llm.gateway.gateway_service.gateway_enabled", return_value=False):
+            assert get_gateway_enabled() is False
             with pytest.raises(Exception) as exc:
                 require_gateway_enabled()
             assert exc.value.status_code == 404
-        finally:
-            gs.GATEWAY_ENABLED = old
-        require_gateway_enabled()  # enabled -> no raise
+        assert get_gateway_enabled() is True  # restored -> no raise
+        require_gateway_enabled()
 
     def test_gateway_init_builds_handler(self):
         handler = _fake_handler()

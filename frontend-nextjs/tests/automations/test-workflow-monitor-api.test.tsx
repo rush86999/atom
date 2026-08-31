@@ -516,7 +516,7 @@ describe('WorkflowMonitor - WebSocket Integration Tests', () => {
       for (let i = 0; i < maxAttempts; i++) {
         try {
           await reconnectWithLimit();
-        } catch (error) {
+        } catch (error: any) {
           expect(error.message).toContain('Max reconnection attempts');
           break;
         }

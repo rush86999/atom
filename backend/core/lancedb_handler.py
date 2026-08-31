@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+import threading
 
 try:
     import pyarrow as pa
@@ -29,7 +30,7 @@ except (ImportError, BaseException) as e:
     logger.warning(f"Numpy check failed: {e}")
 
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, List, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
 from core.doc_freshness_service import FRESHNESS_FILTER_ENABLED
 
@@ -66,10 +67,25 @@ except (ImportError, BaseException) as e:
 Table = Any
 LanceDBConnection = Any
 
+def _resolve_local_db_path(path: str) -> str:
+    """Anchor a relative LanceDB path to the backend/ directory.
+
+    Agent memory must not depend on the launch CWD — a root-vs-backend
+    launch previously pointed at two different memory stores. Relative
+    paths (./data/atom_memory) are written against backend/, the documented
+    launch dir; absolute and object-store URIs pass through untouched.
+    """
+    if not path or os.path.isabs(path) or path.startswith(("s3://", "db://", "gs://")):
+        return path
+    return os.path.normpath(
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), path)
+    )
+
+
 # Embedded fallback path — used when an S3 URI is supplied but
 # LANCEDB_CLOUD_ENABLED=false (Personal Edition). Keeps the two storage modes
 # isolated without touching the rest of the handler.
-LOCAL_DB_PATH_FALLBACK = os.getenv("LANCEDB_URI", "./data/atom_memory")
+LOCAL_DB_PATH_FALLBACK = _resolve_local_db_path(os.getenv("LANCEDB_URI", "./data/atom_memory"))
 
 # Import sentence transformers for embeddings (Lazy load to prevent Windows hang)
 try:
@@ -160,7 +176,7 @@ class LanceDBHandler:
         embedding_model: str = "text-embedding-3-small",
     ):
         # Determine DB path (S3 or local)
-        self.db_path = db_path or os.getenv("LANCEDB_URI", "./data/atom_memory")
+        self.db_path = _resolve_local_db_path(db_path or os.getenv("LANCEDB_URI", "./data/atom_memory"))
 
         self.workspace_id = workspace_id or "default"
         self.tenant_id = tenant_id or "default"
@@ -333,8 +349,9 @@ class LanceDBHandler:
         self,
         table_name: str,
         schema: Union[dict[str, Any], None] = None,
-        vector_size: int = 1536,
+        vector_size: Union[int, None] = None,
         dual_vector: bool = False,
+        overwrite: bool = False,
     ) -> Union[Table, None]:
         """
         Create a new table.
@@ -355,14 +372,16 @@ class LanceDBHandler:
 
         try:
             if schema is None:
-                # Default to OpenAI dimension
                 # Vector column must match the ACTIVE embedding provider's
-                # output dim, not a fixed 1536: fastembed (the default) emits
-                # 384-dim vectors and a 1536 column rejects every insert.
-                if self.embedding_provider == "fastembed":
-                    vector_size = 384
-                elif self.embedding_provider == "openai" or not vector_size:
-                    vector_size = 1536
+                # true output dim. When the caller doesn't pin a size, infer
+                # it from the provider (fastembed→384, else 1536); an explicit
+                # vector_size (e.g. the re-embed migration passing the sample
+                # embedding's length) is always honored.
+                if vector_size is None:
+                    if self.embedding_provider == "fastembed":
+                        vector_size = 384
+                    else:
+                        vector_size = 1536
 
                 # Knowledge-graph tables need the edge columns IN ADDITION to
                 # the standard document columns (query_knowledge_graph reads
@@ -400,9 +419,37 @@ class LanceDBHandler:
 
                 schema = pa.schema(fields)
 
-            # Create table
-            table = self.db.create_table(table_name, schema=schema, mode="overwrite")
-            logger.info(f"Table '{table_name}' created/accessed successfully")
+            # Create table — CREATE-IF-MISSING, never overwrite. The old
+            # mode="overwrite" silently DROPPED an existing table (and every
+            # row in it) whenever this method ran against a table that
+            # already existed, e.g. on handler re-init after an embedding
+            # provider switch. Overwrite is now an explicit opt-in.
+            try:
+                existing = self.db.open_table(table_name)
+            except Exception:
+                existing = None
+
+            if existing is not None and not overwrite:
+                logger.info(
+                    f"Table '{table_name}' already exists — opening it "
+                    f"(pass overwrite=True to explicitly reset it)"
+                )
+                try:
+                    self._check_embedding_identity(table_name, existing)
+                except Exception:
+                    pass
+                return existing
+
+            if existing is not None and overwrite:
+                self.db.drop_table(table_name)
+                logger.warning(f"Table '{table_name}' explicitly reset (overwrite=True)")
+
+            table = self.db.create_table(table_name, schema=schema)
+            logger.info(f"Table '{table_name}' created successfully")
+            try:
+                self._register_identity_from_schema(table_name, table.schema)
+            except Exception:
+                pass
             return table
 
         except Exception as e:
@@ -419,13 +466,187 @@ class LanceDBHandler:
         try:
             tnames = self.db.table_names()
             if table_name in tnames:
-                return self.db.open_table(table_name)
+                table = self.db.open_table(table_name)
+                # Registry check is a cheap dict compare; it schedules a
+                # background re-embed when the active embedding model no
+                # longer matches the one that produced the table's vectors.
+                try:
+                    self._check_embedding_identity(table_name, table)
+                except Exception:
+                    pass
+                return table
             else:
                 return None
 
         except Exception as e:
             logger.error(f"Failed to get table '{table_name}': {e}")
             return None
+
+    # ------------------------------------------------------------------
+    # Embedding-model identity & background re-embedding migration
+    # ------------------------------------------------------------------
+
+    # Migration jobs in flight across ALL handler instances (handlers are
+    # created per-request in places; one shared set prevents duplicate work).
+    _reembed_inflight: "set[str]" = set()
+    _reembed_lock = threading.Lock()
+
+    def _active_embedding_identity(self) -> Dict[str, Any]:
+        """The embedder currently in effect (provider/model resolved like
+        the vector-column sizing logic in create_table)."""
+        provider = self.embedding_provider
+        if self.embedding_service is not None:
+            svc_provider = getattr(self.embedding_service, "provider", None)
+            provider = str(getattr(svc_provider, "value", svc_provider) or provider)
+            model = getattr(self.embedding_service, "model", None) or self.embedding_model
+        else:
+            model = self.embedding_model
+        return {"provider": str(provider), "model": str(model)}
+
+    def _register_identity_from_schema(self, table_name: str, schema: Any) -> None:
+        """Adopt a table's current schema into the registry (first sighting)."""
+        from core import embedding_registry
+
+        if embedding_registry.get(table_name) is not None:
+            return
+        dim = embedding_registry.dim_from_schema(schema)
+        if dim is None:
+            return
+        active = self._active_embedding_identity()
+        embedding_registry.set_identity(
+            table_name, active["provider"], active["model"], dim
+        )
+
+    def _check_embedding_identity(self, table_name: str, table: "Table") -> None:
+        """Compare the table's recorded embedding identity against the
+        active embedder; schedule a background re-embed on any mismatch."""
+        from core import embedding_registry
+
+        identity = embedding_registry.get(table_name)
+        active = self._active_embedding_identity()
+
+        if identity is None:
+            self._register_identity_from_schema(table_name, table.schema)
+            return
+
+        schema_dim = embedding_registry.dim_from_schema(table.schema)
+        state = embedding_registry.classify(
+            identity, active["provider"], active["model"], schema_dim
+        )
+        if state == "match":
+            return
+        if state == "unregistered":
+            self._register_identity_from_schema(table_name, table.schema)
+            return
+
+        logger.warning(
+            f"Embedding model mismatch for '{table_name}': vectors were built "
+            f"with {identity.get('provider')}/{identity.get('model')} "
+            f"({identity.get('dim')}-dim) but the active embedder is "
+            f"{active['provider']}/{active['model']} ({schema_dim}-dim) — "
+            f"re-embedding in the background ({state})"
+        )
+        self._schedule_reembed(table_name)
+
+    def _schedule_reembed(self, table_name: str) -> None:
+        """Kick off a background re-embedding migration, at most one per table."""
+        with self._reembed_lock:
+            if table_name in LanceDBHandler._reembed_inflight:
+                return
+            LanceDBHandler._reembed_inflight.add(table_name)
+        thread = threading.Thread(
+            target=self._reembed_table_worker,
+            args=(table_name,),
+            daemon=True,
+            name=f"reembed-{table_name}",
+        )
+        thread.start()
+
+    def _reembed_table_worker(self, table_name: str) -> None:
+        """Re-embed every row of ``table_name`` with the active embedder.
+
+        Runs on a daemon thread so a model switch never blocks or fails
+        requests: the old table keeps serving (stale) vectors until the
+        migrated one replaces it. Failures leave the original table intact.
+        """
+        try:
+            self._ensure_db()
+            if self.db is None:
+                return
+            table = self.get_table_nocheck(table_name)
+            if table is None:
+                return
+
+            # Learn the active embedder's true output dimension from a sample;
+            # a dead embedder aborts the migration (original table untouched).
+            sample = self.embed_text("embedding model migration probe")
+            if not sample:
+                logger.error(
+                    f"Re-embed of '{table_name}' aborted: active embedder "
+                    f"returned no vector"
+                )
+                return
+            target_dim = len(sample)
+
+            rows = table.to_arrow().to_pylist()
+            had_dual = any(f.name == "vector_fastembed" for f in table.schema)
+            logger.info(
+                f"Re-embedding '{table_name}': {len(rows)} rows -> {target_dim}-dim"
+            )
+            self.db.drop_table(table_name)
+            fresh = self.create_table(table_name, vector_size=target_dim, dual_vector=had_dual)
+            if fresh is None:
+                logger.error(f"Re-embed of '{table_name}' failed: recreate returned None")
+                return
+
+            batch: list[dict[str, Any]] = []
+            done = 0
+            for row in rows:
+                text = row.get("text") or row.get("content") or ""
+                vec = self.embed_text(text)
+                if vec is None or len(vec) != target_dim:
+                    vec = [0.0] * target_dim
+                row["vector"] = list(vec)
+                # Any other vector columns (e.g. vector_fastembed) were built
+                # by their own embedder — the values carried over from the old
+                # rows are still valid and are preserved untouched.
+                batch.append(row)
+                if len(batch) >= 100:
+                    fresh.add(batch)
+                    done += len(batch)
+                    batch = []
+            if batch:
+                fresh.add(batch)
+                done += len(batch)
+
+            active = self._active_embedding_identity()
+            from core import embedding_registry
+
+            embedding_registry.set_identity(
+                table_name, active["provider"], active["model"], target_dim
+            )
+            logger.info(
+                f"Re-embed of '{table_name}' complete: {done} rows at "
+                f"{target_dim}-dim ({active['provider']}/{active['model']})"
+            )
+        except Exception as e:
+            logger.error(f"Re-embed of '{table_name}' failed: {e}")
+        finally:
+            with self._reembed_lock:
+                LanceDBHandler._reembed_inflight.discard(table_name)
+
+    def get_table_nocheck(self, table_name: str) -> Union[Table, None]:
+        """get_table without the identity check (used by the re-embed worker
+        to avoid self-scheduling loops)."""
+        self._ensure_db()
+        if self.db is None:
+            return None
+        try:
+            if table_name in self.db.table_names():
+                return self.db.open_table(table_name)
+        except Exception as e:
+            logger.error(f"Failed to get table '{table_name}': {e}")
+        return None
 
     @staticmethod
     def _has_column(table: "Table", column_name: str) -> bool:
@@ -945,6 +1166,44 @@ class LanceDBHandler:
             logger.error(f"Failed to search in '{table_name}': {e}")
             return []
 
+    def list_document_heads(self, table_name: str, limit: int = 200) -> list[dict[str, Any]]:
+        """List lightweight heads ({id, metadata, created_at}) without vectors.
+
+        Used by the Knowledge VFS to surface vector-only rows (no PG mirror)
+        in ``ls`` output. Metadata is parsed like :meth:`get_document_by_id`.
+        """
+        self._ensure_db()
+        if self.db is None:
+            return []
+
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return []
+            df = table.to_arrow().select(["id", "metadata", "created_at"]).to_pandas()
+            if df.empty:
+                return []
+
+            heads: list[dict[str, Any]] = []
+            for _, row in df.head(limit).iterrows():
+                metadata = row.get("metadata", {})
+                if isinstance(metadata, str):
+                    try:
+                        metadata = json.loads(metadata)
+                    except Exception:
+                        metadata = {}
+                elif metadata is None:
+                    metadata = {}
+                heads.append({
+                    "id": row["id"],
+                    "metadata": metadata,
+                    "created_at": row.get("created_at", ""),
+                })
+            return heads
+        except Exception as e:
+            logger.error(f"Failed to list heads in '{table_name}': {e}")
+            return []
+
     def get_document_by_id(self, table_name: str, doc_id: str) -> Union[dict[str, Any], None]:
         """Retrieve a single document by ID"""
         self._ensure_db()
@@ -956,17 +1215,22 @@ class LanceDBHandler:
             if table is None:
                 return None
 
-            # Use PyArrow filtering or LanceDB specific filtering
-            # Note: filtering syntax depends on LanceDB version, assuming standard SQL-like
-            # SECURITY: escape single quotes in doc_id to prevent filter injection
-            # / broken filters, matching the escaping in search().
-            safe_doc_id = str(doc_id).replace("'", "''")
-            results = table.search().where(f"id = '{safe_doc_id}'").limit(1).to_pandas()
+            # Arrow filter, NOT table.search(): this is a point lookup —
+            # routing it through the kNN query builder can bind the embedding
+            # machinery (seconds per call, or a hang when no client is
+            # configured) and never needs the vector column anyway.
+            # SECURITY: pc.equal is a parameterized comparison — values are
+            # matched as-is, so the old SQL-style quote-doubling must NOT be
+            # applied here (it would make a quoted doc_id unmatchable).
+            import pyarrow.compute as _pc
 
-            if results.empty:
+            arrow = table.to_arrow().select(["id", "text", "source", "metadata", "created_at"])
+            rows = arrow.filter(_pc.equal(arrow.column("id"), str(doc_id))).to_pylist()
+
+            if not rows:
                 return None
 
-            row = results.iloc[0]
+            row = rows[0]
             metadata = row.get("metadata", {})
             if isinstance(metadata, str):
                 try:
@@ -981,7 +1245,7 @@ class LanceDBHandler:
                 "source": row.get("source", ""),
                 "metadata": metadata,
                 "created_at": row.get("created_at", ""),
-                "vector": row.get("vector", []) if "vector" in row else [],
+                "vector": [],
             }
         except Exception as e:
             logger.error(f"Failed to get document {doc_id}: {e}")

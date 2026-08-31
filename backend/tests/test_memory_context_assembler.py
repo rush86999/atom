@@ -473,7 +473,7 @@ async def test_get_qwen_response_receives_user_id():
     captured = {}
 
     async def fake_qwen(message, history, routing_overrides=None,
-                        sticky_hint=None, user_id=None):
+                        sticky_hint=None, user_id=None, **kwargs):
         captured["user_id"] = user_id
         return None
 
@@ -488,7 +488,11 @@ async def test_get_qwen_response_receives_user_id():
          patch.object(orch, "_analyze_intent", side_effect=fake_analyze), \
          patch.object(orch, "_route_to_features", side_effect=fake_route), \
          patch.object(orch, "_update_session"), \
-         patch.object(orch, "_dispatch_turn_fact_extraction"):
+         patch.object(orch, "_dispatch_turn_fact_extraction"), \
+         patch.object(orch, "_is_cancelled", return_value=False), \
+         patch.object(orch, "_start_chat_execution", return_value="exec-t"), \
+         patch.object(orch, "_emit_agent_status", new=AsyncMock()), \
+         patch.object(orch, "_finish_chat_execution"):
         await orch.process_chat_message("user-1", "hello", session_id="s1")
 
     assert captured.get("user_id") == "user-1"

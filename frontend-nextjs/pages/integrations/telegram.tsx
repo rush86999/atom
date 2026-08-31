@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import IngestionStatusPanel from "@/components/integrations/IngestionStatusPanel";
 import Head from "next/head";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,11 @@ const TelegramPage: React.FC = () => {
         <title>Telegram Integration | ATOM</title>
         <meta name="description" content="Send and receive Telegram messages through your agents" />
       </Head>
+  {/* Memory-ingestion progress (uniform across integration pages) */}
+  <div className="p-6 pb-0 max-w-[1400px] mx-auto w-full">
+    <IngestionStatusPanel integrationId="telegram" />
+  </div>
+
       <div className="p-6 max-w-3xl mx-auto space-y-4">
         <IntegrationStatusCard
           title="Telegram"

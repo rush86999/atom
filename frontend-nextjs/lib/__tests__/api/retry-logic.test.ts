@@ -256,7 +256,7 @@ describe('API Retry Logic Configuration', () => {
           delay: 500, // 500ms initial delay
           factor: 2,  // Exponential backoff: 500ms, 1000ms, 2000ms
           jitter: true,
-          handleError: () => true, // Always retry for this test
+          handleError: (() => true) as () => void, // Always retry for this test
         }
       ).catch(() => {
         // Expected to fail after max attempts
@@ -319,7 +319,7 @@ describe('API Retry Logic Configuration', () => {
             maxAttempts: 2,
             delay: 500,
             jitter: true,
-            handleError: () => true,
+            handleError: (() => true) as () => void,
           }
         ).catch(() => {});
 
@@ -447,10 +447,10 @@ describe('API Retry Logic Configuration', () => {
             maxAttempts: 3,
             delay: 100,
             jitter: true,
-            handleError: (error: any) => {
+            handleError: ((error: any) => {
               // Retry 5xx errors
               return error.response?.status >= 500;
-            },
+            }) as unknown as () => void,
           }
         );
         fail('Should have thrown error');

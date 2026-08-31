@@ -3,6 +3,7 @@ import { NextPage } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import GmailSearch from "../../components/GmailSearch";
+import IngestionStatusPanel from "@/components/integrations/IngestionStatusPanel";
 
 const GmailIntegrationPage: NextPage = () => {
   const router = useRouter();
@@ -534,30 +535,7 @@ const GmailIntegrationPage: NextPage = () => {
               understand your email patterns with semantic search.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div className="border rounded-lg p-4">
-                <h3 className="text-lg font-medium mb-2">Memory Statistics</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Total Messages:</span>
-                    <span className="font-medium">0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Indexed Messages:</span>
-                    <span className="font-medium">0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Memory Size:</span>
-                    <span className="font-medium">0 MB</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Last Sync:</span>
-                    <span className="font-medium">Never</span>
-                  </div>
-                </div>
-                <button className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors w-full">
-                  Sync Memory Now
-                </button>
-              </div>
+              <IngestionStatusPanel integrationId="gmail" title="Memory Statistics" />
               <div className="border rounded-lg p-4">
                 <h3 className="text-lg font-medium mb-2">Memory Search</h3>
                 <div className="space-y-3">

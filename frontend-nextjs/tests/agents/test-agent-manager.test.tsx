@@ -466,7 +466,7 @@ describe('AgentManager Component', () => {
 
       // Check if save button is enabled (it should be if form is valid)
       const saveButtons = screen.getAllByRole('button').filter(btn => btn.textContent === 'Create Agent');
-      if (saveButtons.length > 0 && nameInputs.length > 0 && nameInputs[0].value === 'Test Agent') {
+      if (saveButtons.length > 0 && nameInputs.length > 0 && (nameInputs[0] as HTMLInputElement).value === 'Test Agent') {
         // Button should be enabled when form is valid
         expect(saveButtons[0]).not.toBeDisabled();
       }
@@ -546,7 +546,7 @@ describe('AgentManager Component', () => {
 
       const capButton = screen
         .getAllByRole('button', { name: /calendar management/i })
-        .find((b) => b.type === 'button' || b.getAttribute('type') === 'button')!;
+        .find((b) => (b as HTMLButtonElement).type === 'button' || b.getAttribute('type') === 'button')!;
       // toggle on
       fireEvent.click(capButton);
       // toggle off again

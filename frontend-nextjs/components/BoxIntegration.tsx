@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
     CheckCircle,
@@ -427,20 +428,28 @@ const BoxIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/box/health", { headers: authHeaders() });
+            // Real per-integration connection state (DB connections + OAuth
+            // grants + env credentials). The /health route is a liveness probe
+            // that returns 200 unconditionally — it must not decide "connected".
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
-                setConnected(true);
-                setHealthStatus("healthy");
-                loadUserProfile();
-                loadRootFolder();
-                loadUsers();
-                loadCollaborations();
+                const data = await response.json().catch((): null => null);
+                const providers = data?.data?.providers ?? data?.providers ?? {};
+                const isConnected = providers?.box?.connected === true;
+                setConnected(isConnected);
+                setHealthStatus(isConnected ? "healthy" : "error");
+                if (isConnected) {
+                    loadUserProfile();
+                    loadRootFolder();
+                    loadUsers();
+                    loadCollaborations();
+                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
             }
         } catch (error) {
-            console.error("Health check failed:", error);
+            console.error("Connection status check failed:", error);
             setConnected(false);
             setHealthStatus("error");
         }
@@ -450,7 +459,7 @@ const BoxIntegration: React.FC = () => {
     const loadUserProfile = async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
-            const response = await fetch("/api/integrations/box/profile", {
+            const response = await authFetch("/api/integrations/box/profile", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -472,7 +481,7 @@ const BoxIntegration: React.FC = () => {
     const loadRootFolder = async () => {
         setLoading((prev) => ({ ...prev, folders: true, files: true }));
         try {
-            const response = await fetch("/api/integrations/box/folder/0", {
+            const response = await authFetch("/api/integrations/box/folder/0", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -513,7 +522,7 @@ const BoxIntegration: React.FC = () => {
     const loadFolder = async (folder: BoxFolder) => {
         setLoading((prev) => ({ ...prev, folders: true, files: true }));
         try {
-            const response = await fetch(
+            const response = await authFetch(
                 `/api/integrations/box/folder/${folder.id}`,
                 {
                     method: "POST",
@@ -559,7 +568,7 @@ const BoxIntegration: React.FC = () => {
     const loadUsers = async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
-            const response = await fetch("/api/integrations/box/users", {
+            const response = await authFetch("/api/integrations/box/users", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -582,7 +591,7 @@ const BoxIntegration: React.FC = () => {
     const loadCollaborations = async () => {
         setLoading((prev) => ({ ...prev, collaborations: true }));
         try {
-            const response = await fetch("/api/integrations/box/collaborations", {
+            const response = await authFetch("/api/integrations/box/collaborations", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -606,7 +615,7 @@ const BoxIntegration: React.FC = () => {
         if (!folderForm.name) return;
 
         try {
-            const response = await fetch("/api/integrations/box/folders/create", {
+            const response = await authFetch("/api/integrations/box/folders/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -645,7 +654,7 @@ const BoxIntegration: React.FC = () => {
 
     const createSharedLink = async (item: BoxFile | BoxFolder) => {
         try {
-            const response = await fetch(
+            const response = await authFetch(
                 `/api/integrations/box/${item.type}s/${item.id}/share`,
                 {
                     method: "POST",
@@ -697,7 +706,7 @@ const BoxIntegration: React.FC = () => {
             return;
 
         try {
-            const response = await fetch(
+            const response = await authFetch(
                 "/api/integrations/box/collaborations/create",
                 {
                     method: "POST",

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Eye,
     CheckCircle,
@@ -210,19 +211,27 @@ const JiraIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/jira/health", { headers: authHeaders() });
+            // Real per-integration connection state (DB connections + OAuth
+            // grants + env credentials). The /health route is a liveness probe
+            // that returns 200 unconditionally — it must not decide "connected".
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
-                setConnected(true);
-                setHealthStatus("healthy");
-                loadUserProfile();
-                loadProjects();
-                loadUsers();
+                const data = await response.json().catch((): null => null);
+                const providers = data?.data?.providers ?? data?.providers ?? {};
+                const isConnected = providers?.jira?.connected === true;
+                setConnected(isConnected);
+                setHealthStatus(isConnected ? "healthy" : "error");
+                if (isConnected) {
+                    loadUserProfile();
+                    loadProjects();
+                    loadUsers();
+                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
             }
         } catch (error) {
-            console.error("Health check failed:", error);
+            console.error("Connection status check failed:", error);
             setConnected(false);
             setHealthStatus("error");
         }
@@ -232,7 +241,7 @@ const JiraIntegration: React.FC = () => {
     const loadUserProfile = async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
-            const response = await fetch("/api/integrations/jira/profile", {
+            const response = await authFetch("/api/integrations/jira/profile", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -254,7 +263,7 @@ const JiraIntegration: React.FC = () => {
     const loadProjects = async () => {
         setLoading((prev) => ({ ...prev, projects: true }));
         try {
-            const response = await fetch("/api/integrations/jira/projects", {
+            const response = await authFetch("/api/integrations/jira/projects", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -282,7 +291,7 @@ const JiraIntegration: React.FC = () => {
     const loadIssues = async () => {
         setLoading((prev) => ({ ...prev, issues: true }));
         try {
-            const response = await fetch("/api/integrations/jira/issues", {
+            const response = await authFetch("/api/integrations/jira/issues", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -308,7 +317,7 @@ const JiraIntegration: React.FC = () => {
     const loadUsers = async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
-            const response = await fetch("/api/integrations/jira/users", {
+            const response = await authFetch("/api/integrations/jira/users", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -333,7 +342,7 @@ const JiraIntegration: React.FC = () => {
 
         setLoading((prev) => ({ ...prev, sprints: true }));
         try {
-            const response = await fetch("/api/integrations/jira/sprints", {
+            const response = await authFetch("/api/integrations/jira/sprints", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -358,7 +367,7 @@ const JiraIntegration: React.FC = () => {
         if (!newIssue.project || !newIssue.summary) return;
 
         try {
-            const response = await fetch("/api/integrations/jira/issues/create", {
+            const response = await authFetch("/api/integrations/jira/issues/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({

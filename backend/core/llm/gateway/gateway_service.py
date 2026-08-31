@@ -100,7 +100,11 @@ class GatewayService:
         forced_intent = overrides.get("intent")
 
         complexity = self.handler.analyze_query_complexity(prompt, "chat")
-        prefer_cost = prefer_cost()
+        # Read the module-level prefer_cost() into a differently-named local —
+        # `prefer_cost = prefer_cost()` made the name function-local for the
+        # whole scope, so the call itself raised UnboundLocalError and every
+        # un-forced gateway route crashed into the fallback path.
+        prefer_cost_enabled = prefer_cost()
 
         if forced_tier:
             tier = _parse_tier(forced_tier)
@@ -108,7 +112,7 @@ class GatewayService:
                 options = self.handler.get_ranked_providers(
                     complexity,
                     "chat",
-                    prefer_cost=prefer_cost,
+                    prefer_cost=prefer_cost_enabled,
                     cognitive_tier=tier,
                 )
             else:
@@ -118,7 +122,7 @@ class GatewayService:
                 options = self.handler.get_ranked_providers(
                     complexity,
                     "chat",
-                    prefer_cost=prefer_cost,
+                    prefer_cost=prefer_cost_enabled,
                 )
             except NoProvidersConfiguredError:
                 raise

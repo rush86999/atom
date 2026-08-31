@@ -5,26 +5,26 @@ import { DailyBriefingCard } from "@/components/dashboard/DailyBriefingCard";
 const priorities = [
   {
     id: "p1",
-    type: "GROWTH",
+    type: "GROWTH" as const,
     title: "Expand pipeline",
     description: "Two new deals entered prospecting",
-    priority: "HIGH",
+    priority: "HIGH" as const,
     action_link: "/sales",
   },
   {
     id: "p2",
-    type: "RISK",
+    type: "RISK" as const,
     title: "Churn risk",
     description: "Acme Corp usage dropped 40%",
-    priority: "MEDIUM",
+    priority: "MEDIUM" as const,
     action_link: "/accounts/acme",
   },
   {
     id: "p3",
-    type: "STRATEGY",
+    type: "STRATEGY" as const,
     title: "Q3 plan",
     description: "Review quarterly strategy",
-    priority: "LOW",
+    priority: "LOW" as const,
     action_link: "/strategy",
   },
 ];

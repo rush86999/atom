@@ -18,15 +18,19 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import type { Node } from 'reactflow';
 import SmartSuggestions from '../SmartSuggestions';
 
-const mkNode = (id: string, type: string, service?: string) => ({
-  id,
-  type,
-  data: service ? { service } : {},
-});
-
 const mkEdge = (source: string, target: string) => ({ id: `e${source}-${target}`, source, target });
+
+// Fixture nodes omit reactflow's `position` (the component never reads it);
+// the cast keeps the runtime fixture identical to the real shape tests rely on.
+const mkNode = (id: string, type: string, service?: string): Node =>
+  ({
+    id,
+    type,
+    data: service ? { service } : {},
+  }) as unknown as Node;
 
 describe('SmartSuggestions', () => {
   const onSuggestionClick = jest.fn();

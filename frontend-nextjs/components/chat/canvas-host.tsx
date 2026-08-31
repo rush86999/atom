@@ -1,17 +1,21 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText, Table2, Presentation } from "lucide-react";
+import { useRouter } from "next/router";
+import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText, Table2, Presentation, Maximize2 } from "lucide-react";
 import { marked } from "marked";
 import { renderMarkdownSafe } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
+import { useCanvasAutosave } from "@/hooks/useCanvasAutosave";
 import { CANVAS } from "@/src/lib/testIds";
 import { LineChartCanvas } from "@/components/canvas/LineChart";
 import { BarChartCanvas } from "@/components/canvas/BarChart";
 import { PieChartCanvas } from "@/components/canvas/PieChart";
 import { InteractiveForm } from "@/components/canvas/InteractiveForm";
 import { OfficeFileCanvas } from "@/components/canvas/OfficeFileCanvas";
+import { CanvasTypeBadge } from "@/components/canvas/CanvasTypeBadge";
+import { persistCanvasTypeSwitch, switchCanvasType, type SwitchableCanvasType } from "@/components/canvas/canvasType";
 
 interface CanvasState {
     id?: string;
@@ -24,9 +28,13 @@ interface CanvasState {
 
 interface CanvasHostProps {
     lastMessage: any;
+    /** Chat session the canvas belongs to — carried into the expanded page
+        so its agent chat panel continues the same conversation. */
+    sessionId?: string | null;
 }
 
-export function CanvasHost({ lastMessage }: CanvasHostProps) {
+export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
+    const router = useRouter();
     const [state, setState] = useState<CanvasState | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -46,6 +54,9 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
             const { action, component, data, title, id, canvas_id, version, metadata } = lastMessage.data || lastMessage;
 
             if (action === "close") {
+                // Closing supersedes local edits — drop any pending autosave
+                // so its timer can't write afterwards.
+                resetAutosave();
                 setState(null);
             } else {
                 // BUG FIX: `data` can be undefined for data-less canvas messages
@@ -53,6 +64,9 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                 // effect, which also made CanvasContent's "No data to display"
                 // guard unreachable. Use optional chaining instead.
                 const content = typeof data === 'string' ? data : (data?.content || JSON.stringify(data, null, 2));
+                // A new payload supersedes local edits — drop any pending
+                // autosave so its timer can't re-write the superseded content.
+                resetAutosave();
                 localContentRef.current = content;
 
                 setState({
@@ -77,8 +91,10 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
         }
     }, [lastMessage]);
 
-    const handleSave = async () => {
-        if (!state) return;
+    // Returns true on success / false on failure — the autosave hook keys
+    // its retry + status logic off this result.
+    const handleSave = async (): Promise<boolean> => {
+        if (!state) return false;
         setIsSaving(true);
 
         const payload: any = {
@@ -97,26 +113,111 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
 
         try {
             const endpoint = state.id ? "/api/artifacts/update" : "/api/artifacts";
+            const body = JSON.stringify(payload);
+            // keepalive lets a beforeunload flush survive navigation; the
+            // browser caps keepalive bodies at 64KB, so opt in only below.
             const response = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body,
+                keepalive: body.length < 60000
             });
 
             if (response.ok) {
                 const updated = await response.json();
                 setState(prev => prev ? { ...prev, id: updated.id, version: updated.version } : null);
                 setHasUnsavedChanges(false);
+                return true;
             }
+            return false;
         } catch (error) {
             console.error("Error saving artifact:", error);
+            return false;
         } finally {
             setIsSaving(false);
         }
     };
 
+    // ─── Auto-save ───
+    // Every edit calls scheduleAutosave(); when the user pauses for 3s the
+    // same handleSave the manual button uses runs. Idle-debounced (not
+    // interval) because each save appends a version row server-side.
+    // resetAutosave is referenced by the payload effect above through this
+    // closure — the callbacks are stable across renders.
+    const {
+        status: autosaveStatus,
+        schedule: scheduleAutosave,
+        flush: flushAutosave,
+        reset: resetAutosave,
+    } = useCanvasAutosave({ save: handleSave });
+
     const handleSendEmail = async () => {
-        alert(`Sending email to ${emailMetadata.to}...`);
+        if (!emailMetadata.to.trim()) {
+            alert("Add a recipient before sending.");
+            return;
+        }
+        // Explicit confirm before dispatch — the send endpoint treats the
+        // human click as policy authorization for allow/approve decisions
+        // (same contract as the full-page CanvasPanel composer).
+        if (!window.confirm(`Send email to ${emailMetadata.to}?`)) return;
+        try {
+            const { apiClient } = await import("@/lib/api");
+            const res = await apiClient.post("/api/canvas/email/send", {
+                to: [emailMetadata.to].filter(Boolean),
+                cc: [],
+                subject: emailMetadata.subject || "",
+                body: localContentRef.current || "",
+                canvas_id: state?.id || undefined,
+            });
+            const data = (res as any)?.data || {};
+            if (data.success) {
+                alert(data.status === "sent" ? "Email sent." : `Email status: ${data.status}`);
+            } else {
+                alert(`Send blocked: ${data.error || data.message || "unknown error"}`);
+            }
+        } catch (e: any) {
+            alert(`Send failed: ${e?.response?.data?.message || e?.message || "unknown error"}`);
+        }
+    };
+
+    // Manual retype — the escape hatch when the agent-chat classifier picked
+    // the wrong canvas type. Converts the content into the target's shape,
+    // swaps the rendered component, and persists a pinned audit row so the
+    // choice survives reloads and read-time coercion.
+    const handleTypeSwitch = (target: SwitchableCanvasType) => {
+        if (!state) return;
+        // The chat host's payload effect leaves a JSON blob in
+        // localContentRef for UNEDITED email canvases ({to,subject,body} has
+        // no content key) — the composer body is authoritative until the
+        // first user edit flips hasUnsavedChanges.
+        const emailText = hasUnsavedChanges
+            ? localContentRef.current
+            : ((state.data as any)?.body ?? localContentRef.current);
+        const conversion = switchCanvasType(target, {
+            component: state.component,
+            data: state.data,
+            text: state.component === "email" ? emailText : localContentRef.current,
+            email: emailMetadata,
+            sheet: sheetData,
+            title: state.title,
+        });
+
+        setState({ ...state, component: conversion.component, data: conversion.data });
+        localContentRef.current = conversion.text;
+        setEmailMetadata({ to: conversion.email.to, subject: conversion.email.subject });
+        setSheetData(conversion.sheet);
+        setShowPreview(false);
+        setHasUnsavedChanges(!state.id);
+        // The switch persists itself — a pending autosave would only
+        // re-write what persistCanvasTypeSwitch just stored.
+        resetAutosave();
+
+        if (state.id) {
+            persistCanvasTypeSwitch(state.id, conversion, state.title).catch((e) => {
+                console.error("Failed to persist canvas type change:", e);
+                setHasUnsavedChanges(true);
+            });
+        }
     };
 
     // ─── AI Accessibility: register canvas state for agent read-back ───
@@ -217,7 +318,11 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
 
     return (
         <div data-testid={CANVAS.CONTAINER} className="flex flex-col h-full bg-white dark:bg-[#020617] relative animate-in fade-in duration-500 overflow-hidden">
-            <div className="p-3 border-b flex items-center justify-between bg-zinc-50 dark:bg-slate-900/50 backdrop-blur-sm shrink-0">
+            {/* Header needs z-30: backdrop-blur-sm creates a stacking
+                context, so without it menus opened from this bar (the type
+                switcher) paint UNDER the content area below, which is
+                position:relative and later in DOM order. */}
+            <div className="p-3 border-b flex items-center justify-between bg-zinc-50 dark:bg-slate-900/50 backdrop-blur-sm shrink-0 relative z-30">
                 <div className="flex items-center gap-2">
                     <CanvasIcon component={state.component} />
                     <div className="flex flex-col">
@@ -228,13 +333,32 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                             {state.version && (
                                 <span className="text-[10px] text-zinc-500 font-mono">v{state.version}</span>
                             )}
-                            <span data-testid={`${CANVAS.TYPE_PREFIX}${state.component}`} className="text-[8px] h-3.5 px-1 uppercase bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-500 flex items-center rounded">
-                                {state.component}
-                            </span>
+                            <CanvasTypeBadge
+                                component={state.component}
+                                onSwitch={handleTypeSwitch}
+                            />
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Expand into the independent full-page canvas (new tab
+                        keeps the chat alive); the canvas page links back. */}
+                    {state.id && (
+                        <button
+                            data-testid="canvas-expand"
+                            title="Expand into full page"
+                            onClick={() => {
+                                const agentId = router.query.agent_id;
+                                const params = new URLSearchParams({ from: "chat" });
+                                if (agentId) params.set("agent_id", String(agentId));
+                                if (sessionId) params.set("session", String(sessionId));
+                                window.open(`/canvas/${state.id}?${params.toString()}`, "_blank");
+                            }}
+                            className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                        >
+                            <Maximize2 className="h-4 w-4 text-zinc-500" />
+                        </button>
+                    )}
                     {state.component === "email" && (
                         <button
                             onClick={handleSendEmail}
@@ -245,11 +369,11 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                     )}
                     {(hasUnsavedChanges || state.component === 'sheet') && (
                         <button
-                            onClick={handleSave}
-                            disabled={isSaving}
+                            onClick={() => { void flushAutosave({ force: true }); }}
+                            disabled={isSaving || autosaveStatus === "saving"}
                             className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-medium transition-colors disabled:opacity-50"
                         >
-                            {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                            {isSaving || autosaveStatus === "saving" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                             Save Changes
                         </button>
                     )}
@@ -270,14 +394,15 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                     canvasId={state.id}
                     canvasTitle={state.title}
                     emailMetadata={emailMetadata}
-                    setEmailMetadata={(m) => { setEmailMetadata(m); setHasUnsavedChanges(true); }}
+                    setEmailMetadata={(m) => { setEmailMetadata(m); setHasUnsavedChanges(true); scheduleAutosave(); }}
                     sheetData={sheetData}
-                    setSheetData={(d) => { setSheetData(d); setHasUnsavedChanges(true); }}
+                    setSheetData={(d) => { setSheetData(d); setHasUnsavedChanges(true); scheduleAutosave(); }}
                     showPreview={showPreview}
                     setShowPreview={setShowPreview}
                     onContentChange={(val) => {
                         localContentRef.current = val;
                         setHasUnsavedChanges(true);
+                        scheduleAutosave();
                     }}
                 />
             </div>
@@ -296,10 +421,28 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
                         </button>
                     )}
                 </div>
-                {!hasUnsavedChanges && state.id && (
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                        <Check className="h-3 w-3" /> Synced to cloud
-                    </span>
+                {state.id && (
+                    autosaveStatus === "saving" ? (
+                        <span data-testid="canvas-autosave-status" className="text-[10px] text-zinc-500 flex items-center gap-1 font-medium">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+                        </span>
+                    ) : autosaveStatus === "error" ? (
+                        <span
+                            data-testid="canvas-autosave-status"
+                            className="text-[10px] text-amber-600 dark:text-amber-400 font-medium"
+                            title="Auto-save failed. Your edits are kept here — click Save Changes to retry."
+                        >
+                            ⚠ Auto-save failed
+                        </span>
+                    ) : autosaveStatus === "pending" ? (
+                        <span data-testid="canvas-autosave-status" className="text-[10px] text-zinc-500 flex items-center gap-1 font-medium">
+                            Unsaved changes — auto-saving…
+                        </span>
+                    ) : (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                            <Check className="h-3 w-3" /> Synced to cloud
+                        </span>
+                    )
                 )}
             </div>
         </div>

@@ -25,6 +25,7 @@ import { useUndoRedo } from '@/hooks/useUndoRedo';
  * The useUndoRedo hook internally manages state transitions.
  */
 type CounterState = { count: number; name: string };
+type UndoRedoState = Parameters<typeof useUndoRedo>[0];
 type CounterAction =
   | { type: 'INCREMENT' }
   | { type: 'DECREMENT' }
@@ -351,12 +352,13 @@ describe('Reducer Invariants Property Tests', () => {
             edges: fc.array(fc.object(), { minLength: 0, maxLength: 5 })
           }),
           (state) => {
-            const { result: hook1 } = renderHook(() => useUndoRedo(state));
-            const { result: hook2 } = renderHook(() => useUndoRedo(state));
+            const flowState = state as unknown as UndoRedoState;
+            const { result: hook1 } = renderHook(() => useUndoRedo(flowState));
+            const { result: hook2 } = renderHook(() => useUndoRedo(flowState));
 
             act(() => {
-              hook1.current.takeSnapshot(state);
-              hook2.current.takeSnapshot(state);
+              hook1.current.takeSnapshot(flowState);
+              hook2.current.takeSnapshot(flowState);
             });
 
             // Both should have same history length
@@ -388,7 +390,7 @@ describe('Reducer Invariants Property Tests', () => {
             // Add history
             for (const state of history) {
               act(() => {
-                result.current.takeSnapshot(state);
+                result.current.takeSnapshot(state as unknown as UndoRedoState);
               });
             }
 

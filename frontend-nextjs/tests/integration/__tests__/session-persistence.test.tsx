@@ -43,12 +43,12 @@ const createLocalStorageMock = () => {
     },
     addEventListener: (event: string, listener: EventListener) => {
       if (event === 'storage') {
-        listeners.push(listener as (event: StorageEvent) => void);
+        listeners.push(listener);
       }
     },
     removeEventListener: (event: string, listener: EventListener) => {
       if (event === 'storage') {
-        const index = listeners.indexOf(listener as (event: StorageEvent) => void);
+        const index = listeners.indexOf(listener);
         if (index > -1) {
           listeners.splice(index, 1);
         }

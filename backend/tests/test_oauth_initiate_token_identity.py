@@ -86,3 +86,35 @@ def test_no_token_fails_closed(client):
     assert resp.status_code in (401, 403)
     assert "state=" not in (resp.headers.get("location") or "")
     assert calls["tokens"] == []
+
+
+def test_bearer_header_binds_state_to_real_user(client):
+    """API clients and the e2e journey suite authenticate the initiate
+    navigation with an Authorization header instead of ?token=.
+    get_current_user reads the header only through FastAPI dependency
+    injection, never on the route's manual call — so oauth_initiate must
+    extract the Bearer token itself (same contract as the module-level
+    wrapper, B17)."""
+    test_client, calls = client
+    resp = test_client.get(
+        "/api/v1/auth/oauth/zoho/initiate",
+        headers={"Authorization": "Bearer header-jwt-resolved-by-mock"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 307
+    state = resp.headers["location"].split("state=")[-1]
+    assert _get_user_id_from_state(state, "zoho") == "user-42"
+    assert "header-jwt-resolved-by-mock" in calls["tokens"]
+
+
+def test_non_bearer_authorization_header_fails_closed(client):
+    """A non-Bearer Authorization header must not authenticate the initiate:
+    it is not extracted, the anonymous fail-closed path applies."""
+    test_client, calls = client
+    resp = test_client.get(
+        "/api/v1/auth/oauth/zoho/initiate",
+        headers={"Authorization": "Basic dXNlcjpwYXNz"},
+        follow_redirects=False,
+    )
+    assert resp.status_code in (401, 403)
+    assert calls["tokens"] == []

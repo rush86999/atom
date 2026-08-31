@@ -9,13 +9,9 @@ import { Label } from '@/components/ui/label'
 import { Cpu, Power, Terminal, AlertCircle } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
-// Define Tauri types locally to avoid build errors if tauri libs aren't fully set up in Next.js
-declare global {
-    interface Window {
-        __TAURI__?: any;
-    }
-}
-
+// Tauri is accessed via `window as any` casts below to avoid build errors if
+// tauri libs aren't fully set up in Next.js, and to avoid conflicting with the
+// narrower global `Window.__TAURI__` declarations made in test files.
 export function SatelliteControls() {
     const { data: session } = useSession() as any
     const [isTauri, setIsTauri] = useState(false)
@@ -24,13 +20,13 @@ export function SatelliteControls() {
     const [scriptPath, setScriptPath] = useState('scripts/satellite/atom_satellite.py')
 
     useEffect(() => {
-        setIsTauri(!!window.__TAURI__)
+        setIsTauri(!!(window as any).__TAURI__)
     }, [])
 
     const toggleSatellite = async () => {
-        if (!window.__TAURI__) return;
+        if (!(window as any).__TAURI__) return;
 
-        const invoke = window.__TAURI__.core.invoke;
+        const invoke = (window as any).__TAURI__.core.invoke;
 
         if (status === 'running') {
             try {

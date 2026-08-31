@@ -86,7 +86,7 @@ describe('SearchResults', () => {
 
     const resultDivs = container.querySelectorAll('div.cursor-pointer');
     if (resultDivs.length > 0) {
-      resultDivs[0].click();
+      (resultDivs[0] as HTMLElement).click();
     }
 
     expect(mockOnResultClick).toHaveBeenCalled();

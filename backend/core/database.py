@@ -45,6 +45,38 @@ def _clean_postgresql_url(url: str) -> str:
         logger.warning(f"Failed to clean URL: {e}")
         return url
 
+# Anchor for relative SQLite paths — a .env URL like sqlite:///./data/atom.db
+# is written relative to the backend/ directory (the documented launch dir),
+# so resolve it against backend/ to make the database independent of the
+# launch CWD (repo root vs backend/ previously meant two different databases).
+_DATABASE_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _anchor_sqlite_url(url: str) -> str:
+    """Resolve relative SQLite file paths against the backend/ directory.
+
+    ``sqlite:///./data/atom.db`` is CWD-relative in SQLAlchemy: launching
+    uvicorn from the repo root vs backend/ silently pointed at two different
+    databases. Anchoring reproduces the backend/-launch location from any
+    CWD. Absolute paths, ``:memory:`` and non-SQLite URLs pass through
+    untouched.
+    """
+    if not url or not url.startswith("sqlite"):
+        return url
+    scheme, sep, rest = url.partition(":///")
+    if not sep:
+        return url
+    path = rest
+    query = ""
+    if "?" in path:
+        path, query = path.split("?", 1)
+        query = "?" + query
+    if not path or path.startswith(("/", ":")):
+        return url
+    anchored = os.path.normpath(os.path.join(_DATABASE_BACKEND_DIR, path))
+    return f"{scheme}:///{anchored}{query}"
+
+
 def get_database_url():
     """Get database URL with production safety checks"""
     env = os.getenv("ENVIRONMENT", "development")
@@ -79,6 +111,10 @@ def get_database_url():
 
     # Clean the URL before adding our own SSL parameters
     database_url = _clean_postgresql_url(database_url)
+
+    # Anchor relative SQLite paths so the DB file is independent of the
+    # launch CWD (repo root vs backend/ previously meant different databases).
+    database_url = _anchor_sqlite_url(database_url)
 
     # Security: Ensure SSL for PostgreSQL in production
     if env == "production" and "postgresql" in database_url:

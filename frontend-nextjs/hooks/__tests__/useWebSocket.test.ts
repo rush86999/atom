@@ -86,7 +86,9 @@ describe('useWebSocket Hook', () => {
       // WebSocket should be instantiated with correct URL
       // Note: useEffect runs synchronously in renderHook
       expect((global as any).WebSocket.getMockCalls()).toContainEqual(
-        ['/ws?token=test-session-token']
+        // Absolute ws base now (was '/ws?...' — a relative URL that throws
+        // SyntaxError in real browsers when NEXT_PUBLIC_API_URL is unset).
+        ['ws://localhost/ws?token=test-session-token']
       );
     });
 
@@ -151,7 +153,7 @@ describe('useWebSocket Hook', () => {
       }).not.toThrow();
 
       // Error is handled silently, no error state exposed
-      expect(result.current.error).toBeUndefined();
+      expect((result.current as { error?: unknown }).error).toBeUndefined();
     });
 
     test('reconnects after disconnect', () => {
@@ -806,7 +808,7 @@ describe('useWebSocket Hook', () => {
       }).not.toThrow();
 
       // No error state exposed by hook
-      expect(result.current.error).toBeUndefined();
+      expect((result.current as { error?: unknown }).error).toBeUndefined();
     });
 
     test('handles JSON parse errors in onmessage', () => {

@@ -34,7 +34,7 @@
  * @module tests/mocks/scenarios/error-recovery
  */
 
-import { rest, RequestParams } from 'msw';
+import { rest } from 'msw';
 
 /**
  * Error recovery scenario configuration
@@ -120,7 +120,7 @@ export function createRecoveryScenario(
 
   const handler = methodHandlers[method];
 
-  return handler(endpoint, async (req: RequestParams, res: any, ctx: any) => {
+  return handler(endpoint, async (req: any, res: any, ctx: any) => {
     attempts++;
     timestamps.push(Date.now());
 

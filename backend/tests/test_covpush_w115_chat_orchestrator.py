@@ -48,6 +48,7 @@ Zero LLM spend, no network, no real DB writes: every external call is mocked.
 """
 import sys
 import types
+import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -166,17 +167,40 @@ class TestEmitAgentStep:
         with patch("core.websockets.get_connection_manager") as gm:
             manager = gm.return_value
             manager.broadcast_event = AsyncMock()
-            await orch._emit_agent_step(2, "think", "act", "obs")
+            await orch._emit_agent_step("s1", "system_orchestrator", "exec-1", {
+                "step": 2, "thought": "think", "action": "act", "output": "obs",
+            })
             manager.broadcast_event.assert_awaited_once()
             kwargs = manager.broadcast_event.await_args
             assert kwargs.args[1] == "agent_step_update"
-            assert kwargs.args[2]["agent_id"] == "system_orchestrator"
+            payload = kwargs.args[2]
+            assert payload["agent_id"] == "system_orchestrator"
+            assert payload["execution_id"] == "exec-1"
+            assert payload["session_id"] == "s1"
+            # `output` from the meta-agent is normalized to `observation`
+            # (with the original key kept) for the workspace UI.
+            assert payload["step"]["observation"] == "obs"
+            assert payload["step"]["output"] == "obs"
+            assert payload["step"]["session_id"] == "s1"
+
+    async def test_status_emit(self):
+        orch = _make_orch()
+        with patch("core.websockets.get_connection_manager") as gm:
+            manager = gm.return_value
+            manager.broadcast_event = AsyncMock()
+            await orch._emit_agent_status("s1", "atom_main", "exec-1", "running")
+            manager.broadcast_event.assert_awaited_once()
+            kwargs = manager.broadcast_event.await_args
+            assert kwargs.args[1] == "agent_status_change"
+            assert kwargs.args[2]["status"] == "running"
+            assert kwargs.args[2]["execution_id"] == "exec-1"
 
     async def test_failure_swallowed(self):
         orch = _make_orch()
         with patch("core.websockets.get_connection_manager",
                    side_effect=RuntimeError("ws down")):
-            await orch._emit_agent_step(1, "t", "a", "o")
+            await orch._emit_agent_step("s1", "system_orchestrator", None, {"step": 1})
+            await orch._emit_agent_status("s1", "atom_main", None, "failed")
 
 
 class TestProcessChatMessage:
@@ -188,9 +212,18 @@ class TestProcessChatMessage:
         for k, v in overrides.items():
             setattr(orch, k, v)
 
-    async def test_dedup_success_path_mutates_history(self):
+    async def test_dedup_write_side_indexes_without_mutating_history(self):
+        # Contract after the read-path removal (Aug 2026): _update_session
+        # indexes turn texts for exact-match reference lookups but NEVER
+        # replaces stored history with markers — marker-izing prior turns is
+        # what corrupted recall ("the email you found earlier" became an
+        # unresolvable placeholder). Updated from the pre-removal test that
+        # expected deduplicate() to rewrite history in place.
         orch = _make_orch()
-        sid = "w115-dedup"
+        # Unique id per run: this test runs against the real dev DB, and a
+        # fixed id accumulates persisted chat_messages rows that hydrate over
+        # this fixture on every later run (the pre-existing failure mode).
+        sid = f"w115-dedup-{uuid.uuid4().hex[:8]}"
         orch.conversation_sessions[sid] = {
             "id": sid, "user_id": "u1",
             "history": [{"message": "hello", "response": {"message": "hi there"}}],
@@ -204,8 +237,13 @@ class TestProcessChatMessage:
             idx.deduplicate.side_effect = lambda t: (t.upper(), 0)
             gi.return_value = idx
             await orch.process_chat_message("u1", "hello", session_id=sid)
-        assert orch.conversation_sessions[sid]["history"][0]["message"] == "HELLO"
-        assert orch.conversation_sessions[sid]["history"][0]["response"]["message"] == "HI THERE"
+        # Stored history is untouched — no marker rewriting, ever.
+        assert orch.conversation_sessions[sid]["history"][0]["message"] == "hello"
+        assert orch.conversation_sessions[sid]["history"][0]["response"]["message"] == "hi there"
+        # The new turn's texts were indexed for reference matching.
+        indexed = [c.args[0] for c in idx.index_text.call_args_list]
+        assert "hello" in indexed
+        idx.deduplicate.assert_not_called()
 
     async def test_lkgp_sticky_hint_built_and_passed(self):
         orch = _make_orch()
@@ -1198,8 +1236,11 @@ class TestAgentRequestHandler:
 
     async def test_success(self):
         orch = _make_orch()
+        orch._emit_agent_step = AsyncMock()
+        orch._emit_agent_status = AsyncMock()
         fake = self._fake_atom({
             "final_output": "Done!", "actions_executed": [{"a": 1}], "spawned_agent": None,
+            "execution_id": "exec-9",
         })
         with patch.dict(sys.modules, {"core.atom_meta_agent": fake}):
             result = await orch._handle_agent_request(
@@ -1215,10 +1256,44 @@ class TestAgentRequestHandler:
         assert execute.await_args.kwargs["trigger_mode"] == "manual"
         assert execute.await_args.kwargs["context"]["user_id"] == "u1"
         assert execute.await_args.kwargs["context"]["extra"] == 1
+        # Live trace: a step_callback is wired and the run is bracketed by
+        # running → success lifecycle broadcasts.
+        assert callable(execute.await_args.kwargs["step_callback"])
+        statuses = [c.args[3] for c in orch._emit_agent_status.await_args_list]
+        assert statuses == ["running", "success"]
+        assert orch._emit_agent_status.await_args_list[-1].args[2] == "exec-9"
+
+    async def test_step_callback_streams_normalized_steps(self):
+        orch = _make_orch()
+        orch._emit_agent_step = AsyncMock()
+        orch._emit_agent_status = AsyncMock()
+        captured = {}
+
+        async def execute_side_effect(**kwargs):
+            captured["callback"] = kwargs["step_callback"]
+            await kwargs["step_callback"]({
+                "step": 1, "thought": "t", "action": "a",
+                "output": "o", "execution_id": "exec-7",
+            })
+            return {"final_output": "ok", "execution_id": "exec-7"}
+
+        fake = self._fake_atom(None)
+        fake.get_atom_agent.return_value.execute = AsyncMock(side_effect=execute_side_effect)
+        with patch.dict(sys.modules, {"core.atom_meta_agent": fake}):
+            await orch._handle_agent_request(
+                "do a thing", _intent(co.ChatIntent.AGENT_REQUEST),
+                {"id": "s1", "user_id": "u1"}, None,
+            )
+        orch._emit_agent_step.assert_awaited_once_with("s1", "atom_main", "exec-7", {
+            "step": 1, "thought": "t", "action": "a",
+            "output": "o", "execution_id": "exec-7",
+        })
 
     async def test_budget_failure_propagated(self):
         orch = _make_orch()
-        fake = self._fake_atom({"final_output": None, "failure_reason": "cost cap"})
+        orch._emit_agent_step = AsyncMock()
+        orch._emit_agent_status = AsyncMock()
+        fake = self._fake_atom({"final_output": None, "failure_reason": "cost cap", "execution_id": "exec-2"})
         with patch.dict(sys.modules, {"core.atom_meta_agent": fake}):
             result = await orch._handle_agent_request(
                 "big job", _intent(co.ChatIntent.AGENT_REQUEST), {"id": "s1"}, None,
@@ -1227,9 +1302,13 @@ class TestAgentRequestHandler:
         assert result["success"] is False
         assert result["error_code"] == "budget_exceeded"
         assert result["failure_reason"] == "cost cap"
+        statuses = [c.args[3] for c in orch._emit_agent_status.await_args_list]
+        assert statuses == ["running", "failed"]
 
     async def test_exception(self):
         orch = _make_orch()
+        orch._emit_agent_step = AsyncMock()
+        orch._emit_agent_status = AsyncMock()
         fake = types.ModuleType("core.atom_meta_agent")
         fake.AgentTriggerMode = SimpleNamespace(MANUAL="manual")
         fake.get_atom_agent = MagicMock(side_effect=RuntimeError("atom down"))
@@ -1239,6 +1318,10 @@ class TestAgentRequestHandler:
             )
         assert result["status"] == "error"
         assert result["error"] == "agent_request_failed"
+        # get_atom_agent() itself raised before the running broadcast, so only
+        # the terminal failed status is emitted from the except path.
+        statuses = [c.args[3] for c in orch._emit_agent_status.await_args_list]
+        assert statuses == ["failed"]
 
 
 class TestCancellation:

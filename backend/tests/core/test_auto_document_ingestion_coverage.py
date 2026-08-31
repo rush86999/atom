@@ -23,6 +23,32 @@ from core.auto_document_ingestion import (
 )
 
 
+@pytest.fixture(autouse=True)
+def isolated_ingestion_db(monkeypatch):
+    """Hermetic DB boundary.
+
+    The service's freshness/mirror helpers persist through
+    ``core.database.SessionLocal`` — without this swap those writes (PG
+    mirror rows, freshness stamps, deletions) land in the real dev database
+    (Aug 2026 journey trace: test rows leaked into data/atom.db).
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    import core.database as core_db
+    from core.database import Base
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(core_db, "SessionLocal", sessionmaker(bind=engine))
+    yield
+
+
 def _fake_module(name: str, **attrs) -> types.ModuleType:
     """Build a fake module object for sys.modules injection."""
     module = types.ModuleType(name)

@@ -13,10 +13,10 @@ const CalendarManagement: React.FC = () => {
       const token = typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('token')) : null;
       const response = await fetch("/api/dashboard/events", {
         headers: token ? { "Authorization": `Bearer ${token}` } : {},
-      }).catch(() => null);
+      }).catch((): null => null);
 
       if (response && response.ok) {
-        const data = await response.json().catch(() => null);
+        const data = await response.json().catch((): null => null);
         if (data && Array.isArray(data)) {
           const parsedEvents = data.map((e: any) => ({
             ...e,

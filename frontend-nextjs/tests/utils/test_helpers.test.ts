@@ -138,15 +138,18 @@ export function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
 
-export function mergeDeep<T extends Record<string, any>>(target: T, ...sources: Partial<T>[]): T {
+export function mergeDeep<T extends Record<string, any>>(
+  target: T,
+  ...sources: Array<Partial<T> | Record<string, any>>
+): T {
   const result = { ...target };
 
   for (const source of sources) {
     for (const key in source) {
       if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-        result[key] = mergeDeep(result[key] || {}, source[key] as any);
+        (result as Record<string, any>)[key] = mergeDeep(result[key] || {}, source[key] as any) as any;
       } else {
-        result[key] = source[key] as any;
+        (result as Record<string, any>)[key] = source[key] as any;
       }
     }
   }

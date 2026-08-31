@@ -422,6 +422,10 @@ class HybridDataIngestionService:
         second fetch zeroing out mid-ingest). A second caller while one sync
         is running is skipped, not queued — the running pass already covers it.
         """
+        # Lazy-init so partially-constructed instances (test stubs bypassing
+        # __init__) still satisfy the per-integration lock contract.
+        if not hasattr(self, "_sync_locks"):
+            self._sync_locks: Dict[str, asyncio.Lock] = {}
         lock = self._sync_locks.setdefault(integration_id, asyncio.Lock())
         if lock.locked():
             return {"skipped": True, "reason": "Sync already in progress for this integration"}

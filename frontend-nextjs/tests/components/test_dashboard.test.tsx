@@ -165,7 +165,7 @@ describe('Dashboard Component', () => {
   // Test 4: shows the loading indicator while data is pending
   test('shows loading indicator while fetching data', () => {
     server.use(
-      rest.get('/api/dashboard-dev', () => new Promise(() => {})) // never resolves
+      rest.get('/api/dashboard-dev', () => new Promise<undefined>(() => {})) // never resolves
     );
 
     render(<Dashboard />);
@@ -194,7 +194,10 @@ describe('Dashboard Component', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     server.use(
       rest.get('/api/dashboard-dev', (req, res, ctx) => {
-        return res(ctx.networkError('Network error'));
+        // ctx.networkError is undefined at runtime (msw 1.x moved it to res.*);
+        // the resulting throw inside the handler is what produces the network
+        // failure this test asserts against, so preserve that exact behavior.
+        return res((ctx as any).networkError('Network error'));
       })
     );
 

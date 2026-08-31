@@ -75,14 +75,30 @@ const HarnessEvolutionPage = () => {
 
     const triggerRemine = async () => {
         setRefreshing(true);
-        setTimeout(() => {
-            fetchHarnessStatus();
+        try {
+            const { apiClient } = await import('../../lib/api-client');
+            const response = await apiClient.post('/api/chat/harness-evolution/mine');
+            const result = ((response as any).data || response) as {
+                pattern_count?: number;
+                total_failures?: number;
+                lookback_hours?: number;
+            };
             toast({
-                title: 'Weakness Miner Run Complete',
-                description: 'Background trace miner successfully scanned database and refreshed active patterns.',
+                title: 'Re-mine complete',
+                description: `Scanned the last ${result.lookback_hours ?? 48}h: ${result.pattern_count ?? 0} failure pattern(s), ${result.total_failures ?? 0} failed step(s).`,
                 variant: 'success'
             });
-        }, 1000);
+            await fetchHarnessStatus();
+        } catch (err) {
+            console.error('Failed to re-mine harness weaknesses:', err);
+            toast({
+                title: 'Re-mine failed',
+                description: 'Could not run the weakness miner. Check the backend and try again.',
+                variant: 'error'
+            });
+        } finally {
+            setRefreshing(false);
+        }
     };
 
     const minedWeaknesses = data?.mined_weaknesses || [];
@@ -105,12 +121,12 @@ const HarnessEvolutionPage = () => {
                     </Box>
                     <Box display="flex" gap={3}>
                         <Button
-                            leftIcon={<RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />}
                             colorScheme="blue"
                             onClick={triggerRemine}
-                            isLoading={refreshing}
+                            loading={refreshing}
                         >
-                            Mine &amp; Heal Now
+                            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                            Re-mine Now
                         </Button>
                     </Box>
                 </Box>
@@ -186,7 +202,7 @@ const HarnessEvolutionPage = () => {
                                                 </td>
                                                 <td className="py-2 px-3 font-bold">{w.failure_count}</td>
                                                 <td className="py-2 px-3">
-                                                    <Text fontSize="xs" color="gray.400" noOfLines={2}>
+                                                    <Text fontSize="xs" color="gray.400" lineClamp={2}>
                                                         {w.examples[0]?.verification_evidence || w.examples[0]?.observation || "Failed validation test"}
                                                     </Text>
                                                 </td>

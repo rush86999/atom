@@ -252,11 +252,15 @@ def get_integration_health(service_name: str, db: Optional[Any] = None, user: Op
         "description": "Integration not found"
     })
 
-    # Check database for active OAuthToken if user & db context available
+    # With user & db context, health means "this user actually connected" —
+    # check for an active OAuthToken OR IntegrationToken. Without that
+    # context (anonymous probes from dashboards) fall back to the registry
+    # flags, which only say the integration is set up, not connected.
     has_active_token = False
-    if db and user:
+    user_scoped = bool(db and user)
+    if user_scoped:
         try:
-            from core.models import OAuthToken
+            from core.models import IntegrationToken, OAuthToken
             client_ids = [f"{service_name}_client"]
             if service_name in ("outlook", "microsoft365", "onedrive"):
                 client_ids.append("microsoft_client")
@@ -270,10 +274,29 @@ def get_integration_health(service_name: str, db: Optional[Any] = None, user: Op
             ).first()
             if token_entry:
                 has_active_token = True
+
+            if not has_active_token:
+                # The OAuth callback mirrors microsoft tokens into an
+                # "outlook" IntegrationToken row (and vice versa) — accept
+                # the same aliases here.
+                provider_names = [service_name]
+                if service_name in ("outlook", "microsoft365", "onedrive", "teams"):
+                    provider_names.append("microsoft")
+                integration_entry = db.query(IntegrationToken).filter(
+                    IntegrationToken.user_id == user.id,
+                    IntegrationToken.provider.in_(provider_names),
+                    IntegrationToken.status == "active"
+                ).first()
+                if integration_entry:
+                    has_active_token = True
         except Exception:
             pass
 
-    is_healthy = has_active_token or (integration_info["enabled"] and integration_info["configured"])
+    registry_healthy = integration_info["enabled"] and integration_info["configured"]
+    if user_scoped:
+        is_healthy = has_active_token
+    else:
+        is_healthy = has_active_token or registry_healthy
     status = "healthy" if is_healthy else "unhealthy"
 
     # Broadcast platform status change
@@ -293,7 +316,9 @@ def get_integration_health(service_name: str, db: Optional[Any] = None, user: Op
         configured=is_healthy,
         last_checked=datetime.datetime.now().isoformat(),
         endpoint_count=len(integration_info["endpoints"]),
-        error_message=None if is_healthy else "Integration not properly configured"
+        error_message=None if is_healthy else (
+            "No connected account" if user_scoped else "Integration not properly configured"
+        )
     )
 
 @router.get("/integrations/health", response_model=AllIntegrationsHealth)

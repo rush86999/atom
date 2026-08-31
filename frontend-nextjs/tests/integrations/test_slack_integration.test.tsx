@@ -156,8 +156,11 @@ const workspace = {
 };
 
 const slackHandlers = [
-  rest.get('/api/integrations/slack/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { slack: { connected: true, source: 'user_connection' } } }));
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { slack: { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.post('/api/integrations/slack/workspace', (req, res, ctx) => {
@@ -187,7 +190,7 @@ const slackHandlers = [
 
 const setNotConnected = () => {
   server.use(
-    rest.get('/api/integrations/slack/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(500), ctx.json({ error: 'not connected' }));
     })
   );
@@ -420,7 +423,7 @@ describe('SlackIntegration', () => {
   // Test 14: handles connection error as disconnected
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/slack/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500), ctx.json({ error: 'Server error' }));
       })
     );

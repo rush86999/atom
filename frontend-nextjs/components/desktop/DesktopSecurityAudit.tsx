@@ -12,7 +12,7 @@ export function DesktopSecurityAudit() {
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
 
     const handleSelectFolder = async () => {
-        if (typeof window === 'undefined' || !window.__TAURI__) return;
+        if (typeof window === 'undefined' || !(window as any).__TAURI__) return;
         try {
             // Adapt to Upstream Tauri bridge pattern
             const invoke = (window as any).__TAURI__?.core?.invoke || (window as any).__TAURI__?.invoke;
@@ -26,7 +26,7 @@ export function DesktopSecurityAudit() {
     };
 
     const handleRunScan = async () => {
-        if (!selectedPath || typeof window === 'undefined' || !window.__TAURI__) return;
+        if (!selectedPath || typeof window === 'undefined' || !(window as any).__TAURI__) return;
         setIsScanning(true);
         setResults(null);
 
@@ -72,7 +72,7 @@ export function DesktopSecurityAudit() {
         }
     };
 
-    if (typeof window === 'undefined' || !window.__TAURI__) return null;
+    if (typeof window === 'undefined' || !(window as any).__TAURI__) return null;
 
     return (
         <Card className="bg-zinc-900/50 border-zinc-800">

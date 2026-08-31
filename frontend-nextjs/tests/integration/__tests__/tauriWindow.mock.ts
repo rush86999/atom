@@ -236,39 +236,39 @@ export function setupWindowMocks(): void {
   mockIPC((cmd, payload) => {
     switch (cmd) {
       case 'plugin:window|show':
-        mockWindowShow(payload as WindowLabel);
+        mockWindowShow(payload as unknown as WindowLabel);
         return { success: true };
 
       case 'plugin:window|hide':
-        mockWindowHide(payload as WindowLabel);
+        mockWindowHide(payload as unknown as WindowLabel);
         return { success: true };
 
       case 'plugin:window|focus':
-        mockWindowFocus(payload as WindowLabel);
+        mockWindowFocus(payload as unknown as WindowLabel);
         return { success: true };
 
       case 'plugin:window|close':
-        mockWindowClose(payload as WindowLabel);
+        mockWindowClose(payload as unknown as WindowLabel);
         return { success: true };
 
       case 'plugin:window|minimize':
-        mockWindowMinimize(payload as WindowLabel);
+        mockWindowMinimize(payload as unknown as WindowLabel);
         return { success: true };
 
       case 'plugin:window|maximize':
-        mockWindowMaximize(payload as WindowLabel);
+        mockWindowMaximize(payload as unknown as WindowLabel);
         return { success: true };
 
       case 'plugin:window|save_state':
-        saveWindowState(payload as WindowLabel);
+        saveWindowState(payload as unknown as WindowLabel);
         return { success: true };
 
       case 'plugin:window|load_state':
-        const state = loadWindowState(payload as WindowLabel);
+        const state = loadWindowState(payload as unknown as WindowLabel);
         return { success: true, state };
 
       case 'plugin:window|clear_state':
-        clearWindowState(payload as WindowLabel);
+        clearWindowState(payload as unknown as WindowLabel);
         return { success: true };
 
       default:

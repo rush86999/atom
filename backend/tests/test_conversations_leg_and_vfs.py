@@ -11,6 +11,9 @@ os.environ.setdefault("TESTING", "1")
 
 import asyncio
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
@@ -113,22 +116,51 @@ async def test_vfs_cats_conversation():
 
 
 @pytest.mark.asyncio
-async def test_vfs_grep_root_includes_conversations():
-    from integrations.vfs.knowledge_vfs import KnowledgeVFSProvider, VFSNode, VFSResource
+async def test_vfs_grep_root_includes_conversations(monkeypatch):
+    """Root grep scans BOTH stores via the batched path and merges hits."""
+    import io
+
+    import pyarrow as pa
+
+    from integrations.vfs.knowledge_vfs import KnowledgeVFSProvider
+
+    class FakeCommsTable:
+        def head(self, n):
+            return pa.table({
+                "id": pa.array(["c1"]),
+                "content": pa.array(["we need the quote by Friday"]),
+            }).slice(0, n)
+
+        def to_arrow(self):
+            return self.head(200)
 
     v = KnowledgeVFSProvider()
-    doc_nodes = [VFSNode(name="d1", type="dir", path="knowledge/documents/d1")]
-    conv_nodes = [VFSNode(name="c1", type="dir", path="knowledge/conversations/c1")]
+    monkeypatch.setattr(v, "_comms_table", lambda: FakeCommsTable())
 
-    async def fake_ls(path, ctx=None):
-        return doc_nodes if path == "knowledge/documents" else conv_nodes
+    class FakeDocTable:
+        def to_arrow(self):
+            return pa.table({"id": pa.array([], pa.string()), "text": pa.array([], pa.string())})
 
-    async def fake_cat(path, ctx=None):
-        if "conversations" in path:
-            return VFSResource(path=path, lines=["L1: quote due Friday"])
-        return VFSResource(path=path)
+    class FakeHandler:
+        def get_table(self, name):
+            return FakeDocTable()
 
-    with patch.object(v, "ls", fake_ls), patch.object(v, "cat", fake_cat):
-        hits = await v.grep("Friday", "/")
+    monkeypatch.setattr(
+        "core.lancedb_handler.get_lancedb_handler", lambda *a, **k: FakeHandler()
+    )
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    from core.database import Base
+
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    v._db_factory = lambda: Session(bind=engine)
+
+    hits = await v.grep("Friday", "/")
 
     assert len(hits) == 1 and "Friday" in hits[0].snippet
+    assert hits[0].path == "knowledge/conversations/c1"

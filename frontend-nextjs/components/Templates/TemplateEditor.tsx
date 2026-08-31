@@ -121,8 +121,10 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
   const { toast } = useToast();
 
   // Template state
+  // initialTemplate is expected to be complete when provided; the Partial in
+  // the props type only reflects that it's optional.
   const [template, setTemplate] = useState<WorkflowTemplate>(
-    initialTemplate || {
+    (initialTemplate as WorkflowTemplate) || {
       name: '',
       description: '',
       category: 'automation',

@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/integrations/salesforce/health";
 
 function apiResponse(ok: boolean, status = 200, text = ""): any {
@@ -15,7 +15,7 @@ describe("pages/api/integrations/salesforce/health", () => {
   });
 
   const invoke = async (method = "GET") => {
-    const { req, res } = createMocks({ method }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod }) as any;
     await handler(req, res);
     return res;
   };

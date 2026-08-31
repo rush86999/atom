@@ -249,25 +249,46 @@ def setup_byok_test_env():
     with tempfile.TemporaryDirectory() as tmp_dir:
         config_path = os.path.join(tmp_dir, "byok_config.json")
         keys_path = os.path.join(tmp_dir, "byok_keys.json")
-        
+        enc_key_path = os.path.join(tmp_dir, "byok_encryption_key")
+
         # Set environment variables for the session
         os.environ['BYOK_CONFIG_FILE'] = config_path
         os.environ['BYOK_KEYS_FILE'] = keys_path
+        os.environ['BYOK_ENC_KEY_FILE'] = enc_key_path
         # Use a stable but test-specific encryption key.
         # NOTE: must be a VALID Fernet key (44-char url-safe base64). The old
         # value was a plain 32-char string — invalid for Fernet — and only
         # worked because _get_fernet silently swapped in a fresh key on error
         # (removed in R61: fail-loud instead of silent key rotation).
         os.environ['BYOK_ENCRYPTION_KEY'] = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
-        
+
+        # The BYOK modules resolve their file-path constants at import time,
+        # and pytest imports test modules (hence api.byok_routes /
+        # core.byok_endpoints) during COLLECTION — before this session fixture
+        # runs. Patch the already-imported module attributes and drop their
+        # singleton managers so every manager created during the session binds
+        # to the temp store, never the live backend/data files. Without this,
+        # pytest runs wrote fake test keys into the developer's real key store.
+        try:
+            import api.byok_routes as _api_byok
+            import core.byok_endpoints as _core_byok
+
+            for _mod in (_api_byok, _core_byok):
+                _mod.BYOK_CONFIG_FILE = config_path
+                _mod.BYOK_KEYS_FILE = keys_path
+                _mod.BYOK_ENC_KEY_FILE = enc_key_path
+                _mod._byok_manager = None
+        except ImportError:
+            pass  # modules unavailable in this env; env vars above still apply
+
         # Initialize empty files
         with open(config_path, 'w') as f:
             json.dump({"providers": []}, f)
         with open(keys_path, 'w') as f:
             json.dump({"keys": {}}, f)
-            
+
         yield
-        
+
         # Env vars will be popped/restored by isolate_environment fixture if it was used,
         # but setup_byok_test_env is session-scoped, so it sets them for everyone.
 

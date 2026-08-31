@@ -166,7 +166,10 @@ export default function GraphVisualization() {
 
     // Nodes
     const node = container.append('g')
-      .selectAll('g')
+      // selectAll<SVGGElement, unknown> keeps the element type precise;
+      // otherwise .join('g') widens it to SVGGElement | BaseType, which the
+      // DragBehavior parameter type can't accept.
+      .selectAll<SVGGElement, unknown>('g')
       .data(data.nodes)
       .join('g')
       .call(d3.drag<SVGGElement, Node>()
@@ -212,7 +215,9 @@ export default function GraphVisualization() {
       node.attr('transform', d => `translate(${d.x},${d.y})`);
     });
 
-    return () => simulation.stop();
+    return () => {
+      simulation.stop();
+    };
   }, [data]);
 
   const handleAddNode = async () => {

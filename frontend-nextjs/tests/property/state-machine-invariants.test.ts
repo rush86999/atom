@@ -668,12 +668,12 @@ describe('useUndoRedo State Machine Invariants', () => {
         ),
         (states) => {
           const initialState = states[0];
-          const { result } = renderHook(() => useUndoRedo(initialState));
+          const { result } = renderHook(() => useUndoRedo(initialState as any));
 
           // Add all states to history
           for (const state of states) {
             act(() => {
-              result.current.takeSnapshot(state);
+              result.current.takeSnapshot(state as any);
             });
           }
 

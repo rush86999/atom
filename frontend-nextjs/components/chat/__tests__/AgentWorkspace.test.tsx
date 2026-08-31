@@ -25,6 +25,13 @@ let mockWsState: { lastMessage: any; isConnected: boolean } = {
   isConnected: false,
 };
 
+let mockFetchSessionTrace: jest.Mock;
+let mockSubmitStepFeedback: jest.Mock;
+jest.mock('@/lib/agent-trace-api', () => ({
+  fetchSessionTrace: (...args: any[]) => mockFetchSessionTrace(...args),
+  submitStepFeedback: (...args: any[]) => mockSubmitStepFeedback(...args),
+}));
+
 jest.mock('@/hooks/useWebSocket', () => ({
   useWebSocket: () => mockWsState,
 }));
@@ -306,5 +313,194 @@ describe('AgentWorkspace interactions', () => {
   test('no trash button when there are no steps', () => {
     renderWithProviders(<AgentWorkspace sessionId={null} />);
     expect(screen.queryAllByRole('button').some(b => b.querySelector('.lucide-trash-2'))).toBe(false);
+  });
+});
+
+describe('AgentWorkspace trace pipeline', () => {
+  beforeEach(() => {
+    mockWsState = { lastMessage: null, isConnected: false };
+    mockFetchSessionTrace = jest.fn().mockResolvedValue({ runs: [], session_id: null });
+    mockSubmitStepFeedback = jest.fn().mockResolvedValue(undefined);
+  });
+
+  test('normalizes the backend `output` key to observation', () => {
+    mockWsState.lastMessage = {
+      type: 'agent_step_update',
+      data: {
+        execution_id: 'exec-a', session_id: 's1', agent_id: 'atom_main',
+        step: { step: 1, thought: 'Think', action: 'search', output: 'Found it' },
+      },
+    };
+    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    expect(screen.getByText('Found it')).toBeInTheDocument();
+    expect(screen.getByText('search')).toBeInTheDocument();
+  });
+
+  test('drops events that belong to a different chat session', async () => {
+    mockWsState.lastMessage = {
+      type: 'agent_step_update',
+      data: { execution_id: 'exec-b', session_id: 'other-session', step: { step: 1, thought: 'Not mine' } },
+    };
+    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+    await waitFor(() => expect(screen.getByText(/No execution steps yet/)).toBeInTheDocument());
+    expect(screen.queryByText('Not mine')).not.toBeInTheDocument();
+  });
+
+  test('groups steps by execution id and archives the earlier run', () => {
+    const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
+
+    mockWsState.lastMessage = {
+      type: 'agent_step_update',
+      data: { execution_id: 'exec-1', step: { step: 1, thought: 'First run step' } },
+    };
+    rerender(<AgentWorkspace sessionId={null} />);
+    expect(screen.getByText('First run step')).toBeInTheDocument();
+
+    // a new execution id starts a fresh current run; the old one is archived
+    mockWsState.lastMessage = {
+      type: 'agent_step_update',
+      data: { execution_id: 'exec-2', step: { step: 1, thought: 'Second run step' } },
+    };
+    rerender(<AgentWorkspace sessionId={null} />);
+    expect(screen.getByText('Second run step')).toBeInTheDocument();
+    expect(screen.queryByText('First run step')).not.toBeInTheDocument(); // collapsed
+    expect(screen.getByText('Previous runs (1)')).toBeInTheDocument();
+    expect(screen.getByText(/exec-1/)).toBeInTheDocument();
+  });
+
+  test('run lifecycle status events fire activity and settled callbacks', () => {
+    const onAgentActivity = jest.fn();
+    const onRunSettled = jest.fn();
+    const { rerender } = renderWithProviders(
+      <AgentWorkspace sessionId={null} onAgentActivity={onAgentActivity} onRunSettled={onRunSettled} />
+    );
+
+    mockWsState.lastMessage = {
+      type: 'agent_status_change',
+      data: { status: 'running', execution_id: 'exec-7', agent_id: 'atom_main' },
+    };
+    rerender(
+      <AgentWorkspace sessionId={null} onAgentActivity={onAgentActivity} onRunSettled={onRunSettled} />
+    );
+    expect(onAgentActivity).toHaveBeenCalledWith('run_start');
+
+    mockWsState.lastMessage = {
+      type: 'agent_status_change',
+      data: { status: 'success', execution_id: 'exec-7' },
+    };
+    rerender(
+      <AgentWorkspace sessionId={null} onAgentActivity={onAgentActivity} onRunSettled={onRunSettled} />
+    );
+    expect(onRunSettled).toHaveBeenCalledTimes(1);
+  });
+
+  test('history restore merges persisted runs into the timeline', async () => {
+    mockFetchSessionTrace.mockResolvedValue({
+      runs: [
+        {
+          execution_id: 'hist-1',
+          agent_id: 'atom_main',
+          status: 'completed',
+          input_summary: 'older task',
+          started_at: '2026-08-28T09:00:00Z',
+          steps: [
+            { step_number: 1, thought: 'older thought', observation: 'older result' },
+          ],
+        },
+        {
+          execution_id: 'hist-2',
+          agent_id: 'atom_main',
+          status: 'completed',
+          input_summary: 'past task',
+          started_at: '2026-08-28T10:00:00Z',
+          steps: [
+            { step_number: 1, thought: 'old thought', observation: 'old result', feedback_score: -1 },
+          ],
+        },
+      ],
+      session_id: 's1',
+    });
+    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+
+    // newest persisted run is the current run
+    await waitFor(() => expect(screen.getByText('old thought')).toBeInTheDocument());
+    expect(screen.getByText(/hist-2/)).toBeInTheDocument();
+    expect(screen.getByText('Previous runs (1)')).toBeInTheDocument();
+    // persisted thumbs-down feedback is restored on the step
+    expect(screen.getByLabelText('Thumbs down').className).toContain('text-red-400');
+    expect(mockFetchSessionTrace).toHaveBeenCalledWith('s1');
+
+    // expand the archived run to inspect its trace
+    fireEvent.click(screen.getByText(/hist-1/));
+    expect(screen.getByText('older thought')).toBeInTheDocument();
+  });
+
+  test('step feedback posts through the trace API with run linkage', async () => {
+    mockWsState.lastMessage = {
+      type: 'agent_step_update',
+      data: {
+        execution_id: 'exec-fb', agent_id: 'atom_main', session_id: 's1',
+        step: { step: 2, thought: 'Plan', action: 'query', observation: 'rows' },
+      },
+    };
+    renderWithProviders(<AgentWorkspace sessionId="s1" />);
+
+    fireEvent.click(screen.getByLabelText('Thumbs up'));
+    await waitFor(() =>
+      expect(mockSubmitStepFeedback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentId: 'atom_main',
+          runId: 'exec-fb',
+          executionId: 'exec-fb',
+          stepNumber: 2,
+          feedbackType: 'thumbs_up',
+        })
+      )
+    );
+  });
+
+  test('collapsed rail renders, badges unread steps, and expands on click', () => {
+    const onToggleCollapsed = jest.fn();
+    // collapse first, then a step arrives while collapsed
+    mockWsState.lastMessage = {
+      type: 'agent_step_update',
+      data: { execution_id: 'exec-r', step: { step: 1, thought: 'rail step' } },
+    };
+    const { rerender } = renderWithProviders(
+      <AgentWorkspace sessionId={null} collapsed onToggleCollapsed={onToggleCollapsed} />
+    );
+
+    expect(screen.getByTestId('workspace-rail')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 unread steps')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Expand agent workspace'));
+    expect(onToggleCollapsed).toHaveBeenCalledTimes(1);
+
+    // expanded → rail disappears, unread resets
+    rerender(<AgentWorkspace sessionId={null} collapsed={false} onToggleCollapsed={onToggleCollapsed} />);
+    expect(screen.queryByTestId('workspace-rail')).not.toBeInTheDocument();
+  });
+
+  test('auto-hide preference toggle renders and calls back', () => {
+    const onAutoHideToggle = jest.fn();
+    const { rerender } = renderWithProviders(
+      <AgentWorkspace sessionId={null} autoHide onAutoHideToggle={onAutoHideToggle} />
+    );
+    expect(screen.getByLabelText('Toggle auto-hide')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Toggle auto-hide'));
+    expect(onAutoHideToggle).toHaveBeenCalledWith(false);
+
+    rerender(<AgentWorkspace sessionId={null} autoHide={false} onAutoHideToggle={onAutoHideToggle} />);
+    expect(screen.getByLabelText('Toggle auto-hide').className).not.toContain('text-indigo-400');
+  });
+
+  test('manual collapse button in the header collapses the panel', () => {
+    const onToggleCollapsed = jest.fn();
+    renderWithProviders(
+      <AgentWorkspace sessionId={null} onToggleCollapsed={onToggleCollapsed} />
+    );
+    fireEvent.click(screen.getByLabelText('Collapse workspace'));
+    expect(onToggleCollapsed).toHaveBeenCalledTimes(1);
   });
 });

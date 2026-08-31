@@ -48,6 +48,7 @@ export default function SettingsPage() {
                             <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/routing">LLM Routing</a>
                             <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/local-models">Local Models (Ollama)</a>
                             <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/sessions">Sessions</a>
+                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/bpe">BPE Workspace</a>
                         </div>
                     </div>
                 </Tabs>

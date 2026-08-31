@@ -23,12 +23,55 @@ from cryptography.fernet import Fernet
 from core.schemas import ApiResponse
 
 # BYOK Configuration Storage
-BYOK_CONFIG_FILE = "./data/byok_config.json"
-BYOK_KEYS_FILE = "./data/byok_keys.json"
+# Anchored to <backend>/data regardless of the launch CWD: the previous
+# "./data" form made the key store depend on where uvicorn was started
+# (repo root vs backend/), silently splitting credentials across two files.
+# The BYOK_* env vars override — tests/isolated installs rely on them.
+_BYOK_DATA_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
+)
+BYOK_CONFIG_FILE = os.getenv("BYOK_CONFIG_FILE") or os.path.join(
+    _BYOK_DATA_DIR, "byok_config.json"
+)
+BYOK_KEYS_FILE = os.getenv("BYOK_KEYS_FILE") or os.path.join(
+    _BYOK_DATA_DIR, "byok_keys.json"
+)
 # R59: the Fernet encryption key must survive restarts — without persistence a
 # fresh random key is generated per process and every stored API key becomes
 # undecryptable (silent bricking of the BYOK system).
-BYOK_ENC_KEY_FILE = "./data/byok_encryption_key"
+BYOK_ENC_KEY_FILE = os.getenv("BYOK_ENC_KEY_FILE") or os.path.join(
+    _BYOK_DATA_DIR, "byok_encryption_key"
+)
+
+
+def _is_usable_api_key(key: Optional[str]) -> bool:
+    """True when a resolved key exists AND is not a known placeholder.
+
+    Mirrors the runtime dummy filter in core/llm/byok_handler (keys shorter
+    than 12 chars or "dummy"-prefixed are refused before any provider call),
+    so the UI's "active" badge means the key would actually be usable. A
+    stored leftover like "sk-test" therefore reports inactive instead of
+    presenting a broken provider as configured.
+    """
+    if not key:
+        return False
+    if key.startswith("60a9596d") or key.startswith("dummy") or len(key) < 12:
+        return False
+    return True
+
+
+def _db_key_sync_enabled() -> bool:
+    """SaaS parity gate for the ``tenant_settings`` BYOK mirror.
+
+    Atom is single-tenant: the encrypted file store (``BYOK_KEYS_FILE``) is
+    the SINGLE source of truth for API keys. The DB mirror is a co-equal
+    second source only under SaaS parity mode (``ATOM_BYOK_DB_SYNC=true``);
+    locally it is off by default, so keys are stored/read/deleted in exactly
+    one place. Legacy DB rows remain deleteable either way (hygiene).
+    """
+    import os
+
+    return os.getenv("ATOM_BYOK_DB_SYNC", "false").strip().lower() in ("1", "true", "yes")
 
 
 @dataclass
@@ -98,6 +141,10 @@ class BYOKManager:
         self.encryption_key = os.getenv("BYOK_ENCRYPTION_KEY")
         if not self.encryption_key:
             self.encryption_key = self._load_or_create_encryption_key()
+        else:
+            # Keep the persisted file in sync with the env override so keys
+            # survive even if .env is later lost or regenerated (see mirror).
+            self._mirror_encryption_key_file(self.encryption_key)
         self._load_configuration()
         self._initialize_default_providers()
 
@@ -422,6 +469,37 @@ class BYOKManager:
         """Generate a secure encryption key for Fernet"""
         return Fernet.generate_key().decode()
 
+    def _mirror_encryption_key_file(self, env_key: str) -> None:
+        """Mirror the env-var Fernet key into the persisted key file.
+
+        ``BYOK_ENCRYPTION_KEY`` wins over the file when both exist, but new
+        installs (quickstart-generated .env) therefore never write the file —
+        so losing or regenerating .env later made the next restart mint a
+        fresh key and brick every stored credential. Writing the winning env
+        key to the file keeps an env-less restart decryptable. A DIFFERENT
+        file key is left untouched: silently overwriting it could brick keys
+        stored under it (only a warning is logged).
+        """
+        try:
+            if os.path.exists(BYOK_ENC_KEY_FILE):
+                with open(BYOK_ENC_KEY_FILE, "r") as f:
+                    existing = f.read().strip()
+                if existing == env_key:
+                    return
+                if existing:
+                    logger.warning(
+                        "BYOK_ENCRYPTION_KEY differs from the persisted key "
+                        "file — keeping the env override. Credentials stored "
+                        "under the file's key will not decrypt."
+                    )
+                    return
+            os.makedirs(os.path.dirname(BYOK_ENC_KEY_FILE), exist_ok=True)
+            with open(BYOK_ENC_KEY_FILE, "w") as f:
+                f.write(env_key)
+            os.chmod(BYOK_ENC_KEY_FILE, 0o600)
+        except Exception as e:
+            logger.error(f"Failed to mirror BYOK encryption key file: {e}")
+
     def _load_or_create_encryption_key(self) -> str:
         """Load the persisted Fernet key, or generate and persist one (0600).
 
@@ -644,7 +722,7 @@ class BYOKManager:
         usage = self.get_tenant_usage("global").get(
             provider_id, ProviderUsage(provider_id=provider_id)
         )
-        has_keys = bool(self.get_api_key(provider_id))
+        has_keys = _is_usable_api_key(self.get_api_key(provider_id))
 
         if not provider:
             raise ValueError(f"Provider {provider_id} not found")
@@ -658,8 +736,9 @@ class BYOKManager:
 
     def has_tenant_keys(self, tenant_id: str, db: Session = None) -> bool:
         """Check if a tenant has ANY API keys configured (self-provided only)."""
-        # 1. Check tenant settings in DB if provided
-        if db:
+        # 1. Check tenant settings in DB if provided (SaaS parity mode only —
+        # the file store is the single source of truth otherwise).
+        if db and _db_key_sync_enabled():
             from core.models import TenantSetting
             # Check for keys like OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
             # These are the keys added by users in the Settings UI
@@ -685,25 +764,14 @@ class BYOKManager:
         if not provider:
             raise ValueError(f"Provider {provider_id} not found")
             
-        # Check for tenant-specific key in DB
-        has_tenant_key = False
-        if db:
-            # Check tenant_settings table (aligned with frontend)
-            # Keys are typically TAVILY_API_KEY, OPENAI_API_KEY, etc.
-            setting_key = f"{provider_id.upper()}_API_KEY"
-            setting = db.query(TenantSetting).filter(
-                TenantSetting.tenant_id == tenant_id,
-                TenantSetting.setting_key == setting_key
-            ).first()
-            if setting:
-                has_tenant_key = True
-        
-        # Fallback to BYOKManager's own tenant storage (JSON/encrypted)
-        if not has_tenant_key:
-            has_tenant_key = self.get_tenant_api_key(tenant_id, provider_id) is not None
-            
+        # Resolve the tenant's key value (DB mirror first under SaaS parity
+        # mode, then the encrypted file store). Decryption is attempted so a
+        # corrupted/legacy row counts as NOT configured instead of active.
+        tenant_key = self.get_tenant_api_key(tenant_id, provider_id, db=db)
+        has_tenant_key = _is_usable_api_key(tenant_key)
+
         # Overall status (has global key OR tenant key)
-        has_keys = has_tenant_key or bool(self.get_api_key(provider_id))
+        has_keys = has_tenant_key or _is_usable_api_key(self.get_api_key(provider_id))
         
         usage = self.get_tenant_usage(tenant_id).get(provider_id, ProviderUsage(provider_id=provider_id))
         
@@ -749,7 +817,9 @@ class BYOKManager:
         # 2. Sync with tenant_settings table for frontend compatibility.
         # R81: store the Fernet-encrypted value, not the plaintext — the
         # tenant_settings table previously held raw credentials at rest.
-        if db:
+        # SaaS-parity gated (single-tenant: the file store above is the only
+        # source of truth; a second live copy produced split-brain keys).
+        if db and _db_key_sync_enabled():
             setting_key = f"{provider_id.upper()}_API_KEY"
             setting = db.query(TenantSetting).filter(
                 TenantSetting.tenant_id == tenant_id,
@@ -781,10 +851,16 @@ class BYOKManager:
         environment: str = "production",
         db: Session = None
     ) -> Optional[str]:
-        """Retrieve and decrypt an API key for a specific tenant (Checks DB first)"""
-        
-        # 1. Check DB first (tenant_settings) - prioritized for SaaS scaling
-        if db:
+        """Retrieve and decrypt an API key for a specific tenant.
+
+        Source of truth is the manager's encrypted file store. The
+        ``tenant_settings`` DB copy is consulted only in SaaS parity mode
+        (:func:`_db_key_sync_enabled`) — keeping two live sources of truth
+        in single-tenant deployments produced split-brain credentials.
+        """
+
+        # 1. SaaS parity mode: DB (tenant_settings) first.
+        if db and _db_key_sync_enabled():
             setting_key = f"{provider_id.upper()}_API_KEY"
             setting = db.query(TenantSetting).filter(
                 TenantSetting.tenant_id == tenant_id,
@@ -1063,18 +1139,59 @@ async def delete_api_key(
     key_name: str = "default",
     environment: str = "production",
     current_user: User = Depends(get_current_user),
+    tenant: Tenant = Depends(get_current_tenant),
     byok_manager: BYOKManager = Depends(get_byok_manager),
+    db: Session = Depends(get_db),
 ):
-    """Delete an API key"""
+    """Delete an API key — across ALL the stores it may live in.
+
+    A provider's key can exist in three places (see store_tenant_api_key):
+    the manager's file store under a GLOBAL id (``{provider}_{key}_{env}``),
+    under TENANT-scoped ids (``tenant_{tenant}_{provider}_{key}_{env}``), and
+    synced into the ``tenant_settings`` table. The previous implementation
+    only removed the exact global id, so wizard/Settings-saved keys (custom
+    key_names, tenant-scoped, DB-synced) were undeletable from the UI — the
+    404 here, then the provider still showing "configured" from the DB row.
+
+    Semantics: an exact key_name match (including ``default``) removes that
+    named key everywhere it lives.
+    """
     key_id = f"{provider_id}_{key_name}_{environment}"
+    tenant_prefix = f"tenant_{tenant.id}_{provider_id}_"
 
-    if key_id not in byok_manager.api_keys:
-        raise HTTPException(status_code=404, detail="API key not found")
+    removed: list = []
 
-    del byok_manager.api_keys[key_id]
+    # 1. Manager file store — exact global id, then any tenant-scoped row
+    # for this provider+key_name+environment.
+    if key_id in byok_manager.api_keys:
+        del byok_manager.api_keys[key_id]
+        removed.append(key_id)
+    suffix = f"_{key_name}_{environment}"
+    for row_id in list(byok_manager.api_keys.keys()):
+        if row_id.startswith(tenant_prefix) and row_id.endswith(suffix):
+            del byok_manager.api_keys[row_id]
+            removed.append(row_id)
     byok_manager._save_configuration()
 
-    return ApiResponse(success=True, message=f"API key {key_id} deleted successfully")
+    # 2. DB sync (tenant_settings) — same row store_tenant_api_key writes.
+    try:
+        setting_key = f"{provider_id.upper()}_API_KEY"
+        setting = db.query(TenantSetting).filter(
+            TenantSetting.tenant_id == tenant.id,
+            TenantSetting.setting_key == setting_key,
+        ).first()
+        if setting:
+            db.delete(setting)
+            db.commit()
+            removed.append(f"tenant_settings:{setting_key}")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete {provider_id} key from tenant_settings: {e}")
+
+    if not removed:
+        raise HTTPException(status_code=404, detail="API key not found")
+
+    return ApiResponse(success=True, message=f"API key {provider_id}/{key_name} deleted", data={"removed": removed})
 
 
 @router.post("/api/ai/optimize-cost")

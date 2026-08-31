@@ -58,7 +58,6 @@ describe("JITVerificationDashboard", () => {
         l1_query_cache_size: 50,
         l1_verification_hits: 450,
         l1_verification_misses: 20,
-        l1_verification_hit_rate: 0.96,
         l1_query_hits: 180,
         l1_query_misses: 5,
         l1_query_hit_rate: 0.97,
@@ -106,7 +105,7 @@ describe("JITVerificationDashboard", () => {
       await waitFor(() => {
         expect(AdminPoller).toHaveBeenCalled();
       });
-      const pollerInstance = AdminPoller.mock.results[0].value;
+      const pollerInstance = (AdminPoller as jest.Mock).mock.results[0].value;
       expect(pollerInstance.start).toHaveBeenCalled();
     });
 
@@ -118,7 +117,7 @@ describe("JITVerificationDashboard", () => {
       });
 
       unmount();
-      const pollerInstance = AdminPoller.mock.results[0].value;
+      const pollerInstance = (AdminPoller as jest.Mock).mock.results[0].value;
       expect(pollerInstance.stop).toHaveBeenCalled();
     });
   });
@@ -221,7 +220,7 @@ describe("JITVerificationDashboard", () => {
         expect(screen.getByText("Performance Metrics")).toBeInTheDocument();
       });
 
-      const pollerInstance = AdminPoller.mock.results[0].value;
+      const pollerInstance = (AdminPoller as jest.Mock).mock.results[0].value;
       fireEvent.click(screen.getByRole("button", { name: /auto-refreshing/i }));
 
       expect(pollerInstance.stop).toHaveBeenCalled();
@@ -237,7 +236,7 @@ describe("JITVerificationDashboard", () => {
         expect(screen.getByText("Performance Metrics")).toBeInTheDocument();
       });
 
-      const pollerInstance = AdminPoller.mock.results[0].value;
+      const pollerInstance = (AdminPoller as jest.Mock).mock.results[0].value;
       fireEvent.click(screen.getByRole("button", { name: /auto-refreshing/i }));
       fireEvent.click(screen.getByRole("button", { name: /auto-refresh/i }));
 

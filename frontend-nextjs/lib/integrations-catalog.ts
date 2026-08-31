@@ -156,6 +156,8 @@ export const PRODUCTIVITY_PIECES: Integration[] = [
     { id: 'evernote', name: 'Evernote', description: 'Note-taking', category: 'productivity', color: '#00A82D', authType: 'oauth2', triggers: ['note_created'], actions: ['create_note'] },
     { id: 'coda', name: 'Coda', description: 'Doc + spreadsheet', category: 'productivity', color: '#F46A54', authType: 'oauth2', triggers: ['row_created'], actions: ['add_row', 'update_row'] },
     { id: 'zoho-projects', name: 'Zoho Projects', description: 'Project management', category: 'productivity', color: '#DC2626', authType: 'oauth2', triggers: ['task_created', 'milestone_completed'], actions: ['create_task', 'add_comment'] },
+    { id: 'zoho-forms', name: 'Zoho Forms', description: 'Form builder (webhook-push ingestion)', category: 'productivity', color: '#DC2626', authType: 'none', triggers: ['form_submitted'], actions: [], new: true },
+    { id: 'zoho-flow', name: 'Zoho Flow', description: 'Automation platform (webhook-push ingestion)', category: 'productivity', color: '#DC2626', authType: 'none', triggers: ['flow_executed'], actions: [], new: true },
     { id: 'microsoft-planner', name: 'Microsoft Planner', description: 'MS task management', category: 'productivity', color: '#3B78E7', authType: 'oauth2', triggers: ['task_created'], actions: ['create_task'], popular: true },
 ];
 

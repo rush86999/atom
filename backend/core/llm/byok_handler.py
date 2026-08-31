@@ -26,7 +26,7 @@ except ImportError:
     INSTRUCTOR_AVAILABLE = False
 
 # Core imports (moved from inline for better testability)
-from core.benchmarks import get_quality_score, get_capability_score
+from core.benchmarks import get_quality_score, get_capability_score, MODEL_QUALITY_SCORES
 import core.byok_endpoints
 def get_byok_manager(*args, **kwargs):
     return core.byok_endpoints.get_byok_manager(*args, **kwargs)
@@ -56,6 +56,14 @@ from core.llm_call_tracker import get_llm_call_tracker
 # gateway surface (only BYOK/env fallbacks ever fired).
 _CREDENTIAL_LOOP: Optional["asyncio.AbstractEventLoop"] = None
 _CREDENTIAL_LOOP_LOCK = threading.Lock()
+
+# Reasoning models reject the ``logprobs`` kwarg outright ("logprobs are not
+# supported with reasoning models"), so a soft-SC request to one ALWAYS fails
+# and then pays the retry. Cache that verdict per provider/model after the
+# first rejection so later calls skip the doomed attempt entirely — in a
+# ranking cascade over several models this removes one failed network
+# round-trip per structured call.
+_LOGPROBS_UNSUPPORTED: set = set()
 
 
 def _run_coroutine_sync(coro, timeout: float = 15.0):
@@ -377,10 +385,16 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.ADVANCED: "llama-3.3-70b-versatile",
     },
     "openrouter": {  # OpenRouter — gateway to 300+ models via one key
-        QueryComplexity.SIMPLE: "openai/gpt-4o-mini",
-        QueryComplexity.MODERATE: "openai/gpt-4o-mini",
-        QueryComplexity.COMPLEX: "anthropic/claude-3.5-sonnet",
-        QueryComplexity.ADVANCED: "anthropic/claude-3.5-sonnet",
+        # Chinese models throughout (OpenRouter catalog, Aug 2026, all
+        # tool-capable): minimax-m3 for routine turns ($0.30/$1.20 per M —
+        # recall-capable and ~7x cheaper than claude-sonnet-5), DeepSeek V4
+        # Pro for heavy turns ($0.51/$1.02 — Sonnet-5 class at 4-10x less).
+        # BPC value ranking overrides this map per-call when the pricing
+        # cache has openrouter entries; this is the fallback.
+        QueryComplexity.SIMPLE: "minimax/minimax-m3",
+        QueryComplexity.MODERATE: "minimax/minimax-m3",
+        QueryComplexity.COMPLEX: "deepseek/deepseek-v4-pro",
+        QueryComplexity.ADVANCED: "deepseek/deepseek-v4-pro",
     },
     "opencode-go": {  # OpenCode Go — low-cost subscription via OpenCode Zen gateway
         # https://opencode.ai/zen — tested+verified open coding models served
@@ -927,12 +941,12 @@ class BYOKHandler:
             True if model supports tools, False otherwise
         """
         capabilities = self.pricing_fetcher.get_model_capabilities(model_id)
-        # NOTE: get_model_capabilities returns an explicit supports_tools=False for
-        # models with no capability metadata, so a .get(..., True) fallback here
-        # would be dead code. Unknown models are conservatively treated as NOT
-        # tool-capable — this is intentional (routing an agentic request to a
-        # model that can't tool-call breaks the agent). To admit a model into
-        # agentic routing, set its supports_tools flag in the pricing cache.
+        # NOTE: models with an EXPLICIT supports_tools=False in the cache are
+        # hard-excluded (data-backed). Models ABSENT from the cache default to
+        # tool-capable (availability-first — see dynamic_pricing_fetcher.
+        # get_model_capabilities: the old conservative-False default barred
+        # every model that postdated the cache snapshot from agentic routing,
+        # producing a total agent outage on a stale cache).
         return bool(capabilities.get("supports_tools", False))
 
     def _model_supports_vision(self, model_id: str) -> bool:
@@ -1111,6 +1125,14 @@ class BYOKHandler:
                 if api_key:
                     credential_source = "env"
                     self.env_key_providers.add(provider_id)
+
+            # BYOK file-store credential (data/byok_keys.json): same ownership
+            # as an env key — the operator's own credential, not a
+            # platform-billed managed key. Plan allowlists exist to gate
+            # PLATFORM billing, so locally-stored keys must be exempt from
+            # plan gating (single-tenant: every key is the operator's own).
+            if api_key and credential_source == "byok":
+                self.env_key_providers.add(provider_id)
 
             # Filter out known dummy/invalid placeholder keys
             if api_key and (api_key.startswith("60a9596d") or api_key.startswith("dummy") or len(api_key) < 12):
@@ -1457,21 +1479,33 @@ class BYOKHandler:
 
         # 2. Regex-based vocabulary analysis
         # Using word boundaries \b to avoid matches inside other words
+        # Code vocabulary: words that double as everyday English ("try",
+        # "return", "import", "class", "print", "final"…) were removed after
+        # "try again" scored +3 and routed a trivial chat turn to the premium
+        # tier. What remains is unambiguous in business chat; the leftover
+        # weight still requires corroboration (code fence or a 2nd match).
         patterns = {
             "simple": (r"\b(hello|hi|thanks|greetings|summarize|translate|list|what is|who is|define|how do i|simplify|brief|basic|short|quick|simple)\b", -2),
             "moderate": (r"\b(analyze|compare|evaluate|synthesize|explain|describe|detailed|background|concept|history|nuance|opinion|critique|pros and cons|advantages|disadvantages)\b", 1),
             "technical": (r"\b(calculate|equation|formula|solve|integral|derivative|calculus|geometry|algebra|math|maths|theorem|statistics|probability|regression|vector|matrix|tensor|log|exp|pow|sqrt|abs|sin|cos|tan|pi|infinity|prime|physics|chemistry|biology|science)\b", 3),
-            "code": (r"\b(code|coding|function|class|method|script|scripting|debug|debugging|optimize|optimization|refactor|refactoring|snippet|implementation|interface|api|endpoint|webhook|database|sql|postgresql|mongodb|redis|schema|migration|json|xml|yaml|config|docker|kubernetes|aws|lambda|gcp|azure|def|var|let|const|import|return|print|async|await|try|except|catch|throw|public|private|static|final|struct|typedef|typedefs)\b", 3),
+            "code": (r"\b(code|coding|debug|debugging|optimize|optimization|refactor|refactoring|snippet|api|endpoint|webhook|sql|postgresql|mongodb|redis|json|xml|yaml|docker|kubernetes|aws|lambda|gcp|azure|async|await|typedef)\b", 3),
             "advanced": (r"\b(architecture|architecting|security audit|vulnerability|cryptography|encryption|decryption|authentication|authorization|auth|oauth|jwt|performance|bottleneck|concurrency|multithread|parallel|distributed|scale|scaling|load balance|cluster|proprietary|reverse engineer|obfuscate|obfuscation|enterprise|global|large-scale|purchase order|purchase orders)\b", 5)
         }
 
         # Check for code blocks (significant weight)
-        if "```" in prompt:
+        has_code_fence = "```" in prompt
+        if has_code_fence:
             complexity_score += 3
 
+        code_vocab_matches = len(re.findall(patterns["code"][0], prompt, re.IGNORECASE))
         for name, (pattern, weight) in patterns.items():
-            if re.search(pattern, prompt, re.IGNORECASE):
-                complexity_score += weight
+            if not re.search(pattern, prompt, re.IGNORECASE):
+                continue
+            if name == "code" and not has_code_fence and code_vocab_matches < 2:
+                # A lone technical word ("send the api docs") must not flip the
+                # tier on its own — require a code fence or a second match.
+                continue
+            complexity_score += weight
 
         # 3. Task type override
         if task_type:
@@ -1592,7 +1626,16 @@ class BYOKHandler:
                 logger.debug(f"Using CognitiveTier {cognitive_tier.value} quality threshold: {min_quality}")
             else:
                 MIN_QUALITY_BY_COMPLEXITY = {
-                    QueryComplexity.SIMPLE: 0,
+                    # SIMPLE floor is 85, not 0: "simple" query != "any model".
+                    # Short conversational follow-ups ("who was that lead
+                    # again?") classify SIMPLE yet need transcript recall —
+                    # measured on Aug 30, sub-85 models (qwen3.7-flash,
+                    # deepseek-v4-flash) ignored their own prior answers and
+                    # claimed no access. Every chat turn gets a model that
+                    # passes recall; cost efficiency picks WITHIN the capable
+                    # pool (minimax-m3 at $0.30/$1.20 is still ~7x cheaper
+                    # than claude-sonnet-5).
+                    QueryComplexity.SIMPLE: 85,
                     QueryComplexity.MODERATE: 80,
                     QueryComplexity.COMPLEX: 88,
                     QueryComplexity.ADVANCED: 94
@@ -1659,6 +1702,20 @@ class BYOKHandler:
                 active_provider = next((p for p in available_providers if p in model_id.lower() or p == litellm_provider), None)
                 if not active_provider:
                     continue
+
+                if active_provider == "openrouter":
+                    # OpenRouter hosts 480+ models; only a vetted allowlist
+                    # (exact entries in MODEL_QUALITY_SCORES) may rank. The
+                    # partial-match quality scorer crosses model families on
+                    # openrouter IDs (a roleplay finetune outscored deepseek
+                    # flagship 92-to-42), so unvetted candidates would win on
+                    # garbage scores. ":batch"/":floor" suffixes are offline
+                    # gateway variants, never interactive chat. Within the
+                    # vetted pool the value score (quality²/cost) then always
+                    # picks the CHEAPEST model above the tier's quality floor,
+                    # adapting automatically as prices change.
+                    if ":" in model_id or model_id not in MODEL_QUALITY_SCORES:
+                        continue
                 
                 # Check context window (clamped by the provider's custom
                 # max_context limit, if configured — e.g. opencode-go caps the
@@ -1849,9 +1906,14 @@ class BYOKHandler:
             # Sort by Value Score (Descending)
             candidates.sort(key=lambda x: x["value_score"], reverse=True)
             
-            # Filter by plan restrictions
-            allowed_models = MODEL_TIER_RESTRICTIONS.get(tenant_plan.lower(), MODEL_TIER_RESTRICTIONS["free"]) if is_managed_service else "*"
-            
+            # Filter by plan restrictions. Plan gating is for MANAGED
+            # (platform-billed) keys only: an env-provided key IS the
+            # operator's own credential (see env_key_providers note in
+            # __init__), so plan allowlists must not zero out its candidates.
+            def _plan_applies(provider_id: str) -> bool:
+                own_keys = getattr(self, "env_key_providers", set())
+                return is_managed_service and provider_id not in own_keys
+
             def is_model_approved(model_id: str, allowed_list: any) -> bool:
                 if (requires_tools or requires_structured) and not self._model_supports_tools(model_id):
                     return False
@@ -1865,9 +1927,32 @@ class BYOKHandler:
                 return any(m.lower() in model_id_lower for m in allowed_list)
 
             for c in candidates:
+                allowed_models = (
+                    MODEL_TIER_RESTRICTIONS.get((tenant_plan or "free").lower(), MODEL_TIER_RESTRICTIONS["free"])
+                    if _plan_applies(c["provider"]) else "*"
+                )
                 if is_model_approved(c["model"], allowed_models):
                     ranked_options.append((c["provider"], c["model"]))
-            
+
+            # Availability-first fail-open: the pricing cache's capability
+            # inference can mark genuinely tool-capable models False (and a
+            # failed cache refresh leaves it empty), so the filter can
+            # eliminate EVERY candidate — observed live as a total agent
+            # outage on a structured ReAct request. Structured-only requests
+            # degrade gracefully (instructor falls back to prompt-based
+            # extraction), so the capability filter fails open with a warning
+            # rather than zeroing out the fleet. requires_tools stays HARD —
+            # an agentic loop without tool-calling is broken no matter what.
+            # Plan/allowlist filtering also stays hard (that's entitlement).
+            if not ranked_options and candidates and not requires_tools:
+                logger.warning(
+                    "BPC capability filter eliminated all %d candidates "
+                    "(tools/structured metadata missing or conservative) — "
+                    "failing open so routing continues",
+                    len(candidates),
+                )
+                ranked_options = [(c["provider"], c["model"]) for c in candidates]
+
             if ranked_options:
                 logger.info(f"BPC Ranking Successful for {getattr(complexity, 'value', complexity)}: Top model {ranked_options[0][1]} (Value: {candidates[0]['value_score']:.2f})")
                 return AwaitableResult(ranked_options)
@@ -1877,53 +1962,83 @@ class BYOKHandler:
         
         # 2. Static Fallback (if BPC logic fails or cache empty)
         if complexity == QueryComplexity.SIMPLE:
-            provider_priority = ["deepseek", "minimax", "qwen", "moonshot", "gemini", "opencode-go", "openai", "anthropic"]
+            provider_priority = ["deepseek", "minimax", "qwen", "moonshot", "gemini", "opencode-go", "openai", "anthropic", "openrouter"]
         elif complexity == QueryComplexity.MODERATE:
-            provider_priority = ["deepseek", "minimax", "qwen", "gemini", "moonshot", "opencode-go", "openai", "anthropic"]
+            provider_priority = ["deepseek", "minimax", "qwen", "gemini", "moonshot", "opencode-go", "openai", "anthropic", "openrouter"]
         elif complexity == QueryComplexity.COMPLEX:
-            provider_priority = ["gemini", "deepseek", "anthropic", "qwen", "minimax", "opencode-go", "openai", "moonshot"]
+            provider_priority = ["gemini", "deepseek", "anthropic", "qwen", "minimax", "opencode-go", "openai", "moonshot", "openrouter"]
         else: # ADVANCED
-            provider_priority = ["openai", "deepseek", "opencode-go", "anthropic", "qwen", "gemini", "moonshot", "minimax"]
+            provider_priority = ["openai", "deepseek", "opencode-go", "anthropic", "qwen", "gemini", "moonshot", "minimax", "openrouter"]
         
+        capability_blocked_options: List[tuple] = []
+
         for provider_id in provider_priority:
             if provider_id in self.clients:
                 models = COST_EFFICIENT_MODELS.get(provider_id, {})
                 model = models.get(complexity, "gpt-4o-mini")
-                
-                if not is_managed_service:
-                    # Filter for tool support even in BYOK (Phase 6.6) - Use pricing cache lookup
-                    if (requires_tools or requires_structured) and not self._model_supports_tools(model):
-                        # Fallback to r2 if speciale is disallowed
-                        if provider_id == "deepseek" and model == "deepseek-v3.2-speciale":
-                            model = "deepseek-r2"
-                        else:
-                            continue
 
+                # Check Tool/Structured Support (Phase 6.6 / BUG-113): the
+                # dynamic pricing cache is authoritative for capabilities.
+                # requires_tools is a HARD requirement (an agentic loop
+                # without tool-calling is broken no matter what), while
+                # structured-only blocks are soft — instructor degrades to
+                # prompt-based extraction, so they may fail open below when
+                # the filter would otherwise zero out the whole ranking.
+                try:
+                    capability_blocked = (
+                        (requires_tools or requires_structured)
+                        and not self._model_supports_tools(model)
+                    )
+                except Exception:
+                    capability_blocked = False  # cache unavailable — best-effort
+                if capability_blocked and provider_id == "deepseek" and model == "deepseek-v3.2-speciale":
+                    # The r2 downgrade resolves the block outright (r2 is the
+                    # known tool-capable variant).
+                    model = "deepseek-r2"
+                    capability_blocked = False
+                if capability_blocked and requires_tools:
+                    continue
+
+                if not is_managed_service:
                     ranked_options.append((provider_id, model))
                     continue
 
-                allowed_models = MODEL_TIER_RESTRICTIONS.get(tenant_plan.lower(), MODEL_TIER_RESTRICTIONS["free"])
-                
-                # Check Tool/Structured Support (Phase 6.6)
-                # BUG-113: Previously used the stale hardcoded MODELS_WITHOUT_TOOLS
-                # set (deprecated). Now uses the dynamic pricing cache lookup,
-                # matching the BPC primary path.
-                if (requires_tools or requires_structured):
-                    try:
-                        from core.dynamic_pricing_fetcher import get_pricing_fetcher
-                        fetcher = get_pricing_fetcher()
-                        if fetcher and not self._model_supports_tools(model):
-                            # Try to downgrade to a model that supports tools
-                            if provider_id == "deepseek" and model == "deepseek-v3.2-speciale":
-                                model = "deepseek-r2"
-                            else:
-                                continue
-                    except Exception:
-                        pass  # Cache unavailable — allow the model (best-effort)
+                # Plan gating applies to managed keys only (env keys are the
+                # operator's own — see _plan_applies in the BPC path).
+                allowed_models = (
+                    MODEL_TIER_RESTRICTIONS.get((tenant_plan or "free").lower(), MODEL_TIER_RESTRICTIONS["free"])
+                    if (is_managed_service and provider_id not in getattr(self, "env_key_providers", set())) else "*"
+                )
 
-                if "*" in allowed_models or model in allowed_models:
+                # Substring approval, mirroring is_model_approved() in the BPC
+                # path: the tier allowlists carry short names ("claude-3-haiku")
+                # while COST_EFFICIENT_MODELS carries dated variants
+                # ("claude-3-haiku-20240307"). Exact membership matched nothing,
+                # so a free-plan tenant got zero ranked models whenever BPC was
+                # unavailable (pricing cache down / cache-router failure).
+                if "*" in allowed_models or any(
+                    m.lower() in model.lower() for m in allowed_models
+                ):
                     ranked_options.append((provider_id, model))
-                    
+                elif capability_blocked:
+                    # Blocked by capability AND outside the plan allowlist —
+                    # a fail-open candidate (plan check stays the hard
+                    # entitlement; see the fail-open below).
+                    capability_blocked_options.append((provider_id, model))
+
+        # Availability-first fail-open (mirrors the BPC path): structured-only
+        # requests degrade gracefully, so the capability filter fails open
+        # with a warning rather than returning zero options. requires_tools
+        # stays hard — a non-tool model is useless to an agentic loop.
+        if not ranked_options and capability_blocked_options and not requires_tools:
+            logger.warning(
+                "Static fallback capability filter eliminated all %d options "
+                "(tools/structured metadata missing or conservative) — failing "
+                "open so routing continues",
+                len(capability_blocked_options),
+            )
+            ranked_options = capability_blocked_options
+
         # Phase 68-Q: Boost Qwen to top if available and requested
         if "qwen" in self.clients:
             qwen_option = next(((p, m) for p, m in ranked_options if p == "qwen"), None)
@@ -1976,6 +2091,7 @@ class BYOKHandler:
         cognitive_tier: Optional[str] = None,  # x-atom-tier override
         intent_override: Optional[str] = None,  # x-atom-intent override
         sticky_hint: Optional[tuple] = None,  # LKGP (provider, model) hint
+        messages: Optional[List[Dict[str, Any]]] = None,  # Full conversation (chat path)
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -2278,10 +2394,18 @@ class BYOKHandler:
                         failed_providers.add(provider_id)
                         continue
                     
-                    # Construct Messages (Phase 14: Multimodal)
-                    messages = []
-                    messages.append({"role": "system", "content": system_instruction})
-                    
+                    # Construct Messages (Phase 14: Multimodal).
+                    # Callers that built a real conversation (system blocks +
+                    # transcript + current message — the chat path) pass it
+                    # via `messages`; flattening that to prompt+system threw
+                    # the transcript away, so follow-up questions referencing
+                    # earlier turns were answered blind.
+                    if messages:
+                        messages = [dict(m) for m in messages]
+                    else:
+                        messages = []
+                        messages.append({"role": "system", "content": system_instruction})
+
                     if image_payload:
                         # OpenAI / Compatible Vision Format
                         user_content = [
@@ -3534,14 +3658,17 @@ class BYOKHandler:
                         temperature=temperature,
                         max_tokens=1000,
                     )
-                    if _soft_sc_on:
+                    _logprobs_key = f"{provider_id}/{model}"
+                    if _soft_sc_on and _logprobs_key not in _LOGPROBS_UNSUPPORTED:
                         _create_kwargs["logprobs"] = True
                     try:
                         result = instructor_client.chat.completions.create(**_create_kwargs)
                     except Exception as _soft_exc:
-                        if not _soft_sc_on:
+                        if not _soft_sc_on or "logprobs" not in _create_kwargs:
                             raise
                         _create_kwargs.pop("logprobs", None)
+                        if "logprobs are not supported" in str(_soft_exc).lower():
+                            _LOGPROBS_UNSUPPORTED.add(_logprobs_key)
                         logger.warning(
                             f"soft-SC logprobs request failed for {provider_id}/{model} "
                             f"({_soft_exc}); retrying once without logprobs"

@@ -3,8 +3,10 @@
  * Display all available ATOM integrations
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import { useRouter } from "next/router";
+import { authHeaders } from "@/lib/auth-headers";
 import {
   Card,
   CardContent,
@@ -55,7 +57,6 @@ interface Integration {
   name: string;
   description: string;
   category: string;
-  status: "complete" | "in-progress" | "planned";
   connected: boolean;
   icon: any;
   color: string;
@@ -64,10 +65,39 @@ interface Integration {
   documentation?: string;
 }
 
+// Ingestion progress per integration id, from
+// /api/integrations/ingestion-status — memory-store records where the
+// integration has a poller, hybrid sync state otherwise.
+interface IngestionProgress {
+  records_ingested: number;
+  last_ingested: string | null;
+  stream_running: boolean;
+  last_synced?: string | null;
+  auto_sync_enabled?: boolean;
+}
+
+const formatIngestedAge = (iso: string | null): string => {
+  if (!iso) return "never";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "never";
+  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
+
 const IntegrationsPage: React.FC = () => {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  // Real per-integration connection state from /api/integrations/connection-status
+  const connectionStatusRef = useRef<Record<string, { connected: boolean }>>({});
+  const [ingestionProgress, setIngestionProgress] = useState<
+    Record<string, IngestionProgress>
+  >({});
   const { toast } = useToast();
   const router = useRouter();
 
@@ -78,7 +108,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Box",
       description: "Secure file storage and collaboration platform",
       category: "storage",
-      status: "complete",
       connected: false,
       icon: HardDrive,
       color: "text-blue-600",
@@ -89,7 +118,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Dropbox",
       description: "Cloud storage and file sharing service",
       category: "storage",
-      status: "complete",
       connected: false,
       icon: Download,
       color: "text-blue-600",
@@ -100,7 +128,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Google Drive",
       description: "Cloud storage and document management platform",
       category: "storage",
-      status: "complete",
       connected: false,
       icon: HardDrive,
       color: "text-green-600",
@@ -111,7 +138,6 @@ const IntegrationsPage: React.FC = () => {
       name: "OneDrive",
       description: "Microsoft cloud storage and file synchronization service",
       category: "storage",
-      status: "complete",
       connected: false,
       icon: Download,
       color: "text-blue-600",
@@ -123,7 +149,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Zoho WorkDrive",
       description: "Online file management for teams that work together",
       category: "storage",
-      status: "complete",
       connected: false,
       icon: HardDrive,
       color: "text-blue-600",
@@ -139,7 +164,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Zoho Books",
       description: "Accounting — invoices, expenses and chart of accounts",
       category: "finance",
-      status: "complete",
       connected: false,
       icon: Activity,
       color: "text-blue-600",
@@ -150,7 +174,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Zoho Inventory",
       description: "Inventory — items, stock levels and sales orders",
       category: "ecommerce",
-      status: "complete",
       connected: false,
       icon: Activity,
       color: "text-blue-600",
@@ -161,7 +184,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Zoho CRM",
       description: "Customer relationship management — leads and deals",
       category: "crm",
-      status: "complete",
       connected: false,
       icon: User,
       color: "text-blue-600",
@@ -172,7 +194,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Zoho Projects",
       description: "Project management — portals, projects and tasks",
       category: "productivity",
-      status: "complete",
       connected: false,
       icon: List,
       color: "text-blue-600",
@@ -183,11 +204,34 @@ const IntegrationsPage: React.FC = () => {
       name: "Zoho Mail",
       description: "Business email and communication",
       category: "communication",
-      status: "complete",
       connected: false,
       icon: Mail,
       color: "text-blue-600",
       documentation: "https://www.zoho.com/mail/help/api/",
+    },
+    // Forms/Flow expose no public read API (Zoho's official position), so
+    // they are webhook-push apps: data ingests when Zoho pushes events,
+    // not via the OAuth pull sync the siblings use. Cards light up with
+    // the suite grant or their webhook secret env.
+    {
+      id: "zoho-forms",
+      name: "Zoho Forms",
+      description: "Form builder — submissions ingest via webhook push",
+      category: "productivity",
+      connected: false,
+      icon: Edit,
+      color: "text-blue-600",
+      documentation: "https://www.zoho.com/forms/help/",
+    },
+    {
+      id: "zoho-flow",
+      name: "Zoho Flow",
+      description: "Automation platform — flow events ingest via webhook push",
+      category: "productivity",
+      connected: false,
+      icon: RefreshCw,
+      color: "text-blue-600",
+      documentation: "https://www.zoho.com/flow/help/",
     },
 
     // Communication & Collaboration
@@ -196,7 +240,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Telegram",
       description: "Teammate IM channel — long-polling bot, no public URL needed (see IM Adapter Setup)",
       category: "communication",
-      status: "complete",
       connected: false,
       icon: MessageSquare,
       color: "text-sky-500",
@@ -207,7 +250,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Slack",
       description: "Team communication and collaboration platform",
       category: "communication",
-      status: "complete",
       connected: false,
       icon: MessageSquare,
       color: "text-purple-600",
@@ -218,7 +260,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Microsoft Teams",
       description: "Team messaging and collaboration platform",
       category: "communication",
-      status: "complete",
       connected: false,
       icon: MessageSquare,
       color: "text-purple-600",
@@ -230,7 +271,6 @@ const IntegrationsPage: React.FC = () => {
       name: "WhatsApp Business",
       description: "WhatsApp Business messaging — send, receive and search conversations",
       category: "communication",
-      status: "complete",
       connected: false,
       icon: MessageSquare,
       color: "text-green-600",
@@ -241,7 +281,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Gmail",
       description: "Email communication and organization platform",
       category: "communication",
-      status: "complete",
       connected: false,
       icon: Mail,
       color: "text-red-600",
@@ -252,7 +291,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Outlook",
       description: "Email, calendar, and contact management service",
       category: "communication",
-      status: "complete",
       connected: false,
       icon: Mail,
       color: "text-blue-600",
@@ -264,7 +302,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Shopify",
       description: "Ecommerce store — agents create product listings and blog posts",
       category: "ecommerce",
-      status: "complete",
       connected: false,
       icon: ShoppingCart,
       color: "text-green-600",
@@ -277,7 +314,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Notion",
       description: "Document management and knowledge base platform",
       category: "productivity",
-      status: "complete",
       connected: false,
       icon: Edit,
       color: "text-gray-600 dark:text-gray-400",
@@ -288,7 +324,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Monday.com",
       description: "Work OS — automate boards, items and analytics",
       category: "productivity",
-      status: "complete",
       connected: false,
       icon: CheckSquare,
       color: "text-red-500",
@@ -299,7 +334,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Jira",
       description: "Project management and issue tracking platform",
       category: "productivity",
-      status: "complete",
       connected: false,
       icon: Settings,
       color: "text-blue-600",
@@ -311,7 +345,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Trello",
       description: "Project management and task tracking tool",
       category: "productivity",
-      status: "complete",
       connected: false,
       icon: List,
       color: "text-blue-600",
@@ -323,7 +356,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Asana",
       description: "Project management and task tracking platform",
       category: "productivity",
-      status: "complete",
       connected: false,
       icon: CheckSquare,
       color: "text-green-600",
@@ -334,7 +366,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Linear",
       description: "Issue tracking and project management platform",
       category: "productivity",
-      status: "complete",
       connected: false,
       icon: List,
       color: "text-blue-600",
@@ -346,7 +377,6 @@ const IntegrationsPage: React.FC = () => {
       description:
         "Complete productivity suite (Docs, Sheets, Slides, Keep, Tasks)",
       category: "productivity",
-      status: "complete",
       connected: false,
       icon: Edit,
       color: "text-orange-600",
@@ -358,7 +388,6 @@ const IntegrationsPage: React.FC = () => {
       description:
         "Complete productivity suite with Teams, Outlook, and OneDrive",
       category: "productivity",
-      status: "complete",
       connected: false,
       icon: Settings,
       color: "text-blue-600",
@@ -371,7 +400,6 @@ const IntegrationsPage: React.FC = () => {
       name: "GitHub",
       description: "Code repository and development platform",
       category: "development",
-      status: "complete",
       connected: false,
       icon: Github,
       color: "text-black dark:text-white",
@@ -382,7 +410,6 @@ const IntegrationsPage: React.FC = () => {
       name: "GitLab",
       description: "DevOps platform and code repository management",
       category: "development",
-      status: "complete",
       connected: false,
       icon: Code,
       color: "text-orange-600",
@@ -393,7 +420,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Next.js",
       description: "Vercel project management and deployment platform",
       category: "development",
-      status: "complete",
       connected: false,
       icon: Code,
       color: "text-black dark:text-white",
@@ -406,7 +432,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Stripe",
       description: "Payment processing and financial management platform",
       category: "finance",
-      status: "complete",
       connected: false,
       icon: CreditCard,
       color: "text-green-600",
@@ -417,7 +442,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Xero",
       description: "Accounting and financial management platform",
       category: "finance",
-      status: "complete",
       connected: false,
       icon: Activity,
       color: "text-green-600",
@@ -428,7 +452,6 @@ const IntegrationsPage: React.FC = () => {
       name: "QuickBooks",
       description: "Financial management and accounting platform",
       category: "finance",
-      status: "complete",
       connected: false,
       icon: Activity,
       color: "text-green-600",
@@ -441,7 +464,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Salesforce",
       description: "Customer relationship management and sales platform",
       category: "crm",
-      status: "complete",
       connected: false,
       icon: User,
       color: "text-blue-600",
@@ -452,7 +474,6 @@ const IntegrationsPage: React.FC = () => {
       name: "HubSpot",
       description: "Marketing automation and CRM platform",
       category: "crm",
-      status: "complete",
       connected: false,
       icon: Star,
       color: "text-orange-600",
@@ -465,7 +486,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Intercom",
       description: "Customer communication and support platform",
       category: "support",
-      status: "complete",
       connected: false,
       icon: MessageSquare,
       color: "text-green-600",
@@ -477,7 +497,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Freshdesk",
       description: "Customer support and help desk platform",
       category: "support",
-      status: "complete",
       connected: false,
       icon: MessageSquare,
       color: "text-green-600",
@@ -488,7 +507,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Zendesk",
       description: "Customer support and help desk platform",
       category: "support",
-      status: "complete",
       connected: false,
       icon: MessageSquare,
       color: "text-red-600",
@@ -501,7 +519,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Mailchimp",
       description: "Email marketing and automation platform",
       category: "marketing",
-      status: "complete",
       connected: false,
       icon: Mail,
       color: "text-blue-600",
@@ -514,7 +531,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Tableau",
       description: "Business intelligence and analytics platform",
       category: "analytics",
-      status: "complete",
       connected: false,
       icon: Activity,
       color: "text-purple-600",
@@ -527,7 +543,6 @@ const IntegrationsPage: React.FC = () => {
       name: "Microsoft Azure",
       description: "Cloud computing platform for infrastructure and services",
       category: "cloud",
-      status: "complete",
       connected: false,
       icon: Sun,
       color: "text-blue-600",
@@ -630,6 +645,10 @@ const IntegrationsPage: React.FC = () => {
         "zoho-crm": "/api/zoho-workdrive/health",
         "zoho-projects": "/api/zoho-workdrive/health",
         "zoho-mail": "/api/zoho-workdrive/health",
+        // Forms/Flow have their own dependency-light /health routes
+        // (webhook-push apps; no OAuth token needed to answer).
+        "zoho-forms": "/api/v1/integrations/zoho-forms/health",
+        "zoho-flow": "/api/v1/integrations/zoho-flow/health",
         // BUG-072: 8 integrations were missing from this map, causing them
         // to always show "error" / unconnected even when healthy.
         onedrive: "/api/integrations/onedrive/health",
@@ -649,26 +668,54 @@ const IntegrationsPage: React.FC = () => {
 
       const healthResults: Record<string, boolean> = {};
       const entries = Object.entries(healthUrls);
-      const responses = await Promise.all(
-        entries.map(async ([id, url]) => {
+      const responses = await Promise.all([
+        ...entries.map(async ([id, url]) => {
           try {
-            const resp = await fetch(url);
+            // Several health routes (e.g. /api/zoho-workdrive/health) sit
+            // behind router-level auth — send the session's Bearer header
+            // so a connected integration isn't reported down.
+            const resp = await authFetch(url, { headers: authHeaders() });
             return [id, resp.ok] as const;
           } catch {
             return [id, false] as const;
           }
-        })
-      );
+        }),
+        // Real connection state (DB connections + tenant connectors + env
+        // credentials). Health probes above only prove a backend route is
+        // up — they must NOT decide "connected".
+        authFetch("/api/integrations/connection-status", { headers: authHeaders() })
+          .then((r) => (r.ok ? r.json() : { providers: {} }))
+          .then((d) => ["__connectionStatus", d?.data?.providers ?? d?.providers ?? {}] as const)
+          .catch(() => ["__connectionStatus", {}] as const),
+        // Memory-ingestion progress (records ingested per integration).
+        authFetch("/api/integrations/ingestion-status", { headers: authHeaders() })
+          .then((r) => (r.ok ? r.json() : { apps: {} }))
+          .then((d) => ["__ingestionStatus", d?.data?.apps ?? d?.apps ?? {}] as const)
+          .catch(() => ["__ingestionStatus", {}] as const),
+      ]);
       for (const [id, ok] of responses) {
-        healthResults[id] = ok;
+        if (id === "__connectionStatus") {
+          connectionStatusRef.current = ok as Record<string, { connected: boolean }>;
+        } else if (id === "__ingestionStatus") {
+          setIngestionProgress(ok as Record<string, IngestionProgress>);
+        } else {
+          healthResults[id] = ok as boolean;
+        }
       }
 
       const updatedIntegrations = integrationList.map((integration) => {
+        const isConnected =
+          connectionStatusRef.current[integration.id]?.connected === true;
         const isHealthy = healthResults[integration.id] ?? false;
         return {
           ...integration,
-          connected: isHealthy,
-          health: (isHealthy ? "healthy" : "error") as "healthy" | "error",
+          // "Connected" reflects real credential/connection state only.
+          connected: isConnected,
+          health: (isConnected
+            ? isHealthy
+              ? "healthy"
+              : "error"
+            : "unknown") as "healthy" | "error" | "unknown",
         };
       });
 
@@ -695,15 +742,7 @@ const IntegrationsPage: React.FC = () => {
   };
 
   const handleIntegrationClick = (integration: Integration) => {
-    if (integration.status === "complete") {
-      // Navigate to integration-specific page
-      window.location.href = `/integrations/${integration.id}`;
-    } else {
-      toast({
-        title: "Coming Soon",
-        description: `${integration.name} integration is ${integration.status}`,
-      });
-    }
+    window.location.href = `/integrations/${integration.id}`;
   };
 
   const filteredIntegrations =
@@ -714,6 +753,9 @@ const IntegrationsPage: React.FC = () => {
   const connectedCount = integrations.filter((i) => i.connected).length;
   const connectionProgress =
     integrations.length > 0 ? (connectedCount / integrations.length) * 100 : 0;
+
+  const categoryLabel = (id: string) =>
+    categories.find((c) => c.id === id)?.name ?? id;
 
   useEffect(() => {
     checkIntegrationsHealth();
@@ -903,24 +945,13 @@ const IntegrationsPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="font-bold text-lg">{integration.name}</h3>
-                      <Badge
-                        variant={
-                          integration.status === "complete"
-                            ? "default"
-                            : integration.status === "in-progress"
-                              ? "secondary"
-                              : "outline"
-                        }
-                        className={
-                          integration.status === "complete" ? "bg-green-500 hover:bg-green-600" :
-                            integration.status === "in-progress" ? "bg-yellow-500 hover:bg-yellow-600" : ""
-                        }
-                      >
-                        {integration.status}
-                      </Badge>
                     </div>
                   </div>
-                  {getStatusIcon(integration.health || "unknown")}
+                  {/* Health is only meaningful once connected — unconnected
+                      cards would otherwise show a meaningless "unknown" clock. */}
+                  {integration.health &&
+                    integration.health !== "unknown" &&
+                    getStatusIcon(integration.health)}
                 </CardHeader>
 
                 <CardContent className="pt-4">
@@ -933,20 +964,57 @@ const IntegrationsPage: React.FC = () => {
 
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Category: {integration.category}
+                        {categoryLabel(integration.category)}
                       </span>
-                      {integration.connected && (
+                      {integration.connected ? (
                         <div className="flex items-center space-x-1">
                           <CheckCircle className="w-3 h-3 text-green-500" />
                           <span className="text-xs font-bold text-green-500">
                             Connected
                           </span>
                         </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                          Not connected
+                        </span>
                       )}
                     </div>
 
+                    {/* Ingestion progress: memory records where the
+                        integration has a poller, last sync otherwise. */}
+                    {(() => {
+                      const progress = ingestionProgress[integration.id];
+                      if (!progress) return null;
+                      if ((progress.records_ingested ?? 0) > 0) {
+                        return (
+                          <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">
+                              {progress.records_ingested.toLocaleString()}{" "}
+                              records ingested
+                            </span>
+                            <span>
+                              last {formatIngestedAge(progress.last_ingested)}
+                            </span>
+                          </div>
+                        );
+                      }
+                      if (progress.last_synced) {
+                        return (
+                          <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">
+                              {progress.auto_sync_enabled ? "Auto-sync on" : "Synced"}
+                            </span>
+                            <span>
+                              {formatIngestedAge(progress.last_synced)}
+                            </span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
                     <Button
-                      variant="outline"
+                      variant={integration.connected ? "outline" : "default"}
                       size="sm"
                       className="w-full gap-2"
                     >

@@ -3,10 +3,12 @@ import {
   approveActionProposal,
   approveTrainingProposal,
   completeTrainingSession,
+  getTrainingSessionEvidence,
   listActionProposals,
   listTrainingProposals,
   rejectActionProposal,
   rejectTrainingProposal,
+  SessionEvidence,
   TrainingCompletionResult,
 } from '../../lib/maturity-api';
 
@@ -52,7 +54,7 @@ export function MaturityApprovalPanel({
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [completingId, setCompletingId] = useState<string | null>(null);
-  const [performanceScore, setPerformanceScore] = useState('0.9');
+  const [evidence, setEvidence] = useState<SessionEvidence | null>(null);
   const [feedback, setFeedback] = useState('Completed via supervisor panel');
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -101,8 +103,15 @@ export function MaturityApprovalPanel({
       `train-${p.id}`,
       async () => {
         const { session_id } = await approveTrainingProposal(p.id);
-        // Remember the session so "Mark completed" can target it.
+        // Remember the session so "Mark completed" can target it, and pull
+        // its live evidence — completion is gated on recorded work, so the
+        // supervisor sees the real counts instead of typing a score.
         setCompletingId(session_id);
+        try {
+          setEvidence(await getTrainingSessionEvidence(session_id));
+        } catch {
+          setEvidence(null);
+        }
       },
       'Training approved'
     );
@@ -113,13 +122,10 @@ export function MaturityApprovalPanel({
       async () => {
         const result: TrainingCompletionResult =
           await completeTrainingSession(completingId as string, {
-            performance_score: Number(performanceScore) || 0.9,
             supervisor_feedback: feedback || 'Completed via supervisor panel',
-            errors_count: 0,
-            tasks_completed: 10,
-            total_tasks: 10,
           });
         setCompletingId(null);
+        setEvidence(null);
         return result.promoted_to_intern
           ? 'Session completed — agent promoted to INTERN'
           : 'Training session completed';
@@ -159,19 +165,27 @@ export function MaturityApprovalPanel({
           className="border rounded p-2 my-2 text-xs space-y-2"
         >
           <p className="font-medium">Complete training session</p>
-          <label className="block">
-            Performance score (0–1)
-            <input
-              type="number"
-              min={0}
-              max={1}
-              step={0.05}
-              value={performanceScore}
-              onChange={(e) => setPerformanceScore(e.target.value)}
-              aria-label="Performance score"
-              className="border rounded px-1 py-0.5 w-full"
-            />
-          </label>
+          {/* Linked evidence, fetched live: the backend derives the outcome
+              from these recorded runs and rejects completions without them,
+              so the supervisor grades work that actually happened. */}
+          {evidence ? (
+            <p
+              data-testid="session-evidence"
+              className={
+                evidence.episodes >= evidence.required_episodes
+                  ? 'text-gray-600'
+                  : 'text-amber-700'
+              }
+            >
+              Recorded work runs in this session:{' '}
+              <strong>{evidence.episodes}</strong>
+              {' · '}successful: <strong>{evidence.successes}</strong>
+              {' · '}required before completion:{' '}
+              <strong>{evidence.required_episodes}</strong>
+            </p>
+          ) : (
+            <p className="text-gray-500">Checking recorded work runs…</p>
+          )}
           <label className="block">
             Feedback
             <input
@@ -183,7 +197,16 @@ export function MaturityApprovalPanel({
           </label>
           <button
             onClick={handleComplete}
-            disabled={busyId !== null}
+            disabled={
+              busyId !== null ||
+              !evidence ||
+              evidence.episodes < evidence.required_episodes
+            }
+            title={
+              evidence && evidence.episodes < evidence.required_episodes
+                ? `The hire needs ${evidence.required_episodes} recorded work runs in this session first`
+                : undefined
+            }
             className="px-2 py-1 rounded bg-green-600 text-white disabled:opacity-50"
           >
             {busyId?.startsWith('complete') ? 'Saving…' : 'Mark completed'}

@@ -10,6 +10,7 @@
 import React from 'react';
 import { renderWithProviders, screen } from '../../../tests/test-utils';
 import { MessageList } from '../MessageList';
+import type { ChatMessageData } from '../../GlobalChat/ChatMessage';
 
 describe('MessageList', () => {
   const mockHandleActionClick = jest.fn();
@@ -22,7 +23,7 @@ describe('MessageList', () => {
 
   // Test 1: renders list of messages
   test('renders list of messages', () => {
-    const messages = [
+    const messages: ChatMessageData[] = [
       { id: '1', type: 'user', content: 'Hello', timestamp: new Date() },
       { id: '2', type: 'assistant', content: 'Hi there!', timestamp: new Date() },
     ];
@@ -102,7 +103,7 @@ describe('MessageList', () => {
 
   // Test 5: renders user messages correctly
   test('renders user messages with correct styling', () => {
-    const messages = [
+    const messages: ChatMessageData[] = [
       { id: '1', type: 'user', content: 'User message', timestamp: new Date() },
     ];
 
@@ -124,7 +125,7 @@ describe('MessageList', () => {
 
   // Test 6: renders assistant messages correctly
   test('renders assistant messages with correct styling', () => {
-    const messages = [
+    const messages: ChatMessageData[] = [
       { id: '1', type: 'assistant', content: 'Assistant response', timestamp: new Date() },
     ];
 
@@ -146,7 +147,7 @@ describe('MessageList', () => {
 
   // Test 7: handles multiple messages in sequence
   test('handles multiple messages in correct order', () => {
-    const messages = [
+    const messages: ChatMessageData[] = [
       { id: '1', type: 'user', content: 'First', timestamp: new Date() },
       { id: '2', type: 'assistant', content: 'Second', timestamp: new Date() },
       { id: '3', type: 'user', content: 'Third', timestamp: new Date() },
@@ -173,7 +174,7 @@ describe('MessageList', () => {
 
   // Test 8: renders without crashing when messagesEndRef is null
   test('renders without crashing when messagesEndRef is null', () => {
-    const messages = [
+    const messages: ChatMessageData[] = [
       { id: '1', type: 'user', content: 'Test', timestamp: new Date() },
     ];
 
@@ -195,7 +196,7 @@ describe('MessageList', () => {
 
   // Test 9: handles empty streaming content map
   test('handles empty streaming content map', () => {
-    const messages = [
+    const messages: ChatMessageData[] = [
       { id: '1', type: 'user', content: 'Hello', timestamp: new Date() },
     ];
 
@@ -240,7 +241,7 @@ describe('MessageList', () => {
 
   // Test 11: displays system messages
   test('displays system messages', () => {
-    const messages = [
+    const messages: ChatMessageData[] = [
       { id: '1', type: 'system', content: 'System notification', timestamp: new Date() },
     ];
 
@@ -263,7 +264,7 @@ describe('MessageList', () => {
   // Test 12: handles long messages
   test('handles long messages without truncation', () => {
     const longMessage = 'A'.repeat(1000);
-    const messages = [
+    const messages: ChatMessageData[] = [
       { id: '1', type: 'user', content: longMessage, timestamp: new Date() },
     ];
 
@@ -286,7 +287,7 @@ describe('MessageList', () => {
   // Test 13: handles special characters in messages
   test('handles special characters in messages', () => {
     const specialMessage = 'Test <script>alert("xss")</script> & "quotes"';
-    const messages = [
+    const messages: ChatMessageData[] = [
       { id: '1', type: 'user', content: specialMessage, timestamp: new Date() },
     ];
 
@@ -326,7 +327,7 @@ describe('MessageList', () => {
 
   // Test 15: handles null currentStreamId
   test('handles null currentStreamId gracefully', () => {
-    const messages = [
+    const messages: ChatMessageData[] = [
       { id: '1', type: 'user', content: 'Test', timestamp: new Date() },
     ];
 

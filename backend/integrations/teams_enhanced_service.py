@@ -307,19 +307,22 @@ class TeamsEnhancedService(IntegrationService):
         # Rate limiter
         self.rate_limiter = TeamsRateLimiter(self.redis_client)
         
-        # MSAL application
-        # Use tenant_id from IntegrationService base class
+        # MSAL application. Degraded mode (msal_app=None) is keyed on MISSING
+        # CREDENTIALS, not just a missing library: a ConfidentialClientApplication
+        # built with client_id=None can never authenticate, and callers probing
+        # `msal_app` for "OAuth available" got a useless object instead of None.
         self.msal_tenant_id = config.get('msal_tenant_id') or 'common'
         # JWKS (signing keys) cache for MS access token verification
         self.jwks_cache: Dict[str, tuple] = {}
-        if msal is not None:
+        if msal is not None and self.client_id:
             self.msal_app = msal.ConfidentialClientApplication(
                 client_id=self.client_id,
                 client_credential=self.client_secret,
                 authority=f"https://login.microsoftonline.com/{self.msal_tenant_id}"
             )
         else:
-            logger.warning("MSAL not installed - Teams OAuth disabled; service runs in degraded mode")
+            if msal is None:
+                logger.warning("MSAL not installed - Teams OAuth disabled; service runs in degraded mode")
             self.msal_app = None
         
         # Graph clients cache

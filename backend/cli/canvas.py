@@ -39,15 +39,22 @@ def list_canvases(token: str | None):
     if resp.status_code != 200:
         click.echo(click.style(f"Failed: HTTP {resp.status_code}", fg="red"))
         sys.exit(1)
-    rows = resp.json()
+    payload = resp.json()
+    # GET /api/canvas/ returns {"success", "canvases", "count", "total"} —
+    # the old code iterated the dict itself (crashing on str.get) and read
+    # `id` where items carry `canvas_id`. Prefer the server-derived
+    # display_title (never a raw UUID).
+    rows = payload.get("canvases") if isinstance(payload, dict) else payload
     if not rows:
         click.echo("No canvases found.")
         return
     click.echo(f"{len(rows)} canvases:")
     for c in rows:
         ctype = c.get("canvas_type") or c.get("type") or ""
-        title = c.get("title") or c.get("name") or c.get("id", "—")
-        line = f"  {c.get('id')}: {title}"
+        cid = c.get("canvas_id") or c.get("id")
+        title = (c.get("display_title") or c.get("title")
+                 or c.get("name") or cid or "—")
+        line = f"  {cid}: {title}"
         if ctype:
             line += f" ({ctype})"
         click.echo(line)

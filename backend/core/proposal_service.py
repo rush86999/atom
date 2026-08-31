@@ -462,6 +462,11 @@ Please review and approve or reject this proposal.
                 return await self._execute_device_action(proposal, proposed_action)
             elif action_type == "agent_execute":
                 return await self._execute_agent_action(proposal, proposed_action)
+            elif action_type == "send_email":
+                # Canvas co-editor HITL: the approved send executes through
+                # the same deterministic email policy as a human-clicked send
+                # (sensitivity blocks, audit trail, live broadcast).
+                return await self._execute_send_email_action(proposal, proposed_action)
             else:
                 logger.warning(f"Unknown action type: {action_type}")
                 return {
@@ -525,6 +530,60 @@ Please review and approve or reject this proposal.
                 _asyncio.run(_write())
         except Exception as e:
             logger.warning(f"Episode creation skipped for {execution.id}: {e}")
+
+    async def _execute_send_email_action(
+        self,
+        proposal: AgentProposal,
+        action: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Execute an approved send_email proposal through the deterministic
+        email policy (EmailCanvasService) — same path as a human-clicked
+        send, so sensitivity blocks and the CanvasAudit trail apply."""
+        try:
+            from core.canvas_email_service import EmailCanvasService
+
+            to_raw = str(action.get("to") or "")
+            recipients = [r.strip() for r in to_raw.replace(";", ",").split(",") if r.strip()]
+            if not recipients:
+                return {
+                    "success": False,
+                    "error": "No recipient specified in the approved proposal",
+                }
+
+            body = str(action.get("body") or "")
+            if not body and action.get("canvas_id"):
+                # Fall back to the canvas draft the proposal was raised on.
+                from core.models import Canvas
+                canvas = self.db.query(Canvas).filter(Canvas.id == action["canvas_id"]).first()
+                if canvas is not None and isinstance(canvas.content, dict):
+                    body = str(canvas.content.get("content") or "")
+                elif canvas is not None and isinstance(canvas.content, str):
+                    body = canvas.content
+
+            service = EmailCanvasService(self.db)
+            result = await service.send_email(
+                canvas_id=action.get("canvas_id") or proposal.canvas_id,
+                user_id=proposal.user_id,
+                to_emails=recipients,
+                cc_emails=[],
+                subject=str(action.get("subject") or ""),
+                body=body,
+                agent_id=proposal.agent_id,
+            )
+            if not (result or {}).get("success"):
+                return {
+                    "success": False,
+                    "error": (result or {}).get("error", "Email policy refused the send"),
+                    "policy_result": result,
+                }
+            return {
+                "success": True,
+                "status": result.get("status", "sent"),
+                "message": f"Email {result.get('status', 'sent')} to {', '.join(recipients)}",
+            }
+        except Exception as e:
+            logger.error(f"send_email proposal execution failed: {e}")
+            return {"success": False, "error": str(e)}
 
     async def _execute_browser_action(
         self,

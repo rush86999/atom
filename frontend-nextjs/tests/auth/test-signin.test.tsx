@@ -41,6 +41,7 @@ describe('SignIn Component', () => {
     (useRouter as jest.Mock).mockReturnValue({
       push: mockPush,
       pathname: '/auth/signin',
+      query: {},
     });
     (getSession as jest.Mock).mockResolvedValue(null);
     (signIn as jest.Mock).mockResolvedValue({ ok: true, error: null });

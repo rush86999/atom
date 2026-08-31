@@ -441,7 +441,18 @@ class EpisodeRetrievalService:
         agent_id: str,
         results_count: int
     ):
-        """Log episode access for audit trail"""
+        """Log episode access for audit trail.
+
+        ``accessed_by_agent`` is NOT NULL: plain user chats recall episodes
+        with ``agent_id=None`` (no hire persona), and attempting that INSERT
+        failed on every chat turn — worse, the failed flush left the SHARED
+        request session rolled back, so every later query in the same request
+        (the memory assembler's episodes leg) died with "transaction has been
+        rolled back". Nothing to audit without an agent; and any failure must
+        roll back cleanly instead of poisoning the caller's session.
+        """
+        if not agent_id:
+            return
         try:
             log = EpisodeAccessLog(
                 episode_id=episode_id,
@@ -454,6 +465,10 @@ class EpisodeRetrievalService:
             self.db.add(log)
             self.db.commit()
         except Exception as e:
+            try:
+                self.db.rollback()
+            except Exception:
+                pass
             logger.error(f"Failed to log episode access: {e}")
 
     def _serialize_episode(self, episode: Episode, user_id: Optional[str] = None) -> Dict[str, Any]:

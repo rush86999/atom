@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
     CheckCircle,
@@ -336,19 +337,27 @@ const TrelloIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/trello/health", { headers: authHeaders() });
+            // Real per-integration connection state (DB connections + OAuth
+            // grants + env credentials). The /health route is a liveness probe
+            // that returns 200 unconditionally — it must not decide "connected".
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
-                setConnected(true);
-                setHealthStatus("healthy");
-                loadUserProfile();
-                loadBoards();
-                loadMembers();
+                const data = await response.json().catch((): null => null);
+                const providers = data?.data?.providers ?? data?.providers ?? {};
+                const isConnected = providers?.trello?.connected === true;
+                setConnected(isConnected);
+                setHealthStatus(isConnected ? "healthy" : "error");
+                if (isConnected) {
+                    loadUserProfile();
+                    loadBoards();
+                    loadMembers();
+                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
             }
         } catch (error) {
-            console.error("Health check failed:", error);
+            console.error("Connection status check failed:", error);
             setConnected(false);
             setHealthStatus("error");
         }
@@ -358,7 +367,7 @@ const TrelloIntegration: React.FC = () => {
     const loadUserProfile = async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
-            const response = await fetch("/api/integrations/trello/profile", {
+            const response = await authFetch("/api/integrations/trello/profile", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -380,7 +389,7 @@ const TrelloIntegration: React.FC = () => {
     const loadBoards = async () => {
         setLoading((prev) => ({ ...prev, boards: true }));
         try {
-            const response = await fetch("/api/integrations/trello/boards", {
+            const response = await authFetch("/api/integrations/trello/boards", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -410,7 +419,7 @@ const TrelloIntegration: React.FC = () => {
 
         setLoading((prev) => ({ ...prev, lists: true }));
         try {
-            const response = await fetch("/api/integrations/trello/lists", {
+            const response = await authFetch("/api/integrations/trello/lists", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -436,7 +445,7 @@ const TrelloIntegration: React.FC = () => {
 
         setLoading((prev) => ({ ...prev, cards: true }));
         try {
-            const response = await fetch("/api/integrations/trello/cards", {
+            const response = await authFetch("/api/integrations/trello/cards", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -462,7 +471,7 @@ const TrelloIntegration: React.FC = () => {
     const loadMembers = async () => {
         setLoading((prev) => ({ ...prev, members: true }));
         try {
-            const response = await fetch("/api/integrations/trello/members", {
+            const response = await authFetch("/api/integrations/trello/members", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -486,7 +495,7 @@ const TrelloIntegration: React.FC = () => {
         if (!cardForm.name || !cardForm.list_id) return;
 
         try {
-            const response = await fetch("/api/integrations/trello/cards/create", {
+            const response = await authFetch("/api/integrations/trello/cards/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -531,7 +540,7 @@ const TrelloIntegration: React.FC = () => {
         if (!boardForm.name) return;
 
         try {
-            const response = await fetch("/api/integrations/trello/boards/create", {
+            const response = await authFetch("/api/integrations/trello/boards/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({

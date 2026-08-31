@@ -71,7 +71,7 @@ class MockAudio {
   }
 
   simulateError(error: Error) {
-    this.error = error;
+    (this as any).error = error;
     this.paused = true;
     if (this.onerror) {
       this.onerror(error);

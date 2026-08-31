@@ -12,6 +12,7 @@ const apiFlag = { USE_BACKEND_API: false, userManagementAPI: {} };
 jest.mock("@/lib/api", () => apiFlag);
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/auth/sessions";
 
 const mockFetch = jest.fn();
@@ -29,7 +30,7 @@ describe("pages/api/auth/sessions", () => {
     (global as any).fetch = mockFetch;
   });
 
-  const invoke = async (method = "GET", body: any = {}, headers: any = {}) => {
+  const invoke = async (method: RequestMethod = "GET", body: any = {}, headers: any = {}) => {
     const { req, res } = createMocks({ method, body, headers }) as any;
     await handler(req, res);
     return res;

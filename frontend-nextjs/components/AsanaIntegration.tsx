@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Layout,
     Clock,
@@ -176,17 +177,25 @@ const AsanaIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/asana/health", { headers: authHeaders() });
+            // Real per-integration connection state (DB connections + OAuth
+            // grants + env credentials). The /health route is a liveness probe
+            // that returns 200 unconditionally — it must not decide "connected".
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
-                setConnected(true);
-                setHealthStatus("healthy");
-                loadWorkspaces();
+                const data = await response.json().catch((): null => null);
+                const providers = data?.data?.providers ?? data?.providers ?? {};
+                const isConnected = providers?.asana?.connected === true;
+                setConnected(isConnected);
+                setHealthStatus(isConnected ? "healthy" : "error");
+                if (isConnected) {
+                    loadWorkspaces();
+                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
             }
         } catch (error) {
-            console.error("Health check failed:", error);
+            console.error("Connection status check failed:", error);
             setConnected(false);
             setHealthStatus("error");
         }
@@ -196,7 +205,7 @@ const AsanaIntegration: React.FC = () => {
     const loadWorkspaces = async () => {
         setLoading((prev) => ({ ...prev, workspaces: true }));
         try {
-            const response = await fetch("/api/integrations/asana/workspaces", {
+            const response = await authFetch("/api/integrations/asana/workspaces", {
                 method: "GET",
                 headers: authHeaders({ "Content-Type": "application/json" }),
             });
@@ -215,7 +224,7 @@ const AsanaIntegration: React.FC = () => {
     const loadProjects = async () => {
         setLoading((prev) => ({ ...prev, projects: true }));
         try {
-            const response = await fetch("/api/integrations/asana/projects", {
+            const response = await authFetch("/api/integrations/asana/projects", {
                 method: "GET",
                 headers: authHeaders({ "Content-Type": "application/json" }),
             });
@@ -234,7 +243,7 @@ const AsanaIntegration: React.FC = () => {
     const loadTasks = async () => {
         setLoading((prev) => ({ ...prev, tasks: true }));
         try {
-            const response = await fetch("/api/integrations/asana/tasks", {
+            const response = await authFetch("/api/integrations/asana/tasks", {
                 method: "GET",
                 headers: authHeaders({ "Content-Type": "application/json" }),
             });
@@ -258,7 +267,7 @@ const AsanaIntegration: React.FC = () => {
     const loadTeams = async () => {
         setLoading((prev) => ({ ...prev, teams: true }));
         try {
-            const response = await fetch("/api/integrations/asana/teams", {
+            const response = await authFetch("/api/integrations/asana/teams", {
                 method: "GET",
                 headers: authHeaders({ "Content-Type": "application/json" }),
             });
@@ -277,7 +286,7 @@ const AsanaIntegration: React.FC = () => {
     const loadUsers = async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
-            const response = await fetch("/api/integrations/asana/users", {
+            const response = await authFetch("/api/integrations/asana/users", {
                 method: "GET",
                 headers: authHeaders({ "Content-Type": "application/json" }),
             });
@@ -296,7 +305,7 @@ const AsanaIntegration: React.FC = () => {
     // Create new task
     const createTask = async () => {
         try {
-            const response = await fetch("/api/integrations/asana/tasks", {
+            const response = await authFetch("/api/integrations/asana/tasks", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({

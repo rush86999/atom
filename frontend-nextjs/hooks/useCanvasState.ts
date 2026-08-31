@@ -68,8 +68,8 @@ export function useCanvasState(canvasId?: string) {
     if (typeof window !== 'undefined' && !window.atom?.canvas) {
       (window as any).atom = {
         canvas: {
-          getState: () => null,
-          getAllStates: () => [],
+          getState: (): AnyCanvasState | null => null,
+          getAllStates: (): Array<{ canvas_id: string; state: AnyCanvasState }> => [],
           subscribe: () => () => {},
           subscribeAll: () => () => {}
         }
@@ -106,7 +106,14 @@ export function useCanvasState(canvasId?: string) {
       registeredCanvases.add(canvasId);
 
       try {
-        unsubscribeRef.current = api.subscribe((newState) => {
+        // CanvasStateAPI.subscribe declares (canvasId, callback), but the global
+        // this hook talks to is invoked with a single callback; view it through
+        // the single-argument signature it is actually called with. bind(api)
+        // keeps object-literal API implementations (which read `this`) working.
+        const subscribeSingle = (api.subscribe.bind(api) as unknown) as (
+          callback: (newState: AnyCanvasState | null) => void
+        ) => () => void;
+        unsubscribeRef.current = subscribeSingle((newState) => {
           if (newState) {
             setState(newState);
             // Clear any pending warnings for this canvas

@@ -84,6 +84,17 @@ class ZohoAdapter:
                 IntegrationToken.workspace_id.is_(None),
             ),
         ).first()
+        if not token:
+            # Fallback: the callback stamps rows under the user's resolved
+            # workspace while callers construct this adapter with whatever
+            # workspace/tenant convention they hold — when the two drift the
+            # scoped lookup misses and every data call ran unauthenticated.
+            # Resolve like outlook_service does: any active grant for this
+            # provider (single-operator semantics), never a revoked one.
+            token = self.db.query(IntegrationToken).filter(
+                IntegrationToken.provider == "zoho",
+                IntegrationToken.status == "active",
+            ).first()
         
         if token:
             from core.privsec.token_encryption import decrypt_token
@@ -181,7 +192,10 @@ class ZohoAdapter:
                 "ZohoBooks.fullaccess.all",
                 "ZohoProjects.projects.ALL",
                 "ZohoInventory.fullaccess.all",
-                "ZohoWorkDrive.files.ALL",
+                # WorkDrive scopes are `WorkDrive.`-prefixed — the
+                # `ZohoWorkDrive.` prefix is rejected ("Scope does not
+                # exist"; live-verified against accounts.zohocloud.ca).
+                "WorkDrive.files.ALL",
             ]
         
         params = {
@@ -355,6 +369,58 @@ class ZohoAdapter:
         except Exception as e:
             logger.error(f"Zoho {module} organizations fetch failed: {e}")
             return []
+
+    # --- Write operations (agent-managed CRM mutations) ---
+
+    async def create_lead(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        base_url = self._get_base_url("crm")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{base_url}/Leads",
+                headers={"Authorization": f"Zoho-oauthtoken {self._access_token}"},
+                json={"data": [data]}
+            )
+            response.raise_for_status()
+            result = response.json()
+            if result.get("data") and result["data"][0].get("code") == "SUCCESS":
+                return {"id": result["data"][0]["details"]["id"], "status": "created"}
+            return None
+
+    async def update_lead(self, lead_id: str, fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        base_url = self._get_base_url("crm")
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                f"{base_url}/Leads/{lead_id}",
+                headers={"Authorization": f"Zoho-oauthtoken {self._access_token}"},
+                json={"data": [fields]}
+            )
+            response.raise_for_status()
+            return {"id": lead_id, "status": "updated"}
+
+    async def create_deal(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        base_url = self._get_base_url("crm")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{base_url}/Deals",
+                headers={"Authorization": f"Zoho-oauthtoken {self._access_token}"},
+                json={"data": [data]}
+            )
+            response.raise_for_status()
+            result = response.json()
+            if result.get("data") and result["data"][0].get("code") == "SUCCESS":
+                return {"id": result["data"][0]["details"]["id"], "status": "created"}
+            return None
+
+    async def update_deal(self, deal_id: str, fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        base_url = self._get_base_url("crm")
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                f"{base_url}/Deals/{deal_id}",
+                headers={"Authorization": f"Zoho-oauthtoken {self._access_token}"},
+                json={"data": [fields]}
+            )
+            response.raise_for_status()
+            return {"id": deal_id, "status": "updated"}
 
     def _map_lead(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize Zoho Lead"""

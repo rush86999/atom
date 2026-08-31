@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import calendarEventsHandler from "@/pages/api/integrations/microsoft/calendar/events";
 import outlookMessagesHandler from "@/pages/api/integrations/microsoft/outlook/messages";
 import teamsMessagesHandler from "@/pages/api/integrations/microsoft/teams/messages";
@@ -33,7 +33,7 @@ const runProxySuite = (
 ) => {
   describe(describeName, () => {
     const invoke = async (method = "GET", query: any = {}, body?: any) => {
-      const { req, res } = createMocks({ method, query, body }) as any;
+      const { req, res } = createMocks({ method: method as RequestMethod, query, body }) as any;
       await handler(req, res);
       return res;
     };

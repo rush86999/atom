@@ -23,6 +23,7 @@ from core.models import (
     AgentStatus,
     HITLAction,
     HITLActionStatus,
+    NEW_AGENT_CONFIDENCE,
     User,
 )
 from core.notification_manager import notification_manager
@@ -191,13 +192,31 @@ async def get_agent(
             "confidence_score": agent.confidence_score,
             "module_path": agent.module_path,
             "class_name": agent.class_name,
-            "configuration": agent.configuration,
+            "configuration": _safe_configuration_view(agent),
             "schedule_config": agent.schedule_config,
             "version": agent.version,
             "last_run": latest_job.isoformat() if latest_job else None
         },
         message="Agent retrieved successfully"
     )
+
+
+def _safe_configuration_view(agent: AgentRegistry) -> dict:
+    """
+    Buyer-safe configuration view. Marketplace-managed agents store only a
+    reference (template_id/version/capabilities/tunables) — never publisher
+    prompts or memory.
+    """
+    config = agent.configuration or {}
+    if config.get("marketplace_managed"):
+        return {
+            "marketplace_managed": True,
+            "template_id": config.get("template_id"),
+            "managed_version": config.get("managed_version"),
+            "capabilities": config.get("capabilities", []),
+            "tunables": config.get("tunables", {}),
+        }
+    return config
 
 
 @router.get("/{agent_id}/status")
@@ -317,7 +336,24 @@ async def delete_agent(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete an agent"""
+    """Delete an agent and every dependent row.
+
+    FK enforcement is OFF on the SQLite connection, so a bare registry-row
+    delete silently orphans episodes, audits, jobs and learning rows across
+    the 25+ tables that carry an agent_id — those ghosts then resurface in
+    journeys, governance metrics and listings. The cleanup discovers every
+    table with an agent_id column dynamically (new tables are covered
+    automatically) and removes the agent's rows in the same transaction.
+    """
+    # The main agent is load-bearing (mentor bootstrap, governance anchors)
+    # — deleting it cripples the fleet rather than removing a test artifact.
+    if agent_id == "atom_main":
+        raise router.error_response(
+            error_code="CANNOT_DELETE_MAIN_AGENT",
+            message="The main agent (atom_main) cannot be deleted.",
+            status_code=400,
+        )
+
     agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
     if not agent:
         raise router.not_found_error("Agent", agent_id)
@@ -337,12 +373,43 @@ async def delete_agent(
             status_code=400
         )
 
+    # Dependent cleanup: every table with an agent_id column. Raw SQL per
+    # table — most of these tables have no ORM model, and the goal is
+    # breadth (no orphan ghosts), not per-table semantics.
+    from sqlalchemy import inspect as sa_inspect, text
+
+    cleaned: dict[str, int] = {}
+    try:
+        inspector = sa_inspect(db.bind)
+        for table in inspector.get_table_names():
+            cols = {c["name"] for c in inspector.get_columns(table)}
+            if "agent_id" not in cols or table == AgentRegistry.__tablename__:
+                continue
+            result = db.execute(
+                text(f"DELETE FROM {table} WHERE agent_id = :aid"), {"aid": agent_id}
+            )
+            if result.rowcount:
+                cleaned[table] = result.rowcount
+    except Exception as e:
+        db.rollback()
+        raise router.error_response(
+            error_code="AGENT_DELETE_CLEANUP_FAILED",
+            message=f"Dependent-row cleanup failed, agent not deleted: {e}",
+            status_code=500,
+        )
+
     agent_name = agent.name
-    db.delete(agent)
+    # Registry row also via raw SQL: db.delete(agent) makes the ORM null out
+    # loaded child FKs (agent_episodes.agent_id is NOT NULL → IntegrityError)
+    # for rows the cleanup above already removed from under its identity map.
+    db.execute(
+        text(f"DELETE FROM {AgentRegistry.__tablename__} WHERE id = :aid"),
+        {"aid": agent_id},
+    )
     db.commit()
 
     return router.success_response(
-        data={"agent_id": agent_id},
+        data={"agent_id": agent_id, "rows_cleaned": cleaned},
         message=f"Agent {agent_name} deleted successfully"
     )
 
@@ -669,7 +736,22 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
                         if k not in agent.configuration:
                             agent.configuration[k] = v
 
-                runner = GenericAgent(agent)
+                # Marketplace managed agents: resolve prompts/tools/guidance
+                # from the template manifest (raises if a kill switch tripped).
+                from core.marketplace_runtime import (
+                    ManagedAgentBlockedError,
+                    resolve_managed_agent,
+                )
+
+                try:
+                    managed_overrides = resolve_managed_agent(db, agent)
+                except ManagedAgentBlockedError as blocked:
+                    return router.error_response(
+                        message=f"This marketplace agent is unavailable: {blocked.reason}",
+                        status_code=403,
+                    )
+
+                runner = GenericAgent(agent, managed_overrides=managed_overrides)
 
                 # 3. Determine Input
                 # ReAct loop needs a natural language instruction.
@@ -975,7 +1057,7 @@ async def create_custom_agent(
         # 0.5 default put every new employee one graded rehearsal away from
         # promotion — confidence should reflect demonstrated work, and the
         # evidence gate (student_training_service) now requires it anyway.
-        confidence_score=0.35,
+        confidence_score=NEW_AGENT_CONFIDENCE,
     )
     db.add(registry_entry)
     db.commit()

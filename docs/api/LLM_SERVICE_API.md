@@ -81,6 +81,23 @@ the learning router's data flywheel and dashboard:
 - **`GET /api/chat/routing-stats`** — per-model success rates, total feedback
   samples, learning status. Powers the `/settings/routing` dashboard.
 
+### Agent Trace Endpoints
+
+Also under `/api/chat` (and `/api/reasoning`), backing the Agent Workspace
+panel — see [Agent Workspace Live Trace](../agents/agent-workspace-trace.md):
+
+- **`GET /api/chat/trace/{session_id}?limit=10`** — the session's persisted
+  agent runs (newest first) joined to their `AgentReasoningStep` rows, for
+  history restore. Runs are linked to the session via
+  `AgentExecution.metadata_json["session_id"]`; ownership enforced like
+  `GET /api/chat/history/{session_id}`.
+- **`POST /api/reasoning/feedback`** — per-step thumbs on agent reasoning.
+  Existing fields (`agent_id`, `run_id`, `step_index`, `step_content`,
+  `feedback_type`, `comment`) feed governance adjudication; optional
+  `execution_id` + `step_number` additionally stamp
+  `AgentReasoningStep.feedback_score`/`feedback_text` so training consumers
+  can query the polarity directly.
+
 ➡️ Full architecture and the flag semantics: [Learning LLM Router](../architecture/LEARNING_LLM_ROUTER.md)
 
 ---

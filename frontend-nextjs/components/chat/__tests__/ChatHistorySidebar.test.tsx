@@ -136,7 +136,7 @@ describe('ChatHistorySidebar', () => {
     mockSessions({
       's-1': { title: 'Dict session', history: [{ message: 'hello' }], last_active: dateStr },
       's-2': { title: 'Another one', history: [{ message: 'world' }], last_updated: dateStr },
-    });
+    } as any);
 
     renderWithProviders(
       <ChatHistorySidebar selectedSessionId={null} onSelectSession={mockOnSelectSession} />

@@ -34,12 +34,13 @@ describe('SignUp Component', () => {
     (useRouter as jest.Mock).mockReturnValue({
       push: mockPush,
       pathname: '/auth/signup',
+      query: {},
     });
     (getSession as jest.Mock).mockResolvedValue(null);
     (signIn as jest.Mock).mockResolvedValue({ ok: true, error: null });
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ success: true }),
+      json: async () => ({ success: true, access_token: 'test-token-123', token_type: 'bearer' }),
     }) as jest.Mock;
   });
 
@@ -247,7 +248,7 @@ describe('SignUp Component', () => {
       });
     });
 
-    it('should redirect to signin on successful registration', async () => {
+    it('should go straight to the dashboard after successful registration', async () => {
       render(<SignUp />);
       const nameInput = screen.getByLabelText(/full name/i);
       const emailInput = screen.getByLabelText(/email/i);
@@ -261,13 +262,19 @@ describe('SignUp Component', () => {
       await userEvent.type(confirmPasswordInput, 'password123');
       fireEvent.click(submitButton);
 
+      // The register response carries a token — the page persists it and
+      // enters the app directly instead of forcing a redundant sign-in.
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/auth/signin');
+        expect(mockPush).toHaveBeenCalledWith('/dashboard');
       });
     });
 
     it('should show error if user already exists', async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(new Error('User already exists'));
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: async () => ({ detail: 'An account with this email already exists' }),
+      });
       render(<SignUp />);
       const nameInput = screen.getByLabelText(/full name/i);
       const emailInput = screen.getByLabelText(/email/i);
@@ -367,8 +374,9 @@ describe('SignUp Component', () => {
       await userEvent.type(confirmPasswordInput, 'password123');
       fireEvent.click(submitButton);
 
+      // registerWithBackend maps connection failures to a concrete message.
       await waitFor(() => {
-        expect(screen.getByText(/network error/i)).toBeInTheDocument();
+        expect(screen.getByText(/unable to connect to the server/i)).toBeInTheDocument();
       });
     });
 
@@ -446,18 +454,17 @@ describe('SignUp Component', () => {
       await waitFor(() => {
         expect(toastMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            title: 'Account created successfully!',
+            title: 'Welcome to ATOM!',
           })
         );
       });
     });
 
-    it('should show toast when redirecting to signin', async () => {
+    it('should show welcome toast and navigate straight to the dashboard', async () => {
       const toastMock = jest.fn();
       (require('@/components/ui/use-toast').useToast as jest.Mock).mockReturnValue({
         toast: toastMock,
       });
-      (signIn as jest.Mock).mockResolvedValue({ error: 'User exists', ok: false });
 
       render(<SignUp />);
       const nameInput = screen.getByLabelText(/full name/i);
@@ -467,7 +474,7 @@ describe('SignUp Component', () => {
       const submitButton = screen.getByRole('button', { name: /create account/i });
 
       await userEvent.type(nameInput, 'John Doe');
-      await userEvent.type(emailInput, 'existing@example.com');
+      await userEvent.type(emailInput, 'test@example.com');
       await userEvent.type(passwordInput, 'password123');
       await userEvent.type(confirmPasswordInput, 'password123');
       fireEvent.click(submitButton);
@@ -475,9 +482,10 @@ describe('SignUp Component', () => {
       await waitFor(() => {
         expect(toastMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            title: 'Account created successfully!',
+            title: 'Welcome to ATOM!',
           })
         );
+        expect(mockPush).toHaveBeenCalledWith('/dashboard');
       });
     });
   });

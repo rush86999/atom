@@ -310,6 +310,11 @@ class LLMService:
             model_type=model,
             temperature=temperature,
             turn_index=turn_index,
+            # Full conversation through to the model: `prompt` alone only
+            # feeds routing (complexity/last-user-text). Previously this call
+            # flattened messages to (prompt, last-system) and the BYOK handler
+            # never saw the transcript — multi-turn recall was impossible.
+            messages=messages,
             **kwargs
         )
 

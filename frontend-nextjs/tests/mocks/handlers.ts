@@ -105,6 +105,30 @@ interface DeviceSession {
 // ============================================================================
 
 export const commonHandlers = [
+  // Per-integration ingestion status (IngestionStatusPanel) — default
+  // connected+syncing payload; suites can override with server.use().
+  rest.get('/api/integrations/:integrationId/ingestion-status', (req, res, ctx) => {
+    const { integrationId } = req.params as { integrationId: string };
+    return res(
+      ctx.status(200),
+      ctx.json({
+        integration_id: integrationId,
+        app_type: integrationId,
+        connected: true,
+        connection_source: 'oauth_token',
+        ingestion_available: true,
+        stream_running: true,
+        records_ingested: 0,
+        last_ingested: null,
+        ingestion_status: 'active',
+      })
+    );
+  }),
+
+  rest.post('/api/integrations/:integrationId/ingestion/start', (_req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ start_attempted: true }));
+  }),
+
   // Health check endpoint
   rest.get('/api/health', (req, res, ctx) => {
     return res(
@@ -1640,7 +1664,7 @@ export const slackHandlers = [
         success: true,
         message: {
           type: 'message',
-          text: req.body?.text || 'New test message',
+          text: (req.body as Record<string, any>)?.text || 'New test message',
           ts: '1234567892.123456',
         },
       })
@@ -1687,7 +1711,7 @@ export const slackHandlers = [
         success: true,
         channel: {
           id: 'C1234567890',
-          name: req.body?.name || 'general',
+          name: (req.body as Record<string, any>)?.name || 'general',
         },
       })
     );
@@ -1815,7 +1839,7 @@ export const microsoft365Handlers = [
         success: true,
         message: {
           id: 'new-email-id',
-          subject: req.body?.subject || 'Test Subject',
+          subject: (req.body as Record<string, any>)?.subject || 'Test Subject',
         },
       })
     );

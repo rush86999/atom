@@ -8,19 +8,10 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import useCanvasState from '@/hooks/useCanvasState';
 
-// Mock global window.atom.canvas API
-declare global {
-  interface Window {
-    atom?: {
-      canvas: {
-        getState: (canvasId: string) => any;
-        getAllStates: () => Array<{ canvas_id: string; state: any }>;
-        subscribe: (callback: (state: any) => void) => () => void;
-        subscribeAll: (callback: (event: any) => void) => () => void;
-      };
-    };
-  }
-}
+// Note: window.atom's global type (CanvasStateAPI) is declared in
+// components/canvas/types — do not redeclare it here. This file always works
+// with the API through `(window as any).atom.canvas`, which carries the extra
+// test-only helpers (_setState, _removeState, _clear).
 
 // ============================================
 // Test Utilities
@@ -165,7 +156,7 @@ describe('useCanvasState API Integration - Canvas Close', () => {
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const { result } = renderHook(() => useCanvasState('canvas-123'));
 
@@ -266,7 +257,7 @@ describe('useCanvasState API Integration - Canvas Close', () => {
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const response = await fetch('/api/canvas/non-existent/close', {
       method: 'POST'
@@ -298,7 +289,7 @@ describe('useCanvasState API Integration - Canvas Close', () => {
       blob: async () => new Blob(),
       formData: async () => new FormData(),
       text: async () => ''
-    });
+    } as unknown as Response);
 
     const response = await fetch('/api/canvas/canvas-123/close', {
       method: 'POST'
@@ -583,7 +574,7 @@ describe('useCanvasState API Integration - WebSocket Simulation', () => {
     api._setState(wsUpdate.canvas_id, wsUpdate.state);
 
     await waitFor(() => {
-      expect(result.current.state.data.field).toBe('updated via WebSocket');
+      expect((result.current.state as any).data.field).toBe('updated via WebSocket');
     });
   });
 

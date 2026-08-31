@@ -270,4 +270,65 @@ describe('OnboardingWizard', () => {
     expect(mockOnClose).not.toHaveBeenCalled();
     expect(mockOnUpdate).not.toHaveBeenCalledWith({ onboarding_completed: true });
   });
+
+  it('populates the provider dropdown from the live registry and excludes Ollama', async () => {
+    mockFetch([
+      {
+        match: '/api/onboarding/probe-ollama',
+        res: () => ({ ok: true, json: { data: { reachable: false } } }),
+      },
+      {
+        // Tenant-scoped BYOK registry, wrapped in the ApiResponse envelope.
+        match: '/api/ai/providers',
+        res: () => ({
+          ok: true,
+          json: {
+            success: true,
+            data: {
+              providers: [
+                { provider: { id: 'openai', name: 'OpenAI' }, has_api_keys: true, status: 'active' },
+                { provider: { id: 'openrouter', name: 'OpenRouter' }, has_api_keys: false, status: 'inactive' },
+                { provider: { id: 'moonshot', name: 'Moonshot AI (Kimi)' }, has_api_keys: false, status: 'inactive' },
+                { provider: { id: 'ollama', name: 'Ollama' }, has_api_keys: false, status: 'inactive' },
+              ],
+              total_providers: 4,
+            },
+          },
+        }),
+      },
+    ]);
+    renderWizard();
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+
+    const select = await screen.findByRole('combobox');
+    // The live registry fetch resolves after the seed list renders — wait for
+    // the options to swap.
+    await waitFor(() => {
+      const options = Array.from(select.querySelectorAll('option')).map((o) => o.value);
+      expect(options).toContain('openrouter');
+      expect(options).toContain('moonshot');
+    });
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.value);
+    expect(options).not.toContain('ollama'); // Card A owns the Ollama path
+  });
+
+  it('falls back to the seeded provider list when the registry fetch fails', async () => {
+    mockFetch([
+      {
+        match: '/api/onboarding/probe-ollama',
+        res: () => ({ ok: false, status: 200 }),
+      },
+      { match: '/api/ai/providers', res: () => ({ ok: false, status: 401, json: {} }) },
+    ]);
+    renderWizard();
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+
+    const select = await screen.findByRole('combobox');
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.value);
+    expect(options).toEqual(
+      expect.arrayContaining(['openai', 'openrouter', 'anthropic', 'deepseek', 'glm'])
+    );
+  });
 });

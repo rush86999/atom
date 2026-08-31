@@ -28,9 +28,32 @@ if not SECRET_KEY:
     if os.getenv("ENVIRONMENT") == "production" or os.getenv("NODE_ENV") == "production":
         raise ValueError("SECRET_KEY environment variable is required in production")
     else:
-        # Generate a secure random key for development
-        SECRET_KEY = secrets.token_urlsafe(32)
-        logger.warning("⚠️ Using auto-generated secret key for development. Set SECRET_KEY env var for persistence.")
+        # Dev fallback: generate once and PERSIST under data/, so a backend
+        # restart doesn't mint a new secret and invalidate every issued JWT
+        # (users were logged out on every restart before this). Set SECRET_KEY
+        # in the environment to override.
+        _secret_file = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", ".dev_secret_key"
+        )
+        try:
+            if os.path.exists(_secret_file):
+                with open(_secret_file) as f:
+                    SECRET_KEY = f.read().strip()
+            if not SECRET_KEY:
+                SECRET_KEY = secrets.token_urlsafe(48)
+                os.makedirs(os.path.dirname(_secret_file), exist_ok=True)
+                with open(_secret_file, "w") as f:
+                    f.write(SECRET_KEY)
+                try:
+                    os.chmod(_secret_file, 0o600)
+                except OSError:
+                    pass
+        except OSError as e:
+            # Read-only filesystem or similar: fall back to the historical
+            # per-process key rather than failing startup.
+            SECRET_KEY = secrets.token_urlsafe(32)
+            logger.warning(f"Could not persist dev secret key ({e}); sessions reset on restart.")
+        logger.info("Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours

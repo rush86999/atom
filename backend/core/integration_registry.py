@@ -49,6 +49,8 @@ DEFAULT_SERVICE_REGISTRY = {
     "zoho_inventory": "integrations.zoho_inventory_service:ZohoInventoryService",
     "zoho_mail": "integrations.zoho_mail_service:ZohoMailService",
     "zoho_workdrive": "integrations.zoho_workdrive_service:ZohoWorkDriveService",
+    "zoho_forms": "integrations.zoho_forms_service:ZohoFormsService",
+    "zoho_flow": "integrations.zoho_flow_service:ZohoFlowService",
     "google_drive": "integrations.google_drive_service:GoogleDriveService",
     "shopify": "integrations.shopify_service:ShopifyService",
     "discord": "integrations.discord_enhanced_service:DiscordEnhancedService",

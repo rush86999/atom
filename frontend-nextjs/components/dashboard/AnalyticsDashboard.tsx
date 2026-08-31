@@ -58,6 +58,7 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
+import type { TooltipValueType } from 'recharts';
 
 // Types
 interface DashboardKPIs {
@@ -383,7 +384,7 @@ const WorkflowAnalyticsDashboard: React.FC = () => {
                     <YAxis />
                     <Tooltip
                       labelFormatter={(v) => new Date(v).toLocaleString()}
-                      formatter={(value: number) => [value, 'Executions']}
+                      formatter={(value: TooltipValueType) => [value, 'Executions']}
                     />
                     <Legend />
                     <Area type="monotone" dataKey="success_count" stackId="1" stroke="#22c55e" fill="#22c55e" name="Success" />

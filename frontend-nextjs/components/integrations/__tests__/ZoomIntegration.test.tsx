@@ -273,7 +273,7 @@ describe('ZoomIntegration (extended coverage)', () => {
     fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
 
     await waitFor(() => {
-      const urls = fetchSpy.mock.calls.map(([u]: [string]) => String(u));
+      const urls = fetchSpy.mock.calls.map(([u]) => String(u));
       expect(urls.some((u) => u.includes('/api/zoom/meetings'))).toBe(true);
       expect(urls.some((u) => u.includes('/api/zoom/users'))).toBe(true);
       expect(urls.some((u) => u.includes('/api/zoom/recordings'))).toBe(true);

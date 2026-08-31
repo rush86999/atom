@@ -18,8 +18,11 @@ import { useToast } from '@/components/ui/use-toast';
 const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 
 const outlookHandlers = [
-  rest.get('/api/integrations/outlook/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ providers: { outlook: { connected: true, source: 'oauth' } } })
+    );
   }),
   rest.post('/api/integrations/outlook/profile', (req, res, ctx) => {
     return res(
@@ -202,9 +205,15 @@ describe('OutlookIntegration Component', () => {
     localStorage.clear();
   });
 
-  it('renders Outlook integration component', () => {
+  it('renders Outlook integration component', async () => {
     renderWithProviders(<OutlookIntegration />);
     expect(screen.getByText(/outlook/i)).toBeInTheDocument();
+    // The connected mount kicks off profile/email loads; let them settle so
+    // MSW's resetHandlers in afterEach doesn't abort an in-flight request and
+    // leak its rejection into the next test's console.error assertions.
+    await waitFor(() => {
+      expect(screen.getByText('Rushi Parikh')).toBeInTheDocument();
+    });
   });
 
   it('initiates OAuth connection and forwards the auth token to the initiate endpoint', async () => {
@@ -213,7 +222,7 @@ describe('OutlookIntegration Component', () => {
     localStorage.setItem('auth_token', 'test-jwt-token');
 
     server.use(
-      rest.get('/api/integrations/outlook/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500));
       })
     );
@@ -254,7 +263,7 @@ describe('OutlookIntegration Component', () => {
       })
     );
 
-    renderWithProviders(<OutlookIntegration connected={true} />);
+    renderWithProviders(<OutlookIntegration {...({ connected: true } as any)} />);
 
     await waitFor(() => {
       expect(screen.getByText('Test email')).toBeInTheDocument();
@@ -582,7 +591,7 @@ describe('OutlookIntegration Component', () => {
     it('handles a network-level health check failure as disconnected', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       server.use(
-        rest.get('/api/integrations/outlook/health', (req, res) => {
+        rest.get('/api/integrations/connection-status', (req, res) => {
           return new Promise((resolve, reject) => {
             setTimeout(() => reject(new Error('network error')), 5);
           });
@@ -640,7 +649,7 @@ describe('OutlookIntegration Component', () => {
       });
       // Calendar tab renders without crashing despite the failed events fetch
       await userEvent.click(screen.getByRole('button', { name: 'Calendar' }));
-      expect(screen.getByText('Connected')).toBeInTheDocument();
+      expect(screen.getAllByText('Connected').length).toBeGreaterThan(0);
       consoleErrorSpy.mockRestore();
     });
 
@@ -668,7 +677,7 @@ describe('OutlookIntegration Component', () => {
       // Contacts + Tasks tabs render without crashing
       await userEvent.click(screen.getByRole('button', { name: 'Contacts' }));
       await userEvent.click(screen.getByRole('button', { name: 'Tasks' }));
-      expect(screen.getByText('Connected')).toBeInTheDocument();
+      expect(screen.getAllByText('Connected').length).toBeGreaterThan(0);
       consoleErrorSpy.mockRestore();
     });
 
@@ -676,7 +685,7 @@ describe('OutlookIntegration Component', () => {
       const user = userEvent.setup();
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       server.use(
-        rest.get('/api/integrations/outlook/health', (req, res, ctx) => {
+        rest.get('/api/integrations/connection-status', (req, res, ctx) => {
           return res(ctx.status(500));
         })
       );
@@ -721,7 +730,7 @@ describe('OutlookIntegration Component', () => {
       const user = userEvent.setup();
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       server.use(
-        rest.get('/api/integrations/outlook/health', (req, res, ctx) => {
+        rest.get('/api/integrations/connection-status', (req, res, ctx) => {
           return res(ctx.status(500));
         })
       );
@@ -773,7 +782,7 @@ describe('OutlookIntegration Component', () => {
 
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith(
-          expect.stringContaining('/api/integrations/outlook/health'),
+          expect.stringContaining('/api/integrations/connection-status'),
           expect.anything()
         );
       });

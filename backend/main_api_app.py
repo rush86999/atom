@@ -344,7 +344,13 @@ def load_env():
     loaded = False
     for path in env_paths:
         if path.exists():
-            load_dotenv(path, override=True)
+            # Fallback search: fills variables the process environment did
+            # not set. It must NOT override them — explicit process env
+            # (docker -e, systemd, scripts/start-backend.sh, the e2e journey
+            # harness' fresh DATABASE_URL and mock provider credentials)
+            # always wins over .env files. override=True here silently
+            # discarded every one of those.
+            load_dotenv(path)
             logger.info("Configuration loaded", extra={"env_path": str(path)})
             loaded = True
             break
@@ -415,6 +421,17 @@ async def lifespan(app: FastAPI):
         from core.admin_bootstrap import ensure_admin_user
         from core.database import engine
         from core.models import Base
+
+        # SQLite schema-drift repair BEFORE create_all: a local DB whose
+        # schema lags the models makes every INSERT for the drifted table
+        # fail silently (agent_reasoning_steps lacked requested_model/
+        # resolved_model → no reasoning step ever persisted → the Agent
+        # Workspace "Tasks" panel was permanently empty).
+        try:
+            from core.sqlite_schema_repair import repair_known_drift
+            repair_known_drift()
+        except Exception as drift_err:
+            logger.warning(f"schema drift repair skipped: {drift_err}")
 
         # Base.metadata.create_all is safe to call but can be slow/hang in production with 12k lines
         try:
@@ -1051,6 +1068,46 @@ try:
         """Root endpoint."""
         return {"name": "ATOM Platform API", "version": "8.0.0", "status": "running"}
 
+    # Process identity for /health: a stale backend (orphaned --reload worker,
+    # or a second instance on a different port) answers /health 200 exactly
+    # like a fresh one while serving old in-memory state. Surfacing boot time,
+    # pid and port makes that mismatch visible at a glance.
+    _PROCESS_STARTED_AT = datetime.now(timezone.utc)
+
+    def _process_identity() -> dict:
+        """Best-effort process identity for the health payload — never raises."""
+        info = {
+            "pid": os.getpid(),
+            "started_at": _PROCESS_STARTED_AT.isoformat(),
+            "cwd": os.getcwd(),
+            "git_commit": "unknown",
+        }
+        try:
+            if "--port" in sys.argv:
+                info["port"] = int(sys.argv[sys.argv.index("--port") + 1])
+        except Exception:
+            pass
+        try:
+            import subprocess as _sp
+            info["git_commit"] = _sp.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                capture_output=True, text=True, timeout=2,
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+            ).stdout.strip() or "unknown"
+        except Exception:
+            pass
+        try:
+            from core.database import DATABASE_URL as _db_url
+            info["database"] = _db_url.split("///")[-1] if "sqlite" in _db_url else "postgresql"
+        except Exception:
+            pass
+        try:
+            from api import byok_routes as _byok
+            info["byok_key_store"] = _byok.BYOK_KEYS_FILE
+        except Exception:
+            pass
+        return info
+
     @app.get("/health", tags=["System"])
     @app.get("/api/health", tags=["System"])
     async def health_check():
@@ -1075,6 +1132,7 @@ try:
             "version": "8.0.0",
             "deployed_sha": deployed_sha,
             "timestamp": datetime.now(timezone.utc).isoformat(),
+            "identity": _process_identity(),
             "database": health_data["services"]["database"],
             "redis": health_data["services"]["redis"],
             "vector_store": health_data["services"]["vector_store"],
@@ -2810,11 +2868,11 @@ try:
 
         app.include_router(hubspot_router, prefix="/api/v1/integrations/hubspot")
 
-        # Zoho Suite — every router defines its OWN prefix
-        # (/api/zoho-workdrive, /api/integrations/zoho_*). Mounting them under
-        # /api/v1/integrations/... doubled every path
-        # (…/zoho-workdrive/api/zoho-workdrive/…), 404-ing the frontend's
-        # bare calls. Include bare so the router prefixes hold.
+        # Zoho Suite (Standardized). The router declares its own
+        # /api/zoho-workdrive prefix — the Integrations hub probes
+        # /api/zoho-workdrive/health through the next.config rewrite, so it
+        # must be mounted there. Re-prefixing it under /api/v1/integrations
+        # produced a double-prefixed path that nothing could reach.
         from api.zoho_workdrive_routes import router as zoho_router
 
         app.include_router(zoho_router)
@@ -2838,6 +2896,19 @@ try:
         from integrations.zoho_mail_routes import router as zoho_mail_router
 
         app.include_router(zoho_mail_router)
+
+        # Zoho Forms + Zoho Flow: webhook-push apps (no public read API —
+        # see integrations/zoho_forms_service.py). These routers declare no
+        # prefix of their own, so the mount path below is the full path:
+        # /health, /capabilities, readback, and (Forms) the ingestion
+        # webhook under /api/v1/integrations/zoho-forms/webhook.
+        from integrations.zoho_forms_routes import router as zoho_forms_router
+
+        app.include_router(zoho_forms_router, prefix="/api/v1/integrations/zoho-forms")
+
+        from integrations.zoho_flow_routes import router as zoho_flow_router
+
+        app.include_router(zoho_flow_router, prefix="/api/v1/integrations/zoho-flow")
 
         # HR Integrations
         try:
@@ -3123,6 +3194,16 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Connection routes not found: {e}")
 
+    # Register real per-integration connection status (Integrations page —
+    # DB connections + tenant connectors + env credentials, no health fakes)
+    try:
+        from api.integration_status_routes import router as integ_status_router
+
+        app.include_router(integ_status_router)
+        logger.info("✓ Integration Status Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Integration status routes not found: {e}")
+
     # 7. Chat Orchestrator Routes (Critical for chat functionality)
     # The chat router lives at integrations/chat_routes.py (prefix /api/chat
     # already set on the router itself). The old import path
@@ -3225,6 +3306,16 @@ try:
         logger.info("✓ Canvas Recording Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas recording routes not found: {e}")
+
+    try:
+        # Autonomy policy: which action topics always require a human in the
+        # loop vs. agent-autonomous-if-mature (canvas page Autonomy panel).
+        from api.autonomy_routes import router as autonomy_router
+
+        app.include_router(autonomy_router)
+        logger.info("✓ Autonomy Routes Loaded (action HITL policy)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Autonomy routes not found: {e}")
 
     try:
         # Round 80f: meeting attendance had a real frontend consumer
@@ -3917,6 +4008,15 @@ try:
         logger.info("✓ Admin Runtime Settings Routes Loaded")
     except (ImportError, NameError) as e:
         logger.warning(f"Admin runtime settings routes failed to load: {e}")
+
+    # 38c. BPE Workspace Admin Routes (agent-harness observability + management)
+    try:
+        from api.bpe_routes import router as bpe_admin_router
+
+        app.include_router(bpe_admin_router)
+        logger.info("✓ BPE Workspace Admin Routes Loaded")
+    except (ImportError, NameError) as e:
+        logger.warning(f"BPE workspace admin routes failed to load: {e}")
 
     # 40. Fleet Router Management Routes (validation + approval queue)
     try:

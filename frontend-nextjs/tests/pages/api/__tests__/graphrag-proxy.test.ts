@@ -1,4 +1,4 @@
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/graphrag/[...path]";
 
 const mockFetch = jest.fn();
@@ -45,7 +45,7 @@ describe("pages/api/graphrag/[...path]", () => {
     opts: { headers?: any; body?: any } = {},
   ) => {
     const { req, res } = createMocks({
-      method,
+      method: method as RequestMethod,
       query,
       headers: opts.headers,
       body: opts.body,

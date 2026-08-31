@@ -63,13 +63,26 @@ class GenericAgent:
         "mcp_tool_search",
         "save_business_fact",
         "verify_citation",
-        "ingest_knowledge_from_text", 
+        "ingest_knowledge_from_text",
         "request_human_intervention",
-        "get_system_health"
+        "get_system_health",
+        # Knowledge VFS: how agents browse/cite everything ingested from
+        # connectors and uploads. Read-only, bounded; without these the agent
+        # never learns ingested documents exist unless it thinks to run a
+        # tool search for them (Aug 2026 awareness gap).
+        "documents.search",
+        "documents.ls",
+        "documents.cat",
+        "documents.grep",
         # Others can be discovered
     ]
 
-    def __init__(self, agent_model: AgentRegistry, workspace_id: str = "default"):
+    def __init__(
+        self,
+        agent_model: AgentRegistry,
+        workspace_id: str = "default",
+        managed_overrides: Optional[Dict[str, Any]] = None,
+    ):
         self.id = agent_model.id
         self.name = agent_model.name
         self.config = agent_model.configuration or {}
@@ -118,7 +131,31 @@ class GenericAgent:
         # Extract Agent Config
         self.system_prompt = self.config.get("system_prompt", f"You are {self.name}, a helpful assistant.")
         self.allowed_tools = self.config.get("tools", "*")
-        
+
+        # Marketplace managed-agent overrides: for installed marketplace
+        # agents the stored configuration is only a reference — prompts,
+        # tool surface, and publisher guidance are resolved server-side from
+        # the template manifest (core.marketplace_runtime) and injected here,
+        # never persisted into the tenant's agent row.
+        self.blocked_tools: set = set()
+        self.managed_guidance: Optional[Dict[str, Any]] = None
+        if managed_overrides:
+            if managed_overrides.get("system_prompt"):
+                self.system_prompt = managed_overrides["system_prompt"]
+            if managed_overrides.get("allowed_tools"):
+                self.allowed_tools = managed_overrides["allowed_tools"]
+            self.blocked_tools = set(managed_overrides.get("blocked_tools") or [])
+            self.managed_guidance = managed_overrides.get("guidance")
+
+    def _managed_guidance_block(self) -> str:
+        """Read-only publisher playbook/sequences injected into the prompt."""
+        try:
+            from core.marketplace_runtime import render_guidance_block
+
+            return render_guidance_block(self.managed_guidance)
+        except Exception:
+            return ""
+
     async def execute(self, task_input: str, context: Dict[str, Any] = None, step_callback: Optional[callable] = None) -> Dict[str, Any]:
         """
         Execute a task using the ReAct (Reason-Act-Observe) loop.
@@ -243,7 +280,19 @@ class GenericAgent:
         steps = []
         final_answer = None
         status = "success"
-        
+
+        # BPE workspace (plan Phase 2): fresh per-episode consult counters so
+        # the consult policy sees per-run rates, not lifetime totals.
+        try:
+            from core.bpe.actions import bpe_enabled as _bpe_on
+            from core.bpe.workspace import get_workspace as _get_ws
+
+            if _bpe_on():
+                _scope_key = str(context.get("session_id") or context.get("execution_id") or "")
+                _get_ws(self.workspace_id, str(self.id), _scope_key).reset_episode_counters()
+        except Exception as _bpe_err:
+            logger.debug(f"bpe episode reset skipped: {_bpe_err}")
+
         try:
             async def run_loop():
                 nonlocal final_answer, status
@@ -470,7 +519,9 @@ class GenericAgent:
                         _stuck_keys.append(_stuck_key)
 
                         # Safety check
-                        if self.allowed_tools != "*" and tool_name not in self.allowed_tools:
+                        if (
+                            self.allowed_tools != "*" and tool_name not in self.allowed_tools
+                        ) or tool_name in self.blocked_tools:
                             observation = f"Error: Tool '{tool_name}' is not allowed."
                         else:
                             observation = await self._step_act(tool_name, tool_args, context, step_callback)
@@ -682,7 +733,55 @@ class GenericAgent:
             "audit_report": audit_report,
             "timestamp": start_time.isoformat()
         }
-        
+
+        # BPE workspace episode close-out (plan Phase 2): consolidate notes
+        # (success only — failed-run lessons are dropped, evidence-gate
+        # posture), feed the consult policy, persist workspace state into the
+        # result so _record_execution can attach it to the experience trace.
+        try:
+            from core.bpe.actions import bpe_enabled as _bpe_on
+            from core.bpe.consolidation import consolidate_workspace_notes
+            from core.bpe.consult_policy import get_consult_policy
+            from core.bpe.workspace import get_workspace as _get_ws
+
+            if _bpe_on():
+                _scope_key = str((context or {}).get("session_id") or (context or {}).get("execution_id") or "")
+                _ws = _get_ws(self.workspace_id, str(self.id), _scope_key)
+                _success = status == "success"
+                _bpe_consolidated = (
+                    consolidate_workspace_notes(_ws) if _success
+                    else {"dropped_notes": len(_ws.drain_pending_notes())}
+                )
+                _policy = get_consult_policy()
+                _policy.record_consult_mix(str(self.id), _ws.episode_commit_notes)
+                _policy.record_episode(
+                    str(self.id), _ws.episode_consults, _success, step_efficiency
+                )
+                # BPE automation: each finished run is a chance to auto-apply
+                # an evolved workspace genome (evidence-gated; see
+                # core/bpe/automation.py — no operator flip required).
+                try:
+                    from core.bpe.evolution import apply_best
+
+                    apply_best(str(self.id))
+                except Exception as _evo_err:
+                    logger.debug(f"bpe evolution apply skipped: {_evo_err}")
+                execution_result["bpe"] = {
+                    "consults": _ws.episode_consults,
+                    "consolidated": _bpe_consolidated,
+                    "value_ema": _policy.snapshot().get(str(self.id), {}).get("value_ema"),
+                    "state": _ws.to_dict(),
+                }
+                try:
+                    from core.bpe.persistence import BPEWorkspaceStore
+
+                    BPEWorkspaceStore().save(execution_result["bpe"]["state"])
+                except Exception as _persist_err:
+                    logger.debug(f"bpe persist skipped: {_persist_err}")
+                _ws.reset_episode_counters()
+        except Exception as _bpe_err:
+            logger.debug(f"bpe episode close-out skipped: {_bpe_err}")
+
         await self._record_execution(task_input, execution_result, context)
 
         # R81 (G5): persist an episode for session-linked runs so workflow/
@@ -1005,8 +1104,12 @@ class GenericAgent:
         # If agent has explicit "allowed_tools", respect that (ignore core/lazy if restricted subset)
         # But if allowed_tools is "*", we use Lazy Loading
         if self.allowed_tools == "*":
-             # Core Tools + Session Tools
-             active_tools = [t for t in all_tools if t["name"] in self.CORE_TOOLS_NAMES]
+             # Core Tools + Session Tools (permission-profile blocks removed)
+             active_tools = [
+                 t
+                 for t in all_tools
+                 if t["name"] in self.CORE_TOOLS_NAMES and t["name"] not in self.blocked_tools
+             ]
              active_tools.extend(self.session_tools)
         else:
              # Explicit list in config
@@ -1122,6 +1225,41 @@ class GenericAgent:
                 "evidence so the outcome verifier can confirm it.\n"
             )
 
+        # BPE workspace (docs/architecture/BPE_WORKSPACE_PLAN.md, Phase 1+2):
+        # shadow-first — render the policy-facing (Belief/Progress/Experience)
+        # block gated by ATOM_BPE_WORKSPACE_ENABLED (default ON); flag off → prompt
+        # unchanged, consult telemetry still flows through bpe.* spans. With
+        # ATOM_BPE_CONSULT_POLICY on, the consult policy also gates rendering
+        # by complexity + per-agent value EMA and may render recall-only.
+        bpe_block = ""
+        try:
+            from core.bpe.actions import bpe_enabled
+            from core.bpe.consult_policy import get_consult_policy
+            from core.bpe.workspace import get_workspace
+
+            if bpe_enabled():
+                _ctx = context or {}
+                _scope_key = str(_ctx.get("session_id") or _ctx.get("execution_id") or "")
+                _ws = get_workspace(self.workspace_id, str(self.id), _scope_key)
+                _policy = get_consult_policy()
+                try:
+                    _complexity = self.llm._get_handler().analyze_query_complexity(task_input).value
+                except Exception:
+                    _complexity = "moderate"
+                if _policy.should_render(str(self.id), _complexity, workspace_nonempty=True):
+                    bpe_block = _ws.render(mode=_policy.render_mode(str(self.id)))
+                    if bpe_block:
+                        bpe_block += "\n"
+        except Exception as e:
+            logger.debug(f"bpe workspace render failed: {e}")
+
+        # Marketplace managed-agent guidance (read-only publisher playbook;
+        # empty for non-managed agents). Strictly additive.
+        try:
+            managed_guidance_block = self._managed_guidance_block()
+        except Exception:
+            managed_guidance_block = ""
+
         system_prompt = f"""{self.system_prompt}{mentorship_focus}
 
 {stage_handoff_note}
@@ -1130,6 +1268,8 @@ class GenericAgent:
 {skill_instructions}
 
 {utility_block}
+{bpe_block}
+{managed_guidance_block}
 AVAILABLE TOOLS:
 {tool_descriptions}
 
@@ -1628,6 +1768,12 @@ What is your next step?"""
                 "step_count": len(result.get("steps", [])),
                 "plan_adherence": result.get("plan_adherence"),
                 "audit_report": result.get("audit_report"),
+                # BPE workspace state (plan Phase 2): Progress + Experience
+                # ride the experience trace for observability/replay. Restore-
+                # on-restart from this trace is a Phase-3+ item; within a
+                # process the in-memory registry keeps state live.
+                "bpe_workspace": (result.get("bpe") or {}).get("state"),
+                "bpe_consults": (result.get("bpe") or {}).get("consults", 0),
                 "duration_seconds": (datetime.now(timezone.utc) - datetime.fromisoformat(result["timestamp"])).total_seconds() if "timestamp" in result else 0
             },
             agent_role=self.config.get("role", "specialty_agent"),
@@ -1676,7 +1822,12 @@ What is your next step?"""
         with get_db_session() as db:
             try:
                 gov = AgentGovernanceService(db)
-                await gov.record_outcome(self.id, success=success)
+                # Task text rides along so R86c domain attribution can
+                # ledger this run's business role (earned super-mentor
+                # evidence for generalists).
+                await gov.record_outcome(
+                    self.id, success=success, task_summary=input_text[:200]
+                )
                 
                 # 5. Graduation Check (Autonomous Promotion)
                 if success:

@@ -228,22 +228,27 @@ def test_j1_workdrive_resolves_token_after_oauth_connect():
 # J2 — ROLES: fan-out reaches all active roles, not suspended/pending
 # --------------------------------------------------------------------------- #
 
-def test_j2_role_fanout_reaches_all_active_roles(monkeypatch):
+def test_j2_role_fanout_reaches_all_active_roles():
     """Admin's Zoho grant is shared with every ACTIVE teammate (all roles);
-    suspended/pending users get no token rows.
-
-    R88 made fleet-wide sharing opt-in (credential-injection fix): it only
-    happens when ATOM_OAUTH_SHARED_INTEGRATION_TOKENS=true — the default is
-    single-operator (only the consenting user). Enable the flag explicitly to
-    exercise the shared path.
-    """
-    monkeypatch.setenv("ATOM_OAUTH_SHARED_INTEGRATION_TOKENS", "true")
+    suspended/pending users get no token rows."""
+    import os as _os
     active = [_user(f"u-{role}", role) for role in ALL_ACTIVE_ROLES]
     _user("u-suspended", "member", status="suspended")
     _user("u-pending", "member", status="pending")
 
     db, added = _callback_db(active)
-    asyncio.run(_run_zoho_callback(db))
+    # Fan-out is gated behind ATOM_OAUTH_SHARED_INTEGRATION_TOKENS (opt-in
+    # by design — cross-user token sharing is a security posture choice).
+    # This journey pins the FLAG-ON behavior; restore the env afterwards.
+    _prev = _os.environ.get("ATOM_OAUTH_SHARED_INTEGRATION_TOKENS")
+    _os.environ["ATOM_OAUTH_SHARED_INTEGRATION_TOKENS"] = "true"
+    try:
+        asyncio.run(_run_zoho_callback(db))
+    finally:
+        if _prev is None:
+            _os.environ.pop("ATOM_OAUTH_SHARED_INTEGRATION_TOKENS", None)
+        else:
+            _os.environ["ATOM_OAUTH_SHARED_INTEGRATION_TOKENS"] = _prev
 
     rows = [(r.user_id, r.provider) for r in added]
     for role in ALL_ACTIVE_ROLES:

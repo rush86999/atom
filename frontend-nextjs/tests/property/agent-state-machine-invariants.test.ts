@@ -149,7 +149,7 @@ describe('Agent Execution State Machine Invariants', () => {
   it('should allow idempotent error state transitions', () => {
     fc.assert(
       fc.property(
-        fc.constantFrom('idle', 'starting', 'running', 'stopping') as AgentExecutionState,
+        fc.constantFrom('idle' as AgentExecutionState, 'starting', 'running', 'stopping'),
         (state) => {
           // Transitions to error should always be valid
           expect(['idle', 'starting', 'running', 'stopping', 'error']).toContain('error');
@@ -517,7 +517,7 @@ describe('Agent Request Queue State Machine Invariants', () => {
             const nextStates = validTransitions[currentState];
 
             // Should have valid transitions unless completed
-            if (currentState !== 'completed') {
+            if ((currentState as AgentRequestState) !== 'completed') {
               expect(nextStates.length).toBeGreaterThan(0);
             }
 

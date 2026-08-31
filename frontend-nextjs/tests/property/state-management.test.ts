@@ -196,7 +196,7 @@ describe('State Management Property Tests', () => {
           // Take snapshots
           for (const state of history) {
             act(() => {
-              result.current.takeSnapshot(state);
+              result.current.takeSnapshot(state as any);
             });
           }
 
@@ -222,7 +222,7 @@ describe('State Management Property Tests', () => {
           edges: fc.array(fc.object())
         }),
         (initialState) => {
-          const { result } = renderHook(() => useUndoRedo(initialState));
+          const { result } = renderHook(() => useUndoRedo(initialState as any));
 
           // Initially canUndo should be false
           expect(result.current.canUndo).toBe(false);
@@ -250,7 +250,7 @@ describe('State Management Property Tests', () => {
           edges: fc.array(fc.object())
         }),
         (initialState) => {
-          const { result } = renderHook(() => useUndoRedo(initialState));
+          const { result } = renderHook(() => useUndoRedo(initialState as any));
 
           // Initially canRedo should be false
           expect(result.current.canRedo).toBe(false);

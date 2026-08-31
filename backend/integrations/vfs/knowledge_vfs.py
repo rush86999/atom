@@ -22,6 +22,12 @@ from core.vfs_base import VFSCitation, VFSNode, VFSProvider, VFSResource, to_lin
 
 logger = logging.getLogger(__name__)
 
+#: Bound on comms-store scans. The communications pipeline can stall during
+#: init in long-running servers; the conversations subtree must degrade to
+#: empty rather than hang the agent's filesystem call (Aug 2026: root grep
+#: hung 5+ minutes on the comms pipeline init).
+_COMMS_TIMEOUT_S = 20
+
 
 class KnowledgeVFSProvider(VFSProvider):
     """VFS view over the internal knowledge document stores."""
@@ -109,6 +115,15 @@ class KnowledgeVFSProvider(VFSProvider):
             return VFSResource(path=path)
         meta = self._doc_meta(doc)
         text = self._doc_text(doc)
+        # PG IngestedDocument rows carry only a ≤500-char preview; the full
+        # extracted text lives in the aligned LanceDB row. Serve the full text
+        # when the mirror row is the only thing we'd otherwise truncate.
+        if doc[0] == "ingested":
+            vec = await self._get_vector_doc(doc_id)
+            if vec:
+                vec_text = str(vec.get("text") or "")
+                if len(vec_text) > len(text):
+                    text = vec_text
         res = VFSResource(path=f"knowledge/documents/{doc_id}", meta=meta)
         if leaf == "meta.json":
             import json
@@ -120,11 +135,14 @@ class KnowledgeVFSProvider(VFSProvider):
     async def grep(
         self, pattern: str, path_prefix: str, ctx: Optional[Dict[str, Any]] = None
     ) -> List[VFSCitation]:
-        """Search across knowledge documents under ``path_prefix``.
+        """Search across knowledge content under ``path_prefix``.
 
         Overrides the base (which only scans one level of file nodes) because
-        knowledge/documents/<id>/ are directories — we descend into each and
-        scan its content.lines.
+        knowledge/documents/<id>/ are directories. Implementation note: this is
+        a BATCHED scan — one PG query + one Arrow scan per store — never
+        ls-then-cat-per-doc. The naive descent (cat every listed dir) ran one
+        kNN ``table.search()`` per conversation over the 20k-row comms table,
+        taking minutes in-app (Aug 2026 journey trace).
         """
         import re
         citations: List[VFSCitation] = []
@@ -132,31 +150,137 @@ class KnowledgeVFSProvider(VFSProvider):
             regex = re.compile(pattern, re.IGNORECASE)
         except re.error:
             return citations
-        # Enumerate document dirs under the prefix (or all if prefix is the root).
         # A root prefix ("/" or "") lists only the top-level category dirs, not
         # documents — retarget it at BOTH content trees so grep("/") finds hits
         # in documents and conversations alike.
         prefixes = [path_prefix]
         if path_prefix in ("/", "", "knowledge"):
             prefixes = ["knowledge/documents", "knowledge/conversations"]
-        nodes: List[VFSNode] = []
-        for prefix in prefixes:
+
+        if "knowledge/documents" in prefixes:
+            citations.extend(await self._grep_documents(regex, ctx))
+        if "knowledge/conversations" in prefixes:
+            citations.extend(await self._grep_conversations(regex))
+        return citations
+
+    def _cites_for_text(self, regex, path: str, text: str) -> List[VFSCitation]:
+        out: List[VFSCitation] = []
+        for i, line in enumerate((text or "").split("\n")):
+            if regex.search(line):
+                out.append(VFSCitation(path=path, line=i + 1, snippet=line[:200]))
+        return out
+
+    async def _grep_documents(self, regex, ctx) -> List[VFSCitation]:
+        """Regex-scan served document text: vector full text first (what cat
+        serves), PG preview / KnowledgeDocument content for rows with no
+        vector text. Two batched queries, no per-doc reads."""
+        import asyncio
+
+        def _scan_vector():
             try:
-                nodes.extend(await self.ls(prefix, ctx))
-            except Exception:
+                from core.lancedb_handler import get_lancedb_handler
+
+                handler = get_lancedb_handler("default")
+                if handler is None:
+                    return []
+                table = handler.get_table("documents")
+                if table is None:
+                    return []
+                return (
+                    table.to_arrow()
+                    .select(["id", "text"])
+                    .slice(0, 1000)
+                    .to_pylist()
+                )
+            except Exception as e:
+                logger.debug(f"[KnowledgeVFS] grep vector scan failed: {e}")
+                return []
+
+        citations: List[VFSCitation] = []
+        vector_ids: set = set()
+        rows = await asyncio.to_thread(_scan_vector)
+        for row in rows:
+            doc_id = str(row.get("id") or "")
+            text = str(row.get("text") or "")
+            if not doc_id or not text:
                 continue
-        for node in nodes:
-            if node.type != "dir":
-                continue
+            vector_ids.add(doc_id)
+            citations.extend(
+                self._cites_for_text(regex, f"knowledge/documents/{doc_id}", text)
+            )
+
+        try:
+            from core.models import IngestedDocument, KnowledgeDocument
+
+            with self._db() as db:
+                q1 = db.query(IngestedDocument)
+                wf = self._workspace_filter(ctx, IngestedDocument)
+                if wf is not None:
+                    q1 = q1.filter(wf)
+                for d in q1.yield_per(500):
+                    if d.id in vector_ids:
+                        continue
+                    citations.extend(
+                        self._cites_for_text(
+                            regex,
+                            f"knowledge/documents/{d.id}",
+                            getattr(d, "content_preview", "") or "",
+                        )
+                    )
+                q2 = db.query(KnowledgeDocument)
+                wf2 = self._workspace_filter(ctx, KnowledgeDocument)
+                if wf2 is not None:
+                    q2 = q2.filter(wf2)
+                for d in q2.yield_per(500):
+                    if d.id in vector_ids:
+                        continue
+                    citations.extend(
+                        self._cites_for_text(
+                            regex,
+                            f"knowledge/documents/{d.id}",
+                            getattr(d, "content", "") or "",
+                        )
+                    )
+        except Exception as e:
+            logger.warning(f"[KnowledgeVFS] grep PG scan failed: {e}")
+        return citations
+
+    async def _grep_conversations(self, regex, cap: int = 200) -> List[VFSCitation]:
+        import asyncio
+
+        def _scan():
+            table = self._comms_table()
+            if table is None:
+                return []
             try:
-                res = await self.cat(f"{node.path}/content.lines", ctx)
+                # head(), NOT to_arrow(): the comms table carries two vector
+                # columns over 20k+ rows — materializing it whole costs minutes
+                # of IO for data we never read. First `cap` rows suffice.
+                return (
+                    table.head(cap)
+                    .select(["id", "content"])
+                    .to_pylist()
+                )
             except Exception:
-                continue
-            for i, line in enumerate(res.lines):
-                if regex.search(line):
-                    citations.append(VFSCitation(
-                        path=res.path, line=i + 1, snippet=line[:200],
-                    ))
+                return []
+
+        try:
+            rows = await asyncio.wait_for(asyncio.to_thread(_scan), timeout=_COMMS_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            logger.warning(
+                "[KnowledgeVFS] comms scan timed out after %ss — skipping conversations leg",
+                _COMMS_TIMEOUT_S,
+            )
+            rows = []
+        citations: List[VFSCitation] = []
+        for row in rows:
+            cid = str(row.get("id") or "")
+            if cid:
+                citations.extend(
+                    self._cites_for_text(
+                        regex, f"knowledge/conversations/{cid}", str(row.get("content") or "")
+                    )
+                )
         return citations
 
     # ------------------------------------------------------------------
@@ -194,6 +318,46 @@ class KnowledgeVFSProvider(VFSProvider):
                     ))
         except Exception as e:
             logger.warning(f"[KnowledgeVFS] list failed: {e}")
+        nodes.extend(await self._list_vector_documents(seen={n.name for n in nodes}))
+        return nodes
+
+    async def _list_vector_documents(self, seen: set, cap: int = 200) -> List[VFSNode]:
+        """Surface vector-only rows (no PG mirror) in ls output.
+
+        The LanceDB documents table holds rows this provider could cat (via
+        the vector fallback) but that ls never listed — historical connector
+        ingests, mirror-write failures — so agents browsing the tree missed
+        documents that search could still hit. Merge them, capped, skipping
+        ids already listed from PG.
+        """
+        import asyncio
+
+        def _scan():
+            try:
+                from core.lancedb_handler import get_lancedb_handler
+
+                handler = get_lancedb_handler("default")
+                if handler is None:
+                    return []
+                return handler.list_document_heads("documents", limit=cap)
+            except Exception as e:
+                logger.debug(f"[KnowledgeVFS] vector head scan failed: {e}")
+                return []
+
+        heads = await asyncio.to_thread(_scan)
+        nodes: List[VFSNode] = []
+        for head in heads:
+            doc_id = str(head.get("id") or "")
+            if not doc_id or doc_id in seen:
+                continue
+            seen.add(doc_id)
+            created = str(head.get("created_at") or "")
+            nodes.append(VFSNode(
+                name=doc_id, type="dir", path=f"knowledge/documents/{doc_id}",
+                modified=created or None,
+            ))
+            if len(nodes) >= cap:
+                break
         return nodes
 
     async def _doc_exists(self, doc_id: str, ctx: Optional[Dict[str, Any]] = None) -> bool:
@@ -228,12 +392,24 @@ class KnowledgeVFSProvider(VFSProvider):
             if table is None:
                 return []
             try:
-                df = table.search().limit(200).to_df()
-                return df.to_dict("records")
+                # head(), NOT search(): a queryless kNN over the 20k-row
+                # comms table costs seconds per call and needs no vector here.
+                return (
+                    table.head(200)
+                    .select(["id", "timestamp"])
+                    .to_pylist()
+                )
             except Exception:
                 return []
 
-        records = await asyncio.to_thread(_scan)
+        try:
+            records = await asyncio.wait_for(asyncio.to_thread(_scan), timeout=_COMMS_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            logger.warning(
+                "[KnowledgeVFS] comms scan timed out after %ss — no conversations listed",
+                _COMMS_TIMEOUT_S,
+            )
+            records = []
         for rec in records:
             cid = str(rec.get("id") or "")
             if cid:
@@ -251,14 +427,32 @@ class KnowledgeVFSProvider(VFSProvider):
             if table is None:
                 return None
             try:
+                # ls only ever surfaces the first 200 ids, so a scan of the
+                # first 2000 rows resolves any id the VFS can offer — without
+                # materializing the full 20k-row table (9s+ with vector cols).
+                head = table.head(2000).select(["id", "app_type", "timestamp", "content"])
+                ids = head.column("id").to_pylist()
+                if conv_id in ids:
+                    return head.to_pylist()[ids.index(conv_id)]
+            except Exception:
+                pass
+            # Fallback for ids beyond the head window: the original kNN path.
+            try:
                 safe = conv_id.replace("'", "''")
                 df = table.search().where(f"id = '{safe}'").limit(1).to_df()
-                rows = df.to_dict("records")
-                return rows[0] if rows else None
+                r = df.to_dict("records")
+                return r[0] if r else None
             except Exception:
                 return None
 
-        return await asyncio.to_thread(_fetch)
+        try:
+            return await asyncio.wait_for(asyncio.to_thread(_fetch), timeout=_COMMS_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            logger.warning(
+                "[KnowledgeVFS] comms fetch timed out after %ss — conversation unreadable",
+                _COMMS_TIMEOUT_S,
+            )
+            return None
 
     async def _get_doc(self, doc_id: str, ctx):
         from core.models import IngestedDocument, KnowledgeDocument

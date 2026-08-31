@@ -114,7 +114,7 @@ describe('MSW Setup', function() {
   // Test that handlers cover all major endpoints
   test('should have handlers for all major API categories', function() {
     // Health checks (handlers expose their path under info.path)
-    expect(server.listHandlers().map((h) => h.info.path)).toContain('/api/health');
+    expect(server.listHandlers().map((h) => (h.info as any).path)).toContain('/api/health');
 
     // Verify handlers exist for each category
     const handlers = server.listHandlers();

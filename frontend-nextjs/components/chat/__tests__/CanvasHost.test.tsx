@@ -383,8 +383,9 @@ describe('CanvasHost (extended coverage)', () => {
     });
   });
 
-  test('email canvas: editing metadata marks unsaved, Send alerts, save posts metadata', async () => {
+  test('email canvas: editing metadata marks unsaved, Send posts to the policy-gated email API, save posts metadata', async () => {
     const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
     const fetchSpy = jest
       .spyOn(global, 'fetch')
       .mockResolvedValue(
@@ -393,6 +394,9 @@ describe('CanvasHost (extended coverage)', () => {
           json: async () => ({ id: 'artifact-2', version: 5 }),
         }) as any
       );
+    // The Send action goes through the real policy-gated endpoint
+    // (/api/canvas/email/send) — apiClient is mocked at the module level.
+    mockApiPost.mockResolvedValue({ data: { success: true, status: 'sent' } });
 
     render(
       <CanvasHost
@@ -415,8 +419,19 @@ describe('CanvasHost (extended coverage)', () => {
     });
 
     const send = screen.getByRole('button', { name: /send/i });
-    fireEvent.click(send);
-    expect(alertSpy).toHaveBeenCalledWith('Sending email to c@d.com...');
+    await act(async () => {
+      fireEvent.click(send);
+    });
+    // The confirm click is the policy authorization for the send.
+    expect(confirmSpy).toHaveBeenCalledWith('Send email to c@d.com?');
+    expect(mockApiPost).toHaveBeenCalledWith('/api/canvas/email/send', {
+      to: ['c@d.com'],
+      cc: [],
+      subject: 'Hi',
+      body: 'Body text',
+      canvas_id: 'canvas-9',
+    });
+    expect(alertSpy).toHaveBeenCalledWith('Email sent.');
 
     await act(async () => {
       fireEvent.click(screen.getByText('Save Changes'));
@@ -429,6 +444,7 @@ describe('CanvasHost (extended coverage)', () => {
     expect(String(init.body)).toContain('c@d.com');
 
     alertSpy.mockRestore();
+    confirmSpy.mockRestore();
   });
 
   test('sheet canvas: cell edits, add row, and save with sheet payload', async () => {

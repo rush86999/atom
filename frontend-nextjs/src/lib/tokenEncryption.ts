@@ -22,7 +22,7 @@ import crypto from 'crypto';
 
 export class TokenEncryptionService {
   private key: Buffer;
-  private algorithm = 'aes-256-gcm';
+  private algorithm: crypto.CipherGCMTypes = 'aes-256-gcm';
   private ivLength = 16; // AES block size
   private authTagLength = 16; // GCM auth tag length
   private keyLength = 32; // 256 bits for AES-256
@@ -68,7 +68,8 @@ export class TokenEncryptionService {
       const iv = crypto.randomBytes(this.ivLength);
 
       // Create cipher with AES-256-GCM
-      const cipher = crypto.createCipheriv(this.algorithm, this.key, iv);
+      // Cast needed: duplicated @types/node declaration trees make Buffer incompatible with CipherKey's Uint8Array.
+      const cipher = crypto.createCipheriv(this.algorithm, this.key as unknown as crypto.CipherKey, iv as unknown as Uint8Array<ArrayBuffer>);
 
       // Encrypt the plaintext
       let encrypted = cipher.update(plaintext, 'utf8', 'hex');
@@ -120,10 +121,11 @@ export class TokenEncryptionService {
       const encrypted = ciphertext.slice((this.ivLength + this.authTagLength) * 2);
 
       // Create decipher with AES-256-GCM
-      const decipher = crypto.createDecipheriv(this.algorithm, this.key, iv);
+      // Cast needed: duplicated @types/node declaration trees make Buffer incompatible with CipherKey's Uint8Array.
+      const decipher = crypto.createDecipheriv(this.algorithm, this.key as unknown as crypto.CipherKey, iv as unknown as Uint8Array<ArrayBuffer>);
 
       // Set authentication tag (integrity verification)
-      decipher.setAuthTag(authTag);
+      decipher.setAuthTag(authTag as unknown as NodeJS.ArrayBufferView);
 
       // Decrypt the data
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');

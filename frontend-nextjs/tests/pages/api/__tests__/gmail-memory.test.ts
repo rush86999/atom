@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import syncHandler from "@/pages/api/integrations/gmail/memory/sync";
 import statsHandler from "@/pages/api/integrations/gmail/memory/stats";
 
@@ -30,7 +30,7 @@ afterEach(() => {
 
 describe("pages/api/integrations/gmail/memory/sync", () => {
   const invoke = async (body?: any, method = "POST"): Promise<any> => {
-    const { req, res } = createMocks({ method, body }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, body }) as any;
     await syncHandler(req, res);
     return res;
   };
@@ -117,7 +117,7 @@ describe("pages/api/integrations/gmail/memory/sync", () => {
 
 describe("pages/api/integrations/gmail/memory/stats", () => {
   const invoke = async (method = "GET"): Promise<any> => {
-    const { req, res } = createMocks({ method }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod }) as any;
     await statsHandler(req, res);
     return res;
   };

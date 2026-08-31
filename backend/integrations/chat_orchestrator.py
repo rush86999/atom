@@ -8,7 +8,10 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 - Multi-agent coordination
 - Cross-platform workflow execution
 """
+import asyncio
+import json
 import logging
+import re
 from enum import Enum
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
@@ -202,6 +205,25 @@ class ChatIntent(Enum):
     AGENT_REQUEST = "agent_request"  # Phase 30: Request that needs Atom Meta-Agent
 
 
+
+
+_CONVERSATION_REF_RE = re.compile(
+    r"\b(earlier|previously|previous|last time|just now|"
+    r"you (found|mentioned|said|showed|gave|told|told me)|"
+    r"we (discussed|talked about|found)|"
+    r"that (email|lead|one|message|result|answer|person|company)|"
+    r"the (one you|same)|again|follow[- ]?up)\b",
+    re.IGNORECASE,
+)
+
+
+def _references_conversation(message: str) -> bool:
+    """True when the user's message points back at this conversation
+    ('the email you found earlier', 'try again') rather than at the world —
+    the transcript, not retrieved memory, should then drive the answer."""
+    return bool(message) and bool(_CONVERSATION_REF_RE.search(message))
+
+
 class ChatOrchestrator:
     """
     Main orchestrator that connects chat interface with all ATOM features
@@ -295,25 +317,176 @@ class ChatOrchestrator:
         except Exception as e:
             logger.error(f"Failed to load persisted sessions: {e}")
 
-    async def _emit_agent_step(self, step: int, thought: str, action: str, observation: str):
-        """Emit an agent step update to the frontend via WebSockets"""
+    def _workspace_channels(self) -> list:
+        """Channels agent workspace events are broadcast to.
+
+        `workspace:default` is what the chat UI subscribes to; the
+        tenant-scoped channel keeps workspace-filtered listeners working.
+        """
+        channels = ["workspace:default"]
+        if self.tenant_id and self.tenant_id != "default":
+            channels.append(f"workspace:{self.tenant_id}")
+        return channels
+
+    @staticmethod
+    def _normalize_step_record(step_record: Dict) -> Dict:
+        """Normalize a ReAct step record to the shape the Agent Workspace renders.
+
+        The live emitters disagree on keys (AtomMetaAgent/GenericAgent use
+        `output`, the UI reads `observation`), so emit both and always stamp
+        execution/session identity for run grouping and session filtering.
+        Callers occasionally hand over a bare string/None instead of a dict —
+        coerce instead of raising: this runs inside the never-break-the-turn
+        emit path, and dict(non-dict) would kill the broadcast entirely.
+        """
+        if not isinstance(step_record, dict):
+            step_record = {"observation": str(step_record)} if step_record else {}
+        step = dict(step_record or {})
+        observation = step.get("observation") or step.get("output") or ""
+        step.setdefault("action_input", "")
+        step["observation"] = observation
+        if not step.get("timestamp"):
+            step["timestamp"] = datetime.now().isoformat()
+        return step
+
+    async def _emit_agent_step(
+        self,
+        session_id: Optional[str],
+        agent_id: str,
+        execution_id: Optional[str],
+        step_record: Dict,
+    ):
+        """Stream one agent execution step to the workspace UI via WebSockets."""
         try:
             from core.websockets import get_connection_manager
             manager = get_connection_manager()
-            # Broadcast to default workspace channel for now
-            await manager.broadcast_event("workspace:default", "agent_step_update", {
-                "step": {
-                    "step": step,
-                    "thought": thought,
-                    "action": action,
-                    "action_input": "",
-                    "observation": observation,
-                    "timestamp": datetime.now().isoformat()
-                },
-                "agent_id": "system_orchestrator"
-            })
+            step = self._normalize_step_record(step_record)
+            step["execution_id"] = execution_id or step.get("execution_id")
+            step["session_id"] = session_id
+            payload = {
+                "step": step,
+                "agent_id": agent_id,
+                "execution_id": step["execution_id"],
+                "session_id": session_id,
+            }
+            for channel in self._workspace_channels():
+                await manager.broadcast_event(channel, "agent_step_update", payload)
         except Exception as e:
             logger.warning(f"Failed to emit agent step: {e}")
+
+    async def _emit_agent_status(
+        self,
+        session_id: Optional[str],
+        agent_id: str,
+        execution_id: Optional[str],
+        status: str,
+    ):
+        """Broadcast a run lifecycle event (running/success/failed) to the workspace UI."""
+        try:
+            from core.websockets import get_connection_manager
+            manager = get_connection_manager()
+            payload = {
+                "status": status,
+                "agent_id": agent_id,
+                "execution_id": execution_id,
+                "session_id": session_id,
+            }
+            for channel in self._workspace_channels():
+                await manager.broadcast_event(channel, "agent_status_change", payload)
+        except Exception as e:
+            logger.warning(f"Failed to emit agent status: {e}")
+
+    # ------------------------------------------------------------------ #
+    # Chat-path execution traces (Agent Workspace "Tasks" tab)
+    # ------------------------------------------------------------------ #
+
+    def _start_chat_execution(
+        self, session_id: str, agent_id: Optional[str], message: str
+    ) -> Optional[str]:
+        """Create an AgentExecution row for a chat turn so the workspace
+        panel has a run to group steps under — and so the trace survives
+        reloads (the trace route joins executions via
+        metadata_json.session_id). Never raises; None means no trace."""
+        try:
+            import uuid as _uuid
+            from core.database import get_db_session
+            from core.models import AgentExecution
+
+            execution_id = str(_uuid.uuid4())
+            with get_db_session() as db:
+                db.add(AgentExecution(
+                    id=execution_id,
+                    agent_id=agent_id,
+                    status="running",
+                    input_summary=(message or "")[:300],
+                    triggered_by="chat",
+                    metadata_json={"session_id": session_id, "surface": "chat"},
+                ))
+            return execution_id
+        except Exception as e:
+            logger.warning(f"chat execution row skipped: {e}")
+            return None
+
+    def _finish_chat_execution(
+        self, execution_id: Optional[str], status: str, result_summary: str = ""
+    ) -> None:
+        if not execution_id:
+            return
+        try:
+            from datetime import datetime as _dt
+            from core.database import get_db_session
+            from core.models import AgentExecution
+
+            with get_db_session() as db:
+                row = db.query(AgentExecution).filter(
+                    AgentExecution.id == execution_id
+                ).first()
+                if row:
+                    row.status = status
+                    row.completed_at = _dt.utcnow()
+                    row.result_summary = result_summary[:500]
+        except Exception as e:
+            logger.warning(f"chat execution finish skipped: {e}")
+
+    async def _record_chat_step(
+        self,
+        session_id: Optional[str],
+        agent_id: Optional[str],
+        execution_id: Optional[str],
+        step_number: int,
+        step_type: str,
+        action: Optional[Dict[str, Any]],
+        observation: str,
+    ) -> None:
+        """Persist + broadcast one chat-turn step for the workspace panel.
+        Best-effort on both legs: a DB failure still broadcasts, a broadcast
+        failure still persists."""
+        try:
+            from core.models import AgentReasoningStep
+            from core.database import get_db_session
+
+            with get_db_session() as db:
+                db.add(AgentReasoningStep(
+                    execution_id=execution_id,
+                    step_number=step_number,
+                    step_type=step_type,
+                    action=action,
+                    observation=(observation or "")[:2000],
+                ))
+        except Exception as e:
+            logger.warning(f"chat step persist skipped: {e}")
+        await self._emit_agent_step(
+            session_id,
+            agent_id or "chat",
+            execution_id,
+            {
+                "step_number": step_number,
+                "type": step_type,
+                "action": action,
+                "action_input": (action or {}).get("params") or "",
+                "observation": observation,
+            },
+        )
 
     def _initialize_feature_handlers(self):
         """Initialize handlers for all ATOM features"""
@@ -387,6 +560,7 @@ class ChatOrchestrator:
         try:
             # Create or get session
             session_id = session_id or str(uuid.uuid4())
+            _execution_id: Optional[str] = None  # chat-trace run (set below)
             session = self._get_or_create_session(user_id, session_id, context)
 
             # Auto-title from the first user turn — untitled sessions flooded
@@ -401,28 +575,106 @@ class ChatOrchestrator:
                 pass  # titling is cosmetic; never block the chat path
 
             # Build conversation history for context.
-            # Session-dedup: replace byte-identical repeated text across turns
-            # with reference markers (exact-match only — zero information loss).
-            # Default ON (COMPRESS_SESSION_DEDUP_ENABLED).
+            # Session-dedup REMOVED from the read path (Aug 2026): it replaced
+            # each prior turn's own text with "[previously sent: <hash>]" in
+            # the session records — the write side indexes every turn, so the
+            # read side marker-ized the FIRST occurrence too. Follow-up
+            # questions ("the lead email you found earlier") then hit a
+            # transcript where the found details were an unresolvable
+            # placeholder, and the model answered "I don't have access".
+            # The [-6:] slice already bounds prompt size; recall beats the
+            # marginal token savings. Write-side indexing is harmless and
+            # stays, but nothing consumes it on the chat path anymore.
             history = session.get("history", [])[-6:]  # Last 3 turns
-            try:
-                from core.llm.compression import SESSION_DEDUP_ENABLED
-                if SESSION_DEDUP_ENABLED and history:
-                    from core.llm.compression.session_dedup import get_or_create_dedup_index
-                    dedup_idx = get_or_create_dedup_index(session)
-                    for h in history:
-                        if h.get("message"):
-                            h["message"], _ = dedup_idx.deduplicate(h["message"])
-                        resp_msg = (h.get("response") or {}).get("message", "")
-                        if resp_msg:
-                            deduped_resp, _ = dedup_idx.deduplicate(resp_msg)
-                            h["response"]["message"] = deduped_resp
-            except Exception:
-                pass  # dedup must never break the chat path
-
+            if not history:
+                # Belt-and-suspenders for restart survival: if DB hydration
+                # found nothing (fresh DB row, or the store failed), fall back
+                # to the conversation history the frontend sends with every
+                # turn (last 5 messages) instead of answering context-free.
+                # Only used for THIS turn's LLM context — not persisted, so it
+                # can never duplicate what _update_session already stores.
+                conv = (context or {}).get("conversation_history") or []
+                rebuilt: List[Dict[str, Any]] = []
+                for c in conv[-6:]:
+                    if not isinstance(c, dict) or not str(c.get("content") or "").strip():
+                        continue
+                    if c.get("role") == "user":
+                        rebuilt.append({"message": c["content"], "response": {"message": ""}, "intent": {}})
+                    else:
+                        rebuilt.append({"message": "", "response": {"message": c["content"]}, "intent": {}})
+                if rebuilt:
+                    history = rebuilt
+                    logger.info(
+                        f"In-memory history empty — using {len(rebuilt)} frontend-provided "
+                        f"message(s) as LLM context for session {session_id}"
+                    )
             # 1. Try Qwen AI conversational response first (real AI reply).
             # LKGP: pass the session's last-known-good provider/model as a
             # sticky hint so multi-turn conversations stay on the same model.
+            # Chat-path execution trace: one AgentExecution per turn so the
+            # Agent Workspace "Tasks" tab shows what this turn actually did
+            # (planner decision, tool calls, answer) — and survives reloads.
+            _trace_agent_id = (context or {}).get("agent_id") or "chat"
+            _execution_id = self._start_chat_execution(
+                session_id, (context or {}).get("agent_id"), message
+            )
+            await self._emit_agent_status(
+                session_id, _trace_agent_id, _execution_id, "running"
+            )
+
+            # Canvas co-editor turns (/canvas/{id} side panel): the request
+            # carries the open canvas in context. Before anything else, give
+            # the turn a chance to BE an edit of that canvas — the plain LLM
+            # path is canvas-blind and the read-only tool planner can never
+            # write, so without this step "remove the sign-off from the
+            # draft" produced a generic acknowledgment while the draft sat
+            # unchanged (and the intent router side-effect created junk
+            # tasks from edit requests). Handled edits return early.
+            _canvas_ctx: Optional[Dict[str, Any]] = None
+            if context and context.get("canvas_id") and context.get("canvas_content") is not None:
+                _canvas_ctx = {
+                    "canvas_id": str(context["canvas_id"]),
+                    "canvas_type": context.get("canvas_type") or "generic",
+                    "title": context.get("canvas_title"),
+                    "content": context.get("canvas_content"),
+                }
+            if _canvas_ctx:
+                _edit_response = await self._try_canvas_edit(
+                    message, history, _canvas_ctx, user_id, session_id,
+                    _execution_id, (context or {}).get("agent_id"),
+                )
+                if _edit_response:
+                    # Persist the turn so follow-ups ("now make it shorter")
+                    # have the request in session history, then return —
+                    # skipping feature routing means edit requests can no
+                    # longer be misfiled into TASKS/AUTOMATION side effects.
+                    self._update_session(
+                        session, message, _edit_response,
+                        {"primary_intent": "canvas_edit", "confidence": 0.9},
+                    )
+                    await self._emit_agent_status(
+                        session_id, _trace_agent_id, _execution_id, "success"
+                    )
+                    self._finish_chat_execution(_execution_id, "success", _edit_response.get("message", ""))
+                    return _edit_response
+
+                # Not an edit — is it an ACTION on the canvas ("send this")?
+                # Gated by the owner's autonomy policy + hire maturity.
+                _action_response = await self._try_canvas_action(
+                    message, history, _canvas_ctx, user_id, session_id,
+                    _execution_id, (context or {}).get("agent_id"),
+                )
+                if _action_response:
+                    self._update_session(
+                        session, message, _action_response,
+                        {"primary_intent": "canvas_action", "confidence": 0.9},
+                    )
+                    await self._emit_agent_status(
+                        session_id, _trace_agent_id, _execution_id, "success"
+                    )
+                    self._finish_chat_execution(_execution_id, "success", _action_response.get("message", ""))
+                    return _action_response
+
             sticky_hint = None
             try:
                 import os as _os
@@ -433,12 +685,33 @@ class ChatOrchestrator:
                         sticky_hint = (_p, _m)
             except Exception:
                 pass
-            ai_response = await self._get_qwen_response(message, history, routing_overrides, sticky_hint=sticky_hint, user_id=user_id, agent_id=(context or {}).get('agent_id'))
+            ai_response = await self._get_qwen_response(
+                message, history, routing_overrides,
+                sticky_hint=sticky_hint, user_id=user_id,
+                agent_id=(context or {}).get('agent_id'),
+                planner_history=session.get("history", []),
+                session_id=session_id,
+                execution_id=_execution_id,
+                canvas_context=_canvas_ctx,
+            )
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
                 return {"success": False, "message": "Request cancelled by user.",
                         "session_id": session_id, "cancelled": True}
+
+            # CRM write dispatch: when chatting AS a domain agent and the
+            # message is a CRM mutation, execute it directly through the
+            # Zoho adapter instead of hoping the LLM does it.
+            _agent_id = (context or {}).get("agent_id")
+            if _agent_id:
+                _crm_result = await self._try_zoho_crm_write(message, context, user_id)
+                if _crm_result is not None:
+                    return {
+                        "success": True,
+                        "message": _crm_result,
+                        "session_id": session_id,
+                    }
 
             # 2. Analyze intent using AI NLP (for routing)
             intent_analysis = await self._analyze_intent(message, session)
@@ -476,6 +749,40 @@ class ChatOrchestrator:
                 # silently absent, and feedback records a real model id.
                 used_model = "template"
                 used_provider = "template"
+
+            # Mentioned-file mini canvas: when the user refers to a specific
+            # file and data from it was actually ingested, open a canvas with
+            # the data preview for visual reference / editing / discussion.
+            try:
+                from core.agent_file_context import detect_file_mentions, lookup_file_records
+
+                for _filename in detect_file_mentions(message)[:1]:
+                    _lookup = lookup_file_records(
+                        resolve_user_workspace(user_id), _filename
+                    )
+                    if _lookup and _lookup.get("found"):
+                        _canvas_id = await self._create_file_mention_canvas(
+                            session["id"],
+                            user_id,
+                            (context or {}).get("agent_id"),
+                            _filename,
+                            _lookup,
+                        )
+                        if _canvas_id:
+                            main_message += (
+                                f"\n\n📋 I've opened a mini canvas — "
+                                f"'{_filename} — data preview' — with what I have "
+                                "from that file. Open it in the workspace panel "
+                                "and we can review or edit it together."
+                            )
+                    else:
+                        main_message += (
+                            f"\n\n(I couldn't find ingested data from "
+                            f"'{_filename}' — ingest the file first and then "
+                            "I can discuss its contents.)"
+                        )
+            except Exception as _file_err:
+                logger.debug(f"file-mention canvas hook failed: {_file_err}")
 
             # Build combined data from feature responses
             combined_data = {}
@@ -529,10 +836,27 @@ class ChatOrchestrator:
             # Update session with new context
             self._update_session(session, message, response, intent_analysis)
 
+            await self._emit_agent_status(
+                session_id, _trace_agent_id, _execution_id,
+                "success" if response.get("success", True) else "failed",
+            )
+            self._finish_chat_execution(
+                _execution_id,
+                "success" if response.get("success", True) else "failed",
+                response.get("message", ""),
+            )
             return response
 
         except Exception as e:
             logger.error(f"Error processing chat message: {e}")
+            try:
+                await self._emit_agent_status(
+                    session_id, (context or {}).get("agent_id") or "chat",
+                    _execution_id, "failed",
+                )
+            except Exception:
+                pass
+            self._finish_chat_execution(_execution_id, "failed", str(e)[:300])
             # BUG-125: Persist the user's message even on error so it's not
             # lost from chat history. Previously _update_session was only
             # called on the success path.
@@ -570,6 +894,123 @@ class ChatOrchestrator:
         except Exception as e:
             logger.debug(f"turn-fact extraction dispatch failed: {e}")
 
+    def _lookup_agent(self, agent_id: str):
+        """Fetch an AgentRegistry row for chat persona building. Best-effort:
+        any failure just means the caller falls back to the platform persona."""
+        try:
+            from core.models import AgentRegistry
+
+            db = SessionLocal()
+            try:
+                return (
+                    db.query(AgentRegistry)
+                    .filter(AgentRegistry.id == agent_id)
+                    .first()
+                )
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"agent lookup failed for {agent_id!r}: {e}")
+            return None
+
+    def _is_platform_agent(self, agent) -> bool:
+        """Platform-built agents keep the generic ATOM persona — they ARE the
+        platform (atom_main, system/Meta category), not domain hires."""
+        return (
+            (agent.id or "") in {"atom_main"}
+            or (agent.category or "").lower() in {"system", "meta"}
+            or agent.module_path == "core.atom_meta_agent"
+        )
+
+    async def _create_file_mention_canvas(
+        self,
+        session_id: str,
+        user_id: Optional[str],
+        agent_id: Optional[str],
+        filename: str,
+        lookup: Dict[str, Any],
+    ) -> Optional[str]:
+        """Mini canvas with the mentioned file's ingested data — the visual
+        reference/editing surface for training and discussion. Same Canvas +
+        CanvasAudit pattern as the chat_draft_to_canvas route, broadcast to
+        the session's workspace pane, and expandable to /canvas/{id}."""
+        try:
+            import uuid as _uuid
+
+            from core.agent_file_context import build_file_canvas_content
+            from core.models import Canvas, CanvasAudit
+            from core.websockets import manager as ws_manager
+
+            canvas_id = str(_uuid.uuid4())
+            created_by = user_id or "system"
+            content_text = build_file_canvas_content(filename, lookup)
+            db = SessionLocal()
+            try:
+                canvas = Canvas(
+                    id=canvas_id,
+                    tenant_id=self.tenant_id or "default",
+                    workspace_id=resolve_user_workspace(user_id),
+                    created_by=created_by,
+                    name=f"{filename} — data preview"[:200],
+                    canvas_type="document",
+                    content={
+                        "type": "doc",
+                        "content": content_text,
+                    },
+                    status="active",
+                )
+                db.add(canvas)
+                db.add(
+                    CanvasAudit(
+                        canvas_id=canvas_id,
+                        tenant_id=canvas.tenant_id,
+                        session_id=session_id,
+                        agent_id=agent_id,
+                        canvas_type="document",
+                        action_type="create",
+                        user_id=created_by,
+                        details_json={"source": "file_mention", "file": filename},
+                    )
+                )
+                db.commit()
+            finally:
+                db.close()
+
+            # Present it live in the chat's workspace pane (same channel the
+            # canvas tool uses), where it can be expanded to the full page.
+            # Fan out to BOTH the user channel and the session channel: the
+            # chat pane and the expanded /canvas/{id} page subscribe to
+            # different channels, and both must see the present event.
+            try:
+                channels = [f"user:{user_id or 'default'}"]
+                if session_id and user_id:
+                    channels.append(f"user:{user_id}:session:{session_id}")
+                for channel in channels:
+                    await ws_manager.broadcast(
+                        channel,
+                        {
+                            "type": "canvas:update",
+                            "data": {
+                                "action": "present",
+                                "component": "document",
+                                "canvas_id": canvas_id,
+                                "session_id": session_id,
+                                "title": f"{filename} — data preview",
+                                "data": {
+                                    "title": f"{filename} — data preview",
+                                    "content": content_text,
+                                },
+                            },
+                        },
+                    )
+            except Exception as broadcast_err:
+                logger.debug(f"file-mention canvas broadcast skipped: {broadcast_err}")
+
+            return canvas_id
+        except Exception as e:
+            logger.warning(f"file-mention canvas creation failed: {e}")
+            return None
+
     async def _get_qwen_response(
         self,
         message: str,
@@ -578,6 +1019,10 @@ class ChatOrchestrator:
         sticky_hint: Optional[tuple] = None,
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
+        planner_history: Optional[list] = None,
+        session_id: Optional[str] = None,
+        execution_id: Optional[str] = None,
+        canvas_context: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -598,10 +1043,22 @@ class ChatOrchestrator:
 
         try:
             # Build messages from history
-            messages = [
-                {
-                    "role": "system",
-                    "content": """You are ATOM, an AI-powered business automation assistant. You help users:
+            _connected_line = "unknown"
+            try:
+                from core.chat_tool_planner import get_connected_services
+
+                _connected = get_connected_services(user_id)
+                _connected_line = ", ".join(_connected) if _connected else "none yet"
+            except Exception:
+                pass
+            _TOOL_CAPABILITY = (
+                f"Connected integrations: {_connected_line}. When a question "
+                "needs fresh data from one of them, the harness runs the "
+                "search/read automatically and matched results arrive to you "
+                "as system context. Never claim you cannot access a "
+                "connected service."
+            )
+            system_prompt = f"""You are ATOM, an AI-powered business automation assistant. You help users:
 - Manage leads and CRM (Zoho, Salesforce, HubSpot)
 - Automate workflows and processes
 - Schedule meetings and interviews
@@ -609,7 +1066,46 @@ class ChatOrchestrator:
 - Analyze business data and priorities
 - Coordinate tasks across Slack, Notion, Google Drive, Gmail
 
+{_TOOL_CAPABILITY}
+
 When users ask to fetch live data (like CRM leads), acknowledge that the integration needs to be connected first and guide them on setup. Be helpful, specific, and actionable. Keep responses concise (2-4 sentences) unless detail is needed."""
+
+            # Chatting WITH a hire: the employee speaks as themselves, not as
+            # the platform. Persona and tier behavior come from the registry,
+            # so "chat with my SDR" answers as the SDR within its maturity
+            # limits instead of as a generic assistant.
+            if agent_id:
+                persona_agent = self._lookup_agent(agent_id)
+                if persona_agent and not self._is_platform_agent(persona_agent):
+                    tier = persona_agent.status or "student"
+                    tier_behavior = (
+                        "You are still learning: be honest about what you don't know yet, "
+                        "propose drafts rather than final actions, and flag anything that "
+                        "needs supervisor approval."
+                        if tier in ("student", "intern")
+                        else "Work autonomously within your declared capabilities."
+                    )
+                    role_line = (
+                        f"Your role: {persona_agent.description}"
+                        if persona_agent.description
+                        else f"Your role: {persona_agent.category or 'business'} employee."
+                    )
+                    system_prompt = (
+                        f"You are {persona_agent.display_name or persona_agent.name}, "
+                        f"a {persona_agent.category or 'business'} employee hired on the "
+                        f"ATOM platform. {role_line} "
+                        "Always speak in first person as this employee — never as 'Atom' "
+                        "or as an AI assistant. "
+                        f"Maturity tier: {tier}. {tier_behavior} "
+                        f"{_TOOL_CAPABILITY} "
+                        "Be helpful, specific, and actionable. Keep responses concise "
+                        "(2-4 sentences) unless detail is needed."
+                    )
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": system_prompt,
                 }
             ]
 
@@ -623,6 +1119,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     assembly_enabled,
                 )
 
+                # Resolve agent identity for role-scoped recall
+                _agent_id = agent_id
+
                 if assembly_enabled():
                     # The integral AI-employee contract: memory must be
                     # retrieved from the USER's workspace, the same workspace
@@ -633,29 +1132,157 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # synced records (RED→GREEN journey fix).
                     user_workspace = resolve_user_workspace(user_id)
 
-                    logger.info(f"[MEMCTX] agent_id={agent_id!r}")
+                    logger.info(f"[MEMCTX] agent_id={_agent_id!r}")
                     memory_block = await assemble_memory_context(
                         message=message,
                         workspace_id=user_workspace,
                         tenant_id=self.tenant_id,
                         # the hire's identity → role-aware recall: records
                         # synced FOR this employee surface first
-                        agent_id=agent_id,
+                        agent_id=_agent_id,
                     )
                     if memory_block:
                         messages.append({"role": "system", "content": memory_block})
+
             except Exception as e:
                 # A silent failure here makes ALL ingested integration data
                 # invisible at chat time (no error, empty memory) — warn, don't debug.
                 logger.warning(f"memory context assembly skipped: {e}")
 
-            # Add conversation history
-            for h in history:
-                if h.get("message"):
-                    messages.append({"role": "user", "content": h["message"]})
-                resp_msg = h.get("response", {}).get("message", "")
-                if resp_msg:
-                    messages.append({"role": "assistant", "content": resp_msg})
+            # Canvas co-editor context (non-edit turns): the user is chatting
+            # beside an open canvas — "the draft", "the email" refer to it.
+            # Without this block the model answered generically about drafts
+            # in the abstract while the actual canvas sat in another tab.
+            if canvas_context and canvas_context.get("content") is not None:
+                try:
+                    import json as _json
+
+                    _cc = canvas_context.get("content")
+                    _cc_text = _cc if isinstance(_cc, str) else _json.dumps(_cc, default=str)
+                    messages.append({"role": "system", "content": (
+                        "CANVAS CONTEXT — the user is chatting in a panel beside an "
+                        f"open canvas (type: {canvas_context.get('canvas_type') or 'generic'}, "
+                        f"id: {canvas_context.get('canvas_id')}). When they refer to "
+                        "\"the draft\", \"the email\", \"this canvas\" etc., they mean "
+                        "THIS canvas. Its current content is the authoritative and "
+                        f"most recent version:\n{_cc_text[:4000]}"
+                    )})
+                except Exception as canvas_ctx_err:
+                    logger.debug(f"canvas context block skipped: {canvas_ctx_err}")
+
+            # Tool planning (LLM-based, ALL connected integrations): a cheap
+            # structured-output call reads the conversation and decides
+            # whether answering needs fresh data from one of the user's
+            # connected services — then the harness executes it read-only.
+            # This replaces the earlier Outlook-only regex gates (email-search
+            # detector, retry detector, stopword term extraction): the planner
+            # understands "find this email in outlook", "try again", "search
+            # slack for X", and every other integration, without per-service
+            # pattern hacks. The planner seeing the history is what makes
+            # retries work — "try again" means re-run the previous action,
+            # which an LLM infers naturally.
+            # The results block is injected AFTER the transcript (below), not
+            # here: weak models anchor on the most recent messages, and the
+            # transcript of a long-running session often contains earlier
+            # failed attempts — results placed before them lost to recency.
+            _tool_block: Optional[str] = None
+            _planned: Optional[str] = None
+            _step_n = 0
+
+            async def _trace(step_type: str, action: Optional[Dict[str, Any]], observation: str) -> None:
+                nonlocal _step_n
+                _step_n += 1
+                await self._record_chat_step(
+                    session_id, agent_id, execution_id,
+                    _step_n, step_type, action, observation,
+                )
+
+            try:
+                from core.chat_tool_planner import execute_tool_plan, plan_tool_use
+
+                # Full hydrated history for the planner (not the [-6:] main-
+                # model window): in retry-heavy sessions the original request
+                # sits several turns back, and user-only lines are tiny.
+                _plan = await asyncio.wait_for(
+                    plan_tool_use(message, planner_history or history, user_id, self.llm_service),
+                    timeout=25,
+                )
+                if _plan and _plan.use_tool:
+                    _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
+                    await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
+                                 f"Planned live lookup: {_planned}")
+                    _tool_block = await asyncio.wait_for(
+                        execute_tool_plan(_plan, user_id, self.tenant_id),
+                        timeout=30,
+                    )
+                    _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
+                    await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
+                                 _first_line or "no results")
+                elif _plan is not None:
+                    await _trace("thought", {"tool": "tool_planner", "params": {}},
+                                 f"No live lookup needed: {(_plan.reason or 'conversation suffices')[:160]}")
+            except Exception as tool_err:
+                logger.warning(f"tool planning skipped: {tool_err}")
+
+            # Add conversation history. When fresh tool results exist for
+            # this turn, include ONLY the user turns as context: measured
+            # (Aug 30), a transcript full of earlier failed attempts anchors
+            # weak models into refusing again even with a fresh result
+            # injected last — but dropping context ENTIRELY made them emit
+            # raw tool-call syntax instead of answering. User turns alone
+            # give grounding without the refusal wall. They remain fully in
+            # the DB/UI; only this turn's prompt changes.
+            if _tool_block:
+                for h in history[-3:]:
+                    if h.get("message"):
+                        messages.append({"role": "user", "content": h["message"]})
+            else:
+                for h in history:
+                    if h.get("message"):
+                        messages.append({"role": "user", "content": h["message"]})
+                    # Error turns (failed attempts) are skipped: they anchor
+                    # weak models into refusals and carry no answer content.
+                    if h.get("error"):
+                        continue
+                    resp_msg = h.get("response", {}).get("message", "")
+                    if resp_msg:
+                        messages.append({"role": "assistant", "content": resp_msg})
+
+                # Recency precedence: when the user refers to something from
+                # THIS conversation ("the email you found earlier"), the
+                # transcript is the authoritative source. Without this nudge
+                # the model answered "who was in that lead email?" from an
+                # older ingested lead in the RELEVANT MEMORY block instead of
+                # the record it had just found.
+                if history and _references_conversation(message):
+                    messages.append({
+                        "role": "system",
+                        "content": (
+                            "PRIORITY: The user is referring to something from THIS "
+                            "conversation. Answer from the transcript above — it is the "
+                            "authoritative and most recent source. Treat any RELEVANT "
+                            "MEMORY block as background only, and use it solely to fill "
+                            "gaps the transcript does not already cover."
+                        ),
+                    })
+
+            # Fresh tool results go LAST — closest to the question they answer.
+            # (Earlier failures in the transcript stay where they belong: in
+            # the past. The newest data wins.) The block also explicitly
+            # overrides stale refusals: long sessions of earlier failed
+            # attempts otherwise anchor weak models into repeating "I can't
+            # do that" even when a fresh result is in front of them.
+            if _tool_block:
+                messages.append({"role": "system", "content": (
+                    "TOOL EXECUTION RESULT — the harness ran this JUST NOW, "
+                    "successfully, on your behalf. Any earlier statement about "
+                    "lacking access or tools is OUTDATED: ignore it. Do NOT emit "
+                    "tool-call, XML, or protocol syntax, and do not attempt to call "
+                    "tools yourself — the harness handles tools. Answer the user's "
+                    "current message in plain language using this fresh result:\n"
+                    + _tool_block
+                )})
+                logger.info(f"tool plan executed: {_planned}")
 
             messages.append({"role": "user", "content": message})
 
@@ -682,8 +1309,53 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             )
             
             if response_data.get("success"):
+                # Reasoning/protocol-tag hygiene: some models (minimax m3 via
+                # OpenRouter) leak chain-of-thought fragments ("</mm:think>")
+                # or raw tool-call XML ("<tool_call>…</tool_call>") into
+                # content. Strip paired blocks and stray tags before the
+                # reply is stored or displayed — otherwise they persist into
+                # the transcript and the next turn's context.
+                _content = str(response_data.get("content") or "").strip()
+                _content = re.sub(r"<think>.*?</think>", "", _content, flags=re.DOTALL)
+                _content = re.sub(r"<tool_call>.*?</tool_call>", "", _content, flags=re.DOTALL)
+                _content = re.sub(r"</?(?:mm:)?think>", "", _content)
+                _content = re.sub(r"\]?<\]?minimax\[>?", "", _content)
+                _content = _content.strip()
+                if _tool_block and len(_content) < 20:
+                    # The model emitted protocol syntax instead of an answer
+                    # (sanitized away). One firm retry; if it still fails,
+                    # fall through to the template path — never store junk.
+                    logger.info("tool-turn reply was protocol syntax; retrying firmly")
+                    _retry = await self.llm_service.generate_completion(
+                        messages=messages + [{
+                            "role": "system",
+                            "content": (
+                                "IMPORTANT: You have already received the tool result. "
+                                "Reply with a plain-language answer to the user now. "
+                                "No tool calls, no XML, no tags."
+                            ),
+                        }],
+                        model=forced_model,
+                        tenant_id=self.tenant_id,
+                        **extra_kwargs,
+                    )
+                    if _retry.get("success"):
+                        _rc = str(_retry.get("content") or "").strip()
+                        _rc = re.sub(r"<tool_call>.*?</tool_call>", "", _rc, flags=re.DOTALL)
+                        _rc = re.sub(r"</?(?:mm:)?think>|\]?<\]?minimax\[>?", "", _rc).strip()
+                        if len(_rc) >= 20:
+                            _content = _rc
+                if not _content:
+                    return None
+                if execution_id:
+                    try:
+                        await _trace("final_answer",
+                                     {"tool": "llm", "params": {"model": response_data.get("model")}},
+                                     _content[:300])
+                    except Exception:
+                        pass
                 return {
-                    "content": response_data.get("content", "").strip(),
+                    "content": _content,
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,
@@ -694,6 +1366,444 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.warning(f"Unified conversational response failed: {e}")
             return None
 
+    async def _try_zoho_crm_write(self, message: str, context: Dict[str, Any], user_id: str) -> Optional[str]:
+        """Detect CRM mutations in a chat message and execute them via Zoho.
+
+        Returns a human-readable confirmation string, or None if the message
+        doesn't contain a recognisable CRM operation.
+        """
+        import re as _re
+        from core.integrations.adapters.zoho import ZohoAdapter
+        from core.models import IntegrationToken
+
+        lower = message.lower()
+        is_create = "create" in lower or "add" in lower or "new lead" in lower
+        is_update = "update" in lower or "change" in lower
+        if not (is_create or is_update):
+            return None
+
+        if not any(k in lower for k in ("lead", "deal", "contact")):
+            return None
+
+        # extract name
+        name_match = _re.search(
+            r"(?:for|named|called)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)", message
+        )
+        person = name_match.group(1) if name_match else None
+
+        # extract email
+        email_match = _re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", message)
+        email = email_match.group(0) if email_match else None
+
+        # extract company
+        company_match = _re.search(r"at\s+([A-Z][\w !&]+?)(?:,|\.|$|\s+email|\s+phone)", message)
+        company = company_match.group(1).strip() if company_match else None
+
+        if not person and not email:
+            return None
+
+        db = SessionLocal()
+        try:
+            token = db.query(IntegrationToken).filter(
+                IntegrationToken.user_id == user_id,
+                IntegrationToken.provider == "zoho",
+                IntegrationToken.status == "active",
+            ).first()
+            if not token:
+                return None
+            instance_url = token.instance_url or None
+            db.close()
+
+            adapter = ZohoAdapter(workspace_id="default", instance_url=instance_url)
+            await adapter.ensure_token()
+
+            if "create" in lower or "new lead" in lower or "add" in lower:
+                lead_data = {}
+                if email:
+                    lead_data["Email"] = email
+                if person:
+                    parts = person.split(" ", 1)
+                    lead_data["First_Name"] = parts[0]
+                    if len(parts) > 1:
+                        lead_data["Last_Name"] = parts[1]
+                    else:
+                        lead_data["Last_Name"] = parts[0]
+                if company:
+                    lead_data["Company"] = company
+                result = await adapter.create_lead(lead_data)
+                if result:
+                    return f"Created Zoho CRM lead: {person or 'New lead'} ({email or 'no email'}) — ID: {result.get('id', 'new')}"
+
+            return None
+        except Exception as e:
+            logger.warning(f"Zoho CRM write failed: {e}")
+            return None
+
+    async def _try_canvas_edit(
+        self,
+        message: str,
+        history: list,
+        canvas: Dict[str, Any],
+        user_id: str,
+        session_id: Optional[str],
+        execution_id: Optional[str],
+        agent_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """Canvas co-editor edit step: plan the edit via the canvas editor
+        module, persist it through canvas_crud_tool, and return the chat
+        response. Returns None when the turn is NOT a canvas edit (or
+        anything fails) — the normal conversational path then runs."""
+        from core.chat_canvas_editor import apply_canvas_edit, plan_canvas_edit
+
+        try:
+            plan = await asyncio.wait_for(
+                plan_canvas_edit(message, history, canvas, self.llm_service),
+                timeout=30,
+            )
+        except Exception as e:
+            logger.warning(f"canvas edit planning skipped: {e}")
+            return None
+        if plan is None or not plan.wants_edit:
+            return None
+
+        # Maturity gate — canvas edits are INTERN+ (governance action
+        # "update_canvas"). A hire that isn't mature enough is NOT refused:
+        # the canvas IS the training surface (chat_draft_to_canvas contract —
+        # "the supervisor trains the hire by editing the draft ON the
+        # canvas"). The student PROPOSES the edit by applying it as a draft,
+        # and the supervisor's on-canvas correction becomes the learning
+        # signal (captured at PUT /api/canvas/{id} → record_user_correction →
+        # AgentFeedback/RLHF → maturity growth → graduation).
+        await self._record_chat_step(
+            session_id, agent_id, execution_id, 1, "thought",
+            {"tool": "canvas_editor", "params": {"canvas_id": canvas.get("canvas_id")}},
+            f"Planned canvas edit: {(plan.reply or '')[:160]}",
+        )
+
+        # Maturity gate — canvas edits are INTERN+ (governance action
+        # "update_canvas"). A hire that isn't mature enough is NOT refused:
+        # the canvas IS the training surface (chat_draft_to_canvas contract —
+        # "the supervisor trains the hire by editing the draft ON the
+        # canvas"). The student PROPOSES the edit by applying it as a draft,
+        # and the supervisor's on-canvas correction becomes the learning
+        # signal (captured at PUT /api/canvas/{id} → record_user_correction →
+        # AgentFeedback/RLHF → maturity growth → graduation).
+        learning_mode = False
+        if agent_id:
+            try:
+                from core.database import get_db_session
+                from core.service_factory import ServiceFactory
+
+                with get_db_session() as db:
+                    governance = ServiceFactory.get_governance_service(db)
+                    check = governance.can_perform_action(
+                        agent_id=agent_id, action_type="update_canvas"
+                    )
+                learning_mode = not check.get("allowed", True)
+                await self._record_chat_step(
+                    session_id, agent_id, execution_id, 2, "thought",
+                    {"tool": "canvas_governance", "params": {"action": "update_canvas"}},
+                    f"maturity check: {'LEARNING MODE (proposal)' if learning_mode else 'allowed'}"
+                    f" — {str(check.get('reason', ''))[:120]}",
+                )
+            except Exception as gov_err:
+                logger.debug(f"canvas edit governance check skipped: {gov_err}")
+
+        result = await apply_canvas_edit(plan, user_id, canvas)
+        if result is None:
+            return None
+
+        # Learning mode: file the proposal into the canvas's training
+        # context so the correction diff (human edits the draft afterwards)
+        # has a documented "original attempt" to learn from.
+        if learning_mode and agent_id:
+            try:
+                from core.database import get_db_session
+                from core.service_factory import ServiceFactory
+
+                with get_db_session() as db:
+                    service = ServiceFactory.get_canvas_context_service(
+                        db, tenant_id=self.tenant_id
+                    )
+                    service.add_action_to_history(
+                        canvas_id=str(canvas.get("canvas_id")),
+                        user_id=user_id,
+                        action={
+                            "type": "canvas_edit_proposal",
+                            "agent_id": agent_id,
+                            "instruction": message[:200],
+                            "learning_mode": True,
+                        },
+                    )
+            except Exception as learn_err:
+                logger.debug(f"canvas learning-mode record skipped: {learn_err}")
+
+        await self._record_chat_step(
+            session_id, agent_id, execution_id, 3, "observation",
+            {"tool": "canvas_update", "params": {"canvas_id": canvas.get("canvas_id")}},
+            f"Canvas {canvas.get('canvas_id')} "
+            f"{'draft proposal applied (learning mode)' if learning_mode else 'updated'} "
+            f"({canvas.get('canvas_type') or 'generic'}); broadcast sent.",
+        )
+
+        reply = (plan.reply or "").strip() or (
+            "Updated the canvas — it should refresh beside this panel (and "
+            "the new version is saved to its history)."
+        )
+        if learning_mode:
+            # Student voice: propose, invite correction — never claim authority.
+            reply = (
+                f"{reply}\n\n📝 I'm still learning canvas edits, so treat this as "
+                "my draft attempt — fix it right here on the canvas and I'll "
+                "learn from your changes."
+            )
+        logger.info(
+            f"canvas co-editor edit applied: canvas={canvas.get('canvas_id')} "
+            f"type={canvas.get('canvas_type')}"
+            + (" (learning mode: proposal by immature hire)" if learning_mode else "")
+        )
+        return {
+            "success": True,
+            "message": reply,
+            "session_id": session_id,
+            "intent": "canvas_edit",
+            "confidence": 0.9,
+            "data": {
+                "canvas_edit": {
+                    "canvas_id": canvas.get("canvas_id"),
+                    "updated": True,
+                    **({"learning_mode": True} if learning_mode else {}),
+                }
+            },
+            "suggested_actions": [],
+            "requires_confirmation": False,
+            "next_steps": [],
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    async def _try_canvas_action(
+        self,
+        message: str,
+        history: list,
+        canvas: Dict[str, Any],
+        user_id: str,
+        session_id: Optional[str],
+        execution_id: Optional[str],
+        agent_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """DOING something with the canvas (send the draft as email) — the
+        counterpart of the edit step. Two gates, in order:
+
+        1. AUTONOMY POLICY (the owner's choice, per topic): ``human_always``
+           means the agent may only PROPOSE — approval happens in the Journey
+           panel / proposals endpoints, never here.
+        2. MATURITY (governance): ``auto_if_mature`` topics execute directly
+           only when the hire's tier allows it; an immature hire proposes
+           (the same learning loop as edits).
+
+        Returns the chat response for a handled action, None to fall through
+        (including on every failure — the turn degrades to conversation).
+        """
+        from core.chat_canvas_editor import plan_canvas_action
+
+        try:
+            plan = await asyncio.wait_for(
+                plan_canvas_action(message, history, canvas, self.llm_service),
+                timeout=25,
+            )
+        except Exception as e:
+            logger.warning(f"canvas action planning skipped: {e}")
+            return None
+        if plan is None or not plan.wants_action:
+            return None
+
+        await self._record_chat_step(
+            session_id, agent_id, execution_id, 1, "thought",
+            {"tool": "canvas_action_planner", "params": {"action": plan.action}},
+            f"Planned canvas action: {plan.action} to={plan.to or '(unspecified)'}",
+        )
+
+        from core.autonomy_policy import (
+            MODE_AUTO_IF_MATURE,
+            get_effective_mode,
+        )
+        from core.database import get_db_session
+
+        mode = MODE_AUTO_IF_MATURE
+        governance_allows = True
+        try:
+            with get_db_session() as db:
+                mode = get_effective_mode(db, user_id, "send_email")
+                if agent_id and mode == MODE_AUTO_IF_MATURE:
+                    from core.service_factory import ServiceFactory
+
+                    governance = ServiceFactory.get_governance_service(db)
+                    check = governance.can_perform_action(
+                        agent_id=agent_id, action_type="send_email"
+                    )
+                    governance_allows = bool(check.get("allowed", True))
+        except Exception as e:
+            logger.warning(f"canvas action gates skipped: {e}")
+
+        # Gate outcomes → direct execution ONLY when policy allows autonomy
+        # AND the hire is mature enough. Everything else proposes (HITL).
+        needs_approval = (mode != MODE_AUTO_IF_MATURE) or not governance_allows
+        if not needs_approval:
+            result = await self._execute_send_email(
+                plan, canvas, user_id, agent_id,
+            )
+            if result is None:
+                return None  # execution failure → fall through to conversation
+            reply = result.get("message") or "Email sent."
+            return {
+                "success": True,
+                "message": reply,
+                "session_id": session_id,
+                "intent": "canvas_action",
+                "confidence": 0.9,
+                "data": {"canvas_action": result},
+                "suggested_actions": [],
+                "requires_confirmation": False,
+                "next_steps": [],
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        # HITL: file the proposal; approval executes it (and feeds learning).
+        proposal_id = self._create_send_email_proposal(
+            plan, canvas, user_id, session_id, agent_id,
+        )
+        if proposal_id is None:
+            return None
+
+        await self._record_chat_step(
+            session_id, agent_id, execution_id, 2, "observation",
+            {"tool": "action_proposal", "params": {"action": "send_email"}},
+            f"HITL: send_email proposed ({plan.to or 'no recipient'}); "
+            "awaiting human approval in the Journey panel.",
+        )
+        reply = (
+            (plan.reply or "Ready to send that email.").strip()
+            + f"\n\n🔐 This needs your approval first"
+            + (" (you've set email sends to always require a human)" if mode != MODE_AUTO_IF_MATURE
+               else " (the hire isn't mature enough to send autonomously yet)")
+            + " — open the **Journey** tab to approve or reject it."
+        )
+        return {
+            "success": True,
+            "message": reply,
+            "session_id": session_id,
+            "intent": "canvas_action",
+            "confidence": 0.9,
+            "data": {
+                "canvas_action": {
+                    "action": "send_email",
+                    "proposal_id": proposal_id,
+                    "needs_approval": True,
+                    "to": plan.to or "",
+                    "subject": plan.subject or "",
+                }
+            },
+            "suggested_actions": [],
+            "requires_confirmation": False,
+            "next_steps": [],
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    async def _execute_send_email(
+        self, plan, canvas: Dict[str, Any], user_id: str, agent_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """Direct send via the deterministic email policy (audits + policy
+        checks inside). Returns a result dict, None on failure."""
+        try:
+            from core.canvas_email_service import EmailCanvasService
+            from core.database import get_db_session
+
+            recipients = [
+                r.strip() for r in (plan.to or "").replace(";", ",").split(",") if r.strip()
+            ]
+            if not recipients:
+                logger.info("canvas action: no recipient in plan — falling through")
+                return None
+            body = (plan.body or "").strip()
+            if not body and isinstance(canvas.get("content"), dict):
+                body = str(canvas["content"].get("content") or "")
+            elif not body and isinstance(canvas.get("content"), str):
+                body = canvas["content"]
+
+            with get_db_session() as db:
+                service = EmailCanvasService(db)
+                result = await service.send_email(
+                    canvas_id=str(canvas.get("canvas_id")),
+                    user_id=user_id,
+                    to_emails=recipients,
+                    cc_emails=[],
+                    subject=plan.subject or (canvas.get("title") or ""),
+                    body=body,
+                    agent_id=agent_id,
+                )
+            if not (result or {}).get("success"):
+                logger.info(f"canvas action send_email rejected: {(result or {}).get('error')}")
+                return {"message": f"Send blocked by email policy: {(result or {}).get('error', 'unknown')}"}
+            status = result.get("status", "sent")
+            return {
+                "action": "send_email",
+                "status": status,
+                "message": (f"Email {status} to {', '.join(recipients)}."
+                            if status != "sent" else f"Email sent to {', '.join(recipients)}."),
+                "result": {k: v for k, v in result.items() if k != "message"},
+            }
+        except Exception as e:
+            logger.warning(f"canvas action send_email failed: {e}")
+            return None
+
+    def _create_send_email_proposal(
+        self, plan, canvas: Dict[str, Any], user_id: str,
+        session_id: Optional[str], agent_id: Optional[str],
+    ) -> Optional[str]:
+        """File a pending send_email proposal (the existing HITL machinery —
+        /api/maturity/proposals + approve executes it and feeds learning)."""
+        try:
+            from core.database import get_db_session
+            from core.models import AgentProposal, AgentRegistry
+
+            with get_db_session() as db:
+                agent = (
+                    db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+                    if agent_id else None
+                )
+                proposal = AgentProposal(
+                    tenant_id=(getattr(agent, "tenant_id", None) or "default"),
+                    user_id=user_id,
+                    agent_id=agent_id or "atom_main",
+                    agent_name=(agent.name if agent else "Assistant"),
+                    canvas_id=str(canvas.get("canvas_id")),
+                    session_id=session_id,
+                    proposal_type="action",
+                    title=f"Send email: {plan.subject or (canvas.get('title') or 'draft')}",
+                    description=(
+                        f"Send the canvas draft by email.\n\nTo: {plan.to or '(not specified)'}\n"
+                        f"Subject: {plan.subject or '(canvas title)'}"
+                    ),
+                    proposal_data={
+                        "action_type": "send_email",
+                        "canvas_id": str(canvas.get("canvas_id")),
+                        "to": plan.to or "",
+                        "subject": plan.subject or "",
+                        "body": plan.body or "",
+                    },
+                    status="pending_approval",
+                )
+                db.add(proposal)
+                db.commit()
+                db.refresh(proposal)
+                logger.info(
+                    f"canvas action proposal filed: {proposal.id} "
+                    f"(send_email, canvas={canvas.get('canvas_id')})"
+                )
+                return proposal.id
+        except Exception as e:
+            logger.warning(f"canvas action proposal creation failed: {e}")
+            return None
 
     async def _analyze_intent(self, message: str, session: Dict) -> Dict[str, Any]:
         """Analyze user intent using AI NLP engine"""
@@ -1117,7 +2227,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "message": f"I've added '{task_req.title}' to your Tasks.",
                         "task_id": task_id
                     },
-                    "suggested_actions": ["View My Tasks", "Add a deadline", "Assign to team"]
+                    "suggested_actions": [
+                        # URL action: a real navigation, not a prompt.
+                        # Text actions prefill the chat input on click
+                        # (frontend) — never auto-send in the user's voice.
+                        {"label": "View My Tasks", "url": "/tasks"},
+                        {"label": "Add a deadline"},
+                        {"label": "Assign to team"},
+                    ]
                 }
             else:
                 return {"success": False, "error": "Internal task creation failed."}
@@ -1443,6 +2560,88 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
     ) -> Dict[str, Any]:
         return {"success": True, "data": {"message": "Ecommerce logic here"}}
 
+    def _hydrate_session_history(self, session_id: str, session: Dict) -> None:
+        """Reload persisted turns from the ChatMessage store into an in-memory
+        session after a restart. Without this, a returning session's LLM
+        context is empty — `_update_session` writes every turn to the DB, but
+        nothing ever read them back, so after an app restart the agent saw no
+        prior conversation ("this looks like the start of our chat") even
+        though the sidebar still listed the messages. Best-effort: a DB
+        failure leaves the existing in-memory session and the chat works.
+
+        The DB is AUTHORITATIVE: a session restored from the legacy file
+        cache may hold stale-but-non-empty history (the file lags the DB by
+        a restart), so a non-empty in-memory history does NOT skip the
+        reload — otherwise turns newer than the last file flush vanish from
+        the model's context. The DB result replaces the in-memory history
+        whenever it holds at least as many turns.
+        """
+        try:
+            from core.database import get_db_session
+            from core.models import ChatMessage as ChatMessageModel
+
+            with get_db_session() as db:
+                rows = (
+                    db.query(ChatMessageModel)
+                    .filter(ChatMessageModel.conversation_id == session_id)
+                    # Same-second user+assistant rows sort user-first because
+                    # "user" > "assistant" descending.
+                    .order_by(ChatMessageModel.created_at.asc(), ChatMessageModel.role.desc())
+                    .all()
+                )
+
+            turns: List[Dict[str, Any]] = []
+            pending_user: Optional[str] = None
+            for row in rows:
+                content = (row.content or "").strip()
+                if not content:
+                    continue
+                if row.role == "user":
+                    if pending_user is not None:
+                        turns.append({
+                            "message": pending_user,
+                            "response": {"message": ""},
+                            "intent": {},
+                            "timestamp": str(row.created_at or ""),
+                            "error": False,
+                        })
+                    pending_user = content
+                else:
+                    _row_error = False
+                    try:
+                        _meta = json.loads(row.metadata_json or "{}")
+                        _row_error = _meta.get("quality") == "error"
+                    except Exception:
+                        pass
+                    turns.append({
+                        "message": pending_user or "",
+                        "response": {"message": "" if _row_error else content},
+                        "intent": {},
+                        "timestamp": str(row.created_at or ""),
+                        "error": _row_error,
+                    })
+                    pending_user = None
+            if pending_user is not None:
+                turns.append({
+                    "message": pending_user,
+                    "response": {"message": ""},
+                    "intent": {},
+                    "timestamp": "",
+                    "error": False,
+                })
+
+            existing = session.get("history") or []
+            if len(turns) >= len(existing) and len(turns) > 0:
+                session["history"] = turns[-12:]
+                if len(turns) != len(existing):
+                    logger.info(
+                        f"Hydrated {len(turns)} persisted turn(s) into session "
+                        f"{session_id} after restart"
+                    )
+        except Exception as e:
+            logger.warning(f"Could not hydrate session history from DB (non-fatal): {e}")
+
+
     def _get_or_create_session(
         self, user_id: str, session_id: str, context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -1469,6 +2668,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "created_at": datetime.now().isoformat(),
                     "history": []
                 }
+            else:
+                # Sessions preloaded from the legacy file store at boot arrive
+                # with empty history — hydrate from the DB so a returning
+                # conversation isn't amnesiac after a restart. No-ops when
+                # history is already populated.
+                self._hydrate_session_history(session_id, existing)
             return self.conversation_sessions[session_id]
 
         # New session — create in-memory AND persist the ChatSession row.
@@ -1480,6 +2685,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "created_at": datetime.now().isoformat(),
             "history": []
         }
+        # Restart survival: the ChatMessage rows for this session may already
+        # exist from a previous app run — load them back so the LLM sees the
+        # full conversation, not just the turns after this restart.
+        self._hydrate_session_history(session_id, self.conversation_sessions[session_id])
         # Persist the session row so it survives restarts and appears in the
         # session list sidebar.
         try:
@@ -1494,16 +2703,38 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"Could not persist ChatSession row (non-fatal): {e}")
         return self.conversation_sessions[session_id]
 
-    def _update_session(self, session: Dict, message: str, response: Dict, intent: Dict):
+    def _update_session(self, session: Dict, message: str, response, intent: Dict):
+        # Error-turn detection: a reply that is a known failure artifact (no
+        # provider, cancelled, budget-halted, protocol residue) must never
+        # enter the model's context later — in a long session they stack into
+        # a refusal wall that anchors weak models into failing again even
+        # when a fresh, successful answer is available. Flagged turns stay in
+        # the DB and UI (history is history) but are skipped at prompt-build.
+        # ``response`` may be a plain string (legacy callers) — stored
+        # verbatim; the dict-only error checks simply don't apply to it.
+        _resp_dict = response if isinstance(response, dict) else {}
+        _resp_msg = _resp_dict.get("message", "") or ("" if isinstance(response, dict) else str(response or ""))
+        _is_error_turn = bool(
+            not _resp_dict.get("success", True)
+            or _resp_dict.get("cancelled")
+            or _resp_dict.get("error_code") in ("no_llm_provider", "budget_exceeded")
+            or "<tool_call>" in _resp_msg
+            or "</mm:think>" in _resp_msg
+        )
         session["history"].append({
             "message": message,
             "response": response,
             "intent": intent,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "error": _is_error_turn,
         })
 
         # Session-dedup write-side: index this turn's content so future turns
         # can reference-match byte-identical repeated text. Exact-match only.
+        # The stored history itself is NEVER marker-ized here — replacing
+        # prior turns' text with placeholders is what corrupted recall before
+        # the read-path removal (nothing consumes the markers on the chat
+        # path anymore; indexing alone is harmless).
         try:
             from core.llm.compression import SESSION_DEDUP_ENABLED
             if SESSION_DEDUP_ENABLED:
@@ -1511,7 +2742,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 dedup_idx = get_or_create_dedup_index(session)
                 if message:
                     dedup_idx.index_text(message)
-                resp_msg = (response or {}).get("message", "")
+                resp_msg = _resp_msg
                 if resp_msg:
                     dedup_idx.index_text(resp_msg)
         except Exception:
@@ -1551,7 +2782,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         role="user",
                         content=message,
                     ))
-                    # Store the assistant response.
+                    # Store the assistant response; error turns carry a
+                    # metadata flag so hydration can exclude them from the
+                    # model's context (they remain visible in the UI).
                     resp_content = response.get("message", "") if isinstance(response, dict) else str(response)
                     if resp_content:
                         db.add(ChatMessageModel(
@@ -1559,6 +2792,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             tenant_id=tenant_id,
                             role="assistant",
                             content=resp_content,
+                            metadata_json=json.dumps({"quality": "error"}) if _is_error_turn else None,
                         ))
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")
@@ -1585,27 +2819,50 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             
             # Get user from session if available
             user_id = session.get("user_id", "default_user")
+            session_id = session.get("id")
             
             # Get or create Atom instance
             atom = get_atom_agent()
-            
+
+            # Stream live ReAct steps to the Agent Workspace panel while the
+            # run executes. Emission is failure-isolated (the emitter swallows
+            # socket errors) so a dead WebSocket can never break the chat reply.
+            # The execution id rides on the first step record; it is unknown
+            # until the meta-agent creates its run.
+            seen_execution = {"id": None}
+
+            async def step_callback(step_record):
+                step_exec_id = (step_record or {}).get("execution_id") or seen_execution["id"]
+                seen_execution["id"] = step_exec_id
+                await self._emit_agent_step(session_id, "atom_main", step_exec_id, step_record)
+
+            await self._emit_agent_status(session_id, "atom_main", None, "running")
+
             # Execute through Atom
             result = await atom.execute(
                 request=message,
                 context={
                     "intent_analysis": intent_analysis,
-                    "session_id": session.get("id"),
+                    "session_id": session_id,
                     "user_id": user_id,
                     **(context or {})
                 },
-                trigger_mode=AgentTriggerMode.MANUAL
+                trigger_mode=AgentTriggerMode.MANUAL,
+                step_callback=step_callback,
             )
+            execution_id = result.get("execution_id") or seen_execution["id"]
             
             # Propagate the machine-readable budget-failure signal instead of
             # hardcoding "success". Previously the meta-agent's budget_exceeded
             # status was silently swallowed here, so no structured signal could
             # reach the HTTP layer (the user saw a normal assistant bubble).
             failure_reason = result.get("failure_reason")
+            await self._emit_agent_status(
+                session_id,
+                "atom_main",
+                execution_id,
+                "failed" if failure_reason else "success",
+            )
             return {
                 "status": "budget_exceeded" if failure_reason else "success",
                 "success": not failure_reason,
@@ -1619,6 +2876,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             
         except Exception as e:
             logger.error(f"Agent request handler failed: {e}")
+            try:
+                await self._emit_agent_status(
+                    session.get("id") if session else None, "atom_main", None, "failed"
+                )
+            except Exception:
+                pass
             return {
                 "status": "error",
                 "error": "agent_request_failed",

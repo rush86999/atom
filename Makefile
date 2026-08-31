@@ -28,8 +28,7 @@ setup: ## One-shot dev bootstrap: venv, backend deps, frontend deps, .env
 # -------------------------------------------------------------------
 .PHONY: backend frontend dev
 backend: ## Run the full backend (main_api_app) on :$(PORT)
-	PYTHONPATH=$(PYTHONPATH) BYPASS_RATE_LIMIT=1 \
-	  $(PY) -m uvicorn main_api_app:app --reload --port $(PORT)
+	bash scripts/start-backend.sh --port $(PORT) --reload
 
 frontend: ## Run the frontend dev server on :$(FE_PORT)
 	cd frontend-nextjs && npm run dev -- -p $(FE_PORT)

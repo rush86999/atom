@@ -37,8 +37,14 @@ import { server } from '@/tests/mocks/server';
 const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 
 const m365Handlers = [
-  rest.get('/api/integrations/microsoft365/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ providers: { microsoft365: { connected: true, source: 'user_connection' } } })
+    );
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { microsoft365: { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.get('/api/integrations/microsoft365/user', (req, res, ctx) => {
@@ -203,7 +209,7 @@ const m365Handlers = [
 
 const setDisconnected = () => {
   server.use(
-    rest.get('/api/integrations/microsoft365/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(404));
     })
   );
@@ -333,7 +339,7 @@ describe('Microsoft365Integration', () => {
   // Test 10: handles connection error
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/microsoft365/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500));
       })
     );
@@ -1311,7 +1317,7 @@ describe('Microsoft365Integration (extended coverage)', () => {
 
   test('treats health check network failure as disconnected', async () => {
     server.use(
-      rest.get('/api/integrations/microsoft365/health', (req, res) =>
+      rest.get('/api/integrations/connection-status', (req, res) =>
         res.networkError('boom')
       )
     );
@@ -1319,7 +1325,7 @@ describe('Microsoft365Integration (extended coverage)', () => {
     render(<Microsoft365Integration />);
 
     await waitFor(() => {
-      expect(errorSpy).toHaveBeenCalledWith('Health check failed:', expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith('Connection status check failed:', expect.anything());
       expect(
         screen.getByRole('button', { name: /connect microsoft 365 account/i })
       ).toBeInTheDocument();

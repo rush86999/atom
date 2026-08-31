@@ -62,7 +62,8 @@ describe('DebugPanel', () => {
         return Promise.resolve({ ok: true, json: async () => activeSessions });
       }
       return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
-    });
+      // fixture returns partial Response objects; cast the completed mock
+    }) as unknown as typeof fetch;
   });
 
   // Test 1: shows the workflow name and a Start button when no session is active

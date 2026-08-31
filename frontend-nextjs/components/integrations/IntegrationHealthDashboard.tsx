@@ -1,38 +1,45 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
   CheckCircle,
   AlertTriangle,
   Clock,
-  Settings,
-  ExternalLink,
-  RefreshCw
+  HelpCircle,
+  RefreshCw,
+  XCircle,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Progress } from "../ui/progress";
 import { Spinner } from "../ui/spinner";
 import { Button } from "../ui/button";
-import { Alert, AlertDescription } from "../ui/alert";
+import { authHeaders } from "@/lib/auth-headers";
 
-interface IntegrationHealth {
-  id: string;
+/**
+ * Real integration health, from GET /api/integrations/health-status.
+ *
+ * The backend reports actual connection state (UserConnection rows,
+ * tenant connectors, environment credentials) and — when a credential can
+ * be exercised with one read-only call — verifies it against the live
+ * provider API, with the real measured response time. Statuses:
+ *
+ * - healthy      connected + live provider call succeeded
+ * - unreachable  connected + live provider call failed (error shown)
+ * - connected    connected, credential not exercisable in one call
+ *                (subdomain/realm/refresh-flow providers) — unverified
+ * - not_connected no connection or credential exists
+ */
+interface ProviderHealth {
   name: string;
-  status: "healthy" | "warning" | "error" | "unknown";
-  lastSync?: string;
-  responseTime?: number;
-  errorCount?: number;
-  connected: boolean;
-  enabled: boolean;
   category: string;
-  is_mock?: boolean;
-  endpoints: {
-    health: string;
-    profile?: string;
-    resources?: string;
-  };
+  connected: boolean;
+  source: "user_connection" | "tenant_integration" | "env" | "none";
+  status: "healthy" | "unreachable" | "connected" | "not_connected";
+  verified: boolean;
+  response_time_ms?: number | null;
+  error?: string | null;
+  checked_at?: string | null;
 }
-
-import { useWebSocket } from "@/hooks/useWebSocket";
 
 interface IntegrationHealthDashboardProps {
   autoRefresh?: boolean;
@@ -40,261 +47,102 @@ interface IntegrationHealthDashboardProps {
   showDetails?: boolean;
 }
 
+const SOURCE_LABELS: Record<ProviderHealth["source"], string> = {
+  user_connection: "in-app connection",
+  tenant_integration: "tenant connector",
+  env: "environment credentials",
+  none: "—",
+};
+
 const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
   autoRefresh = true,
   refreshInterval = 30000, // 30 seconds
   showDetails = true,
 }) => {
-  const [integrations, setIntegrations] = useState<IntegrationHealth[]>([]);
+  const [providers, setProviders] = useState<Record<string, ProviderHealth>>({});
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // WebSocket for Real-Time Health Updates
-  const { lastMessage } = useWebSocket({
-    initialChannels: ['platform_status']
-  });
-
-  useEffect(() => {
-    if (lastMessage && lastMessage.type === 'platform_status_change') {
-      const { platform, status } = lastMessage.data;
-      setIntegrations(prev => prev.map(integration =>
-        integration.id.toLowerCase() === platform.toLowerCase()
-          ? { ...integration, status, connected: status === 'healthy' }
-          : integration
-      ));
-      setLastUpdated(new Date());
-    }
-  }, [lastMessage]);
-
-  const integrationList: Omit<IntegrationHealth, "status" | "lastSync" | "responseTime" | "errorCount">[] = [
-    {
-      id: "github",
-      name: "GitHub",
-      connected: false,
-      enabled: true,
-      category: "development",
-      endpoints: {
-        health: "/api/integrations/github/health",
-        profile: "/api/integrations/github/profile",
-        resources: "/api/integrations/github/resources",
-      },
-    },
-    {
-      id: "azure",
-      name: "Azure",
-      connected: false,
-      enabled: true,
-      category: "cloud",
-      endpoints: {
-        health: "/api/integrations/azure/health",
-        profile: "/api/integrations/azure/profile",
-        resources: "/api/integrations/azure/resources",
-      },
-    },
-    {
-      id: "microsoft365",
-      name: "Microsoft 365",
-      connected: false,
-      enabled: true,
-      category: "productivity",
-      endpoints: {
-        health: "/api/integrations/microsoft365/health",
-        profile: "/api/integrations/microsoft365/profile",
-        resources: "/api/integrations/microsoft365/resources",
-      },
-    },
-    {
-      id: "notion",
-      name: "Notion",
-      connected: false,
-      enabled: true,
-      category: "productivity",
-      endpoints: {
-        health: "/api/integrations/notion/health",
-        profile: "/api/integrations/notion/profile",
-        resources: "/api/integrations/notion/resources",
-      },
-    },
-    {
-      id: "salesforce",
-      name: "Salesforce",
-      connected: false,
-      enabled: true,
-      category: "crm",
-      endpoints: {
-        health: "/api/integrations/salesforce/health",
-        profile: "/api/integrations/salesforce/profile",
-        resources: "/api/integrations/salesforce/resources",
-      },
-    },
-    {
-      id: "slack",
-      name: "Slack",
-      connected: false,
-      enabled: true,
-      category: "communication",
-      endpoints: {
-        health: "/api/integrations/slack/health",
-        profile: "/api/integrations/slack/profile",
-        resources: "/api/integrations/slack/resources",
-      },
-    },
-    {
-      id: "stripe",
-      name: "Stripe",
-      connected: false,
-      enabled: true,
-      category: "finance",
-      endpoints: {
-        health: "/api/integrations/stripe/health",
-        profile: "/api/integrations/stripe/profile",
-        resources: "/api/integrations/stripe/resources",
-      },
-    },
-    {
-      id: "teams",
-      name: "Microsoft Teams",
-      connected: false,
-      enabled: true,
-      category: "communication",
-      endpoints: {
-        health: "/api/integrations/teams/health",
-        profile: "/api/integrations/teams/profile",
-        resources: "/api/integrations/teams/resources",
-      },
-    },
-    {
-      id: "zoom",
-      name: "Zoom",
-      connected: false,
-      enabled: true,
-      category: "communication",
-      endpoints: {
-        health: "/api/integrations/zoom/health",
-        profile: "/api/integrations/zoom/profile",
-        resources: "/api/integrations/zoom/resources",
-      },
-    },
-  ];
-
-  const checkIntegrationHealth = async (integration: Omit<IntegrationHealth, "status" | "lastSync" | "responseTime" | "errorCount">): Promise<IntegrationHealth> => {
-    const startTime = Date.now();
-    let status: IntegrationHealth["status"] = "unknown";
-    let connected = false;
-    let errorCount = 0;
-    let isMock = false;
-
-    try {
-      const response = await fetch(integration.endpoints.health);
-      const endTime = Date.now();
-      const responseTime = endTime - startTime;
-
-      if (response.ok) {
-        try {
-          const data = await response.json();
-          connected = data.connected || data.status === "healthy";
-          status = connected ? "healthy" : "warning";
-          isMock = data.is_mock || false;
-        } catch (jsonError) {
-          // Response was OK but not JSON, treat as healthy but not connected
-          status = "warning";
-          connected = false;
-        }
-      } else {
-        status = "error";
-        errorCount = 1;
-      }
-
-      return {
-        ...integration,
-        status,
-        connected,
-        lastSync: new Date().toISOString(),
-        responseTime,
-        errorCount,
-        is_mock: isMock,
-      };
-    } catch (error) {
-      console.error(`Health check failed for ${integration.name}:`, error);
-      return {
-        ...integration,
-        status: "error",
-        connected: false,
-        lastSync: new Date().toISOString(),
-        responseTime: Date.now() - startTime,
-        errorCount: 1,
-        is_mock: false,
-      };
-    }
-  };
-
-  const refreshHealthStatus = async () => {
+  const refreshHealthStatus = useCallback(async () => {
     setRefreshing(true);
     try {
-      const healthPromises = integrationList.map(checkIntegrationHealth);
-      const results = await Promise.all(healthPromises);
-      setIntegrations(results);
+      const response = await authFetch("/api/integrations/health-status", {
+        headers: authHeaders(),
+      });
+      if (!response.ok) throw new Error(`health-status returned ${response.status}`);
+      const data = await response.json();
+      setProviders(data?.providers ?? {});
       setLastUpdated(new Date());
     } catch (error) {
-      console.error("Failed to refresh health status:", error);
+      console.error("Failed to refresh integration health:", error);
     } finally {
       setRefreshing(false);
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     refreshHealthStatus();
-  }, []);
+  }, [refreshHealthStatus]);
 
   useEffect(() => {
     if (autoRefresh && !loading) {
       const interval = setInterval(refreshHealthStatus, refreshInterval);
       return () => clearInterval(interval);
     }
-  }, [autoRefresh, refreshInterval, loading]);
+  }, [autoRefresh, refreshInterval, loading, refreshHealthStatus]);
 
-  const getStatusColor = (status: IntegrationHealth["status"]) => {
+  const entries = Object.entries(providers).sort(([, a], [, b]) => {
+    const rank = (s: ProviderHealth["status"]) =>
+      s === "healthy" ? 0 : s === "unreachable" ? 1 : s === "connected" ? 2 : 3;
+    return rank(a.status) - rank(b.status) || a.name.localeCompare(b.name);
+  });
+
+  const connectedCount = entries.filter(([, p]) => p.connected).length;
+  const healthyCount = entries.filter(([, p]) => p.status === "healthy").length;
+  const unreachableCount = entries.filter(([, p]) => p.status === "unreachable").length;
+  const unverifiedCount = entries.filter(([, p]) => p.status === "connected").length;
+  const notConnectedCount = entries.filter(([, p]) => p.status === "not_connected").length;
+  const totalCount = entries.length;
+
+  const getStatusMeta = (status: ProviderHealth["status"]) => {
     switch (status) {
       case "healthy":
-        return "success";
-      case "warning":
-        return "warning";
-      case "error":
-        return "destructive";
+        return {
+          icon: CheckCircle,
+          iconClass: "text-green-500",
+          badge: "success" as const,
+          label: "HEALTHY",
+        };
+      case "unreachable":
+        return {
+          icon: XCircle,
+          iconClass: "text-red-500",
+          badge: "destructive" as const,
+          label: "UNREACHABLE",
+        };
+      case "connected":
+        return {
+          icon: HelpCircle,
+          iconClass: "text-yellow-500",
+          badge: "warning" as const,
+          label: "UNVERIFIED",
+        };
       default:
-        return "secondary";
+        return {
+          icon: Clock,
+          iconClass: "text-gray-400",
+          badge: "secondary" as const,
+          label: "NOT CONNECTED",
+        };
     }
   };
 
-  const getStatusIcon = (status: IntegrationHealth["status"]) => {
-    switch (status) {
-      case "healthy":
-        return CheckCircle;
-      case "warning":
-        return AlertTriangle;
-      case "error":
-        return AlertTriangle;
-      default:
-        return Clock;
-    }
-  };
-
-  const formatResponseTime = (ms?: number) => {
-    if (!ms) return "N/A";
+  const formatResponseTime = (ms?: number | null) => {
+    if (!ms && ms !== 0) return "—";
     return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
   };
-
-  const formatLastSync = (dateString?: string) => {
-    if (!dateString) return "Never";
-    return new Date(dateString).toLocaleTimeString();
-  };
-
-  const healthyCount = integrations.filter(i => i.status === "healthy").length;
-  const warningCount = integrations.filter(i => i.status === "warning").length;
-  const errorCount = integrations.filter(i => i.status === "error").length;
-  const totalCount = integrations.length;
 
   if (loading) {
     return (
@@ -312,9 +160,9 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Integrations</p>
-              <div className="text-2xl font-bold">{totalCount}</div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">All configured</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Connected</p>
+              <div className="text-2xl font-bold">{connectedCount}</div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">of {totalCount} known integrations</p>
             </div>
           </CardContent>
         </Card>
@@ -322,9 +170,9 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Healthy</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Verified healthy</p>
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">{healthyCount}</div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Running smoothly</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Live provider API call succeeded</p>
             </div>
           </CardContent>
         </Card>
@@ -332,9 +180,9 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Warnings</p>
-              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{warningCount}</div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Needs attention</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Unreachable</p>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{unreachableCount}</div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Credential rejected or provider failed</p>
             </div>
           </CardContent>
         </Card>
@@ -342,36 +190,35 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Errors</p>
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{errorCount}</div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Requires action</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Unverified</p>
+              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{unverifiedCount}</div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Connected, credential not exercisable</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Health Progress */}
+      {/* Connected share */}
       <Card>
         <CardContent className="pt-6">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-gray-900 dark:text-gray-100">Overall Health</h3>
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">Connections</h3>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {healthyCount}/{totalCount} healthy
+                {connectedCount}/{totalCount} connected
               </span>
             </div>
             <Progress
-              value={(healthyCount / totalCount) * 100}
+              value={totalCount ? (connectedCount / totalCount) * 100 : 0}
               indicatorClassName={
-                healthyCount === totalCount ? "bg-green-600" :
-                  healthyCount > totalCount / 2 ? "bg-yellow-500" : "bg-red-600"
+                connectedCount === totalCount ? "bg-green-600" :
+                  connectedCount > totalCount / 2 ? "bg-yellow-500" : "bg-red-600"
               }
               className="h-3"
             />
             <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>0%</span>
-              <span>50%</span>
-              <span>100%</span>
+              <span>{notConnectedCount} not connected</span>
+              <span>{healthyCount} verified healthy</span>
             </div>
           </div>
         </CardContent>
@@ -398,62 +245,45 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
           </p>
         )}
 
-        {integrations.map((integration) => {
-          const StatusIcon = getStatusIcon(integration.status);
+        {entries.map(([id, provider]) => {
+          const meta = getStatusMeta(provider.status);
+          const StatusIcon = meta.icon;
           return (
-            <Card
-              key={integration.id}
-              className="hover:shadow-md transition-shadow"
-            >
+            <Card key={id} className="hover:shadow-md transition-shadow">
               <CardContent className="pt-6">
                 <div className="flex items-start space-x-4">
-                  <StatusIcon
-                    className={`h-6 w-6 text-${getStatusColor(integration.status) === 'success' ? 'green' : getStatusColor(integration.status) === 'warning' ? 'yellow' : 'red'}-500`}
-                  />
+                  <StatusIcon className={`h-6 w-6 shrink-0 ${meta.iconClass}`} />
 
                   <div className="flex-1 space-y-2">
                     <div className="flex justify-between items-center w-full">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-900 dark:text-gray-100">{integration.name}</span>
-                        {integration.is_mock && (
-                          <Badge variant="secondary" className="text-xs bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 border-yellow-500/20">
-                            MOCK
-                          </Badge>
-                        )}
+                        <span className="font-bold text-gray-900 dark:text-gray-100">{provider.name}</span>
                       </div>
                       <div className="flex space-x-2">
                         <Badge variant="secondary">
-                          {integration.category}
+                          {provider.category}
                         </Badge>
-                        <Badge
-                          variant={getStatusColor(integration.status) as any}
-                        >
-                          {integration.status.toUpperCase()}
+                        <Badge variant={meta.badge}>
+                          {meta.label}
                         </Badge>
-                        {integration.connected && (
-                          <Badge variant="success">
-                            CONNECTED
-                          </Badge>
-                        )}
                       </div>
                     </div>
 
                     {showDetails && (
-                      <div className="flex space-x-6 text-sm text-gray-600 dark:text-gray-400">
-                        <div className="flex items-center space-x-1" title="Last synchronization">
-                          <Clock className="h-4 w-4" />
-                          <span>{formatLastSync(integration.lastSync)}</span>
+                      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
+                        {provider.verified && (
+                          <div className="flex items-center space-x-1" title="Real provider API call duration">
+                            <Clock className="h-4 w-4" />
+                            <span>{formatResponseTime(provider.response_time_ms)}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center space-x-1" title="Where this connection comes from">
+                          <span>Source: {SOURCE_LABELS[provider.source]}</span>
                         </div>
-
-                        <div className="flex items-center space-x-1" title="Response time">
-                          <Settings className="h-4 w-4" />
-                          <span>{formatResponseTime(integration.responseTime)}</span>
-                        </div>
-
-                        {integration.errorCount !== undefined && integration.errorCount > 0 && (
-                          <div className="flex items-center space-x-1 text-red-500" title="Error count">
+                        {provider.status === "unreachable" && provider.error && (
+                          <div className="flex items-center space-x-1 text-red-500" title="Provider API error">
                             <AlertTriangle className="h-4 w-4" />
-                            <span>{integration.errorCount} errors</span>
+                            <span>{provider.error}</span>
                           </div>
                         )}
                       </div>
@@ -470,18 +300,30 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
       < Card >
         <CardContent className="pt-6">
           <h4 className="font-bold mb-3 text-gray-900 dark:text-gray-100">Status Legend</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center space-x-2">
-              <CheckCircle className="h-5 w-5 text-green-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">Healthy - Integration is working properly</span>
+              <CheckCircle className="h-5 w-5 text-green-500 shrink-0" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Healthy — connected and a live provider API call succeeded
+              </span>
             </div>
             <div className="flex items-center space-x-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">Warning - Minor issues detected</span>
+              <XCircle className="h-5 w-5 text-red-500 shrink-0" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Unreachable — connected but the credential was rejected or the provider failed
+              </span>
             </div>
             <div className="flex items-center space-x-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">Error - Integration requires attention</span>
+              <HelpCircle className="h-5 w-5 text-yellow-500 shrink-0" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Unverified — connected, but the credential needs an interactive flow to test
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Clock className="h-5 w-5 text-gray-400 shrink-0" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Not connected — no connection or stored credential for this integration
+              </span>
             </div>
           </div>
         </CardContent>
@@ -491,4 +333,3 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
 };
 
 export default IntegrationHealthDashboard;
-

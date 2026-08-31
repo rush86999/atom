@@ -9,12 +9,13 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCanvasState } from '../useCanvasState';
 import type { CanvasStateAPI, AnyCanvasState, CanvasStateChangeEvent } from '@/components/canvas/types';
 
-// Mock canvas types for testing
-interface MockCanvasState extends AnyCanvasState {
+// Mock canvas types for testing (standalone shape — the real AnyCanvasState is
+// a union of state variants with different field names)
+type MockCanvasState = {
   canvas_id: string;
   type: 'chart' | 'markdown' | 'form';
   data: any;
-}
+};
 
 describe('useCanvasState', () => {
   let mockApi: CanvasStateAPI;
@@ -29,29 +30,29 @@ describe('useCanvasState', () => {
         canvas_id: id,
         type: 'chart',
         data: { title: 'Test Canvas' }
-      })),
+      }) as unknown as AnyCanvasState),
       getAllStates: jest.fn(() => [
-        { canvas_id: 'canvas-1', state: { type: 'chart', data: {} } },
-        { canvas_id: 'canvas-2', state: { type: 'markdown', data: {} } }
+        { canvas_id: 'canvas-1', state: { type: 'chart', data: {} } as unknown as AnyCanvasState },
+        { canvas_id: 'canvas-2', state: { type: 'markdown', data: {} } as unknown as AnyCanvasState }
       ]),
-      subscribe: jest.fn((callback) => {
+      subscribe: jest.fn((callback: (state: AnyCanvasState) => void) => {
         // Simulate immediate state update
         setTimeout(() => {
           callback({
             canvas_id: 'test-canvas',
             type: 'chart',
             data: { title: 'Test Canvas' }
-          } as AnyCanvasState);
+          } as unknown as AnyCanvasState);
         }, 0);
         return unsubscribeFn;
-      }),
-      subscribeAll: jest.fn((callback) => {
+      }) as unknown as CanvasStateAPI['subscribe'],
+      subscribeAll: jest.fn((callback: (event: CanvasStateChangeEvent) => void) => {
         // Simulate immediate state updates
         setTimeout(() => {
           callback({
             canvas_id: 'canvas-1',
             state: { type: 'chart', data: {} }
-          } as CanvasStateChangeEvent);
+          } as unknown as CanvasStateChangeEvent);
         }, 0);
         return unsubscribeFn;
       })
@@ -117,10 +118,10 @@ describe('useCanvasState', () => {
         data: { title: 'Updated Canvas' }
       };
 
-      mockApi.subscribe = jest.fn((callback) => {
-        setTimeout(() => callback(testState as AnyCanvasState), 10);
+      mockApi.subscribe = jest.fn((callback: (state: AnyCanvasState) => void) => {
+        setTimeout(() => callback(testState as unknown as AnyCanvasState), 10);
         return unsubscribeFn;
-      });
+      }) as unknown as CanvasStateAPI['subscribe'];
 
       (window as any).atom.canvas = mockApi;
 
@@ -134,10 +135,10 @@ describe('useCanvasState', () => {
     it('should update state when canvas changes', async () => {
       let stateCallback: (state: AnyCanvasState) => void;
 
-      mockApi.subscribe = jest.fn((callback) => {
+      mockApi.subscribe = jest.fn((callback: (state: AnyCanvasState) => void) => {
         stateCallback = callback;
         return unsubscribeFn;
-      });
+      }) as unknown as CanvasStateAPI['subscribe'];
 
       (window as any).atom.canvas = mockApi;
 
@@ -149,11 +150,11 @@ describe('useCanvasState', () => {
           canvas_id: 'test-canvas',
           type: 'chart',
           data: { title: 'New State' }
-        } as AnyCanvasState);
+        } as unknown as AnyCanvasState);
       });
 
       await waitFor(() => {
-        expect(result.current.state?.data?.title).toBe('New State');
+        expect((result.current.state as any)?.data?.title).toBe('New State');
       });
     });
   });
@@ -172,7 +173,7 @@ describe('useCanvasState', () => {
     it('should receive updates for all canvases', async () => {
       let allCallback: (event: CanvasStateChangeEvent) => void;
 
-      mockApi.subscribeAll = jest.fn((callback) => {
+      mockApi.subscribeAll = jest.fn((callback: (event: CanvasStateChangeEvent) => void) => {
         allCallback = callback;
         return unsubscribeFn;
       });
@@ -189,7 +190,7 @@ describe('useCanvasState', () => {
         allCallback!({
           canvas_id: 'canvas-3',
           state: { type: 'form', data: {} }
-        } as CanvasStateChangeEvent);
+        } as unknown as CanvasStateChangeEvent);
       });
 
       await waitFor(() => {
@@ -201,13 +202,13 @@ describe('useCanvasState', () => {
     it('should update existing canvas in allStates', async () => {
       let allCallback: (event: CanvasStateChangeEvent) => void;
 
-      mockApi.subscribeAll = jest.fn((callback) => {
+      mockApi.subscribeAll = jest.fn((callback: (event: CanvasStateChangeEvent) => void) => {
         // Initial state
         setTimeout(() => {
           callback({
             canvas_id: 'canvas-1',
             state: { type: 'chart', data: { title: 'Original' } }
-          } as CanvasStateChangeEvent);
+          } as unknown as CanvasStateChangeEvent);
         }, 0);
 
         allCallback = callback;
@@ -231,11 +232,11 @@ describe('useCanvasState', () => {
         allCallback!({
           canvas_id: 'canvas-1',
           state: { type: 'chart', data: { title: 'Updated' } }
-        } as CanvasStateChangeEvent);
+        } as unknown as CanvasStateChangeEvent);
       });
 
       await waitFor(() => {
-        expect(result.current.allStates[0].state.data.title).toBe('Updated');
+        expect((result.current.allStates[0].state as any).data.title).toBe('Updated');
         expect(result.current.allStates.length).toBe(1); // Should not duplicate
       });
     });
@@ -243,7 +244,7 @@ describe('useCanvasState', () => {
     it('should add new canvas to allStates', async () => {
       let allCallback: (event: CanvasStateChangeEvent) => void;
 
-      mockApi.subscribeAll = jest.fn((callback) => {
+      mockApi.subscribeAll = jest.fn((callback: (event: CanvasStateChangeEvent) => void) => {
         allCallback = callback;
         return unsubscribeFn;
       });
@@ -260,7 +261,7 @@ describe('useCanvasState', () => {
         allCallback!({
           canvas_id: 'canvas-1',
           state: { type: 'chart', data: {} }
-        } as CanvasStateChangeEvent);
+        } as unknown as CanvasStateChangeEvent);
       });
 
       await waitFor(() => {
@@ -272,7 +273,7 @@ describe('useCanvasState', () => {
         allCallback!({
           canvas_id: 'canvas-2',
           state: { type: 'markdown', data: {} }
-        } as CanvasStateChangeEvent);
+        } as unknown as CanvasStateChangeEvent);
       });
 
       await waitFor(() => {

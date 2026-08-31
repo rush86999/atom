@@ -19,6 +19,7 @@ const mockApi = {
   approveTrainingProposal: jest.fn(),
   rejectTrainingProposal: jest.fn(),
   completeTrainingSession: jest.fn(),
+  getTrainingSessionEvidence: jest.fn(),
   approveActionProposal: jest.fn(),
   rejectActionProposal: jest.fn(),
 };
@@ -71,6 +72,15 @@ describe('MaturityApprovalPanel', () => {
       session_id: 'sess-1',
       proposal_id: 'tp-1',
     });
+    // Completion is gated on recorded work runs — the button stays disabled
+    // until the session shows at least the required number of episodes.
+    mockApi.getTrainingSessionEvidence.mockResolvedValue({
+      episodes: 5,
+      successes: 5,
+      success_ratio: 1,
+      required_episodes: 3,
+      window_started_at: null,
+    });
     mockApi.completeTrainingSession.mockResolvedValue({
       session_id: 'sess-1',
       promoted_to_intern: true,
@@ -87,6 +97,10 @@ describe('MaturityApprovalPanel', () => {
     await waitFor(() =>
       expect(screen.getByTestId('complete-training-form')).toBeInTheDocument()
     );
+    // Evidence loads async; wait until the gate opens before completing.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Mark completed' })).toBeEnabled()
+    );
 
     await user.click(screen.getByRole('button', { name: 'Mark completed' }));
 
@@ -97,7 +111,7 @@ describe('MaturityApprovalPanel', () => {
     );
     expect(mockApi.completeTrainingSession).toHaveBeenCalledWith(
       'sess-1',
-      expect.objectContaining({ performance_score: 0.9, tasks_completed: 10 })
+      expect.objectContaining({ supervisor_feedback: expect.any(String) })
     );
   });
 

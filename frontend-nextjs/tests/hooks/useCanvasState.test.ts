@@ -30,6 +30,14 @@ interface MockChartCanvas {
   data: Record<string, unknown>;
 }
 
+// Fixture events simulate 'chart'/'markdown' canvas types that sit outside the
+// declared AnyCanvasState union and only carry the fields the assertions read,
+// so loosen the event shape for fixtures only.
+type MockCanvasStateChangeEvent = {
+  canvas_id: string;
+  state: { canvas_type: string } & Record<string, unknown>;
+};
+
 describe('useCanvasState', () => {
   let mockAPI: CanvasStateAPI;
   let unsubscribeCallback: (() => void) | null;
@@ -133,7 +141,7 @@ describe('useCanvasState', () => {
     test('receives all canvas state updates', async () => {
       const { result } = renderHook(() => useCanvasState());
 
-      const mockEvent: CanvasStateChangeEvent = {
+      const mockEvent: MockCanvasStateChangeEvent = {
         canvas_id: 'canvas-1',
         state: {
           canvas_type: 'chart',
@@ -220,12 +228,12 @@ describe('useCanvasState', () => {
     test('updates allStates array with new canvas', () => {
       const { result } = renderHook(() => useCanvasState());
 
-      const mockEvent1: CanvasStateChangeEvent = {
+      const mockEvent1: MockCanvasStateChangeEvent = {
         canvas_id: 'canvas-1',
         state: { canvas_type: 'chart', chart_type: 'line', data: {} }
       };
 
-      const mockEvent2: CanvasStateChangeEvent = {
+      const mockEvent2: MockCanvasStateChangeEvent = {
         canvas_id: 'canvas-2',
         state: { canvas_type: 'markdown', content: 'test' }
       };
@@ -244,12 +252,12 @@ describe('useCanvasState', () => {
     test('updates existing canvas in allStates array', () => {
       const { result } = renderHook(() => useCanvasState());
 
-      const mockEvent1: CanvasStateChangeEvent = {
+      const mockEvent1: MockCanvasStateChangeEvent = {
         canvas_id: 'canvas-1',
         state: { canvas_type: 'chart', chart_type: 'line', data: { values: [1, 2, 3] } }
       };
 
-      const mockEvent2: CanvasStateChangeEvent = {
+      const mockEvent2: MockCanvasStateChangeEvent = {
         canvas_id: 'canvas-1',
         state: { canvas_type: 'chart', chart_type: 'bar', data: { values: [4, 5, 6] } }
       };

@@ -4,7 +4,9 @@
  * Tests S3 client initialization, presigned URL generation, and configuration.
  */
 
-import { StorageService } from '@lib/src/storage/s3-storage';
+// Relative path: `@lib/src/*` is mapped only in Jest's moduleNameMapper, not in
+// tsconfig paths, so tsc cannot resolve the alias form here.
+import { StorageService } from '../../../src/lib/storage/s3-storage';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 

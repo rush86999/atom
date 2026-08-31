@@ -43,7 +43,8 @@
     "tauri:driver": "echo 'tauri-driver not available via npm - see wdio/README.md for alternatives'",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium",
-    "typecheck:changed": "bash scripts/typecheck-changed.sh"
+    "typecheck:changed": "bash scripts/typecheck-changed.sh",
+    "type-check:tests": "tsc --noEmit -p tsconfig.tests.json"
   },
   "dependencies": {
     "@apollo/client": "^3.7.10",

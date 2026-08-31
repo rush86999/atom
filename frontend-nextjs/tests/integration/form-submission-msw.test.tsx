@@ -19,7 +19,8 @@ import React from 'react';
 import { renderWithProviders, screen, waitFor } from '../test-utils';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import { server, rest } from '@/tests/mocks/server';
+import { server } from '@/tests/mocks/server';
+import { rest } from 'msw';
 import { InteractiveForm } from '@/components/canvas/InteractiveForm';
 
 // ============================================================================

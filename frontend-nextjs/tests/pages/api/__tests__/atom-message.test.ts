@@ -4,6 +4,7 @@ jest.mock("@/project/functions/atom-agent/src/handler", () => ({
 }));
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/atom/message";
 
 describe("pages/api/atom/message", () => {
@@ -11,7 +12,7 @@ describe("pages/api/atom/message", () => {
     jest.clearAllMocks();
   });
 
-  const invoke = async (method = "POST", body: any = {}) => {
+  const invoke = async (method: RequestMethod = "POST", body: any = {}) => {
     const { req, res } = createMocks({ method, body }) as any;
     await handler(req, res);
     return res;

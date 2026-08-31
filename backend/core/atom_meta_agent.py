@@ -15,7 +15,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from core.models import (
-    AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution,
+    AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution, NEW_AGENT_CONFIDENCE,
     Workspace, AgentReasoningStep, ExecutionStatus, AgentTriggerMode,
     ChainLink,
 )
@@ -393,7 +393,7 @@ def ensure_atom_registry_persisted(db) -> "AgentRegistry":
     row = AgentRegistry(
         id="atom_main",
         name="Atom",
-        category="Meta",  # Special category for the main agent
+        category="system",  # System-agent label — matches the Chat Assistant seed convention
         description="Central orchestrator agent",
         # NOT NULL without defaults — the in-memory _get_atom_registry()
         # template omits these, which only surfaces when persisting.
@@ -678,6 +678,10 @@ class AtomMetaAgent:
                 self.tenant_id = tenant_id # Sync if resolved later
 
                 # Create persistent execution record
+                # metadata_json carries the chat session_id so the run can be
+                # joined back to its conversation for trace replay (the
+                # thread_id column is an FK to agent_threads, unusable here).
+                _session_id = (context or {}).get("session_id")
                 execution = AgentExecution(
                     id=execution_id,
                     agent_id="atom_main",
@@ -685,7 +689,11 @@ class AtomMetaAgent:
                     status=ExecutionStatus.RUNNING.value,
                     input_summary=request[:200],
                     triggered_by=trigger_mode.value,
-                    started_at=start_time
+                    started_at=start_time,
+                    metadata_json=(
+                        {"session_id": _session_id, "channel": "chat"}
+                        if _session_id else {}
+                    ),
                 )
                 db.add(execution)
                 db.commit()
@@ -1029,6 +1037,23 @@ class AtomMetaAgent:
             steps = []
             final_answer = None
             status = "success"
+
+            # BPE workspace (plan Phase 2): fresh per-episode consult counters.
+            _bpe_ws = None
+            try:
+                from core.bpe.actions import bpe_enabled as _bpe_on
+                from core.bpe.workspace import get_workspace as _get_ws
+
+                if _bpe_on():
+                    _bpe_ws = _get_ws(
+                        str((context or {}).get("workspace_id") or "default"),
+                        str((context or {}).get("agent_id") or "atom_main"),
+                        str((context or {}).get("session_id") or execution_id or ""),
+                    )
+                    _bpe_ws.reset_episode_counters()
+            except Exception as _bpe_err:
+                logger.debug(f"bpe episode reset skipped: {_bpe_err}")
+
             # Machine-readable budget-failure signal (None unless the budget
             # gate halted the run). Propagated to result_payload so downstream
             # hops (orchestrator → HTTP) can surface a structured error_code
@@ -1424,13 +1449,59 @@ class AtomMetaAgent:
             "actions_executed": steps,
             "trigger_mode": trigger_mode.value,
             "status": status,
+            # Run identity so callers (e.g. the chat orchestrator's status
+            # broadcasts) can correlate lifecycle events with this execution.
+            "execution_id": execution_id,
             # Machine-readable budget-failure signal (None on success). The
             # orchestrator reads this to set error_code='budget_exceeded' on
             # the HTTP response so the frontend can render a distinct UI.
             "failure_reason": failure_reason,
             "failure_mode": failure_mode,
         }
-        
+
+        # BPE workspace episode close-out (plan Phase 2) — mirrors
+        # GenericAgent: consolidate notes on success / drop on failure,
+        # consult-policy feedback, state snapshot for the experience trace.
+        try:
+            if _bpe_ws is not None:
+                from core.bpe.consolidation import consolidate_workspace_notes
+                from core.bpe.consult_policy import get_consult_policy
+
+                _success = status == "success"
+                _bpe_consolidated = (
+                    consolidate_workspace_notes(_bpe_ws) if _success
+                    else {"dropped_notes": len(_bpe_ws.drain_pending_notes())}
+                )
+                _policy = get_consult_policy()
+                _meta_agent_id = str((context or {}).get("agent_id") or "atom_main")
+                _policy.record_consult_mix(_meta_agent_id, _bpe_ws.episode_commit_notes)
+                _policy.record_episode(
+                    _meta_agent_id,
+                    _bpe_ws.episode_consults,
+                    _success,
+                    1.0,  # meta runs carry no step_efficiency signal; neutral
+                )
+                try:
+                    from core.bpe.evolution import apply_best
+
+                    apply_best(_meta_agent_id)
+                except Exception as _evo_err:
+                    logger.debug(f"bpe evolution apply skipped: {_evo_err}")
+                result_payload["bpe"] = {
+                    "consults": _bpe_ws.episode_consults,
+                    "consolidated": _bpe_consolidated,
+                    "state": _bpe_ws.to_dict(),
+                }
+                try:
+                    from core.bpe.persistence import BPEWorkspaceStore
+
+                    BPEWorkspaceStore().save(result_payload["bpe"]["state"])
+                except Exception as _persist_err:
+                    logger.debug(f"bpe persist skipped: {_persist_err}")
+                _bpe_ws.reset_episode_counters()
+        except Exception as _bpe_err:
+            logger.debug(f"bpe episode close-out skipped: {_bpe_err}")
+
         await self._record_execution(request, result_payload, trigger_mode)
         
         # Update Execution Record with duration
@@ -1571,7 +1642,34 @@ class AtomMetaAgent:
         Uses instructor to ensure structured output.
         """
         canvas_segment = f"\nCURRENT CANVAS STATE:\n{canvas_text}" if canvas_text else ""
-        
+
+        # BPE workspace (docs/architecture/BPE_WORKSPACE_PLAN.md, Phase 1+2):
+        # same flag-gated, consult-policy-mediated block as GenericAgent —
+        # flag off → prompt unchanged. Scope: session/execution bound.
+        bpe_block = ""
+        try:
+            from core.bpe.actions import bpe_enabled
+            from core.bpe.consult_policy import get_consult_policy
+            from core.bpe.workspace import get_workspace
+
+            if bpe_enabled():
+                _scope_key = str(
+                    (context or {}).get("session_id")
+                    or (context or {}).get("execution_id")
+                    or ""
+                )
+                _ws = get_workspace(
+                    str((context or {}).get("workspace_id") or "default"),
+                    str((context or {}).get("agent_id") or "atom_main"),
+                    _scope_key,
+                )
+                _policy = get_consult_policy()
+                _agent_id = str((context or {}).get("agent_id") or "atom_main")
+                if _policy.should_render(_agent_id, "moderate", workspace_nonempty=True):
+                    bpe_block = "\n" + _ws.render(mode=_policy.render_mode(_agent_id)) + "\n"
+        except Exception as e:
+            logger.debug(f"bpe workspace render skipped: {e}")
+
         system_prompt = """You are Atom, an intelligent business assistant.
 
 AVAILABLE TOOLS:
@@ -1620,11 +1718,14 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
 
 {skill_instructions}
 
+{bpe_block}
+
 {canvas_segment}
 """.format(
             tool_descriptions=tool_descriptions,
             comm_instruction=self._get_communication_instruction(context),
             skill_instructions=self._retrieve_skill_instructions(request),
+            bpe_block=bpe_block,
             canvas_segment=canvas_segment
         )
 
@@ -2367,7 +2468,7 @@ What is your next step?"""
             description=template.get("description", "Dynamically spawned agent"),
             category=template.get("category", "General"),
             status=AgentStatus.STUDENT.value,  # New agents start as STUDENT
-            confidence_score=0.5,  # Default starting confidence
+            confidence_score=NEW_AGENT_CONFIDENCE,  # Below the INTERN floor (0.5)
             module_path="core.generic_agent",
             class_name="GenericAgent",
             configuration=custom_params or template.get("default_params", {}),
@@ -2946,7 +3047,7 @@ Provide your Mentorship Guidance:"""
         # Vocabulary is mined from real work history so edge roles (beyond
         # the static keyword table) attribute dynamically.
         from core.domain_attribution import (
-            build_domain_vocabulary, record_domain_outcome, resolve_domain,
+            build_domain_vocabulary, resolve_domain,
         )
         attributed_domain = None
         db = SessionLocal()
@@ -2977,12 +3078,12 @@ Provide your Mentorship Guidance:"""
         success = _execution_succeeded(result)
         try:
             gov = AgentGovernanceService(db)
-            await gov.record_outcome("atom_main", success=success)
-            if attributed_domain:
-                record_domain_outcome(
-                    db, "atom_main", attributed_domain,
-                    success=success, task_summary=request[:200],
-                )
+            # Domain attribution happens inside record_outcome now (shared
+            # R86c wiring) — passing the task text here keeps the meta
+            # agent's ledger row without double-writing it.
+            await gov.record_outcome(
+                "atom_main", success=success, task_summary=request[:200]
+            )
         except Exception as ge:
             logger.error(f"Failed to record Atom governance outcome: {ge}")
         finally:

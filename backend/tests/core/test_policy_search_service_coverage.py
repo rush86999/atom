@@ -41,11 +41,16 @@ def llm_mock():
 
 @pytest.fixture
 def service(llm_mock):
-    """PGPolicySearchService with a mocked DB session and LLMService.
+    """PGPolicySearchService with a mocked DB session and embedding seams.
 
-    LLMService is imported *inside* __init__, so we patch it at its source.
+    LLMService and EmbeddingService are both imported *inside* __init__, so
+    we patch them at their sources. Embeddings moved off LLMService to a
+    dedicated EmbeddingService (EMBEDDING_PROVIDER-aware); the tests stub
+    the embedding seam with the same [1.0, 0.0, 0.0] vector as before.
     """
-    with patch("core.llm_service.LLMService", return_value=llm_mock):
+    with patch("core.llm_service.LLMService", return_value=llm_mock), \
+         patch("core.embedding_service.EmbeddingService") as emb_cls:
+        emb_cls.return_value.generate_embedding = AsyncMock(return_value=[1.0, 0.0, 0.0])
         from core.policy_search_service import PGPolicySearchService
         svc = PGPolicySearchService(MagicMock())
     return svc
@@ -102,13 +107,16 @@ class TestGenerateQueryEmbedding:
     @pytest.mark.asyncio
     async def test_success_returns_embedding(self, service):
         assert await service._generate_query_embedding("travel") == [1.0, 0.0, 0.0]
-        service.llm_service.generate_embedding.assert_awaited_once_with(text="travel")
+        service.embedding_service.generate_embedding.assert_awaited_once_with("travel")
 
     @pytest.mark.asyncio
     async def test_failure_returns_zero_vector_fallback(self, service):
-        service.llm_service.generate_embedding = AsyncMock(side_effect=RuntimeError("boom"))
+        # Failure contract: [] (no vector -> every cosine scores 0.0, docs
+        # still surface unranked) rather than a fake zero-vector.
+        service.embedding_service.generate_embedding = AsyncMock(
+            side_effect=RuntimeError("boom"))
         emb = await service._generate_query_embedding("travel")
-        assert emb == [0.0] * 1536
+        assert emb == []
 
 
 # ---------------------------------------------------------------------------

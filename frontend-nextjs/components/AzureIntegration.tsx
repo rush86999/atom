@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Sun,
     CheckCircle,
@@ -164,17 +165,25 @@ const AzureIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/azure/health", { headers: authHeaders() });
+            // Real per-integration connection state (DB connections + OAuth
+            // grants + env credentials). The /health route is a liveness probe
+            // that returns 200 unconditionally — it must not decide "connected".
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
-                setConnected(true);
-                setHealthStatus("healthy");
-                loadSubscriptions();
+                const data = await response.json().catch((): null => null);
+                const providers = data?.data?.providers ?? data?.providers ?? {};
+                const isConnected = providers?.azure?.connected === true;
+                setConnected(isConnected);
+                setHealthStatus(isConnected ? "healthy" : "error");
+                if (isConnected) {
+                    loadSubscriptions();
+                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
             }
         } catch (error) {
-            console.error("Health check failed:", error);
+            console.error("Connection status check failed:", error);
             setConnected(false);
             setHealthStatus("error");
         }
@@ -183,7 +192,7 @@ const AzureIntegration: React.FC = () => {
     // Load Azure resources
     const loadSubscriptions = async () => {
         try {
-            const response = await fetch("/api/integrations/azure/subscriptions", {
+            const response = await authFetch("/api/integrations/azure/subscriptions", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -205,7 +214,7 @@ const AzureIntegration: React.FC = () => {
 
     const loadResourceGroups = async () => {
         try {
-            const response = await fetch("/api/integrations/azure/resource-groups", {
+            const response = await authFetch("/api/integrations/azure/resource-groups", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -226,7 +235,7 @@ const AzureIntegration: React.FC = () => {
 
     const loadVirtualMachines = async () => {
         try {
-            const response = await fetch("/api/integrations/azure/virtual-machines", {
+            const response = await authFetch("/api/integrations/azure/virtual-machines", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -248,7 +257,7 @@ const AzureIntegration: React.FC = () => {
 
     const loadStorageAccounts = async () => {
         try {
-            const response = await fetch("/api/integrations/azure/storage-accounts", {
+            const response = await authFetch("/api/integrations/azure/storage-accounts", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -270,7 +279,7 @@ const AzureIntegration: React.FC = () => {
 
     const loadAppServices = async () => {
         try {
-            const response = await fetch("/api/integrations/azure/app-services", {
+            const response = await authFetch("/api/integrations/azure/app-services", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -293,7 +302,7 @@ const AzureIntegration: React.FC = () => {
     // Create resources
     const createVirtualMachine = async () => {
         try {
-            const response = await fetch(
+            const response = await authFetch(
                 "/api/integrations/azure/virtual-machines/create",
                 {
                     method: "POST",
@@ -338,7 +347,7 @@ const AzureIntegration: React.FC = () => {
 
     const deployAppService = async () => {
         try {
-            const response = await fetch(
+            const response = await authFetch(
                 "/api/integrations/azure/app-services/deploy",
                 {
                     method: "POST",
@@ -380,7 +389,7 @@ const AzureIntegration: React.FC = () => {
 
     const createStorageAccount = async () => {
         try {
-            const response = await fetch(
+            const response = await authFetch(
                 "/api/integrations/azure/storage-accounts/create",
                 {
                     method: "POST",

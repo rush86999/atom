@@ -42,7 +42,8 @@ class ExamResult:
         readiness_score: float,
         edge_case_results: Dict[str, Any],
         constitutional_check_passed: bool,
-        failure_reason: Optional[str] = None
+        failure_reason: Optional[str] = None,
+        awaiting_human_approval: bool = False
     ):
         self.exam_id = exam_id
         self.agent_id = agent_id
@@ -52,6 +53,9 @@ class ExamResult:
         self.edge_case_results = edge_case_results
         self.constitutional_check_passed = constitutional_check_passed
         self.failure_reason = failure_reason
+        # STRATEGIC (AUTONOMOUS) passes: every gate met, promotion withheld
+        # until a human approves it.
+        self.awaiting_human_approval = awaiting_human_approval
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON response"""
@@ -63,7 +67,8 @@ class ExamResult:
             "readiness_score": self.readiness_score,
             "edge_case_results": self.edge_case_results,
             "constitutional_check_passed": self.constitutional_check_passed,
-            "failure_reason": self.failure_reason
+            "failure_reason": self.failure_reason,
+            "awaiting_human_approval": self.awaiting_human_approval
         }
 
 
@@ -288,13 +293,39 @@ class GraduationExamService:
         exam.skills_used = skill_performance.get("skills_used")
 
         # ============================================================
+        # Stage 5.5: Governance Gate (three-layer)
+        # ============================================================
+        # Policy-based graduation + STRATEGIC human-in-the-loop for
+        # AUTONOMOUS promotions (core/governance/). Policies mirror the
+        # readiness thresholds and per-level minimum episode counts.
+        from core.governance import DynamicGovernanceManager, layer_for_action
+
+        governance_action = f"graduate_to_{target_level}"
+        governance_layer = layer_for_action(governance_action)
+        governance_context = {
+            "episode_count": readiness.episodes_analyzed,
+            "readiness_score": readiness.readiness_score,
+            "success_rate": readiness.success_rate,
+            "constitutional_score": readiness.avg_constitutional_score,
+            "intervention_rate": round(1.0 - readiness.zero_intervention_ratio, 4),
+            "confidence_score": readiness.avg_confidence_score,
+        }
+        governance_decision = DynamicGovernanceManager().decide(
+            agent_id=agent_id,
+            action=governance_action,
+            layer=governance_layer,
+            context=governance_context,
+        )
+
+        # ============================================================
         # Stage 6: Promotion (or Fail)
         # ============================================================
         passed = (
             threshold_met and
             edge_case_results.get("all_passed", False) and
             constitutional_check.get("passed", False) and
-            skill_performance.get("requirements_met", False)
+            skill_performance.get("requirements_met", False) and
+            governance_decision.allowed
         )
 
         exam.passed = passed
@@ -304,8 +335,33 @@ class GraduationExamService:
             constitutional_check,
             skill_performance
         )
+        if not passed and not governance_decision.allowed:
+            # Append (not replace) so a policy denial never hides which
+            # exam stages also failed.
+            exam.failure_reason = (
+                (exam.failure_reason + " | ") if exam.failure_reason else ""
+            ) + "Governance policy denied: " + "; ".join(governance_decision.reasons)
 
-        if passed:
+        if passed and governance_decision.requires_human:
+            # STRATEGIC (target AUTONOMOUS): every gate passed, but the
+            # promotion itself is a human decision. Record the pass and
+            # withhold the level change — a supervisor completes it via
+            # AgentGraduationService.promote_agent (re-evaluated against
+            # the same policy with live evidence) or the manual override.
+            exam.promoted = False
+            exam.metadata_json = {
+                "governance": {
+                    "layer": governance_decision.layer.value,
+                    "awaiting_human_approval": True,
+                    "context": governance_context,
+                }
+            }
+            agent.last_exam_id = exam.id
+            logger.info(
+                f"Agent {agent_id} PASSED the {target_level} exam; promotion "
+                "withheld pending human approval (STRATEGIC governance)"
+            )
+        elif passed:
             # Promote agent
             agent.status = target_level
             agent.last_promotion_at = datetime.now(timezone.utc)
@@ -347,7 +403,8 @@ class GraduationExamService:
             readiness_score=readiness_score,
             edge_case_results=edge_case_results,
             constitutional_check_passed=constitutional_check.get("passed", False),
-            failure_reason=exam.failure_reason
+            failure_reason=exam.failure_reason,
+            awaiting_human_approval=bool(passed and governance_decision.requires_human)
         )
 
     def promote_agent_manually(

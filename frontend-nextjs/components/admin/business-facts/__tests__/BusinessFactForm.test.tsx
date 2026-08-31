@@ -16,6 +16,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { BusinessFactForm } from '../BusinessFactForm';
 import { businessFactsAPI } from '@/lib/api-admin';
+import type { BusinessFact } from '@/types/jit-verification';
 
 const mockToast = { toast: jest.fn(), dismiss: jest.fn(), toasts: [] };
 jest.mock('@/components/ui/use-toast', () => ({
@@ -33,7 +34,7 @@ jest.mock('@/lib/api-admin', () => ({
 const createFactMock = businessFactsAPI.createFact as jest.Mock;
 const updateFactMock = businessFactsAPI.updateFact as jest.Mock;
 
-const editFact = {
+const editFact: BusinessFact = {
   id: 'fact-1',
   fact: 'Invoices over $500 require VP approval',
   citations: [

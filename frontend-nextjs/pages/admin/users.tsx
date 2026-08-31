@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import { useRouter } from "next/router";
 import { getAuthToken } from "@/lib/identity";
 
@@ -44,8 +45,8 @@ export default function AdminUsersPage() {
     setError(null);
     try {
       const [uRes, rRes] = await Promise.all([
-        fetch(`${API}/api/admin/users`, { headers: authHeaders() }),
-        fetch(`${API}/api/admin/roles`, { headers: authHeaders() }),
+        authFetch(`${API}/api/admin/users`, { headers: authHeaders() }),
+        authFetch(`${API}/api/admin/roles`, { headers: authHeaders() }),
       ]);
       if (uRes.status === 401 || uRes.status === 403) {
         setError("Admin access required. Sign in with an admin account.");
@@ -74,7 +75,7 @@ export default function AdminUsersPage() {
       return;
     }
     try {
-      const res = await fetch(`${API}/api/admin/users`, {
+      const res = await authFetch(`${API}/api/admin/users`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
@@ -100,7 +101,7 @@ export default function AdminUsersPage() {
 
   const toggleActive = async (u: AdminUser, makeActive: boolean) => {
     try {
-      const res = await fetch(`${API}/api/admin/users/${u.id}`, {
+      const res = await authFetch(`${API}/api/admin/users/${u.id}`, {
         method: "PATCH",
         headers: authHeaders(),
         body: JSON.stringify({ is_active: makeActive }),

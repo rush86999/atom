@@ -8,6 +8,12 @@ import { TextEncoder, TextDecoder } from 'util';
 import { Blob, File } from 'buffer';
 import { Request, Response, Headers } from 'node-fetch';
 
+// The installed @types/node predates the `buffer.File` export (Node >= 20
+// ships it at runtime), so augment the module typing to match.
+declare module 'buffer' {
+  export const File: typeof import('buffer').Blob;
+}
+
 Object.defineProperties(globalThis, {
   ReadableStream: { value: WebStreamsPolyfill.ReadableStream },
   TransformStream: { value: WebStreamsPolyfill.TransformStream },
@@ -51,7 +57,7 @@ global.createMockResponse = (overrides: any = {}) => {
     statusText: 'OK',
     json: async () => ({}),
     text: async () => '',
-    blob: async () => new Blob(),
+    blob: async () => new Blob([]),
     arrayBuffer: async () => new ArrayBuffer(0),
     headers: {},
     clone: function() {
@@ -72,10 +78,16 @@ global.createMockResponse = (overrides: any = {}) => {
 // NOTE: We NO LONGER mock fetch globally - MSW handles this
 // If MSW is not available, we'll mock fetch as a fallback
 let mockFetch: any;
+// Hoisted so the global beforeAll/afterEach/afterAll hooks below can reach the
+// server: `const { server }` is scoped to this try block, and the previous
+// `typeof server` guard at module scope always evaluated to "undefined", so
+// MSW never listened and fetches silently fell through to the real backend.
+let mswServer: any = null;
 try {
   // Try to load MSW server
   const { server } = require('./mocks/server');
   if (server) {
+    mswServer = server;
     // MSW is available, don't mock fetch
     console.log('MSW server detected - fetch will be intercepted by MSW');
 
@@ -131,13 +143,16 @@ expect.extend(toHaveNoViolations);
 
 // Establish MSW API mocking before all tests (server already loaded above)
 // MSW server is loaded in the try/catch block above (lines 74-95)
-if (typeof server !== 'undefined' && server) {
-  beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
+// `server` is block-scoped inside the try above; when MSW failed to load there
+// is no module-level binding, so the runtime `typeof` guard below skips these
+// hooks. The ambient declaration only mirrors that for the type checker.
+if (mswServer) {
+  beforeAll(() => mswServer.listen({ onUnhandledRequest: 'warn' }));
   // Reset any request handlers that we may add during the tests,
   // so they don't affect other tests
-  afterEach(() => server.resetHandlers());
+  afterEach(() => mswServer.resetHandlers());
   // Clean up after the tests are finished
-  afterAll(() => server.close());
+  afterAll(() => mswServer.close());
 }
 
 // Mock PointerEvent-related Element methods jsdom lacks. Radix UI (Select,

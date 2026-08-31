@@ -85,6 +85,24 @@ interface WorkflowStep {
   name: string;
 }
 
+// Node-based (graph) workflow shapes persisted by the v1 workflows API
+// ({nodes, connections}); optional because step-based workflows omit them.
+interface WorkflowNodeConnection {
+  id: string;
+  source: string;
+  target: string;
+}
+
+interface WorkflowNodeDefinition {
+  id: string;
+  type: string;
+  title?: string;
+  description?: string;
+  position?: { x: number; y: number };
+  config?: Record<string, any>;
+  connections?: WorkflowNodeConnection[];
+}
+
 interface WorkflowDefinition {
   id: string;
   name: string;
@@ -95,6 +113,8 @@ interface WorkflowDefinition {
   created_at: string;
   updated_at: string;
   steps_count?: number;
+  nodes?: WorkflowNodeDefinition[];
+  connections?: WorkflowNodeConnection[];
 }
 
 interface WorkflowExecution {
@@ -334,7 +354,7 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
           action: n.data?.action,
           ...(n.data?.parameters || {}),
         },
-        connections: [],
+        connections: [] as WorkflowNodeConnection[],
       }));
       const connections = (builderData.edges || []).map((e: any) => ({
         id: e.id,

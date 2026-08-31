@@ -51,7 +51,7 @@ describe('Canvas State Machine (Wrapped) Invariants', () => {
    * Any state -> error (on failure)
    */
   it('should only allow valid canvas state transitions', () => {
-    const validTransitions: Record<CanvasState, CanvasState[]> = {
+    const validTransitions: Record<CanvasState, CanvasState[]> & { null: CanvasState[] } = {
       null: ['creating', 'error'],
       creating: ['created', 'error'],
       created: ['updating', 'deleting', 'error'],
@@ -151,7 +151,7 @@ describe('Canvas State Machine (Wrapped) Invariants', () => {
         fc.constantFrom('error'),
         () => {
           const fromState: CanvasState = 'error';
-          const validTransitions: Record<CanvasState, CanvasState[]> = {
+          const validTransitions: Record<CanvasState, CanvasState[]> & { null: CanvasState[] } = {
             null: ['creating', 'error'],
             creating: ['created', 'error'],
             created: ['updating', 'deleting', 'error'],
@@ -182,7 +182,7 @@ describe('Canvas State Machine (Wrapped) Invariants', () => {
         fc.constantFrom('deleted'),
         () => {
           const fromState: CanvasState = 'deleted';
-          const validTransitions: Record<CanvasState, CanvasState[]> = {
+          const validTransitions: Record<CanvasState, CanvasState[]> & { null: CanvasState[] } = {
             null: ['creating', 'error'],
             creating: ['created', 'error'],
             created: ['updating', 'deleting', 'error'],

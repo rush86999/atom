@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, type RequestMethod } from "node-mocks-http";
 import nextjsStatusHandler from "@/pages/api/auth/nextjs/status";
 import zapierHandler from "@/pages/api/atom/integrations/zapier";
 import reportsHandler from "@/pages/api/quickbooks/reports/[reportType]";
@@ -28,7 +28,7 @@ describe("pages/api/auth/nextjs/status", () => {
 
   afterEach(resetEnv);
 
-  const invoke = async (method = "GET") => {
+  const invoke = async (method: RequestMethod = "GET") => {
     const { req, res } = createMocks({ method }) as any;
     await nextjsStatusHandler(req, res);
     return res;
@@ -122,7 +122,7 @@ describe("pages/api/atom/integrations/zapier", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  const invoke = async (method = "POST", body?: any, res?: any) => {
+  const invoke = async (method: RequestMethod = "POST", body?: any, res?: any) => {
     const mocks = createMocks({ method, body }) as any;
     await zapierHandler(mocks.req, res ?? mocks.res);
     return res ?? mocks.res;
@@ -255,7 +255,7 @@ describe("pages/api/integrations/gmail/status", () => {
 
   afterEach(resetEnv);
 
-  const invoke = async (method = "GET") => {
+  const invoke = async (method: RequestMethod = "GET") => {
     const { req, res } = createMocks({ method }) as any;
     await gmailStatusHandler(req, res);
     return res;
@@ -326,7 +326,7 @@ describe("pages/api/integrations/gmail/authorize", () => {
 
   afterEach(resetEnv);
 
-  const invoke = async (method = "GET", res?: any) => {
+  const invoke = async (method: RequestMethod = "GET", res?: any) => {
     const mocks = createMocks({ method }) as any;
     await gmailAuthorizeHandler(mocks.req, res ?? mocks.res);
     return res ?? mocks.res;

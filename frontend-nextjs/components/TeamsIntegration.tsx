@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
     CheckCircle,
@@ -309,20 +310,28 @@ const TeamsIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/teams/health", { headers: authHeaders() });
+            // Real per-integration connection state (DB connections + OAuth
+            // grants + env credentials). The /health route is a liveness probe
+            // that returns 200 unconditionally — it must not decide "connected".
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
-                setConnected(true);
-                setHealthStatus("healthy");
-                loadUserProfile();
-                loadTeams();
-                loadUsers();
-                loadMeetings();
+                const data = await response.json().catch((): null => null);
+                const providers = data?.data?.providers ?? data?.providers ?? {};
+                const isConnected = providers?.teams?.connected === true;
+                setConnected(isConnected);
+                setHealthStatus(isConnected ? "healthy" : "error");
+                if (isConnected) {
+                    loadUserProfile();
+                    loadTeams();
+                    loadUsers();
+                    loadMeetings();
+                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
             }
         } catch (error) {
-            console.error("Health check failed:", error);
+            console.error("Connection status check failed:", error);
             setConnected(false);
             setHealthStatus("error");
         }
@@ -332,7 +341,7 @@ const TeamsIntegration: React.FC = () => {
     const loadUserProfile = async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
-            const response = await fetch("/api/integrations/teams/profile", {
+            const response = await authFetch("/api/integrations/teams/profile", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -354,7 +363,7 @@ const TeamsIntegration: React.FC = () => {
     const loadTeams = async () => {
         setLoading((prev) => ({ ...prev, teams: true }));
         try {
-            const response = await fetch("/api/integrations/teams/teams", {
+            const response = await authFetch("/api/integrations/teams/teams", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -384,7 +393,7 @@ const TeamsIntegration: React.FC = () => {
 
         setLoading((prev) => ({ ...prev, channels: true }));
         try {
-            const response = await fetch("/api/integrations/teams/channels", {
+            const response = await authFetch("/api/integrations/teams/channels", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -410,7 +419,7 @@ const TeamsIntegration: React.FC = () => {
 
         setLoading((prev) => ({ ...prev, messages: true }));
         try {
-            const response = await fetch("/api/integrations/teams/messages", {
+            const response = await authFetch("/api/integrations/teams/messages", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -435,7 +444,7 @@ const TeamsIntegration: React.FC = () => {
     const loadMeetings = async () => {
         setLoading((prev) => ({ ...prev, meetings: true }));
         try {
-            const response = await fetch("/api/integrations/teams/meetings", {
+            const response = await authFetch("/api/integrations/teams/meetings", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -462,7 +471,7 @@ const TeamsIntegration: React.FC = () => {
     const loadUsers = async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
-            const response = await fetch("/api/integrations/teams/users", {
+            const response = await authFetch("/api/integrations/teams/users", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -487,7 +496,7 @@ const TeamsIntegration: React.FC = () => {
         if (!teamForm.name) return;
 
         try {
-            const response = await fetch("/api/integrations/teams/teams/create", {
+            const response = await authFetch("/api/integrations/teams/teams/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -529,7 +538,7 @@ const TeamsIntegration: React.FC = () => {
         if (!channelForm.name || !currentTeam) return;
 
         try {
-            const response = await fetch("/api/integrations/teams/channels/create", {
+            const response = await authFetch("/api/integrations/teams/channels/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -570,7 +579,7 @@ const TeamsIntegration: React.FC = () => {
         if (!messageForm.content || !currentChannel) return;
 
         try {
-            const response = await fetch("/api/integrations/teams/messages/send", {
+            const response = await authFetch("/api/integrations/teams/messages/send", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -626,7 +635,7 @@ const TeamsIntegration: React.FC = () => {
             return;
 
         try {
-            const response = await fetch("/api/integrations/teams/meetings/create", {
+            const response = await authFetch("/api/integrations/teams/meetings/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({

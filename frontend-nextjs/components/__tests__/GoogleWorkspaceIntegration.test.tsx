@@ -24,8 +24,14 @@ import { server } from '@/tests/mocks/server';
 const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 
 const gwsHandlers = [
-  rest.get('/api/integrations/google-workspace/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ providers: { "google-workspace": { connected: true, source: 'user_connection' } } })
+    );
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { "google-workspace": { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.post('/api/integrations/google-workspace/docs', (req, res, ctx) => {
@@ -111,7 +117,7 @@ const gwsHandlers = [
 
 const setDisconnected = () => {
   server.use(
-    rest.get('/api/integrations/google-workspace/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(404));
     })
   );
@@ -216,7 +222,7 @@ describe('GoogleWorkspaceIntegration', () => {
   // Test 8: handles connection error
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/google-workspace/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500));
       })
     );
@@ -620,7 +626,7 @@ describe('GoogleWorkspaceIntegration (extended coverage)', () => {
   test('treats health check network failure as disconnected', async () => {
     server.use(
       rest.get(
-        '/api/integrations/google-workspace/health',
+        '/api/integrations/connection-status',
         (req, res) => res.networkError('boom')
       )
     );
@@ -628,7 +634,7 @@ describe('GoogleWorkspaceIntegration (extended coverage)', () => {
     render(<GoogleWorkspaceIntegration />);
 
     await waitFor(() => {
-      expect(errorSpy).toHaveBeenCalledWith('Health check failed:', expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith('Connection status check failed:', expect.anything());
       expect(
         screen.getByRole('button', { name: /connect google workspace/i })
       ).toBeInTheDocument();

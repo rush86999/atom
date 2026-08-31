@@ -513,7 +513,7 @@ describe('Modal Edge Cases', () => {
 
     it('should handle aria-describedby', () => {
       render(
-        <Modal isOpen={true} onClose={jest.fn()} title="Modal Title" description="Modal description">
+        <Modal isOpen={true} onClose={jest.fn()} title="Modal Title" {...({ description: 'Modal description' } as any)}>
           <div>Content</div>
         </Modal>
       );
@@ -578,7 +578,7 @@ describe('Modal Edge Cases', () => {
 
     it('should handle custom content className', () => {
       render(
-        <Modal isOpen={true} onClose={jest.fn()} title="Custom Modal" contentClassName="content-class">
+        <Modal isOpen={true} onClose={jest.fn()} title="Custom Modal" {...({ contentClassName: 'content-class' } as any)}>
           <div>Content</div>
         </Modal>
       );

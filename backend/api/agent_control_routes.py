@@ -261,9 +261,9 @@ async def restart_atom(
         if was_running:
             DaemonManager.stop_daemon()
 
-        # Wait for clean shutdown
-        import time
-        time.sleep(2)
+        # Wait for clean shutdown (async — this runs on the event loop)
+        import asyncio
+        await asyncio.sleep(2)
 
         pid = DaemonManager.start_daemon(
             port=request.port,

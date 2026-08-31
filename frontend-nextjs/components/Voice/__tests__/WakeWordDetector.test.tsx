@@ -29,7 +29,7 @@ jest.mock('@/components/ui/use-toast', () => ({
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-let rafQueue: FrameRequestCallback[] = [];
+let rafQueue: Array<() => void> = [];
 let trackStops: jest.Mock[] = [];
 let audioCtxInstances: any[] = [];
 
@@ -45,7 +45,7 @@ const installAudioMocks = () => {
   trackStops = [];
   audioCtxInstances = [];
 
-  (global as any).requestAnimationFrame = (cb: FrameRequestCallback) => {
+  (global as any).requestAnimationFrame = (cb: () => void) => {
     rafQueue.push(cb);
     return rafQueue.length;
   };
@@ -192,7 +192,7 @@ describe('WakeWordDetector', () => {
 
   it('detects the wake word from the simulated interval and records it', async () => {
     jest.useFakeTimers();
-    (global as any).requestAnimationFrame = (cb: FrameRequestCallback) => {
+    (global as any).requestAnimationFrame = (cb: () => void) => {
       rafQueue.push(cb);
       return rafQueue.length;
     };

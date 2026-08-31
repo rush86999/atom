@@ -9,6 +9,7 @@ Coverage Target: 25-30% (exam logic, scoring, promotion/demotion)
 """
 
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from typing import Dict, Any
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
@@ -330,15 +331,17 @@ class TestExecuteGraduationExam:
         with patch('core.graduation_exam.EpisodeService') as mock_episode_service, \
              patch.object(GraduationExamService, '_run_edge_case_simulations') as mock_edge_cases, \
              patch.object(GraduationExamService, '_constitutional_guardrail_check') as mock_constitutional:
-            # Mock readiness calculation
-            mock_readiness = Mock()
-            mock_readiness.to_dict.return_value = {
-                "readiness_score": 0.85,
-                "threshold_met": True,
-                "zero_intervention_ratio": 0.60,
-                "avg_constitutional_score": 0.90,
-                "success_rate": 0.95
-            }
+            # Mock readiness calculation (numeric values — the governance
+            # gate evaluates these against policy floors)
+            mock_readiness = SimpleNamespace(
+                readiness_score=0.85,
+                threshold_met=True,
+                zero_intervention_ratio=0.60,
+                avg_constitutional_score=0.90,
+                avg_confidence_score=0.60,
+                success_rate=0.95,
+                episodes_analyzed=12,
+            )
 
             mock_service_instance = Mock()
             mock_service_instance.get_graduation_readiness.return_value = mock_readiness
@@ -397,6 +400,18 @@ class TestExecuteGraduationExam:
         with patch('core.graduation_exam.EpisodeService') as mock_episode_service, \
              patch.object(GraduationExamService, '_run_edge_case_simulations') as mock_edge_cases, \
              patch.object(GraduationExamService, '_constitutional_guardrail_check') as mock_constitutional:
+            # Mock readiness with numeric values passing the TACTICAL
+            # (intern→supervised) policy floors
+            mock_readiness = SimpleNamespace(
+                readiness_score=0.85,
+                threshold_met=True,
+                zero_intervention_ratio=0.70,
+                avg_constitutional_score=0.90,
+                avg_confidence_score=0.75,
+                success_rate=0.90,
+                episodes_analyzed=30,
+            )
+
             # Mock skill mastery assessment (for _skill_performance_check)
             mock_mastery = Mock()
             mock_mastery.mastery_score = 0.80
@@ -407,6 +422,7 @@ class TestExecuteGraduationExam:
             mock_mastery.skill_success_rate = 0.80
 
             mock_service_instance = Mock()
+            mock_service_instance.get_graduation_readiness.return_value = mock_readiness
             mock_service_instance.assess_skill_mastery.return_value = mock_mastery
             mock_episode_service.return_value = mock_service_instance
 

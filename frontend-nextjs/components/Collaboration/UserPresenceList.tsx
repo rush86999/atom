@@ -142,15 +142,17 @@ export const UserPresenceList: React.FC<UserPresenceListProps> = ({
                   {/* User Avatar with Color */}
                   <Avatar
                     className="h-8 w-8"
-                    style={{
-                      border: `2px solid ${participant.user_color}`,
-                    }}
+                    /* Avatar's props don't declare `style`; cast so the border color prop typechecks. */
+                    {...({ style: { border: `2px solid ${participant.user_color}` } } as any)}
                   >
                     <AvatarFallback
-                      style={{
-                        backgroundColor: `${participant.user_color}20`,
-                        color: participant.user_color,
-                      }}
+                      /* AvatarFallback's props don't declare `style`; cast so the color props typecheck. */
+                      {...({
+                        style: {
+                          backgroundColor: `${participant.user_color}20`,
+                          color: participant.user_color,
+                        },
+                      } as any)}
                     >
                       {getInitials(participant.user_name)}
                     </AvatarFallback>

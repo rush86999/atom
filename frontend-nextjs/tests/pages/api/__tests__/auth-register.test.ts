@@ -14,6 +14,7 @@ const mockFetch = jest.fn();
 (global as any).fetch = mockFetch;
 
 import { createMocks } from "node-mocks-http";
+import type { RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/auth/register";
 
 const okBody = { access_token: "tok", user: { id: "u1" } };
@@ -28,7 +29,7 @@ describe("pages/api/auth/register", () => {
     jest.clearAllMocks();
   });
 
-  const invoke = async (method = "POST", body: any = {}) => {
+  const invoke = async (method: RequestMethod = "POST", body: any = {}) => {
     const { req, res } = createMocks({ method, body }) as any;
     await handler(req, res);
     return res;

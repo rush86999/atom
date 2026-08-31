@@ -1,6 +1,6 @@
 const mockFetch = jest.fn();
 
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import analyticsHandler from "@/pages/api/hubspot/analytics";
 import ticketsHandler from "@/pages/api/integrations/hubspot/tickets";
 
@@ -23,7 +23,7 @@ describe("pages/api/hubspot/analytics", () => {
   });
 
   const invoke = async (method: string, body?: any) => {
-    const { req, res } = createMocks({ method, body }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, body }) as any;
     await analyticsHandler(req, res);
     return res;
   };

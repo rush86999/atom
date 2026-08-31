@@ -1,4 +1,4 @@
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/chat/orchestrate";
 
 const mockFetch = jest.fn();
@@ -25,7 +25,7 @@ describe("pages/api/chat/orchestrate", () => {
   });
 
   const invoke = async (method = "POST", body: any = {}) => {
-    const { req, res } = createMocks({ method, body }) as any;
+    const { req, res } = createMocks({ method: method as RequestMethod, body }) as any;
     await handler(req, res);
     return res;
   };

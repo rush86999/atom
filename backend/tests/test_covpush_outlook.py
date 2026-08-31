@@ -159,6 +159,9 @@ def token_env(token=None):
     db = MagicMock()
     q = MagicMock()
     q.filter.return_value.first.return_value = token
+    # Refresh fans out to both provider rows via .all() — serve the same
+    # token there so the update loop exercises the caller's record.
+    q.filter.return_value.all.return_value = [token] if token is not None else []
     db.query.return_value = q
     m = patch("core.database.get_db_session")
     m.start().return_value.__enter__.return_value = db
@@ -942,7 +945,13 @@ class TestServiceMeta:
         assert "last_check" in health
 
     def test_health_check_missing_client_id(self):
-        health = OutlookService(tenant_id="t-1", config={}).health_check()
+        # Env-coupled: a dev .env may export client ids; the service must
+        # report unhealthy only when none is resolvable, so clear them.
+        with patch.dict(
+            "os.environ",
+            {k: "" for k in ("MICROSOFT_CLIENT_ID", "AZURE_CLIENT_ID", "OUTLOOK_CLIENT_ID")},
+        ):
+            health = OutlookService(tenant_id="t-1", config={}).health_check()
         assert health["healthy"] is False
         assert "Missing client_id" in health["message"]
 

@@ -1,4 +1,4 @@
-import { createMocks } from "node-mocks-http";
+import { createMocks, RequestMethod } from "node-mocks-http";
 import handler from "@/pages/api/chat/enhanced";
 
 const mockFetch = jest.fn();
@@ -45,8 +45,8 @@ describe("pages/api/chat/enhanced", () => {
   const invoke = async (method = "POST", body?: any) => {
     const { req, res } =
       method === "POST" && body !== undefined
-        ? (createMocks({ method, body }) as any)
-        : (createMocks({ method }) as any);
+        ? (createMocks({ method: method as RequestMethod, body }) as any)
+        : (createMocks({ method: method as RequestMethod }) as any);
     await handler(req, res);
     return res;
   };

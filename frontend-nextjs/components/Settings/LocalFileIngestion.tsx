@@ -23,7 +23,7 @@ export default function LocalFileIngestion() {
     React.useEffect(() => {
         // @ts-ignore
         const hasTauri = typeof window !== 'undefined' && window.__TAURI__;
-        setIsTauri(hasTauri);
+        setIsTauri(hasTauri as unknown as boolean);
 
         if (hasTauri) {
             loadWatchedFolders();

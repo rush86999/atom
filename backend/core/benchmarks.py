@@ -15,6 +15,25 @@ logger = logging.getLogger(__name__)
 # Quality scores (0-100) - Updated Jan 2026
 # STATIC FALLBACK - Used only when all external sources fail
 MODEL_QUALITY_SCORES = {
+    # OpenRouter-hosted Chinese models — VETTED for BPC value ranking.
+    # Exact-ID entries only: the partial matcher crosses model families
+    # wildly on openrouter IDs (a roleplay finetune scored 92 while
+    # deepseek-v4-flash scored 42), so get_ranked_providers restricts
+    # openrouter candidates to this vetted set and ranks the rest out.
+    # Scores align with their bare-ID siblings; pricing per OpenRouter
+    # catalog (Aug 2026), all tool-capable.
+    # Scores are RECALL-CALIBRATED (Aug 30): measured against a
+    # follow-up-recall task with the full transcript in context —
+    # minimax-m3 answered correctly; both flash models ignored the
+    # assistant turn and claimed no access, so they score below the
+    # conversational floor (85) regardless of their general aptitude.
+    "deepseek/deepseek-v4-flash": 84,   # $0.08/$0.16 per M — fails recall
+    "deepseek/deepseek-v4-pro": 96,     # $0.51/$1.02 per M — flagship
+    "qwen/qwen3-max": 94,               # $0.78/$3.90 per M
+    "moonshotai/kimi-k2.5": 92,         # $0.60/$3.00 per M
+    "minimax/minimax-m3": 89,           # $0.30/$1.20 per M — recall ✓
+    "qwen/qwen3.7-flash": 76,           # $0.03/$0.13 per M — fails recall
+
     # absolute frontier (early 2026)
     "gemini-3-pro": 100,
     "gpt-5.2": 100,
@@ -100,11 +119,21 @@ def get_quality_score(model_id: str) -> int:
     Get the normalized quality score for a model.
 
     PRIORITY:
-    1. Dynamic benchmark fetcher (LMSYS, Artificial Analysis, Benchmark.moe)
-    2. Static fallback scores
-    3. Heuristics for unknown models
+    1. Static EXACT match (curated table wins outright — the dynamic
+       fetcher's partial matcher is substring-based and crosses model
+       GENERATIONS: a cached ``deepseek-chat-v3-0324`` entry (scored 15.2)
+       used to shadow the current ``deepseek-chat``'s exact table score of
+       80, demoting a flagship model below every cognitive-tier floor)
+    2. Dynamic benchmark fetcher (LMSYS, Artificial Analysis, Benchmark.moe)
+       — fresh scores for models the table doesn't know exactly
+    3. Static partial match (longest key wins)
+    4. Heuristics for unknown models
     """
-    # Try dynamic benchmark fetcher first
+    # Exact curated score wins outright — see PRIORITY note above.
+    if model_id in MODEL_QUALITY_SCORES:
+        return MODEL_QUALITY_SCORES[model_id]
+
+    # Dynamic benchmark fetcher for models the table doesn't pin exactly
     try:
         from core.dynamic_benchmark_fetcher import get_benchmark_fetcher
         fetcher = get_benchmark_fetcher()
@@ -122,10 +151,6 @@ def get_quality_score(model_id: str) -> int:
         logger.debug(f"Failed to get dynamic benchmark: {e}, using static scores")
 
     # Fallback to static scores
-    # Exact match
-    if model_id in MODEL_QUALITY_SCORES:
-        return MODEL_QUALITY_SCORES[model_id]
-
     # Partial match — prefer the LONGEST matching key (most specific). A plain
     # first-match loop returned whichever key happened to iterate first: for
     # "gpt-4o-mini-2024-07-18" it matched "gpt-4o" (90) instead of the more

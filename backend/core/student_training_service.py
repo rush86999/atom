@@ -30,6 +30,30 @@ from core import role_template_registry
 logger = logging.getLogger(__name__)
 
 
+class InsufficientTrainingEvidenceError(ValueError):
+    """Completion rejected: the session has no linked work evidence.
+
+    Raised before any mutation — the session stays open and the agent's
+    confidence/status are untouched. ``evidence`` carries the live counts
+    (episodes recorded in the session window) so callers/UIs can render
+    "2/3 recorded runs" style progress.
+    """
+
+    def __init__(self, message: str, evidence: Optional[Dict[str, Any]] = None):
+        super().__init__(message)
+        self.evidence = evidence or {}
+
+
+def _evidence_min_episodes() -> int:
+    return int(os.getenv("ATOM_TRAINING_MIN_EVIDENCE_EPISODES", "3"))
+
+
+def _evidence_required() -> bool:
+    return os.getenv("ATOM_TRAINING_REQUIRE_EVIDENCE", "1").lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
 class TrainingDurationEstimate:
     """AI-generated training duration estimate"""
     def __init__(
@@ -50,10 +74,16 @@ class TrainingDurationEstimate:
 
 
 class TrainingOutcome:
-    """Result of a training session"""
+    """Result of a training session.
+
+    ``performance_score`` is the supervisor's *claimed* assessment. The
+    recorded score is derived from the session's linked episode evidence and
+    capped by it (see ``complete_training_session``) — pass ``None`` to let
+    the evidence ratio stand as the score outright.
+    """
     def __init__(
         self,
-        performance_score: float,
+        performance_score: Optional[float],
         supervisor_feedback: str,
         errors_count: int,
         tasks_completed: int,
@@ -68,6 +98,70 @@ class TrainingOutcome:
         self.total_tasks = total_tasks
         self.capabilities_developed = capabilities_developed
         self.capability_gaps_remaining = capability_gaps_remaining
+
+
+# Generic per-domain lesson seeds: any small-business domain without explicit
+# gaps still gets a runnable first-session plan (objective + task skeletons).
+_ROLE_LESSON_SEEDS = {
+    "sales": {
+        "objective": "Qualify real leads and draft outreach for supervisor review",
+        "tasks": [
+            "Read the newest ingested lead and state its likely need",
+            "Draft a 3-sentence opening email",
+            "Draft a follow-up touch for a second lead",
+        ],
+    },
+    "finance": {
+        "objective": "Reconcile ingested bills/payments and flag exceptions",
+        "tasks": [
+            "Match 3 recent bills to payments or bank lines",
+            "Flag records older than 30 days",
+            "Summarize exceptions for supervisor approval",
+        ],
+    },
+    "operations": {
+        "objective": "Summarize live order/project status and surface stalls",
+        "tasks": [
+            "Group open orders/projects by stage",
+            "Flag the two oldest stalled items with a recommended nudge",
+            "Note inventory shortages if present",
+        ],
+    },
+    "marketing": {
+        "objective": "Draft an audience-specific update from product facts",
+        "tasks": [
+            "Segment the audience list (distributors vs end users)",
+            "Draft copy grounded in durable facts",
+            "Propose send timing",
+        ],
+    },
+    "support": {
+        "objective": "Resolve one real inbound request end-to-end (draft only)",
+        "tasks": [
+            "Pick the newest unresolved contact",
+            "Summarize the issue with evidence from memory",
+            "Draft a response citing one knowledge source",
+        ],
+    },
+    "hr": {
+        "objective": "Assemble onboarding/offboarding materials",
+        "tasks": [
+            "Build the checklist from standard steps",
+            "Attach relevant roster/calendar context",
+        ],
+    },
+}
+_ROLE_LESSON_SEEDS.setdefault(
+    "general",
+    {"objective": "Complete one supervised pass on real ingested data",
+     "tasks": ["Review ingested records", "Draft one artifact for review"]},
+)
+
+
+def _role_seed(category: Optional[str]) -> Dict[str, Any]:
+    key = (category or "").lower().strip()
+    return _ROLE_LESSON_SEEDS.get(key) or _ROLE_LESSON_SEEDS["general"]
+
 
 
 class StudentTrainingService:
@@ -304,6 +398,9 @@ After completing this training, the agent will be able to handle similar tasks a
             agent_name=proposal.agent_name,
             status="scheduled",
             supervisor_id=user_id,
+            # The evidence window opens here: only work the agent records
+            # AFTER approval counts toward this session's completion.
+            started_at=datetime.now(),
             total_tasks=len(proposal.proposal_data.get("learning_objectives", []))
         )
 
@@ -317,8 +414,19 @@ After completing this training, the agent will be able to handle similar tasks a
             )
         except Exception as lesson_err:
             logger.warning(f"lesson plan generation failed (non-fatal): {lesson_err}")
+        # Nested under "lesson_plan" so listing/canvas readers agree on shape.
+        session.supervisor_guidance = {"lesson_plan": session.supervisor_guidance.get("lesson_plan")} if isinstance(session.supervisor_guidance, dict) and "lesson_plan" in session.supervisor_guidance else {"lesson_plan": dict(session.supervisor_guidance or {})}
 
         self.db.add(session)
+        self.db.flush()  # materialize session.id before the canvas references it
+
+        # Mini-canvas: the visual review surface for this supervised pass
+        _canvas_agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == proposal.agent_id
+        ).first()
+        if _canvas_agent is not None:
+            self.ensure_session_canvas(session, _canvas_agent, proposal)
+
         self.db.commit()
         self.db.refresh(session)
 
@@ -359,6 +467,32 @@ After completing this training, the agent will be able to handle similar tasks a
                 pass
             logger.warning(f"role canvas spawn failed (non-fatal): {exc}")
             return []
+
+    def get_session_evidence(self, session: TrainingSession) -> Dict[str, Any]:
+        """Work the agent actually recorded during this session's window.
+
+        Evidence = AgentEpisode rows (the outcome-tracked work ledger) for
+        the session's agent with ``started_at`` inside
+        ``[session.started_at, now]``. Only execution-backed runs qualify —
+        an episode with no timestamp cannot be attributed to the window.
+        This is what completion is graded on; the supervisor's claimed
+        score never overrides it.
+        """
+        window_start = session.started_at or session.created_at
+        query = self.db.query(AgentEpisode).filter(
+            AgentEpisode.agent_id == session.agent_id,
+        )
+        if window_start is not None:
+            query = query.filter(AgentEpisode.started_at >= window_start)
+        episodes = query.count()
+        successes = query.filter(AgentEpisode.outcome == "success").count()
+        return {
+            "episodes": episodes,
+            "successes": successes,
+            "success_ratio": (successes / episodes) if episodes else 0.0,
+            "window_started_at": window_start.isoformat() if window_start else None,
+            "required_episodes": _evidence_min_episodes(),
+        }
 
     async def complete_training_session(
         self,
@@ -425,6 +559,31 @@ After completing this training, the agent will be able to handle similar tasks a
         if not agent:
             raise ValueError(f"Agent {session.agent_id} not found")
 
+        # Round 87 (linked evidence): a completion must cite recorded work.
+        # The supervisor's score input was previously taken verbatim — the
+        # approval panel could complete a session with a typed-in 0.9 and
+        # hardcoded 10/10 tasks, promoting hires that never ran (GAIE
+        # graduated oversight / OWASP agentic governance: tier promotions
+        # cite documented work evidence, never self-declared scores).
+        # Evidence = episodes the agent recorded inside this session's
+        # window. A session without enough of them cannot be completed; a
+        # claimed score above the evidence ratio is capped by it.
+        evidence = self.get_session_evidence(session)
+        if _evidence_required() and evidence["episodes"] < _evidence_min_episodes():
+            raise InsufficientTrainingEvidenceError(
+                f"Session has {evidence['episodes']} recorded work run(s) in "
+                f"its window; {_evidence_min_episodes()} required. The hire "
+                "must actually perform supervised work before completion.",
+                evidence=evidence,
+            )
+
+        claimed_score = outcome.performance_score
+        effective_score = (
+            evidence["success_ratio"]
+            if claimed_score is None
+            else min(claimed_score, evidence["success_ratio"])
+        ) if evidence["episodes"] else (claimed_score or 0.0)
+
         # Update session with outcomes
         session.status = "completed"
         session.completed_at = datetime.now()
@@ -432,19 +591,25 @@ After completing this training, the agent will be able to handle similar tasks a
             (session.completed_at - session.started_at).total_seconds()
         ) if session.started_at else 0
         session.outcomes = {
-            "performance_score": outcome.performance_score,
-            "tasks_completed": outcome.tasks_completed,
-            "total_tasks": outcome.total_tasks
+            "performance_score": effective_score,
+            "supervisor_claimed_performance_score": claimed_score,
+            "tasks_completed": evidence["successes"],
+            "total_tasks": evidence["episodes"],
+            "claimed_tasks_completed": outcome.tasks_completed,
+            "claimed_total_tasks": outcome.total_tasks,
+            "evidence": evidence,
         }
-        session.performance_score = outcome.performance_score
+        session.performance_score = effective_score
         session.supervisor_feedback = outcome.supervisor_feedback
         session.errors_count = outcome.errors_count
-        session.tasks_completed = outcome.tasks_completed
+        # Task progress comes from the ledger, not the form.
+        session.tasks_completed = evidence["successes"]
+        session.total_tasks = evidence["episodes"]
         session.capabilities_developed = outcome.capabilities_developed
         session.capability_gaps_remaining = outcome.capability_gaps_remaining
 
         # Calculate confidence boost based on performance
-        confidence_boost = self._calculate_confidence_boost(outcome.performance_score)
+        confidence_boost = self._calculate_confidence_boost(effective_score)
         session.confidence_boost = confidence_boost
 
         # Context restriction made concrete: the agent's trusted scope grows
@@ -512,7 +677,7 @@ After completing this training, the agent will be able to handle similar tasks a
             proposal.completed_at = proposal.executed_at  # legacy alias
             proposal.supervision_metadata = {
                 "session_id": session_id,
-                "performance_score": outcome.performance_score,
+                "performance_score": effective_score,
                 "confidence_boost": actual_boost,
                 "promoted_to_intern": promoted_to_intern,
                 "capabilities_developed": outcome.capabilities_developed
@@ -527,7 +692,9 @@ After completing this training, the agent will be able to handle similar tasks a
             blocked_trigger.resolved = True
             blocked_trigger.resolved_at = datetime.now()
             blocked_trigger.resolution_outcome = (
-                f"Training completed. Performance: {outcome.performance_score:.2f}, "
+                f"Training completed. Performance: {effective_score:.2f} "
+                f"(evidence ratio {evidence['success_ratio']:.2f} over "
+                f"{evidence['episodes']} recorded run(s)), "
                 f"Confidence boost: {actual_boost:.3f}, "
                 f"Promoted to INTERN: {promoted_to_intern}"
             )
@@ -537,7 +704,9 @@ After completing this training, the agent will be able to handle similar tasks a
 
         logger.info(
             f"Completed training session {session_id} for agent {agent.id}. "
-            f"Performance: {outcome.performance_score:.2f}, "
+            f"Performance: {effective_score:.2f} (claimed "
+            f"{claimed_score if claimed_score is not None else 'n/a'}; evidence "
+            f"{evidence['successes']}/{evidence['episodes']} successful runs), "
             f"Confidence boost: {actual_boost:.3f} ({old_confidence:.3f} → {agent.confidence_score:.3f}), "
             f"Promoted: {promoted_to_intern}"
         )
@@ -545,14 +714,15 @@ After completing this training, the agent will be able to handle similar tasks a
         return {
             "session_id": session_id,
             "agent_id": agent.id,
-            "performance_score": outcome.performance_score,
+            "performance_score": effective_score,
             "confidence_boost": actual_boost,
             "old_confidence": old_confidence,
             "new_confidence": agent.confidence_score,
             "promoted_to_intern": promoted_to_intern,
             "promotion": promotion_progress,
             "new_status": agent.status,
-            "capabilities_developed": outcome.capabilities_developed
+            "capabilities_developed": outcome.capabilities_developed,
+            "evidence": evidence,
         }
 
     def _is_system_agent(self, agent: AgentRegistry) -> bool:
@@ -634,15 +804,33 @@ After completing this training, the agent will be able to handle similar tasks a
             ).count()
             return meta if super_wins > senior_wins else senior
 
-        # Bootstrap: no graduated senior exists in this domain yet, so the
-        # first hire is trained by the meta agent itself (the architecture's
-        # "atom_main trains the first agent"). The earned-super-mentor
-        # comparison above takes over once real seniors exist — that is what
-        # stops an unproven generalist from displacing a graduated senior.
+        # Bootstrap: ONLY on a virgin deployment — atom_main has never had
+        # any attributed domain work at all (empty ledger), so there is
+        # nothing to earn yet and the first hire still gets a teacher
+        # (R86e "first hire" flow). Once the generalist has ANY attributed
+        # outcomes, teaching is earned per domain: below the win threshold
+        # it is NOT a mentor ("super mentor for everyone is an achievement,
+        # not a default") — the generalist goes and does the role's real
+        # work (attribution now runs on the shared record_outcome path).
         if senior is None:
-            return meta
+            if not self._meta_has_any_domain_record():
+                return meta
+            return None
 
         return senior
+
+    def _meta_has_any_domain_record(self) -> bool:
+        """Whether atom_main has ANY attributed domain outcome recorded.
+
+        False = virgin deployment (nothing earned yet, first hire still
+        gets the meta agent as teacher). True = the generalist has worked
+        real roles, so teaching is earned per domain from here on.
+        """
+        from core.models import DomainExperienceLedger
+
+        return self.db.query(DomainExperienceLedger).filter(
+            DomainExperienceLedger.agent_id == "atom_main"
+        ).first() is not None
 
     def _build_mentor_playbook(self, agent: AgentRegistry) -> Optional[Dict[str, Any]]:
         """
@@ -698,6 +886,77 @@ After completing this training, the agent will be able to handle similar tasks a
             ],
         }
 
+    def ensure_session_canvas(self, session: TrainingSession, agent: AgentRegistry, proposal: AgentProposal) -> Optional[str]:
+        """Create the session's MINI-CANVAS — one per training session.
+
+        Renders the mentor lesson + student trust state + data scope as typed
+        sections (document canvas) so the supervisor reviews the trainee's
+        work visually, not as chat text. Idempotent: the canvas id is stored
+        in supervisor_guidance; re-invocations reuse it. Audited into
+        CanvasAudit under the chat-session-equivalent training session id.
+        """
+        guidance = session.supervisor_guidance if isinstance(session.supervisor_guidance, dict) else {}
+        if guidance.get("canvas_id"):
+            return guidance["canvas_id"]
+
+        try:
+            from core.models import Canvas, CanvasAudit
+
+            plan = guidance.get("lesson_plan") or {}
+            tasks = plan.get("tasks") or []
+            task_lines = "\n".join(f"- {t}" for t in tasks) or "- (lesson pending)"
+            content = {
+                "type": "training_session",
+                "student": {"id": agent.id, "name": agent.name, "tier": agent.status,
+                            "confidence": agent.confidence_score},
+                "mentor": plan.get("mentor") or "atom_main",
+                "domain": plan.get("domain") or "",
+                "objective": plan.get("objective", ""),
+                "tasks": tasks,
+                "materials": plan.get("materials", []),
+                "session_id": session.id,
+                "completed": bool(session.status == "completed"),
+                "performance_score": session.performance_score,
+            }
+
+            canvas = Canvas(
+                tenant_id=session.tenant_id or "default",
+                workspace_id=getattr(self, "workspace_id", None) or "default",
+                created_by=session.supervisor_id or agent.created_by,
+                name=f"Training: {agent.name} — {plan.get('objective', 'session')}"[:255],
+                description=f"Mini-canvas for training session {session.id}",
+                canvas_type="document",
+                content=content,
+                status="active",
+            )
+            self.db.add(canvas)
+            self.db.flush()  # assign canvas.id before audit rows reference it
+
+            audit = CanvasAudit(
+                canvas_id=canvas.id,
+                tenant_id=session.tenant_id or "default",
+                # attribute to the supervised pass: same id keys the episode
+                session_id=str(session.id),
+                agent_id=agent.id,
+                canvas_type="document",
+                action_type="training_session_started",
+                user_id=session.supervisor_id,
+                details_json={"lesson_objective": plan.get("objective", ""), "source": "training_flow"},
+            )
+            self.db.add(audit)
+
+            guidance["canvas_id"] = canvas.id
+            session.supervisor_guidance = guidance
+            self.db.commit()
+            logger.info(
+                f"Session mini-canvas created: {canvas.id} for training {session.id}"
+            )
+            return canvas.id
+        except Exception as canvas_err:
+            self.db.rollback()
+            logger.warning(f"mini-canvas creation failed (non-fatal): {canvas_err}")
+            return None
+
     async def _build_lesson_plan(
         self, agent: AgentRegistry, proposal: AgentProposal
     ) -> Dict[str, Any]:
@@ -751,14 +1010,19 @@ After completing this training, the agent will be able to handle similar tasks a
         except Exception as lead_err:
             logger.debug(f"lesson lead sampling failed: {lead_err}")
 
-        first = leads[0]["text"] if leads else "any lead in memory"
-        second = leads[1]["text"] if len(leads) > 1 else (first or "a second lead")
-
-        tasks = [
-            f"Read this real lead and say what it likely needs: {first}",
-            "Draft a 3-sentence opening email for it (draft only — never send)",
-            f"Draft a short follow-up for a second lead: {second}",
-        ]
+        # Sales-flavored concrete pass when real leads exist; otherwise the
+        # domain seed template keeps EVERY role's first session runnable.
+        if leads:
+            first = leads[0]["text"]
+            second = leads[1]["text"] if len(leads) > 1 else first
+            tasks = [
+                f"Read this real lead and say what it likely needs: {first}",
+                "Draft a 3-sentence opening email for it (draft only — never send)",
+                f"Draft a short follow-up for a second lead: {second}",
+            ]
+        else:
+            seed = _role_seed(agent.category)
+            tasks = list(seed.get("tasks", []))
         if gaps:
             tasks.append(f"While working, self-check on: {', '.join(gaps)}")
 
@@ -768,7 +1032,7 @@ After completing this training, the agent will be able to handle similar tasks a
             "objective": (
                 objectives[0]
                 if objectives
-                else "Complete one supervised pass on real ingested data"
+                else _role_seed(agent.category).get("objective", "Complete one supervised pass")
             ),
             "tasks": tasks,
             "materials": [l["text"] for l in leads[:3]] or ["any ingested records"],

@@ -25,9 +25,9 @@ const IntegrationHealthPage: React.FC = () => {
           Integration Health Dashboard
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl">
-          Monitor the health and status of all your connected integrations in real-time.
-          This dashboard provides comprehensive visibility into integration performance,
-          connection status, and potential issues.
+          See which integrations are actually connected and whether their credentials
+          still work. When a credential can be exercised directly, this dashboard makes
+          one real read-only call to the provider and shows the result.
         </p>
       </div>
 
@@ -45,19 +45,19 @@ const IntegrationHealthPage: React.FC = () => {
         </h2>
         <div className="space-y-3 text-blue-700 dark:text-blue-200">
           <p>
-            • <strong>Auto-refresh:</strong> Health status automatically updates every 30 seconds
+            • <strong>Auto-refresh:</strong> Status automatically re-checks every 30 seconds
           </p>
           <p>
-            • <strong>Status Indicators:</strong> Green = Healthy, Yellow = Warning, Red = Error
+            • <strong>Status Indicators:</strong> Green = verified healthy, Yellow = connected but unverified, Red = unreachable
           </p>
           <p>
-            • <strong>Response Time:</strong> Measures API response time for each integration
+            • <strong>Verification:</strong> One real read-only API call to the provider with the stored credential, where possible
           </p>
           <p>
-            • <strong>Last Sync:</strong> Shows when each integration was last checked
+            • <strong>Response Time:</strong> Real measured duration of that provider call (only shown for verified checks)
           </p>
           <p>
-            • <strong>Connection Status:</strong> Indicates if the integration is actively connected
+            • <strong>Connection Sources:</strong> In-app connections, tenant connectors, and backend environment credentials
           </p>
         </div>
       </div>

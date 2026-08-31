@@ -14,13 +14,13 @@ import { ViewOrchestrator } from '@/components/canvas/ViewOrchestrator';
 // Mock WebSocket hook
 jest.mock('@/hooks/useWebSocket', () => ({
   __esModule: true,
-  default: () => ({
+  default: (): { socket: null; connected: boolean; lastMessage: null; sendMessage: jest.Mock } => ({
     socket: null,
     connected: false,
     lastMessage: null,
     sendMessage: jest.fn()
   }),
-  useWebSocket: () => ({
+  useWebSocket: (): { socket: null; connected: boolean; lastMessage: null; sendMessage: jest.Mock } => ({
     socket: null,
     connected: false,
     lastMessage: null,

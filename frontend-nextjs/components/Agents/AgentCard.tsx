@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Clock, CheckCircle, XCircle, AlertTriangle, MessageSquare, Edit, Brain } from "lucide-react";
+import { Play, Clock, CheckCircle, XCircle, AlertTriangle, MessageSquare, Edit, Brain, Trash2 } from "lucide-react";
 
 export interface AgentInfo {
     id: string;
@@ -23,6 +23,7 @@ interface AgentCardProps {
     onChat: (id: string) => void;
     onEdit: (id: string) => void;
     onViewReasoning: (id: string) => void;
+    onDelete?: (id: string, name: string) => void;
 }
 
 // P3.1 — Mirror of AgentGraduationService.CRITERIA min_episodes thresholds.
@@ -58,7 +59,7 @@ function getMaturityBadge(level: NonNullable<AgentInfo["maturity_level"]>) {
     );
 }
 
-const AgentCard: React.FC<AgentCardProps> = ({ agent, progress, onRun, onStop, onChat, onEdit, onViewReasoning }) => {
+const AgentCard: React.FC<AgentCardProps> = ({ agent, progress, onRun, onStop, onChat, onEdit, onViewReasoning, onDelete }) => {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -136,6 +137,18 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, progress, onRun, onStop, o
                 <Button variant="outline" size="icon" onClick={() => onViewReasoning(agent.id)} title="View Reasoning Trace">
                     <Brain className="w-4 h-4" />
                 </Button>
+                {onDelete && (
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => onDelete(agent.id, agent.name)}
+                        title="Delete Agent"
+                        data-testid={`agent-delete-button-${agent.id}`}
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </Button>
+                )}
                 {agent.status === "running" ? (
                     <Button
                         className="flex-1"

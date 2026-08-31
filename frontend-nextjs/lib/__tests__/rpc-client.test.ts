@@ -106,7 +106,7 @@ describe('rpc.call', () => {
 
     const err = await rpc
       .call('documents.search', {})
-      .catch((e: Error) => e);
+      .catch((e: Error): Error => e) as Error;
 
     expect(err.message).toBe('RPC call failed');
     expect((err as any).status).toBe(500);
@@ -119,7 +119,7 @@ describe('rpc.call', () => {
 
     const err = await rpc
       .call('documents.search', {})
-      .catch((e: Error) => e);
+      .catch((e: Error): Error => e) as Error;
 
     expect(err.message).toBe('RPC call failed');
     expect((err as any).status).toBeUndefined();

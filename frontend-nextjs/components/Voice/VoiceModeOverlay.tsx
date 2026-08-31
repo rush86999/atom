@@ -29,12 +29,17 @@ export function VoiceModeOverlay({ isOpen, onClose, onSend, isProcessing, lastAg
     }, [])
 
     // Handle Agent Speech
+    // Guarded on isOpen: the component stays mounted when voice mode is
+    // closed (AnimatePresence just hides the JSX), so this effect otherwise
+    // fired on every assistant message — reading chat replies aloud with the
+    // overlay closed, including the last history message on page load.
     useEffect(() => {
+        if (!isOpen) return;
         if (lastAgentMessage && lastAgentMessage !== lastSpokenMessage && !isProcessing) {
             setLastSpokenMessage(lastAgentMessage)
             speak(lastAgentMessage)
         }
-    }, [lastAgentMessage, isProcessing])
+    }, [isOpen, lastAgentMessage, isProcessing])
 
     // Initialize Recognition on Open
     useEffect(() => {

@@ -342,7 +342,7 @@ class GmailService(IntegrationService):
             
             # Extract body
             body = self._extract_body(message['payload'])
-            
+
             return {
                 'id': message['id'],
                 'threadId': message['threadId'],
@@ -350,6 +350,7 @@ class GmailService(IntegrationService):
                 'sender': sender,
                 'date': date,
                 'body': body,
+                'body_content_type': self._detect_body_mime(message['payload']),
                 'snippet': message.get('snippet', ''),
                 'labelIds': message.get('labelIds', []),
                 'historyId': message.get('historyId'),
@@ -361,6 +362,28 @@ class GmailService(IntegrationService):
             logger.error(f"Error parsing message: {e}")
             return {}
     
+    def _detect_body_mime(self, payload: Dict[str, Any]) -> str:
+        """Report the mime type _extract_body will resolve to ('text/plain'
+        preferred, 'text/html' fallback) so callers can strip HTML."""
+        try:
+            if 'body' in payload and 'data' in payload['body']:
+                return payload.get('mimeType', 'text/plain')
+
+            parts = payload.get('parts', [])
+            for part in parts:
+                if part.get('mimeType') == 'text/plain' and 'data' in part.get('body', {}):
+                    return 'text/plain'
+            for part in parts:
+                if part.get('mimeType') == 'text/html' and 'data' in part.get('body', {}):
+                    return 'text/html'
+                if 'parts' in part:
+                    mime = self._detect_body_mime(part)
+                    if mime:
+                        return mime
+        except Exception:
+            pass
+        return 'text/plain'
+
     def _extract_body(self, payload: Dict[str, Any]) -> str:
         """Extract email body from payload"""
         try:

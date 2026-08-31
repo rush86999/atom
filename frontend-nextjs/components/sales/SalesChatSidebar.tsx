@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
 import { ScrollArea } from "../ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Send, MessageSquare, ChevronRight, ChevronLeft, Bot, User, Sparkles } from "lucide-react";
@@ -14,6 +14,15 @@ interface SalesChatSidebarProps {
 const SalesChatSidebar: React.FC<SalesChatSidebarProps> = ({ workspaceId }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState("");
+    // Auto-grow the composer to fit multi-line messages.
+    const inputRef = useRef<HTMLTextAreaElement>(null);
+    useEffect(() => {
+        const el = inputRef.current;
+        if (el) {
+            el.style.height = 'auto';
+            el.style.height = `${el.scrollHeight}px`;
+        }
+    }, [input]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [messages, setMessages] = useState<ChatMessageData[]>([
         {
@@ -146,16 +155,23 @@ const SalesChatSidebar: React.FC<SalesChatSidebarProps> = ({ workspaceId }) => {
 
                     {/* Input */}
                     <div className="p-4 border-t bg-muted/10">
-                        <div className="flex gap-2">
-                            <Input
+                        <div className="flex gap-2 items-end">
+                            <Textarea
+                                ref={inputRef}
+                                rows={1}
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSend();
+                                    }
+                                }}
                                 placeholder="Ask Sales Assistant..."
-                                className="text-xs h-9"
+                                className="flex-1 min-h-[44px] max-h-[120px] resize-none px-3 py-2.5 text-base"
                             />
-                            <Button size="sm" onClick={handleSend} disabled={isProcessing}>
-                                <Send className="h-4 w-4" />
+                            <Button size="sm" className="h-11 w-11 shrink-0" onClick={handleSend} disabled={isProcessing}>
+                                <Send className="h-5 w-5" />
                             </Button>
                         </div>
                         <p className="text-[9px] text-muted-foreground mt-2 text-center italic">
