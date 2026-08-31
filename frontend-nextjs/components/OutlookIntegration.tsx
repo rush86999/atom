@@ -914,18 +914,24 @@ const OutlookIntegration: React.FC = () => {
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {contacts.map((contact) => (
+                                    {contacts.map((contact) => {
+                                        // Graph contacts can lack displayName — fall back
+                                        // to the first email so the card never crashes.
+                                        const name = contact.displayName
+                                            || (contact.emailAddresses || [])[0]?.address
+                                            || "Unnamed contact";
+                                        return (
                                         <Card key={contact.id}>
                                             <CardContent className="pt-6">
                                                 <div className="space-y-3">
                                                     <div className="flex items-center space-x-3">
                                                         <Avatar className="h-10 w-10">
                                                             <AvatarFallback className="bg-blue-100 text-blue-600">
-                                                                {contact.displayName.charAt(0)}
+                                                                {name.charAt(0)}
                                                             </AvatarFallback>
                                                         </Avatar>
                                                         <div>
-                                                            <h3 className="font-bold">{contact.displayName}</h3>
+                                                            <h3 className="font-bold">{name}</h3>
                                                             {contact.jobTitle && (
                                                                 <p className="text-xs text-muted-foreground">{contact.jobTitle}</p>
                                                             )}
@@ -933,13 +939,13 @@ const OutlookIntegration: React.FC = () => {
                                                     </div>
 
                                                     <div className="space-y-2 pt-2">
-                                                        {contact.emailAddresses.map((email, index) => (
+                                                        {(contact.emailAddresses || []).map((email, index) => (
                                                             <div key={index} className="flex items-center text-sm text-muted-foreground">
                                                                 <Mail className="w-4 h-4 mr-2" />
                                                                 <span className="truncate">{email.address}</span>
                                                             </div>
                                                         ))}
-                                                        {contact.businessPhones.length > 0 && (
+                                                        {(contact.businessPhones || []).length > 0 && (
                                                             <div className="flex items-center text-sm text-muted-foreground">
                                                                 <Phone className="w-4 h-4 mr-2" />
                                                                 <span>{contact.businessPhones[0]}</span>
@@ -955,7 +961,8 @@ const OutlookIntegration: React.FC = () => {
                                                 </div>
                                             </CardContent>
                                         </Card>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </CardContent>
                         </Card>
