@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
     CheckCircle,
@@ -400,7 +401,7 @@ const ZendeskIntegration: React.FC = () => {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
             // that returns 200 unconditionally — it must not decide "connected".
-            const response = await fetch("/api/integrations/connection-status", { headers: authHeaders() });
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
                 const data = await response.json().catch((): null => null);
                 const providers = data?.data?.providers ?? data?.providers ?? {};
@@ -430,7 +431,7 @@ const ZendeskIntegration: React.FC = () => {
     const loadUserProfile = async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
-            const response = await fetch("/api/integrations/zendesk/profile", {
+            const response = await authFetch("/api/integrations/zendesk/profile", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -452,7 +453,7 @@ const ZendeskIntegration: React.FC = () => {
     const loadTickets = async () => {
         setLoading((prev) => ({ ...prev, tickets: true }));
         try {
-            const response = await fetch("/api/integrations/zendesk/tickets", {
+            const response = await authFetch("/api/integrations/zendesk/tickets", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -482,7 +483,7 @@ const ZendeskIntegration: React.FC = () => {
     const loadUsers = async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
-            const response = await fetch("/api/integrations/zendesk/users", {
+            const response = await authFetch("/api/integrations/zendesk/users", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -505,7 +506,7 @@ const ZendeskIntegration: React.FC = () => {
     const loadGroups = async () => {
         setLoading((prev) => ({ ...prev, groups: true }));
         try {
-            const response = await fetch("/api/integrations/zendesk/groups", {
+            const response = await authFetch("/api/integrations/zendesk/groups", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -528,7 +529,7 @@ const ZendeskIntegration: React.FC = () => {
     const loadViews = async () => {
         setLoading((prev) => ({ ...prev, views: true }));
         try {
-            const response = await fetch("/api/integrations/zendesk/views", {
+            const response = await authFetch("/api/integrations/zendesk/views", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -551,7 +552,7 @@ const ZendeskIntegration: React.FC = () => {
     const loadOrganizations = async () => {
         setLoading((prev) => ({ ...prev, organizations: true }));
         try {
-            const response = await fetch("/api/integrations/zendesk/organizations", {
+            const response = await authFetch("/api/integrations/zendesk/organizations", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -576,7 +577,7 @@ const ZendeskIntegration: React.FC = () => {
         if (!ticketForm.subject || !ticketForm.description) return;
 
         try {
-            const response = await fetch("/api/integrations/zendesk/tickets/create", {
+            const response = await authFetch("/api/integrations/zendesk/tickets/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -630,7 +631,7 @@ const ZendeskIntegration: React.FC = () => {
         if (!userForm.name || !userForm.email) return;
 
         try {
-            const response = await fetch("/api/integrations/zendesk/users/create", {
+            const response = await authFetch("/api/integrations/zendesk/users/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -680,7 +681,7 @@ const ZendeskIntegration: React.FC = () => {
         if (!organizationForm.name) return;
 
         try {
-            const response = await fetch("/api/integrations/zendesk/organizations/create", {
+            const response = await authFetch("/api/integrations/zendesk/organizations/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({

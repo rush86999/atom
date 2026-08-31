@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { authFetch } from "@/lib/auth-headers";
 import {
     Plug,
     Unplug,
@@ -52,7 +53,7 @@ const DiscordIntegration = () => {
     // liveness probe that returns 200 unconditionally.
     const checkConnectionStatus = useCallback(async () => {
         try {
-            const response = await fetch("/api/integrations/connection-status", { headers: authHeaders() });
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             const data = response.ok ? await response.json().catch((): null => null) : null;
             const providers = data?.data?.providers ?? data?.providers ?? {};
 
@@ -71,12 +72,12 @@ const DiscordIntegration = () => {
 
         try {
             const [profileResponse, guildsResponse] = await Promise.all([
-                fetch("/api/integrations/discord/profile", {
+                authFetch("/api/integrations/discord/profile", {
                     method: "POST",
                     headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({ user_id: "current" })
                 }),
-                fetch("/api/integrations/discord/guilds", {
+                authFetch("/api/integrations/discord/guilds", {
                     method: "POST",
                     headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({ user_id: "current" })
@@ -112,7 +113,7 @@ const DiscordIntegration = () => {
         setLoading(prev => ({ ...prev, connect: true }));
 
         try {
-            const response = await fetch("/api/integrations/discord/auth/start", {
+            const response = await authFetch("/api/integrations/discord/auth/start", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({ user_id: "current" })
@@ -144,7 +145,7 @@ const DiscordIntegration = () => {
     // Disconnect integration
     const disconnectIntegration = useCallback(async () => {
         try {
-            const response = await fetch("/api/integrations/discord/revoke", {
+            const response = await authFetch("/api/integrations/discord/revoke", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({ user_id: "current" })

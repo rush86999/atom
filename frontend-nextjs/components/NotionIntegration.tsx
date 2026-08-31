@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
     CheckCircle,
@@ -173,7 +174,7 @@ const NotionIntegration: React.FC = () => {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
             // that returns 200 unconditionally — it must not decide "connected".
-            const response = await fetch("/api/integrations/connection-status", { headers: authHeaders() });
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
                 const data = await response.json().catch((): null => null);
                 const providers = data?.data?.providers ?? data?.providers ?? {};
@@ -199,7 +200,7 @@ const NotionIntegration: React.FC = () => {
     const loadPages = async (databaseId?: string) => {
         setLoading((prev) => ({ ...prev, pages: true }));
         try {
-            const response = await fetch("/api/integrations/notion/pages", {
+            const response = await authFetch("/api/integrations/notion/pages", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -235,7 +236,7 @@ const NotionIntegration: React.FC = () => {
     const loadDatabases = async () => {
         setLoading((prev) => ({ ...prev, databases: true }));
         try {
-            const response = await fetch("/api/integrations/notion/databases", {
+            const response = await authFetch("/api/integrations/notion/databases", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -261,7 +262,7 @@ const NotionIntegration: React.FC = () => {
     const loadUsers = async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
-            const response = await fetch("/api/integrations/notion/users", {
+            const response = await authFetch("/api/integrations/notion/users", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -286,7 +287,7 @@ const NotionIntegration: React.FC = () => {
 
         setLoading((prev) => ({ ...prev, search: true }));
         try {
-            const response = await fetch("/api/integrations/notion/search", {
+            const response = await authFetch("/api/integrations/notion/search", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -313,7 +314,7 @@ const NotionIntegration: React.FC = () => {
 
     const createPage = async () => {
         try {
-            const response = await fetch("/api/integrations/notion/pages/create", {
+            const response = await authFetch("/api/integrations/notion/pages/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -367,7 +368,7 @@ const NotionIntegration: React.FC = () => {
 
     const createDatabase = async () => {
         try {
-            const response = await fetch(
+            const response = await authFetch(
                 "/api/integrations/notion/databases/create",
                 {
                     method: "POST",

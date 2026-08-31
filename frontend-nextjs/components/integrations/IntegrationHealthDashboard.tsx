@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
   CheckCircle,
   AlertTriangle,
@@ -66,7 +67,7 @@ const IntegrationHealthDashboard: React.FC<IntegrationHealthDashboardProps> = ({
   const refreshHealthStatus = useCallback(async () => {
     setRefreshing(true);
     try {
-      const response = await fetch("/api/integrations/health-status", {
+      const response = await authFetch("/api/integrations/health-status", {
         headers: authHeaders(),
       });
       if (!response.ok) throw new Error(`health-status returned ${response.status}`);

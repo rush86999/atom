@@ -11,7 +11,7 @@ import {
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { authHeaders, handleSessionExpired } from "@/lib/auth-headers";
+import { authFetch, authHeaders, handleSessionExpired } from "@/lib/auth-headers";
 
 /**
  * Data-ingestion progress for one integration, from
@@ -78,7 +78,7 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `/api/integrations/${integrationId}/ingestion-status`,
         { headers: authHeaders() }
       );
@@ -114,7 +114,7 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
     setStarting(true);
     setActionError(null);
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `/api/integrations/${integrationId}/ingestion/start`,
         { method: "POST", headers: authHeaders() }
       );

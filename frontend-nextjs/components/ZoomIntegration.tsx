@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
     CheckCircle,
@@ -385,7 +386,7 @@ const ZoomIntegration: React.FC = () => {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
             // that returns 200 unconditionally — it must not decide "connected".
-            const response = await fetch("/api/integrations/connection-status", { headers: authHeaders() });
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
                 const data = await response.json().catch((): null => null);
                 const providers = data?.data?.providers ?? data?.providers ?? {};
@@ -413,7 +414,7 @@ const ZoomIntegration: React.FC = () => {
     const loadUserProfile = async () => {
         setLoading((prev) => ({ ...prev, profile: true }));
         try {
-            const response = await fetch("/api/integrations/zoom/profile", {
+            const response = await authFetch("/api/integrations/zoom/profile", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -435,7 +436,7 @@ const ZoomIntegration: React.FC = () => {
     const loadMeetings = async () => {
         setLoading((prev) => ({ ...prev, meetings: true }));
         try {
-            const response = await fetch("/api/integrations/zoom/meetings", {
+            const response = await authFetch("/api/integrations/zoom/meetings", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -464,7 +465,7 @@ const ZoomIntegration: React.FC = () => {
     const loadUsers = async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
-            const response = await fetch("/api/integrations/zoom/users", {
+            const response = await authFetch("/api/integrations/zoom/users", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -487,7 +488,7 @@ const ZoomIntegration: React.FC = () => {
     const loadRecordings = async () => {
         setLoading((prev) => ({ ...prev, recordings: true }));
         try {
-            const response = await fetch("/api/integrations/zoom/recordings", {
+            const response = await authFetch("/api/integrations/zoom/recordings", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -516,7 +517,7 @@ const ZoomIntegration: React.FC = () => {
         if (!meetingForm.topic) return;
 
         try {
-            const response = await fetch("/api/integrations/zoom/meetings/create", {
+            const response = await authFetch("/api/integrations/zoom/meetings/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -564,7 +565,7 @@ const ZoomIntegration: React.FC = () => {
         if (!userForm.email) return;
 
         try {
-            const response = await fetch("/api/integrations/zoom/users/create", {
+            const response = await authFetch("/api/integrations/zoom/users/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({

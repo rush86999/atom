@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Settings,
     CheckCircle,
@@ -373,7 +374,7 @@ const QuickBooksIntegration: React.FC = () => {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
             // that returns 200 unconditionally — it must not decide "connected".
-            const response = await fetch("/api/integrations/connection-status", { headers: authHeaders() });
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
                 const data = await response.json().catch((): null => null);
                 const providers = data?.data?.providers ?? data?.providers ?? {};
@@ -404,7 +405,7 @@ const QuickBooksIntegration: React.FC = () => {
     const loadCompanyInfo = async () => {
         setLoading((prev) => ({ ...prev, company: true }));
         try {
-            const response = await fetch("/api/integrations/quickbooks/company", {
+            const response = await authFetch("/api/integrations/quickbooks/company", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -426,7 +427,7 @@ const QuickBooksIntegration: React.FC = () => {
     const loadCustomers = async () => {
         setLoading((prev) => ({ ...prev, customers: true }));
         try {
-            const response = await fetch("/api/integrations/quickbooks/customers", {
+            const response = await authFetch("/api/integrations/quickbooks/customers", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -454,7 +455,7 @@ const QuickBooksIntegration: React.FC = () => {
     const loadInvoices = async () => {
         setLoading((prev) => ({ ...prev, invoices: true }));
         try {
-            const response = await fetch("/api/integrations/quickbooks/invoices", {
+            const response = await authFetch("/api/integrations/quickbooks/invoices", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -477,7 +478,7 @@ const QuickBooksIntegration: React.FC = () => {
     const loadBills = async () => {
         setLoading((prev) => ({ ...prev, bills: true }));
         try {
-            const response = await fetch("/api/integrations/quickbooks/bills", {
+            const response = await authFetch("/api/integrations/quickbooks/bills", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -500,7 +501,7 @@ const QuickBooksIntegration: React.FC = () => {
     const loadAccounts = async () => {
         setLoading((prev) => ({ ...prev, accounts: true }));
         try {
-            const response = await fetch("/api/integrations/quickbooks/accounts", {
+            const response = await authFetch("/api/integrations/quickbooks/accounts", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -523,7 +524,7 @@ const QuickBooksIntegration: React.FC = () => {
     const loadEmployees = async () => {
         setLoading((prev) => ({ ...prev, employees: true }));
         try {
-            const response = await fetch("/api/integrations/quickbooks/employees", {
+            const response = await authFetch("/api/integrations/quickbooks/employees", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -546,7 +547,7 @@ const QuickBooksIntegration: React.FC = () => {
     const loadVendors = async () => {
         setLoading((prev) => ({ ...prev, vendors: true }));
         try {
-            const response = await fetch("/api/integrations/quickbooks/vendors", {
+            const response = await authFetch("/api/integrations/quickbooks/vendors", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -571,7 +572,7 @@ const QuickBooksIntegration: React.FC = () => {
         if (!customerForm.DisplayName) return;
 
         try {
-            const response = await fetch("/api/integrations/quickbooks/customers/create", {
+            const response = await authFetch("/api/integrations/quickbooks/customers/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -625,7 +626,7 @@ const QuickBooksIntegration: React.FC = () => {
         if (!invoiceForm.CustomerRef.value || invoiceForm.Line.length === 0) return;
 
         try {
-            const response = await fetch("/api/integrations/quickbooks/invoices/create", {
+            const response = await authFetch("/api/integrations/quickbooks/invoices/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -671,7 +672,7 @@ const QuickBooksIntegration: React.FC = () => {
         if (!billForm.VendorRef.value || billForm.Line.length === 0) return;
 
         try {
-            const response = await fetch("/api/integrations/quickbooks/bills/create", {
+            const response = await authFetch("/api/integrations/quickbooks/bills/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authFetch } from "@/lib/auth-headers";
 import { Plus, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -56,7 +57,7 @@ const BYOKManager = () => {
     const fetchProviders = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/ai/providers', { headers: authHeaders() });
+            const response = await authFetch('/api/ai/providers', { headers: authHeaders() });
             const data = await response.json();
             // The endpoint wraps its payload in the standard ApiResponse
             // envelope ({success, data: {providers}}); reading top-level
@@ -94,7 +95,7 @@ const BYOKManager = () => {
 
         try {
             // SECURE: Use POST body instead of query params
-            const response = await fetch(`/api/ai/providers/${selectedProvider}/keys`, {
+            const response = await authFetch(`/api/ai/providers/${selectedProvider}/keys`, {
                 method: 'POST',
                 headers: authHeaders({
                     'Content-Type': 'application/json',
@@ -135,7 +136,7 @@ const BYOKManager = () => {
 
     const handleDeleteKey = async (providerId: string, keyName: string = 'default') => {
         try {
-            const response = await fetch(`/api/ai/providers/${providerId}/keys/${keyName}`, {
+            const response = await authFetch(`/api/ai/providers/${providerId}/keys/${keyName}`, {
                 method: 'DELETE',
                 headers: authHeaders(),
             });

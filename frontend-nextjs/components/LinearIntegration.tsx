@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     Clock,
     CheckCircle,
@@ -108,7 +109,7 @@ const LinearIntegration: React.FC = () => {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
             // that returns 200 unconditionally — it must not decide "connected".
-            const response = await fetch("/api/integrations/connection-status", { headers: authHeaders() });
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
                 const data = await response.json().catch((): null => null);
                 const providers = data?.data?.providers ?? data?.providers ?? {};
@@ -130,7 +131,7 @@ const LinearIntegration: React.FC = () => {
     const loadIssues = async () => {
         setLoading((prev) => ({ ...prev, issues: true }));
         try {
-            const response = await fetch("/api/integrations/linear/issues", {
+            const response = await authFetch("/api/integrations/linear/issues", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -159,7 +160,7 @@ const LinearIntegration: React.FC = () => {
     const loadTeams = async () => {
         setLoading((prev) => ({ ...prev, teams: true }));
         try {
-            const response = await fetch("/api/integrations/linear/teams", {
+            const response = await authFetch("/api/integrations/linear/teams", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -182,7 +183,7 @@ const LinearIntegration: React.FC = () => {
     const loadProjects = async () => {
         setLoading((prev) => ({ ...prev, projects: true }));
         try {
-            const response = await fetch("/api/integrations/linear/projects", {
+            const response = await authFetch("/api/integrations/linear/projects", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -206,7 +207,7 @@ const LinearIntegration: React.FC = () => {
     const loadCycles = async () => {
         setLoading((prev) => ({ ...prev, cycles: true }));
         try {
-            const response = await fetch("/api/integrations/linear/cycles", {
+            const response = await authFetch("/api/integrations/linear/cycles", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -230,7 +231,7 @@ const LinearIntegration: React.FC = () => {
     // Create new issue
     const createIssue = async () => {
         try {
-            const response = await fetch("/api/integrations/linear/issues", {
+            const response = await authFetch("/api/integrations/linear/issues", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({

@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import { useRouter } from "next/router";
 import { authHeaders } from "@/lib/auth-headers";
 import {
@@ -673,7 +674,7 @@ const IntegrationsPage: React.FC = () => {
             // Several health routes (e.g. /api/zoho-workdrive/health) sit
             // behind router-level auth — send the session's Bearer header
             // so a connected integration isn't reported down.
-            const resp = await fetch(url, { headers: authHeaders() });
+            const resp = await authFetch(url, { headers: authHeaders() });
             return [id, resp.ok] as const;
           } catch {
             return [id, false] as const;
@@ -682,12 +683,12 @@ const IntegrationsPage: React.FC = () => {
         // Real connection state (DB connections + tenant connectors + env
         // credentials). Health probes above only prove a backend route is
         // up — they must NOT decide "connected".
-        fetch("/api/integrations/connection-status", { headers: authHeaders() })
+        authFetch("/api/integrations/connection-status", { headers: authHeaders() })
           .then((r) => (r.ok ? r.json() : { providers: {} }))
           .then((d) => ["__connectionStatus", d?.data?.providers ?? d?.providers ?? {}] as const)
           .catch(() => ["__connectionStatus", {}] as const),
         // Memory-ingestion progress (records ingested per integration).
-        fetch("/api/integrations/ingestion-status", { headers: authHeaders() })
+        authFetch("/api/integrations/ingestion-status", { headers: authHeaders() })
           .then((r) => (r.ok ? r.json() : { apps: {} }))
           .then((d) => ["__ingestionStatus", d?.data?.apps ?? d?.apps ?? {}] as const)
           .catch(() => ["__ingestionStatus", {}] as const),

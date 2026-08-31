@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     FileEdit,
     CheckCircle,
@@ -210,7 +211,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
             // that returns 200 unconditionally — it must not decide "connected".
-            const response = await fetch("/api/integrations/connection-status", { headers: authHeaders() });
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
                 const data = await response.json().catch((): null => null);
                 const providers = data?.data?.providers ?? data?.providers ?? {};
@@ -238,7 +239,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
     const loadDocs = async () => {
         setLoading((prev) => ({ ...prev, docs: true }));
         try {
-            const response = await fetch("/api/integrations/google-workspace/docs", {
+            const response = await authFetch("/api/integrations/google-workspace/docs", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -267,7 +268,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
     const loadSheets = async () => {
         setLoading((prev) => ({ ...prev, sheets: true }));
         try {
-            const response = await fetch("/api/integrations/google-workspace/sheets", {
+            const response = await authFetch("/api/integrations/google-workspace/sheets", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -290,7 +291,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
     const loadEvents = async () => {
         setLoading((prev) => ({ ...prev, events: true }));
         try {
-            const response = await fetch("/api/integrations/google-workspace/events", {
+            const response = await authFetch("/api/integrations/google-workspace/events", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -317,7 +318,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
     const loadEmails = async () => {
         setLoading((prev) => ({ ...prev, emails: true }));
         try {
-            const response = await fetch("/api/integrations/google-workspace/emails", {
+            const response = await authFetch("/api/integrations/google-workspace/emails", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -342,7 +343,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         if (!newDoc.title) return;
 
         try {
-            const response = await fetch("/api/integrations/google-workspace/docs/create", {
+            const response = await authFetch("/api/integrations/google-workspace/docs/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -376,7 +377,7 @@ const GoogleWorkspaceIntegration: React.FC = () => {
         if (!newEvent.summary || !newEvent.startTime || !newEvent.endTime) return;
 
         try {
-            const response = await fetch("/api/integrations/google-workspace/events/create", {
+            const response = await authFetch("/api/integrations/google-workspace/events/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({

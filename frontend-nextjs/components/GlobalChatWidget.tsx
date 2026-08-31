@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { authFetch } from "@/lib/auth-headers";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MessageSquare, X, Minimize2, Maximize2, Trash2, AlertCircle } from "lucide-react";
@@ -68,7 +69,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
 
         const fetchPendingApprovals = async () => {
             try {
-                const res = await fetch("/api/agents/approvals/pending", {
+                const res = await authFetch("/api/agents/approvals/pending", {
                     headers: authHeaders(),
                     signal: controller.signal,
                 });
@@ -161,7 +162,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const loadSessionHistory = async (sid: string, welcomeMsg: ChatMessageData) => {
         try {
             setIsLoading(true);
-            const res = await fetch(`/api/chat/history/${sid}?user_id=${userId || getCurrentUserId()}`, {
+            const res = await authFetch(`/api/chat/history/${sid}?user_id=${userId || getCurrentUserId()}`, {
                 headers: authHeaders(),
             }).catch((): null => null);
 
@@ -211,7 +212,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         setIsLoading(true);
 
         try {
-            const res = await fetch("/api/chat/message", {
+            const res = await authFetch("/api/chat/message", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

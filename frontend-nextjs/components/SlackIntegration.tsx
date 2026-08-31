@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import { authFetch } from "@/lib/auth-headers";
 import {
     MessageSquare,
     CheckCircle,
@@ -178,7 +179,7 @@ const SlackIntegration: React.FC = () => {
     const loadWorkspace = useCallback(async () => {
         setLoading((prev) => ({ ...prev, workspace: true }));
         try {
-            const response = await fetch("/api/integrations/slack/workspace", {
+            const response = await authFetch("/api/integrations/slack/workspace", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -200,7 +201,7 @@ const SlackIntegration: React.FC = () => {
     const loadChannels = useCallback(async () => {
         setLoading((prev) => ({ ...prev, channels: true }));
         try {
-            const response = await fetch(`/api/integrations/slack/channels?user_id=current&limit=100`, {
+            const response = await authFetch(`/api/integrations/slack/channels?user_id=current&limit=100`, {
                 method: "GET",
                 headers: authHeaders({ "Content-Type": "application/json" }),
             });
@@ -226,7 +227,7 @@ const SlackIntegration: React.FC = () => {
 
         setLoading((prev) => ({ ...prev, messages: true }));
         try {
-            const response = await fetch(`/api/integrations/slack/messages?user_id=current&channel=${channelId}&limit=50`, {
+            const response = await authFetch(`/api/integrations/slack/messages?user_id=current&channel=${channelId}&limit=50`, {
                 method: "GET",
                 headers: authHeaders({ "Content-Type": "application/json" }),
             });
@@ -245,7 +246,7 @@ const SlackIntegration: React.FC = () => {
     const loadUsers = useCallback(async () => {
         setLoading((prev) => ({ ...prev, users: true }));
         try {
-            const response = await fetch(`/api/integrations/slack/users?user_id=current&limit=100`, {
+            const response = await authFetch(`/api/integrations/slack/users?user_id=current&limit=100`, {
                 method: "GET",
                 headers: authHeaders({ "Content-Type": "application/json" }),
             });
@@ -267,7 +268,7 @@ const SlackIntegration: React.FC = () => {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
             // that returns 200 unconditionally — it must not decide "connected".
-            const response = await fetch("/api/integrations/connection-status", { headers: authHeaders() });
+            const response = await authFetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
                 const data = await response.json().catch((): null => null);
                 const providers = data?.data?.providers ?? data?.providers ?? {};
@@ -294,7 +295,7 @@ const SlackIntegration: React.FC = () => {
         if (!newMessage.channel || !newMessage.text) return;
 
         try {
-            const response = await fetch("/api/integrations/slack/messages", {
+            const response = await authFetch("/api/integrations/slack/messages", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
@@ -329,7 +330,7 @@ const SlackIntegration: React.FC = () => {
         if (!newChannel.name) return;
 
         try {
-            const response = await fetch("/api/integrations/slack/channels/create", {
+            const response = await authFetch("/api/integrations/slack/channels/create", {
                 method: "POST",
                 headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({
