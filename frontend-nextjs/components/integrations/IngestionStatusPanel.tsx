@@ -11,7 +11,7 @@ import {
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { authHeaders } from "@/lib/auth-headers";
+import { authHeaders, handleSessionExpired } from "@/lib/auth-headers";
 
 /**
  * Data-ingestion progress for one integration, from
@@ -82,6 +82,13 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
         `/api/integrations/${integrationId}/ingestion-status`,
         { headers: authHeaders() }
       );
+      // A 401/403 means the session died (key rotation, expiry) — route to
+      // login like every other fetch-based caller instead of throwing a raw
+      // "returned 401" error into the console.
+      if (response.status === 401 || response.status === 403) {
+        handleSessionExpired();
+        return;
+      }
       if (!response.ok) throw new Error(`ingestion-status returned ${response.status}`);
       const data = await response.json();
       setStatus(data);
