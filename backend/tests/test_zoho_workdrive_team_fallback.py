@@ -12,9 +12,10 @@ unconditionally every iteration) and JSON:API normalization
 (display_name fallback, shared_status/role_id mapping on the
 single-team endpoint).
 """
-import pytest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+
+import pytest
 
 
 def _resp(status: int, json_body: dict, text: str = ""):
