@@ -203,22 +203,26 @@ class ZohoWorkDriveService(IntegrationService):
         try:
             headers = {"Authorization": f"Zoho-oauthtoken {token}"}
             teams: List[Dict[str, Any]] = []
-            offset = 0
-            # JSON:API pagination — loop until a page comes back short/empty so
-            # large teams are not silently truncated to the first page.
-            while True:
-                response = await self.client.get(
-                    f"{self.base_url}/teams",
-                    headers=headers,
-                    params={"page[limit]": self.PAGE_SIZE, "page[offset]": offset},
-                )
-                response.raise_for_status()
-                items = response.json().get("data", [])
-                for item in items:
-                    teams.append(self._team_from_jsonapi(item))
-                if len(items) < self.PAGE_SIZE or len(teams) >= self.MAX_LIST_ITEMS:
-                    break
-                offset += self.PAGE_SIZE
+            # The /teams listing itself can 500 (F7007) when the client lacks
+            # WorkDrive.teams.* — that must NOT kill the picker: fall back to
+            # the scope-free /users/me org-team id below.
+            try:
+                offset = 0
+                while True:
+                    response = await self.client.get(
+                        f"{self.base_url}/teams",
+                        headers=headers,
+                        params={"page[limit]": self.PAGE_SIZE, "page[offset]": offset},
+                    )
+                    response.raise_for_status()
+                    items = response.json().get("data", [])
+                    for item in items:
+                        teams.append(self._team_from_jsonapi(item))
+                    if len(items) < self.PAGE_SIZE or len(teams) >= self.MAX_LIST_ITEMS:
+                        break
+                    offset += self.PAGE_SIZE
+            except Exception as e:
+                logger.warning(f"GET /teams listing failed ({e}); using org-team fallback")
 
             if not teams:
                 await self._append_org_team_fallback(headers, teams)
@@ -271,10 +275,23 @@ class ZohoWorkDriveService(IntegrationService):
                 f"{self.base_url}/teams/{tid}", headers=headers
             )
             if team_res.status_code != 200:
+                # /teams/{id} needs WorkDrive.teams.* (often not granted on
+                # the client) — the id alone is enough for the teamfolders
+                # listing, so append an id-only entry instead of giving up.
                 logger.warning(
-                    "Zoho WorkDrive org-team fetch for %s returned %s",
+                    "Zoho WorkDrive org-team detail for %s returned %s; "
+                    "using id-only entry",
                     tid,
                     team_res.status_code,
+                )
+                teams.append(
+                    {
+                        "id": tid,
+                        "name": "WorkDrive Team",
+                        "type": "teams",
+                        "status": None,
+                        "role": None,
+                    }
                 )
                 return
             tdata = team_res.json().get("data", {})
@@ -313,16 +330,20 @@ class ZohoWorkDriveService(IntegrationService):
             if team_id:
                 teams_to_query = [{"id": team_id}]
             else:
-                teams_res = await self.client.get(f"{self.base_url}/teams", headers=headers)
-                logger.debug(f"GET /teams -> {teams_res.status_code}")
-                if teams_res.status_code != 200:
-                    logger.warning(f"GET /teams failed: {teams_res.status_code} - {teams_res.text[:200]}")
-                    return []
-                teams_to_query = teams_res.json().get("data", [])
-                logger.debug(f"Found {len(teams_to_query)} teams")
+                teams_to_query = []
+                try:
+                    teams_res = await self.client.get(f"{self.base_url}/teams", headers=headers)
+                    logger.debug(f"GET /teams -> {teams_res.status_code}")
+                    if teams_res.status_code == 200:
+                        teams_to_query = teams_res.json().get("data", [])
+                        logger.debug(f"Found {len(teams_to_query)} teams")
+                except Exception as e:
+                    logger.warning(f"GET /teams failed: {e}")
                 if not teams_to_query:
-                    # Plain members may be absent from /teams — fall back to
-                    # the org team id advertised on /users/me.
+                    # /teams 500s with F7007 when the client lacks
+                    # WorkDrive.teams.* (or lists nothing for plain members) —
+                    # the org team id on /users/me needs NO teams scope and
+                    # teamfolders listing only needs teamfolders.ALL.
                     me_res = await self.client.get(f"{self.base_url}/users/me", headers=headers)
                     if me_res.status_code == 200:
                         me_attrs = me_res.json().get("data", {}).get("attributes", {})

@@ -6,6 +6,21 @@
 
 ---
 
+## Session 2026-08-31c (WorkDrive teams WITHOUT the teams scope — /users/me preferred_team_id fallback)
+
+**Context**: Teams stayed `[]` because the pilot client rejects `WorkDrive.teams.READ` (not enabled in the API Console; user confirmed no scopes step exists in the console at all — not even for new clients). Raw API probe proved the org team id is advertised on `GET /users/me` (`preferred_team_id`, 200 with current scopes) and `GET /teams/{id}/teamfolders` works with `WorkDrive.teamfolders.ALL` alone — only the /teams LIST and /teams/{id} detail need the missing teams scope. The service's existing org-team fallback only ran on "200-but-empty" — the 500 path returned `[]` before reaching it.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `integrations/zoho_workdrive_service.py` | `get_teams`: /teams listing failure (500 F7007) now falls through to `_append_org_team_fallback` instead of returning [] (inner try/except around the pagination loop). `_append_org_team_fallback`: team-detail `/teams/{id}` 500 → appends an id-only team entry (the id is enough for teamfolders listing) instead of giving up. `get_team_folders`: /teams non-200/exception → `/users/me` preferred_team_id fallback (was `return []` before the fallback could run) | `tests/test_zoho_workdrive_team_fallback.py` 4 passed (teams 500→org team, empty→org team, teamfolders 500→folders, empty→folders) |
+| `tests/test_zoho_workdrive_team_fallback.py` (NEW) | unit tests mocking the client for the fallback paths | 4 passed |
+
+**Verification (live, real token)**: `GET /api/zoho-workdrive/teams` → `[WorkDrive Team]`; `GET /api/zoho-workdrive/team-folders` → `[Accounting, General, H Drive, My Team]` — H Drive is a WorkDrive team folder (not a Windows drive). Regression `tests/test_covpush_w38_zoho_workdrive.py` 14 passed.
+
+---
+
 ## Session 2026-08-31b (Reconnect broke — WorkDrive.teams.READ rejected by the pilot client)
 
 **Context**: After adding `WorkDrive.teams.READ` to the defaults, Reconnect failed with `Invalid OAuth Scope / Scope does not exist` — the 7-scope set (without teams) had worked on Aug 28, so teams.READ was the only new variable. The scope name is likely valid generally, but the pilot client `1000.9FTW…` does not have it enabled — Zoho rejects any scope not configured on the client, and ONE unknown scope fails the WHOLE consent URL.
