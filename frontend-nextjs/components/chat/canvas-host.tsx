@@ -8,6 +8,7 @@ import { renderMarkdownSafe } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import { useCanvasAutosave } from "@/hooks/useCanvasAutosave";
+import { saveCanvasAudit } from "@/lib/canvasAuditSave";
 import { CANVAS } from "@/src/lib/testIds";
 import { LineChartCanvas } from "@/components/canvas/LineChart";
 import { BarChartCanvas } from "@/components/canvas/BarChart";
@@ -39,6 +40,12 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const localContentRef = useRef<string>("");
+    // Signature (`component|content`) of the most recent successful audit
+    // save. PUT /api/canvas/{id} broadcasts the saved content back to this
+    // same user over WS; the effect below skips that echo instead of
+    // resetting the editor to the saved snapshot (which would drop any
+    // keystrokes typed after the autosave fired).
+    const lastSavedSigRef = useRef<string | null>(null);
     const [emailMetadata, setEmailMetadata] = useState({ to: "", subject: "" });
     const [sheetData, setSheetData] = useState<any[][]>([]);
     const [showPreview, setShowPreview] = useState(false);
@@ -64,6 +71,15 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
                 // effect, which also made CanvasContent's "No data to display"
                 // guard unreachable. Use optional chaining instead.
                 const content = typeof data === 'string' ? data : (data?.content || JSON.stringify(data, null, 2));
+
+                // Autosave echo-guard: PUT /api/canvas/{id} (the audit save
+                // path) broadcasts the just-saved content back over WS.
+                // Applying that echo verbatim would reset the editor to the
+                // saved snapshot and drop any keystrokes typed after the
+                // autosave fired — skip it; local state stays authoritative.
+                if (lastSavedSigRef.current !== null && `${component || ""}|${content}` === lastSavedSigRef.current) {
+                    return;
+                }
                 // A new payload supersedes local edits — drop any pending
                 // autosave so its timer can't re-write the superseded content.
                 resetAutosave();
@@ -91,11 +107,62 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
         }
     }, [lastMessage]);
 
+    // Native audit-trail content per type + the WS echo signature. Null →
+    // this type's content shape is backend-owned (charts, office files,
+    // forms) and stays on the legacy artifacts store — the host must not
+    // overwrite a dict it only renders.
+    const auditTrailContent = (): { content: any; echo: string } | null => {
+        if (!state) return null;
+        if (state.component === "email") {
+            return {
+                content: {
+                    to: emailMetadata.to,
+                    cc: (state.data as any)?.cc || "",
+                    subject: emailMetadata.subject,
+                    body: localContentRef.current || "",
+                },
+                echo: localContentRef.current || "",
+            };
+        }
+        if (state.component === "sheet") {
+            return { content: sheetData, echo: JSON.stringify(sheetData) };
+        }
+        if (typeof state.data === "string") {
+            return { content: localContentRef.current, echo: localContentRef.current };
+        }
+        return null;
+    };
+
     // Returns true on success / false on failure — the autosave hook keys
     // its retry + status logic off this result.
     const handleSave = async (): Promise<boolean> => {
         if (!state) return false;
         setIsSaving(true);
+
+        // Canvas-audit persistence for every canvas whose content THIS host
+        // owns end-to-end (email dict, sheet rows, string bodies) — the
+        // audit trail is what /canvas/{id} reads and what the chat co-editor
+        // plans against; the legacy artifacts store is invisible to both,
+        // so edits saved there got silently reverted by the next co-edit.
+        // A failed audit save (e.g. state.id names a legacy artifact → 404)
+        // falls through to the legacy path rather than dropping the edit —
+        // except email: the artifacts path loses To/Cc/Subject on refresh.
+        if (state.id) {
+            const audit = auditTrailContent();
+            if (audit !== null) {
+                const ok = await saveCanvasAudit(state.id, state.component, state.title, audit.content);
+                if (ok) {
+                    setHasUnsavedChanges(false);
+                    lastSavedSigRef.current = `${state.component}|${audit.echo}`;
+                    return true;
+                }
+                if (state.component === "email") {
+                    console.error("Error saving email canvas to the audit trail");
+                    setIsSaving(false);
+                    return false;
+                }
+            }
+        }
 
         const payload: any = {
             id: state.id,
@@ -317,7 +384,14 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
     if (!state || !state.visible) return null;
 
     return (
-        <div data-testid={CANVAS.CONTAINER} className="flex flex-col h-full bg-white dark:bg-[#020617] relative animate-in fade-in duration-500 overflow-hidden">
+        <div
+            data-testid={CANVAS.CONTAINER}
+            className="flex flex-col h-full bg-white dark:bg-[#020617] relative animate-in fade-in duration-500 overflow-hidden"
+            // Leaving the editor must not race the autosave window: the
+            // backend plans canvas edits against the durable store, so
+            // keystrokes still pending autosave would be invisible to it.
+            onBlur={() => { if (hasUnsavedChanges) void flushAutosave(); }}
+        >
             {/* Header needs z-30: backdrop-blur-sm creates a stacking
                 context, so without it menus opened from this bar (the type
                 switcher) paint UNDER the content area below, which is

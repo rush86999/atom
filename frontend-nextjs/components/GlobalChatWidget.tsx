@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { useRouter } from 'next/router';
 import { getCurrentUserId } from "@/lib/identity";
+import { getOpenCanvasChatContext } from "@/hooks/useCanvasStateRegistration";
 import { authHeaders } from "@/lib/auth-headers";
 
 interface GlobalChatWidgetProps {
@@ -224,6 +225,10 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                     session_id: sessionId,
                     context: {
                         current_page: router.asPath,
+                        // An open canvas (registered into window.atom.canvas)
+                        // rides along so the chat can co-edit it — the
+                        // backend plans against the durable audit trail.
+                        ...(getOpenCanvasChatContext() || {}),
                         conversation_history: messages.slice(-10).map(msg => ({
                             role: msg.type === "user" ? "user" : "assistant",
                             content: msg.content,

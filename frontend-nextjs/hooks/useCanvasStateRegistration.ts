@@ -123,3 +123,34 @@ export function getCanvasState(canvasId: string): AnyCanvasState | null {
 export function getAllCanvasStates(): Array<{ canvas_id: string; state: AnyCanvasState }> {
   return Object.entries(_canvasRegistry).map(([canvas_id, state]) => ({ canvas_id, state }));
 }
+
+/**
+ * The open canvas as chat-message context — how ANY chat surface tells the
+ * backend co-editor which canvas the user is looking at (the canvas page
+ * sends the same fields explicitly). Reads the global registry, so it works
+ * for every canvas app that registers, with no prop drilling.
+ *
+ * Skips placeholder registrations (no real canvas id yet) and the
+ * view-orchestrator pseudo-canvas. Backend note: canvas_content here is a
+ * best-effort snapshot — the orchestrator refreshes authoritative content
+ * from the durable audit trail before planning.
+ */
+export function getOpenCanvasChatContext(): {
+  canvas_id: string;
+  canvas_type?: string;
+  canvas_title?: string;
+  canvas_content?: unknown;
+} | null {
+  for (const { canvas_id, state } of getAllCanvasStates()) {
+    const s = state as any;
+    if (!canvas_id || !s) continue;
+    if (canvas_id.startsWith("canvas_") || canvas_id === "view_orchestrator") continue;
+    return {
+      canvas_id,
+      canvas_type: s.type || s.component,
+      canvas_title: s.title,
+      canvas_content: s.data !== undefined ? s.data : s,
+    };
+  }
+  return null;
+}

@@ -6,6 +6,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { getCurrentUserId } from "@/lib/identity";
+import { getOpenCanvasChatContext } from "@/hooks/useCanvasStateRegistration";
 
 interface UseChatInterfaceProps {
     sessionId: string | null;
@@ -226,6 +227,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 context: {
                     current_page: "/chat",
                     agent_id: initialAgentId,
+                    // An open canvas (any canvas app that registers into the
+                    // window.atom.canvas registry) rides along so the chat
+                    // can co-edit it — same contract the /canvas/{id} panel
+                    // sends. The backend plans against the durable audit
+                    // trail, so this is an identifier + best-effort snapshot.
+                    ...(getOpenCanvasChatContext() || {}),
                     conversation_history: messages.slice(-5).map(m => ({
                         role: m.type === "user" ? "user" : "assistant",
                         content: m.content

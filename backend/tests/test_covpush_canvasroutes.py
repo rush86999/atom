@@ -268,13 +268,34 @@ class TestCanvasCRUD:
         _make_canvas(db_session, owner.id)
         users["current"] = _make_user(db_session)
         res = client.put("/api/canvas/c-ghost", json={"k": "v"})
-        assert res.status_code == 400
+        # A missing canvas is 404 (consistent with GET), not 400 — the
+        # not-found contract the route documents.
+        assert res.status_code == 404
 
     def test_update_success(self, client, db_session, users):
         u = _make_user(db_session)
         users["current"] = u
         c = _make_canvas(db_session, u.id, content={"blocks": []})
         res = client.put(f"/api/canvas/{c.id}", json={"blocks": [{"t": "y"}]})
+        assert res.status_code == 200
+        assert res.json()["success"] is True
+
+    def test_update_accepts_string_and_list_content(self, client, db_session, users):
+        """Non-email hosts persist their native shapes: string bodies
+        (markdown/code/document) and row lists (sheets). Dict-only validation
+        forced every other canvas type onto the legacy artifacts store, where
+        the co-editor and /canvas/{id} could never see the edits."""
+        u = _make_user(db_session)
+        users["current"] = u
+        c = _make_canvas(db_session, u.id, content="first body")
+        res = client.put(
+            f"/api/canvas/{c.id}?canvas_type=markdown&title=Md", json="second body"
+        )
+        assert res.status_code == 200
+        assert res.json()["success"] is True
+
+        s = _make_canvas(db_session, u.id, content=[["h1"], ["v1"]])
+        res = client.put(f"/api/canvas/{s.id}?canvas_type=sheet", json=[["h1"], ["v2"]])
         assert res.status_code == 200
         assert res.json()["success"] is True
 
@@ -289,7 +310,8 @@ class TestCanvasCRUD:
     def test_delete_missing_canvas(self, client, db_session, users):
         users["current"] = _make_user(db_session)
         res = client.delete("/api/canvas/c-ghost")
-        assert res.status_code == 400
+        # A missing canvas is 404 (consistent with GET), not 400.
+        assert res.status_code == 404
 
 
 # ===========================================================================

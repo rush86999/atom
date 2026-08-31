@@ -24,7 +24,8 @@ the chat path, never loses the user's message.
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel
 
@@ -47,12 +48,14 @@ class CanvasPatchOp(BaseModel):
     ``find`` is matched exactly (first occurrence) and must be copied
     verbatim from the content shown to the planner; ``field`` names the key
     to edit inside object-shaped content (e.g. an email's "body") and is
-    None for plain string canvases. Everything an op doesn't touch is
-    preserved byte-for-byte — that's the guarantee full-content regeneration
-    could never make (real case: a narrow "update the email from your
-    findings" request rewrote the whole draft and silently dropped the
-    supervisor's manual on-canvas edits)."""
+    None for plain string canvases. For grid content (sheets) ``cell`` is
+    the A1 reference and ``find`` must equal the cell's current value.
+    Everything an op doesn't touch is preserved byte-for-byte — that's the
+    guarantee full-content regeneration could never make (real case: a
+    narrow "update the email from your findings" request rewrote the whole
+    draft and silently dropped the supervisor's manual on-canvas edits)."""
     field: Optional[str] = None
+    cell: Optional[str] = None
     find: str = ""
     replace: str = ""
 
@@ -93,6 +96,9 @@ the authority, NOT your memory of earlier drafts:
 - For object content (e.g. an email {to, cc, subject, body}) set "field" to
   the key you are editing (usually "body"); the op applies inside that field
   only, and the other keys stay untouched.
+- For spreadsheet/grid content (rows, or {cells: ...}) set "cell" to the
+  A1 reference instead: {"cell": "B2", "find": <the cell's current value>,
+  "replace": <new value>}. "find" must equal the cell's current value.
 - edit_mode="replace" ONLY when the user explicitly asked for a rewrite /
   fresh draft, or no patch can express the change (e.g. reformat
   everything): then updated_content_json is the COMPLETE new content, in
@@ -157,14 +163,51 @@ def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
     return "\n".join(lines)
 
 
+_CELL_REF = re.compile(r"^([A-Za-z]{1,3})([0-9]+)$")
+
+
+def _cell_indices(ref: Optional[str]) -> Optional[Tuple[int, int]]:
+    """'B2' → zero-based (row 1, col 1); None when not an A1 reference."""
+    m = _CELL_REF.match((ref or "").strip())
+    if not m:
+        return None
+    col = 0
+    for ch in m.group(1).upper():
+        col = col * 26 + (ord(ch) - ord("A") + 1)
+    return int(m.group(2)) - 1, col - 1
+
+
+def _patch_grid(rows: List[Any], ops: List[CanvasPatchOp]) -> Tuple[List[Any], List[CanvasPatchOp]]:
+    """Cell ops over a list-of-rows grid. ``find`` must equal the cell's
+    current value; a cell beyond the current width is reachable (padded) —
+    grids grow, that's not a mismatch."""
+    failed: List[CanvasPatchOp] = []
+    grid = [list(r) if isinstance(r, list) else r for r in rows]
+    for op in ops:
+        idx = _cell_indices(op.cell)
+        if not idx or idx[0] >= len(grid) or not isinstance(grid[idx[0]], list):
+            failed.append(op)
+            continue
+        r, c = idx
+        row = list(grid[r])
+        if c >= len(row):
+            row.extend([""] * (c + 1 - len(row)))
+        if (op.find or "") and str(row[c]) == op.find:
+            row[c] = op.replace
+            grid[r] = row
+        else:
+            failed.append(op)
+    return grid, failed
+
+
 def _apply_patch_ops(content: Any, ops: List["CanvasPatchOp"]) -> tuple:
     """Apply surgical find→replace ops against the current content.
 
-    Deterministic and all-or-nothing per op: a op whose ``find`` doesn't
+    Deterministic and all-or-nothing per op: an op whose ``find`` doesn't
     appear is REPORTED, never guessed at. Returns (new_content, failed_ops)
     — callers decide between committing (no failures) and falling back.
-    Object content is edited per-key (op.field); other keys keep their
-    identity, so untouched data can't drift."""
+    Object content is edited per-key (op.field), grids per-cell (op.cell);
+    every other key/row keeps its identity, so untouched data can't drift."""
     if not ops:
         return content, []
     failed: List[CanvasPatchOp] = []
@@ -177,7 +220,28 @@ def _apply_patch_ops(content: Any, ops: List["CanvasPatchOp"]) -> tuple:
             else:
                 failed.append(op)
         return text, failed
+    if isinstance(content, list):
+        return _patch_grid(content, ops)
     if isinstance(content, dict):
+        if isinstance(content.get("rows"), list):
+            rows, failed = _patch_grid(content["rows"], ops)
+            return {**content, "rows": rows}, failed
+        if isinstance(content.get("cells"), dict):
+            # SpreadsheetCanvasService shape: cells[ref] = {cell_ref, value, ...}.
+            cells = dict(content["cells"])
+            for op in ops:
+                ref = (op.cell or "").strip().upper()
+                entry = cells.get(ref)
+                if (
+                    _cell_indices(op.cell)
+                    and isinstance(entry, dict)
+                    and (op.find or "")
+                    and str(entry.get("value")) == op.find
+                ):
+                    cells[ref] = {**entry, "value": op.replace}
+                else:
+                    failed.append(op)
+            return {**content, "cells": cells}, failed
         result = dict(content)
         for op in ops:
             key = op.field
@@ -190,7 +254,7 @@ def _apply_patch_ops(content: Any, ops: List["CanvasPatchOp"]) -> tuple:
             else:
                 failed.append(op)
         return result, failed
-    return content, list(ops)  # sheets/lists/etc. don't patch — force fallback
+    return content, list(ops)  # scalars can't patch — force replace fallback
 
 
 def _brief(value: Any, limit: int = 300) -> str:

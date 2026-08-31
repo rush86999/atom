@@ -4,7 +4,7 @@ Consolidates state management, context tracking, recording, and summarization.
 """
 
 import logging
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, WebSocket, WebSocketDisconnect, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
@@ -256,13 +256,20 @@ def _maybe_record_canvas_correction(
 @router.put("/{canvas_id}")
 async def update_canvas_content(
     canvas_id: str,
-    content: Dict[str, Any],
+    content: Any = Body(...),
     canvas_type: str = "generic",
     title: Optional[str] = None,
     retype: bool = False,
     current_user: User = Depends(get_current_user)
 ):
     """Update the content of an existing canvas.
+
+    ``content`` is stored verbatim in the audit trail and may be ANY JSON
+    shape the canvas type owns natively — dict for email drafts
+    ({to, cc, subject, body}), list-of-rows for sheets, plain string for
+    markdown/code/document bodies. (Dict-only validation forced every other
+    host to keep persisting edits to the legacy artifacts store, where the
+    co-editor — and the /canvas/{id} page — could never see them.)
 
     ``retype=true`` marks the update as a MANUAL type switch (the UI's escape
     hatch when the agent-chat classifier created the wrong canvas type): the

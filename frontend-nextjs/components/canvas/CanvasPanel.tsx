@@ -7,6 +7,7 @@ import { renderMarkdownSafe } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import { useCanvasAutosave } from "@/hooks/useCanvasAutosave";
+import { saveCanvasAudit } from "@/lib/canvasAuditSave";
 import { CANVAS } from "@/src/lib/testIds";
 import { LineChartCanvas } from "@/components/canvas/LineChart";
 import { BarChartCanvas } from "@/components/canvas/BarChart";
@@ -208,35 +209,63 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
         }
     }, [lastMessage]);
 
+    // Native audit-trail content per type + the WS echo signature the
+    // payload effect compares against. Null → this type's content shape is
+    // backend-owned (charts, office files, forms) and stays on the legacy
+    // artifacts store — the panel must not overwrite a dict it only renders.
+    const auditTrailContent = (): { content: any; echo: string } | null => {
+        if (!state) return null;
+        if (state.component === "email") {
+            return {
+                content: {
+                    to: emailMetadata.to,
+                    cc: emailMetadata.cc,
+                    subject: emailMetadata.subject,
+                    body: localContentRef.current || "",
+                },
+                echo: localContentRef.current || "",
+            };
+        }
+        if (state.component === "sheet") {
+            return { content: sheetData, echo: JSON.stringify(sheetData) };
+        }
+        // String-body canvases: only when the payload the panel rendered was
+        // itself a plain string.
+        if (typeof state.data === "string") {
+            return { content: localContentRef.current, echo: localContentRef.current };
+        }
+        return null;
+    };
+
     // Returns true on success / false on failure — the autosave hook keys
     // its retry + status logic off this result.
     const handleSave = async (): Promise<boolean> => {
         if (!state) return false;
         setIsSaving(true);
 
-        // Email drafts persist through the canvas audit trail (the store
-        // /canvas/{id} reads) — the legacy artifacts path never carried
-        // To/Cc/Subject back into the page's read, so a refresh lost them.
-        if (state.component === "email" && state.id) {
-            try {
-                const { apiClient } = await import("@/lib/api");
-                await apiClient.put(
-                    `/api/canvas/${state.id}?canvas_type=email&title=${encodeURIComponent(state.title || "")}`,
-                    {
-                        to: emailMetadata.to,
-                        cc: emailMetadata.cc,
-                        subject: emailMetadata.subject,
-                        body: localContentRef.current || "",
-                    }
-                );
-                setHasUnsavedChanges(false);
-                lastSavedSigRef.current = `email|${localContentRef.current || ""}`;
-                return true;
-            } catch (error) {
-                console.error("Error saving email canvas:", error);
-                return false;
-            } finally {
-                setIsSaving(false);
+        // Canvas-audit persistence for every canvas whose content THIS panel
+        // owns end-to-end (email dict, sheet rows, string bodies) — not just
+        // email. The audit trail is what /canvas/{id} reads, what the WS
+        // broadcast updates, and what the chat co-editor plans against; the
+        // legacy artifacts store is invisible to all three, so non-email
+        // edits saved there got silently reverted by the next co-edit.
+        // A failed audit save (e.g. state.id names a legacy artifact → 404)
+        // falls through to the legacy path rather than dropping the edit —
+        // except email: the artifacts path loses To/Cc/Subject on refresh.
+        if (state.id) {
+            const audit = auditTrailContent();
+            if (audit !== null) {
+                const ok = await saveCanvasAudit(state.id, state.component, state.title, audit.content);
+                if (ok) {
+                    setHasUnsavedChanges(false);
+                    lastSavedSigRef.current = `${state.component}|${audit.echo}`;
+                    return true;
+                }
+                if (state.component === "email") {
+                    console.error("Error saving email canvas to the audit trail");
+                    setIsSaving(false);
+                    return false;
+                }
             }
         }
 

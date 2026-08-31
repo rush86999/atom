@@ -15,6 +15,7 @@ import pytest
 from core.chat_canvas_editor import (
     CanvasEditPlan,
     CanvasPatchOp,
+    _apply_patch_ops,
     apply_canvas_edit,
     plan_canvas_edit,
 )
@@ -248,6 +249,55 @@ async def test_apply_refuses_patch_when_content_moved_under_the_plan():
     with patch("tools.canvas_crud_tool.update_canvas_content", new=AsyncMock()) as upd:
         assert await apply_canvas_edit(plan, "user-1", _canvas(content="different")) is None
     upd.assert_not_awaited()
+
+
+# ───────────── grid patch ops: sheets as first-class canvases ─────────────
+
+def test_patch_ops_edit_one_cell_of_rows_grid():
+    content = {"rows": [["Item", "Qty"], ["115C", "1"], ["Blade", "3"]], "title": "Quote"}
+    plan = CanvasEditPlan(wants_edit=True, ops=[
+        CanvasPatchOp(cell="B3", find="3", replace="5"),
+    ])
+    out, failed = _apply_patch_ops(content, plan.ops)
+    assert not failed
+    assert out["rows"][2][1] == "5"
+    assert out["rows"][0] == ["Item", "Qty"]          # untouched rows identical
+    assert out["rows"][1] == ["115C", "1"]
+    assert out["title"] == content["title"]
+
+
+def test_patch_ops_edit_bare_list_grid_and_cells_dict():
+    bare = [["Item", "Qty"], ["115C", "1"]]
+    out, failed = _apply_patch_ops(bare, [CanvasPatchOp(cell="A2", find="115C", replace="Baxter 115C")])
+    assert not failed and out[1][0] == "Baxter 115C" and out[0] == ["Item", "Qty"]
+
+    cells = {"cells": {"A1": {"cell_ref": "A1", "value": "old"}, "B1": {"cell_ref": "B1", "value": "keep"}}}
+    out2, failed2 = _apply_patch_ops(cells, [CanvasPatchOp(cell="A1", find="old", replace="new")])
+    assert not failed2
+    assert out2["cells"]["A1"]["value"] == "new"
+    assert out2["cells"]["B1"] == cells["cells"]["B1"]  # identity preserved
+
+
+def test_patch_ops_cell_mismatch_fails_that_op_only():
+    content = [["a", "b"]]
+    out, failed = _apply_patch_ops(content, [
+        CanvasPatchOp(cell="A1", find="a", replace="x"),
+        CanvasPatchOp(cell="B1", find="WRONG", replace="y"),
+        CanvasPatchOp(cell="ZZZ99", find="a", replace="z"),   # bad ref
+    ])
+    assert len(failed) == 2
+    assert out[0] == ["x", "b"]
+
+
+@pytest.mark.asyncio
+async def test_plan_validation_routes_grid_mismatch_to_replace_reask():
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    bad = CanvasEditPlan(wants_edit=True, ops=[CanvasPatchOp(cell="B1", find="NOPE", replace="y")])
+    rescued = CanvasEditPlan(wants_edit=True, updated_content_json='{"rows": [["a", "y"]]}')
+    llm.generate_structured_response = AsyncMock(side_effect=[bad, rescued])
+    p = await plan_canvas_edit("update the cell", [], _canvas(content={"rows": [["a", "b"]]}), llm)
+    assert p is rescued
 
 
 # ───────────── orchestrator: plan against the durable store ─────────────
