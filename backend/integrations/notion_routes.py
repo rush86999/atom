@@ -112,7 +112,7 @@ async def handle_oauth_callback(
         import requests
 
         token_response = requests.post(
-            "https://api.notion.com/v1/oauth/token",
+            "https://api.notion.com/v1/oauth/token", timeout=15,
             headers={
                 "Accept": "application/json",
                 "Content-Type": "application/json"
@@ -285,7 +285,7 @@ async def notion_status(access_token: str = Depends(get_notion_access_token)):
             "Notion-Version": "2022-06-28"
         }
 
-        response = requests.get("https://api.notion.com/v1/users/me", headers=headers)
+        response = requests.get("https://api.notion.com/v1/users/me", headers=headers, timeout=15)
 
         if response.status_code == 200:
             user_data = response.json()
@@ -348,8 +348,7 @@ async def notion_search(
         response = requests.post(
             "https://api.notion.com/v1/search",
             headers=headers,
-            json=search_body
-        )
+            json=search_body, timeout=15)
 
         if response.status_code != 200:
             logger.error(f"Notion search failed: {response.text}")
@@ -422,8 +421,7 @@ async def get_notion_page(
 
         response = requests.get(
             f"https://api.notion.com/v1/pages/{formatted_id}",
-            headers=headers
-        )
+            headers=headers, timeout=15)
 
         if response.status_code != 200:
             logger.error(f"Notion page fetch failed: {response.text}")

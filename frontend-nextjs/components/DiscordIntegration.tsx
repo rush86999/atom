@@ -47,13 +47,16 @@ const DiscordIntegration = () => {
 
     const { toast } = useToast();
 
-    // Check connection status
+    // Check connection status. Real per-integration connection state (DB
+    // connections + OAuth grants + env credentials); the /health route is a
+    // liveness probe that returns 200 unconditionally.
     const checkConnectionStatus = useCallback(async () => {
         try {
-            const response = await fetch("/api/integrations/discord/health");
-            const data = await response.json();
+            const response = await fetch("/api/integrations/connection-status", { headers: authHeaders() });
+            const data = response.ok ? await response.json().catch((): null => null) : null;
+            const providers = data?.data?.providers ?? data?.providers ?? {};
 
-            setIsConnected(data.success);
+            setIsConnected(providers?.discord?.connected === true);
         } catch (error) {
             console.error("Connection check failed:", error);
             setIsConnected(false);

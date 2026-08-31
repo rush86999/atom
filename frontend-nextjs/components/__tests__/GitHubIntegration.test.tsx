@@ -24,8 +24,14 @@ import { server } from '@/tests/mocks/server';
 const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 
 const githubHandlers = [
-  rest.get('/api/integrations/github/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ providers: { github: { connected: true, source: 'user_connection' } } })
+    );
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { github: { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.post('/api/integrations/github/profile', (req, res, ctx) => {
@@ -87,7 +93,7 @@ const githubHandlers = [
 
 const setDisconnected = () => {
   server.use(
-    rest.get('/api/integrations/github/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(404));
     })
   );
@@ -188,7 +194,7 @@ describe('GitHubIntegration', () => {
   // Test 8: handles connection error
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/github/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500));
       })
     );
@@ -525,13 +531,13 @@ describe('GitHubIntegration (extended coverage)', () => {
 
   test('treats health check network failure as disconnected', async () => {
     server.use(
-      rest.get('/api/integrations/github/health', (req, res) => res.networkError('boom'))
+      rest.get('/api/integrations/connection-status', (req, res) => res.networkError('boom'))
     );
 
     render(<GitHubIntegration />);
 
     await waitFor(() => {
-      expect(errorSpy).toHaveBeenCalledWith('Health check failed:', expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith('Connection status check failed:', expect.anything());
       expect(
         screen.getByRole('button', { name: /connect github account/i })
       ).toBeInTheDocument();

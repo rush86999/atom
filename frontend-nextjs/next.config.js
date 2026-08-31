@@ -107,6 +107,16 @@ const nextConfig = {
         source: "/api/integrations/:path*",
         destination: "http://127.0.0.1:8000/api/integrations/:path*",
       },
+      // Data-ingestion + memory endpoints (sync status, ingestion progress,
+      // memory records) — previously only reachable via NEXT_PUBLIC_API_URL.
+      {
+        source: "/api/data-ingestion/:path*",
+        destination: "http://127.0.0.1:8000/api/data-ingestion/:path*",
+      },
+      {
+        source: "/api/memory/:path*",
+        destination: "http://127.0.0.1:8000/api/memory/:path*",
+      },
       // Round 80b: journey pages (dropbox/telegram/gitlab/xero/monday/whatsapp)
       // call these bare prefixes; the backend boot-mounts the real routers at
       // these exact paths (main_api_app.py "FORCED JOURNEY ROUTER REGISTRATION").

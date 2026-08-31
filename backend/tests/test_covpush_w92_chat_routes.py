@@ -480,7 +480,16 @@ class TestGetChatHistory:
     def test_in_memory_history(self, client, orch):
         orch.conversation_sessions = {"s1": make_session(
             history=[{"message": "hi"}])}
-        resp = client.get("/api/chat/history/s1", params={"user_id": "u"})
+        # The durable store is read FIRST now (fork-from-here needs real
+        # message ids) — mock an empty DB so the in-memory fallback engages
+        # instead of reading ambient rows for session "s1".
+        db = MagicMock()
+        db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+        cm = MagicMock()
+        cm.__enter__ = MagicMock(return_value=db)
+        cm.__exit__ = MagicMock(return_value=False)
+        with patch("core.database.get_db_session", return_value=cm):
+            resp = client.get("/api/chat/history/s1", params={"user_id": "u"})
         assert resp.status_code == 200
         assert resp.json()["messages"] == [{"message": "hi"}]
 
@@ -500,8 +509,8 @@ class TestGetChatHistory:
     def test_db_fallback(self, client, orch):
         orch.conversation_sessions = {"s1": make_session(history=[])}
         rows = [
-            SimpleNamespace(role="user", content="hi", created_at=datetime(2026, 1, 1, 10)),
-            SimpleNamespace(role="assistant", content="hello", created_at=datetime(2026, 1, 1, 10, 1)),
+            SimpleNamespace(id="m1", role="user", content="hi", created_at=datetime(2026, 1, 1, 10)),
+            SimpleNamespace(id="m2", role="assistant", content="hello", created_at=datetime(2026, 1, 1, 10, 1)),
         ]
         db = MagicMock()
         db.query.return_value.filter.return_value.order_by.return_value.all.return_value = rows

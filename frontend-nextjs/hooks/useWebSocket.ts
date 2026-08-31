@@ -63,10 +63,28 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     // Use deep comparison key for channels array to avoid ref instability
     const channelKey = JSON.stringify(options.initialChannels || []);
 
-    // Derive the default WebSocket host from NEXT_PUBLIC_API_URL so the client
-    // talks to the same backend the REST API uses (and respects wss in prod).
+    // Derive the default WebSocket host so the client talks to the same
+    // backend the REST API uses. MUST mirror lib/api.ts's fallback chain:
+    // reading NEXT_PUBLIC_API_URL alone left wsBase empty whenever that one
+    // var wasn't inlined into the build, and new WebSocket("/ws?...") throws
+    // a SyntaxError inside the connect effect — the socket then silently
+    // never existed (badge stuck on "Offline", live logs dead) while REST
+    // kept working via its PYTHON_BACKEND_URL fallback.
     const resolveWsBase = (): string => {
-        const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+        let apiBase = (
+            process.env.NEXT_PUBLIC_API_URL ||
+            process.env.API_BASE_URL ||
+            process.env.PYTHON_BACKEND_URL ||
+            ""
+        ).replace(/\/$/, "");
+        if (!apiBase && typeof window !== "undefined") {
+            // Same-origin by default; in dev the backend runs on its own port
+            // (Makefile PORT ?= 8001) while the frontend is on :3000.
+            const host = process.env.NODE_ENV === "development"
+                ? `${window.location.protocol}//${window.location.hostname}:8001`
+                : window.location.origin;
+            apiBase = host.replace(/\/$/, "");
+        }
         return apiBase.replace(/^http/, "ws"); // http:// -> ws://, https:// -> wss://
     };
 

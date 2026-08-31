@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
 from core.canvas_type_registry import canvas_type_registry
+from core.chat_session_context import audit_agent_id, audit_session_id
 from core.feature_flags import FeatureFlags
 from core.models import AgentExecution, CanvasAudit
 
@@ -69,7 +70,10 @@ async def _create_canvas_audit(
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
             tenant_id="default",
-            agent_id=agent_id,
+            # Chat-context attribution (same as canvas_crud_tool): when the
+            # action runs inside a chat turn, the audit row attributes to
+            # that turn's session/agent so training episodes capture it.
+            agent_id=audit_agent_id(agent_id),
             user_id=user_id,
             canvas_id=canvas_id,
             session_id=audit_session_id(session_id),

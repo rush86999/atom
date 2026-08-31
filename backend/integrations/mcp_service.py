@@ -2,6 +2,7 @@ import logging
 import json
 import asyncio
 import inspect
+import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 import os
@@ -51,7 +52,8 @@ class MCPService(IntegrationService):
                 {"id": "get_server_tools", "name": "Get Server Tools", "parameters": {"server_id": "string"}},
                 {"id": "call_tool", "name": "Call Tool", "parameters": {"tool_name": "string", "arguments": "object"}},
                 {"id": "search_tools", "name": "Search Tools", "parameters": {"query": "string", "limit": "integer"}},
-                {"id": "web_search", "name": "Web Search", "parameters": {"query": "string"}}
+                {"id": "web_search", "name": "Web Search", "parameters": {"query": "string"}},
+                {"id": "web_fetch", "name": "Web Fetch", "parameters": {"query": "string (containing a URL)"}}
             ],
             "required_params": [],
             "rate_limits": {"requests_per_minute": 200},
@@ -104,6 +106,12 @@ class MCPService(IntegrationService):
             elif operation == "web_search":
                 result = await self.web_search(
                     parameters["query"],
+                    tenant_id
+                )
+                return {"success": True, "result": result}
+            elif operation == "web_fetch":
+                result = await self.web_fetch(
+                    parameters.get("query") or parameters.get("url"),
                     tenant_id
                 )
                 return {"success": True, "result": result}
@@ -3269,8 +3277,7 @@ class MCPService(IntegrationService):
         if tenant_id:
             try:
                 byok_manager = get_byok_manager()
-                with SessionLocal() as db:
-                    tavily_api_key = byok_manager.get_tenant_api_key(tenant_id, "tavily", db=db)
+                tavily_api_key = byok_manager.get_tenant_api_key(tenant_id, "tavily")
                 if tavily_api_key:
                     logger.info(f"Using BYOK Tavily key for tenant {tenant_id}")
             except Exception as e:
@@ -3306,6 +3313,120 @@ class MCPService(IntegrationService):
             "answer": None,
             "error": "Web search is not configured. Please add a Tavily API key in Settings > AI Intelligence (BYOK)."
         }
+
+    async def web_fetch(self, query: str = None, tenant_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Read the content of a specific website URL — the lightweight
+        "browser leg" for chat/agents that need to check a page (a lead's
+        website, a docs page) without the full maturity-gated Playwright
+        browser_tool. Extracts the first URL from the query, pulls readable
+        content via Tavily Extract (same BYOK/env key as web_search), and
+        falls back to a direct HTTP fetch + tag strip when Tavily fails or
+        no key is configured.
+        """
+        url = _extract_first_url(query or "")
+        if not url:
+            return {
+                "query": query,
+                "url": None,
+                "content": "",
+                "error": "No URL found in the request — provide the full website address (https://...).",
+            }
+        logger.info(f"Fetching website content for: {url} (tenant: {tenant_id})")
+
+        # Same key resolution order as web_search: tenant BYOK, then env.
+        tavily_api_key = None
+        if tenant_id:
+            try:
+                byok_manager = get_byok_manager()
+                tavily_api_key = byok_manager.get_tenant_api_key(tenant_id, "tavily")
+            except Exception as e:
+                logger.warning(f"Failed to get BYOK Tavily key: {e}")
+        if not tavily_api_key:
+            tavily_api_key = os.getenv("TAVILY_API_KEY")
+
+        if tavily_api_key:
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        "https://api.tavily.com/extract",
+                        json={"api_key": tavily_api_key, "urls": [url]},
+                        timeout=12.0,
+                    )
+                    if response.status_code == 200:
+                        results = (response.json() or {}).get("results") or []
+                        content = str(results[0].get("raw_content") or "").strip() if results else ""
+                        if content:
+                            return {
+                                "url": url,
+                                "content": content[:20000],
+                                "source": "tavily_extract",
+                            }
+                        failed = (response.json() or {}).get("failed_results") or []
+                        logger.warning(f"Tavily extract returned no content for {url}: {failed[:1]}")
+            except Exception as e:
+                logger.warning(f"Tavily extract failed for {url}: {e}")
+
+        # Fallback: direct fetch + naive readable-text extraction. Enough for
+        # server-rendered sites (most company websites); JS-only sites will
+        # come back thin — callers see the truncation, not a fake success.
+        try:
+            async with httpx.AsyncClient(
+                follow_redirects=True,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; AtomAgent/1.0)"},
+                timeout=12.0,
+            ) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                content_type = response.headers.get("content-type", "")
+                if "html" in content_type or "text" in content_type or not content_type:
+                    text = _html_to_text(response.text)
+                    return {
+                        "url": str(response.url),
+                        "content": text[:20000],
+                        "source": "direct_fetch",
+                    }
+                return {
+                    "url": url,
+                    "content": "",
+                    "source": "direct_fetch",
+                    "error": f"Unsupported content type: {content_type}",
+                }
+        except Exception as e:
+            logger.warning(f"Direct fetch failed for {url}: {e}")
+            return {"url": url, "content": "", "error": f"Could not fetch {url}: {e}"}
+
+
+_URL_RE = re.compile(r"https?://[^\s\"'<>)\]]+|(?<![\w@.])[a-z0-9-]+\.(?:com|ca|org|net|io|co|ai|dev|info|biz|us|uk|de|fr|au|in)(?:/[^\s\"'<>)\]]*)?", re.IGNORECASE)
+
+
+def _extract_first_url(text: str) -> Optional[str]:
+    """First URL in free text. Bare domains (wfsltd.ca) get https:// added —
+    the chat planner passes queries like 'check the website wfsltd.ca'."""
+    m = _URL_RE.search(text or "")
+    if not m:
+        return None
+    url = m.group(0).rstrip(".,;:!?")
+    if not url.lower().startswith(("http://", "https://")):
+        url = f"https://{url}"
+    return url
+
+
+def _html_to_text(html: str) -> str:
+    """Crude but bounded HTML → text: drop script/style blocks and tags,
+    collapse whitespace. Only for prompt injection — never for display."""
+    text = re.sub(r"(?is)<(script|style|noscript|svg|head)[^>]*>.*?</\1>", " ", html or "")
+    text = re.sub(r"(?s)<[^>]+>", " ", text)
+    text = (
+        text.replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", '"')
+        .replace("&#39;", "'")
+    )
+    return re.sub(r"\s+", " ", text).strip()
+
 
 # Singleton instance
 mcp_service = MCPService()

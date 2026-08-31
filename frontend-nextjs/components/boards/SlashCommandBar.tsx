@@ -46,10 +46,10 @@ export function SlashCommandBar({ boardId }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-2 rounded border bg-gray-50 px-2 py-1">
-      <Terminal className="h-4 w-4 text-gray-500" />
+    <div className="flex items-center gap-2 rounded border bg-gray-50 px-3 py-1.5">
+      <Terminal className="h-5 w-5 text-gray-500" />
       <input
-        className="w-64 bg-transparent text-sm focus:outline-none"
+        className="w-64 bg-transparent text-base focus:outline-none"
         placeholder="/task create Buy milk in To Do"
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -68,7 +68,7 @@ export function SlashCommandBar({ boardId }: Props) {
         aria-label="Run command"
         className="rounded p-1 text-gray-600 hover:bg-gray-200 disabled:opacity-50"
       >
-        <Send className="h-3 w-3" />
+        <Send className="h-4 w-4" />
       </button>
     </div>
   );

@@ -43,8 +43,11 @@ jest.mock('@/components/ui/select', () => ({
 
 
 const zendeskHandlers = [
-  rest.get('/api/integrations/zendesk/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { zendesk: { connected: true, source: 'user_connection' } } }));
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { zendesk: { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.post('/api/integrations/zendesk/profile', (req, res, ctx) => {
@@ -109,7 +112,7 @@ const zendeskHandlers = [
 
 const setDisconnected = () => {
   server.use(
-    rest.get('/api/integrations/zendesk/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(404));
     })
   );
@@ -224,7 +227,7 @@ describe('ZendeskIntegration', () => {
   // Test 9: handles connection error
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/zendesk/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500));
       })
     );
@@ -857,7 +860,7 @@ describe('ZendeskIntegration (extended coverage)', () => {
 
   test('health-check rejection disconnects and logs', async () => {
     server.use(
-      rest.get('/api/integrations/zendesk/health', (req, res) =>
+      rest.get('/api/integrations/connection-status', (req, res) =>
         res.networkError('down')
       )
     );
@@ -865,7 +868,7 @@ describe('ZendeskIntegration (extended coverage)', () => {
     render(<ZendeskIntegration />);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('Health check failed:', expect.anything());
+      expect(consoleSpy).toHaveBeenCalledWith('Connection status check failed:', expect.anything());
     });
     await waitFor(() => {
       expect(

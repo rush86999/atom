@@ -48,6 +48,7 @@ Zero LLM spend, no network, no real DB writes: every external call is mocked.
 """
 import sys
 import types
+import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -211,9 +212,18 @@ class TestProcessChatMessage:
         for k, v in overrides.items():
             setattr(orch, k, v)
 
-    async def test_dedup_success_path_mutates_history(self):
+    async def test_dedup_write_side_indexes_without_mutating_history(self):
+        # Contract after the read-path removal (Aug 2026): _update_session
+        # indexes turn texts for exact-match reference lookups but NEVER
+        # replaces stored history with markers — marker-izing prior turns is
+        # what corrupted recall ("the email you found earlier" became an
+        # unresolvable placeholder). Updated from the pre-removal test that
+        # expected deduplicate() to rewrite history in place.
         orch = _make_orch()
-        sid = "w115-dedup"
+        # Unique id per run: this test runs against the real dev DB, and a
+        # fixed id accumulates persisted chat_messages rows that hydrate over
+        # this fixture on every later run (the pre-existing failure mode).
+        sid = f"w115-dedup-{uuid.uuid4().hex[:8]}"
         orch.conversation_sessions[sid] = {
             "id": sid, "user_id": "u1",
             "history": [{"message": "hello", "response": {"message": "hi there"}}],
@@ -227,8 +237,13 @@ class TestProcessChatMessage:
             idx.deduplicate.side_effect = lambda t: (t.upper(), 0)
             gi.return_value = idx
             await orch.process_chat_message("u1", "hello", session_id=sid)
-        assert orch.conversation_sessions[sid]["history"][0]["message"] == "HELLO"
-        assert orch.conversation_sessions[sid]["history"][0]["response"]["message"] == "HI THERE"
+        # Stored history is untouched — no marker rewriting, ever.
+        assert orch.conversation_sessions[sid]["history"][0]["message"] == "hello"
+        assert orch.conversation_sessions[sid]["history"][0]["response"]["message"] == "hi there"
+        # The new turn's texts were indexed for reference matching.
+        indexed = [c.args[0] for c in idx.index_text.call_args_list]
+        assert "hello" in indexed
+        idx.deduplicate.assert_not_called()
 
     async def test_lkgp_sticky_hint_built_and_passed(self):
         orch = _make_orch()

@@ -108,7 +108,15 @@ const AgentsDashboard = () => {
         if (lastMessage) {
             if (lastMessage.type === "agent_step_update") {
                 const { agent_id, step } = lastMessage.data || (lastMessage as any).step || lastMessage;
-                if (agent_id === activeAgentId) {
+                // Fleet feed by default: with no agent focused, show EVERY
+                // agent's steps (name-prefixed) — agents broadcast real step
+                // updates from canvas chats, training and runs, and the old
+                // activeAgentId-only filter left the terminal permanently
+                // empty ("0 events") because that id is only set by the Run
+                // dialog on this page. Focused view stays for your own run.
+                const watching = activeAgentId === null || agent_id === activeAgentId;
+                if (watching) {
+                    const name = agents.find(a => a.id === agent_id)?.name || String(agent_id || "").slice(0, 8) || "agent";
                     const stepText = step.thought || step.output || JSON.stringify(step.action);
                     if (stepText) {
                         let prefix = "";
@@ -116,25 +124,26 @@ const AgentsDashboard = () => {
                         else if (step.action) prefix = "Action: ";
                         else if (step.output) prefix = "Observation: ";
 
-                        appendLog(`${prefix}${stepText}`);
+                        const tag = activeAgentId === null ? `[${name}] ` : "";
+                        appendLog(`${tag}${prefix}${stepText}`);
                         if (step.final_answer) {
-                            appendLog(`Final Answer: ${step.final_answer}`);
+                            appendLog(`${tag}Final Answer: ${step.final_answer}`);
                         }
                     }
                 }
             } else if (lastMessage.type === "agent_status_change") {
                 const { agent_id, status, error } = lastMessage.data || lastMessage as any;
-                if (agent_id === activeAgentId) {
-                    appendLog(`Status Changed: ${status}${error ? ` - Error: ${error}` : ''}`);
-                    if (status === "success" || status === "failed") {
-                        // Optionally clear active agent after delay or keep for logs
-                    }
+                const watching = activeAgentId === null || agent_id === activeAgentId;
+                if (watching) {
+                    const name = agents.find(a => a.id === agent_id)?.name || "agent";
+                    const tag = activeAgentId === null ? `[${name}] ` : "";
+                    appendLog(`${tag}Status Changed: ${status}${error ? ` - Error: ${error}` : ''}`);
                 }
                 // Refresh list to update badges
                 fetchAgents();
             }
         }
-    }, [lastMessage, activeAgentId, appendLog]);
+    }, [lastMessage, activeAgentId, appendLog, agents]);
 
     // Fetch Agents
     const fetchAgents = async () => {
@@ -340,6 +349,35 @@ const AgentsDashboard = () => {
         setIsReasoningModalOpen(true);
     };
 
+    // Delete is destructive and cascades server-side (episodes, audits,
+    // learning rows for that agent), so it gets an explicit name-bearing
+    // confirm — and a visible reason when the backend refuses (running
+    // tasks, protected main agent).
+    const handleDelete = async (id: string, name: string) => {
+        if (!window.confirm(`Delete agent "${name}"? Its episodes, training history and audit rows are removed too. This cannot be undone.`)) return;
+        try {
+            const token = localStorage.getItem('auth_token');
+            const res = await fetch(`${API_BASE}/api/agents/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (res.ok) {
+                await fetchAgents();
+            } else if (res.status === 401 || res.status === 403) {
+                handleSessionExpired();
+            } else {
+                let detail = res.statusText || "Unknown error";
+                try {
+                    const body = await res.json();
+                    detail = body?.error?.message || body?.message || body?.detail || detail;
+                } catch { /* keep statusText */ }
+                setError(`Could not delete "${name}": ${detail}`);
+            }
+        } catch (e) {
+            setError(`Could not delete "${name}": ${e instanceof Error ? e.message : String(e)}`);
+        }
+    };
+
     const handleStepFeedback = async (stepId: string, score: number, comment?: string) => {
         try {
             // POST to the correct reasoning-step feedback endpoint
@@ -517,6 +555,7 @@ const AgentsDashboard = () => {
                                     onChat={handleChat}
                                     onEdit={handleEdit}
                                     onViewReasoning={handleViewReasoning}
+                                    onDelete={handleDelete}
                                 />
                             ))}
                         </div>
@@ -610,7 +649,7 @@ const AgentsDashboard = () => {
                             placeholder="e.g. Reconcile inventory for SKU-123 and SKU-999..."
                             value={runInstructions}
                             onChange={(e) => setRunInstructions(e.target.value)}
-                            className="min-h-[100px]"
+                            className="min-h-[100px] text-base"
                         />
                         {/* data-testid="run-dialog-guidance" */}
                         <div data-testid="run-dialog-guidance" className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-700 rounded p-3 space-y-1">

@@ -64,12 +64,39 @@ interface Integration {
   documentation?: string;
 }
 
+// Ingestion progress per integration id, from
+// /api/integrations/ingestion-status — memory-store records where the
+// integration has a poller, hybrid sync state otherwise.
+interface IngestionProgress {
+  records_ingested: number;
+  last_ingested: string | null;
+  stream_running: boolean;
+  last_synced?: string | null;
+  auto_sync_enabled?: boolean;
+}
+
+const formatIngestedAge = (iso: string | null): string => {
+  if (!iso) return "never";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "never";
+  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
+
 const IntegrationsPage: React.FC = () => {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   // Real per-integration connection state from /api/integrations/connection-status
   const connectionStatusRef = useRef<Record<string, { connected: boolean }>>({});
+  const [ingestionProgress, setIngestionProgress] = useState<
+    Record<string, IngestionProgress>
+  >({});
   const { toast } = useToast();
   const router = useRouter();
 
@@ -180,6 +207,30 @@ const IntegrationsPage: React.FC = () => {
       icon: Mail,
       color: "text-blue-600",
       documentation: "https://www.zoho.com/mail/help/api/",
+    },
+    // Forms/Flow expose no public read API (Zoho's official position), so
+    // they are webhook-push apps: data ingests when Zoho pushes events,
+    // not via the OAuth pull sync the siblings use. Cards light up with
+    // the suite grant or their webhook secret env.
+    {
+      id: "zoho-forms",
+      name: "Zoho Forms",
+      description: "Form builder — submissions ingest via webhook push",
+      category: "productivity",
+      connected: false,
+      icon: Edit,
+      color: "text-blue-600",
+      documentation: "https://www.zoho.com/forms/help/",
+    },
+    {
+      id: "zoho-flow",
+      name: "Zoho Flow",
+      description: "Automation platform — flow events ingest via webhook push",
+      category: "productivity",
+      connected: false,
+      icon: RefreshCw,
+      color: "text-blue-600",
+      documentation: "https://www.zoho.com/flow/help/",
     },
 
     // Communication & Collaboration
@@ -593,6 +644,10 @@ const IntegrationsPage: React.FC = () => {
         "zoho-crm": "/api/zoho-workdrive/health",
         "zoho-projects": "/api/zoho-workdrive/health",
         "zoho-mail": "/api/zoho-workdrive/health",
+        // Forms/Flow have their own dependency-light /health routes
+        // (webhook-push apps; no OAuth token needed to answer).
+        "zoho-forms": "/api/v1/integrations/zoho-forms/health",
+        "zoho-flow": "/api/v1/integrations/zoho-flow/health",
         // BUG-072: 8 integrations were missing from this map, causing them
         // to always show "error" / unconnected even when healthy.
         onedrive: "/api/integrations/onedrive/health",
@@ -615,7 +670,10 @@ const IntegrationsPage: React.FC = () => {
       const responses = await Promise.all([
         ...entries.map(async ([id, url]) => {
           try {
-            const resp = await fetch(url);
+            // Several health routes (e.g. /api/zoho-workdrive/health) sit
+            // behind router-level auth — send the session's Bearer header
+            // so a connected integration isn't reported down.
+            const resp = await fetch(url, { headers: authHeaders() });
             return [id, resp.ok] as const;
           } catch {
             return [id, false] as const;
@@ -628,10 +686,17 @@ const IntegrationsPage: React.FC = () => {
           .then((r) => (r.ok ? r.json() : { providers: {} }))
           .then((d) => ["__connectionStatus", d?.data?.providers ?? d?.providers ?? {}] as const)
           .catch(() => ["__connectionStatus", {}] as const),
+        // Memory-ingestion progress (records ingested per integration).
+        fetch("/api/integrations/ingestion-status", { headers: authHeaders() })
+          .then((r) => (r.ok ? r.json() : { apps: {} }))
+          .then((d) => ["__ingestionStatus", d?.data?.apps ?? d?.apps ?? {}] as const)
+          .catch(() => ["__ingestionStatus", {}] as const),
       ]);
       for (const [id, ok] of responses) {
         if (id === "__connectionStatus") {
           connectionStatusRef.current = ok as Record<string, { connected: boolean }>;
+        } else if (id === "__ingestionStatus") {
+          setIngestionProgress(ok as Record<string, IngestionProgress>);
         } else {
           healthResults[id] = ok as boolean;
         }
@@ -913,6 +978,39 @@ const IntegrationsPage: React.FC = () => {
                         </span>
                       )}
                     </div>
+
+                    {/* Ingestion progress: memory records where the
+                        integration has a poller, last sync otherwise. */}
+                    {(() => {
+                      const progress = ingestionProgress[integration.id];
+                      if (!progress) return null;
+                      if ((progress.records_ingested ?? 0) > 0) {
+                        return (
+                          <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">
+                              {progress.records_ingested.toLocaleString()}{" "}
+                              records ingested
+                            </span>
+                            <span>
+                              last {formatIngestedAge(progress.last_ingested)}
+                            </span>
+                          </div>
+                        );
+                      }
+                      if (progress.last_synced) {
+                        return (
+                          <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">
+                              {progress.auto_sync_enabled ? "Auto-sync on" : "Synced"}
+                            </span>
+                            <span>
+                              {formatIngestedAge(progress.last_synced)}
+                            </span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
 
                     <Button
                       variant={integration.connected ? "outline" : "default"}

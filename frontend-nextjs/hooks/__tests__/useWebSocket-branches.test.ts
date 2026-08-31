@@ -54,7 +54,9 @@ describe('useWebSocket - Branch Coverage', () => {
       useWebSocket({ autoConnect: true, url: 'custom/socket' })
     );
     expect((global as any).WebSocket.getMockCalls()).toContainEqual([
-      '/custom/socket?token=test-session-token',
+      // resolveWsBase now always yields an absolute base (jsdom origin in
+      // tests) — a bare "/custom/socket" URL threw in real browsers.
+      'ws://localhost/custom/socket?token=test-session-token',
     ]);
   });
 
@@ -63,7 +65,9 @@ describe('useWebSocket - Branch Coverage', () => {
       useWebSocket({ autoConnect: true, url: '/custom/socket' })
     );
     expect((global as any).WebSocket.getMockCalls()).toContainEqual([
-      '/custom/socket?token=test-session-token',
+      // resolveWsBase now always yields an absolute base (jsdom origin in
+      // tests) — a bare "/custom/socket" URL threw in real browsers.
+      'ws://localhost/custom/socket?token=test-session-token',
     ]);
   });
 

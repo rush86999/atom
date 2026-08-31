@@ -81,10 +81,20 @@ describe("IntegrationsPage", () => {
     return { connected: Number(match[1]), total: Number(match[2]) };
   }
 
-  it("shows zero-state while health checks are pending, then all healthy", async () => {
-    mockFetch.mockImplementation((url: string) =>
-      Promise.resolve(okResponse({})),
-    );
+  it("shows connected cards from connection-status, healthy when probed ok", async () => {
+    const CONNECTED = ["slack", "github", "notion"];
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("/connection-status")) {
+        return Promise.resolve(
+          okResponse({
+            providers: Object.fromEntries(
+              CONNECTED.map((id) => [id, { connected: true, source: "user_connection" }]),
+            ),
+          }),
+        );
+      }
+      return Promise.resolve(okResponse({}));
+    });
 
     render(<IntegrationsPage />);
     expect(
@@ -93,19 +103,19 @@ describe("IntegrationsPage", () => {
 
     const { connected, total } = await expectSummary();
     expect(total).toBeGreaterThanOrEqual(30); // catalog keeps growing
-    expect(connected).toBeGreaterThan(0);
+    expect(connected).toBe(CONNECTED.length);
 
     const healthyPct = Math.round((connected / total) * 100);
     expect(screen.getByText(`${healthyPct}%`)).toBeInTheDocument();
     expect(screen.getByText("Healthy").previousSibling?.textContent).toBe(
       String(connected),
     );
-    // every probed-and-healthy card shows Manage; unmapped ones show Connect
+    // every connected card shows Manage; the rest show Connect
     expect(screen.getAllByText("Manage").length).toBe(connected);
     expect(screen.getAllByText("Connected").length).toBeGreaterThan(0);
   });
 
-  it("marks every integration as an error when all health checks fail", async () => {
+  it("marks every integration unknown when all status sources fail", async () => {
     mockFetch.mockImplementation(() => Promise.resolve(errResponse(503)));
 
     render(<IntegrationsPage />);
@@ -114,20 +124,32 @@ describe("IntegrationsPage", () => {
       expect(screen.getByText(`0 of ${total} Connected`)).toBeInTheDocument();
     });
     expect(screen.getByText("0%")).toBeInTheDocument();
-    expect(screen.getByText("Errors").previousSibling?.textContent).toBe(
+    // no connection + no health probe => "unknown", never "error"
+    expect(screen.getByText("Errors").previousSibling?.textContent).toBe("0");
+    expect(screen.getByText("Unknown").previousSibling?.textContent).toBe(
       String(total),
     );
     expect(screen.getAllByText("Connect").length).toBe(total);
   });
 
-  it("calls every integration health endpoint", async () => {
+  it("calls every integration health endpoint and connection-status", async () => {
     mockFetch.mockImplementation((url: string) =>
-      Promise.resolve(url.includes("/health") ? okResponse({}) : errResponse(404)),
+      url.includes("/connection-status")
+        ? Promise.resolve(
+            okResponse({
+              providers: {
+                salesforce: { connected: true, source: "user_connection" },
+              },
+            }),
+          )
+        : url.includes("/health")
+          ? Promise.resolve(okResponse({}))
+          : Promise.resolve(errResponse(404)),
     );
 
     render(<IntegrationsPage />);
     const { connected } = await expectSummary();
-    expect(connected).toBeGreaterThan(0);
+    expect(connected).toBe(1);
 
     const healthCalls = mockFetch.mock.calls.filter(([url]: [string]) =>
       String(url).includes("/health"),
@@ -136,12 +158,15 @@ describe("IntegrationsPage", () => {
     expect(healthCalls.length).toBeGreaterThanOrEqual(connected);
     expect(mockFetch.mock.calls).toContainEqual([
       "/api/integrations/salesforce/health",
+      expect.objectContaining({ headers: expect.any(Object) }),
     ]);
     expect(mockFetch.mock.calls).toContainEqual([
       "/api/integrations/gmail/health",
+      expect.objectContaining({ headers: expect.any(Object) }),
     ]);
     expect(mockFetch.mock.calls).toContainEqual([
       "/api/integrations/trello/health",
+      expect.objectContaining({ headers: expect.any(Object) }),
     ]);
   });
 

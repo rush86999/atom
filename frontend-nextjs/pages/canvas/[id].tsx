@@ -1,16 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Send, ArrowLeft, RefreshCw, History, Trash2, GraduationCap, MessageSquare } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Send, ArrowLeft, RefreshCw, History, Trash2, GraduationCap, MessageSquare, ShieldCheck } from "lucide-react";
 import { CanvasPanel } from "@/components/canvas/CanvasPanel";
 import { MiniAppHarness } from "@/components/canvas/MiniAppHarness";
 import { TrainingPanel } from "@/components/canvas/TrainingPanel";
+import { JourneyPanel } from "@/components/canvas/JourneyPanel";
+import { AutonomyPanel } from "@/components/canvas/AutonomyPanel";
 import { ChatFeedbackControls, ChatFeedbackType } from "@/components/canvas/ChatFeedbackControls";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
@@ -43,17 +45,160 @@ export default function CanvasDetailPage() {
     // Chat panel state
     const [messages, setMessages] = useState<CanvasMessage[]>([]);
     const [chatInput, setChatInput] = useState("");
+    // Auto-grow the co-editor composer to fit multi-line messages.
+    const chatInputRef = useRef<HTMLTextAreaElement>(null);
+    useEffect(() => {
+        const el = chatInputRef.current;
+        if (el) {
+            el.style.height = 'auto';
+            el.style.height = `${el.scrollHeight}px`;
+        }
+    }, [chatInput]);
     const [isAgentResponding, setIsAgentResponding] = useState(false);
+    // Keep the co-editor transcript pinned to the newest message.
+    const chatEndRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, isAgentResponding]);
     // Transient confirmation under the chat input after a feedback submit.
     const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
+    // Session continuity: the panel used to send session_id "new" on EVERY
+    // turn, so each message started a disconnected conversation. The canvas→
+    // session association is DB-backed (CanvasContext, written by the chat
+    // route on every canvas turn) so it survives refreshes AND works across
+    // devices/browsers; ?session= (arrived via chat) still wins as the
+    // explicit navigation intent.
+    const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+    const hydratedSessionRef = useRef<string | null>(null);
+    // Thumbs choices restored from the canvas context (survive refresh);
+    // keyed by assistant message input_summary — exactly what the feedback
+    // call sends as the stable message identity.
+    const [restoredFeedback, setRestoredFeedback] = useState<Record<string, { feedback_type: ChatFeedbackType; comment?: string }> | null>(null);
+
+    // Resolve the panel's session: ?session= wins, else the server-side
+    // binding for this canvas.
+    useEffect(() => {
+        if (!canvasId || typeof window === "undefined") return;
+        const fromQuery = router.query.session as string | undefined;
+        if (fromQuery && fromQuery !== "new") {
+            setChatSessionId(fromQuery);
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const { apiClient } = await import("../../lib/api-client");
+                const resp = await apiClient.get(`/api/canvas/${canvasId}/context`);
+                const snap = (resp as any).data || resp;
+                const state = snap?.current_state || snap?.data?.current_state;
+                const bound = state?.chat_session_id;
+                if (!cancelled && bound) setChatSessionId(bound);
+                // Persisted thumbs state (keyed by assistant message
+                // input_summary) — applied to restored messages at hydration.
+                if (!cancelled && state?.chat_feedback) {
+                    setRestoredFeedback(state.chat_feedback as Record<string, { feedback_type: ChatFeedbackType; comment?: string }>);
+                }
+            } catch {
+                // No context/binding yet — the panel starts a new
+                // conversation on first send; the binding appears after it.
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [canvasId, router.query.session]);
+
+    // Hydrate the panel transcript from the session store so a refresh
+    // doesn't wipe the co-editing conversation (same pattern as
+    // GlobalChatWidget's loadSessionHistory).
+    useEffect(() => {
+        if (!chatSessionId || hydratedSessionRef.current === chatSessionId) return;
+        hydratedSessionRef.current = chatSessionId;
+        let cancelled = false;
+        (async () => {
+            try {
+                const { apiClient } = await import("../../lib/api-client");
+                const resp = await apiClient.get(
+                    `/api/chat/history/${chatSessionId}?user_id=${userId}`
+                );
+                const data = (resp as any).data || resp;
+                const rebuilt: CanvasMessage[] = [];
+                for (const h of data?.messages || []) {
+                    const ts = new Date(h.timestamp || Date.now());
+                    if (typeof h.message === "string" && h.message.trim()) {
+                        rebuilt.push({
+                            id: `hu_${rebuilt.length}`,
+                            type: "user",
+                            content: h.message,
+                            timestamp: ts,
+                        });
+                    }
+                    const ai = h?.response?.message;
+                    if (typeof ai === "string" && ai.trim()) {
+                        // Restore the thumbs state recorded on the canvas
+                        // context — keyed by the same input_summary slice
+                        // the feedback call sends (stable across refresh).
+                        const restored = restoredFeedback?.[ai.slice(0, 200)];
+                        rebuilt.push({
+                            id: `ha_${rebuilt.length}`,
+                            type: "assistant",
+                            content: ai,
+                            timestamp: ts,
+                            feedback: restored?.feedback_type ?? null,
+                        });
+                    }
+                }
+                if (!cancelled && rebuilt.length > 0) setMessages(rebuilt);
+            } catch {
+                // Stale/dead session id — clear the state so the next send
+                // starts fresh instead of reusing it. (The server binding is
+                // not deleted: the id may be valid again later, e.g. after a
+                // transient history-store failure; a later turn rebinds.)
+                if (!cancelled) setChatSessionId(null);
+                hydratedSessionRef.current = null;
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [chatSessionId, canvasId, userId, restoredFeedback]);
+
+    // Apply restored thumbs to whatever assistant messages are loaded —
+    // separate from hydration so it works regardless of which fetch
+    // (context vs. history) resolves first.
+    useEffect(() => {
+        if (!restoredFeedback) return;
+        setMessages(prev => prev.map(m =>
+            m.type === "assistant" && m.feedback == null
+                ? { ...m, feedback: restoredFeedback[m.content.slice(0, 200)]?.feedback_type ?? null }
+                : m
+        ));
+    }, [restoredFeedback]);
 
     // WebSocket — page-agnostic, auto-subscribes to user:{userId}
     const { lastMessage, isConnected } = useWebSocket({});
 
     // Training panel state: the sidebar hosts the co-editor chat and the
     // agent training panel (approve, teach, score, graduate) side by side.
-    const [sideTab, setSideTab] = useState<"chat" | "training">("chat");
+    const [sideTab, setSideTab] = useState<"chat" | "training" | "journey" | "autonomy">("chat");
     const [trainingCtx, setTrainingCtx] = useState<CanvasTrainingContext | null>(null);
+
+    // The canvas's hire must be known on the CHAT tab too, not just when the
+    // training panel is opened — the co-editor chat runs as this agent
+    // (persona, tier behavior, learning mode when not yet mature). The panel
+    // re-fetches on its own mount; this just resolves identity up front.
+    useEffect(() => {
+        if (!canvasId || typeof window === "undefined") return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const { getCanvasTrainingContext } = await import("../../lib/maturity-api");
+                const ctx = await getCanvasTrainingContext(
+                    canvasId as string,
+                    (router.query.agent_id as string) || undefined
+                );
+                if (!cancelled && ctx?.agent) setTrainingCtx(ctx);
+            } catch {
+                // No resolvable hire — chat runs as the platform assistant.
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [canvasId, router.query.agent_id]);
 
     // Register canvas state for AI accessibility
     const canvasState = canvasData ? {
@@ -185,17 +330,17 @@ export default function CanvasDetailPage() {
             // standalone canvases the training panel's resolved agent fills
             // the identity in (audit-row provenance).
             const fromChat = router.query.from === "chat";
-            const chatSessionId = (router.query.session as string) || (fromChat ? undefined : "new");
             const agentId = (router.query.agent_id as string) || trainingCtx?.agent?.id || undefined;
             const resp = await apiClient.post("/api/chat/message", {
                 message: chatInput,
                 user_id: userId,
-                session_id: chatSessionId || "new",
+                session_id: chatSessionId || (fromChat ? (router.query.session as string) : undefined) || "new",
                 agent_id: agentId,
                 context: {
                     current_page: `/canvas/${canvasId}`,
                     canvas_id: canvasId,
                     canvas_type: canvasData?.canvas_type,
+                    canvas_title: canvasData?.title,
                     canvas_content: canvasData?.content,
                     agent_id: agentId,
                     conversation_history: messages.slice(-5).map(m => ({
@@ -203,8 +348,20 @@ export default function CanvasDetailPage() {
                         content: m.content,
                     })),
                 },
+            }, {
+                // The agent loop (LLM + canvas summary + embeddings) regularly
+                // exceeds the global 10s axios timeout — same override the
+                // main chat uses (useChatInterface). Without it the reply is
+                // generated server-side but the UI already showed "Could not
+                // reach the agent", and the auto-retry re-fired the request.
+                timeout: 120000,
+                // @ts-ignore
+                retry: false,
             });
             const data = (resp as any).data || resp;
+            if (data.session_id && data.session_id !== "new") {
+                setChatSessionId(data.session_id);
+            }
             if (data.success && data.message) {
                 setMessages(prev => [...prev, {
                     id: `a_${Date.now()}`,
@@ -220,6 +377,15 @@ export default function CanvasDetailPage() {
                     id: "sys",
                     type: "system",
                     content: "⚠️ No AI provider configured. Add an API key in Settings.",
+                    timestamp: new Date(),
+                }]);
+            } else {
+                // Unsuccessful replies must still surface — a silent spinner
+                // that ends with no message reads as "chat is broken".
+                setMessages(prev => [...prev, {
+                    id: `sys_${Date.now()}`,
+                    type: "system",
+                    content: `⚠️ ${data.message || "The agent could not handle that request."}`,
                     timestamp: new Date(),
                 }]);
             }
@@ -247,6 +413,16 @@ export default function CanvasDetailPage() {
     const handleFeedback = async (msg: CanvasMessage, type: ChatFeedbackType, comment?: string) => {
         if (!comment && msg.feedback === type) {
             setMessages(prev => prev.map(m => (m.id === msg.id ? { ...m, feedback: null } : m)));
+            // Also clear the PERSISTED choice — otherwise the stale thumb
+            // reappears from the canvas context on the next refresh.
+            try {
+                const { apiClient } = await import("../../lib/api-client");
+                await apiClient.post(`/api/canvas/${canvasId}/chat-feedback/clear`, {
+                    input_summary: msg.content.slice(0, 200),
+                });
+            } catch {
+                // best-effort: local clear already happened
+            }
             return;
         }
         setMessages(prev => prev.map(m => (m.id === msg.id ? { ...m, feedback: type } : m)));
@@ -256,7 +432,7 @@ export default function CanvasDetailPage() {
             if (agentId) {
                 await submitStepFeedback({
                     agentId,
-                    runId: "canvas",
+                    runId: chatSessionId || "canvas",
                     stepIndex: -1,
                     stepContent: {
                         input_summary: msg.content.slice(0, 200),
@@ -275,23 +451,29 @@ export default function CanvasDetailPage() {
                     comment,
                     model: msg.model ?? undefined,
                     provider: msg.provider ?? undefined,
+                    session_id: chatSessionId ?? undefined,
                 });
             } catch {
                 // router-learning feedback is best-effort by design
             }
-            setFeedbackNotice("✅ Feedback recorded — it feeds the agent's training.");
+            setFeedbackNotice("✓ Feedback recorded — it feeds the agent's training.");
             setTimeout(() => setFeedbackNotice(null), 4000);
         } catch {
             setFeedbackNotice("⚠️ Feedback could not be recorded — try again.");
         }
     };
 
-    // Email canvases persist {to, subject, body} in the audit trail; the
+    // Email canvases persist {to, cc, subject, body} in the audit trail; the
     // CanvasPanel email composer reads `metadata` from the message payload,
-    // so derive it here or the To/Subject fields render empty on /canvas/{id}.
+    // so derive it here or the To/Cc/Subject fields render empty on
+    // /canvas/{id}.
     const emailMetadata =
         canvasData?.canvas_type === "email" && canvasData.content && typeof canvasData.content === "object"
-            ? { to: canvasData.content.to || "", subject: canvasData.content.subject || "" }
+            ? {
+                to: canvasData.content.to || "",
+                cc: canvasData.content.cc || "",
+                subject: canvasData.content.subject || "",
+            }
             : undefined;
 
     const canvasLastMessage = canvasData ? {
@@ -299,11 +481,13 @@ export default function CanvasDetailPage() {
         data: {
             action: "present",
             // File-bound office canvases (content.office_file) render the
-            // editable OfficeFileCanvas; component maps xlsx/docx/pptx →
-            // office_excel/office_word/office_pptx. Audit-sourced content
-            // carries the office_* component name directly.
+            // editable OfficeFileCanvas; format → component names — note
+            // xlsx maps to office_EXCEL (the naive `office_${format}`
+            // produced "office_xlsx", which no component case handles, so
+            // excel canvases fell to the raw-JSON fallback). Audit-sourced
+            // content carries the office_* component name directly.
             component: canvasData.content?.office_file
-                ? `office_${canvasData.content.format || "docx"}`
+                ? (({ xlsx: "office_excel", docx: "office_word", pptx: "office_pptx" } as Record<string, string>)[canvasData.content.format] || `office_${canvasData.content.format || "docx"}`)
                 : (typeof canvasData.content?.component === "string" && canvasData.content.component.startsWith("office_"))
                     ? canvasData.content.component
                     : (canvasData.canvas_type || "markdown"),
@@ -407,25 +591,28 @@ export default function CanvasDetailPage() {
                     <div className="w-80 border-l flex flex-col bg-muted/30 shrink-0">
                         {/* Panel tabs */}
                         <div className="px-2 pt-1.5 border-b bg-background/50 shrink-0" role="tablist" aria-label="Agent panel">
-                            <div className="flex gap-1">
+                            {/* 4-column grid: a flex row of four labelled tabs is wider
+                                than the w-80 panel — the last tabs were clipped out
+                                of view entirely (Journey/Autonomy "missing"). */}
+                            <div className="grid grid-cols-4 gap-0.5">
                                 <button
                                     role="tab"
                                     aria-selected={sideTab === "chat"}
                                     onClick={() => setSideTab("chat")}
-                                    className={`px-2.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 flex items-center gap-1.5 ${
+                                    className={`px-1 py-1.5 text-[11px] font-medium rounded-t-md border-b-2 flex items-center justify-center gap-1 whitespace-nowrap ${
                                         sideTab === "chat"
                                             ? "border-primary text-foreground"
                                             : "border-transparent text-muted-foreground hover:text-foreground"
                                     }`}
                                     data-testid="canvas-side-tab-chat"
                                 >
-                                    <MessageSquare className="h-3.5 w-3.5" /> Co-Editor
+                                    <MessageSquare className="h-3.5 w-3.5" /> Chat
                                 </button>
                                 <button
                                     role="tab"
                                     aria-selected={sideTab === "training"}
                                     onClick={() => setSideTab("training")}
-                                    className={`px-2.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 flex items-center gap-1.5 ${
+                                    className={`px-1 py-1.5 text-[11px] font-medium rounded-t-md border-b-2 flex items-center justify-center gap-1 whitespace-nowrap ${
                                         sideTab === "training"
                                             ? "border-primary text-foreground"
                                             : "border-transparent text-muted-foreground hover:text-foreground"
@@ -433,6 +620,32 @@ export default function CanvasDetailPage() {
                                     data-testid="canvas-side-tab-training"
                                 >
                                     <GraduationCap className="h-3.5 w-3.5" /> Training
+                                </button>
+                                <button
+                                    role="tab"
+                                    aria-selected={sideTab === "journey"}
+                                    onClick={() => setSideTab("journey")}
+                                    className={`px-1 py-1.5 text-[11px] font-medium rounded-t-md border-b-2 flex items-center justify-center gap-1 whitespace-nowrap ${
+                                        sideTab === "journey"
+                                            ? "border-primary text-foreground"
+                                            : "border-transparent text-muted-foreground hover:text-foreground"
+                                    }`}
+                                    data-testid="canvas-side-tab-journey"
+                                >
+                                    <History className="h-3.5 w-3.5" /> Journey
+                                </button>
+                                <button
+                                    role="tab"
+                                    aria-selected={sideTab === "autonomy"}
+                                    onClick={() => setSideTab("autonomy")}
+                                    className={`px-1 py-1.5 text-[11px] font-medium rounded-t-md border-b-2 flex items-center justify-center gap-1 whitespace-nowrap ${
+                                        sideTab === "autonomy"
+                                            ? "border-primary text-foreground"
+                                            : "border-transparent text-muted-foreground hover:text-foreground"
+                                    }`}
+                                    data-testid="canvas-side-tab-autonomy"
+                                >
+                                    <ShieldCheck className="h-3.5 w-3.5" /> Autonomy
                                 </button>
                             </div>
                         </div>
@@ -443,6 +656,10 @@ export default function CanvasDetailPage() {
                                 agentIdHint={(router.query.agent_id as string) || undefined}
                                 onContextLoaded={setTrainingCtx}
                             />
+                        ) : sideTab === "journey" ? (
+                            <JourneyPanel canvasId={canvasId as string} />
+                        ) : sideTab === "autonomy" ? (
+                            <AutonomyPanel />
                         ) : (
                             <>
                         {/* Chat header */}
@@ -488,6 +705,7 @@ export default function CanvasDetailPage() {
                                     <span className="animate-pulse">●●● Agent is working…</span>
                                 </div>
                             )}
+                            <div ref={chatEndRef} />
                         </div>
 
                         {/* Chat input */}
@@ -497,17 +715,19 @@ export default function CanvasDetailPage() {
                                     {feedbackNotice}
                                 </p>
                             )}
-                            <div className="flex gap-2">
-                                <Input
+                            <div className="flex gap-2 items-end">
+                                <Textarea
+                                    ref={chatInputRef}
+                                    rows={1}
                                     value={chatInput}
                                     onChange={(e: any) => setChatInput(e.target.value)}
                                     onKeyDown={(e: any) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
                                     placeholder="Ask the agent to edit…"
                                     disabled={isAgentResponding}
-                                    className="text-sm"
+                                    className="flex-1 min-h-[44px] max-h-[140px] resize-none px-4 py-2.5 text-base"
                                 />
-                                <Button size="icon" onClick={handleSendMessage} disabled={isAgentResponding || !chatInput.trim()} aria-label="Send message">
-                                    <Send className="h-4 w-4" />
+                                <Button size="icon" className="h-11 w-11 shrink-0" onClick={handleSendMessage} disabled={isAgentResponding || !chatInput.trim()} aria-label="Send message">
+                                    <Send className="h-5 w-5" />
                                 </Button>
                             </div>
                         </div>

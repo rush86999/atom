@@ -230,3 +230,32 @@ def top_domain_cases(db, agent_id: str, domain: str, limit: int = 5):
     except Exception as e:  # pragma: no cover - defensive
         logger.debug(f"domain ledger case query failed: {e}")
         return []
+
+
+# Per-process vocabulary cache: mining scans episodes + ledger, and
+# attribution now runs on EVERY recorded outcome (the shared
+# record_outcome path) — per-run mining would dwarf the write itself.
+# 5-minute TTL keeps learned edge roles fresh without the cost.
+_VOCAB_CACHE: dict = {"at": 0.0, "vocab": {}}
+_VOCAB_TTL_SECONDS = 300.0
+
+
+def get_vocabulary(db, force_refresh: bool = False) -> dict:
+    """Mined role vocabulary with a process-wide TTL.
+
+    Falls back to the empty (static-keyword-only) vocabulary when mining
+    fails — attribution then still works for the built-in roles.
+    """
+    import time as _time
+
+    now = _time.time()
+    if not force_refresh and now - _VOCAB_CACHE["at"] < _VOCAB_TTL_SECONDS:
+        return _VOCAB_CACHE["vocab"]
+    try:
+        vocab = build_domain_vocabulary(db)
+    except Exception as e:
+        logger.debug(f"vocabulary mining failed, using static keywords: {e}")
+        vocab = {}
+    _VOCAB_CACHE["at"] = now
+    _VOCAB_CACHE["vocab"] = vocab
+    return vocab

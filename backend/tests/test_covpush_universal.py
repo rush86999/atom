@@ -2328,4 +2328,8 @@ class TestModuleLevel:
     def test_native_integrations_constant(self):
         assert "salesforce" in NATIVE_INTEGRATIONS
         assert "shopify" in NATIVE_INTEGRATIONS
-        assert len(NATIVE_INTEGRATIONS) == 44
+        # 46 = 44 + zoho_forms + zoho_flow (webhook-push apps; read what has
+        # been ingested — see universal_integration_service._execute_zoho)
+        assert "zoho_forms" in NATIVE_INTEGRATIONS
+        assert "zoho_flow" in NATIVE_INTEGRATIONS
+        assert len(NATIVE_INTEGRATIONS) == 46

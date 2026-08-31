@@ -24,8 +24,14 @@ import { server } from '@/tests/mocks/server';
 const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 
 const notionHandlers = [
-  rest.get('/api/integrations/notion/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ providers: { notion: { connected: true, source: 'user_connection' } } })
+    );
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { notion: { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.post('/api/integrations/notion/databases', (req, res, ctx) => {
@@ -72,7 +78,7 @@ const notionHandlers = [
 
 const setDisconnected = () => {
   server.use(
-    rest.get('/api/integrations/notion/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(404));
     })
   );
@@ -175,7 +181,7 @@ describe('NotionIntegration', () => {
   // Test 8: handles connection error
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/notion/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500));
       })
     );
@@ -566,13 +572,13 @@ describe('NotionIntegration (extended coverage)', () => {
 
   test('treats health check network failure as disconnected', async () => {
     server.use(
-      rest.get('/api/integrations/notion/health', (req, res) => res.networkError('boom'))
+      rest.get('/api/integrations/connection-status', (req, res) => res.networkError('boom'))
     );
 
     render(<NotionIntegration />);
 
     await waitFor(() => {
-      expect(errorSpy).toHaveBeenCalledWith('Health check failed:', expect.anything());
+      expect(errorSpy).toHaveBeenCalledWith('Connection status check failed:', expect.anything());
       expect(
         screen.getByRole('button', { name: /connect notion workspace/i })
       ).toBeInTheDocument();

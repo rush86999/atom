@@ -49,7 +49,13 @@ const guilds = [
 ];
 
 const connectedHandlers = [
-  rest.get('/api/integrations/discord/health', (req, res, ctx) => {
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ providers: { discord: { connected: true, source: 'user_connection' } } })
+    );
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
     return res(ctx.status(200), ctx.json({ success: true }));
   }),
   rest.post('/api/integrations/discord/profile', (req, res, ctx) => {
@@ -62,7 +68,7 @@ const connectedHandlers = [
 
 const setDisconnected = (status = 503) => {
   server.use(
-    rest.get('/api/integrations/discord/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(status), ctx.json({ success: false }));
     })
   );
@@ -79,7 +85,7 @@ describe('DiscordIntegration', () => {
     // an unhandled request would fall through to the real network and its
     // async rejection could pollute the next test
     server.use(
-      rest.get('/api/integrations/discord/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(503), ctx.json({ success: false }));
       })
     );
@@ -140,7 +146,7 @@ describe('DiscordIntegration', () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     server.use(
-      rest.get('/api/integrations/discord/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(503), ctx.json({ success: false }));
       }),
       rest.post('/api/integrations/discord/auth/start', (req, res, ctx) => {
@@ -181,7 +187,7 @@ describe('DiscordIntegration', () => {
     const user = userEvent.setup();
 
     server.use(
-      rest.get('/api/integrations/discord/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(503), ctx.json({ success: false }));
       }),
       rest.post('/api/integrations/discord/auth/start', (req, res, ctx) => {

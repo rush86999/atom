@@ -26,8 +26,14 @@ import { useToast } from '@/components/ui/use-toast';
 const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 
 const trelloHandlers = [
-  rest.get('/api/integrations/trello/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ providers: { trello: { connected: true, source: 'user_connection' } } })
+    );
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { trello: { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.post('/api/integrations/trello/profile', (req, res, ctx) => {
@@ -240,7 +246,7 @@ const trelloHandlers = [
 
 const setDisconnected = () => {
   server.use(
-    rest.get('/api/integrations/trello/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(404));
     })
   );
@@ -367,7 +373,7 @@ describe('TrelloIntegration', () => {
   // Test 9: handles connection error
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/trello/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500));
       })
     );
@@ -900,7 +906,7 @@ describe('TrelloIntegration', () => {
     test('handles a network-level health check failure as disconnected', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       server.use(
-        rest.get('/api/integrations/trello/health', (req, res) => {
+        rest.get('/api/integrations/connection-status', (req, res) => {
           return new Promise((resolve, reject) => {
             setTimeout(() => reject(new Error('network error')), 5);
           });
@@ -1005,7 +1011,7 @@ describe('TrelloIntegration', () => {
 
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith(
-          '/api/integrations/trello/health',
+          '/api/integrations/connection-status',
           expect.anything()
         );
       });

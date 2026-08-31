@@ -920,16 +920,30 @@ class TestChatHistoryAndSessions:
         s = _chat_session()
         s["history"] = [{"message": "hi"}]
         orch.conversation_sessions = {"s1": s}
-        r = chat_client.get("/api/chat/history/s1", params={"user_id": "u"})
+        # Durable store is read FIRST now — mock an empty DB so the
+        # in-memory fallback engages instead of reading ambient rows.
+        db = MagicMock()
+        db.query.return_value.filter.return_value.order_by.return_value \
+            .all.return_value = []
+
+        class _Empty:
+            def __enter__(self):
+                return db
+
+            def __exit__(self, *a):
+                return False
+
+        with patch("core.database.get_db_session", return_value=_Empty()):
+            r = chat_client.get("/api/chat/history/s1", params={"user_id": "u"})
         assert r.status_code == 200 and r.json()["messages"] == [{"message": "hi"}]
 
     def test_history_lazy_and_db_fallback(self, chat_client, orch):
         orch.conversation_sessions = {}
         lazy = _chat_session()
         orch._get_or_create_session = MagicMock(return_value=lazy)
-        row_user = SimpleNamespace(role="user", content="q",
+        row_user = SimpleNamespace(id="m1", role="user", content="q",
                                    created_at=datetime(2026, 1, 1))
-        row_asst = SimpleNamespace(role="assistant", content="a",
+        row_asst = SimpleNamespace(id="m2", role="assistant", content="a",
                                    created_at=datetime(2026, 1, 1))
         db = MagicMock()
         db.query.return_value.filter.return_value.order_by.return_value \

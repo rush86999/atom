@@ -1,4 +1,5 @@
 import React from "react";
+import IngestionStatusPanel from "@/components/integrations/IngestionStatusPanel";
 import Head from "next/head";
 
 /**
@@ -12,6 +13,11 @@ const AirtableIntegrationPage: React.FC = () => {
         <title>Airtable Integration | ATOM</title>
         <meta name="description" content="Connect and manage your Airtable bases" />
       </Head>
+  {/* Memory-ingestion progress (uniform across integration pages) */}
+  <div className="p-6 pb-0 max-w-[1400px] mx-auto w-full">
+    <IngestionStatusPanel integrationId="airtable" />
+  </div>
+
 
       <div className="bg-gray-50 dark:bg-gray-800 min-h-screen py-8">
         <div className="max-w-7xl mx-auto">

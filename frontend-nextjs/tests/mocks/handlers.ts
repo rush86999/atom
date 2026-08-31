@@ -105,6 +105,30 @@ interface DeviceSession {
 // ============================================================================
 
 export const commonHandlers = [
+  // Per-integration ingestion status (IngestionStatusPanel) — default
+  // connected+syncing payload; suites can override with server.use().
+  rest.get('/api/integrations/:integrationId/ingestion-status', (req, res, ctx) => {
+    const { integrationId } = req.params as { integrationId: string };
+    return res(
+      ctx.status(200),
+      ctx.json({
+        integration_id: integrationId,
+        app_type: integrationId,
+        connected: true,
+        connection_source: 'oauth_token',
+        ingestion_available: true,
+        stream_running: true,
+        records_ingested: 0,
+        last_ingested: null,
+        ingestion_status: 'active',
+      })
+    );
+  }),
+
+  rest.post('/api/integrations/:integrationId/ingestion/start', (_req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ start_attempted: true }));
+  }),
+
   // Health check endpoint
   rest.get('/api/health', (req, res, ctx) => {
     return res(

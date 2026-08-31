@@ -183,6 +183,11 @@ class AgentMarketplaceService:
                 user_id=user_id,
                 tenant_id=tenant_id,
                 status="intern",  # Marketplace agents start as internship level
+                # Status/quota consistency: tier is recomputed from
+                # confidence on every update — a declared intern needs a
+                # score inside the INTERN band (>= 0.5), or the first
+                # outcome drip would demote the install to student.
+                confidence_score=0.55,
                 configuration={
                     "marketplace_managed": True,
                     "template_id": str(template_id),

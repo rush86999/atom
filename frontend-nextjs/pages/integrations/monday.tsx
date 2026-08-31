@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import IngestionStatusPanel from "@/components/integrations/IngestionStatusPanel";
 import Head from "next/head";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import MondayIntegration from "@/components/integrations/monday/MondayIntegration";
@@ -38,6 +39,11 @@ const MondayPage: React.FC = () => {
         <title>Monday.com Integration | ATOM</title>
         <meta name="description" content="Connect Monday work OS to automate boards and items" />
       </Head>
+  {/* Memory-ingestion progress (uniform across integration pages) */}
+  <div className="p-6 pb-0 max-w-[1400px] mx-auto w-full">
+    <IngestionStatusPanel integrationId="monday" />
+  </div>
+
       <div className="p-6 max-w-5xl mx-auto">
         <Card className="mb-4">
           <CardHeader>

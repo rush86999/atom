@@ -1022,23 +1022,43 @@ class TestCanvasCrudTool:
             res4 = await delete_canvas("u-1", "c-1")
         assert res4["success"] is False
 
-    async def test_list_canvases(self):
-        audits = [
-            _audit(canvas_id="c1", action_type="update", details_json={"title": "B"},
-                   created_at=datetime(2026, 1, 4)),
-            _audit(canvas_id="c1", action_type="present", details_json={"title": "A"},
-                   created_at=datetime(2026, 1, 3)),
-            _audit(canvas_id="c2", action_type="delete", details_json={},
-                   created_at=datetime(2026, 1, 5)),
-        ]
-        db = self._db(canvas=None, all_=audits)
-        with _patch_db(db):
+    async def test_list_canvases(self, db_session):
+        # Re-contracted 2026-08-30 for the list/discovery rewrite of
+        # list_canvases (latest-per-canvas via a ROW_NUMBER() window +
+        # search/paging): the old mock query-chain no longer matches the
+        # implementation's query shape, so this runs against real
+        # CanvasAudit rows. Intent unchanged: dedupe latest-wins, deleted
+        # skipped, type filter + include_deleted.
+        import uuid as _uuid
+        from contextlib import contextmanager
+
+        from core.models import CanvasAudit
+
+        def _add(canvas_id, action_type, title, at):
+            db_session.add(CanvasAudit(
+                id=f"a-{_uuid.uuid4()}",
+                canvas_id=canvas_id, tenant_id="t-1", user_id="u-1",
+                canvas_type="docs", action_type=action_type,
+                details_json={"title": title} if title else {},
+                created_at=at,
+            ))
+
+        _add("c1", "present", "A", datetime(2026, 1, 3))
+        _add("c1", "update", "B", datetime(2026, 1, 4))
+        _add("c2", "delete", None, datetime(2026, 1, 5))
+        db_session.commit()
+
+        @contextmanager
+        def _sess():
+            yield db_session
+
+        with patch("core.database.get_db_session", _sess):
             from tools.canvas_crud_tool import list_canvases
             res = await list_canvases("u-1")
         assert res["success"] is True and res["count"] == 1
         assert res["canvases"][0]["canvas_id"] == "c1"
         assert res["canvases"][0]["title"] == "B"
-        with _patch_db(db):
+        with patch("core.database.get_db_session", _sess):
             res2 = await list_canvases("u-1", canvas_type="docs", include_deleted=True)
         assert res2["count"] == 2
 

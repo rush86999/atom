@@ -130,11 +130,14 @@ async def test_agent_learning_progression(mock_llm, fresh_db, monkeypatch):
         assert agent_model.confidence_score > 0.48
         # Since impact is low (0.01), 0.48 + 0.01 = 0.49. Still Student.
 
-        # Run again to cross hurdle
+        # Run again to cross the score hurdle — the R86b evidence gate now
+        # holds the tier at STUDENT: score drips alone must not promote
+        # (alignment fix; see _resolve_promotion). Evidence arrives via the
+        # training-session/graduation paths, not outcome hooks.
         await agent.execute("Another task")
         db.refresh(agent_model)
         assert agent_model.confidence_score >= 0.5
-        assert agent_model.status == AgentStatus.INTERN.value
+        assert agent_model.status == AgentStatus.STUDENT.value
 
     finally:
         db.query(AgentRegistry).filter(AgentRegistry.id == "learning-agent-id").delete()

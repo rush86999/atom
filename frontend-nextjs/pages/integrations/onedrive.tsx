@@ -1,4 +1,5 @@
 import React from 'react';
+import IngestionStatusPanel from "@/components/integrations/IngestionStatusPanel";
 import OneDriveIntegration from '../../components/integrations/OneDriveIntegration';
 import Head from 'next/head';
 
@@ -9,6 +10,11 @@ const OneDriveIntegrationPage: React.FC = () => {
         <title>OneDrive Integration | ATOM</title>
         <meta name="description" content="Connect and manage your OneDrive files with ATOM" />
       </Head>
+  {/* Memory-ingestion progress (uniform across integration pages) */}
+  <div className="p-6 pb-0 max-w-[1400px] mx-auto w-full">
+    <IngestionStatusPanel integrationId="onedrive" />
+  </div>
+
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">

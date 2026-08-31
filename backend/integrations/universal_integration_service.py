@@ -35,6 +35,9 @@ NATIVE_INTEGRATIONS = {
     "asana", "jira", "linear", "trello", "monday", "zoho_projects",
     # Storage & Knowledge
     "google_drive", "dropbox", "onedrive", "box", "notion", "zoho_workdrive",
+    # Forms & Automation (webhook-push apps — no public read API; the agent
+    # reads what has been ingested, see _execute_zoho)
+    "zoho_forms", "zoho_flow",
     # Support
     "zendesk", "freshdesk", "intercom",
     # Development
@@ -224,6 +227,8 @@ class UniversalIntegrationService:
             return await self._execute_finance(service, action, params, context)
         elif service == "zoho_crm":
             return await self._execute_zoho(service, action, params, context)
+        elif service in ("zoho_forms", "zoho_flow"):
+            return await self._execute_zoho(service, action, params, context)
         elif service in ("tableau", "google_analytics"):
             return await self._execute_analytics(service, action, params, context)
         elif service in ("google_reviews"):
@@ -271,6 +276,21 @@ class UniversalIntegrationService:
                     result = await self._search_project_management(service, query, context)
                 elif service in ("google_drive", "dropbox", "onedrive", "box", "notion"):
                     result = await self._search_storage(service, query, context)
+                elif service in ("zoho_forms", "zoho_flow"):
+                    # Webhook-push apps — search the ingested memory table,
+                    # there is no live provider API to query.
+                    from integrations.zoho_forms_service import ZohoFormsService
+                    from integrations.zoho_flow_service import ZohoFlowService
+
+                    svc = (ZohoFormsService if service == "zoho_forms" else ZohoFlowService)(
+                        config={"workspace_id": workspace_id}
+                    )
+                    data = (
+                        await svc.search_submissions(query)
+                        if service == "zoho_forms"
+                        else await svc.search_events(query)
+                    )
+                    result = {"status": "success", "data": data}
                 elif service in ("salesforce", "hubspot", "zoho_crm", "pipedrive"):
                     result = await self._search_crm(service, query, context)
                 elif service in ("zendesk", "freshdesk", "intercom"):
@@ -1076,7 +1096,22 @@ class UniversalIntegrationService:
             zoho_projects_service = ZohoProjectsService()
             if action == "list":
                 return {"status": "success", "data": await zoho_projects_service.get_projects(access_token, params.get("portal_id") or "")}
-        
+        elif service in ("zoho_forms", "zoho_flow"):
+            # Webhook-push apps: no live API to call — the agent reads what
+            # has been ingested into agent memory (see zoho_*_service).
+            from integrations.zoho_forms_service import ZohoFormsService
+            from integrations.zoho_flow_service import ZohoFlowService
+
+            workspace_id = context.get("workspace_id") or self.workspace_id
+            svc = (ZohoFormsService if service == "zoho_forms" else ZohoFlowService)(
+                config={"workspace_id": workspace_id}
+            )
+            if action in ("list", "list_submissions", "list_events"):
+                return {"status": "success", "data": await svc.list_submissions() if service == "zoho_forms" else await svc.list_events()}
+            if action in ("search", "search_submissions", "search_events"):
+                data = await svc.search_submissions(params.get("query", "")) if service == "zoho_forms" else await svc.search_events(params.get("query", ""))
+                return {"status": "success", "data": data}
+
         return {"status": "success", "message": f"Routed to {service} handler (default zoho)"}
 
     async def _search_crm(self, service: str, query: str, context: Dict[str, Any]) -> List[Dict]:

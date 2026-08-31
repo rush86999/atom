@@ -79,6 +79,67 @@ class SendEmailRequest(BaseModel):
     agent_id: Optional[str] = None
 
 
+class SetSignatureRequest(BaseModel):
+    signature: str
+
+
+@router.get("/signature")
+async def get_email_signature(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The composer's default signature: a stored app override, else the
+    connected integration's default (recovered from sent mail). signature
+    is null when neither exists."""
+    service = EmailCanvasService(db)
+    return await service.get_signature(str(current_user.id))
+
+
+@router.put("/signature")
+async def set_email_signature(
+    request: SetSignatureRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Store (or clear, on empty) the signature override. Emptying it falls
+    the composer back to the integration-derived default."""
+    service = EmailCanvasService(db)
+    return service.set_signature(str(current_user.id), request.signature)
+
+
+@router.get("/resolve-reply")
+async def resolve_reply_recipients(
+    subject: str = "",
+    body: str = "",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Prefill To/Cc for a reply draft: locate the original thread by its
+    prefix-stripped subject (the draft body's greeting is used as a
+    secondary signal when the subject was agent-invented). Returns to=None
+    (never errors) when no thread matches or no mailbox is connected."""
+    service = EmailCanvasService(db)
+    return await service.resolve_reply_recipients(
+        str(current_user.id), subject, body_hint=(body or "")[:500]
+    )
+
+
+@router.get("/contacts")
+async def search_email_contacts(
+    q: str = "",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Recipient suggestions for the composer's To/Cc autocomplete.
+
+    Backed by the connected mailbox's address book (the same account Send
+    dispatches through). Returns an empty list — never an error — when no
+    mailbox is connected, so the composer degrades to plain free-text.
+    """
+    service = EmailCanvasService(db)
+    return await service.suggest_contacts(str(current_user.id), query=q)
+
+
 @router.post("/send")
 async def send_email_canvas(
     request: SendEmailRequest,

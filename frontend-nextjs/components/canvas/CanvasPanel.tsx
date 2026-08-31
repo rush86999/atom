@@ -6,12 +6,16 @@ import { marked } from "marked";
 import { renderMarkdownSafe } from "@/lib/sanitize";
 import Editor from "@monaco-editor/react";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
+import { useCanvasAutosave } from "@/hooks/useCanvasAutosave";
 import { CANVAS } from "@/src/lib/testIds";
 import { LineChartCanvas } from "@/components/canvas/LineChart";
 import { BarChartCanvas } from "@/components/canvas/BarChart";
 import { PieChartCanvas } from "@/components/canvas/PieChart";
 import { InteractiveForm } from "@/components/canvas/InteractiveForm";
 import { OfficeFileCanvas } from "@/components/canvas/OfficeFileCanvas";
+import { EmailRecipientField } from "@/components/canvas/EmailRecipientField";
+import { CanvasTypeBadge } from "@/components/canvas/CanvasTypeBadge";
+import { persistCanvasTypeSwitch, switchCanvasType, type SwitchableCanvasType } from "@/components/canvas/canvasType";
 
 interface CanvasState {
     id?: string;
@@ -31,9 +35,70 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const localContentRef = useRef<string>("");
-    const [emailMetadata, setEmailMetadata] = useState({ to: "", subject: "" });
+    // The detail page rebuilds its synthetic lastMessage object on every
+    // render — without this key, each re-render (e.g. sending a co-editor
+    // chat message) re-ran the effect below and reverted unsaved edits.
+    const lastPayloadKeyRef = useRef<string>("");
+    // Reply auto-fill runs once per distinct canvas payload (guarded so
+    // re-renders and user edits never re-trigger the lookup).
+    const replyResolveRef = useRef<string>("");
+    // Signature (`component|content`) of the most recent successful save.
+    // PUT /api/canvas/{id} broadcasts the saved content back to this same
+    // user over WS; comparing incoming payloads against this lets the
+    // effect skip that echo instead of resetting the editor to the saved
+    // snapshot (which would drop any keystrokes typed after the autosave
+    // fired). Keyed on component too — a type switch can preserve the text,
+    // and that broadcast must still apply.
+    const lastSavedSigRef = useRef<string | null>(null);
+    const [emailMetadata, setEmailMetadata] = useState({ to: "", cc: "", subject: "" });
+    // Email composer body is panel-managed (not read straight from the
+    // payload) so signature insertion and edits are one source of truth.
+    const [emailBody, setEmailBody] = useState("");
+    // Default signature: stored override, else the integration's default.
+    const [emailSignature, setEmailSignature] = useState<string | null>(null);
+    const [signatureSource, setSignatureSource] = useState<string | null>(null);
+    const [signatureOpen, setSignatureOpen] = useState(false);
+    const signatureFetchedRef = useRef(false);
     const [sheetData, setSheetData] = useState<any[][]>([]);
     const [showPreview, setShowPreview] = useState(false);
+
+    // A trailing sign-off (agent-typed or integration default) means the
+    // body already carries a signature — never double-append.
+    const hasSignoff = (body: string, sig: string | null): boolean => {
+        if (!body) return false;
+        if (sig && body.includes(sig)) return true;
+        return /(?:best regards|warm regards|kind regards|regards|sincerely|thank you|thanks|cheers|respectfully)\s*,?\s*(?:\n|$)/im.test(body.slice(-400));
+    };
+
+    const applySignature = (sig: string) => {
+        setEmailBody((prev) => {
+            const next = hasSignoff(prev, sig) ? prev : `${prev.replace(/\s+$/, "")}\n\n${sig}`;
+            localContentRef.current = next;
+            return next;
+        });
+    };
+
+    // Fetch the default signature once per composer mount; when it lands,
+    // append it to a body that doesn't already carry a sign-off.
+    useEffect(() => {
+        if (state?.component !== "email" || signatureFetchedRef.current) return;
+        signatureFetchedRef.current = true;
+        (async () => {
+            try {
+                const { apiClient } = await import("@/lib/api");
+                const res = await apiClient.get("/api/canvas/email/signature");
+                const data = (res as any).data || res || {};
+                if (typeof data.signature === "string" && data.signature.trim()) {
+                    setEmailSignature(data.signature);
+                    setSignatureSource(data.source || null);
+                    applySignature(data.signature);
+                }
+            } catch {
+                // No signature configured — nothing to append.
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state?.component]);
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -46,9 +111,38 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
             const { action, component, data, title, id, canvas_id, version, metadata } = lastMessage.data || lastMessage;
 
             if (action === "close") {
+                // Closing supersedes local edits — drop any pending autosave
+                // so its timer can't write afterwards.
+                resetAutosave();
                 setState(null);
             } else {
-                const content = typeof data === 'string' ? data : ((data?.content as string) || JSON.stringify(data ?? {}, null, 2));
+                const content = typeof data === 'string'
+                    ? data
+                    // Email canvases carry the composer body under data.body;
+                    // stringifying the {to, subject, body} object made Send
+                    // dispatch JSON instead of the drafted text.
+                    : (component === 'email' && typeof data?.body === 'string'
+                        ? data.body
+                        : ((data?.content as string) || JSON.stringify(data ?? {}, null, 2)));
+
+                const payloadKey = `${canvas_id || id || ""}|${component || ""}|${version ?? ""}|${content}`;
+                if (payloadKey === lastPayloadKeyRef.current) return;
+                lastPayloadKeyRef.current = payloadKey;
+
+                // Autosave echo-guard: PUT /api/canvas/{id} (the email save
+                // path) broadcasts the just-saved content back over WS.
+                // Applying that echo verbatim would reset the editor to the
+                // saved snapshot and drop any keystrokes typed after the
+                // autosave fired — skip it; local state stays authoritative.
+                if (lastSavedSigRef.current !== null && `${component || ""}|${content}` === lastSavedSigRef.current) {
+                    return;
+                }
+
+                // A genuinely new payload supersedes local edits — drop any
+                // pending autosave so its timer can't fire afterwards and
+                // re-write the superseded content.
+                resetAutosave();
+
                 localContentRef.current = content;
 
                 setState({
@@ -60,8 +154,49 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                     version
                 });
 
-                if (component === "email" && metadata) {
-                    setEmailMetadata({ to: metadata.to || "", subject: metadata.subject || "" });
+                if (component === "email") {
+                    setEmailBody(content);
+                    // Signature may already be loaded (later payloads on the
+                    // same mount) — apply immediately to the fresh body.
+                    if (emailSignature) applySignature(emailSignature);
+                }
+
+                if (component === "email") {
+                    // To/Cc/Subject ride in `metadata` on the present flow
+                    // and in `data` on update broadcasts / detail-page reads.
+                    const to = (typeof data?.to === "string" ? data.to : "") || metadata?.to || "";
+                    const cc = (typeof data?.cc === "string" ? data.cc : "") || metadata?.cc || "";
+                    const subject = (typeof data?.subject === "string" ? data.subject : "") || metadata?.subject || "";
+                    setEmailMetadata({ to, cc, subject });
+
+                    // Reply auto-fill: a Re:/Fw: subject with no recipient
+                    // yet resolves the original thread from the mailbox and
+                    // prefills To (+Cc). Best-effort, once per payload, and
+                    // never overwrites something the user already typed.
+                    if (!to.trim() && /^(re|fw|fwd)\s*:/i.test(subject) && replyResolveRef.current !== payloadKey) {
+                        replyResolveRef.current = payloadKey;
+                        (async () => {
+                            try {
+                                const { apiClient } = await import("@/lib/api");
+                                // The body's greeting is the secondary
+                                // signal when the subject was invented.
+                                const res = await apiClient.get(
+                                    `/api/canvas/email/resolve-reply?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(content.slice(0, 500))}`
+                                );
+                                const resolved = (res as any).data || res || {};
+                                if (resolved?.to) {
+                                    setEmailMetadata((prev) => ({
+                                        ...prev,
+                                        to: prev.to.trim() ? prev.to : String(resolved.to),
+                                        cc: prev.cc.trim() ? prev.cc : String(resolved.cc || ""),
+                                    }));
+                                }
+                            } catch {
+                                // No mailbox / no thread match — the field
+                                // stays free-text with autocomplete.
+                            }
+                        })();
+                    }
                 }
 
                 if (component === "sheet") {
@@ -73,9 +208,37 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
         }
     }, [lastMessage]);
 
-    const handleSave = async () => {
-        if (!state) return;
+    // Returns true on success / false on failure — the autosave hook keys
+    // its retry + status logic off this result.
+    const handleSave = async (): Promise<boolean> => {
+        if (!state) return false;
         setIsSaving(true);
+
+        // Email drafts persist through the canvas audit trail (the store
+        // /canvas/{id} reads) — the legacy artifacts path never carried
+        // To/Cc/Subject back into the page's read, so a refresh lost them.
+        if (state.component === "email" && state.id) {
+            try {
+                const { apiClient } = await import("@/lib/api");
+                await apiClient.put(
+                    `/api/canvas/${state.id}?canvas_type=email&title=${encodeURIComponent(state.title || "")}`,
+                    {
+                        to: emailMetadata.to,
+                        cc: emailMetadata.cc,
+                        subject: emailMetadata.subject,
+                        body: localContentRef.current || "",
+                    }
+                );
+                setHasUnsavedChanges(false);
+                lastSavedSigRef.current = `email|${localContentRef.current || ""}`;
+                return true;
+            } catch (error) {
+                console.error("Error saving email canvas:", error);
+                return false;
+            } finally {
+                setIsSaving(false);
+            }
+        }
 
         const payload: any = {
             id: state.id,
@@ -85,42 +248,72 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
             session_id: (lastMessage as any)?.sessionId
         };
 
-        if (state.component === "email") {
-            payload.metadata = emailMetadata;
-        } else if (state.component === "sheet") {
+        if (state.component === "sheet") {
             payload.content = JSON.stringify(sheetData);
         }
 
         try {
             const endpoint = state.id ? "/api/artifacts/update" : "/api/artifacts";
+            const body = JSON.stringify(payload);
+            // keepalive lets a beforeunload flush survive navigation; the
+            // browser caps keepalive bodies at 64KB, so opt in only below.
             const response = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body,
+                keepalive: body.length < 60000
             });
 
             if (response.ok) {
                 const updated = await response.json();
                 setState(prev => prev ? { ...prev, id: updated.id, version: updated.version } : null);
                 setHasUnsavedChanges(false);
+                lastSavedSigRef.current = `${state.component}|${payload.content}`;
+                return true;
             }
+            return false;
         } catch (error) {
             console.error("Error saving artifact:", error);
+            return false;
         } finally {
             setIsSaving(false);
         }
     };
 
+    // ─── Auto-save ───
+    // Every edit calls scheduleAutosave(); when the user pauses for 3s the
+    // same handleSave the manual button uses runs. Idle-debounced (not
+    // interval) because each save appends a version/audit row server-side.
+    // resetAutosave is referenced by the payload effect above through this
+    // closure — the callbacks are stable across renders.
+    const {
+        status: autosaveStatus,
+        schedule: scheduleAutosave,
+        flush: flushAutosave,
+        reset: resetAutosave,
+    } = useCanvasAutosave({ save: handleSave });
+
+    // To/Cc accept comma-separated lists (the autocomplete inserts them);
+    // the send endpoint takes arrays.
+    const splitRecipients = (raw: string): string[] =>
+        raw.split(",").map((s) => s.trim()).filter(Boolean);
+
     const handleSendEmail = async () => {
         // Explicit confirm before dispatch — the send endpoint treats the
         // human click as policy authorization for allow/approve decisions,
         // so it should be a deliberate act, not a single accidental click.
-        if (!window.confirm(`Send email to ${emailMetadata.to}?`)) return;
+        const to = splitRecipients(emailMetadata.to);
+        const cc = splitRecipients(emailMetadata.cc);
+        if (to.length === 0) {
+            alert("Add at least one recipient in the To field before sending.");
+            return;
+        }
+        if (!window.confirm(`Send email to ${to.join(", ")}${cc.length ? `\nCc: ${cc.join(", ")}` : ""}?`)) return;
         try {
             const { apiClient } = await import("@/lib/api");
             const res = await apiClient.post("/api/canvas/email/send", {
-                to: [emailMetadata.to].filter(Boolean),
-                cc: [],
+                to,
+                cc,
                 subject: emailMetadata.subject || "",
                 body: localContentRef.current || "",
                 canvas_id: state?.id || undefined,
@@ -133,6 +326,45 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
             }
         } catch (e: any) {
             alert(`Send failed: ${e?.response?.data?.message || e?.message || "unknown error"}`);
+        }
+    };
+
+    // Manual retype — the escape hatch when the agent-chat classifier picked
+    // the wrong canvas type. Converts the content into the target's shape,
+    // swaps the rendered component, and persists a pinned audit row so the
+    // choice survives reloads and read-time coercion. Note: lastPayloadKeyRef
+    // is deliberately NOT updated — the switch isn't a payload delivery, and
+    // the guard must keep absorbing stale re-deliveries of the old payload
+    // until the PUT's WS broadcast lands with the new type.
+    const handleTypeSwitch = (target: SwitchableCanvasType) => {
+        if (!state) return;
+        const conversion = switchCanvasType(target, {
+            component: state.component,
+            data: state.data,
+            text: localContentRef.current,
+            email: emailMetadata,
+            sheet: sheetData,
+            title: state.title,
+        });
+
+        setState({ ...state, component: conversion.component, data: conversion.data });
+        localContentRef.current = conversion.text;
+        setEmailBody(conversion.component === "email" ? conversion.text : "");
+        setEmailMetadata({ to: conversion.email.to, cc: conversion.email.cc, subject: conversion.email.subject });
+        setSheetData(conversion.sheet);
+        setSignatureOpen(false);
+        setShowPreview(false);
+        setHasUnsavedChanges(!state.id);
+        // The switch persists itself (or intentionally stays unsaved until
+        // an id exists) — a pending autosave would only re-write what
+        // persistCanvasTypeSwitch just stored.
+        resetAutosave();
+
+        if (state.id) {
+            persistCanvasTypeSwitch(state.id, conversion, state.title).catch((e) => {
+                console.error("Failed to persist canvas type change:", e);
+                setHasUnsavedChanges(true);
+            });
         }
     };
 
@@ -155,6 +387,7 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                 return {
                     type: "email" as const,
                     to: emailMetadata.to,
+                    cc: emailMetadata.cc,
                     subject: emailMetadata.subject,
                     body: localContentRef.current,
                     draft: hasUnsavedChanges,
@@ -234,7 +467,11 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
 
     return (
         <div data-testid={CANVAS.CONTAINER} className="flex flex-col h-full bg-white dark:bg-[#020617] relative animate-in fade-in duration-500 overflow-hidden">
-            <div className="p-3 border-b flex items-center justify-between bg-zinc-50 dark:bg-slate-900/50 backdrop-blur-sm shrink-0">
+            {/* Header needs z-30: backdrop-blur-sm creates a stacking
+                context, so without it the popover menus opened from this bar
+                (✎ Sig, type switcher) paint UNDER the content area below,
+                which is position:relative and later in DOM order. */}
+            <div className="p-3 border-b flex items-center justify-between bg-zinc-50 dark:bg-slate-900/50 backdrop-blur-sm shrink-0 relative z-30">
                 <div className="flex items-center gap-2">
                     <CanvasIcon component={state.component} />
                     <div className="flex flex-col">
@@ -245,13 +482,62 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                             {state.version && (
                                 <span className="text-[10px] text-zinc-500 font-mono">v{state.version}</span>
                             )}
-                            <span data-testid={`${CANVAS.TYPE_PREFIX}${state.component}`} className="text-[8px] h-3.5 px-1 uppercase bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-500 flex items-center rounded">
-                                {state.component}
-                            </span>
+                            <CanvasTypeBadge
+                                component={state.component}
+                                onSwitch={handleTypeSwitch}
+                            />
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {state.component === "email" && (
+                        <div className="relative">
+                            <button
+                                onClick={() => setSignatureOpen(!signatureOpen)}
+                                title="Default email signature"
+                                data-testid="canvas-signature-button"
+                                className="h-8 px-3 rounded border border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-300 text-[11px] font-medium transition-colors flex items-center gap-1.5"
+                            >
+                                ✎ Sig
+                            </button>
+                            {signatureOpen && (
+                                <div className="absolute right-0 top-full mt-1 z-30 w-80 bg-white dark:bg-[#1e293b] border border-zinc-200 dark:border-white/10 rounded-lg shadow-lg p-3 space-y-2">
+                                    <p className="text-[10px] text-zinc-500" data-testid="canvas-signature-source">
+                                        Default signature — {signatureSource === "stored" ? "custom (overrides the integration default)" : "from your Outlook sent mail"}
+                                    </p>
+                                    <textarea
+                                        data-testid="canvas-signature-editor"
+                                        value={emailSignature ?? ""}
+                                        onChange={(e) => { setEmailSignature(e.target.value); setSignatureSource("stored"); }}
+                                        rows={5}
+                                        placeholder="Best regards,&#10;Your Name"
+                                        className="w-full text-xs bg-transparent border border-zinc-200 dark:border-white/10 rounded p-2 text-zinc-900 dark:text-zinc-100 focus:ring-0 outline-none"
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const { apiClient } = await import("@/lib/api");
+                                                    await apiClient.put("/api/canvas/email/signature", { signature: emailSignature ?? "" });
+                                                    setSignatureOpen(false);
+                                                } catch { /* keep the popover open on failure */ }
+                                            }}
+                                            data-testid="canvas-signature-save"
+                                            className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px]"
+                                        >
+                                            Save as default
+                                        </button>
+                                        <button
+                                            onClick={() => { if (emailSignature?.trim()) applySignature(emailSignature); setSignatureOpen(false); }}
+                                            className="px-2 py-1 rounded border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-300 text-[11px]"
+                                        >
+                                            Insert into email
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     {state.component === "email" && (
                         <button
                             onClick={handleSendEmail}
@@ -262,11 +548,11 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                     )}
                     {(hasUnsavedChanges || state.component === 'sheet') && (
                         <button
-                            onClick={handleSave}
-                            disabled={isSaving}
+                            onClick={() => { void flushAutosave({ force: true }); }}
+                            disabled={isSaving || autosaveStatus === "saving"}
                             className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-medium transition-colors disabled:opacity-50"
                         >
-                            {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                            {isSaving || autosaveStatus === "saving" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                             Save Changes
                         </button>
                     )}
@@ -288,14 +574,17 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                     canvasId={state.id}
                     canvasTitle={state.title}
                     emailMetadata={emailMetadata}
-                    setEmailMetadata={(m) => { setEmailMetadata(m); setHasUnsavedChanges(true); }}
+                    setEmailMetadata={(m) => { setEmailMetadata(m); setHasUnsavedChanges(true); scheduleAutosave(); }}
+                    emailBody={emailBody}
+                    onEmailBodyChange={(v) => { setEmailBody(v); localContentRef.current = v; setHasUnsavedChanges(true); scheduleAutosave(); }}
                     sheetData={sheetData}
-                    setSheetData={(d) => { setSheetData(d); setHasUnsavedChanges(true); }}
+                    setSheetData={(d) => { setSheetData(d); setHasUnsavedChanges(true); scheduleAutosave(); }}
                     showPreview={showPreview}
                     setShowPreview={setShowPreview}
                     onContentChange={(val) => {
                         localContentRef.current = val;
                         setHasUnsavedChanges(true);
+                        scheduleAutosave();
                     }}
                 />
             </div>
@@ -314,10 +603,28 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                         </button>
                     )}
                 </div>
-                {!hasUnsavedChanges && state.id && (
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                        <Check className="h-3 w-3" /> Synced to cloud
-                    </span>
+                {state.id && (
+                    autosaveStatus === "saving" ? (
+                        <span data-testid="canvas-autosave-status" className="text-[10px] text-zinc-500 flex items-center gap-1 font-medium">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+                        </span>
+                    ) : autosaveStatus === "error" ? (
+                        <span
+                            data-testid="canvas-autosave-status"
+                            className="text-[10px] text-amber-600 dark:text-amber-400 font-medium"
+                            title="Auto-save failed. Your edits are kept here — click Save Changes to retry."
+                        >
+                            ⚠ Auto-save failed
+                        </span>
+                    ) : autosaveStatus === "pending" ? (
+                        <span data-testid="canvas-autosave-status" className="text-[10px] text-zinc-500 flex items-center gap-1 font-medium">
+                            Unsaved changes — auto-saving…
+                        </span>
+                    ) : (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                            <Check className="h-3 w-3" /> Synced to cloud
+                        </span>
+                    )
                 )}
             </div>
         </div>
@@ -360,6 +667,8 @@ function CanvasContent({
     canvasTitle,
     emailMetadata,
     setEmailMetadata,
+    emailBody,
+    onEmailBodyChange,
     sheetData,
     setSheetData,
     showPreview,
@@ -372,6 +681,8 @@ function CanvasContent({
     canvasTitle?: string;
     emailMetadata: any;
     setEmailMetadata: (m: any) => void;
+    emailBody: string;
+    onEmailBodyChange: (v: string) => void;
     sheetData: any[][];
     setSheetData: (d: any[][]) => void;
     showPreview: boolean;
@@ -441,16 +752,20 @@ function CanvasContent({
             return (
                 <div className="flex flex-col h-full bg-white dark:bg-[#0F172A]">
                     <div className="p-4 border-b border-zinc-100 dark:border-white/5 space-y-3 bg-zinc-50/50 dark:bg-black/20">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-zinc-400 w-12 font-bold uppercase tracking-wider">To:</span>
-                            <input
-                                type="text"
-                                value={emailMetadata.to}
-                                onChange={(e) => setEmailMetadata({ ...emailMetadata, to: e.target.value })}
-                                className="flex-1 bg-transparent border-none text-zinc-900 dark:text-zinc-200 text-sm focus:ring-0 placeholder:text-zinc-300"
-                                placeholder="recipient@example.com"
-                            />
-                        </div>
+                        <EmailRecipientField
+                            label="To:"
+                            value={emailMetadata.to}
+                            onChange={(to) => setEmailMetadata({ ...emailMetadata, to })}
+                            placeholder="recipient@example.com"
+                            testId="canvas-email-to"
+                        />
+                        <EmailRecipientField
+                            label="Cc:"
+                            value={emailMetadata.cc}
+                            onChange={(cc) => setEmailMetadata({ ...emailMetadata, cc })}
+                            placeholder="cc@example.com"
+                            testId="canvas-email-cc"
+                        />
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] text-zinc-400 w-12 font-bold uppercase tracking-wider">Sub:</span>
                             <input
@@ -467,8 +782,8 @@ function CanvasContent({
                             height="100%"
                             defaultLanguage="markdown"
                             theme="vs-dark"
-                            value={typeof data === "string" ? data : (data.body || data.content || JSON.stringify(data, null, 2))}
-                            onChange={(val) => onContentChange(val || "")}
+                            value={emailBody}
+                            onChange={(val) => onEmailBodyChange(val || "")}
                             options={{
                                 minimap: { enabled: false },
                                 fontSize: 13,

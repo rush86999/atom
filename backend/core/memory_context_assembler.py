@@ -778,16 +778,21 @@ async def assemble_memory_context(
         if not blocks:
             return None
 
-        body = "\n\n".join(blocks)
-        if len(body) > TOTAL_CHAR_BUDGET:
-            body = body[:TOTAL_CHAR_BUDGET] + "…"
-        return (
+        header = (
             "RELEVANT MEMORY (auto-retrieved background from ingested data — NOT "
             "from this conversation; may be incomplete or stale. When the user "
             "refers to something said in this conversation, the transcript "
             "always takes precedence over these snippets. Verify before acting "
-            "on specifics):\n\n" + body
+            "on specifics):\n\n"
         )
+        body = "\n\n".join(blocks)
+        # The header rides inside the budget: trimming only the body and
+        # prepending the ~280-char preamble afterwards made the final block
+        # exceed TOTAL_CHAR_BUDGET on every saturated assembly.
+        body_budget = TOTAL_CHAR_BUDGET - len(header)
+        if len(body) > body_budget:
+            body = body[:body_budget] + "…"
+        return header + body
     except Exception as e:
         logger.info(f"memory assembler: assembly failed cleanly: {e}")
         return None

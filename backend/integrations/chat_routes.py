@@ -2,6 +2,7 @@
 Chat Routes - API endpoints for the ATOM chat interface
 """
 import logging
+import re
 import os
 from datetime import datetime, timezone
 
@@ -49,6 +50,109 @@ def _is_legacy_placeholder_owner(owner: Optional[str]) -> bool:
         or not str(owner).strip()
         or str(owner) in LEGACY_PLACEHOLDER_USER_IDS
     )
+
+
+def _resolve_canvas_agent_id(canvas_id: str, tenant_id: Optional[str]) -> Optional[str]:
+    """Which hire works this canvas? Resolution mirrors the training panel's
+    provenance order (api/agent_maturity_routes.get_canvas_training_context):
+    the per-canvas context binding first, then canvas audit provenance. Only
+    returns agents that still exist in the registry. Fault-isolated.
+    """
+    if not canvas_id:
+        return None
+    try:
+        from core.database import get_db_session
+        from core.models import AgentRegistry, CanvasAudit, CanvasContext
+        from sqlalchemy import desc
+
+        with get_db_session() as db:
+            ctx = (
+                db.query(CanvasContext)
+                .filter(CanvasContext.canvas_id == canvas_id)
+                .first()
+            )
+            candidates: list = []
+            if ctx is not None and ctx.agent_id:
+                candidates.append(ctx.agent_id)
+            # Several audit rows can share a created_at timestamp (same
+            # commit) — collect a handful of distinct agent ids, don't bet
+            # the resolution on tie-broken ordering.
+            for (audit_agent,) in (
+                db.query(CanvasAudit.agent_id)
+                .filter(
+                    CanvasAudit.canvas_id == canvas_id,
+                    CanvasAudit.agent_id.isnot(None),
+                )
+                .order_by(desc(CanvasAudit.created_at))
+                .limit(5)
+                .all()
+            ):
+                if audit_agent and audit_agent not in candidates:
+                    candidates.append(audit_agent)
+            for agent_id in candidates:
+                agent = (
+                    db.query(AgentRegistry)
+                    .filter(AgentRegistry.id == agent_id)
+                    .first()
+                )
+                if agent is not None:
+                    return agent.id
+        return None
+    except Exception as e:
+        logger.debug(f"canvas agent resolution skipped: {e}")
+        return None
+
+
+def _bind_canvas_chat_session(
+    canvas_id: Optional[str],
+    canvas_type: str,
+    user_id: str,
+    tenant_id: Optional[str],
+    agent_id: Optional[str],
+    session_id: Optional[str],
+) -> bool:
+    """Record which chat conversation is serving a canvas's co-editor panel.
+
+    Stored in the canvas's per-user context row (CanvasContext.current_state
+    under ``chat_session_id``) so the /canvas/{id} panel can reattach to the
+    same thread on ANY device — a localStorage pointer only ever worked in the
+    browser that wrote it. Latest turn wins, mirroring the panel's own
+    behavior. Fault-isolated: a binding failure never breaks the chat turn.
+    """
+    if not canvas_id or not session_id or session_id in ("new", "unknown"):
+        return False
+    try:
+        from core.database import get_db_session
+        from core.service_factory import ServiceFactory
+
+        with get_db_session() as db:
+            service = ServiceFactory.get_canvas_context_service(
+                db, tenant_id=tenant_id
+            )
+            context = service.get_or_create_context(
+                canvas_id=str(canvas_id),
+                canvas_type=canvas_type or "generic",
+                user_id=user_id,
+                agent_id=agent_id,
+            )
+            # get_or_create only sets agent_id at CREATION: a canvas bound
+            # before it had a hire keeps None forever. Stamp the resolved
+            # agent so training-context resolution and the correction loop
+            # (record_user_correction reads context.agent_id) see the hire.
+            if agent_id and context.agent_id != agent_id:
+                context.agent_id = agent_id
+                db.commit()
+            return bool(service.update_state(
+                canvas_id=str(canvas_id),
+                user_id=user_id,
+                state_update={"chat_session_id": str(session_id)},
+            ))
+    except Exception as e:
+        # Warning, not debug: a binding that silently never persists looks
+        # exactly like "panel history doesn't survive refresh" (e.g. a
+        # production install whose migrations lack canvas_contexts).
+        logger.warning(f"canvas chat-session binding skipped: {e}")
+        return False
 
 
 def _persist_session_rebind(session_id: str, user_id: str) -> bool:
@@ -318,29 +422,41 @@ async def get_chat_history(
             )
             raise HTTPException(status_code=403, detail="Access denied")
 
-        history = session.get("history", [])
+        # The durable store is authoritative: read SQL rows first (they carry
+        # real message ids the fork-from-here journey needs), in the same
+        # order hydration uses. In-memory history is a legacy fallback.
+        history: list = []
+        try:
+            from core.database import get_db_session
+            from core.models import ChatMessage as ChatMessageModel
+            with get_db_session() as db:
+                rows = (
+                    db.query(ChatMessageModel)
+                    .filter(ChatMessageModel.conversation_id == session_id)
+                    .order_by(
+                        ChatMessageModel.created_at.asc(),
+                        ChatMessageModel.role.desc(),
+                    )
+                    .all()
+                )
+                history = [
+                    {
+                        "id": row.id,
+                        "role": row.role,
+                        "message": row.content if row.role == "user" else None,
+                        "response": {"message": row.content} if row.role == "assistant" else None,
+                        "timestamp": row.created_at.isoformat() if row.created_at else None,
+                    }
+                    for row in rows
+                ]
+                if history:
+                    logger.info(
+                        f"Loaded {len(history)} messages from DB for session {session_id}"
+                    )
+        except Exception as db_err:
+            logger.warning(f"Could not load history from DB: {db_err}")
         if not history:
-            try:
-                from core.database import get_db_session
-                from core.models import ChatMessage as ChatMessageModel
-                with get_db_session() as db:
-                    rows = db.query(ChatMessageModel).filter(
-                        ChatMessageModel.conversation_id == session_id
-                    ).order_by(ChatMessageModel.created_at).all()
-                    history = [
-                        {
-                            "message": row.content if row.role == "user" else None,
-                            "response": {"message": row.content} if row.role == "assistant" else None,
-                            "timestamp": row.created_at.isoformat() if row.created_at else None,
-                        }
-                        for row in rows
-                    ]
-                    if history:
-                        logger.info(
-                            f"Loaded {len(history)} messages from DB for session {session_id}"
-                        )
-            except Exception as db_err:
-                logger.warning(f"Could not load history from DB: {db_err}")
+            history = session.get("history", [])
 
         return ChatHistoryResponse(
             session_id=session_id,
@@ -468,6 +584,129 @@ async def get_user_sessions(
     except Exception as e:
         logger.error(f"Failed to retrieve user sessions: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve user sessions")
+
+
+class ForkSessionRequest(BaseModel):
+    """Fork a chat session ("fork from here" when up_to_message_id is set)."""
+    up_to_message_id: Optional[str] = Field(
+        None,
+        description="Copy the conversation up to and including this message id",
+    )
+
+
+@router.post("/sessions/{session_id}/fork")
+async def fork_chat_session(
+    session_id: str,
+    payload: Optional[ForkSessionRequest] = None,
+    db: _Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """
+    Fork a chat session: create a new session owned by the same user and copy
+    the SQL-persisted conversation into it, so the user can branch without
+    polluting the original. Optionally pass up_to_message_id to fork from a
+    specific point in the conversation ("fork from here"). External
+    channel/thread bindings are NOT inherited — a fork is a fresh local
+    conversation.
+    """
+    import uuid as _uuid
+    from core.models import ChatMessage as ChatMessageModel
+    from core.models import ChatSession as ChatSessionModel
+
+    up_to_message_id = payload.up_to_message_id if payload else None
+
+    # Same ownership gate as /history: unknown sessions lazy-initialize for
+    # the caller, known ones must belong to them.
+    if session_id not in chat_orchestrator.conversation_sessions:
+        session = chat_orchestrator._get_or_create_session(str(current_user.id), session_id)
+    else:
+        session = chat_orchestrator.conversation_sessions[session_id]
+    if not _ensure_session_access(session, current_user):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        # Chronological order matches history hydration exactly.
+        rows = (
+            db.query(ChatMessageModel)
+            .filter(ChatMessageModel.conversation_id == session_id)
+            .order_by(
+                ChatMessageModel.created_at.asc(),
+                ChatMessageModel.role.desc(),
+            )
+            .all()
+        )
+        if not rows:
+            return {"success": False, "error": "Session not found"}
+
+        if up_to_message_id:
+            idx = next((i for i, r in enumerate(rows) if r.id == up_to_message_id), None)
+            if idx is None:
+                return {
+                    "success": False,
+                    "error": f"up_to_message_id {up_to_message_id} not found in session",
+                }
+            rows = rows[: idx + 1]
+
+        source_row = (
+            db.query(ChatSessionModel)
+            .filter(ChatSessionModel.id == session_id)
+            .first()
+        )
+        tenant_id = getattr(source_row, "tenant_id", None) or "default"
+        source_title = (source_row.title if source_row else None) or session.get("title") or "Chat"
+
+        fork_id = str(_uuid.uuid4())
+        forked_at = datetime.now(timezone.utc).isoformat()
+        fork_session_row = ChatSessionModel(
+            id=fork_id,
+            user_id=str(current_user.id),
+            title=f"Fork: {source_title}",
+            # Lineage on the row; channel/thread bindings deliberately
+            # not inherited (external replies keep routing to the original).
+            metadata_json={
+                "forked_from": session_id,
+                "forked_at": forked_at,
+            },
+            message_count=len(rows),
+        )
+        db.add(fork_session_row)
+
+        copied = 0
+        for row in rows:
+            try:
+                db.add(ChatMessageModel(
+                    id=str(_uuid.uuid4()),
+                    conversation_id=fork_id,
+                    tenant_id=row.tenant_id or tenant_id,
+                    role=row.role,
+                    content=row.content,
+                    agent_id=row.agent_id,
+                    metadata_json=row.metadata_json,
+                ))
+                copied += 1
+            except Exception as row_err:
+                logger.warning(
+                    f"Failed to copy message {row.id} into fork {fork_id}: {row_err}"
+                )
+        db.commit()
+
+        # Register the fork in the in-memory store so the sidebar lists it
+        # immediately and history loads without a lazy-init round trip.
+        chat_orchestrator._get_or_create_session(str(current_user.id), fork_id)
+
+        return {
+            "success": True,
+            "session_id": fork_id,
+            "forked_from": session_id,
+            "messages_copied": copied,
+            "title": f"Fork: {source_title}",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fork chat session {session_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fork chat session")
 
 
 @router.get("/health")
@@ -691,6 +930,27 @@ async def send_chat_message(
         from core.chat_session_context import set_chat_context, reset_chat_context
 
         logger.info(f"[CHATCTX] request.agent_id={getattr(request, 'agent_id', None)!r} context={request.context!r}")
+
+        # Canvas co-editor identity: a canvas SHOULD be worked by an agent
+        # (the AI-employee model), not the anonymous platform assistant. When
+        # the client didn't name one, resolve the canvas's own hire the same
+        # way the training panel does — the per-canvas context binding first,
+        # then canvas provenance (audit rows carry the creating/editing
+        # agent). Everything downstream (persona, role-scoped memory, tier
+        # behavior, audit attribution, learning loop) keys off agent_id.
+        _canvas_id_for_agent = (request.context or {}).get("canvas_id")
+        if not getattr(request, "agent_id", None) and _canvas_id_for_agent:
+            _resolved = _resolve_canvas_agent_id(
+                str(_canvas_id_for_agent),
+                tenant_id=getattr(current_user, "tenant_id", None),
+            )
+            if _resolved:
+                request.agent_id = _resolved
+                logger.info(
+                    f"[CHATCTX] canvas {_canvas_id_for_agent} resolved agent "
+                    f"{_resolved} — co-editor turn runs as the canvas's hire"
+                )
+
         context_with_agent = {
             **(request.context or {}),
             "agent_id": getattr(request, "agent_id", None)
@@ -707,6 +967,21 @@ async def send_chat_message(
             )
         finally:
             reset_chat_context(_ctx_tokens)
+
+        # Canvas co-editor binding (DB-backed): when the turn ran against an
+        # open canvas, remember which conversation served it, in the canvas's
+        # per-user context store. The /canvas/{id} panel reads this binding on
+        # load (GET /api/canvas/{id}/context) to reattach to the same thread
+        # across refreshes AND devices — localStorage only ever worked
+        # per-browser. Latest turn wins, which is the panel's own behavior.
+        _bind_canvas_chat_session(
+            canvas_id=(request.context or {}).get("canvas_id"),
+            canvas_type=(request.context or {}).get("canvas_type") or "generic",
+            user_id=active_user_id,
+            tenant_id=getattr(current_user, "tenant_id", None),
+            agent_id=getattr(request, "agent_id", None),
+            session_id=response.get("session_id"),
+        )
 
         # Detect the "no LLM provider configured" sentinel and surface it as a
         # structured error so the frontend shows the recovery banner (linking
@@ -938,6 +1213,74 @@ async def get_routing_stats(
         return {"enabled": enabled, "ema_enabled": ema_enabled, "stats": {"error": str(e)}}
 
 
+async def _office_draft(content: str, kind: str, title: str) -> Optional[tuple]:
+    """Materialize an office draft (excel table / slide outline / document)
+    as a real file under ATOM_OFFICE_DIR and return the typed canvas
+    payload ``(canvas_type, content, title)``; None when the kind has no
+    office form or creation fails (caller falls back to markdown doc).
+    """
+    import os
+    import uuid as _uuid
+
+    from core.chat_draft_classifier import extract_slide_outline, markdown_table_rows
+    from core.office_service import OfficeService
+
+    ext = {"table": ".xlsx", "slides": ".pptx", "doc": ".docx"}.get(kind)
+    if not ext:
+        return None
+
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", (title or "draft").strip())[:40].strip("-") or "draft"
+    office_dir = os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))
+    file_path = os.path.join(office_dir, f"chat-{slug}-{_uuid.uuid4().hex[:8]}{ext}")
+
+    office = OfficeService()
+    try:
+        if kind == "table":
+            rows = markdown_table_rows(content) or []
+            res = office.excel.create_spreadsheet(file_path, rows)
+        elif kind == "slides":
+            res = {"success": True}
+            for i, slide in enumerate(extract_slide_outline(content)):
+                res = office.pptx.modify_slides(
+                    file_path,
+                    "add_slide",
+                    {"title": slide["title"], "content": slide["content"]},
+                )
+                if not res.get("success"):
+                    break
+        else:  # doc
+            res = {"success": True}
+            for ln in content.splitlines():
+                text = ln.strip()
+                if not text:
+                    continue
+                if text.startswith("# "):
+                    style = "Title"
+                elif text.startswith("## "):
+                    style = "Heading 1"
+                elif text.startswith("### "):
+                    style = "Heading 2"
+                else:
+                    style = "Normal"
+                text = text.lstrip("#").strip()
+                res = office.word.modify_document(file_path, "append", text, {"style": style})
+                if not res.get("success"):
+                    break
+        if not res.get("success"):
+            logger.warning(f"Office draft creation failed ({kind}): {res.get('error')}")
+            return None
+    except Exception as e:
+        logger.warning(f"Office draft creation failed ({kind}): {e}")
+        return None
+
+    from core.office_sync_service import OFFICE_COMPONENT_MAP
+
+    _, canvas_type = OFFICE_COMPONENT_MAP[ext]
+    # Minimal binding payload — OfficeFileCanvas self-hydrates the
+    # structured snapshot (sheets/text/slides) from the office read API.
+    return canvas_type, {"office_file": file_path, "file_path": file_path, "format": ext.lstrip(".")}, title
+
+
 @router.post("/to-canvas")
 async def chat_draft_to_canvas(
     request: Request,
@@ -964,17 +1307,65 @@ async def chat_draft_to_canvas(
         raise HTTPException(status_code=400, detail="content is required")
 
     import uuid as _uuid
+    from core.chat_draft_classifier import coerce_email_canvas, select_draft_message, strip_agent_signoff
     from core.models import Canvas, CanvasAudit
 
+    # "Open latest draft" must open the DRAFT, not whatever the agent last
+    # said: when the chat's recent assistant messages are supplied
+    # newest-first, prefer the most recent one carrying a detectable
+    # artifact (email / code / table / titled document).
+    selected = select_draft_message(body.get("candidates") or [])
+    if selected and selected["content"] != content:
+        content = selected["content"]
+        # Fallback title from the message head, minus code-fence markers.
+        head = re.sub(r"^```[\w+-]*\s*\n?", "", selected["content"].lstrip())
+        title = f"Draft — {head[:60]}"
+
     canvas_id = str(_uuid.uuid4())
+    # Email drafts become typed email canvases ({to, subject, body}) so
+    # /canvas/{id} renders the composer — To/Subject fields + Send button —
+    # instead of a document with the Subject line buried in the body.
+    canvas_type, canvas_content = coerce_email_canvas("document", content)
+
+    # Office drafts become REAL office canvases: excel tables → .xlsx,
+    # slide outlines → .pptx, documents → .docx (office_* components bind
+    # the file and self-hydrate their structured snapshot). Code drafts
+    # open the code editor. Any file-creation failure falls back to the
+    # markdown document path — the draft must still open.
+    if selected and canvas_type == "document":
+        office = await _office_draft(content, selected["kind"], title)
+        if office:
+            canvas_type, canvas_content, title = office
+        elif selected["kind"] == "code":
+            canvas_type = "code"
+            canvas_content = {"content": content}
+
+    # A selected draft titles by its real artifact: the email's subject, a
+    # document's leading heading — not raw markdown fragments.
+    if selected:
+        if canvas_type == "email":
+            title = canvas_content.get("subject") or title
+        elif selected["kind"] == "doc" and content.lstrip().startswith(("# ", "## ")):
+            title = content.lstrip().splitlines()[0].lstrip("#").strip()[:200] or title
+    # Agent-typed sign-offs: replaced by the user's real default when one
+    # exists (their Outlook integration's, or a stored override); kept as a
+    # starting point when the user has NO default — stripping would leave a
+    # bare draft.
+    if canvas_type == "email" and isinstance(canvas_content, dict):
+        from core.canvas_email_service import EmailCanvasService
+
+        default_sig = await EmailCanvasService(db).get_signature(str(current_user.id))
+        canvas_content["body"] = strip_agent_signoff(
+            canvas_content.get("body") or "", default_sig.get("signature")
+        )
     canvas = Canvas(
         id=canvas_id,
         tenant_id=current_user.tenant_id or "default",
         workspace_id=current_user.workspaces[0].id if getattr(current_user, "workspaces", None) else "default",
         created_by=current_user.id,
         name=title,
-        canvas_type="document",
-        content={"type": "doc", "content": content},
+        canvas_type=canvas_type,
+        content=canvas_content,
         status="active",
     )
     db.add(canvas)
@@ -985,7 +1376,7 @@ async def chat_draft_to_canvas(
         tenant_id=canvas.tenant_id,
         session_id=session_id,
         agent_id=agent_id,
-        canvas_type="document",
+        canvas_type=canvas_type,
         action_type="create",
         user_id=current_user.id,
         # Convention: canvas readers (tools/canvas_crud_tool.read_canvas) treat
@@ -995,7 +1386,7 @@ async def chat_draft_to_canvas(
         details_json={
             "source": "chat_to_canvas",
             "title": title,
-            "content": {"type": "doc", "content": content},
+            "content": canvas_content,
         },
     )
     db.add(audit)

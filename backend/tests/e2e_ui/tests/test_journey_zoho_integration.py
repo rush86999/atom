@@ -11,9 +11,11 @@ Journey walked exactly as the pilot operator does:
   2. The Connect URL is opened in a browser with the admin's session.
   3. Zoho consent page -> Approve & Connect -> callback exchanges a real
      code for real tokens (mock) -> tokens stored.
-  4. OAuth tokens page shows `zoho` active for the admin AND for a member
-     (role fan-out), and the encrypted IntegrationToken rows for all five
-     providers exist (checked at the DB, the API doesn't expose them).
+  4. OAuth tokens page shows `zoho` active for the admin, the encrypted
+     IntegrationToken rows for all five providers exist (checked at the DB,
+     the API doesn't expose them), and the grant stays bound to the
+     consenting user only (R88 credential isolation — a second account that
+     never consented has no rows).
   5. Sync pulls CRM leads/deals + Books invoices + Inventory items/sales
      orders (organization_id auto-discovered from the mock) into LanceDB +
      GraphRAG.
@@ -293,23 +295,33 @@ def test_zoho_connect_tokens_sync_and_recall_like_a_real_user(
             f"IntegrationToken {expected} missing/not active: {providers}"
         )
 
-    # 3c. Role fan-out: the member (different account) got the same grant.
-    member_providers = _integration_token_providers(zoho_backend["db"])
-    # Both users rows exist under the same provider set (user_id column).
+    # 3c. R88 credential isolation: the grant belongs to the user who
+    #     consented (admin) — exactly one row per provider, and the member
+    #     (who never consented) must have NO token rows. Copying encrypted
+    #     credentials into every active user's rows was a fleet-wide
+    #     credential-injection vector and is opt-in only
+    #     (ATOM_OAUTH_SHARED_INTEGRATION_TOKENS=true).
     con = sqlite3.connect(zoho_backend["db"])
     try:
         row_counts = con.execute(
             "SELECT provider, COUNT(*) FROM integration_tokens "
             "GROUP BY provider"
         ).fetchall()
+        member_rows = con.execute(
+            "SELECT COUNT(*) FROM integration_tokens "
+            "WHERE user_id = ?",
+            (member["user_id"] or "",),
+        ).fetchone()[0]
     finally:
         con.close()
     for provider, count in row_counts:
-        assert count >= 2, (
-            f"provider {provider} has {count} rows — expected admin+member "
-            f"fan-out"
+        assert count == 1, (
+            f"provider {provider} has {count} rows — R88 binds the grant "
+            f"to the consenting user only"
         )
-    assert member_providers == providers
+    assert member_rows == 0, (
+        f"member account has {member_rows} token rows without consenting"
+    )
 
     # 4. Instances: the datacenter api_domain was stamped on the zoho row.
     con = sqlite3.connect(zoho_backend["db"])
@@ -325,19 +337,32 @@ def test_zoho_connect_tokens_sync_and_recall_like_a_real_user(
     )
 
     # 5. Sync: Books + Inventory + CRM all land (org auto-discovered).
-    r = requests.post(
-        f"{base}/api/data-ingestion/sync/zoho?force=true",
-        headers=_headers(admin),
-        timeout=300,
-    )
-    assert r.status_code == 200, f"sync: {r.status_code} {r.text[:500]}"
-    sync = r.json()
-    assert sync.get("success") is True, f"sync failed: {sync}"
+    #    Connecting already scheduled a background sync — while it holds the
+    #    per-integration lock, an explicit call is skipped (200, success
+    #    False), so poll until an explicit force sync actually runs.
+    sync = None
+    deadline = time.monotonic() + 300
+    while time.monotonic() < deadline:
+        r = requests.post(
+            f"{base}/api/data-ingestion/sync/zoho?force=true",
+            headers=_headers(admin),
+            timeout=300,
+        )
+        assert r.status_code == 200, f"sync: {r.status_code} {r.text[:500]}"
+        sync = r.json()
+        if sync.get("success") is True:
+            break
+        # Skipped: the background sync is still in flight — retry.
+        time.sleep(3)
+    assert sync is not None and sync.get("success") is True, f"sync failed: {sync}"
     assert sync.get("records_fetched") == 5, (
         f"expected CRM(2)+Books(1)+Inventory(2)=5 records, got "
         f"{sync}: Books/Inventory gated on organization discovery."
     )
-    assert sync.get("records_ingested") == 5
+    # records_ingested may legitimately be 0 here: the background sync
+    # scheduled on connect already ingested these record ids and ingestion
+    # is idempotent (no-overwrite). Step 6 proves the records landed by
+    # recalling them from memory.
 
     # 6. Recall: the chat answer surfaces the synced Zoho records in its
     #    memory context (user-visible transparency block).

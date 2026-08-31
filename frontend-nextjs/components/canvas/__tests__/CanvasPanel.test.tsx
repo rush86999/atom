@@ -42,11 +42,13 @@ interface CanvasMessage {
 
 describe('CanvasPanel', () => {
   let savedArtifacts: any[];
+  let savedCanvasPuts: any[];
   let alertSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
     savedArtifacts = [];
+    savedCanvasPuts = [];
     delete (window as any).atom;
 
     server.resetHandlers();
@@ -58,7 +60,44 @@ describe('CanvasPanel', () => {
       rest.post('/api/artifacts/update', async (req, res, ctx) => {
         savedArtifacts.push(req.body);
         return res(ctx.status(200), ctx.json({ id: (req.body as any).id, version: 9 }));
-      })
+      }),
+      // Email drafts persist via the canvas audit trail (what /canvas/{id}
+      // reads) — not the legacy artifacts store.
+      rest.put('*/api/canvas/:canvasId', async (req, res, ctx) => {
+        savedCanvasPuts.push({ url: req.url.toString(), body: req.body });
+        return res(ctx.status(200), ctx.json({ success: true, canvas_id: req.params.canvasId }));
+      }),
+      // Address-book suggestions for the To/Cc autocomplete.
+      rest.get('*/api/canvas/email/contacts', async (req, res, ctx) => {
+        const q = String(req.url.searchParams.get('q') || '');
+        const all = [
+          { name: 'Mark Kellam', email: 'mark.kellam@example.com' },
+          { name: 'Mary Kellner', email: 'mary.k@example.com' },
+        ];
+        return res(ctx.status(200), ctx.json({
+          success: true,
+          contacts: all.filter((c) => c.email.includes(q) || c.name.toLowerCase().includes(q.toLowerCase())),
+          source: 'outlook',
+        }));
+      }),
+      // Reply-thread resolution for the To auto-fill.
+      rest.get('*/api/canvas/email/resolve-reply', async (req, res, ctx) => {
+        const subject = String(req.url.searchParams.get('subject') || '');
+        if (subject.startsWith('Re:')) {
+          return res(ctx.status(200), ctx.json({
+            success: true,
+            to: 'Mark Kellam <mark@wfs.example>',
+            cc: '',
+            source: 'thread',
+          }));
+        }
+        return res(ctx.status(200), ctx.json({ success: true, to: null, cc: '', source: null }));
+      }),
+      // Default signature: null unless a test overrides it.
+      rest.get('*/api/canvas/email/signature', async (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, signature: null, source: null }))),
+      rest.put('*/api/canvas/email/signature', async (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, signature: (req.body as any)?.signature ?? null, source: 'stored' })))
     );
   });
 
@@ -92,7 +131,9 @@ describe('CanvasPanel', () => {
 
     expect(await screen.findByText('Release Notes')).toBeInTheDocument();
     expect(screen.getByText('v3')).toBeInTheDocument();
-    expect(screen.getByText('markdown')).toBeInTheDocument();
+    // The type badge is a switcher button now — assert the stable testid
+    // contract, not the label text (which carries the "▾" dropdown marker).
+    expect(screen.getByTestId('canvas-type-markdown')).toHaveTextContent('markdown');
     expect(screen.getByTestId('canvas-editor')).toHaveValue('**Hello** world');
   });
 
@@ -201,7 +242,7 @@ describe('CanvasPanel', () => {
         component: 'email',
         title: 'Follow-up',
         data: { content: 'Hi there' },
-        metadata: { to: 'boss@corp.com', subject: 'Q3 numbers' },
+        metadata: { to: 'boss@corp.com', cc: 'audit@corp.com', subject: 'Q3 numbers' },
         id: 'mail-1',
         version: 1,
       },
@@ -209,6 +250,7 @@ describe('CanvasPanel', () => {
 
     expect(await screen.findByText('Follow-up')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('recipient@example.com')).toHaveValue('boss@corp.com');
+    expect(screen.getByPlaceholderText('cc@example.com')).toHaveValue('audit@corp.com');
     expect(screen.getByPlaceholderText('Email Subject')).toHaveValue('Q3 numbers');
 
     fireEvent.change(screen.getByPlaceholderText('Email Subject'), {
@@ -219,9 +261,10 @@ describe('CanvasPanel', () => {
     // Send now posts the composed email through the deterministic policy
     // endpoint instead of the old stub alert — behind an explicit confirm.
     await waitFor(() => expect(sentEmails).toHaveLength(1));
-    expect(confirmSpy).toHaveBeenCalledWith('Send email to boss@corp.com?');
+    expect(confirmSpy).toHaveBeenCalledWith('Send email to boss@corp.com\nCc: audit@corp.com?');
     expect(sentEmails[0]).toMatchObject({
       to: ['boss@corp.com'],
+      cc: ['audit@corp.com'],
       subject: 'Q3 numbers v2',
       body: 'Hi there',
       canvas_id: 'mail-1',
@@ -235,13 +278,91 @@ describe('CanvasPanel', () => {
     expect(sentEmails).toHaveLength(0);
     confirmSpy.mockReturnValue(true);
 
-    // Save embeds email metadata
+    // Save persists the composer state through the canvas audit trail.
     fireEvent.click(screen.getByText('Save Changes'));
-    await waitFor(() => expect(savedArtifacts).toHaveLength(1));
-    expect(savedArtifacts[0].metadata).toEqual({
+    await waitFor(() => expect(savedCanvasPuts).toHaveLength(1));
+    expect(savedCanvasPuts[0].url).toContain('/api/canvas/mail-1');
+    expect(savedCanvasPuts[0].url).toContain('canvas_type=email');
+    expect(savedCanvasPuts[0].body).toEqual({
       to: 'boss@corp.com',
+      cc: 'audit@corp.com',
       subject: 'Q3 numbers v2',
+      body: 'Hi there',
     });
+  });
+
+  it('splits comma-separated recipients on send and requires at least one To', async () => {
+    alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {});
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+    const sentEmails: any[] = [];
+    server.use(
+      rest.post('*/api/canvas/email/send', async (req, res, ctx) => {
+        sentEmails.push(req.body);
+        return res(ctx.status(200), ctx.json({ success: true, status: 'sent' }));
+      })
+    );
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'email',
+        title: 'Multi',
+        data: { content: 'Body text here.' },
+        metadata: { to: '', cc: '', subject: 'S' },
+        id: 'mail-2',
+      },
+    });
+
+    // No recipients → guarded, nothing dispatched.
+    await screen.findByText('Multi');
+    fireEvent.click(screen.getByText('Send'));
+    expect(alertSpy).toHaveBeenCalledWith('Add at least one recipient in the To field before sending.');
+    expect(sentEmails).toHaveLength(0);
+
+    fireEvent.change(screen.getByPlaceholderText('recipient@example.com'), {
+      target: { value: 'a@x.com, b@x.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('cc@example.com'), {
+      target: { value: 'c@x.com,d@x.com' },
+    });
+    fireEvent.click(screen.getByText('Send'));
+    await waitFor(() => expect(sentEmails).toHaveLength(1));
+    expect(sentEmails[0].to).toEqual(['a@x.com', 'b@x.com']);
+    expect(sentEmails[0].cc).toEqual(['c@x.com', 'd@x.com']);
+    confirmSpy.mockRestore();
+  });
+
+  it('autocompletes To from the address book and keeps typed entries', async () => {
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'email',
+        title: 'Autocomplete',
+        data: { content: 'Body text here.' },
+        metadata: { to: '', cc: '', subject: 'S' },
+        id: 'mail-3',
+      },
+    });
+
+    const toInput = await screen.findByPlaceholderText('recipient@example.com');
+    fireEvent.change(toInput, { target: { value: 'mark' } });
+
+    // Debounced lookup → suggestion list.
+    const list = await screen.findByTestId('canvas-email-to-suggestions', {}, { timeout: 3000 });
+    expect(list).toBeInTheDocument();
+    fireEvent.click(screen.getByText('mark.kellam@example.com'));
+    expect(toInput).toHaveValue('mark.kellam@example.com, ');
+
+    // A second lookup on the next token excludes the already-added address.
+    fireEvent.change(toInput, { target: { value: 'mark.kellam@example.com, mary' } });
+    const list2 = await screen.findByTestId('canvas-email-to-suggestions', {}, { timeout: 3000 });
+    expect(screen.getByText('mary.k@example.com')).toBeInTheDocument();
+    expect(list2.textContent).not.toContain('mark.kellam@example.com');
+
+    // Keyboard: Enter picks the highlighted option.
+    fireEvent.keyDown(toInput, { key: 'Enter' });
+    expect(toInput).toHaveValue('mark.kellam@example.com, mary.k@example.com, ');
   });
 
   it('renders a sheet canvas, edits a cell, adds a row, and saves the grid', async () => {
@@ -408,7 +529,7 @@ describe('CanvasPanel', () => {
         component: 'email',
         title: 'Draft',
         data: { content: 'body text' },
-        metadata: { to: 'a@b.c', subject: 'Hi' },
+        metadata: { to: 'a@b.c', cc: 'x@y.z', subject: 'Hi' },
         id: 'mail-1',
       },
     });
@@ -417,6 +538,7 @@ describe('CanvasPanel', () => {
       expect((window as any).atom.canvas.getState('mail-1')).toEqual({
         type: 'email',
         to: 'a@b.c',
+        cc: 'x@y.z',
         subject: 'Hi',
         body: 'body text',
         draft: false,
@@ -526,7 +648,7 @@ describe('CanvasPanel', () => {
     });
   });
 
-  it('saves edited To metadata with the email artifact', async () => {
+  it('saves edited To/Cc metadata through the canvas audit trail', async () => {
     send({
       type: 'canvas:update',
       data: {
@@ -543,12 +665,17 @@ describe('CanvasPanel', () => {
     fireEvent.change(screen.getByPlaceholderText('recipient@example.com'), {
       target: { value: 'new@corp.com' },
     });
+    fireEvent.change(screen.getByPlaceholderText('cc@example.com'), {
+      target: { value: 'audit@corp.com' },
+    });
     fireEvent.click(screen.getByText('Save Changes'));
 
-    await waitFor(() => expect(savedArtifacts).toHaveLength(1));
-    expect(savedArtifacts[0].metadata).toEqual({
+    await waitFor(() => expect(savedCanvasPuts).toHaveLength(1));
+    expect(savedCanvasPuts[0].body).toEqual({
       to: 'new@corp.com',
+      cc: 'audit@corp.com',
       subject: 'Q3 numbers',
+      body: 'hi',
     });
   });
 
@@ -635,6 +762,236 @@ describe('CanvasPanel', () => {
     expect(await screen.findByText('Custom Component: custom')).toBeInTheDocument();
     expect(screen.getByText('Rendering raw data payload')).toBeInTheDocument();
     expect(screen.getByText(/"foo": "bar"/)).toBeInTheDocument();
+  });
+
+  it('auto-fills To from the reply thread when a Re: draft has no recipient', async () => {
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'email',
+        title: 'Reply draft',
+        data: { content: 'Hi,' },
+        metadata: { to: '', cc: '', subject: 'Re: Your Inquiry — WFS Ltd' },
+        id: 'mail-reply',
+      },
+    });
+
+    // To starts empty and gets filled from resolve-reply (async).
+    const toInput = await screen.findByPlaceholderText('recipient@example.com');
+    expect(toInput).toHaveValue('');
+    await waitFor(() => expect(toInput).toHaveValue('Mark Kellam <mark@wfs.example>'), { timeout: 3000 });
+
+    // The suggestion is not a user edit — the panel must not flip into
+    // unsaved-changes mode on its own.
+    expect(screen.queryByText('Save Changes')).not.toBeInTheDocument();
+  });
+
+  it('does not auto-fill for non-reply subjects or prefilled recipients', async () => {
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'email',
+        title: 'Plain draft',
+        data: { content: 'Hi,' },
+        metadata: { to: 'already@set.example', cc: '', subject: 'New outreach' },
+        id: 'mail-plain',
+      },
+    });
+
+    const toInput = await screen.findByPlaceholderText('recipient@example.com');
+    expect(toInput).toHaveValue('already@set.example');
+    // No resolve-reply call flips the value after the mount settles.
+    await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
+    expect(toInput).toHaveValue('already@set.example');
+  });
+
+  it('appends the default signature once when the body lacks a sign-off', async () => {
+    server.use(
+      rest.get('*/api/canvas/email/signature', async (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({
+          success: true,
+          signature: 'Best regards,\nRish Maniar\nBrennan Machinery Inc.',
+          source: 'integration',
+        })))
+    );
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'email',
+        title: 'Sig draft',
+        data: { content: 'Body without any closing.' },
+        metadata: { to: '', cc: '', subject: 'Hello' },
+        id: 'mail-sig',
+      },
+    });
+
+    const editor = await screen.findByTestId('canvas-editor');
+    await waitFor(() => expect(editor).toHaveValue(
+      'Body without any closing.\n\nBest regards,\nRish Maniar\nBrennan Machinery Inc.'
+    ), { timeout: 3000 });
+  });
+
+  it('never double-appends when the body already carries a sign-off', async () => {
+    server.use(
+      rest.get('*/api/canvas/email/signature', async (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({
+          success: true,
+          signature: 'Best regards,\nRish Maniar',
+          source: 'integration',
+        })))
+    );
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'email',
+        title: 'Already signed',
+        data: { content: 'Body text.\n\nBest regards,\nAgent Typed\nBrennan Machinery Inc.' },
+        metadata: { to: '', cc: '', subject: 'Hello' },
+        id: 'mail-signed',
+      },
+    });
+
+    const editor = await screen.findByTestId('canvas-editor');
+    await act(async () => { await new Promise((r) => setTimeout(r, 600)); });
+    expect(editor).toHaveValue('Body text.\n\nBest regards,\nAgent Typed\nBrennan Machinery Inc.');
+  });
+
+  it('edits and saves the default signature from the composer', async () => {
+    server.use(
+      rest.get('*/api/canvas/email/signature', async (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, signature: 'Old sig', source: 'integration' })))
+    );
+    const savedSignatures: any[] = [];
+    server.use(
+      rest.put('*/api/canvas/email/signature', async (req, res, ctx) => {
+        savedSignatures.push(req.body);
+        return res(ctx.status(200), ctx.json({ success: true, source: 'stored' }));
+      })
+    );
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'email',
+        title: 'Sig edit',
+        data: { content: 'Body.' },
+        metadata: { to: '', cc: '', subject: 'S' },
+        id: 'mail-sigedit',
+      },
+    });
+
+    await screen.findByText('Sig edit');
+    fireEvent.click(await screen.findByTestId('canvas-signature-button'));
+    const sigEditor = await screen.findByTestId('canvas-signature-editor');
+    expect(sigEditor).toHaveValue('Old sig');
+    expect(screen.getByTestId('canvas-signature-source').textContent).toContain('Outlook sent mail');
+
+    fireEvent.change(sigEditor, { target: { value: 'New sig\nLine 2' } });
+    fireEvent.click(screen.getByTestId('canvas-signature-save'));
+    await waitFor(() => expect(savedSignatures).toEqual([{ signature: 'New sig\nLine 2' }]));
+  });
+
+  // ─── Auto-save ───
+
+  it('autosaves edits after a typing pause without clicking Save', async () => {
+    send({
+      type: 'canvas:update',
+      data: { action: 'present', component: 'markdown', title: 'Doc', data: 'original', id: 'art-42' },
+    });
+
+    fireEvent.change(await screen.findByTestId('canvas-editor'), {
+      target: { value: 'typed more' },
+    });
+
+    // No manual click — the idle timer alone must persist the edit.
+    await waitFor(() => expect(savedArtifacts).toHaveLength(1), { timeout: 6000 });
+    expect(savedArtifacts[0]).toMatchObject({ id: 'art-42', content: 'typed more' });
+    expect(await screen.findByText('Synced to cloud')).toBeInTheDocument();
+  });
+
+  it('ignores the WS echo of its own email save and keeps newer edits', async () => {
+    const rerender = send({
+      type: 'canvas:present',
+      data: {
+        action: 'present',
+        component: 'email',
+        title: 'Draft',
+        data: { to: 'a@b.c', cc: '', subject: 'S', body: 'body v1' },
+        id: 'can-echo',
+        metadata: { to: 'a@b.c', cc: '', subject: 'S' },
+      },
+    });
+
+    // Edit, then let the autosave fire (3s idle).
+    fireEvent.change(await screen.findByTestId('canvas-editor'), {
+      target: { value: 'body v2' },
+    });
+    await waitFor(() => expect(savedCanvasPuts).toHaveLength(1), { timeout: 6000 });
+    expect(savedCanvasPuts[0].body.body).toBe('body v2');
+    // "Synced to cloud" renders only after handleSave completed — i.e.
+    // the echo-signature is recorded.
+    await screen.findByText('Synced to cloud');
+
+    // The user keeps typing past the save…
+    fireEvent.change(screen.getByTestId('canvas-editor'), {
+      target: { value: 'body v3' },
+    });
+    // …and the backend's WS broadcast of the v2 save arrives. Without the
+    // echo-guard this would reset the composer to "body v2" and drop v3.
+    rerender(
+      <CanvasPanel
+        lastMessage={{
+          type: 'canvas:update',
+          data: {
+            action: 'update',
+            canvas_id: 'can-echo',
+            component: 'email',
+            data: { to: 'a@b.c', cc: '', subject: 'S', body: 'body v2' },
+          },
+        }}
+      />
+    );
+    expect(screen.getByTestId('canvas-editor')).toHaveValue('body v3');
+
+    // The newer edit still autosaves afterwards.
+    await waitFor(() => expect(savedCanvasPuts).toHaveLength(2), { timeout: 6000 });
+    expect(savedCanvasPuts[1].body.body).toBe('body v3');
+  });
+
+  it('cancels the pending autosave when a fresh payload supersedes local edits', async () => {
+    jest.useFakeTimers();
+    try {
+      const rerender = send({
+        type: 'canvas:update',
+        data: { action: 'present', component: 'markdown', title: 'Doc', data: 'user draft', id: 'art-7' },
+      });
+      fireEvent.change(screen.getByTestId('canvas-editor'), {
+        target: { value: 'user edit' },
+      });
+
+      // The agent pushes a new version before the idle timer fires.
+      rerender(
+        <CanvasPanel
+          lastMessage={{
+            type: 'canvas:update',
+            data: { action: 'update', canvas_id: 'art-7', component: 'markdown', data: 'agent rewrite' },
+          }}
+        />
+      );
+
+      await act(async () => {
+        jest.advanceTimersByTime(10000);
+      });
+      // The stale timer must not have written the superseded local edit.
+      expect(savedArtifacts).toHaveLength(0);
+      expect(screen.getByTestId('canvas-editor')).toHaveValue('agent rewrite');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 

@@ -804,15 +804,33 @@ After completing this training, the agent will be able to handle similar tasks a
             ).count()
             return meta if super_wins > senior_wins else senior
 
-        # Bootstrap: no graduated senior exists in this domain yet, so the
-        # first hire is trained by the meta agent itself (the architecture's
-        # "atom_main trains the first agent"). The earned-super-mentor
-        # comparison above takes over once real seniors exist — that is what
-        # stops an unproven generalist from displacing a graduated senior.
+        # Bootstrap: ONLY on a virgin deployment — atom_main has never had
+        # any attributed domain work at all (empty ledger), so there is
+        # nothing to earn yet and the first hire still gets a teacher
+        # (R86e "first hire" flow). Once the generalist has ANY attributed
+        # outcomes, teaching is earned per domain: below the win threshold
+        # it is NOT a mentor ("super mentor for everyone is an achievement,
+        # not a default") — the generalist goes and does the role's real
+        # work (attribution now runs on the shared record_outcome path).
         if senior is None:
-            return meta
+            if not self._meta_has_any_domain_record():
+                return meta
+            return None
 
         return senior
+
+    def _meta_has_any_domain_record(self) -> bool:
+        """Whether atom_main has ANY attributed domain outcome recorded.
+
+        False = virgin deployment (nothing earned yet, first hire still
+        gets the meta agent as teacher). True = the generalist has worked
+        real roles, so teaching is earned per domain from here on.
+        """
+        from core.models import DomainExperienceLedger
+
+        return self.db.query(DomainExperienceLedger).filter(
+            DomainExperienceLedger.agent_id == "atom_main"
+        ).first() is not None
 
     def _build_mentor_playbook(self, agent: AgentRegistry) -> Optional[Dict[str, Any]]:
         """

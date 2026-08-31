@@ -68,11 +68,14 @@ jest.mock("@/components/layout/Layout", () => ({
 const mockGet = jest.fn();
 const mockPost = jest.fn();
 const mockDelete = jest.fn();
+const mockFetch = jest.fn();
 jest.mock("../../lib/api-client", () => ({
   apiClient: {
     get: (...args: any[]) => mockGet(...args),
     post: (...args: any[]) => mockPost(...args),
     delete: (...args: any[]) => mockDelete(...args),
+    // maturity-api's fetchJson routes through apiClient.fetch
+    fetch: (...args: any[]) => mockFetch(...args),
   },
 }));
 
@@ -273,6 +276,116 @@ describe("CanvasDetailPage", () => {
 
     await waitFor(() => expect(mockPost).toHaveBeenCalled());
     expect(screen.getByText("via enter")).toBeInTheDocument();
+  });
+
+  test("side panel: all four tabs render and Journey panel opens", async () => {
+    // Regression: the four-tab flex row overflowed the w-80 panel and the
+    // Journey/Autonomy tabs were clipped out of view entirely.
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    for (const tid of ["canvas-side-tab-chat", "canvas-side-tab-training",
+                       "canvas-side-tab-journey", "canvas-side-tab-autonomy"]) {
+      expect(screen.getByTestId(tid)).toBeVisible();
+    }
+
+    fireEvent.click(screen.getByTestId("canvas-side-tab-journey"));
+    await waitFor(() => expect(screen.getByTestId("journey-panel")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("canvas-side-tab-autonomy"));
+    await waitFor(() => expect(screen.getByTestId("autonomy-panel")).toBeInTheDocument());
+  });
+
+  test("chat: canvas agent resolved on load is sent with the turn", async () => {
+    // The canvas's hire must be known on the CHAT tab (not only when the
+    // training panel opens) so co-editor turns run as the agent.
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        canvas_id: "cv1",
+        agent: { id: "hire-cv1", name: "SDR Hire", tier: "student" },
+        linked_session: null,
+        pending_proposal: null,
+        viewer_is_supervisor: true,
+      }),
+    });
+
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/maturity/training/context"),
+        undefined
+      )
+    );
+
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "tighten the draft" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalled());
+    expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
+      agent_id: "hire-cv1",
+      context: expect.objectContaining({ agent_id: "hire-cv1" }),
+    }));
+  });
+
+  test("chat: server-bound session hydrates panel history after refresh", async () => {
+    mockGet.mockImplementation(async (url: string) => {
+      if (url.startsWith("/api/chat/history/sess-h1")) {
+        return {
+          data: {
+            session_id: "sess-h1",
+            messages: [
+              { message: "clean up the draft", response: { message: "Cleaned it up." }, timestamp: "2026-08-30T15:00:00" },
+            ],
+          },
+        };
+      }
+      if (url.endsWith("/context")) {
+        return { data: { data: { current_state: { chat_session_id: "sess-h1" } } } };
+      }
+      if (url.endsWith("/history")) return { data: { count: 1 } };
+      return { data: CANVAS };
+    });
+
+    render(<CanvasDetailPage />);
+    // Prior conversation reappears without sending anything (binding came
+    // from the server, so this also works on a fresh browser/device).
+    await waitFor(() => expect(screen.getByText("clean up the draft")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Cleaned it up.")).toBeInTheDocument());
+
+    // And the next send continues the SAME session instead of "new".
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "make it shorter" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() => expect(mockPost).toHaveBeenCalled());
+    expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
+      session_id: "sess-h1",
+    }));
+  });
+
+  test("chat: failed hydration drops the stale session and starts fresh", async () => {
+    mockGet.mockImplementation(async (url: string) => {
+      if (url.startsWith("/api/chat/history/sess-dead")) throw new Error("403");
+      if (url.endsWith("/context")) {
+        return { data: { data: { current_state: { chat_session_id: "sess-dead" } } } };
+      }
+      if (url.endsWith("/history")) return { data: { count: 1 } };
+      return { data: CANVAS };
+    });
+
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() => expect(mockPost).toHaveBeenCalled());
+    // Stale id must not be reused — the turn starts a new session.
+    expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
+      session_id: "new",
+    }));
   });
 
   test("chat: no_llm_provider error renders system message", async () => {
@@ -578,7 +691,7 @@ describe("CanvasDetailPage", () => {
     );
   });
 
-  // ── Co-editor chat feedback (thumbs + notes → training loop) ───────────────────────
+  // ── Co-editor chat feedback (thumbs + notes → training loop) ────────────
 
   async function sendChatMessage(text: string) {
     const input = screen.getByPlaceholderText("Ask the agent to edit…");

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import IngestionStatusPanel from "@/components/integrations/IngestionStatusPanel";
 import { NextPage } from "next";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -75,6 +76,11 @@ const ShopifyPage: NextPage = () => {
             <Head>
                 <title>Shopify | ATOM</title>
             </Head>
+  {/* Memory-ingestion progress (uniform across integration pages) */}
+  <div className="p-6 pb-0 max-w-[1400px] mx-auto w-full">
+    <IngestionStatusPanel integrationId="shopify" />
+  </div>
+
             <div className="p-6 max-w-4xl mx-auto">
                 <h1 className="text-2xl font-bold mb-1">Shopify</h1>
                 <p className="text-muted-foreground mb-6">

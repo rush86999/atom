@@ -18,6 +18,10 @@ not the minimal `main.py`.
 | `tests/test_journey_permission_matrix.py` | **RBAC contract + permission enforcement** across all 8 roles. Locks the role→permission mapping, asserts each enforced permission (AGENT_VIEW/RUN/MANAGE) allows/denies the right roles, and documents the gap that WORKFLOW/USER/SYSTEM permissions are never enforced. |
 | `tests/test_journey_role_api.py` | **8 roles × 9 core read endpoints** (72 cases) — every role can read every feature without a 5xx crash or 401 on a valid token. |
 | `tests/test_journey_role_ui.py` | **Every role logs in via the UI** and loads the shared authenticated pages (dashboard, settings, agents, canvas) without bouncing to /login. |
+| `tests/test_journey_outlook_integration.py` | **Self-contained Outlook connect journey** — spins its own backend + a local Microsoft mock (consent + token + Graph). Browser consent → tokens active → hub connection-status → emails/calendar/contacts/tasks/profile through the stored credential → disconnect revokes everywhere. |
+| `tests/test_journey_zoho_integration.py` | **Self-contained Zoho connect journey** — same pattern with a Zoho mock: browser consent → 5-provider token fan-out (R88 isolation) → Books/Inventory/CRM sync into LanceDB → chat recall. |
+| `tests/test_journey_all_integrations.py` | **Every remaining catalog integration** — one generic OAuth mock + per-provider URL overrides: browser consent → tokens → hub connection-status → disconnect for google, slack, github, asana, notion, dropbox, box, salesforce, linkedin, whatsapp (trello initiate-only: OAuth1); plus the env-keyed half of the catalog connected via backend credentials. |
+| `tests/test_journey_chat_fork.py` | **Fork-from-here chat journey** — open a chat with seeded multi-turn history, click "Fork from here" on an earlier assistant reply, land in a new session that keeps turns up to the fork point and drops later ones; fork survives refresh, original session untouched. |
 
 Supporting code:
 - `pages/journey_pages.py` — page objects using real selectors (role/text/placeholder), verified against the running UI.

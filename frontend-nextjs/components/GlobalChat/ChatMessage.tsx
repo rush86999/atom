@@ -24,7 +24,8 @@ import {
     ThumbsDown,
     ThumbsUp,
     MessageSquare,
-    RefreshCw
+    RefreshCw,
+    GitFork
 } from "lucide-react";
 
 export interface ChatAction {
@@ -75,9 +76,13 @@ interface ChatMessageProps {
     onActionClick: (action: ChatAction) => void;
     onFeedback?: (messageId: string, type: 'thumbs_up' | 'thumbs_down', comment?: string) => void;
     onRegenerate?: (messageId: string) => void;
+    /** Fork-from-here: copy the conversation up to this reply into a new
+     * session. Only meaningful when the message carries a durable backend
+     * id (history-loaded messages), which the parent guards. */
+    onFork?: (messageId: string) => void;
 }
 
-export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate }: ChatMessageProps) {
+export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, onFork }: ChatMessageProps) {
     const isUser = message.type === 'user';
     const [showComment, setShowComment] = useState(false);
     const [comment, setComment] = useState('');
@@ -212,9 +217,22 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate }
                 )}
 
                 {/* Feedback Controls for Assistant */}
-                {!isUser && (onFeedback || onRegenerate) && (
+                {!isUser && (onFeedback || onRegenerate || onFork) && (
                     <div className="flex flex-col mt-2 px-1">
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                            {onFork && (
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6"
+                                    aria-label="Fork from here"
+                                    title="Fork from here — copy the conversation up to this reply into a new chat"
+                                    data-testid={AGENT_CHAT.FORK_MESSAGE_BUTTON}
+                                    onClick={() => onFork(message.id)}
+                                >
+                                    <GitFork className="h-3 w-3 text-muted-foreground hover:text-purple-500" />
+                                </Button>
+                            )}
                             {onFeedback && (
                                 <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Thumbs up" onClick={() => onFeedback(message.id, 'thumbs_up')}>
                                     <ThumbsUp className="h-3 w-3 text-muted-foreground hover:text-green-600" />

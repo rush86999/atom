@@ -97,7 +97,8 @@ export const AgentTerminal: React.FC<AgentTerminalProps> = ({ agentId, agentName
                             <Inbox className="h-8 w-8 mb-3" />
                             <p className="font-semibold text-slate-400">No activity yet</p>
                             <p className="italic mt-1 text-slate-600">
-                                Run an agent and its execution log will stream here in real time.
+                                Live steps from every agent stream here as they work — canvas chats,
+                                training and runs included. Waiting for the next event.
                             </p>
                         </div>
                     ) : (

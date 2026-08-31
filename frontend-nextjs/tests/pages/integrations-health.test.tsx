@@ -39,7 +39,7 @@ describe("IntegrationHealthPage", () => {
       screen.getByRole("heading", { name: /Integration Health Dashboard/ })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Monitor the health and status of all your connected integrations/i)
+      screen.getByText(/whether their credentials/i)
     ).toBeInTheDocument();
   });
 
@@ -60,8 +60,8 @@ describe("IntegrationHealthPage", () => {
     expect(screen.getByRole("heading", { name: /About This Dashboard/ })).toBeInTheDocument();
     expect(screen.getByText(/Auto-refresh:/)).toBeInTheDocument();
     expect(screen.getByText(/Status Indicators:/)).toBeInTheDocument();
+    expect(screen.getByText(/Verification:/)).toBeInTheDocument();
     expect(screen.getByText(/Response Time:/)).toBeInTheDocument();
-    expect(screen.getByText(/Last Sync:/)).toBeInTheDocument();
-    expect(screen.getByText(/Connection Status:/)).toBeInTheDocument();
+    expect(screen.getByText(/Connection Sources:/)).toBeInTheDocument();
   });
 });

@@ -220,8 +220,14 @@ const mockUsers = [
 ];
 
 const teamsHandlers = [
-  rest.get('/api/integrations/teams/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ providers: { teams: { connected: true, source: 'user_connection' } } })
+    );
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { teams: { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.post('/api/integrations/teams/profile', (req, res, ctx) => {
@@ -281,7 +287,7 @@ const teamsHandlers = [
 
 const setDisconnected = () => {
   server.use(
-    rest.get('/api/integrations/teams/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(404));
     })
   );
@@ -351,7 +357,7 @@ describe('TeamsIntegration', () => {
 
     test('handles health check server error', async () => {
       server.use(
-        rest.get('/api/integrations/teams/health', (req, res, ctx) => {
+        rest.get('/api/integrations/connection-status', (req, res, ctx) => {
           return res(ctx.status(500));
         })
       );
@@ -368,7 +374,7 @@ describe('TeamsIntegration', () => {
     test('handles health check network failure', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       server.use(
-        rest.get('/api/integrations/teams/health', (req, res) => {
+        rest.get('/api/integrations/connection-status', (req, res) => {
           return new Promise((resolve, reject) => {
             setTimeout(() => reject(new Error('network error')), 10);
           });
@@ -404,7 +410,7 @@ describe('TeamsIntegration', () => {
       // (round 80: the fetch now carries authHeaders options)
       await waitFor(() => {
         expect(fetchSpy).toHaveBeenCalledWith(
-          expect.stringContaining('/api/integrations/teams/health'),
+          expect.stringContaining('/api/integrations/connection-status'),
           expect.objectContaining({ headers: expect.objectContaining({}) })
         );
       });

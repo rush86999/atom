@@ -335,7 +335,12 @@ class ChatOrchestrator:
         The live emitters disagree on keys (AtomMetaAgent/GenericAgent use
         `output`, the UI reads `observation`), so emit both and always stamp
         execution/session identity for run grouping and session filtering.
+        Callers occasionally hand over a bare string/None instead of a dict —
+        coerce instead of raising: this runs inside the never-break-the-turn
+        emit path, and dict(non-dict) would kill the broadcast entirely.
         """
+        if not isinstance(step_record, dict):
+            step_record = {"observation": str(step_record)} if step_record else {}
         step = dict(step_record or {})
         observation = step.get("observation") or step.get("output") or ""
         step.setdefault("action_input", "")
@@ -616,6 +621,60 @@ class ChatOrchestrator:
             await self._emit_agent_status(
                 session_id, _trace_agent_id, _execution_id, "running"
             )
+
+            # Canvas co-editor turns (/canvas/{id} side panel): the request
+            # carries the open canvas in context. Before anything else, give
+            # the turn a chance to BE an edit of that canvas — the plain LLM
+            # path is canvas-blind and the read-only tool planner can never
+            # write, so without this step "remove the sign-off from the
+            # draft" produced a generic acknowledgment while the draft sat
+            # unchanged (and the intent router side-effect created junk
+            # tasks from edit requests). Handled edits return early.
+            _canvas_ctx: Optional[Dict[str, Any]] = None
+            if context and context.get("canvas_id") and context.get("canvas_content") is not None:
+                _canvas_ctx = {
+                    "canvas_id": str(context["canvas_id"]),
+                    "canvas_type": context.get("canvas_type") or "generic",
+                    "title": context.get("canvas_title"),
+                    "content": context.get("canvas_content"),
+                }
+            if _canvas_ctx:
+                _edit_response = await self._try_canvas_edit(
+                    message, history, _canvas_ctx, user_id, session_id,
+                    _execution_id, (context or {}).get("agent_id"),
+                )
+                if _edit_response:
+                    # Persist the turn so follow-ups ("now make it shorter")
+                    # have the request in session history, then return —
+                    # skipping feature routing means edit requests can no
+                    # longer be misfiled into TASKS/AUTOMATION side effects.
+                    self._update_session(
+                        session, message, _edit_response,
+                        {"primary_intent": "canvas_edit", "confidence": 0.9},
+                    )
+                    await self._emit_agent_status(
+                        session_id, _trace_agent_id, _execution_id, "success"
+                    )
+                    self._finish_chat_execution(_execution_id, "success", _edit_response.get("message", ""))
+                    return _edit_response
+
+                # Not an edit — is it an ACTION on the canvas ("send this")?
+                # Gated by the owner's autonomy policy + hire maturity.
+                _action_response = await self._try_canvas_action(
+                    message, history, _canvas_ctx, user_id, session_id,
+                    _execution_id, (context or {}).get("agent_id"),
+                )
+                if _action_response:
+                    self._update_session(
+                        session, message, _action_response,
+                        {"primary_intent": "canvas_action", "confidence": 0.9},
+                    )
+                    await self._emit_agent_status(
+                        session_id, _trace_agent_id, _execution_id, "success"
+                    )
+                    self._finish_chat_execution(_execution_id, "success", _action_response.get("message", ""))
+                    return _action_response
+
             sticky_hint = None
             try:
                 import os as _os
@@ -633,6 +692,7 @@ class ChatOrchestrator:
                 planner_history=session.get("history", []),
                 session_id=session_id,
                 execution_id=_execution_id,
+                canvas_context=_canvas_ctx,
             )
 
             # Check for cancellation between steps.
@@ -962,6 +1022,7 @@ class ChatOrchestrator:
         planner_history: Optional[list] = None,
         session_id: Optional[str] = None,
         execution_id: Optional[str] = None,
+        canvas_context: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -1087,6 +1148,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # A silent failure here makes ALL ingested integration data
                 # invisible at chat time (no error, empty memory) — warn, don't debug.
                 logger.warning(f"memory context assembly skipped: {e}")
+
+            # Canvas co-editor context (non-edit turns): the user is chatting
+            # beside an open canvas — "the draft", "the email" refer to it.
+            # Without this block the model answered generically about drafts
+            # in the abstract while the actual canvas sat in another tab.
+            if canvas_context and canvas_context.get("content") is not None:
+                try:
+                    import json as _json
+
+                    _cc = canvas_context.get("content")
+                    _cc_text = _cc if isinstance(_cc, str) else _json.dumps(_cc, default=str)
+                    messages.append({"role": "system", "content": (
+                        "CANVAS CONTEXT — the user is chatting in a panel beside an "
+                        f"open canvas (type: {canvas_context.get('canvas_type') or 'generic'}, "
+                        f"id: {canvas_context.get('canvas_id')}). When they refer to "
+                        "\"the draft\", \"the email\", \"this canvas\" etc., they mean "
+                        "THIS canvas. Its current content is the authoritative and "
+                        f"most recent version:\n{_cc_text[:4000]}"
+                    )})
+                except Exception as canvas_ctx_err:
+                    logger.debug(f"canvas context block skipped: {canvas_ctx_err}")
 
             # Tool planning (LLM-based, ALL connected integrations): a cheap
             # structured-output call reads the conversation and decides
@@ -1355,6 +1437,372 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             return None
         except Exception as e:
             logger.warning(f"Zoho CRM write failed: {e}")
+            return None
+
+    async def _try_canvas_edit(
+        self,
+        message: str,
+        history: list,
+        canvas: Dict[str, Any],
+        user_id: str,
+        session_id: Optional[str],
+        execution_id: Optional[str],
+        agent_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """Canvas co-editor edit step: plan the edit via the canvas editor
+        module, persist it through canvas_crud_tool, and return the chat
+        response. Returns None when the turn is NOT a canvas edit (or
+        anything fails) — the normal conversational path then runs."""
+        from core.chat_canvas_editor import apply_canvas_edit, plan_canvas_edit
+
+        try:
+            plan = await asyncio.wait_for(
+                plan_canvas_edit(message, history, canvas, self.llm_service),
+                timeout=30,
+            )
+        except Exception as e:
+            logger.warning(f"canvas edit planning skipped: {e}")
+            return None
+        if plan is None or not plan.wants_edit:
+            return None
+
+        # Maturity gate — canvas edits are INTERN+ (governance action
+        # "update_canvas"). A hire that isn't mature enough is NOT refused:
+        # the canvas IS the training surface (chat_draft_to_canvas contract —
+        # "the supervisor trains the hire by editing the draft ON the
+        # canvas"). The student PROPOSES the edit by applying it as a draft,
+        # and the supervisor's on-canvas correction becomes the learning
+        # signal (captured at PUT /api/canvas/{id} → record_user_correction →
+        # AgentFeedback/RLHF → maturity growth → graduation).
+        await self._record_chat_step(
+            session_id, agent_id, execution_id, 1, "thought",
+            {"tool": "canvas_editor", "params": {"canvas_id": canvas.get("canvas_id")}},
+            f"Planned canvas edit: {(plan.reply or '')[:160]}",
+        )
+
+        # Maturity gate — canvas edits are INTERN+ (governance action
+        # "update_canvas"). A hire that isn't mature enough is NOT refused:
+        # the canvas IS the training surface (chat_draft_to_canvas contract —
+        # "the supervisor trains the hire by editing the draft ON the
+        # canvas"). The student PROPOSES the edit by applying it as a draft,
+        # and the supervisor's on-canvas correction becomes the learning
+        # signal (captured at PUT /api/canvas/{id} → record_user_correction →
+        # AgentFeedback/RLHF → maturity growth → graduation).
+        learning_mode = False
+        if agent_id:
+            try:
+                from core.database import get_db_session
+                from core.service_factory import ServiceFactory
+
+                with get_db_session() as db:
+                    governance = ServiceFactory.get_governance_service(db)
+                    check = governance.can_perform_action(
+                        agent_id=agent_id, action_type="update_canvas"
+                    )
+                learning_mode = not check.get("allowed", True)
+                await self._record_chat_step(
+                    session_id, agent_id, execution_id, 2, "thought",
+                    {"tool": "canvas_governance", "params": {"action": "update_canvas"}},
+                    f"maturity check: {'LEARNING MODE (proposal)' if learning_mode else 'allowed'}"
+                    f" — {str(check.get('reason', ''))[:120]}",
+                )
+            except Exception as gov_err:
+                logger.debug(f"canvas edit governance check skipped: {gov_err}")
+
+        result = await apply_canvas_edit(plan, user_id, canvas)
+        if result is None:
+            return None
+
+        # Learning mode: file the proposal into the canvas's training
+        # context so the correction diff (human edits the draft afterwards)
+        # has a documented "original attempt" to learn from.
+        if learning_mode and agent_id:
+            try:
+                from core.database import get_db_session
+                from core.service_factory import ServiceFactory
+
+                with get_db_session() as db:
+                    service = ServiceFactory.get_canvas_context_service(
+                        db, tenant_id=self.tenant_id
+                    )
+                    service.add_action_to_history(
+                        canvas_id=str(canvas.get("canvas_id")),
+                        user_id=user_id,
+                        action={
+                            "type": "canvas_edit_proposal",
+                            "agent_id": agent_id,
+                            "instruction": message[:200],
+                            "learning_mode": True,
+                        },
+                    )
+            except Exception as learn_err:
+                logger.debug(f"canvas learning-mode record skipped: {learn_err}")
+
+        await self._record_chat_step(
+            session_id, agent_id, execution_id, 3, "observation",
+            {"tool": "canvas_update", "params": {"canvas_id": canvas.get("canvas_id")}},
+            f"Canvas {canvas.get('canvas_id')} "
+            f"{'draft proposal applied (learning mode)' if learning_mode else 'updated'} "
+            f"({canvas.get('canvas_type') or 'generic'}); broadcast sent.",
+        )
+
+        reply = (plan.reply or "").strip() or (
+            "Updated the canvas — it should refresh beside this panel (and "
+            "the new version is saved to its history)."
+        )
+        if learning_mode:
+            # Student voice: propose, invite correction — never claim authority.
+            reply = (
+                f"{reply}\n\n📝 I'm still learning canvas edits, so treat this as "
+                "my draft attempt — fix it right here on the canvas and I'll "
+                "learn from your changes."
+            )
+        logger.info(
+            f"canvas co-editor edit applied: canvas={canvas.get('canvas_id')} "
+            f"type={canvas.get('canvas_type')}"
+            + (" (learning mode: proposal by immature hire)" if learning_mode else "")
+        )
+        return {
+            "success": True,
+            "message": reply,
+            "session_id": session_id,
+            "intent": "canvas_edit",
+            "confidence": 0.9,
+            "data": {
+                "canvas_edit": {
+                    "canvas_id": canvas.get("canvas_id"),
+                    "updated": True,
+                    **({"learning_mode": True} if learning_mode else {}),
+                }
+            },
+            "suggested_actions": [],
+            "requires_confirmation": False,
+            "next_steps": [],
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    async def _try_canvas_action(
+        self,
+        message: str,
+        history: list,
+        canvas: Dict[str, Any],
+        user_id: str,
+        session_id: Optional[str],
+        execution_id: Optional[str],
+        agent_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """DOING something with the canvas (send the draft as email) — the
+        counterpart of the edit step. Two gates, in order:
+
+        1. AUTONOMY POLICY (the owner's choice, per topic): ``human_always``
+           means the agent may only PROPOSE — approval happens in the Journey
+           panel / proposals endpoints, never here.
+        2. MATURITY (governance): ``auto_if_mature`` topics execute directly
+           only when the hire's tier allows it; an immature hire proposes
+           (the same learning loop as edits).
+
+        Returns the chat response for a handled action, None to fall through
+        (including on every failure — the turn degrades to conversation).
+        """
+        from core.chat_canvas_editor import plan_canvas_action
+
+        try:
+            plan = await asyncio.wait_for(
+                plan_canvas_action(message, history, canvas, self.llm_service),
+                timeout=25,
+            )
+        except Exception as e:
+            logger.warning(f"canvas action planning skipped: {e}")
+            return None
+        if plan is None or not plan.wants_action:
+            return None
+
+        await self._record_chat_step(
+            session_id, agent_id, execution_id, 1, "thought",
+            {"tool": "canvas_action_planner", "params": {"action": plan.action}},
+            f"Planned canvas action: {plan.action} to={plan.to or '(unspecified)'}",
+        )
+
+        from core.autonomy_policy import (
+            MODE_AUTO_IF_MATURE,
+            get_effective_mode,
+        )
+        from core.database import get_db_session
+
+        mode = MODE_AUTO_IF_MATURE
+        governance_allows = True
+        try:
+            with get_db_session() as db:
+                mode = get_effective_mode(db, user_id, "send_email")
+                if agent_id and mode == MODE_AUTO_IF_MATURE:
+                    from core.service_factory import ServiceFactory
+
+                    governance = ServiceFactory.get_governance_service(db)
+                    check = governance.can_perform_action(
+                        agent_id=agent_id, action_type="send_email"
+                    )
+                    governance_allows = bool(check.get("allowed", True))
+        except Exception as e:
+            logger.warning(f"canvas action gates skipped: {e}")
+
+        # Gate outcomes → direct execution ONLY when policy allows autonomy
+        # AND the hire is mature enough. Everything else proposes (HITL).
+        needs_approval = (mode != MODE_AUTO_IF_MATURE) or not governance_allows
+        if not needs_approval:
+            result = await self._execute_send_email(
+                plan, canvas, user_id, agent_id,
+            )
+            if result is None:
+                return None  # execution failure → fall through to conversation
+            reply = result.get("message") or "Email sent."
+            return {
+                "success": True,
+                "message": reply,
+                "session_id": session_id,
+                "intent": "canvas_action",
+                "confidence": 0.9,
+                "data": {"canvas_action": result},
+                "suggested_actions": [],
+                "requires_confirmation": False,
+                "next_steps": [],
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        # HITL: file the proposal; approval executes it (and feeds learning).
+        proposal_id = self._create_send_email_proposal(
+            plan, canvas, user_id, session_id, agent_id,
+        )
+        if proposal_id is None:
+            return None
+
+        await self._record_chat_step(
+            session_id, agent_id, execution_id, 2, "observation",
+            {"tool": "action_proposal", "params": {"action": "send_email"}},
+            f"HITL: send_email proposed ({plan.to or 'no recipient'}); "
+            "awaiting human approval in the Journey panel.",
+        )
+        reply = (
+            (plan.reply or "Ready to send that email.").strip()
+            + f"\n\n🔐 This needs your approval first"
+            + (" (you've set email sends to always require a human)" if mode != MODE_AUTO_IF_MATURE
+               else " (the hire isn't mature enough to send autonomously yet)")
+            + " — open the **Journey** tab to approve or reject it."
+        )
+        return {
+            "success": True,
+            "message": reply,
+            "session_id": session_id,
+            "intent": "canvas_action",
+            "confidence": 0.9,
+            "data": {
+                "canvas_action": {
+                    "action": "send_email",
+                    "proposal_id": proposal_id,
+                    "needs_approval": True,
+                    "to": plan.to or "",
+                    "subject": plan.subject or "",
+                }
+            },
+            "suggested_actions": [],
+            "requires_confirmation": False,
+            "next_steps": [],
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    async def _execute_send_email(
+        self, plan, canvas: Dict[str, Any], user_id: str, agent_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """Direct send via the deterministic email policy (audits + policy
+        checks inside). Returns a result dict, None on failure."""
+        try:
+            from core.canvas_email_service import EmailCanvasService
+            from core.database import get_db_session
+
+            recipients = [
+                r.strip() for r in (plan.to or "").replace(";", ",").split(",") if r.strip()
+            ]
+            if not recipients:
+                logger.info("canvas action: no recipient in plan — falling through")
+                return None
+            body = (plan.body or "").strip()
+            if not body and isinstance(canvas.get("content"), dict):
+                body = str(canvas["content"].get("content") or "")
+            elif not body and isinstance(canvas.get("content"), str):
+                body = canvas["content"]
+
+            with get_db_session() as db:
+                service = EmailCanvasService(db)
+                result = await service.send_email(
+                    canvas_id=str(canvas.get("canvas_id")),
+                    user_id=user_id,
+                    to_emails=recipients,
+                    cc_emails=[],
+                    subject=plan.subject or (canvas.get("title") or ""),
+                    body=body,
+                    agent_id=agent_id,
+                )
+            if not (result or {}).get("success"):
+                logger.info(f"canvas action send_email rejected: {(result or {}).get('error')}")
+                return {"message": f"Send blocked by email policy: {(result or {}).get('error', 'unknown')}"}
+            status = result.get("status", "sent")
+            return {
+                "action": "send_email",
+                "status": status,
+                "message": (f"Email {status} to {', '.join(recipients)}."
+                            if status != "sent" else f"Email sent to {', '.join(recipients)}."),
+                "result": {k: v for k, v in result.items() if k != "message"},
+            }
+        except Exception as e:
+            logger.warning(f"canvas action send_email failed: {e}")
+            return None
+
+    def _create_send_email_proposal(
+        self, plan, canvas: Dict[str, Any], user_id: str,
+        session_id: Optional[str], agent_id: Optional[str],
+    ) -> Optional[str]:
+        """File a pending send_email proposal (the existing HITL machinery —
+        /api/maturity/proposals + approve executes it and feeds learning)."""
+        try:
+            from core.database import get_db_session
+            from core.models import AgentProposal, AgentRegistry
+
+            with get_db_session() as db:
+                agent = (
+                    db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+                    if agent_id else None
+                )
+                proposal = AgentProposal(
+                    tenant_id=(getattr(agent, "tenant_id", None) or "default"),
+                    user_id=user_id,
+                    agent_id=agent_id or "atom_main",
+                    agent_name=(agent.name if agent else "Assistant"),
+                    canvas_id=str(canvas.get("canvas_id")),
+                    session_id=session_id,
+                    proposal_type="action",
+                    title=f"Send email: {plan.subject or (canvas.get('title') or 'draft')}",
+                    description=(
+                        f"Send the canvas draft by email.\n\nTo: {plan.to or '(not specified)'}\n"
+                        f"Subject: {plan.subject or '(canvas title)'}"
+                    ),
+                    proposal_data={
+                        "action_type": "send_email",
+                        "canvas_id": str(canvas.get("canvas_id")),
+                        "to": plan.to or "",
+                        "subject": plan.subject or "",
+                        "body": plan.body or "",
+                    },
+                    status="pending_approval",
+                )
+                db.add(proposal)
+                db.commit()
+                db.refresh(proposal)
+                logger.info(
+                    f"canvas action proposal filed: {proposal.id} "
+                    f"(send_email, canvas={canvas.get('canvas_id')})"
+                )
+                return proposal.id
+        except Exception as e:
+            logger.warning(f"canvas action proposal creation failed: {e}")
             return None
 
     async def _analyze_intent(self, message: str, session: Dict) -> Dict[str, Any]:
@@ -2255,18 +2703,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"Could not persist ChatSession row (non-fatal): {e}")
         return self.conversation_sessions[session_id]
 
-    def _update_session(self, session: Dict, message: str, response: Dict, intent: Dict):
+    def _update_session(self, session: Dict, message: str, response, intent: Dict):
         # Error-turn detection: a reply that is a known failure artifact (no
         # provider, cancelled, budget-halted, protocol residue) must never
         # enter the model's context later — in a long session they stack into
         # a refusal wall that anchors weak models into failing again even
         # when a fresh, successful answer is available. Flagged turns stay in
         # the DB and UI (history is history) but are skipped at prompt-build.
-        _resp_msg = (response or {}).get("message", "") if isinstance(response, dict) else ""
+        # ``response`` may be a plain string (legacy callers) — stored
+        # verbatim; the dict-only error checks simply don't apply to it.
+        _resp_dict = response if isinstance(response, dict) else {}
+        _resp_msg = _resp_dict.get("message", "") or ("" if isinstance(response, dict) else str(response or ""))
         _is_error_turn = bool(
-            not (response or {}).get("success", True)
-            or (response or {}).get("cancelled")
-            or (response or {}).get("error_code") in ("no_llm_provider", "budget_exceeded")
+            not _resp_dict.get("success", True)
+            or _resp_dict.get("cancelled")
+            or _resp_dict.get("error_code") in ("no_llm_provider", "budget_exceeded")
             or "<tool_call>" in _resp_msg
             or "</mm:think>" in _resp_msg
         )
@@ -2280,6 +2731,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         # Session-dedup write-side: index this turn's content so future turns
         # can reference-match byte-identical repeated text. Exact-match only.
+        # The stored history itself is NEVER marker-ized here — replacing
+        # prior turns' text with placeholders is what corrupted recall before
+        # the read-path removal (nothing consumes the markers on the chat
+        # path anymore; indexing alone is harmless).
         try:
             from core.llm.compression import SESSION_DEDUP_ENABLED
             if SESSION_DEDUP_ENABLED:
@@ -2287,7 +2742,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 dedup_idx = get_or_create_dedup_index(session)
                 if message:
                     dedup_idx.index_text(message)
-                resp_msg = (response or {}).get("message", "")
+                resp_msg = _resp_msg
                 if resp_msg:
                     dedup_idx.index_text(resp_msg)
         except Exception:

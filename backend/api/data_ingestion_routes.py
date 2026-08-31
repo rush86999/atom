@@ -233,6 +233,17 @@ async def trigger_sync(
 
         result = await service.sync_integration_data(integration_id, force=force, role=role)
 
+        # "skipped" (concurrent-sync backoff) is a bool with a separate
+        # "reason" — feeding it into the str message field crashed the
+        # response model with a 500 whenever a sync raced the background
+        # sync scheduled on connect.
+        if result.get("error"):
+            message: Optional[str] = str(result["error"])
+        elif result.get("skipped"):
+            message = str(result.get("reason") or "Sync already in progress")
+        else:
+            message = "Sync completed"
+
         return SyncResponse(
             success=result.get("success", False),
             integration_id=integration_id,
@@ -240,7 +251,7 @@ async def trigger_sync(
             records_ingested=result.get("records_ingested", 0),
             entities_extracted=result.get("entities_extracted", 0),
             relationships_extracted=result.get("relationships_extracted", 0),
-            message=result.get("error") or result.get("skipped") or "Sync completed"
+            message=message,
         )
     except Exception as e:
         logger.error(f"Failed to trigger sync: {e}")

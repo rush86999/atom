@@ -207,20 +207,28 @@ const GoogleWorkspaceIntegration: React.FC = () => {
     // Check connection status
     const checkConnection = async () => {
         try {
-            const response = await fetch("/api/integrations/google-workspace/health", { headers: authHeaders() });
+            // Real per-integration connection state (DB connections + OAuth
+            // grants + env credentials). The /health route is a liveness probe
+            // that returns 200 unconditionally — it must not decide "connected".
+            const response = await fetch("/api/integrations/connection-status", { headers: authHeaders() });
             if (response.ok) {
-                setConnected(true);
-                setHealthStatus("healthy");
-                loadDocs();
-                loadSheets();
-                loadEvents();
-                loadEmails();
+                const data = await response.json().catch((): null => null);
+                const providers = data?.data?.providers ?? data?.providers ?? {};
+                const isConnected = providers?.["google-workspace"]?.connected === true;
+                setConnected(isConnected);
+                setHealthStatus(isConnected ? "healthy" : "error");
+                if (isConnected) {
+                    loadDocs();
+                    loadSheets();
+                    loadEvents();
+                    loadEmails();
+                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
             }
         } catch (error) {
-            console.error("Health check failed:", error);
+            console.error("Connection status check failed:", error);
             setConnected(false);
             setHealthStatus("error");
         }

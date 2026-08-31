@@ -130,3 +130,130 @@ describe("CanvasIndexPage", () => {
     expect(screen.getAllByText("custom").length).toBeGreaterThan(0);
   });
 });
+
+describe("CanvasIndexPage search", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGet.mockResolvedValue({ data: { canvases: CANVASES, total: CANVASES.length } });
+  });
+
+  test("typing fires a debounced search request with q param", async () => {
+    render(<CanvasIndexPage />);
+    await waitFor(() => expect(screen.getByText("Q3 Budget")).toBeInTheDocument());
+    const callsBefore = mockGet.mock.calls.length;
+
+    fireEvent.change(screen.getByLabelText("Search canvases"), {
+      target: { value: "budget" },
+    });
+    // Not yet — debounce must swallow the keystroke.
+    expect(mockGet.mock.calls.length).toBe(callsBefore);
+
+    await waitFor(
+      () => expect(mockGet).toHaveBeenCalledWith("/api/canvas/?q=budget"),
+      { timeout: 2000 }
+    );
+  });
+
+  test("shows result count and derived titles/snippets for search results", async () => {
+    render(<CanvasIndexPage />);
+    await waitFor(() => expect(screen.getByText("Q3 Budget")).toBeInTheDocument());
+
+    // The next fetch (the debounced search) returns the match payload.
+    mockGet.mockResolvedValue({
+      data: {
+        canvases: [
+          {
+            canvas_id: "cv9",
+            canvas_type: "docs",
+            action_type: "present",
+            title: null,
+            display_title: "Launch Checklist",
+            snippet: "…ship the budget for the Lisbon office…",
+            deleted: false,
+            last_updated: "2026-08-03T10:00:00Z",
+          },
+        ],
+        total: 4,
+      },
+    });
+    fireEvent.change(screen.getByLabelText("Search canvases"), {
+      target: { value: "budget" },
+    });
+    await waitFor(() =>
+      expect(screen.getByText("4 results for “budget”")).toBeInTheDocument(),
+      { timeout: 2000 }
+    );
+    // Derived title renders, not the raw id.
+    expect(screen.getByText("Launch Checklist")).toBeInTheDocument();
+    expect(screen.queryByText("cv9")).not.toBeInTheDocument();
+    expect(screen.getByText("…ship the budget for the Lisbon office…")).toBeInTheDocument();
+  });
+
+  test("no-match search state offers a clear button that refetches the full list", async () => {
+    render(<CanvasIndexPage />);
+    await waitFor(() => expect(screen.getByText("Q3 Budget")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText("Search canvases"), {
+      target: { value: "zzz" },
+    });
+    mockGet.mockResolvedValue({ data: { canvases: [], total: 0 } });
+    await waitFor(() =>
+      expect(screen.getByText(/No canvases match “zzz”/)).toBeInTheDocument(),
+      { timeout: 2000 }
+    );
+
+    mockGet.mockResolvedValue({ data: { canvases: CANVASES, total: CANVASES.length } });
+    fireEvent.click(screen.getByRole("button", { name: /clear search/i }));
+    await waitFor(
+      () => expect(mockGet).toHaveBeenCalledWith("/api/canvas/"),
+      { timeout: 2000 }
+    );
+    await waitFor(() => expect(screen.getByText("Q3 Budget")).toBeInTheDocument());
+  });
+
+  test("clearing the search box restores the unfiltered list", async () => {
+    render(<CanvasIndexPage />);
+    await waitFor(() => expect(screen.getByText("Q3 Budget")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText("Search canvases"), {
+      target: { value: "notes" },
+    });
+    mockGet.mockResolvedValue({
+      data: { canvases: [CANVASES[1]], total: 1 },
+    });
+    await waitFor(
+      () => expect(screen.getByText("1 result for “notes”")).toBeInTheDocument(),
+      { timeout: 2000 }
+    );
+
+    fireEvent.click(screen.getByLabelText("Clear"));
+    mockGet.mockResolvedValue({ data: { canvases: CANVASES, total: CANVASES.length } });
+    await waitFor(
+      () => expect(mockGet).toHaveBeenLastCalledWith("/api/canvas/"),
+      { timeout: 2000 }
+    );
+    await waitFor(() => expect(screen.getByText("Q3 Budget")).toBeInTheDocument());
+  });
+
+  test("prefers display_title over title and id", async () => {
+    mockGet.mockResolvedValue({
+      data: {
+        canvases: [
+          {
+            canvas_id: "cv10",
+            canvas_type: "email",
+            action_type: "present",
+            title: null,
+            display_title: "Board update",
+            deleted: false,
+            last_updated: null,
+          },
+        ],
+        total: 1,
+      },
+    });
+    render(<CanvasIndexPage />);
+    await waitFor(() => expect(screen.getByText("Board update")).toBeInTheDocument());
+    expect(screen.queryByText("cv10")).not.toBeInTheDocument();
+  });
+});

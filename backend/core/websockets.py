@@ -4,7 +4,7 @@ from datetime import datetime
 import json
 import logging
 import os
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 from fastapi import WebSocket
 
 from core.auth import get_current_user_ws
@@ -116,16 +116,22 @@ class ConnectionManager:
                 pass
             return None
 
-    def disconnect(self, websocket: WebSocket, user_id: str):
-        # Remove from user connections
-        if user_id in self.user_connections:
+    def disconnect(self, websocket: WebSocket, user_id: Optional[str] = None):
+        # Remove from user connections. ``user_id`` is optional: the /ws
+        # endpoint's error paths disconnect with the socket only — requiring
+        # the id made every WS receive-error crash the handler with
+        # TypeError ("missing 1 required positional argument").
+        if user_id and user_id in self.user_connections:
             if websocket in self.user_connections[user_id]:
                 self.user_connections[user_id].remove(websocket)
-                
-        # Remove from all channels
-        for channel in self.active_connections:
-            if websocket in self.active_connections[channel]:
-                self.active_connections[channel].remove(websocket)
+
+        # Remove from all channels (and drop now-empty channel buckets).
+        for channel in list(self.active_connections):
+            sockets = self.active_connections.get(channel) or []
+            if websocket in sockets:
+                sockets.remove(websocket)
+            if not sockets:
+                self.active_connections.pop(channel, None)
 
     def subscribe(self, websocket: WebSocket, channel: str):
         if channel not in self.active_connections:

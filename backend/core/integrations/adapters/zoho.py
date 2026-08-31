@@ -84,6 +84,17 @@ class ZohoAdapter:
                 IntegrationToken.workspace_id.is_(None),
             ),
         ).first()
+        if not token:
+            # Fallback: the callback stamps rows under the user's resolved
+            # workspace while callers construct this adapter with whatever
+            # workspace/tenant convention they hold — when the two drift the
+            # scoped lookup misses and every data call ran unauthenticated.
+            # Resolve like outlook_service does: any active grant for this
+            # provider (single-operator semantics), never a revoked one.
+            token = self.db.query(IntegrationToken).filter(
+                IntegrationToken.provider == "zoho",
+                IntegrationToken.status == "active",
+            ).first()
         
         if token:
             from core.privsec.token_encryption import decrypt_token

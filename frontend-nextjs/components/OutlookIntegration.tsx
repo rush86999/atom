@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import IngestionStatusPanel from "@/components/integrations/IngestionStatusPanel";
 
 interface OutlookEmail {
     id: string;
@@ -95,7 +96,7 @@ interface OutlookEvent {
         type: string;
     }>;
     isAllDay: boolean;
-    showAs: "free" | "tentative" | "busy" | "oof";
+    showAs: string;
 }
 
 interface OutlookContact {
@@ -169,6 +170,34 @@ function normalizeOutlookEmail(raw: any): OutlookEmail {
     };
 }
 
+// Same deal as normalizeOutlookEmail: the backend
+// (integrations/outlook_service.OutlookCalendarEvent) serializes events in
+// snake_case with the raw Microsoft Graph shape (attendees as
+// {emailAddress: {name, address}}, location as {displayName}, show_as,
+// is_all_day). Map into the camelCase shape this component renders, tolerant
+// of both.
+function normalizeOutlookEvent(raw: any): OutlookEvent {
+    return {
+        id: raw?.id ?? "",
+        subject: raw?.subject || "(No subject)",
+        start: raw?.start ?? { dateTime: "", timeZone: "UTC" },
+        end: raw?.end ?? { dateTime: "", timeZone: "UTC" },
+        location:
+            typeof raw?.location === "string"
+                ? raw.location
+                : raw?.location?.displayName ?? undefined,
+        attendees: (Array.isArray(raw?.attendees) ? raw.attendees : []).map(
+            (a: any) => ({
+                name: a?.emailAddress?.name ?? a?.name ?? "",
+                email: a?.emailAddress?.address ?? a?.email ?? a?.address ?? "",
+                type: a?.type ?? "required",
+            })
+        ),
+        isAllDay: raw?.is_all_day ?? raw?.isAllDay ?? false,
+        showAs: raw?.show_as ?? raw?.showAs ?? "busy",
+    };
+}
+
 const OutlookIntegration: React.FC = () => {
     const [emails, setEmails] = useState<OutlookEmail[]>([]);
     const [events, setEvents] = useState<OutlookEvent[]>([]);
@@ -234,25 +263,30 @@ const OutlookIntegration: React.FC = () => {
         };
     };
 
-    // Check connection status
+    // Check connection status. Uses the real per-integration connection
+    // state (DB connections + OAuth grants + env credentials). The legacy
+    // /integrations/outlook/health route is a service-liveness probe that
+    // returns 200 unconditionally — it must not decide "connected".
     const checkConnection = async () => {
         try {
             const headers = getAuthHeaders();
-            let response = await fetch("/api/v1/integrations/outlook/health", { headers }).catch((): null => null);
-            if (!response || !response.ok) {
-                response = await fetch("/api/integrations/outlook/health", { headers }).catch((): null => null);
-            }
+            const response = await fetch("/api/integrations/connection-status", { headers }).catch((): null => null);
 
             if (response && response.ok) {
-                setConnected(true);
-                setHealthStatus("healthy");
-                loadUserProfile();
+                const data = await response.json().catch((): null => null);
+                const providers = data?.data?.providers ?? data?.providers ?? {};
+                const isConnected = providers?.outlook?.connected === true;
+                setConnected(isConnected);
+                setHealthStatus(isConnected ? "healthy" : "error");
+                if (isConnected) {
+                    loadUserProfile();
+                }
             } else {
                 setConnected(false);
                 setHealthStatus("error");
             }
         } catch (error) {
-            console.error("Health check failed:", error);
+            console.error("Connection status check failed:", error);
             setConnected(false);
             setHealthStatus("error");
         }
@@ -342,7 +376,7 @@ const OutlookIntegration: React.FC = () => {
             if (response.ok) {
                 const data = await response.json();
                 const eventList = Array.isArray(data.data) ? data.data : (data.data?.events || []);
-                setEvents(eventList);
+                setEvents(eventList.map(normalizeOutlookEvent));
             }
         } catch (error) {
             console.error("Failed to load events:", error);
@@ -621,6 +655,10 @@ const OutlookIntegration: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Memory Ingestion Progress — records pulled into Atom's
+                    memory store (distinct from the live mailbox views below) */}
+                <IngestionStatusPanel integrationId="outlook" title="Memory Ingestion" />
+
                 {/* Stats Overview */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                     <Card>
@@ -850,7 +888,7 @@ const OutlookIntegration: React.FC = () => {
                                                                 {event.attendees.slice(0, 3).map((attendee, index) => (
                                                                     <Avatar key={index} className="inline-block border-2 border-background w-8 h-8">
                                                                         <AvatarFallback className="bg-blue-100 text-blue-600 text-xs">
-                                                                            {attendee.name.charAt(0)}
+                                                                            {(attendee.name || attendee.email || "?").charAt(0).toUpperCase()}
                                                                         </AvatarFallback>
                                                                     </Avatar>
                                                                 ))}

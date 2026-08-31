@@ -82,11 +82,29 @@ _SERVICE_DESCRIPTIONS = {
     "shopify": "e-commerce — search orders, products, customers",
     "stripe": "payments — search payments, invoices",
     "quickbooks": "accounting — search invoices, customers",
+    # Platform web tools: not OAuth integrations — available to every user
+    # when a Tavily key is configured (env or tenant BYOK). Without these
+    # the planner told agents "no web access exists" for website questions
+    # and the reply model confabulated research findings instead.
+    "web_search": "web search — search the public internet for facts about a company, person, product, or topic",
+    "web_fetch": "browser — fetch and read a specific website page; put the site address (e.g. https://example.com) in the query",
 }
+
+# Web tools that ship with the platform (key-gated, no user OAuth needed).
+_PLATFORM_SERVICES = ("web_search", "web_fetch")
+
+
+def _available_platform_services() -> List[str]:
+    """Platform web tools usable right now. Tavily key check is env-only
+    here (cheap, every chat turn); tenant BYOK keys are resolved at
+    execution time inside mcp_service."""
+    if os.getenv("TAVILY_API_KEY"):
+        return list(_PLATFORM_SERVICES)
+    return []
 
 _PLANNER_SYSTEM = """You are the tool planner for an AI automation platform.
 Given the recent conversation and the user's latest message, decide whether
-answering needs FRESH data from one of the user's connected integrations
+answering needs FRESH data from one of the available tools
 (listed below with what they contain), or whether the conversation itself is
 enough.
 
@@ -97,10 +115,17 @@ Rules:
   A failed attempt plus "try again" is precisely a request to attempt it
   again now. Plan use_tool=true with the same service and query terms.
 - query must be the minimal search terms (names, companies, subjects,
-  keywords) — not the whole user message.
+  keywords) — not the whole user message. For web_fetch the query is the
+  website address itself.
+- Return exactly ONE plan. If a search and a URL check would both help,
+  plan ONLY web_fetch when the address is known, otherwise web_search.
 - Read-only: only search/list intents. Never plan sends, writes, or deletes.
 - If the conversation or memory already clearly answers it, use_tool=false.
-- If the needed integration is NOT in the connected list, use_tool=false and
+- Questions about a company/person/website the conversation cannot answer
+  from its own content need web_search (topic facts) or web_fetch (read a
+  specific site). Only conclude "no lookup needed" when the answer is
+  genuinely already present.
+- If the needed integration is NOT in the available list, use_tool=false and
   say which integration is missing in `reason`."""
 
 # Pin the planner to a known-reachable vetted model: unpinned "auto" routing
@@ -159,7 +184,7 @@ _connected_cache: Dict[str, Any] = {}
 
 def _catalog_line(connected: List[str]) -> str:
     lines = []
-    for svc in connected:
+    for svc in list(connected) + _available_platform_services():
         desc = _SERVICE_DESCRIPTIONS.get(svc, "integration data")
         lines.append(f"- {svc}: {desc}")
     return "\n".join(lines) if lines else "- (none connected)"
@@ -195,7 +220,7 @@ async def plan_tool_use(
     catalog = _catalog_line(connected)
     prompt = (
         f"{_PLANNER_SYSTEM}\n\n"
-        f"Connected integrations:\n{catalog}\n\n"
+        f"Available tools:\n{catalog}\n\n"
         f"Recent conversation:\n{_history_transcript(history, message)}\n\n"
         "Return the tool plan."
     )
@@ -224,7 +249,8 @@ async def plan_tool_use(
     if plan is None:
         return None
     if plan.use_tool:
-        if not plan.service or plan.service not in connected:
+        allowed = set(connected) | set(_available_platform_services())
+        if not plan.service or plan.service not in allowed:
             logger.info(f"tool planner: service not connected ({plan.service!r}): {plan.reason[:80]}")
             return None
         if plan.intent not in ("search", "list"):
@@ -243,6 +269,75 @@ async def execute_tool_plan(
         return None
     service = plan.service
     query = (plan.query or "").strip()
+
+    # Platform web tools (Tavily-backed, key resolved inside mcp_service).
+    # Read-only like every planner leg; the full maturity-gated Playwright
+    # browser_tool stays the path for interactive automation.
+    if service in ("web_search", "web_fetch"):
+        try:
+            from integrations.mcp_service import mcp_service as _mcp
+
+            if service == "web_search":
+                res = await _mcp.web_search(query, tenant_id)
+                err = str(res.get("error") or "").strip()
+                if err:
+                    return f"LIVE TOOL RESULTS (web_search, query='{query}'): unavailable — {err[:200]}"
+                answer = str(res.get("answer") or "").strip()
+                results = res.get("results") or []
+                if not answer and not results:
+                    return f"LIVE TOOL RESULTS (web_search, query='{query}'): no results found."
+                lines = []
+                if answer:
+                    lines.append(f"Summary: {answer[:800]}")
+                for r in results[:5]:
+                    lines.append(
+                        f"- {str(r.get('title') or '(untitled)')[:120]} | {str(r.get('url') or '')[:160]}\n"
+                        f"  {str(r.get('content') or '')[:400]}"
+                    )
+                return (
+                    f"LIVE TOOL RESULTS (web_search, query='{query}') — "
+                    f"use these to answer:\n" + "\n".join(lines)
+                )
+
+            # web_fetch: read the page; when unreadable, degrade to search.
+            res = await _mcp.web_fetch(query, tenant_id)
+            err = str(res.get("error") or "").strip()
+            content = str(res.get("content") or "").strip()
+            if not content:
+                # Site unreadable (bot-blocked 403, JS-only page, offline) —
+                # a web_search about the same company usually still answers
+                # the question, so degrade to search instead of dead-ending.
+                err_note = err or "no readable text extracted"
+                try:
+                    search_query = f"{query} company what does this business do"
+                    sres = await _mcp.web_search(search_query, tenant_id)
+                    sanswer = str(sres.get("answer") or "").strip()
+                    sresults = sres.get("results") or []
+                    if sanswer or sresults:
+                        lines = [f"(direct read of {res.get('url') or query} failed: {err_note[:120]}; fell back to web search)"]
+                        if sanswer:
+                            lines.append(f"Summary: {sanswer[:800]}")
+                        for r in sresults[:5]:
+                            lines.append(
+                                f"- {str(r.get('title') or '(untitled)')[:120]} | {str(r.get('url') or '')[:160]}\n"
+                                f"  {str(r.get('content') or '')[:400]}"
+                            )
+                        return (
+                            f"LIVE TOOL RESULTS (web_fetch→web_search fallback, query='{search_query}') — "
+                            f"use these to answer:\n" + "\n".join(lines)
+                        )
+                except Exception as fallback_err:
+                    logger.warning(f"web_fetch→web_search fallback failed: {fallback_err}")
+                return (
+                    f"LIVE TOOL RESULTS (web_fetch, query='{query}'): page unreadable — {err_note[:200]}"
+                )
+            return (
+                f"LIVE TOOL RESULTS (web_fetch, url={res.get('url')}) — the actual "
+                f"content of this website; use it to answer:\n{content[:6000]}"
+            )
+        except Exception as e:
+            logger.warning(f"web tool execution failed ({service}): {e}")
+            return None
 
     # Outlook: dedicated service with per-user token handling. Graph $search
     # OR-ranks multi-word queries, so a rare surname gets buried under common

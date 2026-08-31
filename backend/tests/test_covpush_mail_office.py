@@ -941,10 +941,19 @@ class TestOutlookCoverage:
         return OutlookService("default", {})
 
     def test_capabilities_and_health(self):
-        svc = self.make()
-        caps = svc.get_capabilities()
-        assert len(caps["operations"]) == 6
-        r = svc.health_check()
+        # Env-coupled: a dev .env may export client ids; clear them around
+        # construction AND the health call so "not configured" is under test.
+        import os as _os
+        from unittest.mock import patch as _patch
+
+        with _patch.dict(
+            _os.environ,
+            {k: "" for k in ("MICROSOFT_CLIENT_ID", "AZURE_CLIENT_ID", "OUTLOOK_CLIENT_ID")},
+        ):
+            svc = self.make()
+            caps = svc.get_capabilities()
+            assert len(caps["operations"]) == 6
+            r = svc.health_check()
         assert r["healthy"] is False
         svc.client_id = "cid"
         r = svc.health_check()
@@ -2482,8 +2491,12 @@ class TestTelegramCoverage:
         assert m.content == "hi"
 
     def test_initialize(self):
-        svc = self.make(bot_token=None)
-        assert run(svc.initialize()) is False
+        # Env-coupled: a dev .env may export TELEGRAM_BOT_TOKEN, which the
+        # bot_token=None construction falls back to. Clear it so the
+        # "no credentials -> init fails" contract is actually under test.
+        with patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": ""}):
+            svc = self.make(bot_token=None)
+            assert run(svc.initialize()) is False
 
         svc = self.make()
         assert run(svc.initialize()) is True

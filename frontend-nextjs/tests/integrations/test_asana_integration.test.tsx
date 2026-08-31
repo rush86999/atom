@@ -91,8 +91,11 @@ const users = [
 ];
 
 const asanaHandlers = [
-  rest.get('/api/integrations/asana/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { asana: { connected: true, source: 'user_connection' } } }));
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { asana: { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.get('/api/integrations/asana/workspaces', (req, res, ctx) => {
@@ -122,7 +125,7 @@ const asanaHandlers = [
 
 const setNotConnected = () => {
   server.use(
-    rest.get('/api/integrations/asana/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(500), ctx.json({ error: 'not connected' }));
     })
   );
@@ -316,7 +319,7 @@ describe('AsanaIntegration', () => {
   // Test 13: handles connection error as disconnected
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/asana/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500), ctx.json({ error: 'Server error' }));
       })
     );

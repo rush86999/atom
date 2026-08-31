@@ -2888,6 +2888,19 @@ try:
 
         app.include_router(zoho_mail_router, prefix="/api/v1/integrations/zoho-mail")
 
+        # Zoho Forms + Zoho Flow: webhook-push apps (no public read API —
+        # see integrations/zoho_forms_service.py). These routers declare no
+        # prefix of their own, so the mount path below is the full path:
+        # /health, /capabilities, readback, and (Forms) the ingestion
+        # webhook under /api/v1/integrations/zoho-forms/webhook.
+        from integrations.zoho_forms_routes import router as zoho_forms_router
+
+        app.include_router(zoho_forms_router, prefix="/api/v1/integrations/zoho-forms")
+
+        from integrations.zoho_flow_routes import router as zoho_flow_router
+
+        app.include_router(zoho_flow_router, prefix="/api/v1/integrations/zoho-flow")
+
         # HR Integrations
         try:
             from api.routes.integrations.sagehr_routes import sagehr_router
@@ -3284,6 +3297,16 @@ try:
         logger.info("✓ Canvas Recording Routes Loaded")
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas recording routes not found: {e}")
+
+    try:
+        # Autonomy policy: which action topics always require a human in the
+        # loop vs. agent-autonomous-if-mature (canvas page Autonomy panel).
+        from api.autonomy_routes import router as autonomy_router
+
+        app.include_router(autonomy_router)
+        logger.info("✓ Autonomy Routes Loaded (action HITL policy)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Autonomy routes not found: {e}")
 
     try:
         # Round 80f: meeting attendance had a real frontend consumer

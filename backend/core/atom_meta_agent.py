@@ -15,7 +15,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from core.models import (
-    AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution,
+    AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution, NEW_AGENT_CONFIDENCE,
     Workspace, AgentReasoningStep, ExecutionStatus, AgentTriggerMode,
     ChainLink,
 )
@@ -2468,7 +2468,7 @@ What is your next step?"""
             description=template.get("description", "Dynamically spawned agent"),
             category=template.get("category", "General"),
             status=AgentStatus.STUDENT.value,  # New agents start as STUDENT
-            confidence_score=0.5,  # Default starting confidence
+            confidence_score=NEW_AGENT_CONFIDENCE,  # Below the INTERN floor (0.5)
             module_path="core.generic_agent",
             class_name="GenericAgent",
             configuration=custom_params or template.get("default_params", {}),
@@ -3047,7 +3047,7 @@ Provide your Mentorship Guidance:"""
         # Vocabulary is mined from real work history so edge roles (beyond
         # the static keyword table) attribute dynamically.
         from core.domain_attribution import (
-            build_domain_vocabulary, record_domain_outcome, resolve_domain,
+            build_domain_vocabulary, resolve_domain,
         )
         attributed_domain = None
         db = SessionLocal()
@@ -3078,12 +3078,12 @@ Provide your Mentorship Guidance:"""
         success = _execution_succeeded(result)
         try:
             gov = AgentGovernanceService(db)
-            await gov.record_outcome("atom_main", success=success)
-            if attributed_domain:
-                record_domain_outcome(
-                    db, "atom_main", attributed_domain,
-                    success=success, task_summary=request[:200],
-                )
+            # Domain attribution happens inside record_outcome now (shared
+            # R86c wiring) — passing the task text here keeps the meta
+            # agent's ledger row without double-writing it.
+            await gov.record_outcome(
+                "atom_main", success=success, task_summary=request[:200]
+            )
         except Exception as ge:
             logger.error(f"Failed to record Atom governance outcome: {ge}")
         finally:

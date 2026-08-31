@@ -90,9 +90,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     const chatMessages: ChatMessageData[] = [];
 
                     data.messages.forEach((historyItem: any, idx: number) => {
+                        // Prefer the durable backend message id (needed by
+                        // fork-from-here); fall back to a positional id for
+                        // legacy payloads that don't carry one.
                         if (historyItem.message) {
                             chatMessages.push({
-                                id: `msg_user_${idx}`,
+                                id: historyItem.id || `msg_user_${idx}`,
                                 type: "user",
                                 content: historyItem.message,
                                 timestamp: new Date(historyItem.timestamp || Date.now()),
@@ -102,10 +105,10 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
 
                         const assistantContent = historyItem.response?.message || historyItem.response;
                         const assistantActions = historyItem.response?.suggested_actions || historyItem.response?.metadata?.actions || [];
-                        
+
                         if (assistantContent && typeof assistantContent === 'string') {
                             chatMessages.push({
-                                id: `msg_assistant_${idx}`,
+                                id: historyItem.id || `msg_assistant_${idx}`,
                                 type: "assistant",
                                 content: assistantContent,
                                 timestamp: new Date(historyItem.timestamp || Date.now()),
@@ -113,7 +116,7 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                             });
                         } else if (assistantContent && typeof assistantContent === 'object' && assistantContent.message) {
                             chatMessages.push({
-                                id: `msg_assistant_${idx}`,
+                                id: historyItem.id || `msg_assistant_${idx}`,
                                 type: "assistant",
                                 content: assistantContent.message,
                                 timestamp: new Date(historyItem.timestamp || Date.now()),

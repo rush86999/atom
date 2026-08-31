@@ -27,8 +27,14 @@ import { useToast } from '@/components/ui/use-toast';
 const getToastMock = (): jest.Mock => (useToast as jest.Mock)().toast;
 
 const boxHandlers = [
-  rest.get('/api/integrations/box/health', (req, res, ctx) => {
-    return res(ctx.status(200), ctx.json({ status: 'healthy' }));
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ providers: { box: { connected: true, source: 'user_connection' } } })
+    );
+  }),
+  rest.get('/api/integrations/connection-status', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ providers: { box: { connected: true, source: 'user_connection' } } }));
   }),
 
   rest.post('/api/integrations/box/profile', (req, res, ctx) => {
@@ -253,7 +259,7 @@ const boxHandlers = [
 
 const setDisconnected = () => {
   server.use(
-    rest.get('/api/integrations/box/health', (req, res, ctx) => {
+    rest.get('/api/integrations/connection-status', (req, res, ctx) => {
       return res(ctx.status(404));
     })
   );
@@ -355,7 +361,7 @@ describe('BoxIntegration', () => {
   // Test 8: handles connection error
   test('handles connection error', async () => {
     server.use(
-      rest.get('/api/integrations/box/health', (req, res, ctx) => {
+      rest.get('/api/integrations/connection-status', (req, res, ctx) => {
         return res(ctx.status(500));
       })
     );
@@ -1045,7 +1051,7 @@ describe('BoxIntegration', () => {
     test('handles a network-level health check failure as disconnected', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       server.use(
-        rest.get('/api/integrations/box/health', (req, res) => {
+        rest.get('/api/integrations/connection-status', (req, res) => {
           return new Promise((resolve, reject) => {
             setTimeout(() => reject(new Error('network error')), 5);
           });

@@ -7050,3 +7050,19 @@ Kill switch `ATOM_TRAINING_REQUIRE_EVIDENCE=0`. New `GET /api/maturity/training/
 **Verification**: `test_promotion_evidence_gate.py` 14 passed; `test_student_training_service.py`
 24 passed; frontend `components/chat` 132 passed; backend health + new evidence route registered
 (401 unauthenticated) on the live dev server.
+
+## Session 2026-08-30 (late) — canvas list discovery (search/titles/snippets/paging)
+
+**Scope**: `tools/canvas_crud_tool.py::list_canvases` rewrite (ROW_NUMBER latest-per-canvas window,
+q search over title/body/type/id, display_title derivation, snippet windowing, limit/offset+total;
+Canvas.content fallback ladder for chat_draft_to_canvas rows), `api/canvas_routes.py` GET / (q/limit/
+offset params), `cli/canvas.py` list fix (dict payload + canvas_id + display_title),
+`frontend-nextjs/pages/canvas/index.tsx` (debounced search, display titles, snippets, result count).
+
+**Evidence**: `tests/test_canvas_list_discovery.py` 24 passed (semantics incl. cross-user isolation,
+search paths, title derivations, snippet windowing, pagination, route boundary); re-contracted
+`test_covpush_w75c_tools_a.py::TestListCanvases` + `test_covpush_tools_a.py::test_list_canvases`
+(mock-chain → real rows; intent unchanged); FE `tests/pages/canvas-index.test.tsx` 13/13 (was 8).
+Canvas suites total 344 passed. Pre-existing failures (fail on baseline too): w75c
+TestAgentGuidanceSystem::test_create_audit_success, covpush_canvasroutes TestCanvasCRUD ×2,
+FE canvas-detail chat ×4.

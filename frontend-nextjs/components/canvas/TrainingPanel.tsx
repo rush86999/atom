@@ -213,6 +213,13 @@ export function TrainingPanel({
         user_id: getCurrentUserId(),
         session_id: `training-chat-${session.id}`,
         agent_id: agent.id,
+      }, {
+        // Agent-loop calls exceed the global 10s axios timeout; mirror the
+        // main chat's override (useChatInterface) so the task isn't reported
+        // failed while the agent is still working it.
+        timeout: 120000,
+        // @ts-ignore
+        retry: false,
       });
       if ((resp as any)?.status === 403 || (resp as any)?.status === 401) throw new Error("Not allowed");
       const plan = { ...(session.lesson_plan ?? {}) } as Record<string, unknown>;
@@ -543,7 +550,7 @@ export function TrainingPanel({
               onChange={(e) => setLesson(e.target.value)}
               placeholder="A lesson, correction, or worked example…"
               rows={3}
-              className="w-full border rounded-md px-2 py-1 text-xs bg-background"
+              className="w-full border rounded-md px-2.5 py-1.5 text-sm bg-background"
               aria-label="Lesson"
               data-testid="teach-lesson-input"
             />
@@ -552,11 +559,11 @@ export function TrainingPanel({
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="Topic (optional)"
-                className="h-7 text-xs"
+                className="h-8 text-sm"
                 aria-label="Topic"
                 data-testid="teach-topic-input"
               />
-              <Button size="sm" className="h-7 text-xs" onClick={handleTeach} disabled={teachBusy || lesson.trim().length < 5} data-testid="teach-submit">
+              <Button size="sm" className="h-8 text-sm" onClick={handleTeach} disabled={teachBusy || lesson.trim().length < 5} data-testid="teach-submit">
                 {teachBusy ? "Teaching…" : "Teach"}
               </Button>
             </div>

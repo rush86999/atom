@@ -115,17 +115,10 @@ class ZohoWorkDriveService(IntegrationService):
                         break
 
                 if not token_record:
-                    for provider in ("zoho_workdrive", "zoho"):
-                        token_record = (
-                            db.query(IntegrationToken)
-                            .filter(
-                                IntegrationToken.provider == provider,
-                                IntegrationToken.status == "active",
-                            )
-                            .first()
-                        )
-                        if token_record:
-                            break
+                    # No cross-user fallback: any active token would serve one
+                    # user's WorkDrive to every authenticated user. No row for
+                    # THIS user means not connected.
+                    return None
 
                 if not token_record:
                     return None

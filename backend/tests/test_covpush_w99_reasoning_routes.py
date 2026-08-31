@@ -135,6 +135,20 @@ class TestGetReasoningChain:
 # ============================================================================
 
 class TestSubmitStepFeedback:
+    @pytest.fixture()
+    def app(self, user):
+        # The /feedback idempotency guard queries AgentFeedback.first() —
+        # the shared fixture's bare MagicMock reads as "duplicate" and
+        # short-circuits submissions before governance runs.
+        db = MagicMock()
+        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_db] = lambda: db
+        app.dependency_overrides[get_current_user] = lambda: user
+        yield app
+        app.dependency_overrides.clear()
+
     def test_thumbs_up_success(self, client, user):
         gov = MagicMock()
         gov.submit_feedback = AsyncMock(return_value=MagicMock(id="fb-1"))

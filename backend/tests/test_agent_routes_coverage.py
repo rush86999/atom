@@ -476,17 +476,20 @@ class TestAgentDeleteOperations:
         from core.models import AgentRegistry
 
         agent = test_agent_factory(name="Delete Me")
+        agent_id = agent.id  # capture before delete: the registry row now
+        # goes via raw SQL, so post-delete attribute access on the ORM
+        # instance raises ObjectDeletedError.
 
-        response = client.delete(f"/api/agents/{agent.id}")
+        response = client.delete(f"/api/agents/{agent_id}")
         assert response.status_code == 200
 
         data = response.json()
         assert data["success"] is True
-        assert data["data"]["agent_id"] == agent.id
+        assert data["data"]["agent_id"] == agent_id
         assert "deleted successfully" in data["message"]
 
         # Verify agent is deleted
-        deleted_agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent.id).first()
+        deleted_agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
         assert deleted_agent is None
 
     def test_delete_agent_not_found(self, client: TestClient):

@@ -679,7 +679,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                         className="mr-1"
                     />
                     <input
-                        className="flex-1 text-sm border rounded-lg px-4 py-2.5 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 disabled:bg-gray-100 dark:bg-gray-800 shadow-sm"
+                        className="flex-1 text-base border rounded-lg px-4 py-3 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 disabled:bg-gray-100 dark:bg-gray-800 shadow-sm"
                         placeholder="e.g., 'When I get an email, summarize it with AI and post to Slack'"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}

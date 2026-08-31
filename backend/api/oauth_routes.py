@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import OAuthToken, User
+from core.models import IntegrationToken, OAuthToken, User
 from core.security.auth_rate_limit import AuthRateLimiter
 from core.oauth_handler import (
     ASANA_OAUTH_CONFIG,
@@ -48,6 +48,19 @@ logger = logging.getLogger(__name__)
 
 # Rate limit OAuth callbacks to prevent code brute-force / DoS
 _oauth_limiter = AuthRateLimiter(limit=20, window_seconds=60)
+
+# One grant fans out to several IntegrationToken provider rows at callback
+# time (see _handle_callback_logic); revoke must fan out identically.
+_TOKEN_FANOUT: Dict[str, list] = {
+    "microsoft": ["microsoft", "outlook"],
+    "zoho": [
+        "zoho",
+        "zoho_books",
+        "zoho_inventory",
+        "zoho_crm",
+        "zoho_workdrive",
+    ],
+}
 
 
 def _state_hmac_key() -> bytes:
@@ -184,9 +197,35 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
         if not access_token:
             # The authorization code was already consumed (codes are single-use).
             # If an IntegrationToken already exists for this provider+user, the
-            # first exchange succeeded — return success silently.
-            logger.warning(f"No access_token in {provider} token response (code may have been reused)")
-            return token_data
+            # first exchange succeeded — return success silently. With NO stored
+            # token this is a real exchange failure (e.g. redirect_uri mismatch
+            # on first connect); returning None makes the callback redirect to
+            # the failure page instead of pretending the connect worked.
+            try:
+                # Local import: a later block in this function re-imports
+                # IntegrationToken inside its own try, which would otherwise
+                # make the name an unbound local here.
+                from core.models import IntegrationToken as _IntegrationToken
+                check_user = user or await get_current_user(request, db)
+                provider_names = [provider]
+                if provider == "microsoft":
+                    provider_names.append("outlook")
+                existing = db.query(_IntegrationToken).filter(
+                    _IntegrationToken.user_id == check_user.id,
+                    _IntegrationToken.provider.in_(provider_names),
+                    _IntegrationToken.status == "active",
+                ).first()
+            except Exception as e:
+                logger.warning(f"Could not check for existing {provider} IntegrationToken: {e}")
+                existing = None
+            if existing:
+                logger.warning(f"No access_token in {provider} token response — existing active IntegrationToken found (code reuse); treating as success")
+                return token_data
+            logger.error(
+                f"{provider} token exchange returned no access_token and no token "
+                "is stored for this user — failing the connect"
+            )
+            return None
 
         expires_in = token_data.get("expires_in")
         expires_at = None
@@ -301,6 +340,17 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                                 pass
                         logger.info(f"Updated IntegrationToken for provider={p_key}, user={target_uid}")
                     else:
+                        # Guarded exactly like the update path above: urlparse
+                        # on a non-string (mocked/absent auth_url) must not
+                        # abort IntegrationToken creation entirely.
+                        try:
+                            _meta = {
+                                "accounts_base": (
+                                    f"{urlparse(config.auth_url).scheme}://{urlparse(config.auth_url).netloc}"
+                                )
+                            }
+                        except Exception:
+                            _meta = None
                         new_integration = IntegrationToken(
                             id=str(uuid.uuid4()),
                             tenant_id=current_user.tenant_id or "default",
@@ -313,10 +363,7 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                             status="active",
                             scope=" ".join(scopes) if scopes else "",
                             instance_url=zoho_api_domain if p_key == "zoho" else None,
-                            credential_metadata=(
-                                {"accounts_base": f"{urlparse(config.auth_url).scheme}://{urlparse(config.auth_url).netloc}"}
-                                if p_key == "zoho" else None
-                            ),
+                            credential_metadata=(_meta if p_key == "zoho" else None),
                         )
                         db.add(new_integration)
                         logger.info(f"Created IntegrationToken for provider={p_key}, user={target_uid}")
@@ -348,9 +395,16 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
         if provider == "zoho":
             try:
                 from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+                from core.personal_scope import resolve_tenant_id, resolve_workspace_id
 
                 service = get_hybrid_ingestion_service(
-                    getattr(current_user, "tenant_id", None) or "default"
+                    # Keyword args: passing tenant_id positionally bound it to
+                    # the service's workspace_id, so the sync adapter then
+                    # looked its token up under a workspace no token row was
+                    # stamped with and every post-connect sync ran
+                    # unauthenticated.
+                    workspace_id=resolve_workspace_id(current_user),
+                    tenant_id=resolve_tenant_id(current_user),
                 )
                 asyncio.create_task(service.sync_integration_data("zoho"))
                 logger.info("Zoho background sync scheduled after OAuth connect")
@@ -405,13 +459,35 @@ async def oauth_initiate(
             # manually, get_current_user's token default is the Depends
             # sentinel (truthy), so its own query/cookie fallback never ran
             # and every ?token= navigation silently degraded to demo-user.
-            browser_token = request.query_params.get("token")
+            #
+            # API clients and the journey suite authenticate with an
+            # Authorization header instead — get_current_user reads that
+            # header only through FastAPI dependency injection, never on a
+            # manual call, so it must be extracted here too (same fix as the
+            # module-level get_current_user wrapper above).
+            browser_token = None
+            auth_header = (
+                request.headers.get("Authorization")
+                or request.headers.get("authorization")
+            )
+            if auth_header and auth_header.lower().startswith("bearer "):
+                browser_token = auth_header[7:].strip()
+            if not browser_token:
+                browser_token = request.query_params.get("token")
             u = await get_current_user(request=request, token=browser_token, db=db)
             if u and u.id:
                 uid = u.id
         except HTTPException:
             raise
         except Exception:
+            # Silent uid=None here turned every resolver crash (e.g. a
+            # transient SQLite OperationalError under write bursts) into an
+            # undocumented 401. Log it; the 401 to the client stays generic.
+            logger.warning(
+                "OAuth initiate user resolution failed for provider=%s",
+                provider,
+                exc_info=True,
+            )
             uid = None
     if not uid:
         raise HTTPException(
@@ -515,10 +591,16 @@ async def oauth_callback(
             detail="OAuth state was issued for a different user",
         )
 
-    await _handle_callback_logic(provider, code, configs[provider], request, db, user=user)
-    
-    # Redirect to frontend
+    result = await _handle_callback_logic(provider, code, configs[provider], request, db, user=user)
+
+    # Redirect to frontend. None means the exchange produced no token and
+    # none was previously stored — send the user to the failure page rather
+    # than a success page for a connect that never happened.
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    if result is None:
+        return RedirectResponse(
+            url=f"{frontend_url}/oauth/error?provider={provider}&reason=token_exchange_failed"
+        )
     return RedirectResponse(url=f"{frontend_url}/oauth/success?provider={provider}")
 
 # ============================================================================
@@ -578,6 +660,21 @@ async def revoke_oauth_token(
         raise HTTPException(status_code=404, detail=f"No integration found for {provider}")
 
     token.is_active = False
+
+    # Propagate to the IntegrationToken rows the services actually read:
+    # /api/integrations/connection-status and every data route resolve
+    # credentials from these, not from the legacy OAuthToken page above.
+    # Skipping this left the hub showing "connected" — and every data route
+    # working — after the user disconnected the integration.
+    if provider in _TOKEN_FANOUT:
+        provider_keys = _TOKEN_FANOUT[provider]
+    else:
+        provider_keys = [provider]
+    db.query(IntegrationToken).filter(
+        IntegrationToken.user_id == current_user.id,
+        IntegrationToken.provider.in_(provider_keys),
+    ).update({IntegrationToken.status: "revoked"}, synchronize_session=False)
+
     db.commit()
     return {"status": "success", "message": f"Revoked {provider} integration"}
 

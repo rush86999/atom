@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input as UiInput } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Send, StopCircle, Paperclip, Mic, X, Loader2 } from "lucide-react";
 import { AGENT_CHAT } from "@/src/lib/testIds";
 
@@ -35,6 +35,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     toast,
     messagesCount,
 }) => {
+    // Auto-grow the composer to fit multi-line messages.
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    useEffect(() => {
+        const el = textareaRef.current;
+        if (el) {
+            el.style.height = 'auto';
+            el.style.height = `${el.scrollHeight}px`;
+        }
+    }, [input]);
+
     return (
         <div className="p-4 border-t border-border bg-background">
             <div className="max-w-3xl mx-auto flex flex-col gap-2">
@@ -63,7 +73,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     </div>
                 )}
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-end">
                     <input
                         type="file"
                         id="chat-file-upload"
@@ -83,7 +93,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="shrink-0"
+                        className="shrink-0 h-12 w-12"
                         onClick={() => document.getElementById('chat-file-upload')?.click()}
                         disabled={isUploading || isProcessing}
                     >
@@ -92,27 +102,34 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="shrink-0"
+                        className="shrink-0 h-12 w-12"
                         onClick={() => setIsVoiceModeOpen(true)}
                         title="Voice Mode"
                     >
                         <Mic className="h-5 w-5 text-muted-foreground" />
                     </Button>
-                    <UiInput
+                    <Textarea
+                        ref={textareaRef}
+                        rows={1}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSend();
+                            }
+                        }}
                         placeholder="Type a message..."
-                        className="flex-1"
+                        className="flex-1 min-h-[48px] max-h-[160px] resize-none px-4 py-3 text-base"
                         disabled={isProcessing}
                         data-testid={AGENT_CHAT.INPUT}
                     />
                     {isProcessing ? (
-                        <Button variant="destructive" size="icon" onClick={handleStop} title="Stop Agent">
+                        <Button variant="destructive" size="icon" className="h-12 w-12" onClick={handleStop} title="Stop Agent">
                             <StopCircle className="h-5 w-5" />
                         </Button>
                     ) : (
-                        <Button onClick={() => handleSend()} size="icon" disabled={!input.trim()} data-testid={AGENT_CHAT.SEND_BUTTON}>
+                        <Button onClick={() => handleSend()} size="icon" className="h-12 w-12" disabled={!input.trim()} data-testid={AGENT_CHAT.SEND_BUTTON}>
                             <Send className="h-5 w-5" />
                         </Button>
                     )}

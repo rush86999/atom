@@ -113,8 +113,11 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
         setForkingId(sessionId);
         try {
             const { apiClient } = await import('../../lib/api-client');
+            // Chat-store fork: the sidebar lists sessions from /api/chat/sessions,
+            // whose messages persist as SQL rows — the atom-agent fork endpoint
+            // reads a different (LanceDB) store and would copy nothing here.
             const response = await apiClient.post(
-                `/api/atom-agent/sessions/${sessionId}/fork`,
+                `/api/chat/sessions/${sessionId}/fork`,
                 {},
                 { timeout: 15000 }
             );

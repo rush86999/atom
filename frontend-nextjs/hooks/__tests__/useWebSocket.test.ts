@@ -86,7 +86,9 @@ describe('useWebSocket Hook', () => {
       // WebSocket should be instantiated with correct URL
       // Note: useEffect runs synchronously in renderHook
       expect((global as any).WebSocket.getMockCalls()).toContainEqual(
-        ['/ws?token=test-session-token']
+        // Absolute ws base now (was '/ws?...' — a relative URL that throws
+        // SyntaxError in real browsers when NEXT_PUBLIC_API_URL is unset).
+        ['ws://localhost/ws?token=test-session-token']
       );
     });
 

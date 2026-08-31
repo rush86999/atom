@@ -180,24 +180,112 @@ async def read_canvas_content(
     return result
 
 
+def _maybe_record_canvas_correction(
+    user_id: str, tenant_id: Optional[str], canvas_id: str, corrected_content: Any
+) -> None:
+    """Learning loop for the canvas: when the version being replaced was the
+    hire's DRAFT (an agent-attributed audit row), this human edit IS the
+    correction. Feeds record_user_correction → AgentFeedback (RLHF) → the
+    maturity/graduation cycle — an immature hire isn't refused edits, it's
+    corrected on the canvas and learns. Fault-isolated: never blocks a save.
+    """
+    try:
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+        from core.service_factory import ServiceFactory
+        from sqlalchemy import desc
+
+        with get_db_session() as db:
+            rows = (
+                db.query(CanvasAudit)
+                .filter(CanvasAudit.canvas_id == canvas_id)
+                .order_by(desc(CanvasAudit.created_at))
+                .limit(5)
+                .all()
+            )
+            if not rows or rows[0].action_type == "delete":
+                return
+            # rows[0] is the save this PUT just appended; the draft being
+            # corrected is the nearest AGENT-authored row beneath it (scan,
+            # don't index — same-commit timestamps tie-order ambiguously).
+            draft_row = next(
+                (r for r in rows[1:] if r.agent_id and r.action_type != "delete"),
+                None,
+            )
+            if draft_row is None:
+                return
+            prior = (draft_row.details_json or {}).get("content")
+            if prior == corrected_content:
+                return  # no diff — nothing to learn
+
+            # CanvasContext rows are tenant-scoped under the ACTING USER's
+            # tenant (that's how the chat binding writes them — fresh users
+            # get UUID tenants, not "default"; the canvas's own audit rows
+            # can carry a different tenant than the user's context row).
+            service = ServiceFactory.get_canvas_context_service(
+                db, tenant_id=tenant_id or "default"
+            )
+            context = service.get_context(canvas_id, user_id)
+            if context is None or not context.agent_id:
+                return  # canvas has no hire — nothing to teach
+
+            service.record_user_correction(
+                canvas_id=canvas_id,
+                user_id=user_id,
+                original_action={
+                    "type": "canvas_edit",
+                    "content": prior,
+                    "author": "agent",
+                    "agent_id": draft_row.agent_id,
+                },
+                corrected_action={
+                    "type": "canvas_edit",
+                    "content": corrected_content,
+                    "author": "supervisor",
+                },
+                context_info=f"canvas_id={canvas_id}; supervisor corrected the hire's draft",
+            )
+            logger.info(
+                f"canvas correction recorded for agent {draft_row.agent_id} "
+                f"on {canvas_id} (learning signal)"
+            )
+    except Exception as e:
+        logger.debug(f"canvas correction capture skipped: {e}")
+
+
 @router.put("/{canvas_id}")
 async def update_canvas_content(
     canvas_id: str,
     content: Dict[str, Any],
     canvas_type: str = "generic",
     title: Optional[str] = None,
+    retype: bool = False,
     current_user: User = Depends(get_current_user)
 ):
-    """Update the content of an existing canvas."""
+    """Update the content of an existing canvas.
+
+    ``retype=true`` marks the update as a MANUAL type switch (the UI's escape
+    hatch when the agent-chat classifier created the wrong canvas type): the
+    new ``canvas_type`` is pinned on the audit row and read-time email
+    coercion can no longer override it.
+    """
     from tools.canvas_crud_tool import update_canvas_content as update_fn
     result = await update_fn(
-        str(current_user.id), canvas_id, content, canvas_type, title
+        str(current_user.id), canvas_id, content, canvas_type, title,
+        manual_retype=retype,
     )
     if not result.get("success"):
         # BUG FIX: not-found errors must return 404 (consistent with GET
         # /{canvas_id}), not 400 — a missing canvas is not a bad request.
         status = 404 if "not found" in str(result.get("error", "")).lower() else 400
         raise HTTPException(status_code=status, detail=result.get("error"))
+    # The save itself must never be blocked by the learning capture.
+    _maybe_record_canvas_correction(
+        str(current_user.id),
+        getattr(current_user, "tenant_id", None),
+        canvas_id,
+        content,
+    )
     return result
 
 
@@ -314,6 +402,180 @@ async def fork_canvas(
     }
 
 
+@router.get("/{canvas_id}/journey")
+async def get_canvas_journey(
+    canvas_id: str,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Full change journey for a canvas: every edit/action with actor
+    attribution (which hire vs. which human), supervisor corrections with
+    original→corrected previews, and HITL action proposals with their
+    approval states — the traceable "who did what, when" timeline.
+    """
+    from core.models import (
+        AgentProposal,
+        AgentRegistry,
+        CanvasAudit,
+        CanvasContext,
+    )
+
+    # Ownership: same guard as read_canvas_content (audit-trail ownership).
+    from tools.canvas_crud_tool import read_canvas
+
+    owned = await read_canvas(str(current_user.id), canvas_id)
+    if not owned.get("success"):
+        raise HTTPException(status_code=404, detail=owned.get("error"))
+
+    agent_names: dict = {}
+    events: list = []
+
+    audits = (
+        db.query(CanvasAudit)
+        .filter(CanvasAudit.canvas_id == canvas_id)
+        .order_by(CanvasAudit.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    for row in audits:
+        if row.agent_id and row.agent_id not in agent_names:
+            agent = db.query(AgentRegistry).filter(AgentRegistry.id == row.agent_id).first()
+            agent_names[row.agent_id] = agent.name if agent else "Agent"
+        detail = row.details_json or {}
+        _content = detail.get("content", detail.get("data", detail.get("form_data")))
+        events.append({
+            "kind": "audit",
+            "action": row.action_type,
+            "actor_type": "agent" if row.agent_id else ("assistant" if row.session_id else "user"),
+            # agent rows: the hire's name; chat-driven rows without a hire
+            # (session_id stamped by the chat context): the platform
+            # assistant; no session at all: a direct human edit/save.
+            "actor": (
+                agent_names.get(row.agent_id, "Agent") if row.agent_id
+                else ("Assistant" if row.session_id else "You")
+            ),
+            "agent_id": row.agent_id,
+            "at": row.created_at.isoformat() if row.created_at else None,
+            "canvas_type": row.canvas_type,
+            "summary": _audit_summary(row, detail),
+            # The ACTUAL content at this version (capped) — a journey line
+            # item that hides what was written is an audit in name only.
+            "content_preview": _content_preview(_content, 140),
+            "content": _content_text(_content, 2000),
+            "title": detail.get("title"),
+        })
+
+    ctx = (
+        db.query(CanvasContext)
+        .filter(CanvasContext.canvas_id == canvas_id, CanvasContext.user_id == str(current_user.id))
+        .first()
+    )
+    if ctx is not None:
+        for corr in (ctx.user_corrections or [])[-limit:]:
+            events.append({
+                "kind": "correction",
+                "action": "supervisor_correction",
+                "actor_type": "supervisor",
+                "actor": "You (supervisor)",
+                "at": corr.get("timestamp"),
+                "original": _content_preview((corr.get("original") or {}).get("content")),
+                "corrected": _content_preview((corr.get("corrected") or {}).get("content")),
+                "summary": "Supervisor corrected the hire's draft (learning signal recorded)",
+            })
+        for act in (ctx.session_history or [])[-limit:]:
+            if not isinstance(act, dict) or act.get("type") != "canvas_edit_proposal":
+                continue
+            events.append({
+                "kind": "learning_proposal",
+                "action": "draft_proposal",
+                "actor_type": "agent",
+                "actor": agent_names.get(act.get("agent_id"), "Hire"),
+                "at": act.get("timestamp"),
+                "summary": f"Immature hire proposed an edit: {str(act.get('instruction', ''))[:80]}",
+            })
+
+    proposals = (
+        db.query(AgentProposal)
+        .filter(AgentProposal.canvas_id == canvas_id)
+        .order_by(AgentProposal.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    for p in proposals:
+        action = (p.proposal_data or {}).get("action_type", "action")
+        _pdata = p.proposal_data or {}
+        events.append({
+            "kind": "proposal",
+            "action": action,
+            "actor_type": "agent",
+            "actor": p.agent_name or "Agent",
+            "agent_id": p.agent_id,
+            "at": p.created_at.isoformat() if p.created_at else None,
+            "status": p.status,
+            "proposal_id": p.id,
+            "title": p.title,
+            "to": _pdata.get("to", ""),
+            "subject": _pdata.get("subject", ""),
+            # The actual draft the agent proposed to send.
+            "content_preview": _content_preview(_pdata.get("body"), 140),
+            "content": _content_text(_pdata.get("body"), 2000),
+            "summary": f"{action} proposed — status: {str(p.status).replace('_', ' ')}",
+        })
+
+    events.sort(key=lambda e: e.get("at") or "", reverse=True)
+    return {
+        "success": True,
+        "canvas_id": canvas_id,
+        "events": events[:limit],
+        "pending_proposals": [e for e in events if e.get("status") == "pending_approval"],
+    }
+
+
+def _content_preview(content: Any, cap: int = 160) -> str:
+    if isinstance(content, dict):
+        content = content.get("content", content)
+    text = str(content or "")
+    return text if len(text) <= cap else text[:cap] + "…"
+
+
+def _content_text(content: Any, cap: int) -> Optional[str]:
+    """Full-ish content for the expanded journey row (None when absent)."""
+    if content is None:
+        return None
+    if isinstance(content, dict):
+        content = content.get("content", content)
+        if isinstance(content, dict):
+            import json as _json
+            try:
+                content = _json.dumps(content, indent=2, default=str)
+            except Exception:
+                content = str(content)
+    text = str(content or "").strip()
+    if not text:
+        return None
+    return text if len(text) <= cap else text[:cap] + "…"
+
+
+def _audit_summary(row, detail: Optional[dict] = None) -> str:
+    action = row.action_type or "action"
+    detail = detail or {}
+    if action in ("email_send", "email_send_attempt"):
+        _to = detail.get("to") or detail.get("recipients")
+        if isinstance(_to, (list, tuple)):
+            _to = ", ".join(str(x) for x in _to[:3])
+        return f"Email send attempted{f' → {_to}' if _to else ''}"
+    if action == "update":
+        return "Canvas content updated"
+    if action == "present":
+        return "Canvas created/presented"
+    if action == "delete":
+        return "Canvas deleted"
+    if action == "submit":
+        return "Form submitted"
+    return f"Canvas {action}"
+
+
 @router.get("/{canvas_id}/history")
 async def get_canvas_history(
     canvas_id: str,
@@ -363,12 +625,22 @@ async def get_canvas_history(
 async def list_user_canvases(
     canvas_type: Optional[str] = None,
     include_deleted: bool = False,
+    q: Optional[str] = Query(None, max_length=200, description="Search across title, content, type, and canvas id"),
+    limit: int = Query(60, ge=1, le=200, description="Page size"),
+    offset: int = Query(0, ge=0, description="Page offset"),
     current_user: User = Depends(get_current_user)
 ):
-    """List all canvases for the current user."""
+    """List the current user's canvases — searchable, paginated, recency-first.
+
+    The discovery surface for finding a canvas as the count grows: ``q``
+    matches derived titles, canvas bodies (so untitled canvases are findable
+    by content), type, and id; every item carries ``display_title`` (never a
+    raw UUID) and a ``snippet`` windowed around the match.
+    """
     from tools.canvas_crud_tool import list_canvases
     result = await list_canvases(
-        str(current_user.id), canvas_type, include_deleted
+        str(current_user.id), canvas_type, include_deleted,
+        q=q, limit=limit, offset=offset,
     )
     return result
 
@@ -835,3 +1107,39 @@ async def run_canvas_logic(
     _enforce_logic_governance(svc, body.agent_id)
     result = await svc.run(canvas_id, inputs=body.inputs, agent_id=body.agent_id)
     return {"success": result.get("success", True), "data": result}
+
+
+class ClearChatFeedbackRequest(BaseModel):
+    input_summary: str
+
+
+@router.post("/{canvas_id}/chat-feedback/clear")
+async def clear_canvas_chat_feedback(
+    canvas_id: str,
+    request: ClearChatFeedbackRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Clear the persisted thumbs choice for one assistant message (the
+    panel's "click the same thumb again to clear" gesture). Sets the map
+    entry to None — a merge, so other messages' feedback is preserved.
+    """
+    from core.models import CanvasContext
+    from core.service_factory import ServiceFactory
+
+    service = ServiceFactory.get_canvas_context_service(
+        db, tenant_id=getattr(current_user, "tenant_id", None) or "default"
+    )
+    ctx = service.get_context(canvas_id, str(current_user.id))
+    if ctx is None:
+        row = db.query(CanvasContext).filter(CanvasContext.canvas_id == canvas_id).first()
+        ctx = row
+    if ctx is None:
+        return {"success": True, "cleared": False}  # nothing persisted yet
+    state = dict(ctx.current_state or {})
+    fb_map = dict(state.get("chat_feedback") or {})
+    fb_map[str(request.input_summary or "")[:200]] = None
+    state["chat_feedback"] = fb_map
+    ctx.current_state = state
+    db.commit()
+    return {"success": True, "cleared": True}

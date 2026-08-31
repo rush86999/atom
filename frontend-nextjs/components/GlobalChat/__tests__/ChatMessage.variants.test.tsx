@@ -244,6 +244,34 @@ describe('ChatMessage feedback controls', () => {
     expect(onRegenerate).toHaveBeenCalledWith('m1');
   });
 
+  it('calls onFork with the message id (fork from here)', () => {
+    const onFork = jest.fn();
+    render(
+      <ChatMessage
+        message={baseMsg()}
+        onActionClick={jest.fn()}
+        onFork={onFork}
+      />
+    );
+
+    const btn = screen.getByTestId('fork-message-button');
+    expect(btn).toHaveAttribute('aria-label', 'Fork from here');
+    fireEvent.click(btn);
+    expect(onFork).toHaveBeenCalledWith('m1');
+  });
+
+  it('does not render the fork button when onFork is not provided', () => {
+    render(
+      <ChatMessage
+        message={baseMsg()}
+        onActionClick={jest.fn()}
+        onFeedback={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByTestId('fork-message-button')).not.toBeInTheDocument();
+  });
+
   it('submits a comment as thumbs_down feedback with the comment text', () => {
     const onFeedback = jest.fn();
     render(

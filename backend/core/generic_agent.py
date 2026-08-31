@@ -1822,7 +1822,12 @@ What is your next step?"""
         with get_db_session() as db:
             try:
                 gov = AgentGovernanceService(db)
-                await gov.record_outcome(self.id, success=success)
+                # Task text rides along so R86c domain attribution can
+                # ledger this run's business role (earned super-mentor
+                # evidence for generalists).
+                await gov.record_outcome(
+                    self.id, success=success, task_summary=input_text[:200]
+                )
                 
                 # 5. Graduation Check (Autonomous Promotion)
                 if success:

@@ -97,10 +97,35 @@ class ConsultPolicy:
             return False
         if not policy_gating_enabled():
             return True  # shadow: flag off → render whenever there is state
+        from core.bpe.trust_bridge import get_trust_bridge
+
+        bridge = get_trust_bridge()
         state = self._agents.get(str(agent_id))
-        if state is None or state.episodes < MIN_EPISODES_FOR_VALUE_GATE:
+        threshold = self._evidence_threshold(agent_id, bridge)
+        if state is None or state.episodes < threshold:
+            return True
+        if state.value_ema < VALUE_SUPPRESS_THRESHOLD and \
+                bridge.has_protocol_signal(agent_id):
+            # Adjudicated corrections bypass the value gate: suppression is
+            # for *unhelpful*, human corrections mark *wrong* — workspace
+            # knowledge (including correction-derived entries) still renders.
             return True
         return state.value_ema >= VALUE_SUPPRESS_THRESHOLD
+
+    @staticmethod
+    def _evidence_threshold(agent_id: str, bridge: Any) -> int:
+        """Base gate floor, scaled by the agent's org role (trust bridge).
+
+        Junior agents (STUDENT 3×, INTERN 2×) need more episodes before their
+        own EMA is trusted to suppress rendering; the bridge fails open (1×)
+        whenever the role is unknown.
+        """
+        try:
+            mult = bridge.evidence_multiplier(agent_id)
+        except Exception:
+            mult = 1.0
+        return max(MIN_EPISODES_FOR_VALUE_GATE,
+                   int(round(MIN_EPISODES_FOR_VALUE_GATE * mult)))
 
     def render_mode(self, agent_id: str) -> str:
         """'full' or 'recall_only' (annealing: commit/note internalized)."""
@@ -155,7 +180,12 @@ class ConsultPolicy:
     def value_below_threshold(self, agent_id: str) -> bool:
         """True when the value gate has evidence to suppress this agent."""
         state = self._agents.get(str(agent_id))
-        if state is None or state.episodes < MIN_EPISODES_FOR_VALUE_GATE:
+        if state is None:
+            return False
+        from core.bpe.trust_bridge import get_trust_bridge
+
+        threshold = self._evidence_threshold(agent_id, get_trust_bridge())
+        if state.episodes < threshold:
             return False
         return state.value_ema < VALUE_SUPPRESS_THRESHOLD
 

@@ -87,9 +87,67 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
 
     const showEmptyState = messages.length === 0 && !providerError;
 
+    // Fork from here: copy the conversation up to (and including) the chosen
+    // reply into a brand-new session and jump into it. Only history-loaded
+    // messages carry the durable backend id the fork endpoint needs — live
+    // messages use timestamp ids the backend can't resolve (a reload mints
+    // real ids), so those get an explanatory toast instead of a failed call.
+    const [forkingMessageId, setForkingMessageId] = React.useState<string | null>(null);
+    const handleForkFromHere = async (messageId: string) => {
+        if (!sessionId || sessionId === "new" || forkingMessageId) return;
+        if (/^\d+$/.test(messageId)) {
+            toast({
+                title: "Can't fork this message yet",
+                description: "Reload the conversation, then fork from an earlier reply.",
+                variant: "warning",
+            });
+            return;
+        }
+        setForkingMessageId(messageId);
+        try {
+            const { apiClient } = await import("../../lib/api-client");
+            const res = await apiClient.post(
+                `/api/chat/sessions/${sessionId}/fork`,
+                { up_to_message_id: messageId },
+                { timeout: 15000 }
+            );
+            const data = res?.data;
+            if (data?.success && data.session_id) {
+                toast({
+                    title: "Forked",
+                    description: `New chat with ${data.messages_copied} messages copied.`,
+                });
+                onSessionCreated?.(data.session_id);
+            } else {
+                toast({
+                    title: "Fork failed",
+                    description: data?.error || "Could not fork this conversation.",
+                    variant: "warning",
+                });
+            }
+        } catch (error: any) {
+            console.error("Error forking from message:", error);
+            toast({
+                title: "Fork failed",
+                description: error?.response?.data?.detail || "Could not fork this conversation.",
+                variant: "warning",
+            });
+        } finally {
+            setForkingMessageId(null);
+        }
+    };
+
     // Expand the latest assistant draft into a co-editable canvas
     const [openingCanvas, setOpeningCanvas] = React.useState(false);
     const lastAssistant = [...messages].reverse().find((m) => m.type === "assistant" && m.content?.trim());
+    // Recent assistant contents, newest-first: the backend picks the most
+    // recent EMAIL-draft-shaped one, so the button opens the draft even
+    // when the chat moved on ("one more question…") after it landed.
+    const draftCandidates = [...messages]
+        .reverse()
+        .filter((m) => m.type === "assistant" && m.content?.trim())
+        .slice(0, 10)
+        .map((m) => m.content);
     const openInCanvas = async () => {
         if (!lastAssistant || openingCanvas) return;
         setOpeningCanvas(true);
@@ -97,6 +155,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
             const { apiClient } = await import("../../lib/api-client");
             const res = await apiClient.post("/api/chat/to-canvas", {
                 content: lastAssistant.content,
+                candidates: draftCandidates,
                 title: `Draft — ${String(lastAssistant.content).slice(0, 60)}`,
                 session_id: sessionId,
                 agent_id: initialAgentId,
@@ -224,6 +283,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 handleActionClick={handleActionClick}
                 handleFeedback={handleFeedback}
                 handleRegenerate={handleRegenerate}
+                handleForkFromHere={handleForkFromHere}
             />
 
             <ChatInput

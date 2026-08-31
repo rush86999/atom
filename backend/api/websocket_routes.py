@@ -48,6 +48,15 @@ async def websocket_endpoint(websocket: WebSocket, workspace_id: str):
     try:
         channel_manager.subscribe(websocket, f"workspace:{workspace_id or 'default'}")
         channel_manager.subscribe(websocket, "workspace:default")
+        # User channel too: canvas presents/updates broadcast to
+        # user:{user_id} (canvas_crud_tool, canvas_tool.present_*), but this
+        # endpoint never joined it — those broadcasts silently hit an EMPTY
+        # channel ("Attempted broadcast to EMPTY channel: 'user:…'") and no
+        # browser ever saw a live canvas update. The subscribe logic already
+        # existed in channel_manager.connect(); this endpoint just bypassed
+        # it. Scoping to the authenticated user's own channel only — no
+        # content leaks to workspace peers.
+        channel_manager.subscribe(websocket, f"user:{user.id}")
     except Exception as e:
         logger.warning(f"channel subscribe skipped: {e}")
     try:

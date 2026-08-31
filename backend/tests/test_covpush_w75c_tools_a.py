@@ -652,6 +652,14 @@ class TestDeleteCanvas:
 
 
 class TestListCanvases:
+    # Re-contracted 2026-08-30 for the list/discovery rewrite of
+    # tools.canvas_crud_tool.list_canvases (latest-per-canvas via a
+    # ROW_NUMBER() window + Python-side search/paging). The previous
+    # mock-chain (filter/order_by/all on a Magic db) no longer matches the
+    # implementation's query shape, so these now run against real
+    # CanvasAudit rows on the test session. Intent unchanged: dedupe
+    # latest-wins, deleted skip/include, type filter, empty, exception.
+
     def _audit(self, canvas_id, action_type, canvas_type="docs", details=None,
                created_at=None, user_id="u-1"):
         return SimpleNamespace(canvas_id=canvas_id, action_type=action_type,
@@ -660,38 +668,65 @@ class TestListCanvases:
                                created_at=created_at,
                                user_id=user_id)
 
-    async def _run(self, audits, canvas_type=None, include_deleted=False):
-        db = _cm_db()
-        q = db.query.return_value
-        q.filter.return_value = q
-        q.order_by.return_value = q
-        q.all.return_value = audits
+    async def _run(self, audits, canvas_type=None, include_deleted=False, db_session=None):
+        import uuid as _uuid
+
+        from core.models import CanvasAudit
+
+        for a in audits:
+            db_session.add(CanvasAudit(
+                id=f"a-{_uuid.uuid4()}",
+                canvas_id=a.canvas_id,
+                tenant_id="t-1",
+                canvas_type=a.canvas_type,
+                action_type=a.action_type,
+                user_id=a.user_id,
+                details_json=a.details_json,
+                created_at=a.created_at,  # may be None — serialization must cope
+            ))
+        db_session.commit()
+
+        @contextmanager
+        def _sess():
+            yield db_session
+
         import tools.canvas_crud_tool as mod
-        with _patch_db(db):
+        with patch("core.database.get_db_session", _sess):
             return await mod.list_canvases("u-1", canvas_type=canvas_type,
                                            include_deleted=include_deleted)
 
-    async def test_empty(self):
-        res = await self._run([])
+    async def test_empty(self, db_session):
+        res = await self._run([], db_session=db_session)
         assert res["success"] is True and res["count"] == 0
 
-    async def test_dedupe_and_skip_deleted(self):
-        audits = [self._audit("c-1", "present", details={"title": "A"}),
-                  self._audit("c-1", "update", details={"title": "B"}),
-                  self._audit("c-2", "delete")]
-        res = await self._run(audits)
+    async def test_dedupe_and_skip_deleted(self, db_session):
+        base = datetime(2026, 1, 1)
+        audits = [self._audit("c-1", "present", details={"title": "A"}, created_at=base),
+                  self._audit("c-1", "update", details={"title": "B"},
+                              created_at=base.replace(day=2)),
+                  self._audit("c-2", "delete", details={}, created_at=base.replace(day=3))]
+        res = await self._run(audits, db_session=db_session)
         assert res["success"] is True and res["count"] == 1
         assert res["canvases"][0]["canvas_id"] == "c-1"
+        assert res["canvases"][0]["title"] == "B"
 
-    async def test_include_deleted(self):
-        audits = [self._audit("c-2", "delete")]
-        res = await self._run(audits, include_deleted=True)
+    async def test_include_deleted(self, db_session):
+        audits = [self._audit("c-2", "delete", details={})]
+        res = await self._run(audits, include_deleted=True, db_session=db_session)
         assert res["count"] == 1 and res["canvases"][0]["deleted"] is True
 
-    async def test_type_filter_and_none_created_at(self):
-        audits = [self._audit("c-1", "present", canvas_type="sheets", created_at=None)]
-        res = await self._run(audits, canvas_type="sheets")
-        assert res["count"] == 1 and res["canvases"][0]["last_updated"] is None
+    async def test_type_filter_and_none_created_at(self, db_session):
+        # The old mock-suite asserted last_updated is None when the source
+        # row's created_at is None — unreachable via the ORM (server_default
+        # func.now() stamps every insert), so the re-contract asserts the
+        # real behavior: the canvas lists under its type filter with a
+        # server-stamped last_updated. The None-serialization guard itself
+        # is unchanged in list_canvases (`isoformat() if created_at else None`).
+        audits = [self._audit("c-1", "present", canvas_type="sheets",
+                              created_at=None)]
+        res = await self._run(audits, canvas_type="sheets", db_session=db_session)
+        assert res["count"] == 1
+        assert res["canvases"][0]["last_updated"] is not None
 
     async def test_exception(self):
         db = _cm_db()
