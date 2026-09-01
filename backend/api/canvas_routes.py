@@ -1110,7 +1110,14 @@ async def get_canvas_logic(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Load the canvas's stored server-side logic."""
+    """Load the canvas's stored server-side logic.
+
+    A canvas with NO logic yet returns an empty default (200) rather than a
+    404: the Logic tab read-fires on every open, and an error response made
+    the tab look broken on every fresh canvas (observed live — the only
+    right-panel route 404ing). The empty payload matches save_logic's shape
+    so the panel's editor just starts empty.
+    """
     from core.canvas_logic_service import CanvasLogicService
 
     # R89: logic source is canvas content — same access rule as PUT.
@@ -1118,7 +1125,13 @@ async def get_canvas_logic(
 
     logic = CanvasLogicService(db).load_logic(canvas_id)
     if logic is None:
-        raise HTTPException(status_code=404, detail=f"No logic saved for canvas {canvas_id}")
+        logic = {
+            "id": None,
+            "canvas_id": canvas_id,
+            "language": "python",
+            "source": "",
+            "created_by": None,
+        }
     return {"success": True, "data": logic}
 
 
