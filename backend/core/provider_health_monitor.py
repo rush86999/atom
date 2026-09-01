@@ -25,15 +25,21 @@ class ProviderHealthMonitor:
 
     Connection failures additionally drive a short circuit breaker: a provider
     that fails ``CONN_FAIL_BREAKER_THRESHOLD`` consecutive connection attempts
-    is skipped by routing entirely for ``CONN_FAIL_BREAKER_COOLDOWN_SECONDS``
-    (half-open recovery: the first attempt after cooldown is allowed, and a
-    failure re-opens the breaker). Without this, a dead gateway keeps ranking
-    on cost/value alone and every LLM call stage re-pays the full
-    connection-timeout retry cascade before falling over to the next provider.
+    is skipped by routing entirely, starting at
+    ``CONN_FAIL_BREAKER_COOLDOWN_SECONDS`` and DOUBLING per re-open (capped at
+    ``CONN_FAIL_BREAKER_MAX_COOLDOWN_SECONDS``; half-open recovery: the first
+    attempt after cooldown is allowed, and a failure re-opens the breaker with
+    a longer cooldown). The escalation matters for PERMANENTLY dead gateways:
+    a fixed cooldown re-probed a dead local Ollama once per turn, every turn —
+    each probe a wasted connection attempt ranked top by value (observed
+    2026-09-01) — without this, a dead gateway keeps ranking on cost/value
+    alone and every LLM call stage re-pays the full connection-timeout retry
+    cascade before falling over to the next provider.
     """
 
     CONN_FAIL_BREAKER_THRESHOLD = 1
     CONN_FAIL_BREAKER_COOLDOWN_SECONDS = 60.0
+    CONN_FAIL_BREAKER_MAX_COOLDOWN_SECONDS = 600.0
 
     def __init__(self, window_minutes: int = 5):
         """
@@ -99,13 +105,25 @@ class ProviderHealthMonitor:
                 self._conn_fail_streak[provider_id] = streak
                 if (streak >= self.CONN_FAIL_BREAKER_THRESHOLD
                         and provider_id not in self._breaker_open_until):
+                    # Escalating cooldown: each re-open doubles the previous
+                    # cooldown (60s → 120s → 240s → …), capped. streak counts
+                    # CONSECUTIVE connection failures and only resets on
+                    # success, so a provider that recovers gets probed again
+                    # quickly while a permanently dead one backs off to the
+                    # cap instead of being re-probed every turn.
+                    reopen_cycle = streak - self.CONN_FAIL_BREAKER_THRESHOLD + 1
+                    cooldown = min(
+                        self.CONN_FAIL_BREAKER_COOLDOWN_SECONDS
+                        * (2 ** (reopen_cycle - 1)),
+                        self.CONN_FAIL_BREAKER_MAX_COOLDOWN_SECONDS,
+                    )
                     self._breaker_open_until[provider_id] = (
-                        time.monotonic() + self.CONN_FAIL_BREAKER_COOLDOWN_SECONDS
+                        time.monotonic() + cooldown
                     )
                     logger.warning(
                         f"Circuit breaker OPEN for provider {provider_id} "
                         f"({streak} consecutive connection failures) — skipping for "
-                        f"{self.CONN_FAIL_BREAKER_COOLDOWN_SECONDS:.0f}s"
+                        f"{cooldown:.0f}s"
                     )
 
             score = self.health_scores[provider_id]

@@ -290,6 +290,35 @@ class AllProvidersFailedError(Exception):
     and never leaked to the client (the gateway maps this to a generic 502)."""
 
 
+class _EmptyCompletionError(RuntimeError):
+    """A provider answered HTTP-200 with NO visible content.
+
+    Reasoning models that exhaust their completion budget on hidden thinking
+    return ``finish_reason='length'`` with ``content=None`` (observed live
+    2026-09-01: a chat turn stalled ~2 minutes across retries and delivered
+    an empty answer). Treated as a failed attempt so the next ranked
+    provider serves the turn — never a silent None success."""
+
+
+def _visible_content_missing(result: Any) -> bool:
+    """True when a completion returned nothing the caller can use.
+
+    ``None`` (reasoning consumed the whole budget before any answer) and
+    whitespace-only strings are both dead payloads — every completion site
+    in ``generate_response`` routes these into the failed-attempt path
+    instead of recording a healthy success and handing None upward."""
+    return result is None or (isinstance(result, str) and not result.strip())
+
+
+# Completion cap for plain (non-streaming) completions — same rationale as
+# the structured path's ATOM_STRUCTURED_MAX_TOKENS: reasoning models burn
+# 750–3,155+ tokens thinking BEFORE the visible answer (measured on
+# minimax-m3, 2026-08-31), and without an explicit cap the provider default
+# starves the answer at finish_reason='length' with content=None. The cap is
+# a ceiling, not a target — short answers are unaffected.
+_DEFAULT_COMPLETION_MAX_TOKENS = int(os.getenv("ATOM_COMPLETION_MAX_TOKENS", "6000"))
+
+
 # Provider tier mapping for cost optimization
 PROVIDER_TIERS = {
     # Budget tier - cheapest, good for simple tasks
@@ -1330,6 +1359,29 @@ class BYOKHandler:
             logger.debug("Monthly quota check failed (non-fatal)", exc_info=True)
             return False
 
+    def _pinned_model_fits(self, model: str, needed_tokens: int) -> bool:
+        """Whether a pinned (provider_model) call may keep its pin given the
+        request's estimated size (input + completion headroom).
+
+        The pin exists for latency/quality on a known-reachable model, but it
+        silently bypassed every context-window check — a learning-heavy
+        prompt would overflow the pinned model and fail where the ranker
+        would have chosen a bigger window. Unpin (caller re-ranks) ONLY when
+        the pricing cache KNOWS the model and its window cannot hold the
+        request: unknown models pass, because the conservative 4096 default
+        would otherwise unpin every uncatalogued pin for no reason.
+        """
+        try:
+            pricing = get_pricing_fetcher().get_model_price(model)
+            if not pricing:
+                return True
+            window = pricing.get("max_input_tokens") or pricing.get("max_tokens") or 0
+            if not window:
+                return True
+            return window >= needed_tokens
+        except Exception:
+            return True
+
     def get_context_window(self, model_name: str) -> int:
         """
         Get the context window size for a model from dynamic pricing data.
@@ -1630,6 +1682,18 @@ class BYOKHandler:
                 QueryComplexity.ADVANCED: 32000
             }
             min_context = MIN_CONTEXT_BY_COMPLEXITY.get(complexity, 8000)
+            # Learning-heavy prompts (canvas co-editor recall, transcripts)
+            # dwarf the complexity floor — the request's OWN estimated size
+            # sets the real window requirement, plus completion headroom
+            # (reasoning models burn output budget thinking before they
+            # answer). Callers passing estimated_tokens explicitly get a
+            # window-aware candidate filter; the 1000 default (unset) keeps
+            # the complexity floor only.
+            if estimated_tokens and estimated_tokens > 1000:
+                min_context = max(
+                    min_context,
+                    estimated_tokens + _DEFAULT_COMPLETION_MAX_TOKENS,
+                )
 
             # Filter criteria for benchmarks based on complexity
             # Phase 68: Use CognitiveTier thresholds if provided
@@ -2289,13 +2353,20 @@ class BYOKHandler:
             requires_vision = image_payload is not None
 
             # Get ranked list of providers (forced_tier_enum drives min-quality
-            # selection when an x-atom-tier override is present)
+            # selection when an x-atom-tier override is present) — window-aware:
+            # the conversation transcript plus prompt set the candidate
+            # context floor.
+            _est_input_chars = len(prompt or "") + sum(
+                len(str(m.get("content") or ""))
+                for m in (messages or []) if isinstance(m, dict)
+            )
             options = await self.get_ranked_providers(
                 complexity, task_type, prefer_cost, tenant_plan, is_managed,
                 requires_tools=requires_tools, requires_structured=False,
                 turn_index=turn_index,
                 cognitive_tier=forced_tier_enum,
                 max_quality=max_quality_override,
+                estimated_tokens=max(1000, _est_input_chars // 4),
             )
 
             # --- LKGP (Last-Known-Good-Path) sticky boost ---
@@ -2485,12 +2556,31 @@ class BYOKHandler:
                     response = client.chat.completions.create(
                         model=model,
                         messages=messages,
-                        temperature=temperature
+                        temperature=temperature,
+                        max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                     )
                     self._capture_echoed_model(response)
-                    
+
                     result = response.choices[0].message.content
                     finish_reason = getattr(response.choices[0], "finish_reason", None)
+                    if _visible_content_missing(result):
+                        # An empty visible payload is a FAILED attempt, not a
+                        # success: recording it as healthy and returning None
+                        # left the chat path with nothing and the provider
+                        # ranked ever higher (observed live 2026-09-01).
+                        # Raise into the attempt handler so the next ranked
+                        # provider takes the turn.
+                        try:
+                            self.health_monitor.record_call(
+                                provider_id, success=False,
+                                latency_ms=(time.time() - request_start) * 1000,
+                            )
+                        except Exception:
+                            pass
+                        raise _EmptyCompletionError(
+                            f"{provider_id}/{model} returned no visible content "
+                            f"(finish_reason={finish_reason})"
+                        )
                     observed_cost = None  # set below if usage attribution succeeds
 
                     # --- Dynamic Cost Attribution (Phase 47) ---
@@ -2637,10 +2727,15 @@ class BYOKHandler:
                                 response = client.chat.completions.create(
                                     model=fallback_model,
                                     messages=messages,
-                                    temperature=temperature
+                                    temperature=temperature,
+                                    max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                                 )
                                 self._capture_echoed_model(response)
                                 result = response.choices[0].message.content
+                                if _visible_content_missing(result):
+                                    raise _EmptyCompletionError(
+                                        f"fallback {fallback_model} returned no visible content"
+                                    )
                                 self._last_used_model = fallback_model
                                 self._last_used_provider = provider_id
                                 logger.info(
@@ -2699,6 +2794,7 @@ class BYOKHandler:
                                 "model": model,
                                 "messages": messages,
                                 "temperature": temperature,
+                                "max_tokens": _DEFAULT_COMPLETION_MAX_TOKENS,
                             }
                             if image_payload and isinstance(messages[-1].get("content"), list):
                                 heal_kwargs["messages"] = messages  # multimodal
@@ -2714,6 +2810,10 @@ class BYOKHandler:
                                     )
                                     self._capture_echoed_model(response)
                                     result = response.choices[0].message.content
+                                    if _visible_content_missing(result):
+                                        raise _EmptyCompletionError(
+                                            f"healed retry on {model} returned no visible content"
+                                        )
                                     finish_reason = getattr(response.choices[0], "finish_reason", None)
                                     logger.info(
                                         f"[SelfHeal] retry SUCCEEDED for {provider_id}/{model} "
@@ -2770,9 +2870,14 @@ class BYOKHandler:
                                     model=paid_model,
                                     messages=messages,
                                     temperature=temperature,
+                                    max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                                 )
                                 self._capture_echoed_model(response)
                                 result = response.choices[0].message.content
+                                if _visible_content_missing(result):
+                                    raise _EmptyCompletionError(
+                                        f"paid retry {paid_model} returned no visible content"
+                                    )
                                 finish_reason = getattr(response.choices[0], "finish_reason", None)
                                 logger.info(
                                     f"OpenCode Go free-model retry SUCCEEDED on paid model "
@@ -3528,17 +3633,37 @@ class BYOKHandler:
             
             # --- Phase 14: Vision Routing ---
             requires_vision = image_payload is not None
-            # Get ranked options
+            # Get ranked options — window-aware: the request's own size
+            # (learning sections + transcripts can be large) sets the
+            # candidate context floor, not just the complexity class.
+            estimated_input_tokens = max(
+                1000, (len(prompt) + len(system_instruction or "")) // 4
+            )
             options = await self.get_ranked_providers(
                 complexity, task_type, True, tenant_plan, is_managed,
-                requires_tools=True, requires_structured=True
+                requires_tools=True, requires_structured=True,
+                estimated_tokens=estimated_input_tokens,
             )
 
             # R72 Workstream F — MoA recursion guard: when a (provider, model)
             # is pinned, reduce the option list to that single tuple so sample
-            # and aggregator calls never re-rank providers.
+            # and aggregator calls never re-rank providers. The pin is kept
+            # ONLY if the pinned model's window can hold the request: the pin
+            # used to bypass every context check, and a learning-heavy prompt
+            # overflowed it where the ranker would have chosen a bigger model.
             if provider_model is not None:
-                options = [provider_model]
+                if not self._pinned_model_fits(
+                    provider_model[1],
+                    estimated_input_tokens + _DEFAULT_COMPLETION_MAX_TOKENS,
+                ):
+                    logger.warning(
+                        f"Unpinning {provider_model[1]} — context window cannot "
+                        f"hold ~{estimated_input_tokens} input tokens + completion; "
+                        f"re-ranking across all capable providers"
+                    )
+                    provider_model = None
+                else:
+                    options = [provider_model]
 
             # --- Phase 14.5: Coordinated Vision Logic ---
             if image_payload:
