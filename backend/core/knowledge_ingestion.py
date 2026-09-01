@@ -131,7 +131,14 @@ class KnowledgeIngestionManager:
                 # Use the new structured ingestion method. NOTE: must be
                 # keyword arguments — a positional call shifted entities into
                 # tenant_id and silently dropped every relationship.
-                graphrag_stats = self.graphrag.ingest_structured_data(
+                # SYNC-OFF-LOOP: ingest_structured_data does Lance/Rust writes
+                # synchronously; called directly from this loop task it froze
+                # the ENTIRE event loop for its duration — every concurrent
+                # request (right-panel tabs, health probes) hung with no
+                # response (observed live 2026-09-01). to_thread keeps the
+                # loop serving while the Rust side works in a worker thread.
+                graphrag_stats = await asyncio.to_thread(
+                    self.graphrag.ingest_structured_data,
                     workspace_id=ws_id,
                     tenant_id=ws_id,
                     entities=entities,

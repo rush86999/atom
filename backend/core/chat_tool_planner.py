@@ -117,6 +117,12 @@ Rules:
 - query must be the minimal search terms (names, companies, subjects,
   keywords) — not the whole user message. For web_fetch the query is the
   website address itself.
+- NAMED ENTITIES OVER GENERIC NOUNS: resolve "the lead", "the company",
+  "them", "this contact" from the conversation and put the ACTUAL names in
+  the query. A query like "determine if lead is end user or dealer" searches
+  for the metal lead; the useful query names the subject — e.g. "Blumetric
+  Jacob Schulz company". If the transcript names a company or person, the
+  query MUST contain that name.
 - Return exactly ONE plan. If a search and a URL check would both help,
   plan ONLY web_fetch when the address is known, otherwise web_search.
 - Read-only: only search/list intents. Never plan sends, writes, or deletes.
