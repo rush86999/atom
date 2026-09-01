@@ -3501,6 +3501,7 @@ class BYOKHandler:
         cascade: bool = False,  # Phase 2 hallucination mitigation
         provider_model: Optional[tuple] = None,  # R72 F: pin a single (provider, model)
         allow_moa: bool = True,                  # R72 F: opt out of MoA dispatch
+        disable_reasoning: bool = False,         # tiny planning calls: skip hidden thinking
         stage_decision_id: Optional[str] = None,  # Stage router: audit-row join
     ) -> Any:
         """
@@ -3852,11 +3853,33 @@ class BYOKHandler:
                         temperature=temperature,
                         max_tokens=_structured_max_tokens,
                     )
+                    if disable_reasoning:
+                        # OpenRouter unified reasoning switch: a reasoning
+                        # model burns 1,200–2,000 hidden tokens (30–60s)
+                        # BEFORE a 60-line planning answer — measured on
+                        # minimax-m3 for the canvas editor + tool planner
+                        # (2026-09-01). Planning prompts need no thinking;
+                        # this turns minute-long stages into seconds.
+                        # extra_body, because the typed SDK create() rejects
+                        # provider-extension kwargs directly.
+                        _create_kwargs["extra_body"] = {
+                            "reasoning": {"enabled": False, "exclude": True},
+                        }
                     _logprobs_key = f"{provider_id}/{model}"
                     if _soft_sc_on and _logprobs_key not in _LOGPROBS_UNSUPPORTED:
                         _create_kwargs["logprobs"] = True
                     try:
                         result = instructor_client.chat.completions.create(**_create_kwargs)
+                    except Exception as _reasoning_reject:
+                        # Some endpoints run reasoning-mandatory models and
+                        # reject the disable switch with a 400 ("Reasoning is
+                        # mandatory for this endpoint"). Retry once WITHOUT
+                        # the extra_body rather than failing the stage.
+                        if "reasoning" in str(_reasoning_reject).lower() and _create_kwargs.get("extra_body"):
+                            _create_kwargs.pop("extra_body", None)
+                            result = instructor_client.chat.completions.create(**_create_kwargs)
+                        else:
+                            raise
                     except Exception as _soft_exc:
                         if not _soft_sc_on or "logprobs" not in _create_kwargs:
                             raise

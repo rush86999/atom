@@ -35,7 +35,13 @@ logger = logging.getLogger(__name__)
 # PLANNER_MODEL (unpinned "auto" routing prefers the free local Ollama client
 # by value, which is frequently unreachable; the connection-error retries eat
 # seconds and lose the structured output entirely).
-CANVAS_EDITOR_MODEL = os.getenv("ATOM_CANVAS_EDITOR_MODEL", "minimax/minimax-m3")
+# Flash-class non-reasoning pin: the previous pin (minimax-m3) is a
+# reasoning model whose provider ignores the disable flag — every tiny
+# planning call burned 1,100-2,000 hidden tokens and 30-75s (measured
+# 2026-09-01; the canvas-edit plan alone blew the 30s budget). The editor
+# plans ~60-line JSON; a fast non-reasoning flash model is the right shape.
+CANVAS_EDITOR_MODEL = os.getenv(
+    "ATOM_CANVAS_EDITOR_MODEL", "qwen/qwen3.7-flash")
 
 # The current canvas content rides in the prompt; bound it so a huge sheet
 # can't blow the structured-call budget.
@@ -642,6 +648,7 @@ async def plan_canvas_edit(
         pass
 
     plan = await llm_service.generate_structured_response(
+                disable_reasoning=True,
         prompt=prompt,
         response_model=CanvasEditPlan,
         system_instruction="You return only the requested JSON object.",
@@ -680,6 +687,7 @@ async def plan_canvas_edit(
             f"canvas edit: {reask_reason} — falling back to a replace-mode re-ask"
         )
         replan = await llm_service.generate_structured_response(
+                disable_reasoning=True,
             prompt=f"{prompt}\n\n{_REPLACE_FALLBACK_SUFFIX}",
             response_model=CanvasEditPlan,
             system_instruction="You return only the requested JSON object.",
@@ -1138,6 +1146,7 @@ async def plan_canvas_action(
         pass
 
     plan = await llm_service.generate_structured_response(
+                disable_reasoning=True,
         prompt=prompt,
         response_model=CanvasActionPlan,
         system_instruction="You return only the requested JSON object — raw JSON, no markdown fences.",

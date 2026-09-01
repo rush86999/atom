@@ -9,6 +9,7 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 - Cross-platform workflow execution
 """
 import asyncio
+import time
 import json
 import logging
 import re
@@ -638,43 +639,22 @@ class ChatOrchestrator:
                     "title": context.get("canvas_title"),
                     "content": context.get("canvas_content"),
                 }
-            if _canvas_ctx:
-                _edit_response = await self._try_canvas_edit(
-                    message, history, _canvas_ctx, user_id, session_id,
-                    _execution_id, (context or {}).get("agent_id"),
-                )
-                if _edit_response:
-                    # Persist the turn so follow-ups ("now make it shorter")
-                    # have the request in session history, then return —
-                    # skipping feature routing means edit requests can no
-                    # longer be misfiled into TASKS/AUTOMATION side effects.
-                    self._update_session(
-                        session, message, _edit_response,
-                        {"primary_intent": "canvas_edit", "confidence": 0.9},
-                    )
-                    await self._emit_agent_status(
-                        session_id, _trace_agent_id, _execution_id, "success"
-                    )
-                    self._finish_chat_execution(_execution_id, "success", _edit_response.get("message", ""))
-                    return _edit_response
+            # Tool planning OVERLAPS the canvas-edit plan: both are
+            # structured LLM calls over the same message, neither needs the
+            # other's output, and serialized they cost the turn ~4s of dead
+            # air before the search even starts (measured 2026-09-01). The
+            # task is consumed inside _get_qwen_response and cancelled if an
+            # earlier leg (edit/action) already answered.
+            _tool_plan_task = None
+            try:
+                from core.chat_tool_planner import plan_tool_use
 
-                # Not an edit — is it an ACTION on the canvas ("send this")?
-                # Gated by the owner's autonomy policy + hire maturity.
-                _action_response = await self._try_canvas_action(
-                    message, history, _canvas_ctx, user_id, session_id,
-                    _execution_id, (context or {}).get("agent_id"),
-                )
-                if _action_response:
-                    self._update_session(
-                        session, message, _action_response,
-                        {"primary_intent": "canvas_action", "confidence": 0.9},
-                    )
-                    await self._emit_agent_status(
-                        session_id, _trace_agent_id, _execution_id, "success"
-                    )
-                    self._finish_chat_execution(_execution_id, "success", _action_response.get("message", ""))
-                    return _action_response
-
+                _tool_plan_task = asyncio.create_task(plan_tool_use(
+                    message, session.get("history", []) or history,
+                    user_id, self.llm_service,
+                ))
+            except Exception as plan_task_err:
+                logger.debug(f"tool plan task not started: {plan_task_err}")
             sticky_hint = None
             try:
                 import os as _os
@@ -685,15 +665,65 @@ class ChatOrchestrator:
                         sticky_hint = (_p, _m)
             except Exception:
                 pass
-            ai_response = await self._get_qwen_response(
-                message, history, routing_overrides,
-                sticky_hint=sticky_hint, user_id=user_id,
-                agent_id=(context or {}).get('agent_id'),
-                planner_history=session.get("history", []),
-                session_id=session_id,
-                execution_id=_execution_id,
-                canvas_context=_canvas_ctx,
-            )
+            _turn_t0 = time.monotonic()
+            try:
+                if _canvas_ctx:
+                    _edit_response = await self._try_canvas_edit(
+                        message, history, _canvas_ctx, user_id, session_id,
+                        _execution_id, (context or {}).get("agent_id"),
+                    )
+                    logger.info(
+                        f"[stage-timing] canvas-edit plan: {time.monotonic() - _turn_t0:.1f}s")
+                    if _edit_response:
+                        # Persist the turn so follow-ups ("now make it shorter")
+                        # have the request in session history, then return —
+                        # skipping feature routing means edit requests can no
+                        # longer be misfiled into TASKS/AUTOMATION side effects.
+                        self._update_session(
+                            session, message, _edit_response,
+                            {"primary_intent": "canvas_edit", "confidence": 0.9},
+                        )
+                        await self._emit_agent_status(
+                            session_id, _trace_agent_id, _execution_id, "success"
+                        )
+                        self._finish_chat_execution(_execution_id, "success", _edit_response.get("message", ""))
+                        return _edit_response
+
+                    # Not an edit — is it an ACTION on the canvas ("send this")?
+                    # Gated by the owner's autonomy policy + hire maturity.
+                    _action_response = await self._try_canvas_action(
+                        message, history, _canvas_ctx, user_id, session_id,
+                        _execution_id, (context or {}).get("agent_id"),
+                    )
+                    if _action_response:
+                        self._update_session(
+                            session, message, _action_response,
+                            {"primary_intent": "canvas_action", "confidence": 0.9},
+                        )
+                        await self._emit_agent_status(
+                            session_id, _trace_agent_id, _execution_id, "success"
+                        )
+                        self._finish_chat_execution(_execution_id, "success", _action_response.get("message", ""))
+                        return _action_response
+
+                ai_response = await self._get_qwen_response(
+                    message, history, routing_overrides,
+                    sticky_hint=sticky_hint, user_id=user_id,
+                    agent_id=(context or {}).get('agent_id'),
+                    planner_history=session.get("history", []),
+                    session_id=session_id,
+                    execution_id=_execution_id,
+                    canvas_context=_canvas_ctx,
+                    tool_plan_task=_tool_plan_task,
+                )
+            finally:
+                if _tool_plan_task is not None:
+                    if not _tool_plan_task.done():
+                        _tool_plan_task.cancel()
+                    elif not _tool_plan_task.cancelled():
+                        # retrieve so an unconsumed planner failure doesn't
+                        # log "Task exception was never retrieved"
+                        _tool_plan_task.exception()
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
@@ -1016,6 +1046,7 @@ class ChatOrchestrator:
         message: str,
         history: list,
         routing_overrides: Optional[Dict[str, Any]] = None,
+        tool_plan_task: Optional[asyncio.Task] = None,
         sticky_hint: Optional[tuple] = None,
         user_id: Optional[str] = None,
         agent_id: Optional[str] = None,
@@ -1206,21 +1237,43 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # Full hydrated history for the planner (not the [-6:] main-
                 # model window): in retry-heavy sessions the original request
                 # sits several turns back, and user-only lines are tiny.
-                _plan = await asyncio.wait_for(
-                    plan_tool_use(message, planner_history or history, user_id, self.llm_service),
-                    timeout=25,
-                )
+                # A pre-started plan task means the caller overlapped this
+                # plan with the canvas-edit plan — just await it.
+                _plan_t0 = time.monotonic()
+                if tool_plan_task is not None:
+                    _plan = await asyncio.wait_for(tool_plan_task, timeout=25)
+                else:
+                    _plan = await asyncio.wait_for(
+                        plan_tool_use(message, planner_history or history, user_id, self.llm_service),
+                        timeout=25,
+                    )
+                logger.info(
+                    f"[stage-timing] tool plan (overlapped={tool_plan_task is not None}): "
+                    f"{time.monotonic() - _plan_t0:.1f}s")
                 if _plan and _plan.use_tool:
                     _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
                     await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
                                  f"Planned live lookup: {_planned}")
                     _tool_block = await asyncio.wait_for(
-                        execute_tool_plan(_plan, user_id, self.tenant_id),
+                        execute_tool_plan(
+                            _plan, user_id, self.tenant_id,
+                            context={
+                                "history": (planner_history or history or [])[-6:],
+                                "canvas": {
+                                    "title": canvas_context.get("title"),
+                                    **((canvas_context.get("content") or {})
+                                       if isinstance(canvas_context, dict) else {}),
+                                } if isinstance(canvas_context, dict) else None,
+                            },
+                        ),
                         timeout=30,
                     )
+                    _exec_t0 = time.monotonic()
                     _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
                     await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
                                  _first_line or "no results")
+                    logger.info(
+                        f"[stage-timing] tool exec: {time.monotonic() - _exec_t0:.1f}s")
                 elif _plan is not None:
                     await _trace("thought", {"tool": "tool_planner", "params": {}},
                                  f"No live lookup needed: {(_plan.reason or 'conversation suffices')[:160]}")
@@ -1311,6 +1364,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 **extra_kwargs,
             )
             
+            logger.info(
+                f"[stage-timing] reply generation: {time.monotonic() - _plan_t0:.1f}s "
+                f"(incl. tool plan + exec above)")
             if response_data.get("success"):
                 # Reasoning/protocol-tag hygiene: some models (minimax m3 via
                 # OpenRouter) leak chain-of-thought fragments ("</mm:think>")

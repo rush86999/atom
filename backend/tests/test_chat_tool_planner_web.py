@@ -96,7 +96,9 @@ async def test_execute_web_search_formats_results():
     }
     with patch("integrations.mcp_service.mcp_service.web_search", new=AsyncMock(return_value=payload)):
         block = await execute_tool_plan(_plan("web_search"), "user-1")
-    assert block and block.startswith("LIVE TOOL RESULTS (web_search")
+    assert block and "LIVE TOOL RESULTS (web_search" in block
+    # LOCAL KNOWLEDGE (GraphRAG) may prefix the block when the workspace
+    # graph holds matching entities — substring assert covers both.
     assert "welding supply store" in block
     assert "https://wfsltd.ca/about" in block
 

@@ -22,6 +22,7 @@ Every leg is fault-isolated: a planner failure or executor error degrades
 to "no tool block" and the model answers from transcript/memory, never
 raising into the chat path.
 """
+import asyncio
 import logging
 import os
 from typing import Any, Dict, List, Optional
@@ -138,7 +139,7 @@ Rules:
 # prefers the free local Ollama client by value, which is frequently
 # unreachable — the structured path retries then fails, and the whole plan
 # is lost. Planner prompts are tiny; the cheap vetted workhorse is ideal.
-PLANNER_MODEL = os.getenv("ATOM_TOOL_PLANNER_MODEL", "minimax/minimax-m3")
+PLANNER_MODEL = os.getenv("ATOM_TOOL_PLANNER_MODEL", "qwen/qwen3.7-flash")
 
 
 class ToolPlan(BaseModel):
@@ -246,6 +247,7 @@ async def plan_tool_use(
         pass
 
     plan = await llm_service.generate_structured_response(
+        disable_reasoning=True,
         prompt=prompt,
         response_model=ToolPlan,
         system_instruction="You return only the requested JSON object.",
@@ -267,14 +269,39 @@ async def plan_tool_use(
 
 
 async def execute_tool_plan(
-    plan: ToolPlan, user_id: Optional[str], tenant_id: str = "default"
+    plan: ToolPlan,
+    user_id: Optional[str],
+    tenant_id: str = "default",
+    context: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """Run the planned read-only action and return a text block for prompt
-    injection. Returns None when nothing usable came back."""
+    injection. Returns None when nothing usable came back.
+
+    ``context`` ({"history": [...], "canvas": {...}}) feeds the intelligent
+    query builder: generic-noun queries ("research the lead") are rewritten
+    to name the actual subject resolved from the conversation or the open
+    canvas — for EVERY agent on this path, regardless of how strong the
+    planning model's own query was."""
     if not plan or not plan.use_tool or not plan.service:
         return None
     service = plan.service
     query = (plan.query or "").strip()
+
+    if service in ("web_search", "web_fetch"):
+        try:
+            from core.intelligent_search import build_search_query
+
+            ctx = context or {}
+            rewritten = build_search_query(
+                query,
+                history_turns=ctx.get("history"),
+                canvas_content=ctx.get("canvas"),
+            )
+            if rewritten and rewritten != query:
+                logger.info(f"search query rewritten: {query!r} -> {rewritten!r}")
+                query = rewritten
+        except Exception as query_err:
+            logger.debug(f"intelligent query rewrite skipped: {query_err}")
 
     # Platform web tools (Tavily-backed, key resolved inside mcp_service).
     # Read-only like every planner leg; the full maturity-gated Playwright
@@ -283,15 +310,37 @@ async def execute_tool_plan(
         try:
             from integrations.mcp_service import mcp_service as _mcp
 
+            # LOCAL KNOWLEDGE FIRST: the GraphRAG ontology already holds
+            # entities/relationships extracted from the user's ingested mail
+            # and docs (people, companies, what they do). A web search that
+            # ignores it re-derives facts the workspace already knows — and
+            # when the graph knows the lead, it also disambiguates the query.
+            graph_block = ""
+            try:
+                from core.graphrag_engine import graphrag_engine
+
+                graph_ctx = await asyncio.wait_for(
+                    graphrag_engine.get_context_for_ai(query=query), timeout=5,
+                )
+                if graph_ctx and graph_ctx.strip():
+                    graph_block = (
+                        "LOCAL KNOWLEDGE (GraphRAG ontology — entities and "
+                        "relationships extracted from this workspace's own "
+                        "email and documents; authoritative for what the "
+                        f"workspace already knows):\n{graph_ctx[:2500]}\n\n"
+                    )
+            except Exception as graph_err:
+                logger.debug(f"GraphRAG context skipped: {graph_err}")
+
             if service == "web_search":
                 res = await _mcp.web_search(query, tenant_id)
                 err = str(res.get("error") or "").strip()
                 if err:
-                    return f"LIVE TOOL RESULTS (web_search, query='{query}'): unavailable — {err[:200]}"
+                    return f"{graph_block}LIVE TOOL RESULTS (web_search, query='{query}'): unavailable — {err[:200]}"
                 answer = str(res.get("answer") or "").strip()
                 results = res.get("results") or []
                 if not answer and not results:
-                    return f"LIVE TOOL RESULTS (web_search, query='{query}'): no results found."
+                    return f"{graph_block}LIVE TOOL RESULTS (web_search, query='{query}'): no results found."
                 lines = []
                 if answer:
                     lines.append(f"Summary: {answer[:800]}")
@@ -301,6 +350,7 @@ async def execute_tool_plan(
                         f"  {str(r.get('content') or '')[:400]}"
                     )
                 return (
+                    f"{graph_block}"
                     f"LIVE TOOL RESULTS (web_search, query='{query}') — "
                     f"use these to answer:\n" + "\n".join(lines)
                 )
