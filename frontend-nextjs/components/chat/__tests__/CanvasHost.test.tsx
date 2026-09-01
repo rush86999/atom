@@ -434,6 +434,7 @@ describe('CanvasHost (extended coverage)', () => {
       subject: 'Hi',
       body: 'Body text',
       canvas_id: 'canvas-9',
+      attachment_ids: [],
     });
     expect(alertSpy).toHaveBeenCalledWith('Email sent.');
 

@@ -92,10 +92,24 @@ export interface EmailDraft {
 }
 
 export interface EmailAttachment {
+  /** Provider attachment id, or `staged_{hex}` for outbound uploads. */
   attachment_id: string;
+  /** Mailbox message the file arrived on (null for staged uploads). */
+  message_id?: string | null;
+  provider?: "outlook" | "gmail" | "local";
   filename: string;
-  file_type: string;
+  file_type?: string;
+  content_type?: string;
   size: number;
+  is_inline?: boolean;
+  origin?: "received" | "staged" | "agent_added";
+  ingestion?: {
+    status?: string;
+    doc_id?: string | null;
+    ingested_at?: string | null;
+  } | null;
+  added_by?: { actor: "user" | "agent"; user_id: string; agent_id?: string | null };
+  sent_at?: string | null;
   url?: string;
 }
 

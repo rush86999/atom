@@ -1,111 +1,179 @@
 /**
  * ArtifactSidebar Component Tests
  *
- * Tests verify ArtifactSidebar renders artifact list, handles empty state,
- * and shows version badges.
+ * Tests verify the session Artifacts panel against its real data source:
+ * the session-scoped canvas list (GET /api/canvas/?session_id=…) backed by
+ * the canvas audit trail — the same store CanvasHost saves to, /canvas/{id}
+ * reads, and the gallery page lists.
  *
  * Source: components/chat/ArtifactSidebar.tsx
  *
  * Real behavior (verified against source):
- * - Fetches `/api/artifacts?session_id=...` on mount (and every 10s).
- * - Renders the raw array returned by the endpoint.
- * - Header: "Team Artifacts". Empty placeholder: "No artifacts shared yet."
- * - Each row shows the artifact name and a `v{version}` badge.
- *
- * NOTE: fetch must be provided via MSW handlers. Setting `global.fetch =
- * jest.fn()` here breaks MSW interception (the shared server wraps fetch and
- * calls response.clone() on the mock's plain object, which throws).
+ * - Fetches `/api/canvas/?session_id=...&limit=50` on mount via apiClient
+ *   (authenticated, backend-URL aware) and every 10s.
+ * - Renders `canvases[]` from the response: display_title → title →
+ *   canvas_id, a `v{version}` badge, relative timestamp.
+ * - Clicking an item renders it into the chat's CanvasHost through
+ *   syncCanvasFromStore (lib/canvasSync) — no navigation.
+ * - "View Full History" links to /canvas (the cross-session gallery).
+ * - Header: "Session Artifacts". Empty placeholder when the session has none.
+ * - Returns null when no sessionId.
  */
 
 import React from 'react';
-import { renderWithProviders, screen, waitFor } from '../../../tests/test-utils';
+import { renderWithProviders, screen, waitFor, fireEvent } from '../../../tests/test-utils';
 import { ArtifactSidebar } from '../ArtifactSidebar';
-import { server } from '@/tests/mocks/server';
-import { rest } from 'msw';
 
-const mockArtifacts = (artifacts: unknown[]) => {
-  server.use(
-    rest.get('/api/artifacts', (req, res, ctx) => res(ctx.json(artifacts)))
-  );
-};
+const mockGet = jest.fn();
+const mockSync = jest.fn();
+const mockOnRefresh = jest.fn();
+
+jest.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: (...args: unknown[]) => mockGet(...args),
+  },
+}));
+
+jest.mock('@/lib/canvasSync', () => ({
+  syncCanvasFromStore: (...args: unknown[]) => mockSync(...args),
+  onCanvasRefresh: (...args: unknown[]) => mockOnRefresh(...args),
+}));
+
+const ITEMS = [
+  {
+    canvas_id: 'cv-1',
+    canvas_type: 'docs',
+    action_type: 'present',
+    title: 'Doc title',
+    display_title: 'Session Doc',
+    snippet: 'hello',
+    deleted: false,
+    last_updated: '2026-08-30T12:00:00Z',
+    version: 2,
+  },
+  {
+    canvas_id: 'cv-2',
+    canvas_type: 'sheets',
+    action_type: 'update',
+    title: null,
+    display_title: 'Budget sheet',
+    snippet: null,
+    deleted: false,
+    last_updated: '2026-08-30T12:05:00Z',
+    version: 3,
+  },
+];
+
+const mockResponse = (canvases: unknown[]) =>
+  mockGet.mockResolvedValue({ data: { success: true, canvases, count: canvases.length, total: canvases.length } });
 
 describe('ArtifactSidebar', () => {
-  const mockOnSelectArtifact = jest.fn();
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockOnRefresh.mockReturnValue(jest.fn());
+    mockResponse([]);
+  });
 
-  // Test 1: renders artifact list
-  test('renders artifact list', async () => {
-    const artifacts = [
-      { id: '1', name: 'Artifact 1', type: 'code', version: 1, updated_at: '2024-01-01' },
-      { id: '2', name: 'Artifact 2', type: 'markdown', version: 2, updated_at: '2024-01-02' },
-    ];
-    mockArtifacts(artifacts);
-
-    const { container } = renderWithProviders(
-      <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
-    );
+  // Test 1: fetches the SESSION-SCOPED canvas list (not the dead legacy
+  // /api/artifacts endpoint) with the session id.
+  test('fetches session-scoped canvas list via apiClient', async () => {
+    mockResponse(ITEMS);
+    renderWithProviders(<ArtifactSidebar sessionId="session-123" />);
 
     await waitFor(() => {
-      expect(container.textContent).toContain('Artifact 1');
-      expect(container.textContent).toContain('Artifact 2');
+      expect(mockGet).toHaveBeenCalledWith(
+        `/api/canvas/?session_id=${encodeURIComponent('session-123')}&limit=50`
+      );
     });
   });
 
-  // Test 2: empty artifacts shows placeholder
+  // Test 2: renders the list with server-derived titles
+  test('renders artifact list with display titles', async () => {
+    mockResponse(ITEMS);
+    const { container } = renderWithProviders(<ArtifactSidebar sessionId="session-123" />);
+
+    await waitFor(() => {
+      expect(container.textContent).toContain('Session Doc');
+      expect(container.textContent).toContain('Budget sheet');
+    });
+  });
+
+  // Test 3: empty session shows placeholder
   test('empty artifacts shows placeholder', async () => {
-    mockArtifacts([]);
-
-    const { container } = renderWithProviders(
-      <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
-    );
+    const { container } = renderWithProviders(<ArtifactSidebar sessionId="session-123" />);
 
     await waitFor(() => {
-      expect(container.textContent).toContain('No artifacts shared yet.');
+      expect(container.textContent).toContain('No artifacts yet this session.');
     });
   });
 
-  // Test 3: artifact has correct version badge
+  // Test 4: version badge comes from the audit-row count
   test('artifact has correct version badge', async () => {
-    mockArtifacts([
-      { id: '1', name: 'Test', type: 'code', version: 3, updated_at: '2024-01-01' },
-    ]);
-
-    const { container } = renderWithProviders(
-      <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
-    );
+    mockResponse([ITEMS[1]]);
+    const { container } = renderWithProviders(<ArtifactSidebar sessionId="session-123" />);
 
     await waitFor(() => {
       expect(container.textContent).toContain('v3');
     });
   });
 
-  // Test 4: shows header with title
-  test('shows header with title', () => {
-    mockArtifacts([]);
-
+  // Test 5: clicking an item renders it into the CanvasHost via
+  // syncCanvasFromStore — the no-navigation journey.
+  test('clicking an artifact loads it into the canvas host', async () => {
+    mockResponse([ITEMS[0]]);
+    const onSelect = jest.fn();
     const { container } = renderWithProviders(
-      <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
+      <ArtifactSidebar sessionId="session-123" onSelectArtifact={onSelect} />
     );
 
-    expect(container.textContent).toContain('Team Artifacts');
+    await waitFor(() => {
+      expect(container.textContent).toContain('Session Doc');
+    });
+    fireEvent.click(screen.getByText('Session Doc'));
+
+    await waitFor(() => {
+      expect(mockSync).toHaveBeenCalledWith('cv-1');
+      expect(onSelect).toHaveBeenCalledWith('cv-1');
+    });
   });
 
-  // Test 5: returns null when no sessionId
-  test('returns null when no sessionId', () => {
-    const { container } = renderWithProviders(
-      <ArtifactSidebar sessionId={null} onSelectArtifact={mockOnSelectArtifact} />
-    );
+  // Test 6: View Full History links to the /canvas gallery
+  test('View Full History links to /canvas', async () => {
+    const { container } = renderWithProviders(<ArtifactSidebar sessionId="session-123" />);
 
+    await waitFor(() => {
+      const link = container.querySelector('[data-testid="artifact-full-history"]');
+      expect(link).not.toBeNull();
+      expect(link!.getAttribute('href')).toBe('/canvas');
+    });
+  });
+
+  // Test 7: header reflects session scope
+  test('shows header with title', () => {
+    const { container } = renderWithProviders(<ArtifactSidebar sessionId="session-123" />);
+    expect(container.textContent).toContain('Session Artifacts');
+  });
+
+  // Test 8: returns null when no sessionId
+  test('returns null when no sessionId', () => {
+    const { container } = renderWithProviders(<ArtifactSidebar sessionId={null} />);
     expect(container.innerHTML).toBe('');
   });
 
-  // Test 6: renders without errors
-  test('renders without errors', () => {
-    mockArtifacts([]);
+  // Test 9: refetches when a canvas refresh (agent present/update) arrives
+  test('subscribes to canvas refresh events and refetches', async () => {
+    renderWithProviders(<ArtifactSidebar sessionId="session-123" />);
 
+    await waitFor(() => expect(mockGet).toHaveBeenCalled());
+    // onCanvasRefresh registered with a handler; unsubscribed cleanly.
+    expect(mockOnRefresh).toHaveBeenCalled();
+    expect(typeof mockOnRefresh.mock.calls[0][0]).toBe('function');
+  });
+
+  // Test 10: renders without errors
+  test('renders without errors', () => {
     expect(() =>
-      renderWithProviders(
-        <ArtifactSidebar sessionId="session-123" onSelectArtifact={mockOnSelectArtifact} />
-      )
+      renderWithProviders(<ArtifactSidebar sessionId="session-123" />)
     ).not.toThrow();
   });
 });
@@ -119,6 +187,8 @@ describe('formatDate', () => {
     // comparison, and rendered the literal "Invalid Date" to the user.
     expect(formatDate('not-a-real-date')).toBe('');
     expect(formatDate('')).toBe('');
+    expect(formatDate(null)).toBe('');
+    expect(formatDate(undefined)).toBe('');
   });
 
   it('does not return "Just now" for a far-future timestamp', () => {

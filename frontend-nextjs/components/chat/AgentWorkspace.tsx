@@ -34,6 +34,21 @@ interface AgentStep {
 
 type FeedbackType = "thumbs_up" | "thumbs_down";
 
+/** Live maturity/learning state for one agent (from `maturity_update` frames). */
+interface MaturityState {
+    agentId: string;
+    /** 0..1 confidence score after the latest learning update */
+    confidence: number;
+    previousConfidence?: number;
+    /** maturity tier: student | intern | supervised | autonomous */
+    tier?: string;
+    previousTier?: string;
+    /** true when this update moved the agent across a tier boundary */
+    transition?: boolean;
+    /** what moved the score: outcome | feedback | correction | training | graduation */
+    source?: string;
+}
+
 interface AgentRun {
     /** Persisted execution id; "live" is the pseudo-run for legacy payloads. */
     executionId: string;
@@ -123,6 +138,9 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     const [runs, setRuns] = useState<AgentRun[]>([]);
     const [agentStatus, setAgentStatus] = useState<string>("idle");
     const [activeAgentId, setActiveAgentId] = useState<string | null>(initialAgentId || null);
+    // Per-agent learning state pushed by the backend (confidence drips,
+    // feedback adjudication, training boosts, promotions) in real time.
+    const [maturityByAgent, setMaturityByAgent] = useState<Record<string, MaturityState>>({});
     const [activeTab, setActiveTab] = useState<string>("tasks");
     const [isMaximized, setIsMaximized] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -130,6 +148,11 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     const [commentTarget, setCommentTarget] = useState<{ runId: string; stepNumber: number } | null>(null);
     const [commentText, setCommentText] = useState("");
     const [traceLoading, setTraceLoading] = useState(false);
+    // Whether a canvas is showing in the Artifacts tab — when none is, the
+    // artifact list reclaims the host's space instead of floating under a
+    // blank two-thirds pane.
+    const [canvasOpen, setCanvasOpen] = useState(false);
+    const handleCanvasVisibility = useCallback((visible: boolean) => setCanvasOpen(visible), []);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Update active agent if initial changes (e.g. navigation)
@@ -261,6 +284,29 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
             if (collapsed) setUnreadCount((n) => n + 1);
             if (wireAgentId) setActiveAgentId(wireAgentId);
             onAgentActivity?.(step.step === 1 ? "run_start" : "step");
+        } else if (lastMessage.type === "maturity_update") {
+            // Live learning signal: the backend pushes one frame per
+            // confidence/tier change so the user watches the agent evolve
+            // turn-by-turn instead of polling a stale snapshot.
+            const payload = lastMessage.data ?? lastMessage;
+            const agentId = payload.agent_id ?? payload.agentId;
+            if (agentId && typeof payload.confidence === "number") {
+                setMaturityByAgent((prev) => ({
+                    ...prev,
+                    [agentId]: {
+                        agentId,
+                        confidence: payload.confidence,
+                        previousConfidence:
+                            typeof payload.previous_confidence === "number"
+                                ? payload.previous_confidence
+                                : prev[agentId]?.confidence,
+                        tier: payload.tier ?? prev[agentId]?.tier,
+                        previousTier: payload.previous_tier ?? prev[agentId]?.tier,
+                        transition: Boolean(payload.transition),
+                        source: payload.source,
+                    },
+                }));
+            }
         } else if (lastMessage.type === "agent_status_change") {
             // Handle flat or nested status
             const payload = lastMessage.data ?? lastMessage;
@@ -327,6 +373,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
     const currentRun = runs.length > 0 ? runs[runs.length - 1] : null;
     const historyRuns = runs.slice(0, -1);
     const totalSteps = currentRun?.steps.length ?? 0;
+    const maturity = activeAgentId ? maturityByAgent[activeAgentId] : undefined;
 
     const handleClear = () => {
         setRuns([]);
@@ -702,6 +749,37 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                             <p className="text-sm text-slate-400 italic">
                                 &quot;{totalSteps > 0 ? `Processing step ${totalSteps}...` : "I am standing by. Start a chat to see my execution plan."}&quot;
                             </p>
+                            {maturity && (
+                                <div
+                                    className="mt-2 flex items-center gap-2 flex-wrap"
+                                    data-testid="maturity-strip"
+                                    title={maturity.source ? `Learning update (${maturity.source})` : "Learning update"}
+                                >
+                                    <Badge
+                                        variant="outline"
+                                        className={`text-[10px] uppercase tracking-wide border-indigo-400/40 ${maturity.transition ? "text-green-300 border-green-400/50" : "text-indigo-300"}`}
+                                    >
+                                        {maturity.tier ?? "student"}
+                                    </Badge>
+                                    <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                                        maturity
+                                        <span className="inline-block w-16 h-1 rounded bg-slate-700 overflow-hidden">
+                                            <span
+                                                className="block h-full bg-green-500 transition-all duration-700"
+                                                style={{
+                                                    width: `${Math.round(Math.min(1, Math.max(0, maturity.confidence)) * 100)}%`,
+                                                }}
+                                            />
+                                        </span>
+                                        {Math.round(Math.min(1, Math.max(0, maturity.confidence)) * 100)}%
+                                    </span>
+                                    {maturity.transition && maturity.previousTier && (
+                                        <span className="text-[10px] text-green-400 font-medium" data-testid="maturity-transition">
+                                            promoted: {maturity.previousTier} → {maturity.tier}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -791,16 +869,20 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
 
                 <TabsContent value="artifacts" className="flex-1 min-h-0 p-0 overflow-hidden relative">
                     <div className="flex flex-col h-full">
-                        <div className="flex-1 overflow-hidden">
-                            <CanvasHost lastMessage={lastMessage} sessionId={sessionId} />
-                        </div>
-                        <div className="h-1/3 border-t border-slate-800 shrink-0">
-                            <ArtifactSidebar
+                        {/* CanvasHost stays mounted even when nothing is
+                            showing: a sidebar click renders a canvas into it
+                            via the canvasSync refresh event, and an unmounted
+                            host would drop that event. Only its layout space
+                            collapses when empty. */}
+                        <div className={canvasOpen ? "flex-1 overflow-hidden" : "h-0 overflow-hidden"}>
+                            <CanvasHost
+                                lastMessage={lastMessage}
                                 sessionId={sessionId}
-                                onSelectArtifact={(id: string) => {
-                                    console.log("Selected artifact:", id);
-                                }}
+                                onVisibilityChange={handleCanvasVisibility}
                             />
+                        </div>
+                        <div className={canvasOpen ? "h-1/3 border-t border-slate-800 shrink-0" : "flex-1 min-h-0"}>
+                            <ArtifactSidebar sessionId={sessionId} />
                         </div>
                     </div>
                 </TabsContent>

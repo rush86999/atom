@@ -239,7 +239,11 @@ describe('AgentWorkspace event handling', () => {
     expect(screen.getByTestId('mock-canvas-host')).toBeInTheDocument();
   });
 
-  test('artifact selection flows through the sidebar callback', () => {
+  test('sidebar selection no longer logs — rendering is owned by ArtifactSidebar', () => {
+    // The old wiring logged the selection and dropped it. Selection now
+    // renders the canvas into the host inside ArtifactSidebar itself
+    // (syncCanvasFromStore, covered by ArtifactSidebar.test.tsx), so
+    // AgentWorkspace passes no callback and clicking emits no console noise.
     mockWsState = {
       isConnected: false,
       lastMessage: { type: 'canvas:present', data: { action: 'show' } },
@@ -248,8 +252,19 @@ describe('AgentWorkspace event handling', () => {
     renderWithProviders(<AgentWorkspace sessionId={null} />);
 
     fireEvent.click(screen.getByTestId('pick-artifact'));
-    expect(consoleSpy).toHaveBeenCalledWith('Selected artifact:', 'art-1');
+    expect(consoleSpy).not.toHaveBeenCalledWith('Selected artifact:', 'art-1');
     consoleSpy.mockRestore();
+  });
+
+  test('a presented canvas occupies layout and the sidebar keeps its pane', () => {
+    mockWsState = {
+      isConnected: false,
+      lastMessage: { type: 'canvas:present', data: { action: 'show' } },
+    };
+    renderWithProviders(<AgentWorkspace sessionId={null} />);
+
+    expect(screen.getByTestId('mock-canvas-host')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-artifact-sidebar')).toBeInTheDocument();
   });
 
   test('canvas:update with action close does not switch tabs', () => {
@@ -536,5 +551,100 @@ describe('AgentWorkspace structured action payloads', () => {
     // The params object is stringified into the input line (not [object Object])
     expect(screen.getByText(/\{"action":"send_email","to":\["a@b.com"\]\}/)).toBeInTheDocument();
     expect(screen.queryByText(/\[object Object\]/)).not.toBeInTheDocument();
+  });
+
+  // ── maturity_update: live learning/maturity surface ────────────────────
+  test('maturity_update renders tier + confidence after a step named the agent', () => {
+    // The strip keys off the ACTIVE agent — establish it via a step event.
+    mockWsState = {
+      isConnected: false,
+      lastMessage: {
+        type: 'agent_step_update',
+        agent_id: 'agent-1',
+        step: { step: 1, thought: 'Working' },
+      },
+    };
+    const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
+
+    mockWsState.lastMessage = {
+      type: 'maturity_update',
+      data: {
+        agent_id: 'agent-1',
+        confidence: 0.62,
+        previous_confidence: 0.57,
+        tier: 'intern',
+        previous_tier: 'student',
+        transition: true,
+        source: 'feedback',
+      },
+    };
+    rerender(<AgentWorkspace sessionId={null} />);
+
+    const strip = screen.getByTestId('maturity-strip');
+    expect(strip.textContent).toContain('intern');
+    expect(strip.textContent).toContain('62%');
+    expect(strip.textContent).toContain('promoted: student → intern');
+  });
+
+  test('confidence-only maturity_update shows the bar without a promotion line', () => {
+    mockWsState = {
+      isConnected: false,
+      lastMessage: {
+        type: 'agent_step_update',
+        agent_id: 'agent-2',
+        step: { step: 1, thought: 'Working' },
+      },
+    };
+    const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
+
+    mockWsState.lastMessage = {
+      type: 'maturity_update',
+      data: { agent_id: 'agent-2', confidence: 0.51, tier: 'intern', source: 'outcome' },
+    };
+    rerender(<AgentWorkspace sessionId={null} />);
+
+    const strip = screen.getByTestId('maturity-strip');
+    expect(strip.textContent).toContain('51%');
+    expect(screen.queryByTestId('maturity-transition')).not.toBeInTheDocument();
+  });
+
+  test('maturity_update for a different agent does not hijack the strip', () => {
+    mockWsState = {
+      isConnected: false,
+      lastMessage: {
+        type: 'agent_step_update',
+        agent_id: 'agent-1',
+        step: { step: 1, thought: 'Working' },
+      },
+    };
+    const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
+
+    mockWsState.lastMessage = {
+      type: 'maturity_update',
+      data: { agent_id: 'agent-other', confidence: 0.9, tier: 'autonomous', transition: true },
+    };
+    rerender(<AgentWorkspace sessionId={null} />);
+
+    expect(screen.queryByTestId('maturity-strip')).not.toBeInTheDocument();
+  });
+
+  test('maturity_update without a numeric confidence is ignored', () => {
+    mockWsState = {
+      isConnected: false,
+      lastMessage: {
+        type: 'agent_step_update',
+        agent_id: 'agent-1',
+        step: { step: 1, thought: 'Working' },
+      },
+    };
+    const { rerender } = renderWithProviders(<AgentWorkspace sessionId={null} />);
+
+    mockWsState.lastMessage = {
+      type: 'maturity_update',
+      data: { agent_id: 'agent-1', confidence: null, tier: 'intern' },
+    };
+    rerender(<AgentWorkspace sessionId={null} />);
+
+    expect(screen.queryByTestId('maturity-strip')).not.toBeInTheDocument();
   });
 });

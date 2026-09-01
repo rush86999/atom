@@ -20,6 +20,7 @@ import { OfficeFileCanvas } from "@/components/canvas/OfficeFileCanvas";
 import { CanvasTypeBadge } from "@/components/canvas/CanvasTypeBadge";
 import { persistCanvasTypeSwitch, switchCanvasType, normalizeCanvasComponent, type SwitchableCanvasType } from "@/components/canvas/canvasType";
 import { CanvasVersionHistory } from "@/components/canvas/CanvasVersionHistory";
+import { EmailAttachmentStrip, type EmailAttachmentRecord } from "@/components/canvas/EmailAttachmentStrip";
 
 interface CanvasState {
     id?: string;
@@ -35,9 +36,14 @@ interface CanvasHostProps {
     /** Chat session the canvas belongs to — carried into the expanded page
         so its agent chat panel continues the same conversation. */
     sessionId?: string | null;
+    /** Notified whenever the host goes from empty → showing a canvas or
+        back, so parents can reclaim the host's layout space (the chat
+        Artifacts tab gives the list the full height while no canvas is
+        open). */
+    onVisibilityChange?: (visible: boolean) => void;
 }
 
-export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
+export function CanvasHost({ lastMessage, sessionId, onVisibilityChange }: CanvasHostProps) {
     const router = useRouter();
     const [state, setState] = useState<CanvasState | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -50,6 +56,10 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
     // keystrokes typed after the autosave fired).
     const lastSavedSigRef = useRef<string | null>(null);
     const [emailMetadata, setEmailMetadata] = useState({ to: "", subject: "" });
+    // Email attachments (backend attachment records). Mutations arrive as
+    // canvas:update frames with action="email_attachments" (stage/remove/
+    // ingest/sent all broadcast the full list).
+    const [emailAttachments, setEmailAttachments] = useState<EmailAttachmentRecord[]>([]);
     const [sheetData, setSheetData] = useState<any[][]>([]);
     const [showPreview, setShowPreview] = useState(false);
     // Version-history + restore panel (shared CanvasVersionHistory — every
@@ -191,6 +201,12 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
                 // so its timer can't write afterwards.
                 resetAutosave();
                 setState(null);
+                setEmailAttachments([]);
+            } else if (action === "email_attachments") {
+                // Attachment-list broadcast (stage/remove/ingest/sent): data
+                // is the attachment list payload, NOT canvas content — never
+                // route it through the content path below.
+                setEmailAttachments(Array.isArray(data?.attachments) ? data.attachments : []);
             } else {
                 // Event/status broadcasts (email_send, mini_app_state, …)
                 // declare via `action` that `data` is NOT canvas content.
@@ -229,6 +245,14 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
                 if (component === "email" && metadata) {
                     setEmailMetadata({ to: metadata.to || "", subject: metadata.subject || "" });
                 }
+                if (component === "email") {
+                    // Present/update frames carry the canvas attachment list
+                    // in the details payload — seed from it so a reload or
+                    // agent-side mutation shows without a dedicated frame.
+                    setEmailAttachments(
+                        (prev) => (Array.isArray((data as any)?.attachments) ? (data as any).attachments : prev),
+                    );
+                }
 
                 if (component === "sheet") {
                     setSheetData(Array.isArray(data) ? data : (data.rows || [["", "", ""], ["", "", ""]]));
@@ -243,6 +267,13 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
     useEffect(() => {
         if (lastMessage) applyCanvasMessage(lastMessage);
     }, [lastMessage, applyCanvasMessage]);
+
+    // Visibility is derived state — one effect covers every transition
+    // (present/update, close, type switches keep it open).
+    const isVisible = !!state?.visible;
+    useEffect(() => {
+        onVisibilityChange?.(isVisible);
+    }, [isVisible, onVisibilityChange]);
 
     // Local store-sync convergence (lib/canvasSync): a chat turn flagged as a
     // canvas edit/action re-broadcasts the audit-trail content here, covering
@@ -266,6 +297,7 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
                 subject: emailMetadata.subject || "",
                 body: localContentRef.current || "",
                 canvas_id: state?.id || undefined,
+                attachment_ids: emailAttachments.map((a) => a.attachment_id),
             });
             const data = (res as any)?.data || {};
             if (data.success) {
@@ -500,6 +532,7 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
                     canvasTitle={state.title}
                     emailMetadata={emailMetadata}
                     setEmailMetadata={(m) => { setEmailMetadata(m); setHasUnsavedChanges(true); scheduleAutosave(); }}
+                    emailAttachments={emailAttachments}
                     sheetData={sheetData}
                     setSheetData={(d) => { setSheetData(d); setHasUnsavedChanges(true); scheduleAutosave(); }}
                     showPreview={showPreview}
@@ -613,6 +646,7 @@ function CanvasContent({
     canvasTitle,
     emailMetadata,
     setEmailMetadata,
+    emailAttachments,
     sheetData,
     setSheetData,
     showPreview,
@@ -625,6 +659,7 @@ function CanvasContent({
     canvasTitle?: string;
     emailMetadata: any;
     setEmailMetadata: (m: any) => void;
+    emailAttachments: EmailAttachmentRecord[];
     sheetData: any[][];
     setSheetData: (d: any[][]) => void;
     showPreview: boolean;
@@ -715,6 +750,7 @@ function CanvasContent({
                             />
                         </div>
                     </div>
+                    <EmailAttachmentStrip canvasId={canvasId} attachments={emailAttachments} />
                     <div className="flex-1">
                         <Editor
                             height="100%"

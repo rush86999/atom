@@ -20,6 +20,7 @@ import { CanvasTypeBadge } from "@/components/canvas/CanvasTypeBadge";
 import { persistCanvasTypeSwitch, switchCanvasType, normalizeCanvasComponent, type SwitchableCanvasType } from "@/components/canvas/canvasType";
 import SignatureEditor from "@/components/canvas/SignatureEditor";
 import RichTextEditor from "@/components/canvas/RichTextEditor";
+import { EmailAttachmentStrip, type EmailAttachmentRecord } from "@/components/canvas/EmailAttachmentStrip";
 
 interface CanvasState {
     id?: string;
@@ -55,6 +56,9 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
     // and that broadcast must still apply.
     const lastSavedSigRef = useRef<string | null>(null);
     const [emailMetadata, setEmailMetadata] = useState({ to: "", cc: "", subject: "" });
+    // Email attachments (backend attachment records). Mutations arrive as
+    // canvas:update frames with action="email_attachments".
+    const [emailAttachments, setEmailAttachments] = useState<EmailAttachmentRecord[]>([]);
     // Email composer body is panel-managed (not read straight from the
     // payload) so signature insertion and edits are one source of truth.
     const [emailBody, setEmailBody] = useState("");
@@ -268,6 +272,11 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                 // so its timer can't write afterwards.
                 resetAutosave();
                 setState(null);
+                setEmailAttachments([]);
+            } else if (action === "email_attachments") {
+                // Attachment-list broadcast (stage/remove/ingest/sent): data
+                // is the attachment list payload, NOT canvas content.
+                setEmailAttachments(Array.isArray(data?.attachments) ? data.attachments : []);
             } else {
                 const content = typeof data === 'string'
                     ? data
@@ -308,6 +317,9 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                 });
 
                 if (component === "email") {
+                    setEmailAttachments(
+                        (prev) => (Array.isArray(data?.attachments) ? data.attachments : prev),
+                    );
                     setEmailBody(content);
                     // Signature may already be loaded (later payloads on the
                     // same mount) — apply immediately to the fresh body.
@@ -397,6 +409,7 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                 subject: emailMetadata.subject || "",
                 body: localContentRef.current || "",
                 canvas_id: state?.id || undefined,
+                attachment_ids: emailAttachments.map((a) => a.attachment_id),
             });
             const data = res?.data || {};
             if (data.success) {
@@ -675,6 +688,7 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                     setEmailMetadata={(m) => { setEmailMetadata(m); setHasUnsavedChanges(true); scheduleAutosave(); }}
                     emailBody={emailBody}
                     onEmailBodyChange={(v) => { setEmailBody(v); localContentRef.current = v; setHasUnsavedChanges(true); scheduleAutosave(); }}
+                    emailAttachments={emailAttachments}
                     sheetData={sheetData}
                     setSheetData={(d) => { setSheetData(d); setHasUnsavedChanges(true); scheduleAutosave(); }}
                     showPreview={showPreview}
@@ -767,6 +781,7 @@ function CanvasContent({
     setEmailMetadata,
     emailBody,
     onEmailBodyChange,
+    emailAttachments,
     sheetData,
     setSheetData,
     showPreview,
@@ -781,6 +796,7 @@ function CanvasContent({
     setEmailMetadata: (m: any) => void;
     emailBody: string;
     onEmailBodyChange: (v: string) => void;
+    emailAttachments: EmailAttachmentRecord[];
     sheetData: any[][];
     setSheetData: (d: any[][]) => void;
     showPreview: boolean;
@@ -875,6 +891,7 @@ function CanvasContent({
                             />
                         </div>
                     </div>
+                    <EmailAttachmentStrip canvasId={canvasId} attachments={emailAttachments} />
                     {/* WYSIWYG body editor — Outlook-style styling (fonts,
                         sizes, colors, links, lists, alignment) that renders
                         in the outgoing email via the HTML send sink. */}
