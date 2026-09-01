@@ -6,6 +6,97 @@
 
 ---
 
+## Session 2026-08-31d (Review-readiness: consolidate stale WorkDrive tests + repair Zoho journey suite)
+
+**Context**: Before handing off for review, the full Zoho suite was run. Two issues: (1) the old `test_zoho_workdrive_teams_fallback.py` (PR #594) had gone stale — `test_org_team_fetch_non_200_warns` asserted `[]` but the service now appends an id-only team entry — 1 failing test + duplicate confusing filename. (2) `test_zoho_user_journey.py` had 4 failing callback tests: the documented `MagicMock(auth_url=...)` fix was missing there, and `test_j2` asserted default fleet-wide token fan-out which R88 deliberately made opt-in (`ATOM_OAUTH_SHARED_INTEGRATION_TOKENS`).
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `tests/test_zoho_workdrive_team_fallback.py` | Consolidated canonical file (10 tests, one mock style): the 4 fallback tests + ported pagination regression guard, JSON:API display_name normalization, id-only entry on team-detail failure, shared_status/role_id mapping, short-circuit guards | 10 passed |
+| `tests/test_zoho_workdrive_teams_fallback.py` | DELETED — stale duplicate (1 failing assertion vs new id-only-entry behavior); coverage moved to the canonical file | — |
+| `tests/test_zoho_user_journey.py` | `_run_zoho_callback` config mock gets `auth_url="https://accounts.zoho.com/oauth/v2/auth"` (fixes urlparse crash at `oauth_routes.py:317`); `test_j2_role_fanout` sets `ATOM_OAUTH_SHARED_INTEGRATION_TOKENS=true` via monkeypatch (R88 opt-in fan-out) | 14 passed |
+
+**Verification**: full Zoho suite green — `test_zoho_workdrive_team_fallback.py` 10, `test_zoho_oauth_provider_keys.py` 6, `test_zoho_user_journey.py` 14, `test_zoho_workdrive_ingest_xls.py` + `test_zoho_workdrive_service_team_folders.py` + `test_covpush_w38_zoho_workdrive.py` 28 → **58 passed**. Frontend `components/Settings/ZohoWorkDriveIngestion.tsx` — no diagnostics. Live endpoints re-verified earlier: teams + team-folders (incl. H Drive) 200 through both direct and frontend-proxied paths.
+
+---
+
+## Session 2026-08-31c (WorkDrive teams WITHOUT the teams scope — /users/me preferred_team_id fallback)
+
+**Context**: Teams stayed `[]` because the pilot client rejects `WorkDrive.teams.READ` (not enabled in the API Console; user confirmed no scopes step exists in the console at all — not even for new clients). Raw API probe proved the org team id is advertised on `GET /users/me` (`preferred_team_id`, 200 with current scopes) and `GET /teams/{id}/teamfolders` works with `WorkDrive.teamfolders.ALL` alone — only the /teams LIST and /teams/{id} detail need the missing teams scope. The service's existing org-team fallback only ran on "200-but-empty" — the 500 path returned `[]` before reaching it.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `integrations/zoho_workdrive_service.py` | `get_teams`: /teams listing failure (500 F7007) now falls through to `_append_org_team_fallback` instead of returning [] (inner try/except around the pagination loop). `_append_org_team_fallback`: team-detail `/teams/{id}` 500 → appends an id-only team entry (the id is enough for teamfolders listing) instead of giving up. `get_team_folders`: /teams non-200/exception → `/users/me` preferred_team_id fallback (was `return []` before the fallback could run) | `tests/test_zoho_workdrive_team_fallback.py` 4 passed (teams 500→org team, empty→org team, teamfolders 500→folders, empty→folders) |
+| `tests/test_zoho_workdrive_team_fallback.py` (NEW) | unit tests mocking the client for the fallback paths | 4 passed |
+
+**Verification (live, real token)**: `GET /api/zoho-workdrive/teams` → `[WorkDrive Team]`; `GET /api/zoho-workdrive/team-folders` → `[Accounting, General, H Drive, My Team]` — H Drive is a WorkDrive team folder (not a Windows drive). Regression `tests/test_covpush_w38_zoho_workdrive.py` 14 passed.
+
+---
+
+## Session 2026-08-31b (Reconnect broke — WorkDrive.teams.READ rejected by the pilot client)
+
+**Context**: After adding `WorkDrive.teams.READ` to the defaults, Reconnect failed with `Invalid OAuth Scope / Scope does not exist` — the 7-scope set (without teams) had worked on Aug 28, so teams.READ was the only new variable. The scope name is likely valid generally, but the pilot client `1000.9FTW…` does not have it enabled — Zoho rejects any scope not configured on the client, and ONE unknown scope fails the WHOLE consent URL.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/oauth_handler.py` | `WorkDrive.teams.READ` removed from `_ZOHO_DEFAULT_SCOPES` (client-verified set restored — consent URL works again); comment documents why it stays out + how to enable (api-console.zoho.ca → client → scopes) | `test_zoho_default_scopes_are_valid_names` GREEN (now asserts teams.READ NOT in defaults) |
+| `tests/test_zoho_oauth_provider_keys.py` | assertion flipped `in` → `not in` with the client-config reason | 6 passed (full file) |
+
+**Verification**: `tests/test_zoho_oauth_provider_keys.py` 6/6. Reconnect will work again with the 7-scope list. Teams listing stays `[]` (GET /teams → 500 F7007) until the client has the teams scope enabled in the console and the scope is re-added.
+
+---
+
+## Session 2026-08-31 (Login broken — /api/auth rewrite mapped to /api/v1/auth → CSRF 403 "Incorrect username or password")
+
+**Context**: Browser login failed with "Incorrect username or password" while direct curl login succeeded. `next.config.js` rewrote `/api/auth/:path*` → `http://127.0.0.1:8000/api/v1/auth/:path*` — the backend mounts auth at `/api/auth/*` and the CSRF middleware exempts exactly `/api/auth/`. The rewritten `/api/v1/auth/login` landed in the CSRF-protected zone (403 csrf_token_invalid), which the login form surfaced as a generic credential error. The same rewrite 404'd next-auth's `/api/auth/session` ("CLIENT_FETCH_ERROR Not Found").
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `frontend-nextjs/next.config.js` | `/api/auth/:path*` destination → `http://127.0.0.1:8000/api/auth/:path*` (same path, like every other rewrite) | live verification: login via proxy 200 + token; files/list via proxy 200 + 3 files |
+
+**Verification (live, proxy :3000)**: `POST /api/auth/login` → 200 + access_token (was 403); `POST /api/zoho-workdrive/files/list` with Bearer → 200 + 3 files; `GET /api/zoho-workdrive/teams` → 200. Also on this session: PYTHONPATH set permanently at User level (fixes recurring `--reload` "Could not import module main_api_app" when started from a fresh shell).
+
+---
+
+## Session 2026-08-28d (Zoho WorkDrive teams scope — 500 F7007 "Invalid OAuth scope" on GET /teams)
+
+**Context**: After connect + mount + CSRF fixes, the page showed Connected and 3 private-workspace files, but NO teams/team-folders. Diagnostic (raw Zoho API with the stored token): `GET /api/v1/teams -> 500 {"errors":[{"id":"F7007","title":"Invalid OAuth scope."}]}` while `GET /users/me -> 200`. The granted scopes (files + teamfolders) lack `WorkDrive.teams.*` — Zoho requires it for the teams listing and team-folders picker. `H Drive` is NOT Zoho WorkDrive — it's a Windows/network drive (on-prem CNC docs per role-training-plan.md), so it cannot appear in the WorkDrive ingestion picker.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `core/oauth_handler.py` | `_ZOHO_DEFAULT_SCOPES` += `WorkDrive.teams.READ` (least-privilege read; covers GET /teams + team-folders picker) | `test_zoho_default_scopes_are_valid_names` RED→GREEN (assertion added first) |
+| `tests/test_zoho_oauth_provider_keys.py` | locks `WorkDrive.teams.READ` in the default set | 6 passed (full file) |
+
+**Verification**: `tests/test_zoho_oauth_provider_keys.py` 6/6. **Re-consent required**: Zoho grants scopes at consent time — the stored token still has the old scope set, so the user must Reconnect (new consent URL now includes `WorkDrive.teams.READ`).
+
+---
+
+## Session 2026-08-28c (Zoho suite routes double-prefix — frontend 404 on /api/zoho-workdrive/*)
+
+**Context**: After the scope fix, Connect Zoho succeeded (tokens stored) but the WorkDrive page still showed disconnected + no files. Logs showed `GET /api/zoho-workdrive/health -> 404` on every health poll. Root cause: the "Standardized" refactor mounted every Zoho suite router (which carries its OWN prefix — `/api/zoho-workdrive`, `/api/integrations/zoho_*`) with an EXTRA `/api/v1/integrations/...` prefix, doubling every path to `…/zoho-workdrive/api/zoho-workdrive/…` — the frontend's bare calls all 404'd. Verified: bare = 404, doubled = 200.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `main_api_app.py` | Forced-registration loop + standardized block now include the six Zoho routers BARE (they define their own prefixes). Doubled paths gone; `/api/zoho-workdrive/*` + `/api/integrations/zoho_*` restored | TestClient mount probe: bare paths 401 (was 404), doubled path 404; `tests/test_covpush_w38_zoho_workdrive.py` 14 passed |
+| `%TEMP%\fastembed_cache` (runtime) | corrupt `bge-small-en-v1.5-onnx-q` cache (`model_optimized.onnx File doesn't exist`, "Local file sizes do not match the metadata") was failing every embedding → Zoho sync "0/602 records, 0 entities". Deleted; re-downloads on next start | — |
+
+**Verification**: TestClient on the imported app: `/api/zoho-workdrive/{health,teams}`, `/api/integrations/zoho_{crm,books,inventory,projects,mail}/health` all 401 (mounted, auth-gated); `/api/v1/integrations/zoho-workdrive/api/zoho-workdrive/health` 404 (no longer exists). `tests/test_covpush_w38_zoho_workdrive.py` 14 passed. No test referenced the doubled path.
+
+---
+
+
 ---
 
 ## Session 2026-08-29 (last known red resolved — recall ranking judgment call, research-grounded)
@@ -463,6 +554,7 @@ PYTHONPATH=. pytest tests/test_covpush_w110_org_sharing.py tests/test_hybrid_ing
 **Notes**: `worker_database` fixture is SESSION-scoped in-memory SQLite → org-sharing tests carry an autouse table-cleanup fixture; Phase 0 tests patch `core.hybrid_data_ingestion.SessionLocal` (module binding) and re-enable `ATOM_INGESTION_PERSIST_STATE` (root conftest disables it for pre-existing suites). Phase 2b (memory bundle: GraphRAG + raw text) and Phase 3 (hub) remain PROPOSED/NOT IMPLEMENTED per the plan doc.
 
 ---
+
 ## Session 2026-08-16 (wave 124 — FE dead-code completion + last coverage tail: 4 components cleaned, 8 new suites, FE lines 95.31% → 96.10%, zero 0%-files left)
 
 **Scope**: "close all gaps and complete dead code" follow-on to the 95%-push wave (w101-w103). All 4 FE dead-code findings from that wave were independently re-verified (two prior reports were STALE — `Dashboard.tsx getPriorityColor` and `salesforce.tsx getLeadStatusColor/getOpportunityStageColor` ARE live; the subagents had read an older revision) and removed where real. Dead code is now **removed**, not just documented.
@@ -515,6 +607,7 @@ npx jest --coverage --watchAll=false --maxWorkers=4 --coverageReporters=json-sum
 Remaining pre-existing branch-threshold warnings (lines coverage ≥80% everywhere): `pages/workflows/schedule.tsx` BR 69.6%, `pages/integrations/index.tsx` BR 69.4%, `pages/api/atom/message.ts` FUNC 57%, `pages/workflows/editor/[id].tsx` BR 70% — branch thresholds, not line gaps.
 
 ---
+
 ## Session 2026-08-15 (wave 123 — stale backend test-suite repair: 9 files from a batch failure run; 0 source bugs, all failures were stale test contracts / test bugs)
 
 **Batch failure list**: 9 files (see table). Root causes: (a) R120 auth gate — `integrations/workflow_automation_routes.py` router now has `dependencies=[Depends(get_current_user)]`; the test client had no auth → every endpoint 401 (fixed via `app.dependency_overrides[get_current_user]`); (b) thread+`patch` race in concurrent-attempt tests — each thread entered/exit its own `with patch(...)` context; a thread exiting restored the REAL `get_episode_service` while a sibling was mid-call → real `EpisodeService` over Mock query data → `TypeError: 'Mock' object is not iterable` (flake; replaced threads+`asyncio.run` with deterministic `asyncio.gather`); (c) app hardening/fixes vs stale tests — `_cosine_similarity` zero-magnitude guard returns 0.0 (not NaN), embed-failure keyword fallback, `-2 ** 2 == -4` (Python-standard precedence), `_make_key` now calls `startswith("dir:")` first (message: `'startswith'` not `'lower'`), LLM call unified on `generate_response(messages=[...])` (not `generate(system_prompt=...)`), episode pipeline moved to dict-based + single deferred commit (no ORM Episode / NOT NULL maturity failure), file-ingest `add_document` wrapped in `asyncio.to_thread(...)`.
@@ -906,6 +999,7 @@ rm -f .coverage && PYTHONPATH=$PWD ./venv/bin/python -m pytest tests/test_covpus
 - Remaining full-suite failures are PRE-ENGINEERING baseline (verified via `git stash` of the 3 source edits): ReasoningChainViewer, mini-app-harness, ProjectCommandCenter, testIds (PROJECTS category drift), login, marketplace — all fail identically on clean baseline.
 
 ---
+
 ## Session 2026-08-13 (wave 108 — 5 never-tested modules ≥95%; 190 new tests, 5 real bugs fixed)
 
 **Files**: `core/debug_insights/error_causality.py`, `core/debug_insights/flow.py`, `core/debug_insights/consistency.py`, `integrations/pdf_processing/pdf_memory_routes.py`, `integrations/pdf_processing/pdf_ocr_routes.py` — new wave tests `tests/test_covpush_w108_{error_causality,flow,consistency,pdf_memory,pdf_ocr}.py` (**192 new tests**). None had a ≥95% tracker entry; **all 5 baselines were 0%** (never imported by any existing suite). After: error_causality **100%** (117/117), flow **100%** (93/93), consistency **100%** (93/93), pdf_memory_routes **100%** (212/212), pdf_ocr_routes **98%** (195/198 — 3 unreachable defensive lines, see below). No str(e) leaks remain in the two route modules.
@@ -2525,7 +2619,6 @@ New files: `tests/test_covpush_w71_custom_components.py` (46), `..._integration_
 None — all six modules measured 100% (statement+branch run). The import-time `EmailStr` fallback branch in `enterprise_user_management.py` (lines 17-19) is covered via a `sys.modules['pydantic']` swap + `importlib.reload` test (module restored in `finally`).
 
 ---
-
 
 ## Session 2026-08-13 (network/isolation/concurrency e2e cluster repair) — test_database_isolation.py, test_network_api_timeout.py, test_network_slow_3g.py, test_network_offline.py, test_network_database_drop.py, test_agent_cross_platform.py, test_agent_concurrent.py, test_api_setup_example.py, test_settings_page.py + fixtures/network_fixtures.py, fixtures/api_fixtures.py, fixtures/conftest.py, conftest.py, utils/api_setup.py, frontend-nextjs/lib/backendAuth.ts
 
@@ -7066,3 +7159,4 @@ search paths, title derivations, snippet windowing, pagination, route boundary);
 Canvas suites total 344 passed. Pre-existing failures (fail on baseline too): w75c
 TestAgentGuidanceSystem::test_create_audit_success, covpush_canvasroutes TestCanvasCRUD ×2,
 FE canvas-detail chat ×4.
+

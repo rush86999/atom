@@ -16,6 +16,11 @@ jest.mock('@/components/ui/use-toast', () => ({
   ToastProvider: ({ children }: { children: any }) => children,
 }));
 
+const mockGetAuthToken = jest.fn().mockReturnValue('test-jwt-token');
+jest.mock('@/lib/identity', () => ({
+  getAuthToken: () => mockGetAuthToken(),
+}));
+
 const privateFiles = [
   { id: 'f1', name: 'quarterly-report.pdf', type: 'file', extension: 'pdf', size: 2621440 },
   { id: 'f2', name: 'Budget.xlsx', type: 'file', extension: 'xlsx', size: 512 },
@@ -89,6 +94,26 @@ describe('ZohoWorkDriveIngestion', () => {
     render(<ZohoWorkDriveIngestion />);
     expect(await screen.findByText('Zoho WorkDrive Ingestion')).toBeInTheDocument();
     expect(screen.getByText(/Sync and ingest documents/)).toBeInTheDocument();
+  });
+
+  it('sends the Bearer token on every backend call (CSRF middleware rejects cookie-only POSTs)', async () => {
+    // jest.config resets mocks between tests — arm the token inside the test.
+    mockGetAuthToken.mockReturnValue('test-jwt-token');
+    render(<ZohoWorkDriveIngestion />);
+    await loadFiles();
+    const calls = (global.fetch as jest.Mock).mock.calls;
+
+    // GETs (teams, team-folders) carry Authorization without Content-Type.
+    for (const path of ['/api/zoho-workdrive/teams', '/api/zoho-workdrive/team-folders']) {
+      const call = calls.find(([u]) => String(u).includes(path));
+      expect(call).toBeTruthy();
+      expect(call[1].headers.Authorization).toBe('Bearer test-jwt-token');
+      expect(call[1].headers['Content-Type']).toBeUndefined();
+    }
+    // POSTs (files/list) carry Authorization + JSON Content-Type.
+    const listCall = calls.find(([u]) => String(u).includes('/files/list'));
+    expect(listCall[1].headers.Authorization).toBe('Bearer test-jwt-token');
+    expect(listCall[1].headers['Content-Type']).toBe('application/json');
   });
 
 

@@ -1984,10 +1984,43 @@ class BYOKHandler:
         
         capability_blocked_options: List[tuple] = []
 
+        # Hard-gate parity with the dynamic ranker above. The static fallback
+        # exists to recover from pricing-cache misses/exceptions — NOT to
+        # override the rate/monthly/context hard-skips: whenever those gates
+        # empty the dynamic pool (e.g. the SIMPLE quality floor leaves only
+        # one candidate), falling through here re-added the exact exhausted
+        # provider the gates had just excluded, routing into guaranteed 429s.
+        FALLBACK_MIN_CONTEXT = {
+            QueryComplexity.SIMPLE: 4000,
+            QueryComplexity.MODERATE: 8000,
+            QueryComplexity.COMPLEX: 16000,
+            QueryComplexity.ADVANCED: 32000,
+        }
+        fallback_min_context = FALLBACK_MIN_CONTEXT.get(complexity, 8000)
+        fallback_monthly_tpm_limit = self._monthly_tpm_limit()
+
         for provider_id in provider_priority:
             if provider_id in self.clients:
                 models = COST_EFFICIENT_MODELS.get(provider_id, {})
                 model = models.get(complexity, "gpt-4o-mini")
+
+                # Same hard gates as the dynamic ranker's rate-aware pass:
+                # provider/per-model headroom, monthly subscription quota,
+                # and the provider-level context clamp.
+                if self.rate_tracker.get_headroom(provider_id) <= 0.0:
+                    continue
+                if self.rate_tracker.get_model_headroom(provider_id, model) <= 0.0:
+                    continue
+                if fallback_monthly_tpm_limit and self._monthly_budget_exhausted(
+                    provider_id, fallback_monthly_tpm_limit
+                ):
+                    continue
+                provider_max_context = self.rate_tracker.get_max_context(provider_id)
+                if (
+                    provider_max_context is not None
+                    and provider_max_context < fallback_min_context
+                ):
+                    continue
 
                 # Check Tool/Structured Support (Phase 6.6 / BUG-113): the
                 # dynamic pricing cache is authoritative for capabilities.

@@ -1607,10 +1607,21 @@ if not is_test_mode:
             if mod not in _loaded_integrations:
                 router = load_integration(mod, registry="api_routers")
                 if router:
-                    prefix = "/api/integrations/outlook" if mod == "outlook" else f"/api/v1/integrations/{mod.replace('_', '-')}"
-                    app.include_router(router, prefix=prefix, tags=[mod])
+                    # General rule, not a per-app list: a router that declares
+                    # its own prefix (e.g. /api/zoho-workdrive,
+                    # /api/integrations/zoho_crm) is mounted bare — adding
+                    # /api/v1/integrations/... on top doubled every path and
+                    # 404'd the frontend's bare calls. Prefix-less routers get
+                    # the standard integration prefix.
+                    router_prefix = getattr(router, "prefix", "")
+                    if router_prefix:
+                        app.include_router(router, tags=[mod])
+                        logger.info(f"  ✓ {mod} (router-prefixed bare mount at {router_prefix})")
+                    else:
+                        prefix = "/api/integrations/outlook" if mod == "outlook" else f"/api/v1/integrations/{mod.replace('_', '-')}"
+                        app.include_router(router, prefix=prefix, tags=[mod])
+                        logger.info(f"  ✓ {mod} (Forced registration at {prefix})")
                     _loaded_integrations.add(mod)
-                    logger.info(f"  ✓ {mod} (Forced registration at {prefix})")
         except Exception as e:
             logger.error(f"  ✗ Forced registration failed for {mod}: {e}")
 
@@ -2870,23 +2881,23 @@ try:
 
         from integrations.zoho_crm_routes import router as zoho_crm_router
 
-        app.include_router(zoho_crm_router, prefix="/api/v1/integrations/zoho-crm")
+        app.include_router(zoho_crm_router)
 
         from integrations.zoho_books_routes import router as zoho_books_router
 
-        app.include_router(zoho_books_router, prefix="/api/v1/integrations/zoho-books")
+        app.include_router(zoho_books_router)
 
         from integrations.zoho_inventory_routes import router as zoho_inventory_router
 
-        app.include_router(zoho_inventory_router, prefix="/api/v1/integrations/zoho-inventory")
+        app.include_router(zoho_inventory_router)
 
         from integrations.zoho_projects_routes import router as zoho_projects_router
 
-        app.include_router(zoho_projects_router, prefix="/api/v1/integrations/zoho-projects")
+        app.include_router(zoho_projects_router)
 
         from integrations.zoho_mail_routes import router as zoho_mail_router
 
-        app.include_router(zoho_mail_router, prefix="/api/v1/integrations/zoho-mail")
+        app.include_router(zoho_mail_router)
 
         # Zoho Forms + Zoho Flow: webhook-push apps (no public read API —
         # see integrations/zoho_forms_service.py). These routers declare no

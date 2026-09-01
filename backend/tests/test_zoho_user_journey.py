@@ -136,7 +136,10 @@ async def _run_zoho_callback(db, user=None, scopes: Optional[str] = None,
         await _handle_callback_logic(
             provider="zoho",
             code="fake-auth-code",
-            config=MagicMock(),
+            # auth_url must be a real string: _handle_callback_logic computes
+            # accounts_base via urlparse(config.auth_url) (see the documented
+            # fix in test_zoho_oauth_provider_keys.py).
+            config=MagicMock(auth_url="https://accounts.zoho.com/oauth/v2/auth"),
             request=MagicMock(),
             db=db,
             user=user or _user("u-admin", "admin"),

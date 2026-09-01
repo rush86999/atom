@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { getAuthToken } from '@/lib/identity';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -48,6 +49,16 @@ interface Breadcrumb {
 
 // Keep in sync with PARSEABLE_EXTS in backend/integrations/zoho_workdrive_service.py
 const INGESTABLE_EXTS = ['.docx', '.xlsx', '.xls', '.csv', '.pdf', '.txt', '.md', '.pptx'];
+
+/** The backend CSRF middleware exempts Bearer-token requests but rejects
+ * cookie-only POSTs (403 csrf_token_invalid) — every fetch carries the JWT
+ * (same pattern as pages/approvals.tsx). */
+function authHeaders(json = true): Record<string, string> {
+    return {
+        ...(json ? { 'Content-Type': 'application/json' } : {}),
+        Authorization: `Bearer ${getAuthToken() || ''}`,
+    };
+}
 
 function extractErrorMessage(text: string, status: number): string {
     let errMsg = `Server returned ${status}`;
@@ -103,7 +114,7 @@ export default function ZohoWorkDriveIngestion() {
 
     const fetchTeams = async () => {
         try {
-            const response = await fetch('/api/zoho-workdrive/teams');
+            const response = await fetch('/api/zoho-workdrive/teams', { headers: authHeaders(false) });
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
@@ -118,7 +129,7 @@ export default function ZohoWorkDriveIngestion() {
 
     const fetchTeamFolders = async () => {
         try {
-            const response = await fetch('/api/zoho-workdrive/team-folders');
+            const response = await fetch('/api/zoho-workdrive/team-folders', { headers: authHeaders(false) });
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
@@ -137,7 +148,7 @@ export default function ZohoWorkDriveIngestion() {
         try {
             const response = await fetch('/api/zoho-workdrive/files/list', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
                 body: JSON.stringify({
                     parent_id,
                     ...(workspace_id ? { workspace_id } : {}),
@@ -204,7 +215,7 @@ export default function ZohoWorkDriveIngestion() {
         try {
             const response = await fetch('/api/zoho-workdrive/ingest', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
                 body: JSON.stringify({ file_id: file.id })
             });
             if (!response.ok) {
@@ -249,7 +260,7 @@ export default function ZohoWorkDriveIngestion() {
             // requests from the client.
             const response = await fetch('/api/zoho-workdrive/ingest-folder', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
                 body: JSON.stringify({
                     folder_id: currentFolderId,
                     ...(lastParams.workspace_id ? { workspace_id: lastParams.workspace_id } : {}),
