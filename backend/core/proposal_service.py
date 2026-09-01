@@ -538,7 +538,28 @@ Please review and approve or reject this proposal.
     ) -> Dict[str, Any]:
         """Execute an approved send_email proposal through the deterministic
         email policy (EmailCanvasService) — same path as a human-clicked
-        send, so sensitivity blocks and the CanvasAudit trail apply."""
+        send, so sensitivity blocks and the CanvasAudit trail apply.
+
+        The send also records an EXECUTION-BACKED episode (like browser and
+        canvas-present actions). This is the one path where a STUDENT's
+        approved work becomes measured evidence: without it, hires on the
+        co-editor flow accumulated only chat-derived and decision episodes —
+        their constitutional readiness factor could never activate."""
+        execution = AgentExecution(
+            id=str(uuid.uuid4()),
+            agent_id=proposal.agent_id,
+            workspace_id="default",
+            status="running",
+            input_summary=json.dumps({
+                "proposal_id": proposal.id,
+                "action": action,
+            }),
+            triggered_by="proposal",
+            tenant_id=getattr(proposal, "tenant_id", None) or "default",
+        )
+        self.db.add(execution)
+        self.db.commit()
+
         try:
             from core.canvas_email_service import EmailCanvasService
 
@@ -549,6 +570,11 @@ Please review and approve or reject this proposal.
                     "success": False,
                     "error": "No recipient specified in the approved proposal",
                 }
+            cc_recipients = [
+                r.strip()
+                for r in str(action.get("cc") or "").replace(";", ",").split(",")
+                if r.strip()
+            ]
 
             body = str(action.get("body") or "")
             if not body and action.get("canvas_id"):
@@ -565,17 +591,35 @@ Please review and approve or reject this proposal.
                 canvas_id=action.get("canvas_id") or proposal.canvas_id,
                 user_id=proposal.user_id,
                 to_emails=recipients,
-                cc_emails=[],
+                cc_emails=cc_recipients,
                 subject=str(action.get("subject") or ""),
                 body=body,
                 agent_id=proposal.agent_id,
             )
             if not (result or {}).get("success"):
+                execution.status = "failed"
+                execution.output_summary = json.dumps({
+                    "success": False,
+                    "error": (result or {}).get("error", "Email policy refused the send"),
+                })
+                execution.completed_at = datetime.now()
+                self.db.commit()
+                self._record_execution_episode(execution, proposal, "send_email")
                 return {
                     "success": False,
                     "error": (result or {}).get("error", "Email policy refused the send"),
                     "policy_result": result,
                 }
+            execution.status = "completed"
+            execution.output_summary = json.dumps({
+                "success": True,
+                "status": result.get("status", "sent"),
+                "to": recipients,
+                "subject": str(action.get("subject") or ""),
+            })
+            execution.completed_at = datetime.now()
+            self.db.commit()
+            self._record_execution_episode(execution, proposal, "send_email")
             return {
                 "success": True,
                 "status": result.get("status", "sent"),
@@ -583,6 +627,14 @@ Please review and approve or reject this proposal.
             }
         except Exception as e:
             logger.error(f"send_email proposal execution failed: {e}")
+            try:
+                execution.status = "failed"
+                execution.output_summary = json.dumps({"success": False, "error": str(e)})
+                execution.completed_at = datetime.now()
+                self.db.commit()
+                self._record_execution_episode(execution, proposal, "send_email")
+            except Exception as episode_err:  # noqa: BLE001 — never mask the real error
+                logger.debug(f"send_email failure episode skipped: {episode_err}")
             return {"success": False, "error": str(e)}
 
     async def _execute_browser_action(

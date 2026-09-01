@@ -29,6 +29,26 @@ const SWITCHABLE_VALUES = new Set<string>(CANVAS_TYPE_OPTIONS.map((o) => o.value
 const DOC_LIKE = new Set(["docs", "generic", "doc", "terminal"]);
 
 /**
+ * Map backend/registry canvas_type names onto the component names the canvas
+ * hosts render. Two vocabularies exist: the AI-accessibility registry and the
+ * audit trail speak type names ("sheets", "docs", "coding" — see the
+ * `type:` values in useCanvasStateRegistration), while CanvasContent's switch
+ * handles component names ("sheet", "document", "code"). Without this, a
+ * sheet canvas updated by the co-editor renders as a raw-JSON dump and its
+ * per-type state seeding (sheet rows, email metadata) is skipped. Charts,
+ * forms, office_* and email pass through unchanged.
+ */
+export function normalizeCanvasComponent(component?: string | null): string {
+    const raw = (component || "").trim().toLowerCase();
+    if (!raw) return "markdown";
+    if (raw === "sheets" || raw === "spreadsheet") return "sheet";
+    if (raw === "docs" || raw === "doc") return "document";
+    if (raw === "coding") return "code";
+    if (raw === "generic") return "markdown";
+    return raw;
+}
+
+/**
  * Whether the type badge offers a manual switch. Specialized canvases
  * (real office files, charts, forms, snapshots) carry structured payloads
  * that can't be hand-converted to another type.

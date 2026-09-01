@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useRouter } from 'next/router';
 import { getCurrentUserId } from "@/lib/identity";
 import { getOpenCanvasChatContext } from "@/hooks/useCanvasStateRegistration";
+import { chatTurnTouchedCanvas, syncCanvasFromStore } from "@/lib/canvasSync";
 import { authHeaders } from "@/lib/auth-headers";
 
 interface GlobalChatWidgetProps {
@@ -250,6 +251,15 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                         provider: data.provider,
                     };
                     setMessages(prev => [...prev, assistantMessage]);
+                    // The turn may have co-edited the open canvas; converge it
+                    // locally in case the WS broadcast was missed (lib/canvasSync).
+                    if (chatTurnTouchedCanvas(data)) {
+                        void syncCanvasFromStore(
+                            data.metadata?.canvas_edit?.canvas_id
+                            || data.metadata?.canvas_action?.canvas_id
+                            || undefined,
+                        );
+                    }
                     return;
                 }
             }

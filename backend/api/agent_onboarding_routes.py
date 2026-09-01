@@ -440,6 +440,19 @@ async def teach_agent(
             message=f"{agent.name} is a {agent.status.upper()} — teaching applies to STUDENT agents",
         )
 
+    # Training circuit: a lesson taught while a training session is ACTIVE
+    # also lands in that session's guidance record, so the training history
+    # shows what was taught during the pass (best-effort — the journal and
+    # confidence above are the contract).
+    try:
+        from core.student_training_service import StudentTrainingService
+
+        StudentTrainingService(db).record_session_lesson(
+            agent_id=agent_id, lesson=req.lesson, topic=req.topic,
+        )
+    except Exception as session_lesson_err:
+        logger.debug(f"session lesson record skipped: {session_lesson_err}")
+
     return router.success_response(
         data=result,
         message="Lesson recorded — the student's confidence grew",

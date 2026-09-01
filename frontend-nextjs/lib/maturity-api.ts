@@ -236,12 +236,23 @@ export interface CanvasTrainingSession {
   evidence: SessionEvidence;
 }
 
+/** One entry of the agent's learning journal (mentor lesson or observation). */
+export interface TeachingPoint {
+  source: string; // "teacher" | "observation"
+  topic: string;
+  text: string;
+  learned_at: string | null;
+  teacher_agent_id?: string | null;
+}
+
 export interface CanvasTrainingContext {
   canvas_id: string;
   agent: CanvasTrainingAgent | null;
   linked_session: CanvasTrainingSession | null;
   pending_proposal: TrainingProposal | null;
   viewer_is_supervisor: boolean;
+  /** All teaching points given to the agent, newest first. */
+  teaching_points?: TeachingPoint[];
 }
 
 /**

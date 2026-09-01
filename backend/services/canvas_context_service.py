@@ -7,6 +7,7 @@ providing rich contextual data for agent learning and continuity across sessions
 
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
+import json
 import logging
 import uuid
 from sqlalchemy.orm import Session
@@ -190,6 +191,40 @@ class CanvasContextService:
                 self.db.commit()
 
                 logger.info(f"[LEARNING] Recorded user correction for agent {agent_id}")
+
+                # Training circuit: the correction is also a PERMANENT
+                # work-time lesson ("human_correction" observations are
+                # injected into every chat turn / canvas edit plan / task
+                # run — and survive graduation), not just an RLHF row.
+                # Student-only by the learning design; best-effort — the
+                # feedback record above is the contract.
+                try:
+                    from core.student_learning_service import StudentLearningService
+
+                    gist = corrected_action if isinstance(corrected_action, str) else json.dumps(corrected_action, default=str)
+                    StudentLearningService(self.db).learn_from_observation(
+                        agent_id,
+                        "human_correction",
+                        f"Supervisor corrected my work — follow the corrected "
+                        f"version's content and style: {gist[:400]}",
+                        details={
+                            "canvas_id": canvas_id,
+                            "context": (context_info or "")[:200],
+                        },
+                    )
+                    logger.info(f"[LEARNING] Correction journaled as work-time lesson for {agent_id}")
+                except Exception as journal_err:
+                    logger.debug(f"correction journal skipped: {journal_err}")
+
+                # Real-time circuit: the correction moved the agent's learning
+                # state — drop the GovernanceCache maturity/confidence snapshot
+                # so gated automation sees the updated agent immediately.
+                try:
+                    from core.governance_cache import get_governance_cache
+
+                    get_governance_cache().invalidate_agent(agent_id)
+                except Exception as cache_err:
+                    logger.debug(f"governance cache invalidate skipped: {cache_err}")
 
         except Exception as e:
             logger.warning(f"[LEARNING] Failed to record user correction: {e}")

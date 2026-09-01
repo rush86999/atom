@@ -884,6 +884,18 @@ class BYOKHandler:
         """
         if provider_id not in self.health_monitor.health_scores:
             return True  # Unknown providers pass through (optimistic)
+        # Circuit breaker: a provider with recent consecutive connection
+        # failures is benched entirely for a short cooldown, regardless of
+        # EMA score — connection-dead gateways used to keep ranking on value
+        # alone and every call stage re-paid the connect-timeout cascade
+        # (observed 2026-08-31: minutes-long chat turns, client-visible
+        # timeouts) before the sliding window could react. Strict `is True`
+        # so stubbed monitors (tests) keep the legacy behavior.
+        try:
+            if self.health_monitor.is_breaker_open(provider_id) is True:
+                return False
+        except Exception:
+            pass
         return self.health_monitor.get_health_score(provider_id) >= self._HEALTH_EXCLUDE_THRESHOLD
 
     @staticmethod
@@ -2608,14 +2620,22 @@ class BYOKHandler:
                                 )
                         # All tiers exhausted — skip this provider
 
-                    if "401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str:
-                        failed_providers.add(provider_id)
-                        continue
-
-                    # Phase 226.4-04: Record failed API call for health monitoring
+                    # Phase 226.4-04: Record failed API call for health monitoring.
+                    # Recorded BEFORE the connection-error skip below: connect-level
+                    # failures are the strongest dead-provider signal, and this
+                    # branch used to `continue` first — the health score stayed
+                    # optimistic, the dead provider kept ranking, and every call
+                    # re-paid the connect-timeout cascade before failing over.
                     try:
                         latency_ms = (time.time() - request_start) * 1000
-                        self.health_monitor.record_call(provider_id, success=False, latency_ms=latency_ms)
+                        self.health_monitor.record_call(
+                            provider_id, success=False, latency_ms=latency_ms,
+                            connection_failure=(
+                                "connection error" in err_str.lower()
+                                or "refused" in err_str.lower()
+                                or "unreachable" in err_str.lower()
+                            ),
+                        )
                         self._track_llm_call(
                             provider=provider_id, model=model, success=False,
                             latency_ms=latency_ms,
@@ -2623,7 +2643,12 @@ class BYOKHandler:
                             fallback_provider=primary_provider if provider_id != primary_provider else None,
                             error=str(attempt_err)[:500],
                         )
-                    except Exception:                         pass  # Don't let health monitoring errors affect primary flow
+                    except Exception:
+                        pass  # Don't let health monitoring errors affect primary flow
+
+                    if "401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str:
+                        failed_providers.add(provider_id)
+                        continue
 
                     # --- Self-healing autofix (rule-based, single attempt) ---
                     # If this was a repairable 4xx (param rename, unsupported
@@ -3651,12 +3676,23 @@ class BYOKHandler:
                         _soft_sc_on = is_sc_soft_enabled()
                     except Exception:
                         pass
+                    # Completion cap for structured calls. 1000 starved
+                    # reasoning models (minimax-m3 burns 750–3,155 tokens
+                    # thinking BEFORE the answer): the plan died at
+                    # finish_reason='length' with content=None and the whole
+                    # structured stage reported "all providers failed"
+                    # (observed live on the canvas editor, 2026-08-31). The
+                    # cap is a ceiling, not a target — short answers are
+                    # unaffected — so default generously and allow override.
+                    _structured_max_tokens = int(
+                        os.getenv("ATOM_STRUCTURED_MAX_TOKENS", "6000")
+                    )
                     _create_kwargs = dict(
                         model=model,
                         response_model=response_model,
                         messages=messages,
                         temperature=temperature,
-                        max_tokens=1000,
+                        max_tokens=_structured_max_tokens,
                     )
                     _logprobs_key = f"{provider_id}/{model}"
                     if _soft_sc_on and _logprobs_key not in _LOGPROBS_UNSUPPORTED:
@@ -3771,6 +3807,23 @@ class BYOKHandler:
                     last_error = attempt_err
 
                     err_str = str(attempt_err)
+                    # Record failed structured call for health monitoring.
+                    # The structured cascade never fed the health monitor, so
+                    # connection-dead providers stayed optimistically healthy,
+                    # kept ranking, and re-paid the connect-timeout cascade on
+                    # every call (observed 2026-08-31 on chat turns).
+                    _is_conn_fail = (
+                        "connection error" in err_str.lower()
+                        or "refused" in err_str.lower()
+                        or "unreachable" in err_str.lower()
+                    )
+                    try:
+                        self.health_monitor.record_call(
+                            provider_id, success=False, latency_ms=0.0,
+                            connection_failure=_is_conn_fail,
+                        )
+                    except Exception:
+                        pass  # Don't let health monitoring errors affect primary flow
                     if "401" in err_str or "auth" in err_str.lower() or "invalid" in err_str.lower() or "connection error" in err_str.lower() or "refused" in err_str.lower() or "1000" in err_str:
                         failed_providers.add(provider_id)
                         continue
@@ -4432,7 +4485,12 @@ class BYOKHandler:
                 # Phase 226.4-04: Record failed streaming API call for health monitoring
                 try:
                     latency_ms = (time.time() - request_start) * 1000
-                    self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms)
+                    self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms,
+                                                    connection_failure=(
+                                                        "connection error" in str(e).lower()
+                                                        or "refused" in str(e).lower()
+                                                        or "unreachable" in str(e).lower()
+                                                    ))
                     self._track_llm_call(
                         provider=attempt_provider_id, model=model, success=False,
                         latency_ms=latency_ms,
@@ -4881,7 +4939,12 @@ class BYOKHandler:
                 logger.warning(f"Completion failed for {attempt_provider_id}/{model}: {e}")
                 try:
                     latency_ms = (datetime.now() - request_start).total_seconds() * 1000.0
-                    self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms)
+                    self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms,
+                                                    connection_failure=(
+                                                        "connection error" in str(e).lower()
+                                                        or "refused" in str(e).lower()
+                                                        or "unreachable" in str(e).lower()
+                                                    ))
                     self._track_llm_call(
                         provider=attempt_provider_id, model=model, success=False,
                         latency_ms=latency_ms,

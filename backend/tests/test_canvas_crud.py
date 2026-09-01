@@ -129,3 +129,87 @@ class TestEpisodeCanvasCapture:
         assert "session_id" in source, \
             "Episode canvas capture should use session_id as fallback when canvas_id is missing"
         assert "CanvasAudit" in source
+
+
+class TestReadCanvasAfterEventRows:
+    """Regression 2026-08-31: email_send / email_send_attempt rows append to
+    the audit trail WITHOUT a content key. When such an event row became the
+    latest row, read_canvas fell back to the stale canvases.content column
+    and served the creation-era snapshot — the user's current draft "went
+    missing" after every send attempt. The read must scan back to the latest
+    content-bearing row before considering legacy fallbacks."""
+
+    def _patch_session(self, db_session):
+        from unittest.mock import Mock, patch
+
+        ctx = Mock()
+        ctx.__enter__ = Mock(return_value=db_session)
+        ctx.__exit__ = Mock(return_value=False)
+        return patch("core.database.get_db_session", return_value=ctx)
+
+    def _seed(self, db_session, canvas_id, rows, canvas_content):
+        from datetime import datetime, timedelta, timezone
+
+        from core.models import Canvas, CanvasAudit
+
+        db_session.add(Canvas(
+            id=canvas_id, tenant_id="default", created_by="user-1",
+            name="Ancient", canvas_type="email", status="active",
+            content=canvas_content,
+        ))
+        now = datetime.now(timezone.utc)
+        for offset, (action, details) in enumerate(rows):
+            db_session.add(CanvasAudit(
+                canvas_id=canvas_id, tenant_id="default", action_type=action,
+                user_id="user-1", canvas_type="email", details_json=details,
+                created_at=now - timedelta(minutes=30 - offset),
+            ))
+        db_session.commit()
+
+    @pytest.mark.asyncio
+    async def test_read_skips_trailing_send_event_row(self, db_session):
+        import uuid
+
+        from tools.canvas_crud_tool import read_canvas
+
+        canvas_id = f"cv-{uuid.uuid4().hex[:8]}"
+        draft = {"to": "mark@x.ca", "cc": "vipul@y.ca", "subject": "Re: Quote",
+                 "body": "Hi Mark,"}
+        self._seed(db_session, canvas_id, [
+            ("update", {"content": draft, "title": "Quote draft"}),
+            ("email_send_attempt", {
+                "canvas_type": "email", "component_type": "compose_form",
+                "send_status": "failed", "payload": {"to": ["mark@x.ca"]},
+            }),
+        ], canvas_content={"type": "doc", "content": "ANCIENT CREATION DOC"})
+
+        with self._patch_session(db_session):
+            result = await read_canvas("user-1", canvas_id)
+
+        assert result["success"] is True
+        # The DRAFT, not the ancient creation snapshot, and not the event row
+        assert result["content"] == draft
+        # provenance (title/type) comes from the content-bearing row too
+        assert result["title"] == "Quote draft"
+        assert result["canvas_type"] == "email"
+
+    @pytest.mark.asyncio
+    async def test_read_still_falls_back_for_legacy_canvas(self, db_session):
+        """Legacy canvas whose audit rows never carry a body: the
+        canvases.content fallback must keep working."""
+        import uuid
+
+        from tools.canvas_crud_tool import read_canvas
+
+        canvas_id = f"cv-{uuid.uuid4().hex[:8]}"
+        self._seed(db_session, canvas_id, [
+            ("create", {"source": "chat", "title": "Legacy doc"}),
+        ], canvas_content={"type": "doc", "content": "The real legacy body"})
+
+        with self._patch_session(db_session):
+            result = await read_canvas("user-1", canvas_id)
+
+        assert result["success"] is True
+        # the legacy body is served (coerce_email_canvas wraps doc-shaped
+        # content into the email composer shape — pre-existing behavior)
+        assert result["content"].get("body") == "The real legacy body"

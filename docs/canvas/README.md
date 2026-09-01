@@ -64,6 +64,10 @@ Visual presentations and AI accessibility for agent interactions with 2026 Enhan
 - **WebSocket Broadcast**: Real-time `canvas:update` events for update/delete/list
 - **IDOR Protection**: Owner verification (`Canvas.created_by`) on read/update/delete
 
+### WS Frame Contract & Audit-Trail Reads (NEW — Aug 31, 2026)
+- **Frame contract**: every `canvas:update` frame declares its semantics via `action`. Content actions: `update` / `present` (payload carries canvas content). Event actions — `email_send`, `mini_app_state` — carry STATUS payloads and must NEVER be applied as canvas content (a failed-send status once replaced the drafted email in the open canvas). Enforced in `frontend-nextjs/lib/canvasFrame.ts` (`isCanvasContentFrame`), consumed by `pages/canvas/[id].tsx` + `components/chat/canvas-host.tsx`. **Adding a new event-style broadcast → add its action to `CANVAS_EVENT_ACTIONS` in canvasFrame.ts.**
+- **Reads are audit-authoritative**: `tools/canvas_crud_tool.read_canvas` scans back to the latest CONTENT-bearing `CanvasAudit` row (event rows like `email_send_attempt` carry no body), falling back to the legacy `canvases.content` column only when no recent audit row has a body. The `canvases` row itself is NOT the live content — don't "fix" reads to prefer it.
+
 ---
 
 ## 🔧 Quick Start

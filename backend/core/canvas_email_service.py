@@ -419,6 +419,32 @@ class EmailCanvasService:
         """
         from core.email_policy import evaluate_email_action
 
+        # Sending ON BEHALF of a user (agent-initiated): the email carries
+        # THAT user's formatting — their stored styled signature is applied
+        # and recorded as a permanent style lesson for the agent, so future
+        # drafts match the user's fonts/closing style (per-user; observed
+        # request 2026-09-01). Human-clicked sends already carry the
+        # signature (the composer appends it client-side).
+        applied_signature = ""
+        if agent_id:
+            try:
+                from core.user_preference_service import UserPreferenceService
+
+                stored = UserPreferenceService(self.db).get_preference(
+                    user_id, "default", self.SIGNATURE_KEY
+                )
+                applied_signature = stored.strip() if isinstance(stored, str) else ""
+                if applied_signature and applied_signature not in (body or ""):
+                    signoff = self._extract_signoff(body)
+                    if signoff and signoff in body:
+                        # swap the agent's plain sign-off for the user's
+                        # styled signature — one signature per email
+                        body = body.replace(signoff, applied_signature)
+                    else:
+                        body = f"{(body or '').rstrip()}\n\n{applied_signature}"
+            except Exception as e:
+                logger.debug(f"signature apply skipped: {e}")
+
         decision = evaluate_email_action(
             {"to": to_emails, "cc": cc_emails, "subject": subject, "body": body},
             {"user_id": user_id, "agent_id": agent_id},
@@ -434,6 +460,7 @@ class EmailCanvasService:
                 "status": "blocked",
             }
 
+        svc = None
         try:
             from integrations.outlook_service import OutlookService
 
@@ -451,9 +478,33 @@ class EmailCanvasService:
             return {"success": False, "error": "Outlook send failed", "status": "failed"}
 
         ok = result is not None
+        # A diagnosable transport failure (missing consent scope, etc.)
+        # replaces the generic message and lands in the audit trail so the
+        # user's next question ("why didn't it send?") has a real answer.
+        send_detail: Dict[str, Any] = {}
+        if not ok and svc is not None:
+            send_detail = dict(getattr(svc, "last_send_error", None) or {})
+        if send_detail:
+            decision = dict(decision or {})
+            decision["reason"] = (
+                f"{decision.get('reason')}; transport: {send_detail['error']}"
+                if decision.get("reason") else send_detail["error"]
+            )
         self.record_send(canvas_id, user_id, agent_id, payload, "sent" if ok else "failed", decision, tenant_id)
+        if ok and agent_id and applied_signature:
+            try:
+                from core.student_learning_service import learn_user_style
+
+                learn_user_style(self.db, agent_id, user_id, applied_signature)
+            except Exception as e:
+                logger.debug(f"user-style lesson skipped: {e}")
         if not ok:
-            return {"success": False, "error": "Outlook send failed", "status": "failed"}
+            return {
+                "success": False,
+                "error": send_detail.get("error", "Outlook send failed"),
+                "status": "failed",
+                **({"needs_reconnect": True} if send_detail.get("needs_reconnect") else {}),
+            }
         return {
             "success": True,
             "status": "sent",

@@ -259,6 +259,27 @@ class GenericAgent:
                 ]
         except Exception as _facts_err:  # noqa: BLE001
             logger.debug(f"turn-fact recall skipped: {_facts_err}")
+
+        # Work-time lesson application (permanent training): lessons taught
+        # via /teach and observed human corrections previously only moved a
+        # confidence score — they never reached the ReAct prompt, so the
+        # agent repeated the exact mistakes it was taught to avoid. Same
+        # bug class as the R83 durable-facts leg. Never raises.
+        try:
+            from core.database import SessionLocal as _lessons_session
+            from core.student_learning_service import (
+                get_agent_lessons as _get_agent_lessons,
+            )
+
+            _db = _lessons_session()
+            try:
+                _lessons = _get_agent_lessons(_db, str(self.id), query=task_input)
+            finally:
+                _db.close()
+            if _lessons:
+                memory_context["lessons"] = _lessons
+        except Exception as _lessons_err:  # noqa: BLE001
+            logger.debug(f"taught-lesson recall skipped: {_lessons_err}")
         
         # Emit initial 'starting' event for UI responsiveness
         if step_callback:
@@ -1320,6 +1341,17 @@ ORCHESTRATION POWERS:
                 "DURABLE FACTS (from this agent's memory):\n"
                 + "\n".join(f"- {str(t)[:200]}" for t in durable_facts[:5])
             )
+        # Permanent taught lessons, rendered with the shared framing block —
+        # standing instructions from this agent's own training.
+        taught_lessons = memory.get('lessons', [])
+        if taught_lessons:
+            try:
+                from core.student_learning_service import format_lessons_block
+                lessons_block = format_lessons_block(taught_lessons)
+                if lessons_block:
+                    memory_sections.append(lessons_block)
+            except Exception as _render_err:  # noqa: BLE001
+                logger.debug(f"lesson block render skipped: {_render_err}")
         if knowledge_graph:
             graph_ctx = str(knowledge_graph).strip()
             if len(graph_ctx) > 3200:

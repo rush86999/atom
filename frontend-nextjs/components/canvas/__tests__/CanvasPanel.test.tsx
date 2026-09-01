@@ -191,7 +191,7 @@ describe('CanvasPanel', () => {
     expect(screen.getByText('v1')).toBeInTheDocument();
   });
 
-  it('POSTs to the update endpoint when the canvas already has an id', async () => {
+  it('PUTs string-body canvases to the canvas audit trail when the canvas already has an id', async () => {
     send({
       type: 'canvas:update',
       data: {
@@ -212,15 +212,38 @@ describe('CanvasPanel', () => {
     });
     fireEvent.click(await screen.findByText('Save Changes'));
 
-    await waitFor(() => expect(savedArtifacts).toHaveLength(1));
-    expect(savedArtifacts[0]).toEqual({
-      id: 'art-1',
-      name: 'Existing Doc',
-      type: 'markdown',
-      content: 'v2 content',
-      session_id: undefined,
+    // Markdown bodies persist to the audit trail (what /canvas/{id} reads
+    // and what the chat co-editor plans against) — the artifacts store is
+    // invisible to both.
+    await waitFor(() => expect(savedCanvasPuts).toHaveLength(1));
+    expect(savedCanvasPuts[0].url).toContain('/api/canvas/art-1?canvas_type=markdown');
+    expect(savedCanvasPuts[0].body).toBe('v2 content');
+    expect(await screen.findByText('Synced to cloud')).toBeInTheDocument();
+  });
+
+  it('falls back to the legacy artifacts store when the audit PUT 404s', async () => {
+    // state.id naming a legacy artifact (not a canvas) → 404 → the edit
+    // must still persist somewhere rather than be dropped.
+    server.use(
+      rest.put('*/api/canvas/:canvasId', (req, res, ctx) => res(ctx.status(404)))
+    );
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'markdown',
+        title: 'Legacy Doc',
+        data: 'legacy v1',
+        id: 'art-legacy',
+      },
     });
-    expect(await screen.findByText('v9')).toBeInTheDocument();
+    fireEvent.change(await screen.findByTestId('canvas-editor'), {
+      target: { value: 'legacy v2' },
+    });
+    fireEvent.click(await screen.findByText('Save Changes'));
+
+    await waitFor(() => expect(savedArtifacts).toHaveLength(1));
+    expect(savedArtifacts[0]).toMatchObject({ id: 'art-legacy', content: 'legacy v2' });
   });
 
   it('renders an email canvas with editable metadata and sends via the policy API', async () => {
@@ -393,15 +416,14 @@ describe('CanvasPanel', () => {
 
     fireEvent.click(screen.getByText('Save Changes'));
 
-    await waitFor(() => expect(savedArtifacts).toHaveLength(1));
-    expect(savedArtifacts[0].type).toBe('sheet');
-    expect(savedArtifacts[0].content).toBe(
-      JSON.stringify([
-        ['Revenue', '1000'],
-        ['Costs', '500'],
-        ['', ''],
-      ])
-    );
+    // The grid persists as its native rows array on the audit trail.
+    await waitFor(() => expect(savedCanvasPuts).toHaveLength(1));
+    expect(savedCanvasPuts[0].url).toContain('/api/canvas/sheet-1?canvas_type=sheet');
+    expect(savedCanvasPuts[0].body).toEqual([
+      ['Revenue', '1000'],
+      ['Costs', '500'],
+      ['', ''],
+    ]);
   });
 
   it('renders a snapshot canvas with the state tree JSON', async () => {
@@ -638,7 +660,9 @@ describe('CanvasPanel', () => {
       });
     });
 
-    fireEvent.change(screen.getByTestId('canvas-editor'), { target: { value: 'body v2' } });
+    fireEvent.input(screen.getByTestId('canvas-email-body-editor'), {
+      target: { innerHTML: 'body v2' },
+    });
 
     await waitFor(() => {
       expect((window as any).atom.canvas.getState('mail-1')).toMatchObject({
@@ -828,9 +852,9 @@ describe('CanvasPanel', () => {
       },
     });
 
-    const editor = await screen.findByTestId('canvas-editor');
-    await waitFor(() => expect(editor).toHaveValue(
-      'Body without any closing.\n\nBest regards,\nRish Maniar\nBrennan Machinery Inc.'
+    const editor = await screen.findByTestId('canvas-email-body-editor');
+    await waitFor(() => expect(editor.innerHTML).toBe(
+      'Body without any closing.<br><br>Best regards,<br>Rish Maniar<br>Brennan Machinery Inc.'
     ), { timeout: 3000 });
   });
 
@@ -855,9 +879,9 @@ describe('CanvasPanel', () => {
       },
     });
 
-    const editor = await screen.findByTestId('canvas-editor');
+    const editor = await screen.findByTestId('canvas-email-body-editor');
     await act(async () => { await new Promise((r) => setTimeout(r, 600)); });
-    expect(editor).toHaveValue('Body text.\n\nBest regards,\nAgent Typed\nBrennan Machinery Inc.');
+    expect(editor.innerHTML).toBe('Body text.<br><br>Best regards,<br>Agent Typed<br>Brennan Machinery Inc.');
   });
 
   it('edits and saves the default signature from the composer', async () => {
@@ -887,13 +911,50 @@ describe('CanvasPanel', () => {
     await screen.findByText('Sig edit');
     fireEvent.click(await screen.findByTestId('canvas-signature-button'));
     const sigEditor = await screen.findByTestId('canvas-signature-editor');
-    expect(sigEditor).toHaveValue('Old sig');
+    // rich editor: contentEditable surface holding the sanitized signature HTML
+    expect(sigEditor.innerHTML).toContain('Old sig');
     expect(screen.getByTestId('canvas-signature-source').textContent).toContain('Outlook sent mail');
 
-    fireEvent.change(sigEditor, { target: { value: 'New sig\nLine 2' } });
+    fireEvent.input(sigEditor, { target: { innerHTML: 'New sig<br>Line 2' } });
     fireEvent.click(screen.getByTestId('canvas-signature-save'));
-    await waitFor(() => expect(savedSignatures).toEqual([{ signature: 'New sig\nLine 2' }]));
+    await waitFor(() => expect(savedSignatures).toEqual([{ signature: 'New sig<br>Line 2' }]));
   });
+
+  it('Insert into email swaps the draft plain sign-off for the styled signature', async () => {
+    server.use(
+      rest.get('*/api/canvas/email/signature', async (req, res, ctx) =>
+        res(ctx.status(200), ctx.json({ success: true, signature: '<strong><em>Rish M.</em></strong>', source: 'stored' })))
+    );
+
+    send({
+      type: 'canvas:update',
+      data: {
+        action: 'present',
+        component: 'email',
+        title: 'Sig swap',
+        data: {
+          to: '', cc: '', subject: 'S',
+          body: 'Hi Mark,\n\nThanks for reaching out.\n\nBest regards,\nRish Maniar',
+        },
+        id: 'mail-sigswap',
+      },
+    });
+
+    await screen.findByText('Sig swap');
+    fireEvent.click(await screen.findByTestId('canvas-signature-button'));
+    fireEvent.click(await screen.findByText('Insert into email'));
+
+    // the draft's own plain sign-off is REPLACED by the styled signature —
+    // insert used to be a silent no-op whenever the draft had any sign-off
+    const bodyEditor = await screen.findByTestId('canvas-email-body-editor');
+    await waitFor(() => {
+      expect(bodyEditor.innerHTML).toBe(
+        'Hi Mark,<br><br>Thanks for reaching out.<br><br><strong><em>Rish M.</em></strong>'
+      );
+    });
+    expect(bodyEditor.innerHTML).not.toContain('Best regards,');
+  });
+
 
   // ─── Auto-save ───
 
@@ -908,8 +969,9 @@ describe('CanvasPanel', () => {
     });
 
     // No manual click — the idle timer alone must persist the edit.
-    await waitFor(() => expect(savedArtifacts).toHaveLength(1), { timeout: 6000 });
-    expect(savedArtifacts[0]).toMatchObject({ id: 'art-42', content: 'typed more' });
+    await waitFor(() => expect(savedCanvasPuts).toHaveLength(1), { timeout: 6000 });
+    expect(savedCanvasPuts[0].url).toContain('/api/canvas/art-42');
+    expect(savedCanvasPuts[0].body).toBe('typed more');
     expect(await screen.findByText('Synced to cloud')).toBeInTheDocument();
   });
 
@@ -927,8 +989,8 @@ describe('CanvasPanel', () => {
     });
 
     // Edit, then let the autosave fire (3s idle).
-    fireEvent.change(await screen.findByTestId('canvas-editor'), {
-      target: { value: 'body v2' },
+    fireEvent.input(await screen.findByTestId('canvas-email-body-editor'), {
+      target: { innerHTML: 'body v2' },
     });
     await waitFor(() => expect(savedCanvasPuts).toHaveLength(1), { timeout: 6000 });
     expect(savedCanvasPuts[0].body.body).toBe('body v2');
@@ -937,8 +999,8 @@ describe('CanvasPanel', () => {
     await screen.findByText('Synced to cloud');
 
     // The user keeps typing past the save…
-    fireEvent.change(screen.getByTestId('canvas-editor'), {
-      target: { value: 'body v3' },
+    fireEvent.input(screen.getByTestId('canvas-email-body-editor'), {
+      target: { innerHTML: 'body v3' },
     });
     // …and the backend's WS broadcast of the v2 save arrives. Without the
     // echo-guard this would reset the composer to "body v2" and drop v3.
@@ -955,7 +1017,7 @@ describe('CanvasPanel', () => {
         }}
       />
     );
-    expect(screen.getByTestId('canvas-editor')).toHaveValue('body v3');
+    expect(screen.getByTestId('canvas-email-body-editor').innerHTML).toBe('body v3');
 
     // The newer edit still autosaves afterwards.
     await waitFor(() => expect(savedCanvasPuts).toHaveLength(2), { timeout: 6000 });

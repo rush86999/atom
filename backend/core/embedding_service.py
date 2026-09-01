@@ -21,6 +21,7 @@ Performance:
 import asyncio
 import logging
 import os
+import threading
 from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -61,6 +62,14 @@ class EmbeddingService:
     - Error handling and retries
     - Automatic model caching (FastEmbed)
     """
+
+    # One FastEmbed client per model name, shared by every EmbeddingService
+    # instance (graphrag, the lancedb handler and the memory assembler each
+    # construct their own service). Loading is a multi-second blocking ONNX
+    # init; per-instance loading paid it once per consumer wherever the first
+    # embedding happened — startup warm() only reached one of them.
+    _FASTEMBED_CLIENTS: Dict[str, Any] = {}
+    _FASTEMBED_LOAD_LOCK = threading.Lock()
 
     def __init__(
         self,
@@ -256,6 +265,24 @@ class EmbeddingService:
     # FastEmbed Implementation (Default, Recommended)
     # ========================================================================
 
+    @staticmethod
+    def _load_fastembed_client(model: str):
+        """Get-or-load the shared FastEmbed client for ``model``.
+
+        Runs in a worker thread (the async embed methods dispatch it via
+        asyncio.to_thread): the ONNX model init blocks for seconds and must
+        never execute on the event loop.
+        """
+        with EmbeddingService._FASTEMBED_LOAD_LOCK:
+            client = EmbeddingService._FASTEMBED_CLIENTS.get(model)
+            if client is None:
+                from fastembed import TextEmbedding
+
+                logger.info(f"Loading FastEmbed model: {model}")
+                client = TextEmbedding(model_name=model)
+                EmbeddingService._FASTEMBED_CLIENTS[model] = client
+            return client
+
     async def _generate_fastembed_embedding(self, text: str) -> List[float]:
         """
         Generate embedding using FastEmbed (ONNX-based, local).
@@ -266,17 +293,17 @@ class EmbeddingService:
         - ~10-20ms per embedding
         - ~100MB memory (vs 500MB+ for sentence-transformers)
         - Auto-caches models after first download
+
+        Model load and ONNX inference are blocking sync calls, so both run
+        in a worker thread — inline execution stalled the entire event loop
+        (every concurrent request) for the model load on first use.
         """
         try:
-            from fastembed import TextEmbedding
-
-            # Initialize model (cached after first use)
-            if self._client is None:
-                logger.info(f"Loading FastEmbed model: {self.model}")
-                self._client = TextEmbedding(model_name=self.model)
-
-            # Generate embedding
-            embeddings = list(self._client.embed([text]))
+            client = await asyncio.to_thread(
+                self._load_fastembed_client, self.model
+            )
+            self._client = client  # legacy attribute — introspection reads it
+            embeddings = await asyncio.to_thread(lambda: list(client.embed([text])))
 
             if not embeddings or len(embeddings) == 0:
                 raise Exception("FastEmbed returned empty result")
@@ -297,17 +324,13 @@ class EmbeddingService:
         Generate embeddings using FastEmbed (batch).
 
         FastEmbed handles batching very efficiently with parallel processing.
+        Runs in a worker thread — see _generate_fastembed_embedding.
         """
         try:
-            from fastembed import TextEmbedding
-
-            # Initialize model (cached after first use)
-            if self._client is None:
-                logger.info(f"Loading FastEmbed model: {self.model}")
-                self._client = TextEmbedding(model_name=self.model)
-
-            # Generate embeddings (FastEmbed handles batching)
-            embeddings = list(self._client.embed(texts))
+            client = await asyncio.to_thread(
+                self._load_fastembed_client, self.model
+            )
+            embeddings = await asyncio.to_thread(lambda: list(client.embed(texts)))
 
             # Convert to list of lists
             return [emb.tolist() for emb in embeddings]

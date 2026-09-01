@@ -314,6 +314,81 @@ class TestCanvasCRUD:
         assert res.status_code == 404
 
 
+class TestCanvasRestore:
+    def test_restore_400_without_audit_id(self, client, db_session, users):
+        u = _make_user(db_session)
+        users["current"] = u
+        c = _make_canvas(db_session, u.id)
+        res = client.post(f"/api/canvas/{c.id}/restore", json={})
+        assert res.status_code == 400
+
+    def test_restore_404_for_missing_canvas(self, client, db_session, users):
+        users["current"] = _make_user(db_session)
+        res = client.post("/api/canvas/c-ghost/restore", json={"audit_id": "a-1"})
+        assert res.status_code == 404
+
+    def test_restore_404_for_unknown_version(self, client, db_session, users):
+        u = _make_user(db_session)
+        users["current"] = u
+        c = _make_canvas(db_session, u.id)
+        res = client.post(f"/api/canvas/{c.id}/restore", json={"audit_id": "a-nope"})
+        assert res.status_code == 404
+
+    def test_restore_refuses_delete_marker(self, client, db_session, users):
+        from datetime import datetime, timedelta, timezone
+        u = _make_user(db_session)
+        users["current"] = u
+        c = _make_canvas(db_session, u.id)
+        _make_audit(db_session, c.id, "delete", details={"deleted": True},
+                    user_id=u.id,
+                    created_at=datetime.now(timezone.utc) + timedelta(seconds=5))
+        marker = (
+            db_session.query(CanvasAudit)
+            .filter(CanvasAudit.canvas_id == c.id, CanvasAudit.action_type == "delete")
+            .first()
+        )
+        res = client.post(f"/api/canvas/{c.id}/restore", json={"audit_id": marker.id})
+        assert res.status_code == 400
+
+    def test_restore_appends_new_version_with_old_content(self, client, db_session, users):
+        """Restore = append: the historical content becomes the newest version,
+        provenance is recorded, and the pre-restore state stays in history."""
+        from datetime import datetime, timedelta, timezone
+        u = _make_user(db_session)
+        users["current"] = u
+        c = _make_canvas(db_session, u.id, canvas_type="email",
+                         content={"to": "a@b.c", "subject": "v1", "body": "original draft"})
+        v1 = (
+            db_session.query(CanvasAudit)
+            .filter(CanvasAudit.canvas_id == c.id, CanvasAudit.action_type == "create")
+            .first()
+        )
+        # the current (overwritten) state, unambiguously newer
+        _make_audit(db_session, c.id, "update",
+                    details={"content": {"to": "a@b.c", "subject": "v2", "body": "overwritten"}},
+                    user_id=u.id, canvas_type="email",
+                    created_at=datetime.now(timezone.utc) + timedelta(seconds=5))
+
+        res = client.post(f"/api/canvas/{c.id}/restore", json={"audit_id": v1.id})
+        assert res.status_code == 200
+        assert res.json()["success"] is True
+        assert res.json()["restored_from"] == v1.id
+
+        db_session.expire_all()
+        rows = db_session.query(CanvasAudit).filter(CanvasAudit.canvas_id == c.id).all()
+        restored = [r for r in rows if (r.details_json or {}).get("restored_from")]
+        assert len(restored) == 1
+        latest = restored[0]
+        assert latest.id != v1.id
+        assert latest.action_type == "update"
+        assert latest.details_json["content"]["body"] == "original draft"
+        assert latest.details_json["restored_from"]["audit_id"] == v1.id
+        # append-only: the overwritten version AND the restore target survive
+        bodies = [(r.details_json or {}).get("content", {}).get("body") for r in rows]
+        assert "overwritten" in bodies
+        assert "original draft" in bodies
+
+
 # ===========================================================================
 # POST /{canvas_id}/fork (P5 blueprint security)
 # ===========================================================================

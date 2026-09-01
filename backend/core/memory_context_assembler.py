@@ -11,6 +11,8 @@ moment an employee talks to an agent:
   - GraphRAG context (ontology identities + relationships) — graphrag_engine
   - Learning episodes — EpisodeRetrievalService.retrieve_contextual
   - Durable turn facts — prefetch_relevant_facts (Tier-2 recall)
+  - Taught lessons — the agent's own permanent training log
+    (AgentRegistry.configuration.learning; get_agent_lessons)
 
 Design (docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md, P0):
   - Every leg is independently fault-isolated: a failing store yields an
@@ -151,6 +153,36 @@ async def _facts_leg(message: str, workspace_id: str) -> List[str]:
         prefetch_relevant_facts, workspace_id, message[:500], 5
     )
     return [str(getattr(f, "fact_text", "")).strip() for f in facts or [] if getattr(f, "fact_text", "")]
+
+
+async def _lessons_leg(message: str, agent_id: Optional[str]) -> str:
+    """The operating agent's PERMANENT taught lessons (TrainingPanel /teach,
+    mentor lessons, observed human corrections) as a rendered prompt block.
+
+    Storage alone only moved a confidence score — this leg is what makes a
+    lesson shape the agent's actual work-time behavior, on every chat
+    surface (canvas co-editor, agent chat, IM) and at every maturity tier
+    (lessons survive graduation — that is what makes a trained agent stay
+    trained). Cheap JSON-column read; runs in a thread like the other sync
+    legs. Returns "" when the agent has no lessons (no block rendered)."""
+    if not agent_id:
+        return ""
+
+    def _read() -> str:
+        from core.database import SessionLocal
+        from core.student_learning_service import (
+            format_lessons_block,
+            get_agent_lessons,
+        )
+
+        db = SessionLocal()
+        try:
+            lessons = get_agent_lessons(db, agent_id, query=message, limit=5)
+            return format_lessons_block(lessons)
+        finally:
+            db.close()
+
+    return await asyncio.to_thread(_read)
 
 
 _INVENTORY_RE = re.compile(
@@ -688,12 +720,13 @@ async def assemble_memory_context(
         # scopes integration-record recall to the work/responsibilities the
         # data was synced for. Same tag the sync route stamps at ingest.
         agent_role = await asyncio.to_thread(_resolve_agent_role, agent_id)
-        graph_ctx, knowledge_lines, integration_lines, episode_lines, fact_lines = await asyncio.gather(
+        graph_ctx, knowledge_lines, integration_lines, episode_lines, fact_lines, lessons_block = await asyncio.gather(
             _safe(_graph_leg(message, workspace_id, tenant_id), "graph"),
             _safe(_knowledge_leg(message, workspace_id), "knowledge"),
             _safe(_integration_records_leg(message, workspace_id, agent_role), "integration_records"),
             _safe(_episodes_leg(message, agent_id), "episodes"),
             _safe(_facts_leg(message, workspace_id), "facts"),
+            _safe(_lessons_leg(message, agent_id), "lessons"),
         )
 
         # P1.4 rerank phase — budget-gated: only when the gather stayed fast
@@ -760,6 +793,12 @@ async def assemble_memory_context(
                 blocks.append(
                     "MENTIONED FILE — DATA AVAILABILITY:\n" + file_block
                 )
+        # Taught lessons go FIRST: they are standing instructions from the
+        # agent's own training, not reference snippets, so they must never
+        # be the part cut by the tail truncation below. Not reranked — the
+        # set is tiny and already query-scored at the source.
+        if lessons_block:
+            blocks.append(lessons_block)
         if graph_ctx:
             blocks.append("KNOWLEDGE GRAPH CONTEXT:\n" + graph_ctx)
         knowledge_block = _bounded_lines(knowledge_lines or [], KNOWLEDGE_CHAR_CAP)

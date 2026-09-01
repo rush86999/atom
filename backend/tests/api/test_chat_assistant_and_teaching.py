@@ -208,3 +208,47 @@ class TestTeachEndpoint:
         db_session.refresh(student)
         entry = student.configuration["learning"]["log"][0]
         assert entry["teacher_agent_id"] == "agent-finance-senior"
+
+
+class TestTeachUpdatesTrainingCircuit:
+    def test_teach_files_lesson_into_active_training_session(
+        self, client, employee_user, db_session
+    ):
+        """A lesson taught while the student's training session is ACTIVE
+        must land in that session's guidance record (training history shows
+        what was taught during the pass) — in addition to the learning
+        journal + confidence boost."""
+        global _current_test_user
+        _current_test_user = employee_user
+
+        from core.models import AgentProposal, ProposalType, ProposalStatus, TrainingSession
+        from datetime import datetime, timezone
+
+        student = _make_student(db_session)
+        proposal = AgentProposal(
+            tenant_id="default", user_id=employee_user.id, agent_id=student.id,
+            agent_name=student.name, proposal_type=ProposalType.WORKFLOW.value,
+            proposal_data={}, status=ProposalStatus.APPROVED.value,
+            title="p", description="d",
+        )
+        db_session.add(proposal)
+        db_session.commit()
+        session = TrainingSession(
+            tenant_id="default", proposal_id=proposal.id, agent_id=student.id,
+            agent_name=student.name, status="in_progress", supervisor_id="sup-1",
+            supervisor_guidance={}, started_at=datetime.now(timezone.utc),
+        )
+        db_session.add(session)
+        db_session.commit()
+
+        resp = client.post(f"/api/agents/{student.id}/teach", json={
+            "lesson": "Log the recipient before sending", "topic": "email",
+        })
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["status"] == "ok"
+
+        db_session.refresh(session)
+        taught = session.supervisor_guidance["lessons_taught"]
+        assert taught[0]["lesson"] == "Log the recipient before sending"
+        assert taught[0]["topic"] == "email"

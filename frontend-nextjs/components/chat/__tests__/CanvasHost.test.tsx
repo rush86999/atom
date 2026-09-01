@@ -72,8 +72,12 @@ jest.mock('@/components/canvas/InteractiveForm', () => ({
 }));
 
 const mockApiPost = jest.fn();
+const mockApiPut = jest.fn();
 jest.mock('@/lib/api', () => ({
-  apiClient: { post: (...args: any[]) => mockApiPost(...args) },
+  apiClient: {
+    post: (...args: any[]) => mockApiPost(...args),
+    put: (...args: any[]) => mockApiPut(...args),
+  },
 }));
 
 // Use the mockFetch that setup.ts exports on global scope
@@ -437,11 +441,15 @@ describe('CanvasHost (extended coverage)', () => {
       fireEvent.click(screen.getByText('Save Changes'));
     });
 
-    expect(fetchSpy).toHaveBeenCalled();
-    const [url, init] = fetchSpy.mock.calls[0];
-    expect(String(url)).toContain('/api/artifacts/update');
-    expect(String(init.body)).toContain('"metadata"');
-    expect(String(init.body)).toContain('c@d.com');
+    // Email persists to the canvas audit trail (PUT /api/canvas/{id}) with
+    // the full {to, cc, subject, body} dict — not the legacy artifacts
+    // store, which loses To/Cc/Subject on refresh. cc comes from the
+    // present payload (this canvas has none) and stays empty.
+    expect(mockApiPut).toHaveBeenCalledWith(
+      '/api/canvas/canvas-9?canvas_type=email&title=Draft',
+      JSON.stringify({ to: 'c@d.com', cc: '', subject: 'Hi', body: 'Body text' }),
+      expect.objectContaining({ headers: { 'Content-Type': 'application/json' } }),
+    );
 
     alertSpy.mockRestore();
     confirmSpy.mockRestore();
@@ -661,5 +669,48 @@ describe('CanvasHost (extended coverage)', () => {
       fireEvent.click(screen.getByText('Save Changes'));
     });
     expect(global.fetch).toHaveBeenCalled();
+  });
+});
+
+describe('CanvasHost event-frame guard (draft-clobber regression)', () => {
+  // Regression 2026-08-31: the email_send status broadcast was applied as
+  // canvas content — the drafted email vanished from the panel, replaced by
+  // {status, payload} JSON. Event frames must never render as content.
+  const sendStatusFrame = {
+    type: 'canvas:update',
+    data: {
+      action: 'email_send',
+      canvas_id: 'c-email-1',
+      canvas_type: 'email',
+      component: 'email',
+      data: { status: 'failed', payload: { to: ['mark@x.ca'], cc: [], subject: 'Re: Quote' } },
+    },
+  };
+
+  test('ignores an email_send status frame entirely (no content clobber)', () => {
+    const { container } = render(<CanvasHost lastMessage={sendStatusFrame} />);
+    // The status payload must not appear as rendered canvas content
+    expect(container.innerHTML).not.toContain('email_send');
+    expect(container.innerHTML).not.toContain('"failed"');
+    expect(container.innerHTML).toBe('');
+  });
+
+  test('a real content frame after the status frame still renders', () => {
+    const { rerender } = render(<CanvasHost lastMessage={sendStatusFrame} />);
+    rerender(
+      <CanvasHost
+        lastMessage={{
+          type: 'canvas:update',
+          data: {
+            action: 'update',
+            canvas_id: 'c-email-1',
+            component: 'email',
+            title: 'Draft',
+            data: { to: 'mark@x.ca', cc: '', subject: 'Re: Quote', body: 'Hi Mark,' },
+          },
+        }}
+      />
+    );
+    expect(screen.getByText('Draft')).toBeInTheDocument();
   });
 });

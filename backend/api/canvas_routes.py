@@ -296,6 +296,30 @@ async def update_canvas_content(
     return result
 
 
+@router.post("/{canvas_id}/restore")
+async def restore_canvas_version(
+    canvas_id: str,
+    body: Dict[str, Any],
+    current_user: User = Depends(get_current_user)
+):
+    """Restore an earlier version from the audit trail.
+
+    Body: {"audit_id": "<canvas_audit.id>"}. The restore is APPENDED as a new
+    version (append-only trail — nothing is rewritten), and broadcasts the
+    same WS update as an ordinary edit, so open canvases converge live.
+    """
+    from tools.canvas_crud_tool import restore_canvas_version as restore_fn
+
+    audit_id = (body or {}).get("audit_id")
+    if not audit_id:
+        raise HTTPException(status_code=400, detail="audit_id is required")
+    result = await restore_fn(str(current_user.id), canvas_id, str(audit_id))
+    if not result.get("success"):
+        status = 404 if "not found" in str(result.get("error", "")).lower() else 400
+        raise HTTPException(status_code=status, detail=result.get("error"))
+    return result
+
+
 @router.delete("/{canvas_id}")
 async def delete_canvas(
     canvas_id: str,

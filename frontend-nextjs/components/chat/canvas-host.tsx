@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/router";
 import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText, Table2, Presentation, Maximize2 } from "lucide-react";
 import { marked } from "marked";
@@ -9,6 +9,8 @@ import Editor from "@monaco-editor/react";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import { useCanvasAutosave } from "@/hooks/useCanvasAutosave";
 import { saveCanvasAudit } from "@/lib/canvasAuditSave";
+import { onCanvasRefresh } from "@/lib/canvasSync";
+import { isCanvasContentFrame } from "@/lib/canvasFrame";
 import { CANVAS } from "@/src/lib/testIds";
 import { LineChartCanvas } from "@/components/canvas/LineChart";
 import { BarChartCanvas } from "@/components/canvas/BarChart";
@@ -16,7 +18,8 @@ import { PieChartCanvas } from "@/components/canvas/PieChart";
 import { InteractiveForm } from "@/components/canvas/InteractiveForm";
 import { OfficeFileCanvas } from "@/components/canvas/OfficeFileCanvas";
 import { CanvasTypeBadge } from "@/components/canvas/CanvasTypeBadge";
-import { persistCanvasTypeSwitch, switchCanvasType, type SwitchableCanvasType } from "@/components/canvas/canvasType";
+import { persistCanvasTypeSwitch, switchCanvasType, normalizeCanvasComponent, type SwitchableCanvasType } from "@/components/canvas/canvasType";
+import { CanvasVersionHistory } from "@/components/canvas/CanvasVersionHistory";
 
 interface CanvasState {
     id?: string;
@@ -49,63 +52,10 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
     const [emailMetadata, setEmailMetadata] = useState({ to: "", subject: "" });
     const [sheetData, setSheetData] = useState<any[][]>([]);
     const [showPreview, setShowPreview] = useState(false);
-
-    useEffect(() => {
-        if (!lastMessage) return;
-
-        // Check for canvas event type
-        if (lastMessage.type === "canvas:update" || lastMessage.type === "canvas:present") {
-            // Backend broadcasts carry `canvas_id` (tools/canvas_tool.py); the
-            // chat flow may carry `id` — accept either so state registration
-            // and form submission always know the canvas id.
-            const { action, component, data, title, id, canvas_id, version, metadata } = lastMessage.data || lastMessage;
-
-            if (action === "close") {
-                // Closing supersedes local edits — drop any pending autosave
-                // so its timer can't write afterwards.
-                resetAutosave();
-                setState(null);
-            } else {
-                // BUG FIX: `data` can be undefined for data-less canvas messages
-                // (e.g. an empty status panel). Reading `data.content` crashed the
-                // effect, which also made CanvasContent's "No data to display"
-                // guard unreachable. Use optional chaining instead.
-                const content = typeof data === 'string' ? data : (data?.content || JSON.stringify(data, null, 2));
-
-                // Autosave echo-guard: PUT /api/canvas/{id} (the audit save
-                // path) broadcasts the just-saved content back over WS.
-                // Applying that echo verbatim would reset the editor to the
-                // saved snapshot and drop any keystrokes typed after the
-                // autosave fired — skip it; local state stays authoritative.
-                if (lastSavedSigRef.current !== null && `${component || ""}|${content}` === lastSavedSigRef.current) {
-                    return;
-                }
-                // A new payload supersedes local edits — drop any pending
-                // autosave so its timer can't re-write the superseded content.
-                resetAutosave();
-                localContentRef.current = content;
-
-                setState({
-                    id: id || canvas_id,
-                    visible: true,
-                    component: component === 'eval' ? 'code' : (component || "markdown"),
-                    title,
-                    data,
-                    version
-                });
-
-                if (component === "email" && metadata) {
-                    setEmailMetadata({ to: metadata.to || "", subject: metadata.subject || "" });
-                }
-
-                if (component === "sheet") {
-                    setSheetData(Array.isArray(data) ? data : (data.rows || [["", "", ""], ["", "", ""]]));
-                }
-
-                setHasUnsavedChanges(false);
-            }
-        }
-    }, [lastMessage]);
+    // Version-history + restore panel (shared CanvasVersionHistory — every
+    // canvas type, both host surfaces). Only meaningful for audit-trail
+    // canvases (state.id present).
+    const [showHistory, setShowHistory] = useState(false);
 
     // Native audit-trail content per type + the WS echo signature. Null →
     // this type's content shape is backend-owned (charts, office files,
@@ -217,6 +167,87 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
         flush: flushAutosave,
         reset: resetAutosave,
     } = useCanvasAutosave({ save: handleSave });
+
+    // Apply one canvas:update / canvas:present frame — whether it arrived
+    // over the WebSocket or via a local store-sync (lib/canvasSync, the
+    // convergence pass for chat turns that co-edited this canvas). One
+    // guarded path for both, so a missed WS broadcast converges identically.
+    const applyCanvasMessage = useCallback((msg: any) => {
+        if (!msg) return;
+
+        // Check for canvas event type
+        if (msg.type === "canvas:update" || msg.type === "canvas:present") {
+            // Backend broadcasts carry `canvas_id` (tools/canvas_tool.py); the
+            // chat flow may carry `id` — accept either so state registration
+            // and form submission always know the canvas id.
+            const frame = msg.data || msg;
+            const { action, data, title, id, canvas_id, version, metadata } = frame;
+            // canvas_type names ("sheets"/"docs"/"coding"/"generic") map onto
+            // the component names this host renders (normalizeCanvasComponent).
+            const component = normalizeCanvasComponent(frame.component);
+
+            if (action === "close") {
+                // Closing supersedes local edits — drop any pending autosave
+                // so its timer can't write afterwards.
+                resetAutosave();
+                setState(null);
+            } else {
+                // Event/status broadcasts (email_send, mini_app_state, …)
+                // declare via `action` that `data` is NOT canvas content.
+                // Rendering them as content replaced the user's draft with
+                // {status, payload} JSON (observed live 2026-08-31: a failed
+                // send made the open email draft vanish from the panel).
+                if (!isCanvasContentFrame(frame)) return;
+                // BUG FIX: `data` can be undefined for data-less canvas messages
+                // (e.g. an empty status panel). Reading `data.content` crashed the
+                // effect, which also made CanvasContent's "No data to display"
+                // guard unreachable. Use optional chaining instead.
+                const content = typeof data === 'string' ? data : (data?.content || JSON.stringify(data, null, 2));
+
+                // Autosave echo-guard: PUT /api/canvas/{id} (the audit save
+                // path) broadcasts the just-saved content back over WS.
+                // Applying that echo verbatim would reset the editor to the
+                // saved snapshot and drop any keystrokes typed after the
+                // autosave fired — skip it; local state stays authoritative.
+                if (lastSavedSigRef.current !== null && `${component || ""}|${content}` === lastSavedSigRef.current) {
+                    return;
+                }
+                // A new payload supersedes local edits — drop any pending
+                // autosave so its timer can't re-write the superseded content.
+                resetAutosave();
+                localContentRef.current = content;
+
+                setState({
+                    id: id || canvas_id,
+                    visible: true,
+                    component: (component === 'eval' ? 'code' : normalizeCanvasComponent(component)) as CanvasState["component"],
+                    title,
+                    data,
+                    version
+                });
+
+                if (component === "email" && metadata) {
+                    setEmailMetadata({ to: metadata.to || "", subject: metadata.subject || "" });
+                }
+
+                if (component === "sheet") {
+                    setSheetData(Array.isArray(data) ? data : (data.rows || [["", "", ""], ["", "", ""]]));
+                }
+
+                setHasUnsavedChanges(false);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [resetAutosave]);
+
+    useEffect(() => {
+        if (lastMessage) applyCanvasMessage(lastMessage);
+    }, [lastMessage, applyCanvasMessage]);
+
+    // Local store-sync convergence (lib/canvasSync): a chat turn flagged as a
+    // canvas edit/action re-broadcasts the audit-trail content here, covering
+    // the missed-WS-broadcast case (dead socket / throttled tab).
+    useEffect(() => onCanvasRefresh((detail) => applyCanvasMessage(detail.message)), [applyCanvasMessage]);
 
     const handleSendEmail = async () => {
         if (!emailMetadata.to.trim()) {
@@ -483,7 +514,12 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
 
             <div className="p-2 border-t flex justify-between items-center px-4 bg-zinc-50 dark:bg-slate-900/30">
                 <div className="flex gap-4">
-                    <button className="text-[10px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center gap-1 transition-colors">
+                    <button
+                        onClick={() => setShowHistory(!showHistory)}
+                        disabled={!state.id}
+                        title="Version history"
+                        className="text-[10px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
                         <History className="h-3 w-3" /> History
                     </button>
                     {(state.component === "markdown" || state.component === "document" || state.component.startsWith("office_")) && (
@@ -519,6 +555,24 @@ export function CanvasHost({ lastMessage, sessionId }: CanvasHostProps) {
                     )
                 )}
             </div>
+
+            {/* Version history + restore — shared with /canvas/{id}; a restore
+                appends a new version and syncs every host via lib/canvasSync */}
+            {showHistory && state.id && (
+                <div className="absolute inset-x-3 bottom-12 top-12 z-40 bg-background border border-zinc-200 dark:border-white/10 rounded-lg shadow-lg overflow-y-auto">
+                    <div className="p-3 border-b flex justify-between items-center">
+                        <h3 className="text-sm font-semibold">Version History</h3>
+                        <button
+                            onClick={() => setShowHistory(false)}
+                            aria-label="Close history"
+                            className="h-6 w-6 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                        >
+                            <X className="h-3.5 w-3.5 mx-auto text-zinc-500" />
+                        </button>
+                    </div>
+                    <CanvasVersionHistory canvasId={state.id} />
+                </div>
+            )}
         </div>
     );
 }

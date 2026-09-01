@@ -53,7 +53,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { authHeaders } from "@/lib/auth-headers";
+import { authHeaders, getAuthToken } from "@/lib/auth-headers";
 
 interface Microsoft365User {
     id: string;
@@ -288,6 +288,11 @@ const Microsoft365Integration: React.FC = () => {
         profile: false,
     });
     const [connected, setConnected] = useState(false);
+    // Consent-scope gap: tokens minted before a permission joined the OAuth
+    // request (e.g. Mail.Send) keep the old scope set forever — refreshes
+    // never expand scopes, and every send 403s until a reconnect re-consents.
+    const [scopeWarning, setScopeWarning] = useState<string | null>(null);
+    const [disconnecting, setDisconnecting] = useState(false);
     const [healthStatus, setHealthStatus] = useState<
         "healthy" | "error" | "unknown"
     >("unknown");
@@ -321,6 +326,7 @@ const Microsoft365Integration: React.FC = () => {
 
     // Check connection status
     const checkConnection = async () => {
+        let isConnected = false;
         try {
             // Real per-integration connection state (DB connections + OAuth
             // grants + env credentials). The /health route is a liveness probe
@@ -329,7 +335,7 @@ const Microsoft365Integration: React.FC = () => {
             if (response.ok) {
                 const data = await response.json().catch((): null => null);
                 const providers = data?.data?.providers ?? data?.providers ?? {};
-                const isConnected = providers?.microsoft365?.connected === true;
+                isConnected = providers?.microsoft365?.connected === true;
                 setConnected(isConnected);
                 setHealthStatus(isConnected ? "healthy" : "error");
                 if (isConnected) {
@@ -348,6 +354,79 @@ const Microsoft365Integration: React.FC = () => {
             console.error("Connection status check failed:", error);
             setConnected(false);
             setHealthStatus("error");
+        }
+        // Consent-scope audit: an active grant can still be missing a
+        // permission that was added to the OAuth request later. Surface it
+        // here so the fix is one click instead of a mysterious send 403.
+        try {
+            const tokRes = await authFetch("/api/v1/auth/oauth/tokens?provider=microsoft", {
+                headers: authHeaders(),
+            });
+            if (tokRes.ok) {
+                const tokData = await tokRes.json().catch((): null => null);
+                const grant = (tokData?.integrations ?? []).find(
+                    (i: { provider: string; status: string }) =>
+                        i.provider === "microsoft" && i.status === "active",
+                );
+                const scope: string = grant?.scope ?? "";
+                const grantsMailSend = scope
+                    .split(/\s+/)
+                    .some((s) => s.split("/").pop()?.toLowerCase() === "mail.send");
+                if (isConnected && grant && !grantsMailSend) {
+                    setScopeWarning(
+                        "Missing Mail.Send permission — reconnect to grant it, or email sends will fail.",
+                    );
+                } else {
+                    setScopeWarning(null);
+                }
+            }
+        } catch {
+            // Grant lookup is advisory — never block the page.
+        }
+    };
+
+    // Canonical Microsoft connect: the /v1 OAuth flow mints state bound to
+    // the JWT's user and requests the CURRENT scope set (incl. Mail.Send).
+    // The old /api/integrations/microsoft365/auth/start route never existed
+    // on the backend — connecting through it silently did nothing.
+    const startMicrosoftConnect = () => {
+        const token = getAuthToken();
+        window.location.href = `/api/v1/auth/oauth/microsoft/authorize?token=${encodeURIComponent(token ?? "")}`;
+    };
+
+    const disconnectMicrosoft = async () => {
+        if (
+            !window.confirm(
+                "Disconnect Microsoft 365? Outlook email, calendar, and OneDrive access stop until you reconnect.",
+            )
+        )
+            return;
+        setDisconnecting(true);
+        try {
+            const res = await authFetch("/api/v1/auth/oauth/tokens/microsoft", {
+                method: "DELETE",
+                headers: authHeaders(),
+            });
+            if (res.ok || res.status === 404) {
+                setConnected(false);
+                setScopeWarning(null);
+                setUserProfile(null);
+                toast({
+                    title: "Microsoft 365 disconnected",
+                    description: "Reconnect any time — the consent screen re-grants the current permissions.",
+                });
+            } else {
+                toast({
+                    title: "Disconnect failed",
+                    description: `The server returned ${res.status}. Try again.`,
+                    variant: "destructive",
+                });
+            }
+        } catch (error) {
+            console.error("Disconnect failed:", error);
+            toast({ title: "Disconnect failed", variant: "destructive" });
+        } finally {
+            setDisconnecting(false);
         }
     };
 
@@ -455,21 +534,26 @@ const Microsoft365Integration: React.FC = () => {
                 {
                     method: "POST",
                     headers: authHeaders({ "Content-Type": "application/json" }),
+                    // Backend contract (integrations/outlook_routes.py
+                    // EmailSendRequest — /api/integrations/microsoft365 is
+                    // an alias of the outlook router): to_recipients /
+                    // cc_recipients are LISTS OF STRINGS and body is a
+                    // plain string. This modal previously posted the Graph
+                    // API shape (to: [{address}], body: {contentType,
+                    // content}) — every send 422'd before reaching Outlook.
                     body: JSON.stringify({
                         user_id: "current",
-                        to: newEmail.to
+                        to_recipients: newEmail.to
                             .split(",")
-                            .map((email) => ({ address: email.trim() })),
+                            .map((email) => email.trim())
+                            .filter(Boolean),
                         subject: newEmail.subject,
-                        body: {
-                            contentType: "text",
-                            content: newEmail.body,
-                        },
-                        importance: newEmail.importance,
-                        cc: newEmail.cc
+                        body: newEmail.body,
+                        cc_recipients: newEmail.cc
                             ? newEmail.cc
-                                .split(",")
-                                .map((email) => ({ address: email.trim() }))
+                                  .split(",")
+                                  .map((email) => email.trim())
+                                  .filter(Boolean)
                             : [],
                     }),
                 },
@@ -756,7 +840,43 @@ const Microsoft365Integration: React.FC = () => {
                             <RefreshCw className="mr-2 w-3 h-3" />
                             Refresh Status
                         </Button>
+                        {connected && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={startMicrosoftConnect}
+                                    title="Re-run the Microsoft consent screen — grants the current permission set (fixes missing Mail.Send)"
+                                >
+                                    Reconnect
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={disconnecting}
+                                    onClick={disconnectMicrosoft}
+                                    className="text-destructive hover:text-destructive"
+                                >
+                                    {disconnecting ? "Disconnecting…" : "Disconnect"}
+                                </Button>
+                            </>
+                        )}
                     </div>
+
+                    {connected && scopeWarning && (
+                        <div className="flex items-start space-x-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>
+                                {scopeWarning}{" "}
+                                <button
+                                    className="font-semibold underline"
+                                    onClick={startMicrosoftConnect}
+                                >
+                                    Reconnect now
+                                </button>
+                            </span>
+                        </div>
+                    )}
 
                     {userProfile && (
                         <div className="flex items-center space-x-4">
@@ -789,10 +909,7 @@ const Microsoft365Integration: React.FC = () => {
                                 <Button
                                     size="lg"
                                     className="bg-[#0078D4] hover:bg-[#005a9e]"
-                                    onClick={() =>
-                                    (window.location.href =
-                                        "/api/integrations/microsoft365/auth/start")
-                                    }
+                                    onClick={startMicrosoftConnect}
                                 >
                                     <ArrowRight className="mr-2 w-4 h-4" />
                                     Connect Microsoft 365 Account

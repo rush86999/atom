@@ -954,3 +954,42 @@ winning_path = tree.search(params)
 - **Pruning Rules**: Low-engagement patterns eliminated early
 - **Learning**: Negative constraints avoid presentation styles users dislike
 - **Personalization**: Winning paths adapt to individual user preferences
+
+---
+
+## Work-time lesson application (implemented Aug 31, 2026)
+
+> Previously: lessons were STORED (confidence score grew) but never shown
+> to the agent when it worked — the loop documented above stopped at
+> capture. As of this change the loop closes.
+
+**The permanent-learning contract**: a lesson taught once shapes every
+later chat turn, canvas edit, and task execution — at ANY maturity tier.
+Lessons survive graduation (STUDENT → intern → supervised → autonomous);
+that persistence is what makes a trained agent stay trained.
+
+**Storage** (unchanged): `AgentRegistry.configuration["learning"]["log"]`
+— teacher lessons (`POST /api/agents/{id}/teach`) + observed
+`human_correction` events. Both count as standing guidance; plain event
+observations (approvals, workflow runs) do not.
+
+**Retrieval + injection** (three work-time surfaces, all general):
+
+| Surface | Where | Mechanism |
+|---|---|---|
+| All chat (canvas co-editor panel, agent chat, IM) | `core/memory_context_assembler.py` `_lessons_leg` | First block of RELEVANT MEMORY — standing instructions can't be tail-truncated |
+| Task execution (every registered agent) | `core/generic_agent.py` `_execute_impl` + `_react_step` | `memory_context["lessons"]` → MEMORY CONTEXT prompt section |
+| Canvas co-editor edits (every canvas app/type) | `core/chat_canvas_editor.py` `plan_canvas_edit(lessons=)` via `ChatOrchestrator._agent_lessons` | Planner prompt binds lessons to the preservation duty (never revert supervisor edits) |
+
+**Accessors** (`core/student_learning_service.py`):
+`get_agent_lessons(db, agent_id, query, limit=5)` — fault-isolated,
+newest-first, keyword-relevance vs the current task;
+`format_lessons_block(lessons)` — bounded render with permanence framing.
+
+**Not applied to sends by design**: the action planner sends canvas
+content VERBATIM; lessons shape drafts at edit time. (Research note,
+Aug 31 2026: this matches Letta/MemGPT "core memory blocks" — small,
+bounded, always-in-context distilled guidance — and CLAUDE.md-style
+imperative/bounded instruction guidance. Poisoning caveat: lessons are
+human-gated writes; keep it that way. See
+`docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md` addendum.)

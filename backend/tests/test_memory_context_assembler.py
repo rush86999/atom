@@ -42,6 +42,15 @@ def test_bounded_lines_skips_empty():
     assert _bounded_lines(["", "ok"], cap=100) == "- ok"
 
 
+@pytest.fixture(autouse=True)
+def _stub_lessons_leg():
+    """Keep the taught-lessons leg hermetic by default (it opens its own DB
+    session). Tests that exercise the leg patch mca._lessons_leg themselves
+    and win for the duration."""
+    with patch.object(mca, "_lessons_leg", AsyncMock(return_value="")):
+        yield
+
+
 @pytest.mark.asyncio
 async def test_all_legs_rendered(monkeypatch):
     monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
@@ -578,3 +587,66 @@ def test_resolve_agent_role_maps_category_lowercased():
     with patch("core.database.SessionLocal", side_effect=RuntimeError("db down")):
         assert mca_mod._resolve_agent_role("agent-1") is None
     assert mca_mod._resolve_agent_role(None) is None
+
+
+# ─────────────────────── taught-lessons leg ───────────────────────
+
+@pytest.mark.asyncio
+async def test_lessons_leg_rendered_first(monkeypatch):
+    """Permanent taught lessons render as the FIRST block: they are standing
+    instructions from the agent's own training and must not be the part cut
+    by the total-budget tail truncation."""
+    monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
+    lessons_block = (
+        "TRAINING LESSONS — PERMANENT INSTRUCTIONS you were taught:\n"
+        "1. [tone] Address the client as Dr. Reyes"
+    )
+
+    async def fake_lessons(message, agent_id):
+        assert agent_id == "hire-1"
+        return lessons_block
+
+    async def fake_graph(message, ws, tn):
+        return "graph context"
+
+    with patch.object(mca, "_lessons_leg", fake_lessons), \
+         patch.object(mca, "_graph_leg", fake_graph), \
+         patch.object(mca, "_knowledge_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_integration_records_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_episodes_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_facts_leg", AsyncMock(return_value=[])):
+        block = await assemble_memory_context("anything", agent_id="hire-1")
+
+    assert block is not None
+    assert "TRAINING LESSONS" in block
+    assert block.index("TRAINING LESSONS") < block.index("KNOWLEDGE GRAPH CONTEXT")
+
+
+@pytest.mark.asyncio
+async def test_lessons_leg_failure_isolated(monkeypatch):
+    """A raising lessons leg yields no block; the rest still render."""
+    monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
+
+    async def boom(*a, **k):
+        raise RuntimeError("registry down")
+
+    async def fine_graph(message, ws, tn):
+        return "graph context here"
+
+    with patch.object(mca, "_lessons_leg", boom), \
+         patch.object(mca, "_graph_leg", fine_graph), \
+         patch.object(mca, "_knowledge_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_integration_records_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_episodes_leg", AsyncMock(return_value=[])), \
+         patch.object(mca, "_facts_leg", AsyncMock(return_value=[])):
+        block = await assemble_memory_context("anything")
+
+    assert block is not None
+    assert "graph context here" in block
+    assert "TRAINING LESSONS" not in block
+
+
+@pytest.mark.asyncio
+async def test_lessons_leg_skipped_without_agent():
+    """No operating agent (platform turn) → no lessons leg at all."""
+    assert await mca._lessons_leg("hello", None) == ""

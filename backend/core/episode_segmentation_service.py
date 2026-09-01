@@ -439,6 +439,17 @@ class EpisodeSegmentationService:
         try:
             from core.models import AgentEpisode
 
+            # The agent's REAL confidence — a hardcoded 0.5 here fed the
+            # readiness confidence factor (0.2 weight at INTERN) a constant
+            # unrelated to how the hire is actually doing.
+            _agent_row = (
+                self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+            )
+            _real_confidence = (
+                float(_agent_row.confidence_score)
+                if _agent_row is not None and _agent_row.confidence_score is not None
+                else 0.5
+            )
             self.db.add(AgentEpisode(
                 id=episode_id,
                 agent_id=agent_id,
@@ -448,7 +459,7 @@ class EpisodeSegmentationService:
                 maturity_at_time=episode.get("maturity_at_time") or "student",
                 constitutional_score=episode.get("constitutional_score"),
                 human_intervention_count=episode.get("human_intervention_count") or 0,
-                confidence_score=0.5,
+                confidence_score=_real_confidence,
                 outcome="success" if episode_outcome in ("success", "completed") else (episode_outcome or "partial"),
                 success=episode_outcome in ("success", "completed"),
                 status="completed",

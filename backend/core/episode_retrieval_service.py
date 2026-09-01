@@ -9,6 +9,7 @@ Provides four retrieval modes:
 """
 
 from datetime import datetime, timedelta, timezone
+import asyncio
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -204,11 +205,17 @@ class EpisodeRetrievalService:
 
         # Search LanceDB
         try:
-            results = self.lancedb.search(
-                table_name="episodes",
-                query=query,
-                filter_str=filter_str,
-                limit=limit
+            # to_thread: lancedb.search embeds the query via the sync
+            # embed_text shim, which no-ops in the event-loop thread — inline
+            # here, the semantic leg silently returned [] on every async
+            # caller. A worker thread embeds fine.
+            results = await asyncio.to_thread(
+                lambda: self.lancedb.search(
+                    table_name="episodes",
+                    query=query,
+                    filter_str=filter_str,
+                    limit=limit
+                )
             )
 
             # Fetch full episode details from PostgreSQL
@@ -656,11 +663,14 @@ class EpisodeRetrievalService:
 
         # Search LanceDB with canvas filter
         try:
-            results = self.lancedb.search(
-                table_name="episodes",
-                query=query,
-                filter_str=f"agent_id == '{agent_id}'{canvas_filter}",
-                limit=limit
+            # to_thread — same sync-embed shim as retrieve_semantic above.
+            results = await asyncio.to_thread(
+                lambda: self.lancedb.search(
+                    table_name="episodes",
+                    query=query,
+                    filter_str=f"agent_id == '{agent_id}'{canvas_filter}",
+                    limit=limit
+                )
             )
 
             # Fetch episode details

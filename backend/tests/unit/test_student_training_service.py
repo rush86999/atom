@@ -654,3 +654,121 @@ class TestSelectScenarioTemplate:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "-s"])
+
+
+# =============================================================================
+# Test Class: Session Evidence Window
+# =============================================================================
+
+
+class TestGetSessionEvidence:
+    """get_session_evidence — the evidence counter the training panel shows."""
+
+    def test_completed_session_window_excludes_later_episodes(self, training_service, training_session, test_agent, db):
+        """A COMPLETED session's evidence window closes at completion_time:
+        episodes recorded afterwards belong to later work and must not keep
+        inflating the completed session's displayed counts (the panel showed
+        evidence the session was never graded on)."""
+        start = datetime.now(timezone.utc) - timedelta(hours=2)
+        end = datetime.now(timezone.utc) - timedelta(hours=1)
+        training_session.started_at = start
+        training_session.completed_at = end
+
+        for started_at in (start + timedelta(minutes=30), end + timedelta(minutes=30)):
+            db.add(AgentEpisode(
+                agent_id=test_agent.id,
+                tenant_id="default",
+                maturity_at_time="student",
+                outcome="success",
+                success=True,
+                status="completed",
+                started_at=started_at,
+            ))
+        db.commit()
+
+        evidence = training_service.get_session_evidence(training_session)
+        assert evidence["episodes"] == 1  # only the in-window episode
+
+        # Same session while still active (no completed_at): both count —
+        # the completion gate keeps its full window.
+        training_session.completed_at = None
+        evidence = training_service.get_session_evidence(training_session)
+        assert evidence["episodes"] == 2
+
+
+class TestRecordSessionLesson:
+    """Lessons taught MID-SESSION must land in that session's training
+    record (guidance.lessons_taught), not only in the learning journal."""
+
+    def test_appends_to_active_session_guidance(self, training_service, training_session, test_agent):
+        assert training_service.record_session_lesson(
+            test_agent.id, "Keep refund emails short", "refunds"
+        ) is True
+
+        training_service.db.refresh(training_session)
+        taught = training_session.supervisor_guidance["lessons_taught"]
+        assert taught[0]["lesson"] == "Keep refund emails short"
+        assert taught[0]["topic"] == "refunds"
+        assert taught[0]["at"]
+
+    def test_returns_false_without_active_session(self, training_service, training_session, test_agent):
+        training_session.status = "completed"
+        training_service.db.commit()
+
+        assert training_service.record_session_lesson(test_agent.id, "late lesson") is False
+
+
+class TestRealTimeGovernanceCacheInvalidation:
+    """Maturity/confidence mutations in the training circuit must drop the
+    GovernanceCache snapshot (trigger path caches it for 5 minutes) so the
+    NEXT gated decision sees the updated agent in real time."""
+
+    def test_completion_invalidates_governance_cache(self, training_service, training_session, test_agent, monkeypatch):
+        _seed_session_evidence(db=training_service.db, agent_id=test_agent.id)
+        invalidated = []
+
+        class _Cache:
+            def invalidate_agent(self, agent_id):
+                invalidated.append(agent_id)
+
+        import core.governance_cache as gc_mod
+        monkeypatch.setattr(gc_mod, "get_governance_cache", lambda: _Cache())
+
+        outcome = TrainingOutcome(
+            performance_score=0.85,
+            supervisor_feedback="Good session",
+            errors_count=0,
+            tasks_completed=3,
+            total_tasks=3,
+            capabilities_developed=[],
+            capability_gaps_remaining=[],
+        )
+        import asyncio
+
+        asyncio.get_event_loop().run_until_complete(
+            training_service.complete_training_session(training_session.id, outcome)
+        )
+        assert set(invalidated) == {test_agent.id}
+
+    def test_promotion_invalidates_governance_cache(self, db, test_agent, monkeypatch):
+        from core.agent_graduation_service import AgentGraduationService
+        import core.governance_cache as gc_mod
+
+        test_agent.confidence_score = 0.8
+        db.commit()
+        invalidated = []
+
+        class _Cache:
+            def invalidate_agent(self, agent_id):
+                invalidated.append(agent_id)
+
+        monkeypatch.setattr(gc_mod, "get_governance_cache", lambda: _Cache())
+
+        import asyncio
+
+        asyncio.get_event_loop().run_until_complete(
+            AgentGraduationService(db).promote_agent(test_agent.id, "INTERN", "supervisor-1")
+        )
+        assert set(invalidated) == {test_agent.id}
+        db.refresh(test_agent)
+        assert test_agent.status == "intern"

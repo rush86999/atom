@@ -558,7 +558,13 @@ async def get_canvas_training_context(
     # Draft/role canvases carry no session stamp, and a canvas linked to a
     # COMPLETED round may coexist with a newer active one — the panel shows
     # the session currently being trained, falling back to the linked one.
+    # The linked session is only valid for the RESOLVED agent: falling back
+    # to another agent's session (hint/audit resolved hire A, linkage found
+    # hire B's session) would let the supervisor edit and complete B's
+    # session under A's name — shown data must match the shown agent.
     session = linked
+    if session is not None and agent is not None and session.agent_id != agent.id:
+        session = None
     if session is None or (session.status or "").lower() not in _ACTIVE_SESSION_STATUSES:
         active = None
         if agent is not None:
@@ -571,7 +577,11 @@ async def get_canvas_training_context(
                 .order_by(TrainingSession.started_at.desc())
                 .first()
             )
-        session = active or linked
+        session = active or (
+            linked
+            if linked is not None and (agent is None or linked.agent_id == agent.id)
+            else None
+        )
 
     pending_proposal = None
     if agent is not None:
@@ -617,13 +627,54 @@ async def get_canvas_training_context(
             "created_at": p.created_at.isoformat() if p.created_at else None,
         }
 
+    def _teaching_points(a: AgentRegistry) -> List[Dict[str, Any]]:
+        """The agent's learning journal — every teaching point it was given
+        (mentor lessons + absorbed observations), newest first. This is the
+        read side of POST /api/agents/{id}/teach, which previously had no
+        surface: the Training tab could teach but never show what was taught.
+        """
+        config = a.configuration if isinstance(a.configuration, dict) else {}
+        learning = config.get("learning") if isinstance(config.get("learning"), dict) else {}
+        log = learning.get("log") if isinstance(learning, dict) else None
+        if not isinstance(log, list):
+            return []
+        points: List[Dict[str, Any]] = []
+        for entry in log:
+            if not isinstance(entry, dict):
+                continue
+            source = str(entry.get("source") or "teacher")
+            if source == "observation":
+                points.append(
+                    {
+                        "source": "observation",
+                        "topic": str(entry.get("observation_type") or "general"),
+                        "text": str(entry.get("summary") or ""),
+                        "learned_at": entry.get("learned_at"),
+                    }
+                )
+            else:
+                points.append(
+                    {
+                        "source": "teacher",
+                        "topic": str(entry.get("topic") or "general"),
+                        "text": str(entry.get("lesson") or ""),
+                        "learned_at": entry.get("learned_at"),
+                        "teacher_agent_id": entry.get("teacher_agent_id"),
+                    }
+                )
+        points.sort(key=lambda p: p.get("learned_at") or "", reverse=True)
+        return points[:50]
+
     return {
         "canvas_id": canvas_id,
         "agent": (
             {
                 "id": agent.id,
                 "name": agent.name,
-                "tier": agent.status,
+                # Normalized lowercase: the stored status may be uppercase
+                # (API clients write "STUDENT"); tier drives tier badges and
+                # next-tier lookups on the panel and the header hire badge.
+                "tier": (agent.status or "student").lower(),
                 "confidence": agent.confidence_score,
                 "domain": (agent.category or "").lower(),
             }
@@ -633,6 +684,7 @@ async def get_canvas_training_context(
         "linked_session": _session_payload(session) if session is not None else None,
         "pending_proposal": _proposal_payload(pending_proposal) if pending_proposal else None,
         "viewer_is_supervisor": viewer_is_supervisor,
+        "teaching_points": _teaching_points(agent) if agent is not None else [],
     }
 
 

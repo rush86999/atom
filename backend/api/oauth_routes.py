@@ -635,6 +635,10 @@ async def list_oauth_tokens(
                 "status": "active" if t.is_active else "revoked",
                 "expires_at": t.access_token_expires_at.isoformat() if t.access_token_expires_at else None,
                 "last_used": t.last_used_at.isoformat() if t.last_used_at else None,
+                # Consent grant scope — lets the UI detect missing permissions
+                # (e.g. Mail.Send added to the request after the token was
+                # minted; refreshes never expand scopes).
+                "scope": getattr(t, "scope", "") or "",
             } for t in tokens
         ]
     }

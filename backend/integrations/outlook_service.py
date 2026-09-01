@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import re
 import asyncio
 import aiohttp
 from typing import Dict, List, Optional, Any
@@ -143,6 +144,40 @@ class OutlookService(IntegrationService):
         raw_tenant = config.get("tenant_id") or os.getenv("MICROSOFT_TENANT_ID") or os.getenv("AZURE_TENANT_ID") or os.getenv("OUTLOOK_TENANT_ID")
         self.tenant_id_config = raw_tenant if raw_tenant and raw_tenant not in ("default", "none", "") else "common"
         self.redirect_uri = config.get("redirect_uri") or os.getenv("OUTLOOK_REDIRECT_URI") or os.getenv("AZURE_REDIRECT_URI")
+        # Populated when an operation fails for a diagnosable connection
+        # reason (e.g. a consent grant that predates a newly-requested
+        # scope). Callers surface it so users see "reconnect Outlook"
+        # instead of a bare Graph 403.
+        self.last_send_error: Optional[Dict[str, Any]] = None
+
+    async def _get_connection_scope(self, user_id: str) -> Optional[str]:
+        """The consent grant's scope string for this user's active Outlook
+        token, or None when unknown (no row / no scope recorded)."""
+        try:
+            from core.database import get_db_session
+            from core.models import IntegrationToken
+
+            with get_db_session() as db:
+                record = db.query(IntegrationToken).filter(
+                    IntegrationToken.user_id == user_id,
+                    IntegrationToken.provider.in_(["outlook", "microsoft"]),
+                    IntegrationToken.status == "active",
+                ).first()
+                return (record.scope or "").strip() if record else None
+        except Exception as e:
+            logger.debug(f"Could not read connection scope for {user_id}: {e}")
+            return None
+
+    @staticmethod
+    def _scope_grants(scope_string: str, permission: str) -> bool:
+        """True when `permission` (e.g. 'Mail.Send') is in a Graph scope
+        string. Entries are either bare ('mail.send') or fully qualified
+        ('https://graph.microsoft.com/Mail.Send'); the check matches the
+        permission name on the segment after the last '/'."""
+        for entry in (scope_string or "").split():
+            if entry.rsplit("/", 1)[-1].lower() == permission.lower():
+                return True
+        return False
 
     async def _get_access_token(self, user_id: str) -> Optional[str]:
         """Get access token for user from database"""
@@ -420,6 +455,36 @@ class OutlookService(IntegrationService):
             logger.error(f"Error getting user emails: {e}")
             return []
 
+    _HTML_TAG_RE = re.compile(
+        r"<\s*/?\s*(p|br|div|span|ul|ol|li|h[1-6]|hr|table|a|b|i|strong|em|u|font)\b",
+        re.IGNORECASE,
+    )
+
+    @staticmethod
+    def _body_to_html(body: str) -> str:
+        """Plain text → HTML for Graph's /me/sendMail.
+
+        The payload is ALWAYS declared contentType "HTML", but every caller
+        passes editor/textarea text — newlines collapse into one blob in
+        Outlook (observed 2026-09-01: a multi-line draft arrived as a wall
+        of text). Conversion is LINE-AWARE so a plain-text draft with a
+        styled HTML signature appended (CanvasPanel applySignature) keeps
+        both: lines containing HTML tags pass through verbatim, plain lines
+        are escaped and joined with <br>.
+        """
+        import html as _html
+
+        text = str(body or "")
+        lines = text.splitlines()
+        if not any(OutlookService._HTML_TAG_RE.search(ln) for ln in lines):
+            escaped = _html.escape(text)
+            return "<br>".join(escaped.splitlines()) or escaped
+        converted = [
+            ln if OutlookService._HTML_TAG_RE.search(ln) else _html.escape(ln)
+            for ln in lines
+        ]
+        return "<br>".join(converted)
+
     async def send_email(
         self,
         user_id: str,
@@ -431,7 +496,34 @@ class OutlookService(IntegrationService):
         token: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Send email via Outlook"""
+        self.last_send_error = None
         try:
+            # Consent check before the wire call: /me/sendMail needs the
+            # Mail.Send delegated permission, which is SEPARATE from
+            # Mail.ReadWrite. Tokens minted before Mail.Send was added to
+            # the OAuth request (refreshes never expand scopes) got Graph
+            # 403 ErrorAccessDenied with no hint why. Fail fast with the
+            # reconnect instruction instead. Skipped when the caller passed
+            # an explicit token (scope unknown) or the grant string is
+            # absent (legacy rows — let Graph decide).
+            if not token:
+                scope_string = await self._get_connection_scope(user_id)
+                if scope_string and not self._scope_grants(scope_string, "Mail.Send"):
+                    logger.error(
+                        f"Outlook send blocked for {user_id}: consent grant is missing "
+                        f"Mail.Send (scope: {scope_string}) — reconnect Outlook to fix"
+                    )
+                    self.last_send_error = {
+                        "error": (
+                            "Your Outlook connection is missing the Mail.Send permission. "
+                            "Reconnect Outlook in Settings → Integrations to grant it, "
+                            "then send again."
+                        ),
+                        "needs_reconnect": True,
+                        "missing_scope": "Mail.Send",
+                    }
+                    return None
+
             # Prepare recipients
             to_recipients_data = [
                 {"emailAddress": {"address": email}} for email in to_recipients
@@ -446,7 +538,8 @@ class OutlookService(IntegrationService):
             email_data = {
                 "message": {
                     "subject": subject,
-                    "body": {"contentType": "HTML", "content": body},
+                    "body": {"contentType": "HTML",
+                             "content": self._body_to_html(body)},
                     "toRecipients": to_recipients_data,
                     "ccRecipients": cc_recipients_data,
                     "bccRecipients": bcc_recipients_data,

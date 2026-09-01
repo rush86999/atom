@@ -404,12 +404,26 @@ class AgentGovernanceService:
         if not agent:
             raise handle_not_found("Agent", agent_id)
 
+        # Continuous learning keys the agent_learning row on
+        # feedback.tenant_id; leaving it NULL failed the NOT NULL insert
+        # on EVERY submission, so learning counters never persisted.
+        # Polarity mirrors into the dedicated columns for the same reason:
+        # update_from_feedback counts positive/negative via feedback_type
+        # ("approval"/"correction"), and the route only carries the raw
+        # thumbs token in user_correction.
+        correction_token = (user_correction or "").strip().lower()
         feedback = AgentFeedback(
             agent_id=agent_id,
+            tenant_id=self.workspace_id or "default",
             user_id=user_id,
             original_output=original_output,
             user_correction=user_correction,
             input_context=input_context,
+            feedback_type={
+                "thumbs_up": "approval",
+                "thumbs_down": "correction",
+            }.get(correction_token),
+            thumbs_up_down={"thumbs_up": True, "thumbs_down": False}.get(correction_token),
             status=FeedbackStatus.PENDING.value
         )
         self.db.add(feedback)

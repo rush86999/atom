@@ -38,6 +38,14 @@ const TIER_BADGE_CLASS: Record<string, string> = {
   autonomous: "bg-green-100 text-green-800",
 };
 
+const TEACHING_PREVIEW_COUNT = 5;
+
+function formatPointDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
 /**
  * Training panel for the canvas page — the supervisor (or any teacher)
  * trains the agent ON the canvas they are co-editing:
@@ -95,6 +103,9 @@ export function TrainingPanel({
   // Graduation
   const [promoteBusy, setPromoteBusy] = useState(false);
 
+  // Teaching points journal (collapsible when long)
+  const [showAllTeaching, setShowAllTeaching] = useState(false);
+
   const load = useCallback(async () => {
     setError(null);
     try {
@@ -130,7 +141,9 @@ export function TrainingPanel({
   const tier = (agent?.tier || "student").toLowerCase();
   const nextTier = NEXT_TIER[tier];
 
-  // Lesson plan draft follows the loaded session (panel refreshes swap it).
+  // Lesson plan draft follows the loaded SESSION (panel refreshes of the
+  // same session must not clobber unsaved edits — the plan object is
+  // re-created on every fetch, so keying on it reset the draft each load).
   useEffect(() => {
     const plan = (session?.lesson_plan ?? {}) as Record<string, unknown>;
     const tasks = Array.isArray(plan.tasks) ? (plan.tasks as string[]) : [];
@@ -139,7 +152,8 @@ export function TrainingPanel({
       tasks: tasks.join("\n"),
     });
     setCompletion(null);
-  }, [session?.id, session?.lesson_plan]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id]);
 
   // Readiness (supervisors only — the promote decision needs it).
   useEffect(() => {
@@ -173,6 +187,8 @@ export function TrainingPanel({
       );
       setLesson("");
       setTopic("");
+      // The journal below should show the point just taught — refresh.
+      if (status === "ok") await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -569,6 +585,53 @@ export function TrainingPanel({
             </div>
             <p className="text-[10px] text-muted-foreground">Learning grows confidence, but only training + graduation confer maturity.</p>
           </div>
+
+          {/* Teaching points — the journal of everything the hire was given:
+              mentor lessons (the Teach form above) and absorbed observations. */}
+          {agent && (ctx?.teaching_points?.length ?? 0) > 0 && (
+            <div className="border rounded-lg p-2.5 space-y-2" data-testid="teaching-points-section">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium">Teaching points</p>
+                <span className="text-[10px] text-muted-foreground" data-testid="teaching-points-count">
+                  {ctx?.teaching_points?.length} recorded
+                </span>
+              </div>
+              {(showAllTeaching
+                ? ctx?.teaching_points ?? []
+                : (ctx?.teaching_points ?? []).slice(0, TEACHING_PREVIEW_COUNT)
+              ).map((tp, i) => (
+                <div key={i} className="border rounded px-2 py-1.5 space-y-0.5" data-testid="teaching-point">
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                    <span
+                      className={`px-1 rounded ${
+                        tp.source === "observation"
+                          ? "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                      }`}
+                    >
+                      {tp.source === "observation" ? "observed" : "taught"}
+                    </span>
+                    {tp.topic && tp.topic !== "general" && <span className="truncate">· {tp.topic}</span>}
+                    {tp.learned_at && <span className="ml-auto shrink-0">{formatPointDate(tp.learned_at)}</span>}
+                  </div>
+                  <p className="text-[11px] whitespace-pre-line break-words">
+                    {tp.text.length > 280 ? `${tp.text.slice(0, 280)}…` : tp.text}
+                  </p>
+                </div>
+              ))}
+              {(ctx?.teaching_points?.length ?? 0) > TEACHING_PREVIEW_COUNT && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[11px]"
+                  onClick={() => setShowAllTeaching((v) => !v)}
+                  data-testid="teaching-points-toggle"
+                >
+                  {showAllTeaching ? "Show less" : `Show all ${ctx?.teaching_points?.length}`}
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Graduation (supervisor) */}
           {isSupervisor && (

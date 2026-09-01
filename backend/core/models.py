@@ -5598,7 +5598,12 @@ class AgentEpisode(Base):
     maturity_at_time = Column(String(50), nullable=False)  # student, intern, supervised, autonomous
 
     # Constitutional compliance metrics
-    constitutional_score = Column(Float, default=1.0)  # 0.0 to 1.0
+    # No Python-side default: an episode that never MEASURED compliance must
+    # persist as NULL ("no compliance credit recorded" — the readiness
+    # scorer renormalizes over recorded values only). A 1.0 default stamped
+    # a perfect score on every unmeasured episode and handed the
+    # constitutional readiness factor (0.25 weight at INTERN) free credit.
+    constitutional_score = Column(Float, nullable=True)  # 0.0 to 1.0
     human_intervention_count = Column(Integer, default=0)
     confidence_score = Column(Float, default=0.5)  # 0.0 to 1.0
 

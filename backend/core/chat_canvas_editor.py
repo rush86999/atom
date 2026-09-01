@@ -77,6 +77,17 @@ class CanvasEditPlan(BaseModel):
     reply: str = ""
 
 
+class CanvasPlanUnavailable(Exception):
+    """The planning LLM call failed (provider down / timeout / no JSON).
+
+    Distinct from ``None`` (a legitimate "this turn is not an edit"): callers
+    must NOT fall through to generic intent routing on this — an edit-shaped
+    request misfiled into TASK_MANAGEMENT produces a chat reply claiming the
+    edit succeeded while the canvas never changed (observed live 2026-08-31:
+    "Append this exact line … LIVEUPDATEcheck456" answered with a false
+    success, no audit row, no broadcast)."""
+
+
 _EDITOR_SYSTEM = """You are the canvas editor for an AI co-editing panel.
 The user is chatting next to an OPEN canvas whose current content is shown
 below. Decide whether their latest message asks you to CHANGE that canvas
@@ -105,6 +116,11 @@ the authority, NOT your memory of earlier drafts:
   EXACTLY the same shape as the current content (same keys, same types),
   and every part unrelated to the request must stay IDENTICAL to the
   current content. Never return a fragment or an explanation.
+- RECENT VERSIONS (when present in the prompt) hold earlier drafts of this
+  canvas. To go back to one, return edit_mode="replace" copying that
+  version's content VERBATIM from the section — then apply any extra change
+  the user asked for on top. Never invent text for a version that isn't
+  shown; if none matches what the user describes, say so instead of guessing.
 - Remove meta-commentary ("Here's your draft...", "Want me to adjust...")
   from the content itself — the canvas holds only the artifact.
 - Send/dispatch requests ("send it", "email it to Mark", "try sending
@@ -143,23 +159,41 @@ def _serialize_content(content: Any) -> str:
 
 def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
     """Recent turns, user AND agent lines: follow-ups like "now make it
-    shorter" and "update the draft based on your findings" hang off earlier
-    requests AND the agent's own replies — the findings ("WFS is a dealer")
-    live in the agent's message, not the user's. Error turns are skipped:
-    flagged failure artifacts must not anchor the plan."""
-    lines: List[str] = []
+    shorter", "update the draft based on your findings", and "apply what you
+    just showed me" hang off earlier requests AND the agent's own replies —
+    the draft the user is referring to often IS the last agent reply (a
+    proposal shown in chat, never applied to the canvas). That reply therefore
+    gets a generous budget: truncating it to a fragment made "update the
+    canvas" unactionable — the model saw "We car…" and refused to apply a
+    draft it couldn't read (observed live 2026-08-31). Older replies stay
+    brief. Error turns are skipped: flagged failure artifacts must not anchor
+    the plan."""
+    turns: List[tuple] = []
     for h in (history or [])[-8:]:
         h = h or {}
         u = str(h.get("message") or "").strip()
         if u:
-            lines.append(f"User: {u[:200]}")
+            turns.append(("user", u))
         if h.get("error"):
             continue
         resp = h.get("response")
         a = str((resp or {}).get("message") if isinstance(resp, dict) else (resp or "")).strip()
         if a:
-            lines.append(f"Agent: {a[:300]}")
-    lines.append(f"User: {current[:600]}")
+            turns.append(("agent", a))
+    turns.append(("user", current))
+
+    # The LAST agent reply in the window carries the proposal the user most
+    # likely means ("update the canvas" → apply it); give it room.
+    last_agent_idx = max((i for i, (role, _) in enumerate(turns) if role == "agent"), default=None)
+    lines: List[str] = []
+    for i, (role, text) in enumerate(turns):
+        if role == "user":
+            budget = 600 if i == len(turns) - 1 else 200
+            lines.append(f"User: {text[:budget]}")
+        else:
+            budget = 2400 if i == last_agent_idx else 300
+            trimmed = text[:budget] + ("…(trimmed)" if len(text) > budget else "")
+            lines.append(f"Agent: {trimmed}")
     return "\n".join(lines)
 
 
@@ -296,28 +330,124 @@ def _corrections_section(corrections: Optional[List[Dict[str, Any]]]) -> str:
     )
 
 
+# Per-version content budget in the planner prompt. Four trimmed versions cost
+# ~3k chars on top of the 6k current-content cap — enough to diff against and
+# copy verbatim, without crowding out the current content.
+_VERSION_CHARS = 800
+
+
+def _lessons_section(lessons: Optional[List[Dict[str, Any]]]) -> str:
+    """The operating agent's PERMANENT taught lessons (TrainingPanel /teach,
+    mentor lessons, observed human corrections), as planner-visible standing
+    instructions. Storage alone only moved a confidence score — this section
+    is what makes a taught lesson shape the edit it should have been shaping,
+    for every agent and every canvas app/type. Reuses the shared renderer so
+    all work-time surfaces carry the same permanence framing."""
+    if not lessons:
+        return ""
+    try:
+        from core.student_learning_service import format_lessons_block
+
+        block = format_lessons_block(lessons)
+    except Exception as e:  # fault-isolated like every other section
+        logger.debug(f"lessons section skipped: {e}")
+        return ""
+    if not block:
+        return ""
+    return (
+        block + "\nApply these lessons to THIS edit: match the taught "
+        "preferences in style, structure, and content — subject to the "
+        "preservation rules above (never revert the supervisor's manual "
+        "edits or any current-content part the request doesn't touch).\n\n"
+    )
+
+
+def _versions_section(
+    versions: Optional[List[Dict[str, Any]]],
+    current: Any,
+) -> str:
+    """Earlier drafts of THIS canvas (newest first, from the append-only audit
+    trail), so the planner can diff against what it is about to change and
+    RESTORE an earlier version verbatim when asked — the recovery path that
+    was impossible before (observed live: an overwrite left the agent unable
+    to go back, and it had to tell the user so). Versions identical to the
+    current content are dropped; everything is trimmed to _VERSION_CHARS."""
+    if not versions:
+        return ""
+    if isinstance(current, str):
+        current_key = current
+    else:
+        try:
+            current_key = json.dumps(current, sort_keys=True, default=str)
+        except Exception:
+            current_key = str(current)
+
+    lines: List[str] = []
+    for v in versions or []:
+        if len(lines) >= 4:
+            break
+        v = v or {}
+        content = v.get("content")
+        if content is None:
+            continue
+        if isinstance(content, str):
+            text = content
+            content_key = content
+        else:
+            text = json.dumps(content, default=str)
+            try:
+                content_key = json.dumps(content, sort_keys=True, default=str)
+            except Exception:
+                content_key = text
+        if content_key == current_key:
+            continue  # that IS the current content — nothing to restore
+        when = (v.get("created_at") or "earlier").replace("T", " ")[:19]
+        actor = v.get("actor") or "unknown"
+        title = f", title: {v['title']}" if v.get("title") else ""
+        trimmed = text[:_VERSION_CHARS] + ("…(trimmed)" if len(text) > _VERSION_CHARS else "")
+        lines.append(f"[{when} — {actor}{title}]\n{trimmed}")
+
+    if not lines:
+        return ""
+    return (
+        "RECENT VERSIONS of this canvas (newest first, trimmed). If the user asks to go "
+        "back to / restore / revert to an earlier version or their original draft, pick "
+        "the version they mean and return edit_mode=\"replace\" with that version's "
+        "content VERBATIM — then apply any additional change they asked for on top. "
+        "Never invent text for a version that isn't shown here; if none matches, say so.\n"
+        + "\n---\n".join(lines) + "\n\n"
+    )
+
+
 async def plan_canvas_edit(
     message: str,
     history: List[Dict[str, Any]],
     canvas: Dict[str, Any],
     llm_service: Any,
     corrections: Optional[List[Dict[str, Any]]] = None,
+    versions: Optional[List[Dict[str, Any]]] = None,
+    lessons: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[CanvasEditPlan]:
     """Decide (via cheap structured LLM output) whether this turn edits the
     open canvas, and produce the edit — patch ops by default, complete
-    content for explicit rewrites. ``corrections`` are the supervisor's
-    recent on-canvas edits of this canvas (the RLHF signal, returned to the
-    point of generation). Patch ops are validated against the current
-    content here: a mis-copied "find" gets ONE re-ask in replace mode
-    (still under the preservation duty) rather than a broken write.
-    Returns None on any failure — the caller then falls through to the
-    conversational path."""
+    content for explicit rewrites. ``corrections`` are the supervisor's recent
+    on-canvas edits of this canvas (the RLHF signal, returned to the point of
+    generation). ``versions`` are earlier drafts from the audit trail (see
+    _versions_section) — the go-back/restore path. ``lessons`` are the
+    operating agent's permanent taught lessons (see _lessons_section) — the
+    work-time application of /teach, general across agents and canvas apps.
+    Patch ops are validated against the current content here: a mis-copied
+    "find" gets ONE re-ask in replace mode (still under the preservation
+    duty) rather than a broken write. Returns None on any failure — the
+    caller then falls through to the conversational path."""
     if llm_service is None or not canvas.get("canvas_id"):
         return None
 
     prompt = (
         f"{_EDITOR_SYSTEM}\n\n"
+        f"{_lessons_section(lessons)}"
         f"{_corrections_section(corrections)}"
+        f"{_versions_section(versions, canvas.get('content'))}"
         f"Canvas type: {canvas.get('canvas_type') or 'generic'}\n"
         f"Current canvas content:\n{_serialize_content(canvas.get('content'))}\n\n"
         f"Recent conversation:\n{_history_transcript(history, message)}\n\n"
@@ -341,20 +471,36 @@ async def plan_canvas_edit(
         temperature=0.0,
         **kwargs,
     )
-    if plan is None or not plan.wants_edit:
+    if plan is None:
+        # The structured call failed outright (all providers/timeout) — a
+        # planning INFRASTRUCTURE failure, not "not an edit". Raise so the
+        # caller answers honestly instead of routing an edit request into
+        # generic intent handling (false-success claims, junk tasks).
+        raise CanvasPlanUnavailable(
+            "canvas edit planning LLM returned no plan (provider failure)"
+        )
+    if not plan.wants_edit:
         return plan
 
     # Patch validation: ops must match the current content EXACTLY. A
     # failed match discards the ops (never a partial write) and re-asks once
     # for complete content — the user's request still lands, without
-    # guess-based fuzzy matching corrupting the artifact.
+    # guess-based fuzzy matching corrupting the artifact. A replace plan with
+    # NO ops and NO content is degenerate (the model committed to an edit it
+    # couldn't produce — observed live when the draft it needed had been
+    # truncated out of its context) and gets the same one re-ask instead of
+    # sailing into apply just to be discarded.
+    reask_reason = None
     if plan.ops:
         _, failed = _apply_patch_ops(canvas.get("content"), plan.ops)
-        if not failed:
-            return plan
+        if failed:
+            reask_reason = f"{len(failed)}/{len(plan.ops)} patch op(s) failed to match"
+    elif not (plan.updated_content_json or "").strip():
+        reask_reason = "replace plan carried no ops and no content"
+
+    if reask_reason:
         logger.info(
-            f"canvas edit: {len(failed)}/{len(plan.ops)} patch op(s) failed to "
-            f"match — falling back to a replace-mode re-ask"
+            f"canvas edit: {reask_reason} — falling back to a replace-mode re-ask"
         )
         replan = await llm_service.generate_structured_response(
             prompt=f"{prompt}\n\n{_REPLACE_FALLBACK_SUFFIX}",
@@ -363,7 +509,13 @@ async def plan_canvas_edit(
             temperature=0.0,
             **kwargs,
         )
-        if replan is None or not replan.wants_edit:
+        if replan is None:
+            # First call proved this IS an edit; the re-ask dying is an
+            # infrastructure failure — same honest-failure treatment.
+            raise CanvasPlanUnavailable(
+                "canvas edit replace re-ask LLM returned no plan (provider failure)"
+            )
+        if not replan.wants_edit:
             return None
         # Only a usable replace plan rescues the turn; another broken patch
         # set does not — fall through to conversation instead of guessing.
@@ -380,15 +532,40 @@ async def plan_canvas_edit(
 def _decode_replace_content(plan: CanvasEditPlan, current: Any) -> Optional[Any]:
     """Decode replace-mode content. If the model returned a bare string for
     a canvas whose content IS a plain string (markdown/doc bodies), a failed
-    JSON parse still yields a usable value — accept it only for that shape."""
+    JSON parse still yields a usable value — accept it only for that shape.
+
+    Structured providers still hand back the JSON-encoded string field with
+    markdown fences (or prose) around the object — observed live as
+    "updated_content_json is not valid JSON — discarding", which threw away
+    a real edit and sent the turn into the slow conversational fallback.
+    Strip fences and extract the outermost JSON value before giving up."""
     raw = (plan.updated_content_json or "").strip()
+    if not raw:
+        # Defensive stop: the planner now re-asks before a content-less
+        # replace plan gets here. Quietly unusable — not a "not valid JSON"
+        # scenario (that warning sent debugging down the wrong path once).
+        logger.debug("canvas edit: replace plan carried no content")
+        return None
+    # Strip ```json / ``` fences the model wraps around the payload.
+    fence = re.match(r"^```[a-zA-Z0-9]*\s*\n(.*?)\n?```\s*$", raw, re.DOTALL)
+    if fence:
+        raw = fence.group(1).strip()
     try:
         return json.loads(raw)
     except (json.JSONDecodeError, ValueError):
-        if isinstance(current, str):
-            return raw
-        logger.warning("canvas edit: updated_content_json is not valid JSON — discarding")
-        return None
+        # One salvage pass: the outermost {...} / [...] in the text.
+        for opener, closer in (("{", "}"), ("[", "]")):
+            start = raw.find(opener)
+            end = raw.rfind(closer)
+            if start != -1 and end > start:
+                try:
+                    return json.loads(raw[start:end + 1])
+                except (json.JSONDecodeError, ValueError):
+                    continue
+    if isinstance(current, str):
+        return raw
+    logger.warning("canvas edit: updated_content_json is not valid JSON — discarding")
+    return None
 
 
 async def apply_canvas_edit(
@@ -447,6 +624,7 @@ class CanvasActionPlan(BaseModel):
     wants_action: bool = False
     action: Optional[str] = None  # "send_email" (extensible)
     to: Optional[str] = None      # recipient(s), comma/semicolon separated
+    cc: Optional[str] = None      # cc recipient(s), comma/semicolon separated
     subject: Optional[str] = None
     body: Optional[str] = None    # full email body; defaults to canvas content
     reply: str = ""
@@ -464,6 +642,8 @@ Rules:
   rewriting, questions, discussion → wants_action=false.
 - ``to``: the recipient(s) from the message (emails or names). Empty if the
   message doesn't say — never invent addresses.
+- ``cc``: any CC recipients named in the message OR in the canvas content's
+  "cc" field (comma-separated string). Empty if none — never invent.
 - ``subject``: from the message or the canvas title; empty if unclear.
 - ``body``: the canvas draft content VERBATIM — it may hold manual edits by
   the user that outrank anything in the conversation. Do NOT rewrite,

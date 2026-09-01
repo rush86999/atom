@@ -77,5 +77,12 @@ export async function submitStepFeedback(
     comment: payload.comment,
     execution_id: payload.executionId,
     step_number: payload.stepNumber,
+  }, {
+    // No silent retry storm: the shared interceptor retries timeouts up to
+    // 4×, so a stalled backend held the UI ~47s before the error notice —
+    // and a late 200 arriving after the client had aborted recorded
+    // feedback the UI had already reported as failed. Surface the outcome
+    // of the first attempt and let the user decide to retry.
+    retry: false,
   });
 }

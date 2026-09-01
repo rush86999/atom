@@ -354,3 +354,52 @@ class TestProviderHealthMonitor:
         score = monitor2.get_health_score('test')
 
         assert score > 0.9, "Singleton should persist state"
+
+    # ───────────── connection-failure circuit breaker (Aug 31) ─────────────
+    # Observed live: the AtlasCloud ollama endpoint was connection-dead all
+    # day, but connection errors never reached the health monitor (the
+    # dispatch paths `continue`d before recording), so the provider kept
+    # ranking on free-tier value and EVERY LLM call stage re-paid the full
+    # connect-timeout retry cascade — chat turns ran minutes long and the
+    # browser timed out ("Could not reach the agent") while the backend
+    # finished later. The breaker benches such providers fast.
+
+    def test_breaker_opens_after_consecutive_connection_failures(self):
+        monitor = ProviderHealthMonitor()
+        assert monitor.is_breaker_open("dead") is False
+
+        # Threshold is 1: a single connection failure benches the provider
+        # immediately — the first turn after a gateway dies must already
+        # fail over fast (observed: multi-minute turns while every LLM stage
+        # re-paid the connect-timeout cascade on a dead endpoint).
+        monitor.record_call("dead", success=False, latency_ms=8000, connection_failure=True)
+        assert monitor.is_breaker_open("dead") is True
+
+    def test_breaker_ignores_non_connection_failures(self):
+        monitor = ProviderHealthMonitor()
+        for _ in range(5):
+            monitor.record_call("flaky", success=False, latency_ms=100.0)
+        assert monitor.is_breaker_open("flaky") is False
+
+    def test_success_resets_streak_and_closes_breaker(self):
+        monitor = ProviderHealthMonitor()
+        monitor.record_call("p", success=False, latency_ms=50.0, connection_failure=True)
+        monitor.record_call("p", success=False, latency_ms=50.0, connection_failure=True)
+        assert monitor.is_breaker_open("p") is True
+
+        monitor.record_call("p", success=True, latency_ms=50.0)
+        assert monitor.is_breaker_open("p") is False
+
+        # Threshold 1: a fresh connection failure re-opens immediately —
+        # fail-fast beats optimism for a gateway that just died again.
+        monitor.record_call("p", success=False, latency_ms=50.0, connection_failure=True)
+        assert monitor.is_breaker_open("p") is True
+
+    def test_breaker_half_open_after_cooldown(self):
+        monitor = ProviderHealthMonitor()
+        monitor.record_call("p", success=False, latency_ms=50.0, connection_failure=True)
+        monitor.record_call("p", success=False, latency_ms=50.0, connection_failure=True)
+        assert monitor.is_breaker_open("p") is True
+
+        monitor._breaker_open_until["p"] = 0.0  # cooldown long elapsed
+        assert monitor.is_breaker_open("p") is False  # half-open: attempt allowed

@@ -1490,6 +1490,70 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"canvas corrections lookup skipped: {e}")
             return []
 
+    def _agent_lessons(self, agent_id: Optional[str], query: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """The operating hire's PERMANENT taught lessons (TrainingPanel /teach,
+        mentor lessons, observed human corrections) for the edit plan. Teaching
+        stored the lesson but nothing fed it back at work time — this is the
+        retrieval half, applied to the canvas co-editor for every agent and
+        every canvas app. Fault-isolated like the corrections lookup: [] on
+        any failure, never blocks the edit."""
+        if not agent_id:
+            return []
+        try:
+            from core.database import get_db_session
+            from core.student_learning_service import get_agent_lessons
+
+            with get_db_session() as db:
+                return get_agent_lessons(db, agent_id, query=query, limit=limit)
+        except Exception as e:
+            logger.debug(f"agent lessons lookup skipped: {e}")
+            return []
+
+    def _recent_canvas_versions(
+        self, user_id: str, canvas_id: Any, limit: int = 4, scan: int = 15
+    ) -> List[Dict[str, Any]]:
+        """Earlier versions of this canvas from the append-only audit trail —
+        bounded snapshots the co-editor can diff against, or copy VERBATIM when
+        the user asks to go back ("restore my previous draft"). Newest first;
+        the caller trims the list and drops the entry equal to the current
+        content. Fault-isolated like the corrections lookup: [] on any failure,
+        never blocks the edit."""
+        if not canvas_id:
+            return []
+        try:
+            from core.database import get_db_session
+            from core.models import CanvasAudit
+            from sqlalchemy import desc
+
+            with get_db_session() as db:
+                rows = (
+                    db.query(CanvasAudit)
+                    .filter(
+                        CanvasAudit.canvas_id == str(canvas_id),
+                        CanvasAudit.action_type != "delete",
+                    )
+                    .order_by(desc(CanvasAudit.created_at))
+                    .limit(scan)
+                    .all()
+                )
+            versions: List[Dict[str, Any]] = []
+            for r in rows:
+                details = r.details_json or {}
+                content = details.get("content", details.get("data"))
+                if content is None:
+                    continue
+                versions.append({
+                    "audit_id": r.id,
+                    "created_at": r.created_at.isoformat() if r.created_at else None,
+                    "actor": "agent" if r.agent_id else "supervisor",
+                    "title": details.get("title"),
+                    "content": content,
+                })
+            return versions[:limit]
+        except Exception as e:
+            logger.debug(f"canvas versions lookup skipped: {e}")
+            return []
+
     async def _try_canvas_edit(
         self,
         message: str,
@@ -1504,19 +1568,60 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         module, persist it through canvas_crud_tool, and return the chat
         response. Returns None when the turn is NOT a canvas edit (or
         anything fails) — the normal conversational path then runs."""
-        from core.chat_canvas_editor import apply_canvas_edit, plan_canvas_edit
+        from core.chat_canvas_editor import (
+            CanvasPlanUnavailable,
+            apply_canvas_edit,
+            plan_canvas_edit,
+        )
 
         canvas = await self._refresh_canvas_from_store(user_id, canvas)
         corrections = self._recent_canvas_corrections(user_id, canvas.get("canvas_id"))
+        versions = self._recent_canvas_versions(user_id, canvas.get("canvas_id"))
+        lessons = self._agent_lessons(agent_id, message)
 
         try:
             plan = await asyncio.wait_for(
                 plan_canvas_edit(
                     message, history, canvas, self.llm_service,
                     corrections=corrections,
+                    versions=versions,
+                    lessons=lessons,
                 ),
                 timeout=30,
             )
+        except (CanvasPlanUnavailable, asyncio.TimeoutError) as e:
+            # Planning infrastructure failed (LLM provider down / timeout).
+            # Fall-through here is what produced the worst observed failure:
+            # the intent router misfiled edit-shaped requests into
+            # TASK_MANAGEMENT ("Handled: True") and the reply claimed a
+            # change the canvas never received. Answer honestly instead —
+            # the canvas is untouched and the user can just retry.
+            logger.warning(
+                f"canvas edit planning unavailable for {canvas.get('canvas_id')}: {e} — "
+                f"replying honestly instead of falling through to conversation"
+            )
+            return {
+                "success": True,
+                "message": (
+                    "I couldn't reach the model I use to plan canvas edits "
+                    "just now, so nothing was changed. Please try again in a "
+                    "moment."
+                ),
+                "session_id": session_id,
+                "intent": "canvas_edit",
+                "confidence": 0.9,
+                "data": {
+                    "canvas_edit": {
+                        "canvas_id": canvas.get("canvas_id"),
+                        "updated": False,
+                        "plan_unavailable": True,
+                    }
+                },
+                "suggested_actions": [],
+                "requires_confirmation": False,
+                "next_steps": [],
+                "timestamp": datetime.now().isoformat(),
+            }
         except Exception as e:
             logger.warning(f"canvas edit planning skipped: {e}")
             return None
@@ -1546,8 +1651,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # signal (captured at PUT /api/canvas/{id} → record_user_correction →
         # AgentFeedback/RLHF → maturity growth → graduation).
         learning_mode = False
+        hitl_policy = False
         if agent_id:
             try:
+                from core.autonomy_policy import (
+                    MODE_AUTO_IF_MATURE,
+                    get_effective_mode,
+                    trust_check,
+                )
                 from core.database import get_db_session
                 from core.service_factory import ServiceFactory
 
@@ -1556,11 +1667,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     check = governance.can_perform_action(
                         agent_id=agent_id, action_type="update_canvas"
                     )
-                learning_mode = not check.get("allowed", True)
+                    # The owner's canvas_edit choice now bites on THIS path
+                    # (previously only the send path consulted the policy):
+                    # human_always forces proposal semantics even for a
+                    # mature hire, and (flag-on) unproven trust demotes the
+                    # edit to a proposal — the same gate_for_topic outcome
+                    # the Autonomy tab displays.
+                    mode = get_effective_mode(db, user_id, "canvas_edit")
+                    hitl_policy = mode != MODE_AUTO_IF_MATURE
+                    trust_ok = trust_check(db, agent_id, "canvas_edit")["ok"]
+                learning_mode = (
+                    not check.get("allowed", True)
+                    or hitl_policy
+                    or not trust_ok
+                )
                 await self._record_chat_step(
                     session_id, agent_id, execution_id, 2, "thought",
                     {"tool": "canvas_governance", "params": {"action": "update_canvas"}},
-                    f"maturity check: {'LEARNING MODE (proposal)' if learning_mode else 'allowed'}"
+                    f"gate: {'PROPOSAL' if learning_mode else 'allowed'}"
+                    f" (maturity={'fail' if not check.get('allowed', True) else 'ok'},"
+                    f" policy={'human_always' if hitl_policy else 'auto_if_mature'},"
+                    f" trust={'fail' if not trust_ok else 'ok'})"
                     f" — {str(check.get('reason', ''))[:120]}",
                 )
             except Exception as gov_err:
@@ -1568,7 +1695,39 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         result = await apply_canvas_edit(plan, user_id, canvas)
         if result is None:
-            return None
+            # The editor classified this as an edit but the write failed
+            # (mismatched patch target, undecodable replace payload, store
+            # rejection). Falling through to the conversational path here was
+            # the worst of both worlds, observed live: it chained the full
+            # planner+response pipeline (minutes) and then answered from
+            # conversation history with a FALSE success claim ("I've appended
+            # … the canvas is now updated") while the canvas never changed.
+            # Say what happened instead — immediately and honestly.
+            logger.warning(
+                f"canvas edit apply failed for {canvas.get('canvas_id')} — "
+                f"replying honestly instead of falling through to conversation"
+            )
+            return {
+                "success": True,
+                "message": (
+                    "I tried to make that edit but couldn't apply it cleanly "
+                    "to the current canvas — nothing was changed. Try rephrasing "
+                    "or pointing me at the exact text to change."
+                ),
+                "session_id": session_id,
+                "intent": "canvas_edit",
+                "confidence": 0.9,
+                "data": {
+                    "canvas_edit": {
+                        "canvas_id": canvas.get("canvas_id"),
+                        "updated": False,
+                    }
+                },
+                "suggested_actions": [],
+                "requires_confirmation": False,
+                "next_steps": [],
+                "timestamp": datetime.now().isoformat(),
+            }
 
         # Learning mode: file the proposal into the canvas's training
         # context so the correction diff (human edits the draft afterwards)
@@ -1589,7 +1748,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "type": "canvas_edit_proposal",
                             "agent_id": agent_id,
                             "instruction": message[:200],
-                            "learning_mode": True,
+                            "learning_mode": not hitl_policy,
+                            **({"human_always": True} if hitl_policy else {}),
                         },
                     )
             except Exception as learn_err:
@@ -1608,12 +1768,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "the new version is saved to its history)."
         )
         if learning_mode:
-            # Student voice: propose, invite correction — never claim authority.
-            reply = (
-                f"{reply}\n\n📝 I'm still learning canvas edits, so treat this as "
-                "my draft attempt — fix it right here on the canvas and I'll "
-                "learn from your changes."
-            )
+            if hitl_policy:
+                # Mature hire, but the owner demanded a human for canvas
+                # edits — proposal voice, not student voice.
+                reply = (
+                    f"{reply}\n\n🔒 Per your autonomy setting I don't apply edits "
+                    "on my own — this is my draft proposal for you to review and "
+                    "correct right here on the canvas."
+                )
+            else:
+                # Student voice: propose, invite correction — never claim authority.
+                reply = (
+                    f"{reply}\n\n📝 I'm still learning canvas edits, so treat this as "
+                    "my draft attempt — fix it right here on the canvas and I'll "
+                    "learn from your changes."
+                )
         logger.info(
             f"canvas co-editor edit applied: canvas={canvas.get('canvas_id')} "
             f"type={canvas.get('canvas_type')}"
@@ -1687,11 +1856,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         from core.autonomy_policy import (
             MODE_AUTO_IF_MATURE,
             get_effective_mode,
+            trust_check,
         )
         from core.database import get_db_session
+        from core.email_policy import APPROVE as EMAIL_APPROVE, evaluate_email_action
 
         mode = MODE_AUTO_IF_MATURE
         governance_allows = True
+        trust_allows = True
+        policy_decision = None
         try:
             with get_db_session() as db:
                 mode = get_effective_mode(db, user_id, "send_email")
@@ -1703,12 +1876,51 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         agent_id=agent_id, action_type="send_email"
                     )
                     governance_allows = bool(check.get("allowed", True))
+                    # Skill-scoped trust (R8): an unproven hire proposes even
+                    # when policy + maturity would allow the send. Neutral-pass
+                    # while the trust flag is off — legacy behavior unchanged.
+                    trust_allows = trust_check(db, agent_id, "send_email")["ok"]
+
+                # The email policy's APPROVE (e.g. external recipient on the
+                # egress allowlist) ALWAYS requires a human — for agent-initiated
+                # sends that means the HITL proposal flow, not transport.
+                # Previously this gate ran only inside EmailCanvasService AFTER
+                # the decision, so an agent send to an external recipient went
+                # straight to transport and would have DISPATCHED unapproved
+                # whenever the transport happened to work (observed 2026-08-31:
+                # only the missing Outlook Mail.Send consent prevented it).
+                # Deterministic + pure: safe to evaluate here, pre-execution.
+                if agent_id:
+                    body = (canvas.get("content") or {})
+                    if not isinstance(body, dict):
+                        body = {"body": str(body)}
+                    recipients = [
+                        r.strip()
+                        for r in (plan.to or "").replace(";", ",").split(",")
+                        if r.strip()
+                    ]
+                    policy_decision = evaluate_email_action(
+                        {
+                            "to": recipients,
+                            "cc": [],
+                            "subject": plan.subject or "",
+                            "body": plan.body or body.get("body", ""),
+                        },
+                        {"user_id": user_id, "agent_id": agent_id},
+                    )
         except Exception as e:
             logger.warning(f"canvas action gates skipped: {e}")
 
         # Gate outcomes → direct execution ONLY when policy allows autonomy
-        # AND the hire is mature enough. Everything else proposes (HITL).
-        needs_approval = (mode != MODE_AUTO_IF_MATURE) or not governance_allows
+        # AND the hire is mature enough AND trust clears the bar AND the
+        # email policy doesn't demand a human. Everything else proposes (HITL).
+        needs_approval = (
+            (mode != MODE_AUTO_IF_MATURE)
+            or not governance_allows
+            or not trust_allows
+            or (agent_id is not None and policy_decision is not None
+                and policy_decision.get("decision") == EMAIL_APPROVE)
+        )
         if not needs_approval:
             result = await self._execute_send_email(
                 plan, canvas, user_id, agent_id,
@@ -1746,7 +1958,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             (plan.reply or "Ready to send that email.").strip()
             + f"\n\n🔐 This needs your approval first"
             + (" (you've set email sends to always require a human)" if mode != MODE_AUTO_IF_MATURE
-               else " (the hire isn't mature enough to send autonomously yet)")
+               else " (the hire isn't mature enough to send autonomously yet)"
+               if not governance_allows
+               else " (the hire's verified trust hasn't earned autonomous sends yet)")
             + " — open the **Journey** tab to approve or reject it."
         )
         return {
@@ -1785,6 +1999,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             if not recipients:
                 logger.info("canvas action: no recipient in plan — falling through")
                 return None
+            # cc recipients named by the plan (extracted from the message or
+            # the canvas content) — previously hardcoded [] and dropped.
+            cc_emails = [
+                r.strip() for r in (plan.cc or "").replace(";", ",").split(",") if r.strip()
+            ]
             body = (plan.body or "").strip()
             if not body and isinstance(canvas.get("content"), dict):
                 body = str(canvas["content"].get("content") or "")
@@ -1797,7 +2016,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     canvas_id=str(canvas.get("canvas_id")),
                     user_id=user_id,
                     to_emails=recipients,
-                    cc_emails=[],
+                    cc_emails=cc_emails,
                     subject=plan.subject or (canvas.get("title") or ""),
                     body=body,
                     agent_id=agent_id,
@@ -1832,6 +2051,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
                     if agent_id else None
                 )
+                # cc recipients: what the plan extracted, falling back to the
+                # cc maintained on the canvas draft itself
+                canvas_content = canvas.get("content")
+                cc_line = (plan.cc or "").strip() or (
+                    str(canvas_content.get("cc") or "").strip()
+                    if isinstance(canvas_content, dict) else ""
+                )
                 proposal = AgentProposal(
                     tenant_id=(getattr(agent, "tenant_id", None) or "default"),
                     user_id=user_id,
@@ -1843,12 +2069,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     title=f"Send email: {plan.subject or (canvas.get('title') or 'draft')}",
                     description=(
                         f"Send the canvas draft by email.\n\nTo: {plan.to or '(not specified)'}\n"
-                        f"Subject: {plan.subject or '(canvas title)'}"
+                        + (f"Cc: {cc_line}\n" if cc_line else "")
+                        + f"Subject: {plan.subject or '(canvas title)'}"
                     ),
                     proposal_data={
                         "action_type": "send_email",
                         "canvas_id": str(canvas.get("canvas_id")),
                         "to": plan.to or "",
+                        "cc": cc_line,
                         "subject": plan.subject or "",
                         "body": plan.body or "",
                     },
@@ -2735,6 +2963,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # conversation isn't amnesiac after a restart. No-ops when
                 # history is already populated.
                 self._hydrate_session_history(session_id, existing)
+                self._ensure_session_row(session_id, existing, channel_id, thread_id)
             return self.conversation_sessions[session_id]
 
         # New session — create in-memory AND persist the ChatSession row.
@@ -2763,6 +2992,39 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         except Exception as e:
             logger.debug(f"Could not persist ChatSession row (non-fatal): {e}")
         return self.conversation_sessions[session_id]
+
+    def _ensure_session_row(
+        self, session_id: str, session: Dict[str, Any],
+        channel_id: Optional[str], thread_id: Optional[str],
+    ) -> None:
+        """Backfill the durable ChatSession row for a session that exists only
+        in memory. Legacy conversation ids (created before session-row
+        persistence, or where the insert failed) otherwise never appear in the
+        chat_sessions table — every episode-creation pass then logs
+        "Session … not found" and that conversation builds no episodic memory
+        (observed live 2026-08-31 on every turn of session aca15165…).
+        Idempotent: exits silently when the row already exists."""
+        if not self.session_manager:
+            return
+        try:
+            from core.database import get_db_session
+            from core.models import ChatSession as ChatSessionModel
+
+            with get_db_session() as db:
+                exists = db.query(ChatSessionModel.id).filter(
+                    ChatSessionModel.id == session_id
+                ).first()
+                if exists:
+                    return
+                self.session_manager.create_session(
+                    user_id=str(session.get("user_id") or "unknown"),
+                    session_id=session_id,
+                    channel_id=channel_id,
+                    thread_id=thread_id,
+                )
+                logger.info(f"Backfilled missing ChatSession row for {session_id}")
+        except Exception as e:
+            logger.debug(f"ChatSession row backfill skipped for {session_id}: {e}")
 
     def _update_session(self, session: Dict, message: str, response, intent: Dict):
         # Error-turn detection: a reply that is a known failure artifact (no

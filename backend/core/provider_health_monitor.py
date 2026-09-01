@@ -3,6 +3,7 @@ Provider Health Monitor
 Health tracking service for LLM provider API calls using Exponential Moving Average
 """
 import threading
+import time
 from collections import deque
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Tuple
@@ -21,7 +22,18 @@ class ProviderHealthMonitor:
 
     Uses sliding window (default 5 minutes) to prevent memory leaks
     and ensure health scores reflect recent performance.
+
+    Connection failures additionally drive a short circuit breaker: a provider
+    that fails ``CONN_FAIL_BREAKER_THRESHOLD`` consecutive connection attempts
+    is skipped by routing entirely for ``CONN_FAIL_BREAKER_COOLDOWN_SECONDS``
+    (half-open recovery: the first attempt after cooldown is allowed, and a
+    failure re-opens the breaker). Without this, a dead gateway keeps ranking
+    on cost/value alone and every LLM call stage re-pays the full
+    connection-timeout retry cascade before falling over to the next provider.
     """
+
+    CONN_FAIL_BREAKER_THRESHOLD = 1
+    CONN_FAIL_BREAKER_COOLDOWN_SECONDS = 60.0
 
     def __init__(self, window_minutes: int = 5):
         """
@@ -39,15 +51,24 @@ class ProviderHealthMonitor:
         # lock, concurrent calls corrupt the deque/dict (lost updates, and
         # "deque mutated during iteration" / RuntimeError during _update_health_score).
         self._lock = threading.Lock()
+        # Connection-failure breaker state (guarded by _lock): consecutive
+        # connection failures per provider and the monotonic deadline until
+        # which routing must skip the provider.
+        self._conn_fail_streak: Dict[str, int] = {}
+        self._breaker_open_until: Dict[str, float] = {}
 
-    def record_call(self, provider_id: str, success: bool, latency_ms: float):
+    def record_call(self, provider_id: str, success: bool, latency_ms: float,
+                    connection_failure: bool = False):
         """
         Record API call outcome for health tracking
 
         Args:
-            provider_id: Provider identifier (e.g., 'openai', 'anthropic')
+            provider_id: Provider identifier (e.g. 'openai', 'anthropic')
             success: True if call succeeded, False if failed
             latency_ms: Response time in milliseconds
+            connection_failure: True when the failure was a connect-level
+                error (timeout, refused, unreachable). Counts toward the
+                circuit breaker; ordinary failures (schema, rate limit) do not.
         """
         timestamp = datetime.now(timezone.utc)
 
@@ -68,6 +89,24 @@ class ProviderHealthMonitor:
 
             # Update health score using EMA calculation
             self._update_health_score(provider_id)
+
+            if success:
+                self._conn_fail_streak.pop(provider_id, None)
+                if self._breaker_open_until.pop(provider_id, None) is not None:
+                    logger.info(f"Circuit breaker closed for provider {provider_id} (call succeeded)")
+            elif connection_failure:
+                streak = self._conn_fail_streak.get(provider_id, 0) + 1
+                self._conn_fail_streak[provider_id] = streak
+                if (streak >= self.CONN_FAIL_BREAKER_THRESHOLD
+                        and provider_id not in self._breaker_open_until):
+                    self._breaker_open_until[provider_id] = (
+                        time.monotonic() + self.CONN_FAIL_BREAKER_COOLDOWN_SECONDS
+                    )
+                    logger.warning(
+                        f"Circuit breaker OPEN for provider {provider_id} "
+                        f"({streak} consecutive connection failures) — skipping for "
+                        f"{self.CONN_FAIL_BREAKER_COOLDOWN_SECONDS:.0f}s"
+                    )
 
             score = self.health_scores[provider_id]
 
@@ -94,6 +133,26 @@ class ProviderHealthMonitor:
             # Snapshot under the lock so a concurrent record_call can't mutate
             # the dict mid-read.
             return round(self.health_scores[provider_id], 3)
+
+    def is_breaker_open(self, provider_id: str) -> bool:
+        """
+        True while the provider is benched for recent connection failures.
+
+        Read under the lock; the monotonic deadline makes expiry automatic —
+        the first routing decision after the cooldown closes the breaker
+        (half-open) and lets one attempt through.
+        """
+        with self._lock:
+            deadline = self._breaker_open_until.get(provider_id)
+            if deadline is None:
+                return False
+            if time.monotonic() >= deadline:
+                # Cooldown elapsed — close (half-open); a failed attempt
+                # re-opens via record_call(connection_failure=True).
+                self._breaker_open_until.pop(provider_id, None)
+                logger.info(f"Circuit breaker half-open for provider {provider_id} — allowing attempt")
+                return False
+            return True
 
     def get_healthy_providers(self, min_score: float = 0.5) -> List[str]:
         """

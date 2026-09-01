@@ -113,7 +113,12 @@ class TestPreprocess:
 
 @pytest.fixture
 def service():
-    return EmbeddingService()
+    # The FastEmbed client is cached at CLASS level (shared across service
+    # instances since the off-event-loop fix) — clear it so each test gets a
+    # cold cache and its own stubbed TextEmbedding construction.
+    EmbeddingService._FASTEMBED_CLIENTS.clear()
+    yield EmbeddingService()
+    EmbeddingService._FASTEMBED_CLIENTS.clear()
 
 
 # ---------------------------------------------------------------------------

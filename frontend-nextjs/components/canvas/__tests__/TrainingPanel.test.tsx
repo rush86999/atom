@@ -289,3 +289,71 @@ describe('TrainingPanel', () => {
     expect(screen.queryByTestId('teach-section')).not.toBeInTheDocument();
   });
 });
+
+describe('TrainingPanel teaching points', () => {
+  test('renders the journal: count, taught/observed badges, newest first', async () => {
+    mockApi.getCanvasTrainingContext.mockResolvedValue(makeContext({
+      teaching_points: [
+        { source: 'observation', topic: 'human_correction', text: 'Supervisor fixed the greeting.', learned_at: '2026-08-31T09:00:00+00:00' },
+        { source: 'teacher', topic: 'email tone', text: 'Keep refund emails short.', learned_at: '2026-08-30T10:00:00+00:00' },
+      ],
+    }));
+    render(<TrainingPanel canvasId="cv-1" />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('teaching-points-section')).toBeInTheDocument()
+    );
+    expect(screen.getByTestId('teaching-points-count')).toHaveTextContent('2 recorded');
+    const points = screen.getAllByTestId('teaching-point');
+    expect(points).toHaveLength(2);
+    expect(points[0]).toHaveTextContent('observed');
+    expect(points[0]).toHaveTextContent('human_correction');
+    expect(points[1]).toHaveTextContent('taught');
+    expect(points[1]).toHaveTextContent('Keep refund emails short.');
+  });
+
+  test('teaching a lesson refreshes the journal so the new point shows', async () => {
+    mockApi.getCanvasTrainingContext
+      .mockResolvedValueOnce(makeContext())            // initial: no points yet
+      .mockResolvedValue(makeContext({                 // after teach: point landed
+        teaching_points: [
+          { source: 'teacher', topic: 'general', text: 'Always cc the team lead on replies', learned_at: '2026-08-31T12:00:00+00:00' },
+        ],
+      }));
+    mockApi.teachAgent.mockResolvedValue({ status: 'ok' });
+    render(<TrainingPanel canvasId="cv-1" />);
+    await waitFor(() => screen.getByTestId('teach-lesson-input'));
+    expect(screen.queryByTestId('teaching-points-section')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('teach-lesson-input'), {
+      target: { value: 'Always cc the team lead on replies' },
+    });
+    fireEvent.click(screen.getByTestId('teach-submit'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('teaching-points-section')).toBeInTheDocument()
+    );
+    expect(screen.getByTestId('teaching-point')).toHaveTextContent('Always cc the team lead on replies');
+  });
+
+  test('a context refresh does not clobber unsaved lesson-plan edits', async () => {
+    mockApi.teachAgent.mockResolvedValue({ status: 'ok' });
+    render(<TrainingPanel canvasId="cv-1" />);
+    await waitFor(() => screen.getByTestId('lesson-objective-input'));
+
+    // Supervisor types an unsaved edit…
+    fireEvent.change(screen.getByTestId('lesson-objective-input'), {
+      target: { value: 'Rewritten objective (unsaved)' },
+    });
+    // …then teach fires a background load() of the SAME session.
+    fireEvent.change(screen.getByTestId('teach-lesson-input'), {
+      target: { value: 'A brand new lesson for the hire' },
+    });
+    fireEvent.click(screen.getByTestId('teach-submit'));
+
+    await waitFor(() =>
+      expect(mockApi.getCanvasTrainingContext).toHaveBeenCalledTimes(2)
+    );
+    expect(screen.getByTestId('lesson-objective-input')).toHaveValue('Rewritten objective (unsaved)');
+  });
+});

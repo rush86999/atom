@@ -60,7 +60,8 @@ async def test_plan_returns_none_without_canvas_id():
 async def test_plan_builds_prompt_with_canvas_content_and_pins_model():
     llm = MagicMock()
     llm._get_handler.return_value.clients = {"openrouter": object()}
-    llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(wants_edit=True))
+    llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(
+        wants_edit=True, updated_content_json='"new body"'))
     plan = await plan_canvas_edit(
         "remove the sign-off from the draft",
         [{"message": "draft an email to Mark"}],
@@ -76,11 +77,18 @@ async def test_plan_builds_prompt_with_canvas_content_and_pins_model():
 
 
 @pytest.mark.asyncio
-async def test_plan_survives_history_with_no_user_turns():
+async def test_plan_raises_when_llm_fails_entirely():
+    """A dead planning LLM must be distinguishable from "not an edit": the
+    orchestrator answers honestly instead of misrouting an edit request into
+    TASK_MANAGEMENT, which answered with a false success claim while the
+    canvas never changed (observed live Aug 31, 2026)."""
+    from core.chat_canvas_editor import CanvasPlanUnavailable
+
     llm = MagicMock()
     llm._get_handler.return_value.clients = {}
     llm.generate_structured_response = AsyncMock(return_value=None)
-    assert await plan_canvas_edit("hi", [{}], _canvas(), llm) is None
+    with pytest.raises(CanvasPlanUnavailable):
+        await plan_canvas_edit("hi", [{}], _canvas(), llm)
 
 
 # ─────────── preservation: patch-first edits (Aug 31 regression) ───────────
@@ -311,7 +319,7 @@ async def test_canvas_edit_plans_against_durable_store_content():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
         seen["content"] = canvas.get("content")
         return plan
 
@@ -341,7 +349,7 @@ async def test_canvas_edit_passes_supervisor_corrections_to_planner():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
         seen["corrections"] = corrections
         return plan
 
@@ -374,7 +382,7 @@ async def test_canvas_edit_survives_corrections_lookup_failure():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
         seen["corrections"] = corrections
         return plan
 
@@ -510,6 +518,28 @@ def _orch():
     orch.ai_engines = {}
     orch.llm_service = MagicMock()
     return orch
+
+
+@pytest.mark.asyncio
+async def test_canvas_edit_planning_failure_replies_honestly():
+    """Plan-step LLM failure must NOT fall through to conversation: the
+    intent router misfiles edit-shaped requests into TASK_MANAGEMENT and the
+    reply claims a change the canvas never received (observed live Aug 31,
+    2026 — "append LIVEUPDATEcheck456" answered with fabricated success)."""
+    from core.chat_canvas_editor import CanvasPlanUnavailable
+
+    orch = _orch()
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(
+             side_effect=CanvasPlanUnavailable("provider down"))):
+        resp = await orch._try_canvas_edit(
+            "append this exact line at the very end of the email body: X",
+            [], _canvas(), "user-1", "s-1", "exec-1", None,
+        )
+    assert resp is not None and resp["success"]
+    assert resp["data"]["canvas_edit"]["updated"] is False
+    assert resp["data"]["canvas_edit"]["plan_unavailable"] is True
+    assert "nothing was changed" in resp["message"]
 
 
 @pytest.mark.asyncio
@@ -918,6 +948,46 @@ async def test_mature_hire_edits_normally():
 
 
 @pytest.mark.asyncio
+async def test_human_always_edit_policy_forces_proposal_even_for_mature_hire():
+    """The owner's canvas_edit=human_always must bite on the EDIT path too
+    (previously only sends consulted the policy — the Autonomy tab promised
+    'always require me' while a mature hire applied edits unilaterally).
+    A mature hire under human_always still drafts the proposal, but the
+    reply is approval-voiced (not student-voiced) and the history records
+    the policy reason."""
+    from core.autonomy_policy import MODE_HUMAN_ALWAYS
+
+    orch = _orch()
+    plan = CanvasEditPlan(
+        wants_edit=True,
+        updated_content_json=json.dumps({"type": "doc", "content": "Final"}),
+        reply="Done.",
+    )
+    gov = MagicMock()
+    gov.can_perform_action.return_value = {"allowed": True}  # mature enough
+    ctx_svc = MagicMock()
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(return_value=plan)), \
+         patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
+             return_value={"success": True})), \
+         patch("core.autonomy_policy.get_effective_mode", return_value=MODE_HUMAN_ALWAYS), \
+         patch("core.service_factory.ServiceFactory.get_governance_service", return_value=gov), \
+         patch("core.service_factory.ServiceFactory.get_canvas_context_service", return_value=ctx_svc):
+        resp = await orch._try_canvas_edit(
+            "tighten the draft", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
+        )
+
+    assert resp and resp["success"]
+    assert resp["data"]["canvas_edit"]["learning_mode"] is True
+    assert "autonomy setting" in resp["message"]       # policy voice…
+    assert "still learning" not in resp["message"]     # …not student voice
+    recorded = ctx_svc.add_action_to_history.call_args.kwargs["action"]
+    assert recorded["type"] == "canvas_edit_proposal"
+    assert recorded["human_always"] is True
+    assert recorded["learning_mode"] is False          # mature hire, policy-gated
+
+
+@pytest.mark.asyncio
 async def test_no_agent_means_no_governance_gate():
     """Platform-assistant turns (no resolved hire) keep today's behavior."""
     orch = _orch()
@@ -1087,11 +1157,17 @@ async def test_send_action_always_proposes_when_policy_demands_human():
 
 
 @pytest.mark.asyncio
-async def test_send_action_executes_when_autonomous_and_mature():
+async def test_send_action_executes_when_autonomous_mature_and_allowlisted(monkeypatch):
+    """Autonomy + maturity + an ALLOWLISTED recipient (email policy = allow)
+    → direct execution. Regression context: agent-initiated sends to
+    EXTERNAL recipients used to bypass the email policy's human-approval
+    requirement on this path and go straight to transport (observed
+    2026-08-31); the gate now fires BEFORE execution."""
     import contextlib
     from core.autonomy_policy import MODE_AUTO_IF_MATURE
     from core.chat_canvas_editor import CanvasActionPlan
 
+    monkeypatch.setenv("ATOM_EMAIL_ALLOWED_OUTBOUND_DOMAINS", "example.com")
     orch = _orch()
     plan = CanvasActionPlan(
         wants_action=True, action="send_email", to="mark@example.com",
@@ -1111,7 +1187,8 @@ async def test_send_action_executes_when_autonomous_and_mature():
          patch("core.database.get_db_session", side_effect=lambda: db_session()), \
          patch.object(orch, "_execute_send_email", new=AsyncMock(return_value={
              "action": "send_email", "status": "sent", "message": "Email sent to mark@example.com.",
-         })) as exec_mock:
+         })) as exec_mock, \
+         patch.object(orch, "_create_send_email_proposal", return_value="prop-x") as prop_mock:
         resp = await orch._try_canvas_action(
             "send this to mark@example.com", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
         )
@@ -1119,6 +1196,90 @@ async def test_send_action_executes_when_autonomous_and_mature():
     assert resp and resp["intent"] == "canvas_action"
     assert "sent" in resp["message"].lower()
     exec_mock.assert_awaited_once()
+    prop_mock.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_send_action_proposes_when_trust_below_bar(monkeypatch):
+    """Skill-scoped trust (R8) gates sends too: policy auto + maturity ok
+    but a low VERIFIED trust score → propose, never transport."""
+    import contextlib
+    from core.autonomy_policy import MODE_AUTO_IF_MATURE
+    from core.chat_canvas_editor import CanvasActionPlan
+
+    monkeypatch.setenv("ATOM_EMAIL_ALLOWED_OUTBOUND_DOMAINS", "example.com")
+    orch = _orch()
+    plan = CanvasActionPlan(
+        wants_action=True, action="send_email", to="mark@example.com",
+        subject="Draft", body="Body", reply="Sending.",
+    )
+    gov = MagicMock()
+    gov.can_perform_action.return_value = {"allowed": True}
+
+    @contextlib.contextmanager
+    def db_session():
+        yield MagicMock()
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_action", new=AsyncMock(return_value=plan)), \
+         patch("core.autonomy_policy.get_effective_mode", return_value=MODE_AUTO_IF_MATURE), \
+         patch("core.autonomy_policy.trust_check", return_value={
+             "enabled": True, "trust": 0.2, "threshold": 0.6,
+             "cold_start": False, "ok": False}), \
+         patch("core.service_factory.ServiceFactory.get_governance_service", return_value=gov), \
+         patch("core.database.get_db_session", side_effect=lambda: db_session()), \
+         patch.object(orch, "_execute_send_email", new=AsyncMock()) as exec_mock, \
+         patch.object(orch, "_create_send_email_proposal", return_value="prop-t") as prop_mock:
+        resp = await orch._try_canvas_action(
+            "send this to mark@example.com", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
+        )
+
+    assert resp and resp["data"]["canvas_action"]["needs_approval"] is True
+    assert resp["data"]["canvas_action"]["proposal_id"] == "prop-t"
+    assert "trust" in resp["message"].lower()
+    exec_mock.assert_not_awaited()
+    prop_mock.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_send_action_proposes_for_external_recipient_even_when_mature(monkeypatch):
+    """The email policy's APPROVE (external recipient) ALWAYS requires a
+    human — even for an autonomous, mature hire on auto-if-mature mode.
+    Before the 2026-08-31 fix the agent path went straight to transport
+    and would have dispatched unapproved whenever the transport worked."""
+    import contextlib
+    from core.autonomy_policy import MODE_AUTO_IF_MATURE
+    from core.chat_canvas_editor import CanvasActionPlan
+
+    monkeypatch.setenv("ATOM_EMAIL_ALLOWED_OUTBOUND_DOMAINS", "internal.example")
+    orch = _orch()
+    plan = CanvasActionPlan(
+        wants_action=True, action="send_email", to="mark@external.test",
+        subject="Draft", body="Body", reply="Sending.",
+    )
+    gov = MagicMock()
+    gov.can_perform_action.return_value = {"allowed": True}
+
+    @contextlib.contextmanager
+    def db_session():
+        yield MagicMock()
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_action", new=AsyncMock(return_value=plan)), \
+         patch("core.autonomy_policy.get_effective_mode", return_value=MODE_AUTO_IF_MATURE), \
+         patch("core.service_factory.ServiceFactory.get_governance_service", return_value=gov), \
+         patch("core.database.get_db_session", side_effect=lambda: db_session()), \
+         patch.object(orch, "_execute_send_email", new=AsyncMock()) as exec_mock, \
+         patch.object(orch, "_create_send_email_proposal", return_value="prop-1") as prop_mock:
+        resp = await orch._try_canvas_action(
+            "send this to mark@external.test", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
+        )
+
+    assert resp and resp["success"] is True
+    assert resp["data"]["canvas_action"]["needs_approval"] is True
+    assert resp["data"]["canvas_action"]["proposal_id"] == "prop-1"
+    exec_mock.assert_not_awaited()
+    prop_mock.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -1401,3 +1562,385 @@ def test_canvas_chat_feedback_persists_and_clears(tmp_path):
         assert fb.get("Reply A") is None
         assert fb.get("Reply B", {}).get("feedback_type") == "thumbs_down"
     eng.dispose()
+
+
+# ---------------------------------------------------------------------------
+# RECENT VERSIONS — the go-back/restore path (audit trail → planner prompt)
+# ---------------------------------------------------------------------------
+
+def test_versions_section_renders_skips_current_and_trims():
+    from core.chat_canvas_editor import _versions_section
+    versions = [
+        {"audit_id": "a3", "created_at": "2026-08-31T13:21:02", "actor": "agent",
+         "title": "Dealer intro", "content": "x" * 2000},
+        {"audit_id": "a2", "created_at": "2026-08-31T12:22:17", "actor": "supervisor",
+         "content": "original supervisor wording"},
+        {"audit_id": "a1", "created_at": "2026-08-31T12:20:00", "actor": "agent",
+         "content": "current body"},  # == current content → dropped
+    ]
+    out = _versions_section(versions, "current body")
+    assert "RECENT VERSIONS" in out
+    assert 'edit_mode="replace"' in out          # the restore contract
+    assert "Never invent text for a version" in out
+    assert "original supervisor wording" in out
+    assert "supervisor" in out and "agent" in out
+    assert "x" * 2000 not in out                # trimmed to the per-version budget
+    assert "current body" not in out            # the current-content version is dropped
+
+
+def test_versions_section_empty_when_nothing_restorable():
+    from core.chat_canvas_editor import _versions_section
+    assert _versions_section(None, "body") == ""
+    assert _versions_section([], "body") == ""
+    # every version equals the current content → nothing to show
+    assert _versions_section([{"content": "same"}], "same") == ""
+
+
+@pytest.mark.asyncio
+async def test_plan_prompt_includes_recent_versions_with_restore_rule():
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(wants_edit=True))
+    versions = [{
+        "audit_id": "a2", "created_at": "2026-08-31T12:22:17",
+        "actor": "supervisor", "content": "the ORIGINAL draft",
+    }]
+    await plan_canvas_edit(
+        "go back to my original draft", [], _canvas(content="overwritten"), llm,
+        versions=versions,
+    )
+    prompt = llm.generate_structured_response.call_args.kwargs["prompt"]
+    assert "RECENT VERSIONS" in prompt
+    assert "the ORIGINAL draft" in prompt
+    assert "Never invent text for a version" in prompt
+
+
+@pytest.mark.asyncio
+async def test_canvas_edit_passes_recent_versions_to_planner():
+    """Earlier audit versions ride into the plan — the go-back/restore path
+    that was impossible when the agent could only see the latest content."""
+    orch = _orch()
+    plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
+    seen = {}
+    versions = [{"audit_id": "a-9", "content": "old draft", "actor": "supervisor"}]
+
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
+        seen["versions"] = versions
+        return plan
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch.object(orch, "_recent_canvas_versions", return_value=versions), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
+         patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
+             return_value={"success": True})):
+        resp = await orch._try_canvas_edit(
+            "restore my previous draft", [], _canvas(), "user-1", "s-1", "exec-1", None,
+        )
+    assert resp and resp["success"]
+    assert seen["versions"] == versions
+
+
+# ─────────── "update the canvas" regression (Aug 31, live) ───────────
+# The agent showed a simplified draft in chat; the user said "update the
+# canvas". The planner truncated that reply to 300 chars ("We car…"), the
+# model refused to apply a draft it couldn't read, and a degenerate
+# replace plan (wants_edit=true, no ops, no content) sailed into apply just
+# to be discarded — the user got "couldn't apply it cleanly".
+
+def test_history_transcript_gives_last_agent_reply_full_budget():
+    from core.chat_canvas_editor import _history_transcript
+
+    full_draft = "Here's the simplified quote-request draft:\n\n" + "x" * 2000
+    history = [
+        {"message": "make it simpler", "response": {"message": "older reply " + "y" * 500}},
+        {"message": "update the canvas", "response": {"message": full_draft}},
+    ]
+    out = _history_transcript(history, "update the canvas")
+    assert ("x" * 2000) in out                       # the applicable draft is fully visible
+    assert ("y" * 400) not in out                    # older replies capped at 300 chars
+    assert "…(trimmed)" in out                       # trimming is explicit
+
+
+@pytest.mark.asyncio
+async def test_degenerate_replace_plan_reasks_instead_of_reaching_apply():
+    """wants_edit=true with no ops and no content must not sail into apply
+    (where it was discarded as "not valid JSON") — it gets the same one
+    replace-mode re-ask as failed patch ops."""
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    degenerate = CanvasEditPlan(wants_edit=True, edit_mode="replace",
+                                updated_content_json=None, reply="")
+    recovered = CanvasEditPlan(wants_edit=True, edit_mode="replace",
+                               updated_content_json='{"to": "a@b.c", "subject": "S", "body": "B"}',
+                               reply="applied")
+    llm.generate_structured_response = AsyncMock(side_effect=[degenerate, recovered])
+
+    p = await plan_canvas_edit("update the canvas", [], _canvas(content={"to": "", "subject": "", "body": ""}), llm)
+
+    assert p is recovered
+    assert llm.generate_structured_response.await_count == 2
+    reask_prompt = llm.generate_structured_response.call_args_list[1].kwargs["prompt"]
+    assert "REPLACE_FALLBACK" in reask_prompt or "COMPLETE" in reask_prompt.upper()
+
+
+@pytest.mark.asyncio
+async def test_degenerate_replace_plan_still_empty_returns_none():
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    degenerate = CanvasEditPlan(wants_edit=True, edit_mode="replace", updated_content_json=None)
+    llm.generate_structured_response = AsyncMock(return_value=degenerate)
+
+    p = await plan_canvas_edit("update the canvas", [], _canvas(content="body"), llm)
+    assert p is None  # conversational clarification beats a fake "edit attempted"
+
+
+# ─────────────────── taught lessons at edit time ───────────────────
+
+@pytest.mark.asyncio
+async def test_plan_prompt_includes_taught_lessons():
+    """Lessons taught via /teach are PERMANENT training: the edit planner must
+    see them at work time (all agents, all canvas apps) — storage alone only
+    moved a confidence score."""
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(wants_edit=True))
+    lessons = [
+        {"source": "teacher", "topic": "tone",
+         "lesson": "Address the client as Dr. Reyes, never by first name",
+         "learned_at": "2026-08-01T00:00:00+00:00"},
+    ]
+    await plan_canvas_edit(
+        "update the greeting", [], _canvas(content="Hello"), llm,
+        lessons=lessons,
+    )
+    prompt = llm.generate_structured_response.call_args.kwargs["prompt"]
+    assert "TRAINING LESSONS" in prompt
+    assert "PERMANENT INSTRUCTIONS" in prompt
+    assert "Dr. Reyes" in prompt
+    # the section binds the lessons to the preservation duty
+    assert "preservation rules" in prompt
+
+
+@pytest.mark.asyncio
+async def test_plan_prompt_omits_lessons_section_when_empty():
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(wants_edit=True))
+    await plan_canvas_edit("edit", [], _canvas(), llm, lessons=[])
+    prompt = llm.generate_structured_response.call_args.kwargs["prompt"]
+    assert "TRAINING LESSONS" not in prompt
+
+
+@pytest.mark.asyncio
+async def test_plan_lessons_section_survives_renderer_failure():
+    """A broken lessons renderer must never break the edit turn (fault
+    isolation matches every other prompt section)."""
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(
+        wants_edit=True, updated_content_json='"new body"'))
+    with patch("core.student_learning_service.format_lessons_block",
+               side_effect=RuntimeError("boom")):
+        plan = await plan_canvas_edit(
+            "edit", [], _canvas(content="body"), llm,
+            lessons=[{"source": "teacher", "lesson": "ignored"}],
+        )
+    assert plan is not None and plan.wants_edit
+
+
+@pytest.mark.asyncio
+async def test_canvas_edit_passes_taught_lessons_to_planner():
+    """Orchestrator wiring: the hire's lessons reach plan_canvas_edit next to
+    corrections and versions."""
+    orch = _orch()
+    plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
+    seen = {}
+    lessons = [{"source": "teacher", "topic": "tone", "lesson": "Formal register only",
+                "learned_at": "2026-08-01T00:00:00+00:00"}]
+
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
+        seen["lessons"] = lessons
+        return plan
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
+         patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
+             return_value={"success": True})), \
+         patch.object(orch, "_agent_lessons", return_value=lessons):
+        resp = await orch._try_canvas_edit(
+            "tighten it", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
+        )
+    assert resp and resp["success"]
+    assert seen["lessons"] == lessons
+
+
+@pytest.mark.asyncio
+async def test_canvas_edit_without_agent_passes_no_lessons():
+    """Platform turns (no resolved hire) simply plan without lessons."""
+    orch = _orch()
+    plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
+    seen = {}
+
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
+        seen["lessons"] = lessons
+        return plan
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
+         patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
+             return_value={"success": True})):
+        resp = await orch._try_canvas_edit(
+            "tighten it", [], _canvas(), "user-1", "s-1", "exec-1", None,
+        )
+    assert resp and resp["success"]
+    assert seen["lessons"] == []
+
+
+# ─────────────────── cc recipients through the send chain ───────────────────
+
+@pytest.mark.asyncio
+async def test_direct_agent_send_carries_cc(monkeypatch):
+    """Autonomous + mature + allowlisted to/cc → direct send carries cc_emails
+    (previously hardcoded [] — cc silently dropped on every agent send)."""
+    import contextlib
+    from core.autonomy_policy import MODE_AUTO_IF_MATURE
+    from core.chat_canvas_editor import CanvasActionPlan
+
+    monkeypatch.setenv("ATOM_EMAIL_ALLOWED_OUTBOUND_DOMAINS", "brennan.ca")
+    orch = _orch()
+    plan = CanvasActionPlan(
+        wants_action=True, action="send_email", to="mark@brennan.ca",
+        cc="vipul@brennan.ca, chandrakant@brennan.ca",
+        subject="S", body="B", reply="Sending.",
+    )
+    gov = MagicMock()
+    gov.can_perform_action.return_value = {"allowed": True}
+
+    @contextlib.contextmanager
+    def db_session():
+        yield MagicMock()
+
+    sent = {}
+    class FakeEmailSvc:
+        def __init__(self, db):
+            pass
+        async def send_email(self, **kw):
+            sent.update(kw)
+            return {"success": True, "status": "sent"}
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_action", new=AsyncMock(return_value=plan)), \
+         patch("core.autonomy_policy.get_effective_mode", return_value=MODE_AUTO_IF_MATURE), \
+         patch("core.service_factory.ServiceFactory.get_governance_service", return_value=gov), \
+         patch("core.database.get_db_session", side_effect=lambda: db_session()), \
+         patch("core.canvas_email_service.EmailCanvasService", FakeEmailSvc):
+        resp = await orch._try_canvas_action(
+            "send it", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
+        )
+
+    assert resp and resp["success"]
+    assert sent["cc_emails"] == ["vipul@brennan.ca", "chandrakant@brennan.ca"]
+
+
+@pytest.mark.asyncio
+async def test_send_proposal_carries_cc_from_canvas_fallback():
+    """The proposal must carry cc (plan's, falling back to the canvas draft's
+    cc field) — previously proposals had no cc at all, so approved sends
+    went out with cc: [] (observed 2026-09-01)."""
+    import contextlib
+    from core.chat_canvas_editor import CanvasActionPlan
+
+    orch = _orch()
+    plan = CanvasActionPlan(
+        wants_action=True, action="send_email", to="mark@external.test",
+        subject="S", body="B",
+    )
+    canvas = _canvas(content={
+        "to": "mark@external.test", "cc": "vipul@brennan.ca",
+        "subject": "S", "body": "B",
+    })
+    captured = {}
+
+    class FakeProposal:
+        def __init__(self, **kw):
+            captured.update(kw)
+            self.id = "prop-cc-1"
+
+    @contextlib.contextmanager
+    def db_session():
+        yield MagicMock()
+
+    with patch("core.database.get_db_session", side_effect=lambda: db_session()), \
+         patch("core.models.AgentProposal", side_effect=FakeProposal), \
+         patch("core.models.AgentRegistry") as reg:
+        reg.query.return_value.filter.return_value.first.return_value = None
+        pid = orch._create_send_email_proposal(plan, canvas, "u-1", "s-1", "hire-1")
+
+    assert pid == "prop-cc-1"
+    assert captured["proposal_data"]["cc"] == "vipul@brennan.ca"
+
+
+@pytest.mark.asyncio
+async def test_approved_proposal_execution_sends_cc():
+    """The Journey approve-and-send executor passes the proposal's cc through
+    to EmailCanvasService (previously cc_emails=[] hardcoded)."""
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock, patch
+
+    from core.proposal_service import ProposalService
+    svc = ProposalService(MagicMock())
+    proposal = SimpleNamespace(id="p-1", user_id="u-1", agent_id="hire-1", canvas_id="c-1")
+    action = {"to": "mark@external.test", "cc": "vipul@brennan.ca, chandrakant@brennan.ca",
+              "subject": "S", "body": "B"}
+
+    sent = {}
+    class FakeEmailSvc:
+        def __init__(self, db):
+            pass
+        async def send_email(self, **kw):
+            sent.update(kw)
+            return {"success": True, "status": "sent"}
+
+    with patch("core.canvas_email_service.EmailCanvasService", FakeEmailSvc), \
+         patch.object(svc, "_record_execution_episode") as ep_mock:
+        out = await svc._execute_send_email_action(proposal, action)
+
+    assert out["success"] is True
+    assert sent["cc_emails"] == ["vipul@brennan.ca", "chandrakant@brennan.ca"]
+    # The approved send is EXECUTION-BACKED evidence: an execution row is
+    # completed and an episode recorded, so students on the co-editor flow
+    # earn constitutional-measured work (not just chat-derived episodes).
+    ep_mock.assert_called_once()
+    execution, _proposal, action_type = ep_mock.call_args.args
+    assert action_type == "send_email"
+    assert execution.status == "completed"
+    assert execution.agent_id == "hire-1"
+
+
+@pytest.mark.asyncio
+async def test_approved_proposal_send_refusal_still_records_failed_execution():
+    """A policy-refused send records a FAILED execution episode — the
+    supervisor sees honest evidence, not a silently missing run."""
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock, patch
+
+    from core.proposal_service import ProposalService
+    svc = ProposalService(MagicMock())
+    proposal = SimpleNamespace(id="p-2", user_id="u-1", agent_id="hire-1", canvas_id="c-1")
+    action = {"to": "mark@external.test", "subject": "S", "body": "B"}
+
+    class FakeEmailSvc:
+        def __init__(self, db):
+            pass
+        async def send_email(self, **kw):
+            return {"success": False, "error": "sensitivity block"}
+
+    with patch("core.canvas_email_service.EmailCanvasService", FakeEmailSvc), \
+         patch.object(svc, "_record_execution_episode") as ep_mock:
+        out = await svc._execute_send_email_action(proposal, action)
+
+    assert out["success"] is False
+    ep_mock.assert_called_once()
+    execution, _proposal, action_type = ep_mock.call_args.args
+    assert action_type == "send_email"
+    assert execution.status == "failed"

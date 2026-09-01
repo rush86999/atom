@@ -441,12 +441,14 @@ class TestOauthTokens:
                 is_active=True,
                 access_token_expires_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
                 last_used_at=None,
+                scope="https://graph.microsoft.com/Mail.Send offline_access",
             ),
             SimpleNamespace(
                 client_id="custom-store",
                 is_active=False,
                 access_token_expires_at=None,
                 last_used_at=datetime(2026, 2, 1, tzinfo=timezone.utc),
+                scope="",
             ),
         ]
         db.query.return_value.filter.return_value.all.return_value = rows
@@ -458,6 +460,7 @@ class TestOauthTokens:
         assert integrations[0]["status"] == "active"
         assert integrations[0]["expires_at"] == "2026-01-01T00:00:00+00:00"
         assert integrations[0]["last_used"] is None
+        assert integrations[0]["scope"] == "https://graph.microsoft.com/Mail.Send offline_access"
         assert integrations[1]["provider"] == "custom-store"
         assert integrations[1]["status"] == "revoked"
         assert integrations[1]["expires_at"] is None

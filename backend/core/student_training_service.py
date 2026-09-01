@@ -5,7 +5,7 @@ Manages training proposals, sessions, and maturity progression for STUDENT agent
 Provides AI-based training duration estimation and confidence boosting.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import os
@@ -468,6 +468,49 @@ After completing this training, the agent will be able to handle similar tasks a
             logger.warning(f"role canvas spawn failed (non-fatal): {exc}")
             return []
 
+    def record_session_lesson(
+        self,
+        agent_id: str,
+        lesson: str,
+        topic: Optional[str] = None,
+    ) -> bool:
+        """File a lesson taught MID-SESSION into that session's guidance so
+        the training record shows what was taught while it was active (the
+        agent's learning journal already carries it for work time — this is
+        the session's own training-history copy). Best-effort by design:
+        returns False when no active session exists."""
+        from sqlalchemy.orm.attributes import flag_modified
+
+        session = (
+            self.db.query(TrainingSession)
+            .filter(
+                TrainingSession.agent_id == agent_id,
+                TrainingSession.status.in_(["scheduled", "active", "in_progress", "pending"]),
+            )
+            .order_by(TrainingSession.started_at.desc())
+            .first()
+        )
+        if session is None:
+            return False
+        guidance = (
+            session.supervisor_guidance
+            if isinstance(session.supervisor_guidance, dict)
+            else {}
+        )
+        taught: List[Dict[str, Any]] = guidance.setdefault("lessons_taught", [])
+        taught.append({
+            "lesson": (lesson or "")[:2000],
+            "topic": topic or "general",
+            "at": datetime.now(timezone.utc).isoformat(),
+        })
+        if len(taught) > 50:
+            del taught[:-50]
+        guidance["lessons_taught"] = taught
+        session.supervisor_guidance = guidance
+        flag_modified(session, "supervisor_guidance")
+        self.db.commit()
+        return True
+
     def get_session_evidence(self, session: TrainingSession) -> Dict[str, Any]:
         """Work the agent actually recorded during this session's window.
 
@@ -479,11 +522,18 @@ After completing this training, the agent will be able to handle similar tasks a
         score never overrides it.
         """
         window_start = session.started_at or session.created_at
+        # Completed sessions stop accumulating evidence: the window closes at
+        # completion. Without the upper bound a completed session's displayed
+        # counts kept growing with every later episode — the panel showed
+        # evidence the session was never graded on.
+        window_end = session.completed_at
         query = self.db.query(AgentEpisode).filter(
             AgentEpisode.agent_id == session.agent_id,
         )
         if window_start is not None:
             query = query.filter(AgentEpisode.started_at >= window_start)
+        if window_end is not None:
+            query = query.filter(AgentEpisode.started_at <= window_end)
         episodes = query.count()
         successes = query.filter(AgentEpisode.outcome == "success").count()
         return {
@@ -661,6 +711,17 @@ After completing this training, the agent will be able to handle similar tasks a
                     f"Agent {agent.id} confidence ready but evidence gate "
                     f"blocked INTERN promotion: {readiness.get('reason')}"
                 )
+
+        # Real-time circuit: completion moved confidence (and possibly the
+        # maturity tier). The trigger path caches maturity + confidence in
+        # the GovernanceCache for up to 5 minutes — drop the snapshot so
+        # gated automation sees the updated agent immediately. Best-effort.
+        try:
+            from core.governance_cache import get_governance_cache
+
+            get_governance_cache().invalidate_agent(agent.id)
+        except Exception as cache_err:
+            logger.debug(f"governance cache invalidate skipped: {cache_err}")
 
         # Update proposal execution result
         proposal = self.db.query(AgentProposal).filter(

@@ -691,33 +691,29 @@ class LanceDBHandler:
             logger.error("EmbeddingService not initialized")
             return None
 
-        try:
-            import asyncio
-            import threading
+        import asyncio
 
-            # Check if we're in an async context (main thread with running loop)
+        # get_running_loop() only succeeds in the loop's OWN thread, so a
+        # result means "called from the event-loop thread" — no separate
+        # thread-id comparison exists or is needed. (The old
+        # `loop._thread_id` probe crashed with AttributeError on uvloop,
+        # which uvicorn runs, turning the async-context guard into an
+        # embed failure on every production request.) On the loop thread
+        # this shim must not block the loop: async callers go through
+        # async_embed_text, or run this method via asyncio.to_thread.
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
             try:
-                loop = asyncio.get_running_loop()
-                # If we're in the same thread as the loop, we can't use asyncio.run()
-                if loop._thread_id == threading.get_ident():
-                    logger.warning(
-                        "embed_text (sync) called from async context in same thread. "
-                        "Please use async_embed_text."
-                    )
-                    return None
-                # We're in a different thread (e.g., thread executor) - create new loop
-                new_loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(new_loop)
-                try:
-                    return new_loop.run_until_complete(self.async_embed_text(text))
-                finally:
-                    new_loop.close()
-            except RuntimeError:
-                # No running event loop, safe to use asyncio.run()
                 return asyncio.run(self.async_embed_text(text))
-        except Exception as e:
-            logger.error(f"Failed to embed text (sync): {e}")
-            return None
+            except Exception as e:
+                logger.error(f"Failed to embed text (sync): {e}")
+                return None
+        logger.warning(
+            "embed_text (sync) called from the event-loop thread; returning "
+            "None. Use async_embed_text or wrap in asyncio.to_thread."
+        )
+        return None
 
     async def async_embed_text(self, text: str) -> Union[Any, None]:
         """

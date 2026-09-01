@@ -189,7 +189,57 @@ describe("CanvasDetailPage", () => {
 
     fireEvent.click(screen.getByTitle("Version history"));
     await waitFor(() => expect(screen.getByText("Version History")).toBeInTheDocument());
-    expect(screen.getByText("update")).toBeInTheDocument();
+    // The shared panel fetches entries after mount — allow the async load.
+    await waitFor(() => expect(screen.getByText("update")).toBeInTheDocument(), { timeout: 3000 });
+  });
+
+  test("restore button posts the audit id and refetches the canvas", async () => {
+    const histEntry = {
+      audit_id: "audit-9",
+      action_type: "update",
+      canvas_type: "sheets",
+      created_at: "2026-08-01T10:00:00Z",
+    };
+    mockGet.mockImplementation(async (url: string) => {
+      if (url.endsWith("/history")) {
+        return { data: { history: [histEntry] } };
+      }
+      return { data: CANVAS };
+    });
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTitle("Version history"));
+    await waitFor(() => expect(screen.getByText("Version History")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("canvas-restore-audit-9")).toBeInTheDocument(), { timeout: 3000 });
+
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(screen.getByTestId("canvas-restore-audit-9"));
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith("/api/canvas/cv1/restore", { audit_id: "audit-9" }),
+    );
+    // The canvas is re-fetched so content and version badge converge.
+    await waitFor(() =>
+      expect(mockGet.mock.calls.filter(([u]) => u === "/api/canvas/cv1").length).toBeGreaterThan(1),
+    );
+  });
+
+  test("delete entries offer no restore button", async () => {
+    mockGet.mockImplementation(async (url: string) => {
+      if (url.endsWith("/history")) {
+        return {
+          data: {
+            history: [{ audit_id: "audit-d", action_type: "delete", canvas_type: "sheets", created_at: "2026-08-01T10:00:00Z" }],
+          },
+        };
+      }
+      return { data: CANVAS };
+    });
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+    fireEvent.click(screen.getByTitle("Version history"));
+    await waitFor(() => expect(screen.getByText("Version History")).toBeInTheDocument());
+    expect(screen.queryByTestId("canvas-restore-audit-d")).not.toBeInTheDocument();
   });
 
   test("shows empty history message when no entries", async () => {
@@ -263,7 +313,7 @@ describe("CanvasDetailPage", () => {
     expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
       message: "Add a row",
       context: expect.objectContaining({ canvas_id: "cv1" }),
-    }));
+    }), expect.objectContaining({ retry: false, timeout: 120000 }));
   });
 
   test("chat: sends on Enter key", async () => {
@@ -294,6 +344,77 @@ describe("CanvasDetailPage", () => {
 
     fireEvent.click(screen.getByTestId("canvas-side-tab-autonomy"));
     await waitFor(() => expect(screen.getByTestId("autonomy-panel")).toBeInTheDocument());
+  });
+
+  test("autonomy tab: topics grouped by canvas type with live gate chips", async () => {
+    // The Autonomy tab is canvas-aware: topics primary for the canvas's
+    // type lead under "On this canvas", the rest sit under "General", and
+    // each topic shows the hire's live gate outcome (what a turn would
+    // actually enforce today).
+    mockGet.mockImplementation((url: string) => {
+      if (String(url).startsWith("/api/autonomy/topics")) {
+        return Promise.resolve({
+          data: {
+            canvas_type: "email",
+            topics: [
+              {
+                topic: "send_email", label: "Send email", description: "Sending emails",
+                default_mode: "human_always", mode: "auto_if_mature",
+                canvas_relevant: true,
+                gate: {
+                  outcome: "execute", reason: "Policy allows autonomy and the hire clears the supervised bar — executes directly.",
+                  maturity: { known: true, maturity_level: "supervised", required: "supervised", ok: true },
+                  trust: { enabled: false, trust: null, threshold: 0.6, cold_start: null, ok: true },
+                },
+              },
+              {
+                topic: "crm_write", label: "CRM writes", description: "CRM updates",
+                default_mode: "human_always", mode: "human_always",
+                canvas_relevant: true,
+                gate: {
+                  outcome: "propose", reason: "You asked to approve every CRM writes — the hire proposes only.",
+                  maturity: { known: true, maturity_level: "autonomous", required: "supervised", ok: true },
+                  trust: { enabled: false, trust: null, threshold: 0.6, cold_start: null, ok: true },
+                },
+              },
+              {
+                topic: "task_create", label: "Create tasks", description: "Tasks",
+                default_mode: "auto_if_mature", mode: "auto_if_mature",
+                canvas_relevant: false,
+              },
+              {
+                topic: "canvas_edit", label: "Canvas edits", description: "Edits",
+                default_mode: "auto_if_mature", mode: "auto_if_mature",
+                canvas_relevant: false,
+              },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ data: CANVAS });
+    });
+
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("canvas-side-tab-autonomy"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("autonomy-canvas-section")).toBeInTheDocument()
+    );
+    expect(screen.getByTestId("autonomy-general-section")).toBeInTheDocument();
+    // Canvas-primary topics first, general ones still present
+    expect(screen.getByTestId("autonomy-send_email")).toBeInTheDocument();
+    expect(screen.getByTestId("autonomy-canvas_edit")).toBeInTheDocument();
+    // Live gate outcome per topic
+    expect(screen.getAllByTestId("autonomy-gate-execute").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("autonomy-gate-propose").length).toBeGreaterThan(0);
+    // The topics request carried the canvas + hire identity
+    await waitFor(() => {
+      const autonomyCall = mockGet.mock.calls.find((c: any[]) =>
+        String(c[0]).startsWith("/api/autonomy/topics")
+      );
+      expect(String(autonomyCall[0])).toContain("canvas_id=cv1");
+    });
   });
 
   test("chat: canvas agent resolved on load is sent with the turn", async () => {
@@ -327,7 +448,7 @@ describe("CanvasDetailPage", () => {
     expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
       agent_id: "hire-cv1",
       context: expect.objectContaining({ agent_id: "hire-cv1" }),
-    }));
+    }), expect.objectContaining({ retry: false, timeout: 120000 }));
   });
 
   test("chat: server-bound session hydrates panel history after refresh", async () => {
@@ -362,7 +483,7 @@ describe("CanvasDetailPage", () => {
     await waitFor(() => expect(mockPost).toHaveBeenCalled());
     expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
       session_id: "sess-h1",
-    }));
+    }), expect.objectContaining({ retry: false, timeout: 120000 }));
   });
 
   test("chat: failed hydration drops the stale session and starts fresh", async () => {
@@ -385,7 +506,7 @@ describe("CanvasDetailPage", () => {
     // Stale id must not be reused — the turn starts a new session.
     expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
       session_id: "new",
-    }));
+    }), expect.objectContaining({ retry: false, timeout: 120000 }));
   });
 
   test("chat: no_llm_provider error renders system message", async () => {
@@ -563,8 +684,9 @@ describe("CanvasDetailPage", () => {
     await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
 
     fireEvent.click(screen.getByTitle("Version history"));
+    // The panel still opens; the failed fetch is logged and the empty state shows.
     await waitFor(() => expect(consoleSpy).toHaveBeenCalled());
-    expect(screen.queryByText("Version History")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("No history available.")).toBeInTheDocument(), { timeout: 3000 });
     consoleSpy.mockRestore();
   });
 
@@ -700,6 +822,28 @@ describe("CanvasDetailPage", () => {
     await waitFor(() => expect(screen.getByText(text)).toBeInTheDocument());
   }
 
+  test("chat: returning from another side tab re-pins the transcript to the latest message", async () => {
+    // The chat DOM unmounts while Training/Journey/Autonomy is shown; on
+    // return it remounts scrolled to the TOP. The page must re-run its
+    // scroll-to-bottom on the tab change (instant jump, not smooth).
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    await sendChatMessage("add a row");
+    await waitFor(() => expect(screen.getByText("I added a row.")).toBeInTheDocument());
+
+    (Element.prototype.scrollIntoView as jest.Mock).mockClear();
+    fireEvent.click(screen.getByTestId("canvas-side-tab-training"));
+    await waitFor(() => expect(screen.getByTestId("training-panel-mock")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("canvas-side-tab-chat"));
+    await waitFor(() =>
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: "auto" })
+    );
+    // The transcript itself survives the tab round-trip.
+    expect(screen.getByText("I added a row.")).toBeInTheDocument();
+  });
+
   test("feedback: assistant replies carry thumbs; thumbs up feeds chat feedback with attribution", async () => {
     mockPost.mockResolvedValue({
       data: { success: true, message: "I added a row.", model: "gpt-x", provider: "openai" },
@@ -752,7 +896,8 @@ describe("CanvasDetailPage", () => {
             source: "canvas_chat",
             canvas_id: "cv1",
           }),
-        })
+        }),
+        expect.objectContaining({ retry: false })
       )
     );
     expect(mockPost).toHaveBeenCalledWith(
@@ -778,7 +923,8 @@ describe("CanvasDetailPage", () => {
     await waitFor(() =>
       expect(mockPost).toHaveBeenCalledWith(
         "/api/reasoning/feedback",
-        expect.objectContaining({ feedback_type: "thumbs_down", comment: "Use bullets, not prose" })
+        expect.objectContaining({ feedback_type: "thumbs_down", comment: "Use bullets, not prose" }),
+        expect.objectContaining({ retry: false })
       )
     );
     await waitFor(() =>

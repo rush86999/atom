@@ -1742,3 +1742,59 @@ class TestEnhancedCacheAndInfo:
             content_bytes="", last_modified_date_time="", metadata={},
         )
         assert attachment.to_dict()["name"] == "n"
+
+
+# ───────── Mail.Send consent precheck (Aug 31 canvas-send 403) ─────────
+# Tokens minted before Mail.Send joined the OAuth scope request carry
+# Mail.ReadWrite but not Mail.Send; refreshes never expand scopes, so every
+# /me/sendMail died with a bare Graph 403. The send path must fail fast with
+# an actionable "reconnect" error instead.
+
+class TestMailSendScopePrecheck:
+    def test_scope_grants_matches_bare_and_qualified_entries(self):
+        assert OutlookService._scope_grants("mail.send mail.read", "Mail.Send")
+        assert OutlookService._scope_grants(
+            "https://graph.microsoft.com/Mail.Send offline_access", "Mail.Send")
+        assert not OutlookService._scope_grants(
+            "https://graph.microsoft.com/Mail.ReadWrite Contacts.Read", "Mail.Send")
+        assert not OutlookService._scope_grants("", "Mail.Send")
+
+    @pytest.mark.asyncio
+    async def test_send_email_fails_fast_when_scope_missing(self):
+        svc = OutlookService()
+        stale = MagicMock(scope="https://graph.microsoft.com/Mail.ReadWrite User.Read")
+        with token_env(token=stale), patch.object(
+            svc, "_get_connection_scope", new=AsyncMock(
+                return_value="https://graph.microsoft.com/Mail.ReadWrite User.Read")
+        ):
+            result = await svc.send_email("u-1", ["a@b.c"], "s", "body")
+
+        assert result is None
+        assert svc.last_send_error["needs_reconnect"] is True
+        assert svc.last_send_error["missing_scope"] == "Mail.Send"
+
+    @pytest.mark.asyncio
+    async def test_send_email_proceeds_when_scope_granted(self):
+        svc = OutlookService()
+        ok_response = {"success": True}
+        with patch.object(svc, "_get_connection_scope", new=AsyncMock(
+            return_value="https://graph.microsoft.com/Mail.Send offline_access"
+        )), patch.object(svc, "_make_graph_request", new=AsyncMock(
+            return_value=ok_response
+        )) as mk:
+            result = await svc.send_email("u-1", ["a@b.c"], "s", "body")
+
+        assert result == ok_response
+        assert svc.last_send_error is None
+        mk.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_send_email_skips_scope_check_for_explicit_token(self):
+        svc = OutlookService()
+        with patch.object(svc, "_get_connection_scope", new=AsyncMock()) as scope_q, patch.object(
+            svc, "_make_graph_request", new=AsyncMock(return_value={"success": True})
+        ):
+            result = await svc.send_email("u-1", ["a@b.c"], "s", "body", token="tok")
+
+        assert result == {"success": True}
+        scope_q.assert_not_awaited()  # explicit token → scope unknown, let Graph decide

@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { getCurrentUserId } from "@/lib/identity";
 import { getOpenCanvasChatContext } from "@/hooks/useCanvasStateRegistration";
+import { chatTurnTouchedCanvas, syncCanvasFromStore } from "@/lib/canvasSync";
 
 interface UseChatInterfaceProps {
     sessionId: string | null;
@@ -314,6 +315,19 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 // Mark this generation as REST-fulfilled so the WebSocket
                 // streaming:complete path doesn't append a duplicate.
                 _restFulfilledRef.current = true;
+                // The agent just co-edited (or acted on) the open canvas. The
+                // WS canvas:update broadcast is the primary live carrier, but
+                // a stale socket can silently drop it — re-broadcast the
+                // audit-trail content locally so every mounted canvas host
+                // converges (lib/canvasSync; the /canvas/{id} page does the
+                // same via its own refetch).
+                if (chatTurnTouchedCanvas(data)) {
+                    void syncCanvasFromStore(
+                        data.metadata?.canvas_edit?.canvas_id
+                        || data.metadata?.canvas_action?.canvas_id
+                        || undefined,
+                    );
+                }
                 return true;
             } else {
                 throw new Error(data.error || "Failed to process request");

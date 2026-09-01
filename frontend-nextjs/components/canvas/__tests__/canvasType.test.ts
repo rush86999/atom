@@ -9,6 +9,7 @@
 import {
     CANVAS_TYPE_OPTIONS,
     isTypeSwitchable,
+    normalizeCanvasComponent,
     switchCanvasType,
 } from '@/components/canvas/canvasType';
 
@@ -78,5 +79,27 @@ describe('switchCanvasType', () => {
         });
         expect(conv.email).toEqual({ to: 'x@y.z', cc: 'q@r.s', subject: 'Follow-up' });
         expect(conv.data.body).toBe('See below.');
+    });
+});
+
+describe('normalizeCanvasComponent', () => {
+    it('maps registry/audit type names onto the component names hosts render', () => {
+        // The registry registers "sheets"/"docs"/"coding"; CanvasContent's
+        // switch handles "sheet"/"document"/"code" — without this mapping a
+        // co-edited sheet canvas rendered as a raw-JSON dump.
+        expect(normalizeCanvasComponent('sheets')).toBe('sheet');
+        expect(normalizeCanvasComponent('spreadsheet')).toBe('sheet');
+        expect(normalizeCanvasComponent('docs')).toBe('document');
+        expect(normalizeCanvasComponent('doc')).toBe('document');
+        expect(normalizeCanvasComponent('coding')).toBe('code');
+        expect(normalizeCanvasComponent('generic')).toBe('markdown');
+        expect(normalizeCanvasComponent('')).toBe('markdown');
+        expect(normalizeCanvasComponent(null)).toBe('markdown');
+    });
+
+    it('passes through names that are already component names', () => {
+        for (const name of ['email', 'document', 'sheet', 'markdown', 'code', 'form', 'office_excel', 'line_chart']) {
+            expect(normalizeCanvasComponent(name)).toBe(name);
+        }
     });
 });

@@ -271,3 +271,76 @@ class TestContextAccessControl:
         resp = member_client.get("/api/maturity/training/context", params={"canvas_id": "cv-member"})
         assert resp.status_code == 200
         assert resp.json()["viewer_is_supervisor"] is False
+
+
+# ============================================================================
+# Teaching points journal + shown-session validity
+# ============================================================================
+
+
+class TestTeachingPointsAndSessionValidity:
+    def test_teaching_points_listed_newest_first(self, supervisor_client, db_session):
+        """The learning journal is the read side of the Teach form: every
+        mentor lesson + absorbed observation comes back newest first."""
+        agent = _agent(db_session)
+        agent.configuration = {"learning": {"log": [
+            {"source": "teacher", "teacher_agent_id": "human_supervisor",
+             "topic": "email tone", "lesson": "Keep refund emails short.",
+             "learned_at": "2026-08-30T10:00:00+00:00"},
+            {"source": "observation", "observation_type": "human_correction",
+             "summary": "Supervisor fixed the greeting.",
+             "learned_at": "2026-08-31T09:00:00+00:00"},
+        ]}}
+        db_session.commit()
+        _canvas(db_session, "cv-tp")
+        _audit(db_session, "cv-tp", agent_id=agent.id)
+
+        resp = supervisor_client.get("/api/maturity/training/context", params={"canvas_id": "cv-tp"})
+        assert resp.status_code == 200
+        points = resp.json()["teaching_points"]
+        assert [p["topic"] for p in points] == ["human_correction", "email tone"]
+        assert points[0]["source"] == "observation"
+        assert points[0]["text"] == "Supervisor fixed the greeting."
+        assert points[1]["source"] == "teacher"
+        assert points[1]["text"] == "Keep refund emails short."
+
+    def test_teaching_points_empty_without_journal(self, supervisor_client, db_session):
+        agent = _agent(db_session)
+        _canvas(db_session, "cv-nojournal")
+        _audit(db_session, "cv-nojournal", agent_id=agent.id)
+
+        resp = supervisor_client.get("/api/maturity/training/context", params={"canvas_id": "cv-nojournal"})
+        assert resp.status_code == 200
+        assert resp.json()["teaching_points"] == []
+
+    def test_linked_session_of_other_agent_not_shown(self, supervisor_client, db_session):
+        """Shown data must match the shown agent: when the client hint
+        resolves hire A but the canvas's linked session belongs to hire B,
+        returning B's session would let the supervisor edit and complete it
+        under A's name. The mismatched session is withheld."""
+        agent_a = _agent(db_session, "agent-a")
+        agent_b = _agent(db_session, "agent-b")
+        proposal_b = _proposal(db_session, agent_b, status=ProposalStatus.APPROVED.value)
+        session_b = _session(db_session, proposal_b, agent_b)
+        _canvas(db_session, "cv-mix")
+        _audit(db_session, "cv-mix", session_id=session_b.id, agent_id=agent_b.id)
+
+        resp = supervisor_client.get(
+            "/api/maturity/training/context",
+            params={"canvas_id": "cv-mix", "agent_id": agent_a.id},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["agent"]["id"] == agent_a.id
+        assert body["linked_session"] is None
+
+    def test_tier_is_normalized_lowercase(self, supervisor_client, db_session):
+        """Stored status may be uppercase (API clients write "STUDENT") —
+        the payload normalizes so tier badges/next-tier lookups are stable."""
+        agent = _agent(db_session, "agent-upper", status="STUDENT")
+        _canvas(db_session, "cv-upper")
+        _audit(db_session, "cv-upper", agent_id=agent.id)
+
+        resp = supervisor_client.get("/api/maturity/training/context", params={"canvas_id": "cv-upper"})
+        assert resp.status_code == 200
+        assert resp.json()["agent"]["tier"] == "student"

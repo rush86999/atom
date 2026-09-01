@@ -10,6 +10,17 @@ import {
 } from "./error-mapping";
 import { retry } from "@lifeomic/attempt";
 
+// The response interceptor below honors a per-request `retry: false` opt-out
+// (callers with side effects or their own timeout budgets use it). Axios
+// doesn't know the key, so declare it once here instead of scattering
+// @ts-ignore across every call site — see useChatInterface, agent-trace-api,
+// pages/canvas/[id].
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    retry?: boolean;
+  }
+}
+
 // Base API configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
   process.env.API_BASE_URL ||

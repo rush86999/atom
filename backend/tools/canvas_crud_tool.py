@@ -86,6 +86,7 @@ async def read_canvas(
                 return {"success": False, "error": "Canvas has been deleted", "deleted": True}
 
             details = audit.details_json or {}
+            audit_canvas_type = audit.canvas_type
             # Preserve falsy-but-valid content ("" / [] / 0): the old `or`
             # chain replaced empty content with the whole details dict, so an
             # empty doc/email body came back as {"title": ..., "content": ...}
@@ -93,11 +94,50 @@ async def read_canvas(
             raw_content = details.get("content")
             if raw_content is None:
                 raw_content = details.get("data")
+            if raw_content is None and not (
+                "content" in details or "data" in details
+            ):
+                # The latest row carries no body key — but that row may be an
+                # EVENT stamp, not the content history: email_send /
+                # email_send_attempt rows (canvas_email_service.record_send)
+                # append after every send without content. Falling back
+                # straight to the Canvas.content column here served the
+                # creation-era snapshot and made the real draft vanish after
+                # any send attempt (observed 2026-08-31). The audit trail is
+                # the content history: scan back to the latest row that
+                # actually carries a body.
+                content_rows = (
+                    db.query(CanvasAudit)
+                    .filter(
+                        CanvasAudit.canvas_id == canvas_id,
+                        CanvasAudit.created_at < audit.created_at,
+                    )
+                    .order_by(desc(CanvasAudit.created_at))
+                    .limit(10)
+                    .all()
+                )
+                for row in content_rows:
+                    row_details = row.details_json or {}
+                    if "content" in row_details:
+                        raw_content = row_details.get("content")
+                    elif "data" in row_details:
+                        raw_content = row_details.get("data")
+                    else:
+                        continue
+                    # The event row carries no title/type of its own — the
+                    # content row is the provenance for both. A type pin on
+                    # the NEWEST row still outranks the older row's choice.
+                    details = {
+                        **row_details,
+                        **({"type_pinned": details["type_pinned"]} if details.get("type_pinned") else {}),
+                    }
+                    audit_canvas_type = row.canvas_type
+                    break
             if raw_content is None and "content" not in details and "data" not in details:
-                # Audit row carries no body key at all (writer divergence —
-                # e.g. chat_draft_to_canvas stored the document only on the
-                # Canvas row). Fall back to the Canvas.content column so the
-                # page renders the document instead of showing the details
+                # No content-bearing row in the recent history either —
+                # legacy canvas whose body lives only on the Canvas row.
+                # Fall back to the Canvas.content column so the page renders
+                # the document instead of showing the details
                 # metadata ({source, title}) as if it were the body.
                 canvas_row = db.query(Canvas).filter(Canvas.id == canvas_id).first()
                 if canvas_row is not None and canvas_row.content is not None:
@@ -116,7 +156,7 @@ async def read_canvas(
             if details.get("type_pinned"):
                 canvas_type = audit.canvas_type
             else:
-                canvas_type, content = coerce_email_canvas(audit.canvas_type, content)
+                canvas_type, content = coerce_email_canvas(audit_canvas_type, content)
 
             return {
                 "success": True,
@@ -163,7 +203,6 @@ async def update_canvas_content(
     try:
         from core.database import get_db_session
         from core.models import CanvasAudit
-        from core.websockets import manager as ws_manager
         from sqlalchemy import desc
 
         with get_db_session() as db:
@@ -233,29 +272,7 @@ async def update_canvas_content(
             db.refresh(new_audit)
 
         # Broadcast the update via WebSocket.
-        try:
-            user_channel = f"user:{user_id}"
-            broadcast_data = {
-                "action": "update",
-                "canvas_id": canvas_id,
-                "component": canvas_type,
-                "data": content,
-                "title": title or details.get("title"),
-            }
-            # The email composer reads to/cc/subject from `metadata` (present
-            # flow contract) — include it so live panels seed the fields.
-            if canvas_type == "email" and isinstance(content, dict):
-                broadcast_data["metadata"] = {
-                    "to": content.get("to", ""),
-                    "cc": content.get("cc", ""),
-                    "subject": content.get("subject", ""),
-                }
-            await ws_manager.broadcast(user_channel, {
-                "type": "canvas:update",
-                "data": broadcast_data,
-            })
-        except Exception as ws_err:
-            logger.debug(f"Canvas update WS broadcast skipped: {ws_err}")
+        await _broadcast_canvas_update(user_id, canvas_id, canvas_type, content, title or details.get("title"))
 
         logger.info(f"Updated canvas {canvas_id} ({canvas_type})")
         return {
@@ -266,6 +283,147 @@ async def update_canvas_content(
         }
     except Exception as e:
         logger.error(f"Canvas update failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
+async def _broadcast_canvas_update(
+    user_id: str,
+    canvas_id: str,
+    canvas_type: str,
+    content: Any,
+    title: Optional[str],
+) -> None:
+    """WS broadcast shared by every write path (update, restore). Mirrors the
+    present-flow contract: the email composer reads To/Cc/Subject from
+    `metadata`. Best-effort — a broadcast failure never fails the write."""
+    try:
+        from core.websockets import manager as ws_manager
+
+        broadcast_data = {
+            "action": "update",
+            "canvas_id": canvas_id,
+            "component": canvas_type,
+            "data": content,
+            "title": title,
+        }
+        if canvas_type == "email" and isinstance(content, dict):
+            broadcast_data["metadata"] = {
+                "to": content.get("to", ""),
+                "cc": content.get("cc", ""),
+                "subject": content.get("subject", ""),
+            }
+        await ws_manager.broadcast(f"user:{user_id}", {
+            "type": "canvas:update",
+            "data": broadcast_data,
+        })
+    except Exception as ws_err:
+        logger.debug(f"Canvas update WS broadcast skipped: {ws_err}")
+
+
+async def restore_canvas_version(
+    user_id: str,
+    canvas_id: str,
+    audit_id: str,
+) -> Dict[str, Any]:
+    """Restore an earlier version from the append-only audit trail.
+
+    A restore is itself APPENDED as a new "update" row (nothing is rewritten
+    or deleted — the pre-restore state stays in history as its own version),
+    carrying `restored_from` provenance. Broadcasts the same WS update as a
+    normal edit so every open canvas converges.
+
+    Type resolution: the restored version's own canvas_type is authoritative
+    for its content, EXCEPT when the canvas carries a human type pin
+    (`type_pinned`) — the supervisor's manual choice outranks history.
+    """
+    try:
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+        from sqlalchemy import desc
+
+        with get_db_session() as db:
+            # IDOR guard: only the owner may restore this canvas.
+            if not _verify_canvas_owner(db, canvas_id, user_id):
+                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+
+            target = (
+                db.query(CanvasAudit)
+                .filter(CanvasAudit.id == str(audit_id), CanvasAudit.canvas_id == canvas_id)
+                .first()
+            )
+            if not target:
+                return {"success": False, "error": "Version not found"}
+            if target.action_type == "delete":
+                return {"success": False, "error": "Cannot restore a deletion marker"}
+
+            target_details = target.details_json or {}
+            content = target_details.get("content", target_details.get("data"))
+            if content is None:
+                return {"success": False, "error": "Version carries no restorable content"}
+
+            latest = (
+                db.query(CanvasAudit)
+                .filter(CanvasAudit.canvas_id == canvas_id)
+                .order_by(desc(CanvasAudit.created_at))
+                .first()
+            )
+            if not latest:
+                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+            if latest.action_type == "delete":
+                return {"success": False, "error": "Cannot update a deleted canvas"}
+
+            latest_details = dict(latest.details_json or {})
+            if latest_details.get("type_pinned"):
+                canvas_type = latest.canvas_type
+            else:
+                canvas_type = target.canvas_type or latest.canvas_type or "generic"
+                from core.chat_draft_classifier import coerce_email_canvas
+                canvas_type, content = coerce_email_canvas(canvas_type, content)
+
+            # Base the new row on the LATEST details (preserves send metadata,
+            # pins, learning-loop state), then override content/title and mark
+            # the provenance.
+            new_details = latest_details
+            new_details["content"] = content
+            if target_details.get("title"):
+                new_details["title"] = target_details["title"]
+            new_details["restored_from"] = {
+                "audit_id": target.id,
+                "created_at": target.created_at.isoformat() if target.created_at else None,
+                "actor": "agent" if target.agent_id else "supervisor",
+            }
+
+            new_audit = CanvasAudit(
+                canvas_id=canvas_id,
+                tenant_id=latest.tenant_id,
+                session_id=audit_session_id(None),
+                agent_id=audit_agent_id(None),
+                canvas_type=canvas_type,
+                action_type="update",
+                user_id=user_id,
+                details_json=new_details,
+            )
+            db.add(new_audit)
+            db.commit()
+            db.refresh(new_audit)
+
+        await _broadcast_canvas_update(
+            user_id, canvas_id, canvas_type, content,
+            new_details.get("title"),
+        )
+        logger.info(
+            f"Restored canvas {canvas_id} to version {audit_id} "
+            f"({canvas_type}) — appended as a new version"
+        )
+        return {
+            "success": True,
+            "canvas_id": canvas_id,
+            "canvas_type": canvas_type,
+            "restored_from": audit_id,
+            "message": "Version restored (appended as the newest version)",
+        }
+    except Exception as e:
+        logger.error(f"Canvas restore failed: {e}")
         return {"success": False, "error": str(e)}
 
 

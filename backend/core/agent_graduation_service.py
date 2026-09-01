@@ -751,6 +751,17 @@ class AgentGraduationService:
             self.db.commit()
             logger.info(f"Agent {agent_id} promoted to {new_maturity} by {validated_by}")
 
+            # Real-time circuit: the tier just moved — drop the GovernanceCache
+            # snapshot so trigger-gated automation (5-min maturity cache)
+            # enforces the NEW tier on its next decision, not the old one.
+            # Best-effort: a cache failure must never roll back a promotion.
+            try:
+                from core.governance_cache import get_governance_cache
+
+                get_governance_cache().invalidate_agent(agent_id)
+            except Exception as cache_err:
+                logger.debug(f"governance cache invalidate skipped: {cache_err}")
+
             # P2.1 — fire a graduation notification so the user has a reason
             # to come back (Stage 5 of the new-user journey). Wrapped in
             # try/except because a notification failure must NEVER roll back

@@ -227,3 +227,52 @@ This is an instance of design principle 7 — the contract applies to **every re
 - **Letta / MemGPT:** Towards LLMs as Operating Systems (arXiv:2310.08560) · Sleep-time Compute · Memory Blocks: The Key to Agentic Context Management · Why Memory Isn't a Plugin · RAG Is Not Agent Memory
 - **Claude vs ChatGPT memory:** Simon Willison: Claude memory · Memory implementations across Gemini/OpenAI/Anthropic
 - **Context engineering:** Anthropic: Effective Context Engineering for AI Agents · Weaviate: Context Engineering · Elastic: Relevance in Context Engineering
+
+---
+
+## Addendum (2026-08-31) — Taught-lessons leg (implemented)
+
+Closes the biggest "write-only memory" gap found in the P0 audit: lessons
+taught via `POST /api/agents/{id}/teach` (and observed human corrections)
+were stored on `AgentRegistry.configuration["learning"]["log"]` but never
+retrieved at service time — they moved a confidence score and changed
+nothing about behavior.
+
+**Implemented** (general for all agents + all canvas apps):
+
+- `core/student_learning_service.py`: `get_agent_lessons(db, agent_id,
+  query, limit=5)` — reads the durable log, keeps teacher lessons +
+  `human_correction` observations, newest-first with keyword relevance
+  vs the current task; `format_lessons_block()` renders a bounded
+  (≤5 lessons, ~1.6k chars) block with explicit permanence framing
+  ("PERMANENT INSTRUCTIONS … never contradict unless the user overrides
+  in this conversation") so general memory staleness disclaimers don't
+  weaken standing guidance.
+- `core/memory_context_assembler.py`: `_lessons_leg` — rendered as the
+  FIRST block (standing instructions must not be cut by tail truncation),
+  not reranked (tiny, already query-scored).
+- `core/generic_agent.py`: recalled into `memory_context["lessons"]`,
+  rendered into the ReAct MEMORY CONTEXT section (same bug class as the
+  R83 durable-facts leg).
+- `core/chat_canvas_editor.py` + `integrations/chat_orchestrator.py`:
+  the canvas edit planner receives the operating agent's lessons and
+  binds them to the preservation duty. Deliberately NOT applied to the
+  send/action planner (its contract is send-verbatim).
+
+Lessons survive graduation on purpose — retrieval works at any maturity
+tier. Permanence with bounded budget mirrors the plan's own design
+principles #2 and #5.
+
+**Research grounding** (2026-08-31 web validation):
+- Letta/MemGPT "memory blocks": discrete, labeled, size-budgeted
+  always-in-context blocks vs archival recall — the lessons block IS a
+  core-memory block (https://www.letta.com/blog/memory-blocks/).
+- CLAUDE.md guidance: imperative, specific, bounded standing
+  instructions beat accumulating fact lists
+  (https://code.claude.com/docs/en/memory).
+- ⚠️ Known risk class: persistent-memory poisoning via indirect prompt
+  injection (arXiv:2505.23827; Zenity "Beyond Prompt Injection").
+  Current mitigations: writes are human-gated (teach endpoint +
+  governance `teach_student`; corrections are supervisor on-canvas
+  edits), length-bounded. Future hardening: per-lesson provenance +
+  sanitization before a lesson derived from fetched content is accepted.

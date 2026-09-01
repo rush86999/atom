@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { X, Code, Camera, Globe, Play, Layers, Save, History, Check, Loader2, FileText, Table2, Presentation } from "lucide-react";
 import { marked } from "marked";
 import { renderMarkdownSafe } from "@/lib/sanitize";
@@ -8,6 +8,7 @@ import Editor from "@monaco-editor/react";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import { useCanvasAutosave } from "@/hooks/useCanvasAutosave";
 import { saveCanvasAudit } from "@/lib/canvasAuditSave";
+import { onCanvasRefresh } from "@/lib/canvasSync";
 import { CANVAS } from "@/src/lib/testIds";
 import { LineChartCanvas } from "@/components/canvas/LineChart";
 import { BarChartCanvas } from "@/components/canvas/BarChart";
@@ -16,7 +17,9 @@ import { InteractiveForm } from "@/components/canvas/InteractiveForm";
 import { OfficeFileCanvas } from "@/components/canvas/OfficeFileCanvas";
 import { EmailRecipientField } from "@/components/canvas/EmailRecipientField";
 import { CanvasTypeBadge } from "@/components/canvas/CanvasTypeBadge";
-import { persistCanvasTypeSwitch, switchCanvasType, type SwitchableCanvasType } from "@/components/canvas/canvasType";
+import { persistCanvasTypeSwitch, switchCanvasType, normalizeCanvasComponent, type SwitchableCanvasType } from "@/components/canvas/canvasType";
+import SignatureEditor from "@/components/canvas/SignatureEditor";
+import RichTextEditor from "@/components/canvas/RichTextEditor";
 
 interface CanvasState {
     id?: string;
@@ -68,12 +71,41 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
     const hasSignoff = (body: string, sig: string | null): boolean => {
         if (!body) return false;
         if (sig && body.includes(sig)) return true;
-        return /(?:best regards|warm regards|kind regards|regards|sincerely|thank you|thanks|cheers|respectfully)\s*,?\s*(?:\n|$)/im.test(body.slice(-400));
+        return /(?:best regards|warm regards|kind regards|regards|sincerely|thank you|thanks|cheers|respectfully)\s*,?\s*(?:\n|<br|<div|$)/im.test(body.slice(-400));
     };
 
-    const applySignature = (sig: string) => {
+    // A draft's own trailing plain sign-off ("Best regards,\nRish …") —
+    // swapped out when the styled signature is inserted, so the email ends
+    // with ONE signature instead of two stacked ones.
+    const stripTrailingSignoff = (body: string): string => {
+        const trimmed = body.replace(/\s+$/, "");
+        const lines = trimmed.split("\n");
+        const closingRe = /(?:best regards|warm regards|kind regards|regards|sincerely|thank you|thanks|cheers|respectfully)\s*,?\s*$/i;
+        // Forwarded-history headers bound the sender's own block — never
+        // cut into quoted history below a "From:/Sent:" line or a rule.
+        const markerRe = /^\s*-{3,}\s*$|^\s*={3,}\s*$|^\s*(from|sent|to|subject)\s*:\s*\S|^_{5,}\s*original\s+message/i;
+        let end = lines.length;
+        for (let i = 0; i < lines.length; i++) {
+            if (markerRe.test(lines[i])) { end = i; break; }
+        }
+        for (let i = end - 1; i >= 0; i--) {
+            if (closingRe.test(lines[i])) return lines.slice(0, i).join("\n");
+        }
+        return trimmed;
+    };
+
+    const applySignature = (sig: string, replace = false) => {
         setEmailBody((prev) => {
-            const next = hasSignoff(prev, sig) ? prev : `${prev.replace(/\s+$/, "")}\n\n${sig}`;
+            if (sig && prev.includes(sig)) return prev; // already inserted
+            // Auto-apply (mount) stays conservative: only when the draft has
+            // no sign-off at all. The explicit "Insert into email" click
+            // (replace=true) SWAPS the draft's own trailing plain sign-off
+            // for the styled signature — a plain "Best regards, …" ending
+            // used to win the hasSignoff guard and made Insert a silent
+            // no-op (observed 2026-09-01).
+            if (!replace && hasSignoff(prev, sig)) return prev;
+            const base = sig ? stripTrailingSignoff(prev) : prev;
+            const next = `${base.replace(/\s+$/, "")}\n\n${sig}`;
             localContentRef.current = next;
             return next;
         });
@@ -101,113 +133,6 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state?.component]);
 
-    useEffect(() => {
-        if (!lastMessage) return;
-
-        // Check for canvas event type
-        if (lastMessage.type === "canvas:update" || lastMessage.type === "canvas:present") {
-            // Backend broadcasts carry `canvas_id` (tools/canvas_tool.py); the
-            // chat flow may carry `id` — accept either so state registration
-            // and form submission always know the canvas id.
-            const { action, component, data, title, id, canvas_id, version, metadata } = lastMessage.data || lastMessage;
-
-            if (action === "close") {
-                // Closing supersedes local edits — drop any pending autosave
-                // so its timer can't write afterwards.
-                resetAutosave();
-                setState(null);
-            } else {
-                const content = typeof data === 'string'
-                    ? data
-                    // Email canvases carry the composer body under data.body;
-                    // stringifying the {to, subject, body} object made Send
-                    // dispatch JSON instead of the drafted text.
-                    : (component === 'email' && typeof data?.body === 'string'
-                        ? data.body
-                        : ((data?.content as string) || JSON.stringify(data ?? {}, null, 2)));
-
-                const payloadKey = `${canvas_id || id || ""}|${component || ""}|${version ?? ""}|${content}`;
-                if (payloadKey === lastPayloadKeyRef.current) return;
-                lastPayloadKeyRef.current = payloadKey;
-
-                // Autosave echo-guard: PUT /api/canvas/{id} (the email save
-                // path) broadcasts the just-saved content back over WS.
-                // Applying that echo verbatim would reset the editor to the
-                // saved snapshot and drop any keystrokes typed after the
-                // autosave fired — skip it; local state stays authoritative.
-                if (lastSavedSigRef.current !== null && `${component || ""}|${content}` === lastSavedSigRef.current) {
-                    return;
-                }
-
-                // A genuinely new payload supersedes local edits — drop any
-                // pending autosave so its timer can't fire afterwards and
-                // re-write the superseded content.
-                resetAutosave();
-
-                localContentRef.current = content;
-
-                setState({
-                    id: id || canvas_id,
-                    visible: true,
-                    component: component === 'eval' ? 'code' : (component || "markdown"),
-                    title,
-                    data,
-                    version
-                });
-
-                if (component === "email") {
-                    setEmailBody(content);
-                    // Signature may already be loaded (later payloads on the
-                    // same mount) — apply immediately to the fresh body.
-                    if (emailSignature) applySignature(emailSignature);
-                }
-
-                if (component === "email") {
-                    // To/Cc/Subject ride in `metadata` on the present flow
-                    // and in `data` on update broadcasts / detail-page reads.
-                    const to = (typeof data?.to === "string" ? data.to : "") || metadata?.to || "";
-                    const cc = (typeof data?.cc === "string" ? data.cc : "") || metadata?.cc || "";
-                    const subject = (typeof data?.subject === "string" ? data.subject : "") || metadata?.subject || "";
-                    setEmailMetadata({ to, cc, subject });
-
-                    // Reply auto-fill: a Re:/Fw: subject with no recipient
-                    // yet resolves the original thread from the mailbox and
-                    // prefills To (+Cc). Best-effort, once per payload, and
-                    // never overwrites something the user already typed.
-                    if (!to.trim() && /^(re|fw|fwd)\s*:/i.test(subject) && replyResolveRef.current !== payloadKey) {
-                        replyResolveRef.current = payloadKey;
-                        (async () => {
-                            try {
-                                const { apiClient } = await import("@/lib/api");
-                                // The body's greeting is the secondary
-                                // signal when the subject was invented.
-                                const res = await apiClient.get(
-                                    `/api/canvas/email/resolve-reply?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(content.slice(0, 500))}`
-                                );
-                                const resolved = (res as any).data || res || {};
-                                if (resolved?.to) {
-                                    setEmailMetadata((prev) => ({
-                                        ...prev,
-                                        to: prev.to.trim() ? prev.to : String(resolved.to),
-                                        cc: prev.cc.trim() ? prev.cc : String(resolved.cc || ""),
-                                    }));
-                                }
-                            } catch {
-                                // No mailbox / no thread match — the field
-                                // stays free-text with autocomplete.
-                            }
-                        })();
-                    }
-                }
-
-                if (component === "sheet") {
-                    setSheetData(Array.isArray(data) ? data : (data.rows || [["", "", ""], ["", "", ""]]));
-                }
-
-                setHasUnsavedChanges(false);
-            }
-        }
-    }, [lastMessage]);
 
     // Native audit-trail content per type + the WS echo signature the
     // payload effect compares against. Null → this type's content shape is
@@ -322,6 +247,132 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
         reset: resetAutosave,
     } = useCanvasAutosave({ save: handleSave });
 
+    // Apply one canvas:update / canvas:present frame — from the WebSocket OR
+    // from a local store-sync (lib/canvasSync). One guarded path for both.
+    const applyCanvasMessage = useCallback((msg: any) => {
+        if (!msg) return;
+
+        // Check for canvas event type
+        if (msg.type === "canvas:update" || msg.type === "canvas:present") {
+            // Backend broadcasts carry `canvas_id` (tools/canvas_tool.py); the
+            // chat flow may carry `id` — accept either so state registration
+            // and form submission always know the canvas id.
+            const frame = msg.data || msg;
+            const { action, data, title, id, canvas_id, version, metadata } = frame;
+            // canvas_type names ("sheets"/"docs"/"coding"/"generic") map onto
+            // the component names this host renders (normalizeCanvasComponent).
+            const component = normalizeCanvasComponent(frame.component);
+
+            if (action === "close") {
+                // Closing supersedes local edits — drop any pending autosave
+                // so its timer can't write afterwards.
+                resetAutosave();
+                setState(null);
+            } else {
+                const content = typeof data === 'string'
+                    ? data
+                    // Email canvases carry the composer body under data.body;
+                    // stringifying the {to, subject, body} object made Send
+                    // dispatch JSON instead of the drafted text.
+                    : (component === 'email' && typeof data?.body === 'string'
+                        ? data.body
+                        : ((data?.content as string) || JSON.stringify(data ?? {}, null, 2)));
+
+                const payloadKey = `${canvas_id || id || ""}|${component || ""}|${version ?? ""}|${content}`;
+                if (payloadKey === lastPayloadKeyRef.current) return;
+                lastPayloadKeyRef.current = payloadKey;
+
+                // Autosave echo-guard: PUT /api/canvas/{id} (the email save
+                // path) broadcasts the just-saved content back over WS.
+                // Applying that echo verbatim would reset the editor to the
+                // saved snapshot and drop any keystrokes typed after the
+                // autosave fired — skip it; local state stays authoritative.
+                if (lastSavedSigRef.current !== null && `${component || ""}|${content}` === lastSavedSigRef.current) {
+                    return;
+                }
+
+                // A genuinely new payload supersedes local edits — drop any
+                // pending autosave so its timer can't fire afterwards and
+                // re-write the superseded content.
+                resetAutosave();
+
+                localContentRef.current = content;
+
+                setState({
+                    id: id || canvas_id,
+                    visible: true,
+                    component: (component === 'eval' ? 'code' : normalizeCanvasComponent(component)) as CanvasState["component"],
+                    title,
+                    data,
+                    version
+                });
+
+                if (component === "email") {
+                    setEmailBody(content);
+                    // Signature may already be loaded (later payloads on the
+                    // same mount) — apply immediately to the fresh body.
+                    if (emailSignature) applySignature(emailSignature);
+                }
+
+                if (component === "email") {
+                    // To/Cc/Subject ride in `metadata` on the present flow
+                    // and in `data` on update broadcasts / detail-page reads.
+                    const to = (typeof data?.to === "string" ? data.to : "") || metadata?.to || "";
+                    const cc = (typeof data?.cc === "string" ? data.cc : "") || metadata?.cc || "";
+                    const subject = (typeof data?.subject === "string" ? data.subject : "") || metadata?.subject || "";
+                    setEmailMetadata({ to, cc, subject });
+
+                    // Reply auto-fill: a Re:/Fw: subject with no recipient
+                    // yet resolves the original thread from the mailbox and
+                    // prefills To (+Cc). Best-effort, once per payload, and
+                    // never overwrites something the user already typed.
+                    if (!to.trim() && /^(re|fw|fwd)\s*:/i.test(subject) && replyResolveRef.current !== payloadKey) {
+                        replyResolveRef.current = payloadKey;
+                        (async () => {
+                            try {
+                                const { apiClient } = await import("@/lib/api");
+                                // The body's greeting is the secondary
+                                // signal when the subject was invented.
+                                const res = await apiClient.get(
+                                    `/api/canvas/email/resolve-reply?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(content.slice(0, 500))}`
+                                );
+                                const resolved = (res as any).data || res || {};
+                                if (resolved?.to) {
+                                    setEmailMetadata((prev) => ({
+                                        ...prev,
+                                        to: prev.to.trim() ? prev.to : String(resolved.to),
+                                        cc: prev.cc.trim() ? prev.cc : String(resolved.cc || ""),
+                                    }));
+                                }
+                            } catch {
+                                // No mailbox / no thread match — the field
+                                // stays free-text with autocomplete.
+                            }
+                        })();
+                    }
+                }
+
+                if (component === "sheet") {
+                    setSheetData(Array.isArray(data) ? data : (data.rows || [["", "", ""], ["", "", ""]]));
+                }
+
+                setHasUnsavedChanges(false);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [emailSignature, resetAutosave]);
+
+    useEffect(() => {
+        if (lastMessage) applyCanvasMessage(lastMessage);
+    }, [lastMessage, applyCanvasMessage]);
+
+    // Local store-sync convergence (lib/canvasSync): a chat turn flagged as a
+    // canvas edit/action re-broadcasts the audit-trail content here, covering
+    // the missed-WS-broadcast case (dead socket / throttled tab). Redundant
+    // with the detail page's own loadCanvas refetch by design — the guards
+    // dedupe identical payloads.
+    useEffect(() => onCanvasRefresh((detail) => applyCanvasMessage(detail.message)), [applyCanvasMessage]);
+
     // To/Cc accept comma-separated lists (the autocomplete inserts them);
     // the send endpoint takes arrays.
     const splitRecipients = (raw: string): string[] =>
@@ -351,7 +402,18 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
             if (data.success) {
                 alert(data.status === "sent" ? "Email sent." : `Email status: ${data.status}`);
             } else {
-                alert(`Send blocked: ${data.error || data.message || "unknown error"}`);
+                const reason = data.error || data.message || "unknown error";
+                // Consent gap: the token predates a permission (Mail.Send) —
+                // only a reconnect can grant it. Offer the one-click fix
+                // instead of a dead end.
+                if (data.needs_reconnect || /missing the Mail\.Send permission/i.test(reason)) {
+                    if (window.confirm(`${reason}\n\nReconnect Outlook now?`)) {
+                        const { getAuthToken } = await import("@/lib/auth-headers");
+                        window.location.href = `/api/v1/auth/oauth/microsoft/authorize?token=${encodeURIComponent(getAuthToken() ?? "")}`;
+                    }
+                } else {
+                    alert(`Send blocked: ${reason}`);
+                }
             }
         } catch (e: any) {
             alert(`Send failed: ${e?.response?.data?.message || e?.message || "unknown error"}`);
@@ -534,13 +596,13 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                                     <p className="text-[10px] text-zinc-500" data-testid="canvas-signature-source">
                                         Default signature — {signatureSource === "stored" ? "custom (overrides the integration default)" : "from your Outlook sent mail"}
                                     </p>
-                                    <textarea
-                                        data-testid="canvas-signature-editor"
+                                    {/* Rich WYSIWYG editor: styled signatures
+                                        (bold/italic/links/colors/rules) are a
+                                        supported feature — saved as sanitized
+                                        HTML and rendered by the mail sink. */}
+                                    <SignatureEditor
                                         value={emailSignature ?? ""}
-                                        onChange={(e) => { setEmailSignature(e.target.value); setSignatureSource("stored"); }}
-                                        rows={5}
-                                        placeholder="Best regards,&#10;Your Name"
-                                        className="w-full text-xs bg-transparent border border-zinc-200 dark:border-white/10 rounded p-2 text-zinc-900 dark:text-zinc-100 focus:ring-0 outline-none"
+                                        onChange={(html) => { setEmailSignature(html); setSignatureSource("stored"); }}
                                     />
                                     <div className="flex gap-2 justify-end">
                                         <button
@@ -557,7 +619,7 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                                             Save as default
                                         </button>
                                         <button
-                                            onClick={() => { if (emailSignature?.trim()) applySignature(emailSignature); setSignatureOpen(false); }}
+                                            onClick={() => { if (emailSignature?.trim()) applySignature(emailSignature, true); setSignatureOpen(false); }}
                                             className="px-2 py-1 rounded border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-300 text-[11px]"
                                         >
                                             Insert into email
@@ -813,20 +875,15 @@ function CanvasContent({
                             />
                         </div>
                     </div>
-                    <div className="flex-1">
-                        <Editor
-                            height="100%"
-                            defaultLanguage="markdown"
-                            theme="vs-dark"
+                    {/* WYSIWYG body editor — Outlook-style styling (fonts,
+                        sizes, colors, links, lists, alignment) that renders
+                        in the outgoing email via the HTML send sink. */}
+                    <div className="flex-1 overflow-y-auto">
+                        <RichTextEditor
                             value={emailBody}
-                            onChange={(val) => onEmailBodyChange(val || "")}
-                            options={{
-                                minimap: { enabled: false },
-                                fontSize: 13,
-                                lineNumbers: "off",
-                                wordWrap: "on",
-                                padding: { top: 20, bottom: 20 }
-                            }}
+                            onChange={(html) => onEmailBodyChange(html || "")}
+                            testIdPrefix="canvas-email-body"
+                            minHeight="320px"
                         />
                     </div>
                 </div>

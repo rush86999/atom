@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, ArrowLeft, RefreshCw, History, Trash2, GraduationCap, MessageSquare, ShieldCheck } from "lucide-react";
 import { CanvasPanel } from "@/components/canvas/CanvasPanel";
+import { CanvasVersionHistory } from "@/components/canvas/CanvasVersionHistory";
+import { isCanvasContentFrame } from "@/lib/canvasFrame";
 import { MiniAppHarness } from "@/components/canvas/MiniAppHarness";
 import { TrainingPanel } from "@/components/canvas/TrainingPanel";
 import { JourneyPanel } from "@/components/canvas/JourneyPanel";
@@ -33,17 +35,35 @@ interface CanvasMessage {
 
 export default function CanvasDetailPage() {
     const router = useRouter();
-    const { id: canvasId } = router.query;
+    // Direct URL loads in dev can serve the route shell with an EMPTY
+    // router.query (observed live 2026-08-31: __NEXT_DATA__.query:{} →
+    // canvasId undefined → loadCanvas bails before clearing `loading` → the
+    // page spins on "Loading canvas…" forever; client-side navigation from
+    // the canvases list always worked). window.location.pathname is
+    // authoritative for /canvas/[id] — but ONLY after mount: using it
+    // during the hydration render made the client's first output differ
+    // from the server HTML ("Canvas undefined" vs "Canvas e7249…") and
+    // blew up hydration itself (Recoverable Error: text content does not
+    // match). Mount-gated, the first render matches the server, then the
+    // id resolves.
+    const routerId = router.query?.id;
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+    const canvasId = (Array.isArray(routerId) ? routerId[0] : routerId)
+        || (mounted ? window.location.pathname.split("/")[2] : undefined);
     const userId = typeof window !== "undefined" ? (localStorage.getItem("user_id") || getCurrentUserId()) : getCurrentUserId();
 
     // Canvas state
     const [canvasData, setCanvasData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [showHistory, setShowHistory] = useState(false);
-    const [history, setHistory] = useState<any[]>([]);
 
     // Chat panel state
     const [messages, setMessages] = useState<CanvasMessage[]>([]);
+    // Mirror for async helpers (late-reply polling) that must read the
+    // current transcript without re-creating handleSendMessage per render.
+    const messagesRef = useRef<CanvasMessage[]>([]);
+    useEffect(() => { messagesRef.current = messages; }, [messages]);
     const [chatInput, setChatInput] = useState("");
     // Auto-grow the co-editor composer to fit multi-line messages.
     const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -55,11 +75,6 @@ export default function CanvasDetailPage() {
         }
     }, [chatInput]);
     const [isAgentResponding, setIsAgentResponding] = useState(false);
-    // Keep the co-editor transcript pinned to the newest message.
-    const chatEndRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, isAgentResponding]);
     // Transient confirmation under the chat input after a feedback submit.
     const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
     // Session continuity: the panel used to send session_id "new" on EVERY
@@ -176,6 +191,24 @@ export default function CanvasDetailPage() {
     // Training panel state: the sidebar hosts the co-editor chat and the
     // agent training panel (approve, teach, score, graduate) side by side.
     const [sideTab, setSideTab] = useState<"chat" | "training" | "journey" | "autonomy">("chat");
+    // Keep the co-editor transcript pinned to the newest message. sideTab is
+    // a dependency because switching tabs UNMOUNTS the chat list — the end
+    // anchor goes null with it, so returning to the Chat tab remounts the
+    // list scrolled to the TOP. Without re-running this effect on the tab
+    // change the user lands on the first message instead of the latest.
+    const chatEndRef = useRef<HTMLDivElement>(null);
+    const chatTabMountedRef = useRef(sideTab === "chat");
+    useEffect(() => {
+        if (sideTab !== "chat") {
+            chatTabMountedRef.current = false;
+            return;
+        }
+        // Instant jump when the list just remounted (it sits at the top);
+        // smooth follow for new messages while the tab stays open.
+        const behavior = chatTabMountedRef.current ? "smooth" : "auto";
+        chatTabMountedRef.current = true;
+        chatEndRef.current?.scrollIntoView({ behavior });
+    }, [messages, isAgentResponding, sideTab]);
     const [trainingCtx, setTrainingCtx] = useState<CanvasTrainingContext | null>(null);
 
     // The canvas's hire must be known on the CHAT tab too, not just when the
@@ -269,6 +302,12 @@ export default function CanvasDetailPage() {
             // state preview) — they must NOT overwrite the rendered canvas content.
             if (data.action === "mini_app_state") return;
             if (data.canvas_id === canvasId && data.action !== "close") {
+                // Event frames (email_send status, mini_app_state, …) ride the
+                // same channel without carrying canvas content. Applying them
+                // as content replaced the user's draft with a {status, payload}
+                // blob (observed live 2026-08-31: a failed send made the open
+                // email draft vanish). The durable store is untouched.
+                if (!isCanvasContentFrame(data)) return;
                 setCanvasData((prev: any) => ({
                     ...prev,
                     content: data.data || data.content,
@@ -282,19 +321,9 @@ export default function CanvasDetailPage() {
         }
     }, [lastMessage, canvasId]);
 
-    // Load version history
-    const loadHistory = async () => {
-        if (!canvasId) return;
-        try {
-            const { apiClient } = await import("../../lib/api-client");
-            const resp = await apiClient.get(`/api/canvas/${canvasId}/history`);
-            const data = (resp as any).data || resp;
-            setHistory(data.history || []);
-            setShowHistory(!showHistory);
-        } catch (e) {
-            console.error("Failed to load history:", e);
-        }
-    };
+    // Toggle the version-history slide-out. Fetching + restore live in the
+    // shared CanvasVersionHistory component (the chat-page host uses it too).
+    const loadHistory = () => setShowHistory(!showHistory);
 
     // Delete canvas
     const handleDelete = async () => {
@@ -372,6 +401,23 @@ export default function CanvasDetailPage() {
                     model: data.model ?? null,
                     provider: data.provider ?? null,
                 }]);
+                // The WS canvas:update broadcast is the primary live carrier,
+                // but a stale socket silently drops it — an auth-expiry close
+                // never reconnects while the JWT lives in localStorage, and a
+                // throttled background tab can miss frames — leaving the reply
+                // claiming an edit the canvas never shows (observed live:
+                // audit row + broadcast landed, page stayed on the old draft).
+                // Both handled turns flag themselves in the response
+                // (metadata.canvas_edit.updated / metadata.canvas_action —
+                // chat_routes maps the orchestrator's `data` to `metadata`);
+                // re-fetch from the audit trail so the canvas converges even
+                // when the broadcast was missed. Focus moved to the chat
+                // input on send, so the composer's onBlur already flushed
+                // pending autosave — the durable store holds the newest
+                // draft at this point.
+                if (data.metadata?.canvas_edit?.updated || data.metadata?.canvas_action) {
+                    loadCanvas();
+                }
             } else if (data.error_code === "no_llm_provider") {
                 setMessages(prev => [...prev, {
                     id: "sys",
@@ -389,13 +435,64 @@ export default function CanvasDetailPage() {
                     timestamp: new Date(),
                 }]);
             }
-        } catch (e) {
-            setMessages(prev => [...prev, {
-                id: "err",
-                type: "system",
-                content: "⚠️ Could not reach the agent. Please try again.",
-                timestamp: new Date(),
-            }]);
+        } catch (e: any) {
+            // Long agent turns can outlive this request: the backend keeps
+            // working and PERSISTS the reply even after the browser gives up
+            // (observed live 2026-08-31: the panel showed "Could not reach
+            // the agent" for a turn whose finished reply sat in chat history
+            // — a page reload made it "magically" appear). On timeout-shaped
+            // failures (no response / abort / 504), poll the durable history
+            // briefly for the late reply before declaring failure. Real 4xx
+            // responses skip the poll — retrying those is pointless.
+            const timedOut = !e?.response || e?.code === "ECONNABORTED" || e?.response?.status === 504;
+            let lateReply: CanvasMessage | null = null;
+            const sid = timedOut
+                ? chatSessionId || (router.query.from === "chat" ? (router.query.session as string) : undefined)
+                : undefined;
+            if (sid) {
+                const { apiClient } = await import("../../lib/api-client");
+                for (let attempt = 0; attempt < 12 && !lateReply; attempt++) {
+                    await new Promise(r => setTimeout(r, 5000));
+                    try {
+                        const resp = await apiClient.get(
+                            `/api/chat/history/${sid}?user_id=${userId}`,
+                            { timeout: 10000 },
+                        );
+                        const data = (resp as any).data || resp;
+                        const rows: any[] = data?.messages || [];
+                        const lastAi = [...rows].reverse().find(
+                            r => r?.role === "assistant" && typeof r?.response?.message === "string" && r.response.message.trim(),
+                        );
+                        const content = lastAi?.response?.message;
+                        // Only accept an assistant message the panel
+                        // isn't already showing (the guard keeps a
+                        // previous turn's reply from being re-rendered).
+                        if (content && !messagesRef.current.some(m => m.type === "assistant" && m.content === content)) {
+                            lateReply = {
+                                id: `a_${Date.now()}`,
+                                type: "assistant",
+                                content,
+                                timestamp: new Date(lastAi?.timestamp || Date.now()),
+                                model: (lastAi as any)?.model ?? null,
+                                provider: (lastAi as any)?.provider ?? null,
+                            };
+                        }
+                    } catch {
+                        // History hiccup mid-poll — keep trying.
+                    }
+                }
+            }
+            if (lateReply) {
+                setMessages(prev => [...prev, lateReply!]);
+                setChatSessionId(prev => prev || sid!);
+            } else {
+                setMessages(prev => [...prev, {
+                    id: "err",
+                    type: "system",
+                    content: "⚠️ Could not reach the agent. Please try again.",
+                    timestamp: new Date(),
+                }]);
+            }
         } finally {
             setIsAgentResponding(false);
         }
@@ -504,7 +601,10 @@ export default function CanvasDetailPage() {
         // second wrapper here rendered a duplicate navigation sidebar.
         <>
             <Head>
-                <title>{canvasData?.title || "Canvas"} | Atom</title>
+                {/* Single-string child: `X | Atom` as JSX children renders an
+                    ARRAY into <title>, which fails hydration and froze the
+                    page on its SSR shell ("Loading canvas…" forever). */}
+                <title>{`${canvasData?.title || "Canvas"} | Atom`}</title>
             </Head>
             <div className="h-[calc(100vh-3.5rem)] flex flex-col">
                 {/* Canvas header bar */}
@@ -529,12 +629,48 @@ export default function CanvasDetailPage() {
                                 <ArrowLeft className="h-4 w-4 mr-1" /> All Canvases
                             </Button>
                         </Link>
-                        <h1 className="text-lg font-semibold truncate max-w-xs md:max-w-md">
+                        {/* canvasId comes from the URL: the client router
+                            initializes it BEFORE hydration while the server
+                            shell rendered "Canvas undefined" — a legitimate
+                            text mismatch, suppressed for this element only. */}
+                        <h1 suppressHydrationWarning className="text-lg font-semibold truncate max-w-xs md:max-w-md">
                             {canvasData?.title || `Canvas ${canvasId}`}
                         </h1>
                         {canvasData?.canvas_type && (
                             <span className="text-[10px] uppercase bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
                                 {canvasData.canvas_type}
+                            </span>
+                        )}
+                        {/* The hire attached to this canvas: name · category
+                            (sales, …) · maturity tier · confidence — visible
+                            to the end user without opening the training tab. */}
+                        {trainingCtx?.agent && (
+                            <span
+                                data-testid="canvas-hire-badge"
+                                title={`${trainingCtx.agent.name || "Hire"} — ${trainingCtx.agent.domain || "general"} · ${trainingCtx.agent.tier || "student"} · ${Math.round((trainingCtx.agent.confidence ?? 0) * 100)}% confidence`}
+                                className="hidden md:flex items-center gap-1.5 text-[10px] bg-muted px-2 py-0.5 rounded text-muted-foreground max-w-xs"
+                            >
+                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                                    (trainingCtx.agent.tier || "").toLowerCase() === "autonomous"
+                                        ? "bg-green-500"
+                                        : (trainingCtx.agent.tier || "").toLowerCase() === "supervised"
+                                            ? "bg-orange-500"
+                                            : (trainingCtx.agent.tier || "").toLowerCase() === "intern"
+                                                ? "bg-amber-400"
+                                                : "bg-sky-400"
+                                }`} />
+                                <span className="truncate font-medium text-foreground">
+                                    {trainingCtx.agent.name || "Hire"}
+                                </span>
+                                <span className="truncate lowercase">
+                                    {trainingCtx.agent.domain || "general"}
+                                </span>
+                                <span className="uppercase font-semibold shrink-0">
+                                    {trainingCtx.agent.tier || "student"}
+                                </span>
+                                <span className="shrink-0">
+                                    {Math.round((trainingCtx.agent.confidence ?? 0) * 100)}%
+                                </span>
                             </span>
                         )}
                     </div>
@@ -659,7 +795,14 @@ export default function CanvasDetailPage() {
                         ) : sideTab === "journey" ? (
                             <JourneyPanel canvasId={canvasId as string} />
                         ) : sideTab === "autonomy" ? (
-                            <AutonomyPanel />
+                            <AutonomyPanel
+                                canvasId={canvasId as string}
+                                agentId={
+                                    (router.query.agent_id as string) ||
+                                    trainingCtx?.agent?.id ||
+                                    undefined
+                                }
+                            />
                         ) : (
                             <>
                         {/* Chat header */}
@@ -736,7 +879,8 @@ export default function CanvasDetailPage() {
                     </div>
                 </div>
 
-                {/* Version history slide-out */}
+                {/* Version history slide-out — shared component, same panel the
+                    chat-page host renders (restore works for every canvas app) */}
                 {showHistory && (
                     <div className="absolute right-80 top-12 bottom-0 w-64 bg-background border-l shadow-lg z-10 overflow-y-auto">
                         <div className="p-3 border-b flex justify-between items-center">
@@ -745,23 +889,10 @@ export default function CanvasDetailPage() {
                                 <ArrowLeft className="h-3 w-3" />
                             </Button>
                         </div>
-                        <div className="divide-y">
-                            {history.length === 0 ? (
-                                <p className="text-sm text-muted-foreground p-4">No history available.</p>
-                            ) : (
-                                history.map((h, i) => (
-                                    <div key={i} className="p-3 text-xs">
-                                        <div className="flex justify-between mb-1">
-                                            <span className="font-medium uppercase">{h.action_type}</span>
-                                            <span className="text-muted-foreground">
-                                                {h.created_at ? new Date(h.created_at).toLocaleString() : ""}
-                                            </span>
-                                        </div>
-                                        <span className="text-muted-foreground">{h.canvas_type}</span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
+                        <CanvasVersionHistory
+                            canvasId={canvasId as string}
+                            onRestored={() => loadCanvas()}
+                        />
                     </div>
                 )}
             </div>
