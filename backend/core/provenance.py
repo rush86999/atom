@@ -22,11 +22,20 @@ Design contract:
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+
+def knowledge_spotlight_enabled() -> bool:
+    """Master switch for rendering the knowledge/memory leg as delimited
+    UNTRUSTED retrieved content (spotlighting). Off restores the legacy bare
+    rendering. Separate from ATOM_DATAMARKING so this one surface can be
+    flipped without changing every tool-output renderer."""
+    return os.getenv("ATOM_KNOWLEDGE_SPOTLIGHT_ENABLED", "true").lower() == "true"
 
 
 # ===========================================================================

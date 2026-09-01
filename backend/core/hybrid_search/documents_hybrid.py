@@ -142,6 +142,11 @@ class DocumentsHybridSearch:
                 "bridged": True,
                 "legs": ["conversations"],
                 "score": 0.0,
+                # Attribution (Phase 1): email-derived hits carry who + when so
+                # the knowledge leg can render sender + recency — never a bare
+                # blob from an attacker-controlled inbox.
+                "sender": rec.get("sender_email") or rec.get("sender"),
+                "as_of": str(rec.get("timestamp", ""))[:10] or None,
             })
         return out
 
@@ -297,6 +302,7 @@ class DocumentsHybridSearch:
                     "bridged": True,
                     "rrf": 0.0,
                     "legs": [],
+                    "freshness_status": getattr(doc, "freshness_status", None),
                 },
             )
             entry["rrf"] += 1.0 / (RRF_K + rank)
@@ -315,6 +321,9 @@ class DocumentsHybridSearch:
                 "score": round(e["rrf"], 6),
                 "modified": e["modified"],
                 "bridged": e["bridged"],
+                "freshness_status": e.get("freshness_status"),
+                "sender": e.get("sender"),
+                "as_of": e.get("as_of"),
             }
             for e in fused
         ]

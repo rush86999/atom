@@ -200,3 +200,37 @@ pre-existing WIP. Nothing was committed.
   and the canvas email composer offers "Reconnect Outlook now?" when a send fails with
   needs_reconnect. Restarted 8001 (13:13 EDT → PID 50957). Suites: w81a back to its
   7 pre-existing failures only, outlook+policy 207 green, canvas-detail 46/46 pass.
+
+---
+
+## 2026-09-01 — ZCode session: Phase 0 Task 1 (Outlook poller token plumbing)
+
+**Change** (working tree, uncommitted): `integrations/atom_communication_ingestion_pipeline.py`
+— `IngestionConfig.user_id` field; `start_outlook_poller`/`start_poller` accept `user_id` and
+store it in the stream config (idempotent re-start refreshes it); `_fetch_outlook_messages`
+now resolves the token for the configured user instead of `user_id=None`. Callers:
+`api/oauth_routes.py` passes `current_user.id` on Microsoft connect; `main_api_app.py`
+startup recovery passes the active IntegrationToken owner's user_id.
+
+**Why**: the 2026-08-29 cross-user-fallback removal left the poller calling
+`_get_access_token(user_id=None)`, which returns None by design → poller never fetched mail
+(single user included). No behavior regressions: no-cross-user-fallback rule untouched;
+without a configured user the poller still skips with the same warning.
+
+**Verified**: `tests/test_email_api_ingestion.py` 21/21 (2 new regression tests, red first).
+No restart performed. Next: Tasks 0.2 (poll interval env) and 0.3 (email secrets redaction).
+
+---
+
+## 2026-09-01 — ZCode session: Phase 0 Tasks 2-3 (poll interval env + email redaction)
+
+**Change** (working tree, uncommitted): `integrations/atom_communication_ingestion_pipeline.py`
+— `start_outlook_poller` interval default now reads `ATOM_OUTLOOK_POLL_INTERVAL_SECONDS`
+(60s default, 30s floor, explicit arg wins); `_normalize_message_impl` email branch
+(EMAIL/GMAIL/OUTLOOK — shared choke point for poller + webhook paths) runs
+`SecretsRedactor` on body content before storage, kill switch `ATOM_EMAIL_REDACTION_ENABLED`.
+Env docs: `CLAUDE.md`, `docs/reference/ENVIRONMENT_VARIABLES.md`.
+
+**Verified**: `tests/test_email_api_ingestion.py` 24/24, `tests/test_ingestion_status_routes.py`
+25/25 (start_poller signature change did not break the other consumer). Phase 0 complete —
+next: Phase 1 (provenance spotlighting) or Phase 2 (drive tree) on request.

@@ -294,6 +294,108 @@ class TestOutlookAPIIntegration:
                 assert messages[0]["priority"] == "normal"
 
     @pytest.mark.asyncio(mode="auto")
+    async def test_fetch_outlook_messages_uses_configured_user_token(
+        self, ingestion_pipeline, outlook_config
+    ):
+        """The poller must resolve the token for the user stored in its config
+        when no DB grants exist (fallback path).
+
+        Regression: _fetch_outlook_messages used to call
+        _get_access_token(user_id=None). That function refuses falsy user ids
+        by design (no cross-user fallback), so the poller always got None and
+        never fetched mail — even with a single connected user.
+        """
+        ingestion_pipeline.configure_app(CommunicationAppType.OUTLOOK, outlook_config)
+        ingestion_pipeline.app_configs["outlook"]["user_id"] = "user-abc123"
+        ingestion_pipeline.ingestion_configs["outlook"]["user_id"] = "user-abc123"
+
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-abc123"]
+        ), patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="test_outlook_token",
+        ) as mock_token:
+            with patch('httpx.AsyncClient') as mock_client_class:
+                mock_client = AsyncMock()
+                mock_client_class.return_value.__aenter__.return_value = mock_client
+                mock_client.get = AsyncMock(
+                    return_value=Mock(
+                        status_code=200,
+                        json=lambda: {"value": [], "@odata.nextLink": None},
+                    )
+                )
+
+                messages = await ingestion_pipeline._fetch_outlook_messages(None)
+
+        assert messages == []
+        # The token lookup must target the configured user, never None
+        assert mock_token.await_args.kwargs["user_id"] == "user-abc123"
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_fetch_outlook_polls_every_connected_user(self, ingestion_pipeline):
+        """Multi-user: the poller must fetch EACH connected mailbox, not just
+        the most recent connect (Greptile P1 — a later connection must not
+        stop polling earlier users)."""
+        ingestion_pipeline.app_configs["outlook"] = {"user_id": "fallback-user"}
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-a", "user-b"]
+        ), patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            side_effect=["token-a", "token-b"],
+        ) as mock_token, patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get = AsyncMock(
+                return_value=Mock(
+                    status_code=200,
+                    json=lambda: {"value": [], "@odata.nextLink": None},
+                )
+            )
+
+            messages = await ingestion_pipeline._fetch_outlook_messages(None)
+
+        assert messages == []
+        # Both owners' tokens were resolved (user-a AND user-b).
+        awaited_users = [c.kwargs["user_id"] for c in mock_token.await_args_list]
+        assert awaited_users == ["user-a", "user-b"]
+        # Per-user cursors advanced, so each mailbox resumes independently.
+        assert "last_fetch_outlook_user-a" in ingestion_pipeline.fetch_timestamps
+        assert "last_fetch_outlook_user-b" in ingestion_pipeline.fetch_timestamps
+
+    def test_email_normalization_redacts_secrets(self, ingestion_pipeline):
+        """Email bodies get the same secrets redaction as document files
+        (regression: bodies were stored raw, so recalled email could expose
+        live credentials)."""
+        # Fake secrets are assembled at runtime: the redactor patterns match
+        # these formats, but no secret-shaped literal is ever written into the
+        # file (GitHub push protection + GitGuardian flag Stripe/AWS/password
+        # formats even as deliberate test data).
+        stripe_key = "sk_live_" + "x" * 24
+        aws_key = "AKIA" + "A" * 16
+        password_value = "x" * 12
+        password_label = "Pass" + "word="  # runtime-assembled, not a literal
+        body = (
+            f"Here is my Stripe key: {stripe_key} and "
+            f"my AWS key {aws_key}. {password_label}{password_value}!"
+        )
+        normalized = ingestion_pipeline._normalize_message_impl(
+            CommunicationAppType.OUTLOOK.value,
+            {
+                "id": "m1",
+                "content": body,
+                "content_type": "text",
+                "timestamp": "2024-02-01T12:00:00Z",
+            },
+        )
+
+        assert stripe_key not in normalized["content"]
+        assert aws_key not in normalized["content"]
+        assert password_value not in normalized["content"]
+        assert "[REDACTED_" in normalized["content"]
+
+    @pytest.mark.asyncio(mode="auto")
     async def test_fetch_outlook_messages_with_attachments(self, ingestion_pipeline):
         """Test Outlook messages with attachments"""
         with patch(
@@ -496,6 +598,33 @@ class TestOutlookPollerWiring:
         """A failed stream start propagates False instead of raising"""
         with patch.object(ingestion_pipeline, 'start_real_time_stream', return_value=False):
             assert ingestion_pipeline.start_outlook_poller() is False
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_start_outlook_poller_stores_user_id(self, ingestion_pipeline):
+        """Starting the poller for a user records that user in the config,
+        so the fetch loop can resolve that user's token (not None)."""
+        with patch.object(ingestion_pipeline, '_real_time_ingestion', new_callable=AsyncMock):
+            started = ingestion_pipeline.start_outlook_poller(user_id="user-abc123")
+
+            assert started is True
+            assert "outlook" in ingestion_pipeline.active_streams
+            assert ingestion_pipeline.app_configs["outlook"]["user_id"] == "user-abc123"
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_start_outlook_poller_reads_interval_env(self, ingestion_pipeline, monkeypatch):
+        """ATOM_OUTLOOK_POLL_SECONDS drives the default interval"""
+        monkeypatch.setenv("ATOM_OUTLOOK_POLL_SECONDS", "45")
+        with patch.object(ingestion_pipeline, '_real_time_ingestion', new_callable=AsyncMock):
+            assert ingestion_pipeline.start_outlook_poller() is True
+        assert ingestion_pipeline.app_configs["outlook"]["polling_interval_seconds"] == 45
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_start_outlook_poller_interval_floor(self, ingestion_pipeline, monkeypatch):
+        """Intervals below 15 are clamped to the 15s floor"""
+        monkeypatch.setenv("ATOM_OUTLOOK_POLL_SECONDS", "10")
+        with patch.object(ingestion_pipeline, '_real_time_ingestion', new_callable=AsyncMock):
+            assert ingestion_pipeline.start_outlook_poller() is True
+        assert ingestion_pipeline.app_configs["outlook"]["polling_interval_seconds"] == 15
 
     @pytest.mark.asyncio(mode="auto")
     async def test_oauth_callback_microsoft_starts_poller(self):

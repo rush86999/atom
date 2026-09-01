@@ -295,6 +295,10 @@ EMERGENCY_GOVERNANCE_BYPASS=false
 # Monitoring
 PROMETHEUS_ENABLED=true   STRUCTLOG_LEVEL=INFO   HEALTH_CHECK_DISK_THRESHOLD_GB=1
 
+# Email / communication ingestion (Phase 0)
+ATOM_OUTLOOK_POLL_SECONDS=60                # Outlook poller interval (min 15; explicit callers win)
+ATOM_EMAIL_REDACTION_ENABLED=true        # secrets-redact email bodies before storing (kill switch)
+
 ATOM_MEMORY_POISON_TRIPWIRE=true         # quarantines sources that supersede >=5 facts/10min (memory-injection defense)
 
 # Model provenance & harness-patch scoping (R82, docs/architecture/HARNESS_EVOLUTION.md)

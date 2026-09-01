@@ -230,6 +230,7 @@ class IngestionConfig:
     retention_days: int
     vector_dim: int = 768
     polling_interval_seconds: int = 30
+    user_id: Optional[str] = None
 
 class LanceDBMemoryManager:
     """LanceDB-based memory manager for ATOM"""
@@ -927,7 +928,7 @@ class CommunicationIngestionPipeline:
         """Check if webhook ingestion is enabled for an app"""
         return self.webhook_enabled.get(app_type, False)
 
-    def start_outlook_poller(self, polling_interval_seconds: Optional[int] = None) -> bool:
+    def start_outlook_poller(self, polling_interval_seconds: Optional[int] = None, user_id: Optional[str] = None) -> bool:
         """
         Start the Outlook real-time polling stream (idempotent).
 
@@ -941,17 +942,30 @@ class CommunicationIngestionPipeline:
             polling_interval_seconds: How often to poll Microsoft Graph for new
                 mail. Defaults to ATOM_OUTLOOK_POLL_SECONDS (real-time tuning
                 knob; lower it when a fast loop matters more than API quota).
+            user_id: The user whose OAuth token the poller resolves. The loop
+                has no request context, so the connecting user must be recorded
+                here — passing None to _get_access_token returns None by design
+                (no cross-user fallback) and polling would never fetch mail.
 
         Returns:
             True if the stream is running (or was already running).
         """
+        if polling_interval_seconds is None:
+            try:
+                polling_interval_seconds = int(os.getenv("ATOM_OUTLOOK_POLL_SECONDS", "60"))
+            except (TypeError, ValueError):
+                polling_interval_seconds = 60
         try:
             if "outlook" in self.active_streams:
+                # Poller already running — refresh the token owner so a later
+                # connect (different user) is picked up on the next poll.
+                if user_id:
+                    cfg = self.app_configs.get("outlook")
+                    if cfg:
+                        cfg["user_id"] = user_id
                 logger.info("Outlook poller already running")
                 return True
 
-            if polling_interval_seconds is None:
-                polling_interval_seconds = int(os.getenv("ATOM_OUTLOOK_POLL_SECONDS", "60"))
             config = IngestionConfig(
                 app_type=CommunicationAppType.OUTLOOK,
                 enabled=True,
@@ -962,6 +976,7 @@ class CommunicationIngestionPipeline:
                 retention_days=365,
                 vector_dim=768,
                 polling_interval_seconds=max(15, int(polling_interval_seconds)),
+                user_id=user_id,
             )
             self.configure_app(CommunicationAppType.OUTLOOK, config)
             started = self.start_real_time_stream(CommunicationAppType.OUTLOOK.value)
@@ -985,7 +1000,7 @@ class CommunicationIngestionPipeline:
         "discord": CommunicationAppType.DISCORD,
     }
 
-    def start_poller(self, app_type: str, polling_interval_seconds: int = 60) -> bool:
+    def start_poller(self, app_type: str, polling_interval_seconds: int = 60, user_id: Optional[str] = None) -> bool:
         """
         Start a real-time polling stream for any pollable app (idempotent).
 
@@ -994,6 +1009,11 @@ class CommunicationIngestionPipeline:
         streaming loop. The per-app token lookup happens inside each
         _fetch_*_messages implementation; apps without credentials log a
         warning and fetch nothing rather than crashing the loop.
+
+        Args:
+            app_type: Pollable app id (see POLLABLE_APPS).
+            polling_interval_seconds: How often to poll the app's API.
+            user_id: The user whose OAuth token the loop resolves.
         """
         try:
             enum_member = self.POLLABLE_APPS.get(app_type)
@@ -1001,6 +1021,10 @@ class CommunicationIngestionPipeline:
                 logger.warning(f"No poller implementation for {app_type}")
                 return False
             if app_type in self.active_streams:
+                if user_id:
+                    cfg = self.app_configs.get(app_type)
+                    if cfg:
+                        cfg["user_id"] = user_id
                 logger.info(f"{app_type} poller already running")
                 return True
 
@@ -1014,6 +1038,7 @@ class CommunicationIngestionPipeline:
                 retention_days=365,
                 vector_dim=768,
                 polling_interval_seconds=max(30, int(polling_interval_seconds)),
+                user_id=user_id,
             )
             self.configure_app(enum_member, config)
             started = self.start_real_time_stream(enum_member.value)
@@ -1551,6 +1576,7 @@ class CommunicationIngestionPipeline:
             headers = {"Authorization": f"Bearer {access_token}"}
 
             all_messages = []
+            newest = None
 
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # 1. Fetch 1:1 and group chats
@@ -2271,28 +2297,87 @@ class CommunicationIngestionPipeline:
             except Exception as e:
                 logger.debug(f"Attachment fetch failed for {msg.get('id')}: {e}")
 
-    async def _fetch_outlook_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
-        """
-        Fetch new Outlook messages via Microsoft Graph API.
+    def _outlook_token_owners(self) -> List[str]:
+        """Every user with an active outlook/microsoft OAuth grant — the poller
+        must fetch EACH connected mailbox, not just the most recent connect.
 
-        Requires Outlook OAuth access token with Mail.Read permission.
-        Supports incremental fetching and rate limiting.
+        Fails soft: on DB errors (or no grants) it falls back to the user
+        recorded at connect time (config user_id), so the single-operator
+        default still works.
+        """
+        owners: List[str] = []
+        try:
+            from core.database import get_db_session
+            from core.models import IntegrationToken
+
+            with get_db_session() as db:
+                rows = (
+                    db.query(IntegrationToken.user_id)
+                    .filter(
+                        IntegrationToken.provider.in_(["outlook", "microsoft"]),
+                        IntegrationToken.status == "active",
+                    )
+                    .distinct()
+                    .all()
+                )
+            owners = [r[0] for r in rows if r[0]]
+        except Exception as e:
+            logger.warning(f"Outlook token-owner lookup failed: {e}")
+        if not owners:
+            cfg_user = (self.app_configs.get(CommunicationAppType.OUTLOOK.value) or {}).get("user_id")
+            if cfg_user:
+                owners = [cfg_user]
+        return owners
+
+    async def _fetch_outlook_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
+        """Fetch new Outlook mail for EVERY connected user (per-user cursors).
+
+        The poller is a background loop with no request context; the
+        single-owner config user_id is only a fallback. Each active
+        outlook/microsoft grant is polled with its own cursor, so connecting a
+        second account never stops polling the first.
+        """
+        owners = self._outlook_token_owners()
+        if not owners:
+            logger.warning("No Microsoft OAuth token found for Outlook polling (IntegrationToken)")
+            return []
+        all_messages: List[Dict[str, Any]] = []
+        for owner in owners:
+            owner_cursor = self.fetch_timestamps.get(
+                f"last_fetch_outlook_{owner}"
+            ) or last_fetch
+            messages, newest = await self._fetch_outlook_for_owner(owner, owner_cursor)
+            if messages:
+                logger.info(f"Fetched {len(messages)} Outlook messages for user {owner}")
+            all_messages.extend(messages)
+            self.fetch_timestamps[f"last_fetch_outlook_{owner}"] = newest or datetime.now()
+        self._save_fetch_state()
+        return all_messages
+
+    async def _fetch_outlook_for_owner(
+        self, owner: str, last_fetch: Optional[datetime]
+    ) -> tuple:
+        """Fetch + normalize one user's new Outlook mail via Microsoft Graph.
+
+        Returns (messages, newest_message_timestamp) — the caller advances
+        that user's cursor. Token source: the user's own IntegrationToken
+        (encrypted, OAuth-callback populated) via outlook_service; the legacy
+        file-based token_storage is NOT populated by the current OAuth flow.
+        Passing user_id=None would make _get_access_token return None by
+        design (no cross-user fallback), so polling would never fetch mail.
         """
         try:
-            # Token source: DB IntegrationToken (encrypted, OAuth-callback
-            # populated) via outlook_service. The legacy file-based
-            # token_storage is NOT populated by the current OAuth flow, so it
-            # always returned None here and the poller never fetched mail.
             from integrations.outlook_service import outlook_service
 
-            access_token = await outlook_service._get_access_token(user_id=None)
+            access_token = await outlook_service._get_access_token(user_id=owner)
             if not access_token:
-                logger.warning("No Microsoft OAuth token found for Outlook polling (IntegrationToken)")
-                return []
+                logger.warning(f"No Microsoft OAuth token found for Outlook polling (user {owner})")
+                return [], None
 
             headers = {"Authorization": f"Bearer {access_token}"}
 
             all_messages = []
+            newest = None
 
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Build filter for messages since last fetch
@@ -2442,6 +2527,8 @@ class CommunicationIngestionPipeline:
                                     normalized_msg["tags"].extend(categories)
 
                                 all_messages.append(normalized_msg)
+                                if newest is None or timestamp > newest:
+                                    newest = timestamp
 
                             except Exception as e:
                                 logger.error(f"Error normalizing Outlook message {msg.get('id')}: {e}")
@@ -2458,15 +2545,15 @@ class CommunicationIngestionPipeline:
                         logger.error(f"Error fetching Outlook messages page: {e}")
                         break
 
-            logger.info(f"Fetched {len(all_messages)} messages from Outlook")
-            return all_messages
+            logger.info(f"Fetched {len(all_messages)} messages from Outlook (user {owner})")
+            return all_messages, newest
 
         except ImportError:
             logger.warning("token_storage module not available for Outlook polling")
-            return []
+            return [], None
         except Exception as e:
-            logger.error(f"Error fetching Outlook messages: {e}")
-            return []
+            logger.error(f"Error fetching Outlook messages (user {owner}): {e}")
+            return [], None
     
     def _index_attachments(
         self, content: str, attachments: List[Dict[str, Any]]
@@ -2617,6 +2704,18 @@ class CommunicationIngestionPipeline:
             )
             if str(message_data.get("content_type", "")).lower() == "html":
                 content = _html_to_text(content)
+            # Secrets redaction: email bodies are attacker-controlled text that
+            # agents recall later. Reuse the document-path redactor so stored
+            # content never carries live credentials. Best-effort — a redactor
+            # failure must never block ingestion. Kill switch:
+            # ATOM_EMAIL_REDACTION_ENABLED (default on).
+            if os.getenv("ATOM_EMAIL_REDACTION_ENABLED", "true").lower() == "true":
+                try:
+                    from core.secrets_redactor import get_secrets_redactor
+
+                    content = get_secrets_redactor().redact(content).redacted_text
+                except Exception:
+                    pass
             ts_raw = message_data.get("date") or message_data.get("timestamp")
             timestamp = (
                 ts_raw

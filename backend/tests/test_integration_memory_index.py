@@ -340,6 +340,7 @@ def test_jit_office_file_opens_in_app_canvas(monkeypatch, tmp_path):
         assert db.query(CanvasAudit).filter_by(canvas_id=canvas.id).count() == 1
     finally:
         db.close()
+        eng.dispose()  # release the SQLite pool so Windows can unlink the temp db
         os.unlink(path)
 
 

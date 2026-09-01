@@ -381,7 +381,7 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                     ingestion_pipeline,
                 )
 
-                if ingestion_pipeline.start_outlook_poller():
+                if ingestion_pipeline.start_outlook_poller(user_id=current_user.id):
                     logger.info("Outlook polling stream started after Microsoft OAuth connect")
                     try:
                         from integrations.outlook_realtime import outlook_realtime
@@ -527,7 +527,11 @@ async def oauth_initiate(
         raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
 
     handler = OAuthHandler(configs[provider])
-    auth_url = handler.get_authorization_url(state=_build_state(provider, uid))
+    # Switch-Account support: the frontend passes ?prompt=select_account to
+    # force the provider's account picker instead of silently reusing the
+    # signed-in session (Microsoft/Google remember the last account).
+    _prompt = request.query_params.get("prompt") if request is not None else None
+    auth_url = handler.get_authorization_url(state=_build_state(provider, uid), prompt=_prompt)
     # Round 80o: JSON variant for mobile clients — they cannot follow a 302
     # into the provider consent page; hand them the URL as data instead.
     from fastapi import Query

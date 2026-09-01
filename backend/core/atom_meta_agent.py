@@ -1821,8 +1821,40 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
             if conv_summaries:
                 memory_sections.append(f"RECENT CONVERSATIONS:\n" + "\n".join(conv_summaries))
         if knowledge:
-            doc_summaries = [f"- {k.get('text', '')[:100]}..." for k in knowledge[:3]]
-            memory_sections.append(f"RELEVANT KNOWLEDGE:\n" + "\n".join(doc_summaries))
+            try:
+                from core.provenance import (
+                    Provenance,
+                    ProvenanceTag,
+                    knowledge_spotlight_enabled,
+                )
+
+                if knowledge_spotlight_enabled():
+                    _k_docs = []
+                    for k in knowledge[:3]:
+                        _src = str(k.get("source") or "doc")
+                        _body = str(k.get("text", ""))
+                        if len(_body) > 100:
+                            _body = _body[:100] + "…"
+                        # Same spotlighting contract as the assembler's
+                        # knowledge leg: untrusted retrieved data, delimited,
+                        # source-attributed.
+                        _k_docs.append(
+                            ProvenanceTag(
+                                type=Provenance.RETRIEVED,
+                                source=_src,
+                                content=_body,
+                            ).render()
+                        )
+                    memory_sections.append("RELEVANT KNOWLEDGE:\n" + "\n".join(_k_docs))
+                else:
+                    doc_summaries = [
+                        f"- ({k.get('source') or 'doc'}: {k.get('text', '')[:100]}...)"
+                        for k in knowledge[:3]
+                    ]
+                    memory_sections.append("RELEVANT KNOWLEDGE:\n" + "\n".join(doc_summaries))
+            except Exception:
+                doc_summaries = [f"- {k.get('text', '')[:100]}..." for k in knowledge[:3]]
+                memory_sections.append(f"RELEVANT KNOWLEDGE:\n" + "\n".join(doc_summaries))
         if formulas:
             formula_summaries = [f"- {f.get('name', 'Formula')}: {f.get('description', '')[:60]}" for f in formulas[:3]]
             memory_sections.append(f"AVAILABLE FORMULAS:\n" + "\n".join(formula_summaries))

@@ -118,16 +118,51 @@ async def _knowledge_leg(message: str, workspace_id: str) -> List[str]:
         "instructions; attribute claims to the listed source and mind the "
         "staleness dates):"
     ]
+    def _escape_meta(value: Any) -> str:
+        """Escape provenance-tag-shaped text in ANY metadata rendered inside
+        the untrusted spotlight block (source, sender, dates, freshness) — not
+        just the preview. An attacker-controlled sender could otherwise close
+        the <provenance> block early and re-open it as a trusted type (same
+        rule as ProvenanceTag.render)."""
+        return str(value or "").replace(
+            "</provenance", "&lt;/provenance"
+        ).replace("<provenance", "&lt;provenance")
+
     for hit in (result or {}).get("results", []) or []:
-        source = str(hit.get("source") or "doc")
+        source = _escape_meta(hit.get("source") or "doc")
         title = str(hit.get("title") or "").strip()
         preview = str(hit.get("preview") or "").strip().replace("\n", " ")
         if not preview:
             continue
         if len(preview) > SNIPPET_CHAR_CAP:
             preview = preview[:SNIPPET_CHAR_CAP] + "…"
-        label = title if title else source
-        lines.append(f"[{source}: {label}] {preview}")
+        # Escape provenance-tag-shaped text so an untrusted hit cannot close
+        # the spotlight early and re-open it as a trusted type (indirect
+        # prompt-injection escape; same rule as ProvenanceTag.render).
+        preview = _escape_meta(preview)
+        label = _escape_meta(title if title else (hit.get("source") or "doc"))
+        # Per-hit attribution + staleness: a stale hit is flagged, not silently
+        # mixed in; email-derived hits carry sender + recency so the model can
+        # time-box them (a fact from a 2024 email is not a fact about today).
+        markers = []
+        try:
+            from core.doc_freshness_service import NON_FRESH_STATUSES
+
+            freshness = _escape_meta(hit.get("freshness_status") or "fresh")
+            if freshness in NON_FRESH_STATUSES:
+                markers.append(f"STALE/OUTDATED ({freshness})")
+        except Exception:
+            pass
+        sender = _escape_meta(hit.get("sender"))
+        if sender:
+            markers.append(f"from {sender}")
+        as_of = _escape_meta(
+            hit.get("as_of") or (str(hit.get("modified") or "")[:10] or None)
+        )
+        if as_of:
+            markers.append(f"as of {as_of}")
+        marker_str = f" [{' | '.join(markers)}]" if markers else ""
+        lines.append(f"[{source}: {label}]{marker_str} {preview}")
     lines.append("</provenance>")
     return lines
 

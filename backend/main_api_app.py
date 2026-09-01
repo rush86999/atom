@@ -632,7 +632,7 @@ async def lifespan(app: FastAPI):
             from core.models import IntegrationToken
 
             with get_db_session() as db:
-                has_outlook = (
+                outlook_token = (
                     db.query(IntegrationToken)
                     .filter(
                         IntegrationToken.provider.in_(["outlook", "microsoft"]),
@@ -640,12 +640,12 @@ async def lifespan(app: FastAPI):
                     )
                     .first()
                 )
-            if has_outlook:
+            if outlook_token and outlook_token.user_id:
                 from integrations.atom_communication_ingestion_pipeline import (
                     ingestion_pipeline,
                 )
 
-                if ingestion_pipeline.start_outlook_poller():
+                if ingestion_pipeline.start_outlook_poller(user_id=outlook_token.user_id):
                     logger.info("✓ Outlook memory poller recovered (connected account found)")
                     # Real-time channel: Graph subscription lifecycle (no-op
                     # unless ATOM_GRAPH_WEBHOOK_BASE_URL is configured).

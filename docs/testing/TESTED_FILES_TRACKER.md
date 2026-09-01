@@ -7179,3 +7179,35 @@ Canvas suites total 344 passed. Pre-existing failures (fail on baseline too): w7
 TestAgentGuidanceSystem::test_create_audit_success, covpush_canvasroutes TestCanvasCRUD ×2,
 FE canvas-detail chat ×4.
 
+## Session 2026-09-01 — Phase 0 Task 1: Outlook poller token user plumbing
+
+**Scope**: `integrations/atom_communication_ingestion_pipeline.py` (IngestionConfig.user_id;
+start_outlook_poller/start_poller accept user_id + store in config; _fetch_outlook_messages
+resolves token for the configured user instead of user_id=None), `api/oauth_routes.py`
+(passes current_user.id on connect), `main_api_app.py` (startup recovery passes the
+IntegrationToken owner's user_id).
+
+**Why**: poller passed `user_id=None` to `_get_access_token`, which refuses falsy ids by
+design (no cross-user fallback — security decision 2026-08-29), so the background poller
+never fetched mail even with one connected user. Existing tests mocked the token fn, hiding
+the bug.
+
+**Evidence**: `tests/test_email_api_ingestion.py` 21 passed (19 existing + 2 new:
+test_fetch_outlook_messages_uses_configured_user_token, test_start_outlook_poller_stores_user_id).
+Red phase confirmed both new tests failed before the fix. py_compile clean on all 3 touched files.
+
+## Session 2026-09-01 — Phase 0 Tasks 2-3: poll interval env + email secrets redaction
+
+**Scope**: `integrations/atom_communication_ingestion_pipeline.py` —
+`start_outlook_poller` default interval now reads `ATOM_OUTLOOK_POLL_INTERVAL_SECONDS`
+(60s default, 30s floor, explicit arg wins); `_normalize_message_impl` email branch
+(EMAIL/GMAIL/OUTLOOK — the shared choke point for poller + webhook paths) runs
+`SecretsRedactor` on body content before storage, kill switch
+`ATOM_EMAIL_REDACTION_ENABLED` (default on). Env docs: `CLAUDE.md`,
+`docs/reference/ENVIRONMENT_VARIABLES.md`.
+
+**Evidence**: `tests/test_email_api_ingestion.py` 24 passed (3 new:
+test_start_outlook_poller_reads_interval_env, test_start_outlook_poller_interval_floor,
+test_email_normalization_redacts_secrets). `tests/test_ingestion_status_routes.py` 25 passed
+(start_poller signature change did not break the other consumer). py_compile clean.
+
