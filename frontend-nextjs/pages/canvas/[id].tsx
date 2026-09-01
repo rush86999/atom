@@ -17,9 +17,10 @@ import { JourneyPanel } from "@/components/canvas/JourneyPanel";
 import { AutonomyPanel } from "@/components/canvas/AutonomyPanel";
 import { ChatFeedbackControls, ChatFeedbackType } from "@/components/canvas/ChatFeedbackControls";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { ReasoningChain, type ReasoningStep } from "@/components/Agents/ReasoningChain";
+import { fetchSessionTrace, submitStepFeedback } from "@/lib/agent-trace-api";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import { getCurrentUserId } from "@/lib/identity";
-import { submitStepFeedback } from "@/lib/agent-trace-api";
 import type { CanvasTrainingContext } from "@/lib/maturity-api";
 
 interface CanvasMessage {
@@ -31,6 +32,11 @@ interface CanvasMessage {
     feedback?: ChatFeedbackType | null;
     model?: string | null;
     provider?: string | null;
+    // Reasoning steps for THIS reply (live-captured from agent_step_update)
+    // + the identifiers step-level training feedback needs.
+    reasoningTrace?: ReasoningStep[];
+    executionId?: string;
+    agentId?: string;
 }
 
 export default function CanvasDetailPage() {
@@ -64,6 +70,7 @@ export default function CanvasDetailPage() {
     // current transcript without re-creating handleSendMessage per render.
     const messagesRef = useRef<CanvasMessage[]>([]);
     useEffect(() => { messagesRef.current = messages; }, [messages]);
+    const [historyRuns, setHistoryRuns] = useState<any[]>([]);
     const [chatInput, setChatInput] = useState("");
     // Auto-grow the co-editor composer to fit multi-line messages.
     const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -172,6 +179,23 @@ export default function CanvasDetailPage() {
         })();
         return () => { cancelled = true; };
     }, [chatSessionId, canvasId, userId, restoredFeedback]);
+
+    // Restored sessions: the reasoning steps of PAST canvas turns were
+    // persisted all along (AgentReasoningStep) but never surfaced. Pull the
+    // session trace once so supervisors can review + rate old runs too.
+    useEffect(() => {
+        if (!chatSessionId || typeof window === "undefined") return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const { runs } = await fetchSessionTrace(chatSessionId, 5);
+                if (!cancelled && runs?.length) setHistoryRuns(runs);
+            } catch {
+                // trace API is AGENT_VIEW-gated; non-viewers just lose history
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [chatSessionId]);
 
     // Apply restored thumbs to whatever assistant messages are loaded —
     // separate from hydration so it works regardless of which fetch
@@ -292,10 +316,62 @@ export default function CanvasDetailPage() {
         if (canvasData?.content?.type === "training_session") setSideTab("training");
     }, [canvasData?.content?.type]);
 
+    // Mirror for the WS handler: step events are filtered by the chat
+    // session, which is set asynchronously — a state read here would be a
+    // stale closure.
+    const chatSessionIdRef = useRef<string | null>(null);
+    useEffect(() => { chatSessionIdRef.current = chatSessionId; }, [chatSessionId]);
+
     // Listen for live canvas updates via WebSocket
     useEffect(() => {
         if (!lastMessage) return;
         const msg = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
+
+        // Reasoning steps for the co-editor chat — the SAME events the main
+        // chat's workspace panel consumes. The orchestrator records these on
+        // canvas turns (edit planning, governance gates, actions) and
+        // persists AgentReasoningStep rows, so capturing them here closes
+        // the training gap: every canvas turn's reasoning is visible AND
+        // thumb-rateable like regular chat.
+        if (msg.type === "agent_step_update") {
+            const payload = msg.data ?? msg;
+            const rawStep = payload?.step && typeof payload.step === "object" ? payload.step : null;
+            if (!rawStep) return;
+            const evtSession = payload.session_id ?? rawStep.session_id;
+            const activeSession = chatSessionIdRef.current;
+            if (evtSession && activeSession && evtSession !== activeSession) return;
+            const observation = rawStep.observation ?? rawStep.output ?? "";
+            const step = {
+                type: rawStep.type ?? rawStep.step_type ?? "step",
+                // content renders first in ReasoningStepItem — on canvas turns
+                // the observation IS the substance (gate decisions, edit
+                // results), so it outranks the thought line.
+                content: observation || rawStep.thought || undefined,
+                thought: rawStep.thought,
+                action: rawStep.action,
+                observation,
+                step: rawStep.step_number ?? rawStep.step,
+            } as unknown as ReasoningStep;
+            const executionId = String(payload.execution_id ?? rawStep.execution_id ?? "live");
+            const wireAgentId = payload.agent_id ?? msg.agent_id;
+            setMessages(prev => {
+                const next = [...prev];
+                for (let i = next.length - 1; i >= 0; i--) {
+                    if (next[i].type === "assistant") {
+                        next[i] = {
+                            ...next[i],
+                            executionId,
+                            agentId: next[i].agentId ?? wireAgentId,
+                            reasoningTrace: [...(next[i].reasoningTrace || []), step],
+                        };
+                        break;
+                    }
+                }
+                return next;
+            });
+            return;
+        }
+
         if (msg.type === "canvas:update" || msg.type === "canvas:present") {
             const data = msg.data || msg;
             // mini_app_state broadcasts are consumed by the MiniAppHarness (live
@@ -835,6 +911,35 @@ export default function CanvasDetailPage() {
                                     }`}>
                                         {msg.content}
                                     </div>
+                                    {msg.type === "assistant" && !!msg.reasoningTrace?.length && (
+                                        <ReasoningChain
+                                            steps={msg.reasoningTrace}
+                                            agentId={msg.agentId || trainingCtx?.agent?.id || "atom_main"}
+                                            runId={msg.executionId}
+                                            onFeedback={async (idx, type, comment) => {
+                                                const steps = msg.reasoningTrace || [];
+                                                try {
+                                                    await submitStepFeedback({
+                                                        agentId: msg.agentId || trainingCtx?.agent?.id || "atom_main",
+                                                        runId: msg.executionId || chatSessionId || "live",
+                                                        stepIndex: idx,
+                                                        stepContent: {
+                                                            step: (steps[idx] as any)?.step,
+                                                            thought: steps[idx]?.thought,
+                                                            action: steps[idx]?.action,
+                                                            observation: steps[idx]?.observation,
+                                                        },
+                                                        feedbackType: type,
+                                                        comment,
+                                                        executionId: msg.executionId && msg.executionId !== "live" ? msg.executionId : undefined,
+                                                        stepNumber: (steps[idx] as any)?.step,
+                                                    });
+                                                } catch {
+                                                    // best-effort, same as message-level feedback
+                                                }
+                                            }}
+                                        />
+                                    )}
                                     {msg.type === "assistant" && (
                                         <ChatFeedbackControls
                                             selected={msg.feedback ?? null}
@@ -843,6 +948,49 @@ export default function CanvasDetailPage() {
                                     )}
                                 </div>
                             ))}
+                            {historyRuns.length > 0 && (
+                                <div className="pt-1 space-y-2" data-testid="canvas-history-runs">
+                                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                                        Previous run reasoning
+                                    </p>
+                                    {historyRuns.slice().reverse().map(run => (
+                                        <ReasoningChain
+                                            key={run.execution_id}
+                                            steps={(run.steps || []).map((s: any) => ({
+                                                type: s.step_type ?? "step",
+                                                thought: s.thought,
+                                                action: s.action,
+                                                observation: s.observation,
+                                                step: s.step_number,
+                                            }))}
+                                            agentId={run.agent_id || trainingCtx?.agent?.id || "atom_main"}
+                                            runId={run.execution_id}
+                                            onFeedback={async (idx, type, comment) => {
+                                                const steps = run.steps || [];
+                                                try {
+                                                    await submitStepFeedback({
+                                                        agentId: run.agent_id || trainingCtx?.agent?.id || "atom_main",
+                                                        runId: run.execution_id,
+                                                        stepIndex: idx,
+                                                        stepContent: {
+                                                            step: steps[idx]?.step_number,
+                                                            thought: steps[idx]?.thought,
+                                                            action: steps[idx]?.action,
+                                                            observation: steps[idx]?.observation,
+                                                        },
+                                                        feedbackType: type,
+                                                        comment,
+                                                        executionId: run.execution_id,
+                                                        stepNumber: steps[idx]?.step_number,
+                                                    });
+                                                } catch {
+                                                    // best-effort
+                                                }
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                             {isAgentResponding && (
                                 <div className="text-sm text-muted-foreground">
                                     <span className="animate-pulse">●●● Agent is working…</span>

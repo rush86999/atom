@@ -69,6 +69,28 @@ const mockGet = jest.fn();
 const mockPost = jest.fn();
 const mockDelete = jest.fn();
 const mockFetch = jest.fn();
+let mockSubmitStepFeedback = jest.fn().mockResolvedValue(undefined);
+let mockFetchSessionTrace = jest.fn().mockResolvedValue({ runs: [] });
+jest.mock("@/lib/agent-trace-api", () => ({
+  fetchSessionTrace: (...args: any[]) => mockFetchSessionTrace(...args),
+  submitStepFeedback: async (payload: any) => {
+    mockSubmitStepFeedback(payload);
+    // Mirror the real helper's write-through so the existing mockPost-based
+    // assertions keep seeing the reasoning-feedback POST.
+    const { apiClient } = require("../../lib/api-client");
+    await apiClient.post("/api/reasoning/feedback", {
+      agent_id: payload.agentId,
+      run_id: payload.runId,
+      step_index: payload.stepIndex,
+      step_content: payload.stepContent,
+      feedback_type: payload.feedbackType,
+      comment: payload.comment,
+      execution_id: payload.executionId,
+      step_number: payload.stepNumber,
+    }, { retry: false });
+  },
+}));
+
 jest.mock("../../lib/api-client", () => ({
   apiClient: {
     get: (...args: any[]) => mockGet(...args),
@@ -954,5 +976,87 @@ describe("CanvasDetailPage", () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(mockPost.mock.calls.filter((c: any[]) => c[0] === "/api/chat/feedback")).toHaveLength(feedbackCalls.length);
     expect(screen.getByLabelText("Thumbs up").querySelector("svg")).not.toHaveClass("text-green-500");
+  });
+});
+
+describe("canvas chat reasoning steps (training parity)", () => {
+  beforeEach(() => {
+    wsState = { lastMessage: null, isConnected: true };
+  });
+
+  beforeEach(() => {
+    mockRouterState = {
+      push: jest.fn(), replace: jest.fn(), prefetch: jest.fn(), back: jest.fn(), reload: jest.fn(),
+      pathname: "/canvas/cv1", query: { id: "cv1" }, asPath: "/canvas/cv1",
+      events: { on: jest.fn(), off: jest.fn(), emit: jest.fn() },
+    };
+    mockGet.mockImplementation((url: string) => Promise.resolve({ data: CANVAS }));
+    mockPost.mockResolvedValue({ data: { success: true, message: "Done." } });
+  });
+
+  test("agent_step_update is captured and rateable in the co-editor chat", async () => {
+    mockSubmitStepFeedback.mockClear();
+    // Live session: bound chat session + a persisted assistant reply.
+    mockGet.mockImplementation((url: string) => {
+      if (String(url).includes("/context")) {
+        return Promise.resolve({
+          data: { current_state: { chat_session_id: "sess-9" } },
+        });
+      }
+      if (String(url).includes("/chat/history")) {
+        return Promise.resolve({
+          data: {
+            messages: [
+              { role: "user", message: "tighten the draft", response: { message: "Draft updated on the canvas." }, timestamp: new Date().toISOString() },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ data: CANVAS });
+    });
+
+    const { rerender } = render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+    // The persisted assistant reply must be on screen before the step
+    // arrives — steps attach to the last assistant message.
+    await screen.findByText("Draft updated on the canvas.");
+
+    // A canvas turn's reasoning step arrives over WS (rerender = new frame).
+    wsState = {
+      isConnected: true,
+      lastMessage: {
+        type: "agent_step_update",
+        agent_id: "hire-1",
+        execution_id: "exec-9",
+        session_id: "sess-9",
+        step: {
+          step_number: 1,
+          type: "thought",
+          thought: "Planning the edit",
+          observation: "gate: PROPOSAL (policy=human_always)",
+        },
+      },
+    };
+    rerender(<CanvasDetailPage />);
+    if (process.env.DEBUG_DOM) {
+    }
+
+    // The reasoning chain appears on the co-editor chat (collapsed)…
+    await waitFor(() =>
+      expect(screen.getAllByText(/Reasoning Process/i).length).toBeGreaterThan(0)
+    );
+    // …expands to the steps for training.
+    fireEvent.click(screen.getAllByText(/Reasoning Process/i)[0]);
+    expect(screen.getByText(/gate: PROPOSAL/)).toBeInTheDocument();
+
+    // Rate the step — the thumbs buttons carry no accessible label; the
+    // expanded chain's first lucide thumbs-down is step 1's.
+    const thumbsDownSvg = document.querySelector("svg.lucide-thumbs-down");
+    expect(thumbsDownSvg).not.toBeNull();
+    fireEvent.click(thumbsDownSvg!.closest("button")!);
+    await waitFor(() => expect(mockSubmitStepFeedback).toHaveBeenCalled());
+    const payload = mockSubmitStepFeedback.mock.calls[0][0];
+    expect(payload.executionId).toBe("exec-9");
+    expect(payload.stepNumber).toBe(1);
   });
 });

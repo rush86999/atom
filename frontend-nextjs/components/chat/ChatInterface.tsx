@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ChatMessageData, ReasoningStep } from "../GlobalChat/ChatMessage";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { CANVAS_APP_TYPE_OPTIONS } from "@/components/canvas/canvasType";
+import { CanvasTypePicker } from "./CanvasTypePicker";
 import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { VoiceModeOverlay } from "@/components/Voice/VoiceModeOverlay";
@@ -315,21 +315,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
             {/* Expand the latest draft into a co-editable canvas (training surface) */}
             {lastAssistant && !isProcessing && (
                 <div className="mx-4 mb-2 flex justify-end items-center gap-1.5">
-                    <select
+                    <CanvasTypePicker
                         value={canvasTypeChoice}
-                        onChange={(e) => setCanvasTypeChoice(e.target.value)}
-                        aria-label="Canvas type for the draft"
-                        title="Recommended first: document and email cover most drafts — the rest are here for when you disagree with the classifier"
-                        className="h-7 rounded-lg border border-border bg-background text-xs text-muted-foreground px-1.5"
-                        data-testid="canvas-type-select"
-                    >
-                        <option value="auto">Auto (recommended)</option>
-                        {CANVAS_APP_TYPE_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label} canvas
-                            </option>
-                        ))}
-                    </select>
+                        onChange={setCanvasTypeChoice}
+                        disabled={openingCanvas}
+                    />
                     <button
                         onClick={openInCanvas}
                         disabled={openingCanvas}
