@@ -46,6 +46,11 @@ from core.oauth_handler import (
 router = BaseAPIRouter(prefix="/api/v1/auth/oauth", tags=["OAuth"])
 logger = logging.getLogger(__name__)
 
+# OIDC `prompt` values we forward to the provider (Switch-Account flow):
+# anything else in ?prompt= is dropped rather than passed through, so an
+# arbitrary query param cannot steer the provider's auth behavior.
+ALLOWED_OAUTH_PROMPTS = {"select_account", "login", "consent", "none"}
+
 # Rate limit OAuth callbacks to prevent code brute-force / DoS
 _oauth_limiter = AuthRateLimiter(limit=20, window_seconds=60)
 
@@ -530,7 +535,10 @@ async def oauth_initiate(
     # Switch-Account support: the frontend passes ?prompt=select_account to
     # force the provider's account picker instead of silently reusing the
     # signed-in session (Microsoft/Google remember the last account).
-    _prompt = request.query_params.get("prompt") if request is not None else None
+    # Allowlist: only standard OIDC prompt values are forwarded, so an
+    # arbitrary query param cannot steer the provider's auth behavior.
+    _raw_prompt = request.query_params.get("prompt") if request is not None else None
+    _prompt = _raw_prompt if _raw_prompt in ALLOWED_OAUTH_PROMPTS else None
     auth_url = handler.get_authorization_url(state=_build_state(provider, uid), prompt=_prompt)
     # Round 80o: JSON variant for mobile clients — they cannot follow a 302
     # into the provider consent page; hand them the URL as data instead.

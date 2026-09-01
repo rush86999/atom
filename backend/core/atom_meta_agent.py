@@ -1822,36 +1822,14 @@ You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT a
                 memory_sections.append(f"RECENT CONVERSATIONS:\n" + "\n".join(conv_summaries))
         if knowledge:
             try:
-                from core.provenance import (
-                    Provenance,
-                    ProvenanceTag,
-                    knowledge_spotlight_enabled,
-                )
+                # Shared renderer (core/provenance.py): spotlighted UNTRUSTED
+                # ProvenanceTags when knowledge spotlighting is on, legacy
+                # bullets otherwise. One implementation for both agent files.
+                from core.provenance import render_knowledge_summaries
 
-                if knowledge_spotlight_enabled():
-                    _k_docs = []
-                    for k in knowledge[:3]:
-                        _src = str(k.get("source") or "doc")
-                        _body = str(k.get("text", ""))
-                        if len(_body) > 100:
-                            _body = _body[:100] + "…"
-                        # Same spotlighting contract as the assembler's
-                        # knowledge leg: untrusted retrieved data, delimited,
-                        # source-attributed.
-                        _k_docs.append(
-                            ProvenanceTag(
-                                type=Provenance.RETRIEVED,
-                                source=_src,
-                                content=_body,
-                            ).render()
-                        )
-                    memory_sections.append("RELEVANT KNOWLEDGE:\n" + "\n".join(_k_docs))
-                else:
-                    doc_summaries = [
-                        f"- ({k.get('source') or 'doc'}: {k.get('text', '')[:100]}...)"
-                        for k in knowledge[:3]
-                    ]
-                    memory_sections.append("RELEVANT KNOWLEDGE:\n" + "\n".join(doc_summaries))
+                _k_section = render_knowledge_summaries(knowledge)
+                if _k_section:
+                    memory_sections.append(_k_section)
             except Exception:
                 doc_summaries = [f"- {k.get('text', '')[:100]}..." for k in knowledge[:3]]
                 memory_sections.append(f"RELEVANT KNOWLEDGE:\n" + "\n".join(doc_summaries))

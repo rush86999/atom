@@ -7199,8 +7199,8 @@ Red phase confirmed both new tests failed before the fix. py_compile clean on al
 ## Session 2026-09-01 — Phase 0 Tasks 2-3: poll interval env + email secrets redaction
 
 **Scope**: `integrations/atom_communication_ingestion_pipeline.py` —
-`start_outlook_poller` default interval now reads `ATOM_OUTLOOK_POLL_INTERVAL_SECONDS`
-(60s default, 30s floor, explicit arg wins); `_normalize_message_impl` email branch
+`start_outlook_poller` default interval now reads `ATOM_OUTLOOK_POLL_SECONDS`
+(60s default, 15s floor, explicit arg wins); `_normalize_message_impl` email branch
 (EMAIL/GMAIL/OUTLOOK — the shared choke point for poller + webhook paths) runs
 `SecretsRedactor` on body content before storage, kill switch
 `ATOM_EMAIL_REDACTION_ENABLED` (default on). Env docs: `CLAUDE.md`,

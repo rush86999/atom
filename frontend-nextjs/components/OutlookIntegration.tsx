@@ -258,16 +258,13 @@ const OutlookIntegration: React.FC = () => {
             // Same flow as handleConnect, but ?prompt=select_account tells
             // Microsoft to show the account picker instead of reusing the
             // signed-in session (that's why plain Connect keeps binding the
-            // same account).
+            // same account). Same-origin path — no backend base needed.
             const token =
                 localStorage.getItem("auth_token") ||
                 localStorage.getItem("token");
-            const backendBase = window.location.hostname === "localhost" 
-                ? "" 
-                : "";
-            const url = token 
-                ? `${backendBase}/api/v1/auth/oauth/microsoft/initiate?token=${encodeURIComponent(token)}&prompt=select_account`
-                : `${backendBase}/api/v1/auth/oauth/microsoft/initiate?prompt=select_account`;
+            const url = token
+                ? `/api/v1/auth/oauth/microsoft/initiate?token=${encodeURIComponent(token)}&prompt=select_account`
+                : `/api/v1/auth/oauth/microsoft/initiate?prompt=select_account`;
             window.location.href = url;
         } catch (error) {
             console.error("Switch account error:", error);

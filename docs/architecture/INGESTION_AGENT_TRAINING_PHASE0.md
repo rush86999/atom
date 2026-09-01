@@ -179,9 +179,17 @@ Unit test:
 - No changes to the webhook, subscription, or delta-query work (that is
   Phase 4).
 - No changes to Drive ingestion (that is Phase 2).
-- No changes to the frontend.
 - No changes to how agents are governed (maturity, HITL).
 - No changes to the database schema.
+
+> **Scope note (shipped alongside Phase 0 in the same PR, not part of
+> Phase 0):** the PR also carries (a) Phase 1 provenance hardening —
+> per-hit STALE/sender/as-of markers in the knowledge leg, mailbox-owner
+> `user_id` attribution on ingested mail, and a shared knowledge-summary
+> renderer in `core/provenance.py` — and (b) an unrelated OAuth "Switch
+> Account" flow (`prompt=select_account` + frontend button). Keep them in
+> mind when bisecting: Phase 0 proper touches only the pipeline, the OAuth
+> callback user-id pass-through, and the env docs.
 
 ---
 
@@ -190,9 +198,9 @@ Unit test:
 | File | Why |
 |---|---|
 | `backend/api/oauth_routes.py` | Send the user id when starting the poller |
-| `backend/integrations/atom_communication_ingestion_pipeline.py` | Use the user id for the token; read the poll interval from env; redact email bodies |
-| `backend/integrations/outlook_service.py` | (maybe) small helper to read the poller's user id — only if needed |
-| `CLAUDE.md`, `docs/reference/ENVIRONMENT_VARIABLES.md` | Document `ATOM_OUTLOOK_POLL_INTERVAL_SECONDS` |
+| `backend/main_api_app.py` | Startup recovery passes the token owner's user id (fallback seed) |
+| `backend/integrations/atom_communication_ingestion_pipeline.py` | Use the user id for the token; read the poll interval from env; redact email bodies; per-owner cursors; owner attribution |
+| `CLAUDE.md`, `docs/reference/ENVIRONMENT_VARIABLES.md` | Document `ATOM_OUTLOOK_POLL_SECONDS` |
 | `backend/tests/test_email_api_ingestion.py` | New tests added to the existing email suite:
   `test_fetch_outlook_messages_uses_configured_user_token`, `test_start_outlook_poller_stores_user_id` |
 

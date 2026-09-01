@@ -223,7 +223,9 @@ class TestOutlookAPIIntegration:
     @pytest.mark.asyncio(mode="auto")
     async def test_fetch_outlook_messages_without_token(self, ingestion_pipeline):
         """Test that missing Microsoft token is handled gracefully"""
-        with patch(
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-test"]
+        ), patch(
             'integrations.outlook_service.outlook_service._get_access_token',
             new_callable=AsyncMock,
             return_value=None,
@@ -238,7 +240,11 @@ class TestOutlookAPIIntegration:
         """Test successful Outlook message fetching"""
         ingestion_pipeline.configure_app(CommunicationAppType.OUTLOOK, outlook_config)
 
-        with patch(
+        # Hermetic owner list: the real _outlook_token_owners queries the DB,
+        # which made this test pass only on machines with a live token row.
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-test"]
+        ), patch(
             'integrations.outlook_service.outlook_service._get_access_token',
             new_callable=AsyncMock,
             return_value="test_outlook_token",
@@ -364,6 +370,182 @@ class TestOutlookAPIIntegration:
         assert "last_fetch_outlook_user-a" in ingestion_pipeline.fetch_timestamps
         assert "last_fetch_outlook_user-b" in ingestion_pipeline.fetch_timestamps
 
+    @pytest.mark.asyncio(mode="auto")
+    async def test_failed_page_walk_holds_cursor(self, ingestion_pipeline):
+        """Regression (Greptile P1): a failed Graph page walk must NOT advance
+        the owner cursor. The filter is `receivedDateTime gt cursor`, so a
+        watermark jump after a transient error permanently skips everything
+        that arrived during the failed window. Holding the cursor only
+        re-walks the window — the seen-id dedup drops already-ingested mail.
+        """
+        ingestion_pipeline.app_configs["outlook"] = {"user_id": "user-hold"}
+        ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-hold"] = datetime(
+            2024, 1, 1, 0, 0, 0
+        )
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-hold"]
+        ), patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="token-hold",
+        ), patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get = AsyncMock(
+                return_value=Mock(status_code=503, json=lambda: {})
+            )
+
+            messages = await ingestion_pipeline._fetch_outlook_messages(None)
+
+        assert messages == []
+        # Cursor held at the pre-failure watermark — not jumped to now().
+        assert ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-hold"] == datetime(
+            2024, 1, 1, 0, 0, 0
+        )
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_empty_window_advances_cursor(self, ingestion_pipeline):
+        """A COMPLETE walk with zero new messages moves the watermark to now,
+        so polls don't re-walk an empty window forever (mirror of the hold
+        case: complete-but-empty is success, not failure)."""
+        ingestion_pipeline.app_configs["outlook"] = {"user_id": "user-empty"}
+        ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-empty"] = datetime(
+            2024, 1, 1, 0, 0, 0
+        )
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-empty"]
+        ), patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="token-empty",
+        ), patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get = AsyncMock(
+                return_value=Mock(
+                    status_code=200,
+                    json=lambda: {"value": [], "@odata.nextLink": None},
+                )
+            )
+
+            await ingestion_pipeline._fetch_outlook_messages(None)
+
+        advanced = ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-empty"]
+        assert advanced > datetime(2024, 1, 1, 0, 0, 0)
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_truncated_walk_advances_to_newest_seen(self, ingestion_pipeline):
+        """A page-cap truncation consumes everything down to the newest seen
+        message (Graph returns newest-first), so the cursor may move there —
+        the next poll resumes the walk instead of re-reading whole pages."""
+        ingestion_pipeline.app_configs["outlook"] = {"user_id": "user-trunc"}
+        ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-trunc"] = datetime(
+            2024, 1, 1, 0, 0, 0
+        )
+        page = {
+            "value": [
+                {
+                    "id": "trunc-msg-1",
+                    "receivedDateTime": "2024-02-01T12:00:00Z",
+                    "from": {"emailAddress": {"name": "E", "address": "e@x.com"}},
+                    "subject": "t",
+                    "body": {"contentType": "Text", "content": "hi"},
+                }
+            ],
+            # A pending next link + the default 1-page budget forces the
+            # truncation path in _fetch_outlook_for_owner.
+            "@odata.nextLink": "https://graph.microsoft.com/next",
+        }
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-trunc"]
+        ), patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="token-trunc",
+        ), patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get = AsyncMock(
+                return_value=Mock(status_code=200, json=lambda: page)
+            )
+
+            messages = await ingestion_pipeline._fetch_outlook_messages(None)
+
+        # The mock returns the same page each pass, so the same message shows
+        # up once per page walked — the assertion is on its identity + cursor.
+        assert {m["id"] for m in messages} == {"trunc-msg-1"}
+        advanced = ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-trunc"]
+        assert advanced == datetime.fromisoformat("2024-02-01T12:00:00Z")
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_fetched_messages_carry_mailbox_owner(self, ingestion_pipeline):
+        """Regression (Greptile P1): ingested mail must record WHOSE mailbox
+        it came from — knowledge extraction and communication intelligence
+        scope their learning via metadata["user_id"]."""
+        ingestion_pipeline.app_configs["outlook"] = {"user_id": "user-owner"}
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-owner"]
+        ), patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="token-owner",
+        ), patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get = AsyncMock(
+                return_value=Mock(
+                    status_code=200,
+                    json=lambda: {
+                        "value": [
+                            {
+                                "id": "owned-1",
+                                "receivedDateTime": "2024-02-01T12:00:00Z",
+                                "from": {
+                                    "emailAddress": {"name": "B", "address": "b@x.com"}
+                                },
+                                "subject": "s",
+                                "body": {"contentType": "Text", "content": "c"},
+                            }
+                        ],
+                        "@odata.nextLink": None,
+                    },
+                )
+            )
+
+            messages = await ingestion_pipeline._fetch_outlook_messages(None)
+
+        assert len(messages) == 1
+        assert messages[0]["metadata"]["user_id"] == "user-owner"
+
+    def test_email_normalizer_hoists_owner_user_id(self, ingestion_pipeline):
+        """The email normalizer must hoist metadata.user_id to the TOP level
+        (knowledge extraction reads comm_data.metadata["user_id"], not the
+        nested email_metadata dict), and omit it entirely when absent so the
+        downstream default_user fallback stays intact."""
+        owned = ingestion_pipeline._normalize_message_impl(
+            CommunicationAppType.OUTLOOK.value,
+            {
+                "id": "m1",
+                "content": "hi",
+                "content_type": "text",
+                "timestamp": "2024-02-01T12:00:00Z",
+                "metadata": {"user_id": "user-abc123", "custom": "kept"},
+            },
+        )
+        assert owned["metadata"]["user_id"] == "user-abc123"
+        assert owned["metadata"]["email_metadata"]["user_id"] == "user-abc123"
+
+        anonymous = ingestion_pipeline._normalize_message_impl(
+            CommunicationAppType.OUTLOOK.value,
+            {
+                "id": "m2",
+                "content": "hi",
+                "content_type": "text",
+                "timestamp": "2024-02-01T12:00:00Z",
+            },
+        )
+        assert "user_id" not in anonymous["metadata"]
+
     def test_email_normalization_redacts_secrets(self, ingestion_pipeline):
         """Email bodies get the same secrets redaction as document files
         (regression: bodies were stored raw, so recalled email could expose
@@ -398,7 +580,9 @@ class TestOutlookAPIIntegration:
     @pytest.mark.asyncio(mode="auto")
     async def test_fetch_outlook_messages_with_attachments(self, ingestion_pipeline):
         """Test Outlook messages with attachments"""
-        with patch(
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-test"]
+        ), patch(
             'integrations.outlook_service.outlook_service._get_access_token',
             new_callable=AsyncMock,
             return_value="test_token",
@@ -486,7 +670,9 @@ class TestOutlookAPIIntegration:
     @pytest.mark.asyncio(mode="auto")
     async def test_fetch_outlook_incremental_filtering(self, ingestion_pipeline):
         """Test Outlook incremental fetching with timestamp filter"""
-        with patch(
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-test"]
+        ), patch(
             'integrations.outlook_service.outlook_service._get_access_token',
             new_callable=AsyncMock,
             return_value="test_token",

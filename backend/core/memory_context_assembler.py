@@ -121,12 +121,11 @@ async def _knowledge_leg(message: str, workspace_id: str) -> List[str]:
     def _escape_meta(value: Any) -> str:
         """Escape provenance-tag-shaped text in ANY metadata rendered inside
         the untrusted spotlight block (source, sender, dates, freshness) — not
-        just the preview. An attacker-controlled sender could otherwise close
-        the <provenance> block early and re-open it as a trusted type (same
-        rule as ProvenanceTag.render)."""
-        return str(value or "").replace(
-            "</provenance", "&lt;/provenance"
-        ).replace("<provenance", "&lt;provenance")
+        just the preview. Delegates to the single definition of the rule in
+        core/provenance.py (same function ProvenanceTag.render uses)."""
+        from core.provenance import escape_provenance_text
+
+        return escape_provenance_text(value)
 
     for hit in (result or {}).get("results", []) or []:
         source = _escape_meta(hit.get("source") or "doc")

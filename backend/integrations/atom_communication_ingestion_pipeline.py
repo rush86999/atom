@@ -957,8 +957,11 @@ class CommunicationIngestionPipeline:
                 polling_interval_seconds = 60
         try:
             if "outlook" in self.active_streams:
-                # Poller already running — refresh the token owner so a later
-                # connect (different user) is picked up on the next poll.
+                # Poller already running — refresh the recorded owner. This is
+                # ONLY the no-DB fallback seed: _fetch_outlook_messages
+                # enumerates every active IntegrationToken owner each cycle
+                # (via _outlook_token_owners), so a second connect never
+                # stops the first mailbox being polled.
                 if user_id:
                     cfg = self.app_configs.get("outlook")
                     if cfg:
@@ -1021,6 +1024,8 @@ class CommunicationIngestionPipeline:
                 logger.warning(f"No poller implementation for {app_type}")
                 return False
             if app_type in self.active_streams:
+                # Refresh the recorded owner — fallback-only seed; the fetch
+                # loop enumerates all active token owners per cycle.
                 if user_id:
                     cfg = self.app_configs.get(app_type)
                     if cfg:
@@ -2346,11 +2351,23 @@ class CommunicationIngestionPipeline:
             owner_cursor = self.fetch_timestamps.get(
                 f"last_fetch_outlook_{owner}"
             ) or last_fetch
-            messages, newest = await self._fetch_outlook_for_owner(owner, owner_cursor)
+            messages, new_cursor = await self._fetch_outlook_for_owner(owner, owner_cursor)
             if messages:
                 logger.info(f"Fetched {len(messages)} Outlook messages for user {owner}")
             all_messages.extend(messages)
-            self.fetch_timestamps[f"last_fetch_outlook_{owner}"] = newest or datetime.now()
+            # Advance the per-owner cursor ONLY when the page walk progressed
+            # cleanly. The $filter is `receivedDateTime gt cursor`, so jumping
+            # the watermark after a failed/truncated walk would permanently
+            # skip everything that arrived inside the unconsumed window.
+            # Holding the cursor just re-walks the same window; the poll dedup
+            # set (_seen_message_ids) drops the already-ingested messages.
+            if new_cursor is not None:
+                self.fetch_timestamps[f"last_fetch_outlook_{owner}"] = new_cursor
+            else:
+                logger.warning(
+                    f"Outlook poll incomplete for user {owner} — cursor held at "
+                    f"{owner_cursor}, window will be retried next poll"
+                )
         self._save_fetch_state()
         return all_messages
 
@@ -2359,12 +2376,21 @@ class CommunicationIngestionPipeline:
     ) -> tuple:
         """Fetch + normalize one user's new Outlook mail via Microsoft Graph.
 
-        Returns (messages, newest_message_timestamp) — the caller advances
-        that user's cursor. Token source: the user's own IntegrationToken
-        (encrypted, OAuth-callback populated) via outlook_service; the legacy
-        file-based token_storage is NOT populated by the current OAuth flow.
-        Passing user_id=None would make _get_access_token return None by
-        design (no cross-user fallback), so polling would never fetch mail.
+        Returns (messages, new_cursor). ``new_cursor`` is the watermark the
+        caller may persist, or None meaning HOLD: the walk failed mid-page
+        (transient Graph error, non-200), so nothing past the old cursor is
+        known-consumed and the window must be retried. On a natural end the
+        cursor moves to the newest message seen (or now() when the window is
+        empty); on a page-cap truncation it moves only to the newest message
+        seen — Graph returns newest-first, so truncation drops only the
+        oldest mail and the next poll resumes the walk. Re-walked windows
+        are deduplicated by the poll's seen-id set.
+
+        Token source: the user's own IntegrationToken (encrypted,
+        OAuth-callback populated) via outlook_service; the legacy file-based
+        token_storage is NOT populated by the current OAuth flow. Passing
+        user_id=None would make _get_access_token return None by design (no
+        cross-user fallback), so polling would never fetch mail.
         """
         try:
             from integrations.outlook_service import outlook_service
@@ -2378,6 +2404,9 @@ class CommunicationIngestionPipeline:
 
             all_messages = []
             newest = None
+            # None = hold the cursor (walk failed); set on natural end or a
+            # clean truncation, see the return-comment in the docstring.
+            new_cursor: Optional[datetime] = None
 
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Build filter for messages since last fetch
@@ -2437,6 +2466,7 @@ class CommunicationIngestionPipeline:
 
                         elif response.status_code != 200:
                             logger.error(f"Failed to fetch Outlook messages: {response.status_code}")
+                            new_cursor = None
                             break
 
                         data = response.json()
@@ -2507,6 +2537,12 @@ class CommunicationIngestionPipeline:
                                     "content_type": body_type,
                                     "attachments": attachments,
                                     "metadata": {
+                                        # Mailbox owner: knowledge extraction and
+                                        # communication intelligence scope what
+                                        # they learn to this account via
+                                        # metadata["user_id"] (the normalizer
+                                        # hoists it to the top level).
+                                        "user_id": owner,
                                         "conversation_id": msg.get("conversationId"),
                                         "parent_folder_id": msg.get("parentFolderId"),
                                         "importance": msg.get("importance"),
@@ -2537,16 +2573,34 @@ class CommunicationIngestionPipeline:
                         # Check for next page
                         next_link = data.get("@odata.nextLink")
                         if not next_link:
+                            # Natural end: everything available was consumed,
+                            # so the watermark may move even with zero new
+                            # messages (otherwise every poll re-walks an
+                            # empty window forever).
+                            new_cursor = newest or datetime.now()
                             break
 
                         fetch_count += 1
 
                     except Exception as e:
                         logger.error(f"Error fetching Outlook messages page: {e}")
+                        new_cursor = None
                         break
 
+                # Page cap hit with more pages pending: truncated, not failed.
+                # Graph returns newest-first, so everything up to `newest` was
+                # consumed — resume from there next poll. With zero messages
+                # consumed, hold.
+                if next_link and new_cursor is None and fetch_count >= max_fetches:
+                    new_cursor = newest
+
+            if new_cursor is None:
+                logger.warning(
+                    f"Outlook page walk failed for user {owner} — messages so "
+                    "far are kept, cursor held for retry"
+                )
             logger.info(f"Fetched {len(all_messages)} messages from Outlook (user {owner})")
-            return all_messages, newest
+            return all_messages, new_cursor
 
         except ImportError:
             logger.warning("token_storage module not available for Outlook polling")
@@ -2727,6 +2781,19 @@ class CommunicationIngestionPipeline:
             direction = message_data.get("direction") or (
                 "outbound" if message_data.get("from") == "user" else "inbound"
             )
+            # Mailbox-owner attribution: knowledge extraction and
+            # communication intelligence read metadata["user_id"] (top level,
+            # not nested in email_metadata) to scope what they learn to the
+            # owning account. Only set when the source provides it, so the
+            # existing "default_user" fallback downstream stays intact.
+            _inner_meta = message_data.get("metadata") or {}
+            _email_meta = {
+                "message_id": message_data.get("message_id"),
+                "thread_id": message_data.get("thread_id"),
+                "email_metadata": _inner_meta,
+            }
+            if _inner_meta.get("user_id"):
+                _email_meta["user_id"] = _inner_meta["user_id"]
             return {
                 "id": message_data.get("id", f"email_{datetime.now().isoformat()}"),
                 "app_type": app_type,
@@ -2737,11 +2804,7 @@ class CommunicationIngestionPipeline:
                 "subject": message_data.get("subject"),
                 "content": content,
                 "attachments": message_data.get("attachments", []),
-                "metadata": {
-                    "message_id": message_data.get("message_id"),
-                    "thread_id": message_data.get("thread_id"),
-                    "email_metadata": message_data.get("metadata", {})
-                },
+                "metadata": _email_meta,
                 "status": "active",
                 "priority": message_data.get("priority", "normal"),
                 "tags": message_data.get("tags", [])

@@ -299,6 +299,9 @@ PROMETHEUS_ENABLED=true   STRUCTLOG_LEVEL=INFO   HEALTH_CHECK_DISK_THRESHOLD_GB=
 ATOM_OUTLOOK_POLL_SECONDS=60                # Outlook poller interval (min 15; explicit callers win)
 ATOM_EMAIL_REDACTION_ENABLED=true        # secrets-redact email bodies before storing (kill switch)
 
+# Provenance spotlighting (knowledge leg + agent memory sections)
+ATOM_KNOWLEDGE_SPOTLIGHT_ENABLED=true    # render retrieved knowledge as delimited UNTRUSTED <provenance> blocks (kill switch; off = legacy bare bullets)
+
 ATOM_MEMORY_POISON_TRIPWIRE=true         # quarantines sources that supersede >=5 facts/10min (memory-injection defense)
 
 # Model provenance & harness-patch scoping (R82, docs/architecture/HARNESS_EVOLUTION.md)

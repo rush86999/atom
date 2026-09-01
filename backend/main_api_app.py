@@ -645,6 +645,10 @@ async def lifespan(app: FastAPI):
                     ingestion_pipeline,
                 )
 
+                # user_id here only seeds the poller's no-DB fallback: the
+                # fetch loop re-enumerates every active token owner per cycle
+                # (_outlook_token_owners), so .first() picking one owner does
+                # not limit which mailboxes get polled.
                 if ingestion_pipeline.start_outlook_poller(user_id=outlook_token.user_id):
                     logger.info("✓ Outlook memory poller recovered (connected account found)")
                     # Real-time channel: Graph subscription lifecycle (no-op
