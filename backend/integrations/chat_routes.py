@@ -1032,18 +1032,38 @@ async def send_chat_message(
         # The atom-agent chat endpoint triggers episode creation, but this —
         # the live chat surface — never did, so agents trained through
         # /api/chat/message never registered graduation episodes.
-        if getattr(request, "agent_id", None) and response.get("success", True):
+        #
+        # R88-parity: this surface also never recorded OUTCOMES, so turns on
+        # the live chat path produced no confidence drips — the agent only
+        # matured when chat ran through the streaming endpoint. Record the
+        # outcome (success and failure) for every session-linked agent turn.
+        if getattr(request, "agent_id", None):
+            turn_success = bool(response.get("success", True))
             try:
-                from core.episode_integration import trigger_episode_creation
+                from core.database import get_db_session
+                from core.agent_governance_service import AgentGovernanceService
 
-                trigger_episode_creation(
-                    session_id=response.get("session_id") or session_id or request.session_id,
-                    agent_id=request.agent_id,
-                    title=request.message[:50],
-                    user_id=active_user_id,
-                )
-            except Exception as episode_error:  # never block the chat response
-                logger.warning(f"Failed to trigger episode creation: {episode_error}")
+                with get_db_session() as outcome_db:
+                    await AgentGovernanceService(outcome_db).record_outcome(
+                        request.agent_id,
+                        success=turn_success,
+                        task_summary=request.message[:200],
+                    )
+            except Exception as outcome_error:  # never block the chat response
+                logger.warning(f"Failed to record chat outcome: {outcome_error}")
+
+            if turn_success:
+                try:
+                    from core.episode_integration import trigger_episode_creation
+
+                    trigger_episode_creation(
+                        session_id=response.get("session_id") or session_id or request.session_id,
+                        agent_id=request.agent_id,
+                        title=request.message[:50],
+                        user_id=active_user_id,
+                    )
+                except Exception as episode_error:  # never block the chat response
+                    logger.warning(f"Failed to trigger episode creation: {episode_error}")
 
         return ChatMessageResponse(
             success=response.get("success", True),

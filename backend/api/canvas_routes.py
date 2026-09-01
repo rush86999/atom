@@ -659,6 +659,7 @@ async def list_user_canvases(
     q: Optional[str] = Query(None, max_length=200, description="Search across title, content, type, and canvas id"),
     limit: int = Query(60, ge=1, le=200, description="Page size"),
     offset: int = Query(0, ge=0, description="Page offset"),
+    session_id: Optional[str] = Query(None, max_length=255, description="Scope to canvases touched in one chat session"),
     current_user: User = Depends(get_current_user)
 ):
     """List the current user's canvases — searchable, paginated, recency-first.
@@ -666,12 +667,14 @@ async def list_user_canvases(
     The discovery surface for finding a canvas as the count grows: ``q``
     matches derived titles, canvas bodies (so untitled canvases are findable
     by content), type, and id; every item carries ``display_title`` (never a
-    raw UUID) and a ``snippet`` windowed around the match.
+    raw UUID) and a ``snippet`` windowed around the match. ``session_id``
+    scopes the list to one chat session (the agent-chat Artifacts panel).
     """
     from tools.canvas_crud_tool import list_canvases
     result = await list_canvases(
         str(current_user.id), canvas_type, include_deleted,
         q=q, limit=limit, offset=offset,
+        session_id=session_id,
     )
     return result
 

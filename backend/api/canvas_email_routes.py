@@ -1,7 +1,8 @@
 """Email Canvas API Routes"""
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Depends
+from fastapi import Depends, File, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -77,6 +78,7 @@ class SendEmailRequest(BaseModel):
     body: str = ""
     canvas_id: Optional[str] = None
     agent_id: Optional[str] = None
+    attachment_ids: Optional[List[str]] = None
 
 
 class SetSignatureRequest(BaseModel):
@@ -163,6 +165,7 @@ async def send_email_canvas(
         body=request.body,
         agent_id=request.agent_id,
         tenant_id=resolve_tenant_id(current_user),
+        attachment_ids=request.attachment_ids,
     )
     if not result.get("success"):
         raise router.error_response(
@@ -277,3 +280,162 @@ async def get_email_canvas(canvas_id: str, current_user: User = Depends(get_curr
         raise router.not_found_error("Email Canvas", canvas_id)
 
     return audit.details_json or {}
+
+
+# ─── Attachment CRUD (docs/canvas/EMAIL_ATTACHMENT_CRUD_PLAN.md §5) ────────
+
+
+@router.get("/{canvas_id}/attachments")
+async def list_email_attachments(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Attachment records on the canvas (metadata only — bytes stream on download)."""
+    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
+    result = EmailCanvasService(db).list_attachments(canvas_id, str(current_user.id))
+    if not result.get("success"):
+        raise router.error_response(
+            error_code="EMAIL_ATTACHMENT_LIST_FAILED",
+            message=result.get("error", "Failed to list attachments"),
+            status_code=400,
+        )
+    return result
+
+
+@router.post("/{canvas_id}/attachments")
+async def upload_email_attachments(
+    canvas_id: str,
+    files: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Stage uploads onto a draft canvas. Files live in the staged store
+    until send (which uploads them to the mailbox) or removal."""
+    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
+    payloads = []
+    for f in files or []:
+        content = await f.read()
+        payloads.append(
+            {
+                "filename": f.filename or "",
+                "content_bytes": content,
+                "content_type": f.content_type or "",
+            }
+        )
+    result = EmailCanvasService(db).stage_attachments(
+        canvas_id, str(current_user.id), payloads
+    )
+    if not result.get("success"):
+        raise router.error_response(
+            error_code="EMAIL_ATTACHMENT_UPLOAD_FAILED",
+            message=result.get("error", "Failed to stage attachments"),
+            status_code=400,
+        )
+    return result
+
+
+@router.get("/{canvas_id}/attachments/{attachment_id}/download")
+async def download_email_attachment(
+    canvas_id: str,
+    attachment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Stream attachment bytes to the owner. Received attachments proxy from
+    the mailbox (never persisted server-side); staged ones read from disk."""
+    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
+    resolved = await EmailCanvasService(db).get_attachment_bytes(
+        canvas_id, str(current_user.id), attachment_id
+    )
+    if not resolved or resolved.get("bytes") is None:
+        raise router.not_found_error("Email Attachment", attachment_id)
+    record = resolved["record"]
+    return StreamingResponse(
+        iter([resolved["bytes"]]),
+        media_type=record.get("content_type") or "application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{record.get("filename", "attachment")}"',
+            "Content-Length": str(len(resolved["bytes"])),
+        },
+    )
+
+
+@router.get("/{canvas_id}/attachments/{attachment_id}/preview")
+async def preview_email_attachment(
+    canvas_id: str,
+    attachment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Extracted-text excerpt for the canvas preview pane (Docling-backed;
+    returns null preview when the format has no text layer)."""
+    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
+    resolved = await EmailCanvasService(db).get_attachment_bytes(
+        canvas_id, str(current_user.id), attachment_id
+    )
+    if not resolved or resolved.get("bytes") is None:
+        raise router.not_found_error("Email Attachment", attachment_id)
+    record = resolved["record"]
+    filename = record.get("filename") or "attachment"
+    excerpt = None
+    try:
+        from core.auto_document_ingestion import DocumentParser
+
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        text = await DocumentParser().parse_document(resolved["bytes"], ext, filename)
+        if text:
+            excerpt = text[:4000]
+    except Exception as e:
+        logger.warning(f"Attachment preview failed for {attachment_id}: {e}")
+    return {
+        "success": True,
+        "attachment_id": attachment_id,
+        "filename": filename,
+        "preview": excerpt,
+    }
+
+
+@router.delete("/{canvas_id}/attachments/{attachment_id}")
+async def delete_email_attachment(
+    canvas_id: str,
+    attachment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Remove an attachment: staged files are deleted, received ones are
+    detached from the canvas view (mailbox copy untouched)."""
+    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
+    result = EmailCanvasService(db).remove_attachment(
+        canvas_id, str(current_user.id), attachment_id
+    )
+    if not result.get("success"):
+        raise router.error_response(
+            error_code="EMAIL_ATTACHMENT_DELETE_FAILED",
+            message=result.get("error", "Failed to remove attachment"),
+            status_code=400,
+        )
+    return result
+
+
+@router.post("/{canvas_id}/attachments/{attachment_id}/ingest")
+async def ingest_email_attachment(
+    canvas_id: str,
+    attachment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Index one attachment's text into the documents memory index
+    ("Add to memory"); status lands on the attachment record via canvas:update."""
+    _get_owned_email_canvas_or_error(db, canvas_id, current_user)
+    result = await EmailCanvasService(db).ingest_attachment(
+        canvas_id, str(current_user.id), attachment_id
+    )
+    if not result.get("success"):
+        raise router.error_response(
+            error_code="EMAIL_ATTACHMENT_INGEST_FAILED",
+            message=str(result.get("ingestion", {}).get("reason") or result.get("error") or "Failed to ingest attachment"),
+            status_code=400,
+            details=result,
+        )
+    return result

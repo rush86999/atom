@@ -676,6 +676,7 @@ After completing this training, the agent will be able to handle similar tasks a
 
         # Update agent confidence
         old_confidence = agent.confidence_score
+        previous_status = agent.status
         agent.confidence_score = min(1.0, agent.confidence_score + confidence_boost)
         actual_boost = agent.confidence_score - old_confidence
 
@@ -722,6 +723,24 @@ After completing this training, the agent will be able to handle similar tasks a
             get_governance_cache().invalidate_agent(agent.id)
         except Exception as cache_err:
             logger.debug(f"governance cache invalidate skipped: {cache_err}")
+
+        # Real-time learning surface: push the training result (confidence
+        # delta + possible STUDENT→INTERN promotion) to the workspace UI so
+        # the user watches the agent grow the moment the session completes.
+        try:
+            from core.maturity_broadcast import schedule_maturity_broadcast
+
+            schedule_maturity_broadcast(
+                workspace_id=getattr(agent, "tenant_id", None),
+                agent_id=agent.id,
+                previous_confidence=old_confidence,
+                confidence=agent.confidence_score,
+                previous_tier=previous_status,
+                tier=agent.status,
+                source="training",
+            )
+        except Exception as broadcast_err:
+            logger.debug(f"maturity broadcast skipped for {agent.id}: {broadcast_err}")
 
         # Update proposal execution result
         proposal = self.db.query(AgentProposal).filter(

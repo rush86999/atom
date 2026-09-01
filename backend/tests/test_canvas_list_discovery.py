@@ -68,7 +68,8 @@ BASE = datetime(2026, 8, 30, 12, 0, 0, tzinfo=timezone.utc)
 
 
 def _audit(db, canvas_id, tenant_id, user_id, action_type="present",
-           canvas_type="docs", details=None, at=None, audit_id=None):
+           canvas_type="docs", details=None, at=None, audit_id=None,
+           session_id=None):
     row = CanvasAudit(
         id=audit_id or f"a-{uuid.uuid4()}",
         canvas_id=canvas_id,
@@ -76,6 +77,7 @@ def _audit(db, canvas_id, tenant_id, user_id, action_type="present",
         canvas_type=canvas_type,
         action_type=action_type,
         user_id=user_id,
+        session_id=session_id,
         details_json=details or {},
         created_at=at or BASE,
     )
@@ -415,3 +417,128 @@ class TestRouteBoundary:
     def test_route_rejects_over_limit(self, db_session, discovery_user, patched_session, route_client):
         resp = route_client.get("/api/canvas/?limit=5000")
         assert resp.status_code == 422  # FastAPI validation (le=200)
+
+
+# ============================================================================
+# Session scoping + version counts (agent-chat Artifacts panel)
+#
+# The journey this locks in: the chat Artifacts tab lists ONLY the canvases
+# the current conversation produced (CanvasAudit.session_id), each with a
+# v{n} badge counting that session's audit rows.
+# ============================================================================
+
+class TestSessionScoping:
+    def test_session_filter_returns_only_that_sessions_canvases(
+        self, db_session, discovery_user, patched_session
+    ):
+        u, t = discovery_user["user"], discovery_user["tenant"]
+        _audit(db_session, "cv-this", t.id, u.id, "present", "docs",
+               {"title": "This session", "content": "x"}, at=BASE,
+               session_id="sess-a")
+        _audit(db_session, "cv-other", t.id, u.id, "present", "sheets",
+               {"title": "Other session", "data": [[1]]}, at=BASE + timedelta(minutes=1),
+               session_id="sess-b")
+
+        result = _run(str(u.id), session_id="sess-a")
+        assert result["success"] is True
+        assert [c["canvas_id"] for c in result["canvases"]] == ["cv-this"]
+
+    def test_session_scoped_results_never_leak_other_users(
+        self, db_session, discovery_user, patched_session
+    ):
+        u, t = discovery_user["user"], discovery_user["tenant"]
+        stranger = User(
+            id=f"u-{uuid.uuid4()}", email=f"s2-{uuid.uuid4()}@example.com",
+            hashed_password="x", first_name="S", last_name="S",
+            role="member", status="active",
+        )
+        db_session.add(stranger)
+        db_session.flush()
+        # Same session id, DIFFERENT user — must not appear.
+        _audit(db_session, "cv-stranger", t.id, stranger.id, "present", "docs",
+               {"title": "Not yours", "content": "x"}, at=BASE,
+               session_id="sess-shared")
+
+        result = _run(str(u.id), session_id="sess-shared")
+        assert result["total"] == 0
+
+    def test_canvas_presented_in_session_then_edited_outside_still_listed(
+        self, db_session, discovery_user, patched_session
+    ):
+        u, t = discovery_user["user"], discovery_user["tenant"]
+        # Presented inside the session...
+        _audit(db_session, "cv-mixed", t.id, u.id, "present", "docs",
+               {"title": "v1 title", "content": "v1"}, at=BASE,
+               session_id="sess-a")
+        # ...then edited outside it — the canvas still belongs to the
+        # session's story, and the session-scoped latest row is the in-session
+        # one (latest-per-canvas is computed WITHIN the filtered rows).
+        _audit(db_session, "cv-mixed", t.id, u.id, "update", "docs",
+               {"title": "outside edit", "content": "v2"},
+               at=BASE + timedelta(minutes=5), session_id=None)
+
+        result = _run(str(u.id), session_id="sess-a")
+        assert [c["canvas_id"] for c in result["canvases"]] == ["cv-mixed"]
+        item = result["canvases"][0]
+        assert item["title"] == "v1 title"
+        # Only the in-session audit row counts toward the version badge.
+        assert item["version"] == 1
+
+    def test_version_counts_session_rows_per_canvas(
+        self, db_session, discovery_user, patched_session
+    ):
+        u, t = discovery_user["user"], discovery_user["tenant"]
+        for i in range(3):
+            _audit(db_session, "cv-versions", t.id, u.id, "update", "docs",
+                   {"title": f"v{i}", "content": f"v{i}"},
+                   at=BASE + timedelta(minutes=i), session_id="sess-a")
+
+        result = _run(str(u.id), session_id="sess-a")
+        item = result["canvases"][0]
+        assert item["version"] == 3
+
+    def test_version_counts_all_rows_when_unscoped(
+        self, db_session, discovery_user, patched_session
+    ):
+        u, t = discovery_user["user"], discovery_user["tenant"]
+        for i in range(2):
+            _audit(db_session, "cv-both", t.id, u.id, "update", "docs",
+                   {"title": f"v{i}", "content": f"v{i}"},
+                   at=BASE + timedelta(minutes=i), session_id="sess-a")
+        _audit(db_session, "cv-both", t.id, u.id, "update", "docs",
+               {"title": "outside", "content": "v2"},
+               at=BASE + timedelta(minutes=9), session_id=None)
+
+        scoped = _run(str(u.id), session_id="sess-a")["canvases"][0]["version"]
+        unscoped = _run(str(u.id))["canvases"][0]["version"]
+        assert scoped == 2
+        assert unscoped == 3
+
+    def test_route_accepts_session_id_param(
+        self, db_session, discovery_user, patched_session
+    ):
+        u, t = discovery_user["user"], discovery_user["tenant"]
+        _audit(db_session, "cv-route-a", t.id, u.id, "present", "docs",
+               {"title": "Session A", "content": "x"}, at=BASE,
+               session_id="sess-a")
+        _audit(db_session, "cv-route-b", t.id, u.id, "present", "docs",
+               {"title": "Session B", "content": "y"},
+               at=BASE + timedelta(minutes=1), session_id="sess-b")
+
+        from api.canvas_routes import router
+        from core.auth import get_current_user
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        app = FastAPI()
+        app.include_router(router)
+        app.dependency_overrides[get_current_user] = lambda: u
+        try:
+            client = TestClient(app, raise_server_exceptions=False)
+            resp = client.get("/api/canvas/?session_id=sess-a")
+            assert resp.status_code == 200
+            body = resp.json()
+            assert [c["canvas_id"] for c in body["canvases"]] == ["cv-route-a"]
+            assert body["canvases"][0]["version"] == 1
+        finally:
+            app.dependency_overrides.clear()

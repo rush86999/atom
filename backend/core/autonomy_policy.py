@@ -68,6 +68,11 @@ TOPICS: Dict[str, Dict[str, str]] = {
         "description": "Editing drafts and documents on canvases",
         "default_mode": MODE_AUTO_IF_MATURE,
     },
+    "email_attachment": {
+        "label": "Email attachments",
+        "description": "Attaching/removing files on email drafts and reading their contents",
+        "default_mode": MODE_AUTO_IF_MATURE,
+    },
 }
 
 # Per-topic gate metadata. governance_action is the action_type fed to
@@ -98,14 +103,19 @@ TOPIC_GATES: Dict[str, Dict[str, Any]] = {
         "min_maturity": "intern",
         "trust_domain": "canvas_edit",
     },
+    "email_attachment": {
+        "governance_action": "email_attachment_write",
+        "min_maturity": "intern",
+        "trust_domain": "email_attachment",
+    },
 }
 
 # canvas_type (lowercased) → topics that canvas type PRIMARILY exercises.
 # Types not listed fall back to DEFAULT_CANVAS_TOPICS — every non-email
 # surface is a document-ish canvas where edits and tasks are the point.
 _CANVAS_TYPE_TOPICS: Dict[str, List[str]] = {
-    "email": ["send_email", "crm_write"],
-    "mail": ["send_email", "crm_write"],
+    "email": ["send_email", "email_attachment", "crm_write"],
+    "mail": ["send_email", "email_attachment", "crm_write"],
     "orchestration": ["task_create", "canvas_edit"],
 }
 DEFAULT_CANVAS_TOPICS = ["canvas_edit", "task_create"]

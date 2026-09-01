@@ -472,12 +472,33 @@ class AgentLearningEnhanced:
             
             # Also adjust confidence (penalty for needing correction)
             agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+            previous_confidence = None
             if agent:
                 # Penalty: -0.05
+                previous_confidence = agent.confidence_score
                 agent.confidence_score = max(0.0, (agent.confidence_score or 0.5) - 0.05)
                 logger.info(f"Penalty for correction: Agent {agent_id} confidence -> {agent.confidence_score:.2f}")
 
             self.db.commit()
+
+            # Real-time learning surface: corrections are the most visible
+            # "the agent just learned" moment — push the penalty to the
+            # workspace UI immediately. Best-effort.
+            if agent:
+                try:
+                    from core.maturity_broadcast import schedule_maturity_broadcast
+
+                    schedule_maturity_broadcast(
+                        workspace_id=self.workspace_id,
+                        agent_id=agent_id,
+                        previous_confidence=previous_confidence,
+                        confidence=agent.confidence_score,
+                        previous_tier=agent.status,
+                        tier=agent.status,
+                        source="correction",
+                    )
+                except Exception as broadcast_err:
+                    logger.debug(f"maturity broadcast skipped for {agent_id}: {broadcast_err}")
             
             # Continuous learning update (adaptive parameters)
             try:

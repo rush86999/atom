@@ -1,5 +1,6 @@
 import os
 import json
+import base64
 import logging
 import re
 import asyncio
@@ -494,6 +495,7 @@ class OutlookService(IntegrationService):
         cc_recipients: Optional[List[str]] = None,
         bcc_recipients: Optional[List[str]] = None,
         token: Optional[str] = None,
+        attachments: Optional[List[Dict[str, Any]]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Send email via Outlook"""
         self.last_send_error = None
@@ -535,6 +537,25 @@ class OutlookService(IntegrationService):
                 {"emailAddress": {"address": email}} for email in (bcc_recipients or [])
             ]
 
+            valid_attachments = self._normalize_send_attachments(attachments)
+            if valid_attachments is None:
+                self.last_send_error = {
+                    "error": "One or more attachments are missing file content.",
+                }
+                return None
+
+            if valid_attachments:
+                return await self._send_with_attachments(
+                    user_id,
+                    subject,
+                    body,
+                    to_recipients_data,
+                    cc_recipients_data,
+                    bcc_recipients_data,
+                    valid_attachments,
+                    access_token=token,
+                )
+
             email_data = {
                 "message": {
                     "subject": subject,
@@ -554,6 +575,172 @@ class OutlookService(IntegrationService):
         except Exception as e:
             logger.error(f"Error sending email: {e}")
             return None
+
+    # /me/sendMail with inline attachments is rejected by Graph above ~3 MB
+    # total; anything larger must go draft → createUploadSession → send.
+    GRAPH_INLINE_ATTACHMENT_LIMIT = 3 * 1024 * 1024
+    # Upload-session chunk sizes must be multiples of 320 KiB (Graph requirement).
+    GRAPH_UPLOAD_CHUNK_SIZE = 5 * 1024 * 1024
+
+    @staticmethod
+    def _normalize_send_attachments(
+        attachments: Optional[List[Dict[str, Any]]],
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Validate attachment dicts, resolving bytes from `content_bytes` or `content_bytes_b64`.
+
+        Returns None when an entry carries neither (caller signals failure),
+        empty list when no attachments were requested.
+        """
+        if not attachments:
+            return []
+        resolved = []
+        for att in attachments:
+            data = att.get("content_bytes")
+            if data is None and att.get("content_bytes_b64"):
+                try:
+                    data = base64.b64decode(att["content_bytes_b64"])
+                except Exception:
+                    data = None
+            if not data or not att.get("filename"):
+                return None
+            resolved.append(
+                {
+                    "filename": att["filename"],
+                    "content_type": att.get("content_type") or "application/octet-stream",
+                    "content_bytes": bytes(data),
+                }
+            )
+        return resolved
+
+    async def _upload_large_attachment(
+        self,
+        user_id: str,
+        draft_id: str,
+        filename: str,
+        content_type: str,
+        data: bytes,
+        access_token: Optional[str],
+    ) -> bool:
+        """Attach one oversized file via a Graph upload session.
+
+        The uploadUrl returned by createUploadSession is pre-authenticated
+        (PUT goes to outlook.office.com without a Bearer header).
+        """
+        try:
+            session = await self._make_graph_request(
+                user_id,
+                f"/me/messages/{draft_id}/attachments/createUploadSession",
+                "POST",
+                {
+                    "AttachmentItem": {
+                        "attachmentType": "file",
+                        "name": filename,
+                        "size": len(data),
+                        "contentType": content_type,
+                    }
+                },
+                access_token=access_token,
+            )
+            upload_url = (session or {}).get("uploadUrl")
+            if not upload_url:
+                logger.error(f"Graph createUploadSession returned no uploadUrl for {filename}")
+                return False
+
+            total = len(data)
+            offset = 0
+            async with aiohttp.ClientSession() as http:
+                while offset < total:
+                    chunk = data[offset : offset + self.GRAPH_UPLOAD_CHUNK_SIZE]
+                    end = offset + len(chunk) - 1
+                    headers = {
+                        "Content-Length": str(len(chunk)),
+                        "Content-Range": f"bytes {offset}-{end}/{total}",
+                    }
+                    async with http.put(upload_url, data=chunk, headers=headers) as resp:
+                        if resp.status not in (200, 201):
+                            body = await resp.text()
+                            logger.error(
+                                f"Graph upload chunk failed for {filename}: "
+                                f"{resp.status} - {body[:300]}"
+                            )
+                            return False
+                    offset += len(chunk)
+            return True
+        except Exception as e:
+            logger.error(f"Error uploading attachment {filename}: {e}")
+            return False
+
+    async def _send_with_attachments(
+        self,
+        user_id: str,
+        subject: str,
+        body: str,
+        to_recipients_data: List[Dict[str, Any]],
+        cc_recipients_data: List[Dict[str, Any]],
+        bcc_recipients_data: List[Dict[str, Any]],
+        attachments: List[Dict[str, Any]],
+        access_token: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Send via draft + attachments + send (handles >3 MB via upload sessions)."""
+        draft = await self._make_graph_request(
+            user_id,
+            "/me/messages",
+            "POST",
+            {
+                "subject": subject,
+                "body": {"contentType": "HTML", "content": self._body_to_html(body)},
+                "toRecipients": to_recipients_data,
+                "ccRecipients": cc_recipients_data,
+                "bccRecipients": bcc_recipients_data,
+            },
+            access_token=access_token,
+        )
+        draft_id = (draft or {}).get("id")
+        if not draft_id:
+            self.last_send_error = {"error": "Outlook draft creation failed (attachment send)."}
+            return None
+
+        for att in attachments:
+            data = att["content_bytes"]
+            if len(data) <= self.GRAPH_INLINE_ATTACHMENT_LIMIT:
+                payload = {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": att["filename"],
+                    "contentType": att["content_type"],
+                    "contentBytes": base64.b64encode(data).decode(),
+                }
+                attached = await self._make_graph_request(
+                    user_id,
+                    f"/me/messages/{draft_id}/attachments",
+                    "POST",
+                    payload,
+                    access_token=access_token,
+                )
+            else:
+                attached = await self._upload_large_attachment(
+                    user_id,
+                    draft_id,
+                    att["filename"],
+                    att["content_type"],
+                    data,
+                    access_token,
+                )
+            if not attached:
+                self.last_send_error = {
+                    "error": f"Outlook rejected attachment '{att['filename']}'.",
+                    "failed_attachment": att["filename"],
+                }
+                await self._make_graph_request(
+                    user_id, f"/me/messages/{draft_id}", "DELETE", access_token=access_token
+                )
+                return None
+
+        sent = await self._make_graph_request(
+            user_id, f"/me/messages/{draft_id}/send", "POST", {}, access_token=access_token
+        )
+        if not sent:
+            self.last_send_error = {"error": "Outlook send failed after attaching files."}
+        return sent
 
     async def reply_to_email(
         self,
@@ -677,6 +864,43 @@ class OutlookService(IntegrationService):
         except Exception as e:
             logger.error(f"Error getting attachment content: {e}")
             return None
+
+    async def get_attachment_metadata(
+        self, user_id: str, message_id: str, token: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Attachment metadata normalized to the same schema as
+        GmailService.get_attachment_metadata (id/name/size/contentType) —
+        core.ingestion_pipeline's attachment branch dispatches on these names."""
+        try:
+            endpoint = (
+                f"/me/messages/{message_id}/attachments"
+                "?$select=id,name,size,contentType,isInline"
+            )
+            result = await self._make_graph_request(user_id, endpoint, access_token=token)
+            if not result:
+                return []
+            return [
+                {
+                    "id": att.get("id"),
+                    "name": att.get("name", "unknown"),
+                    "size": att.get("size", 0),
+                    "contentType": att.get("contentType", ""),
+                    "isInline": att.get("isInline", False),
+                }
+                for att in result.get("value", [])
+                if att.get("id")
+            ]
+        except Exception as e:
+            logger.error(f"Error getting attachment metadata for message {message_id}: {e}")
+            return []
+
+    async def download_attachment(
+        self, user_id: str, message_id: str, attachment_id: str, token: Optional[str] = None
+    ) -> Optional[bytes]:
+        """Download attachment content as bytes (normalized pipeline interface)."""
+        return await self.get_attachment_content(
+            user_id=user_id, message_id=message_id, attachment_id=attachment_id, token=token
+        )
 
     # Calendar Operations
     async def get_calendar_events(

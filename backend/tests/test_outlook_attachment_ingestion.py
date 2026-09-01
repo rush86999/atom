@@ -341,15 +341,23 @@ async def test_expand_survives_graph_errors(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_gmail_expansion_fetches_text_attachments_only():
+async def test_gmail_expansion_fetches_text_first_then_binary(monkeypatch):
+    """Text-like attachments keep priority on the shared page budget; binary
+    ones are fetched in a second pass (they feed the documents memory index
+    now), and only while budget remains. With the memory-index flag off the
+    old text-only contract applies."""
+
     class _FakeGmailService:
         def __init__(self):
             self.requested = []
 
         def get_attachment_content(self, message_id, attachment_id):
             self.requested.append((message_id, attachment_id))
-            return b"col1,col2\na,b\n"
+            return b"payload"
 
+    import base64 as _b64
+
+    # Flag on (default): text fetched first, binary second with leftover budget.
     svc = _FakeGmailService()
     messages = [
         {
@@ -361,13 +369,55 @@ async def test_gmail_expansion_fetches_text_attachments_only():
         },
     ]
     await ingestion_pipeline._expand_gmail_attachments(svc, messages)
+    assert svc.requested == [("gm1", "a1"), ("gm1", "a2")]
+    assert _b64.b64decode(messages[0]["attachments"][0]["data"]) == b"payload"
+    assert _b64.b64decode(messages[0]["attachments"][1]["data"]) == b"payload"
 
-    # Text-like attachment fetched, binary skipped to save the budget.
+    # Flag off: binary is never fetched (budget left unspent).
+    monkeypatch.setenv("ENABLE_EMAIL_ATTACHMENT_MEMORY_INDEX", "false")
+    svc = _FakeGmailService()
+    messages = [
+        {
+            "id": "gm1",
+            "attachments": [
+                {"attachmentId": "a1", "filename": "export.csv", "contentType": "text/csv"},
+                {"attachmentId": "a2", "filename": "scan.pdf", "contentType": "application/pdf"},
+            ],
+        },
+    ]
+    await ingestion_pipeline._expand_gmail_attachments(svc, messages)
     assert svc.requested == [("gm1", "a1")]
-    import base64 as _b64
-
-    assert base64.b64decode(messages[0]["attachments"][0]["data"]) == b"col1,col2\na,b\n"
     assert "data" not in messages[0]["attachments"][1]
+
+
+@pytest.mark.asyncio
+async def test_gmail_expansion_binary_never_starves_text(monkeypatch):
+    """One page budget: text-like attachments consume it first; if none
+    remain, binary fetches are skipped rather than displacing text."""
+
+    class _FakeGmailService:
+        def __init__(self):
+            self.requested = []
+
+        def get_attachment_content(self, message_id, attachment_id):
+            self.requested.append((message_id, attachment_id))
+            return b"payload"
+
+    monkeypatch.setattr(
+        ingestion_pipeline, "ATTACHMENT_EXPAND_BUDGET_PER_PAGE", 1
+    )
+    svc = _FakeGmailService()
+    messages = [
+        {
+            "id": "gm1",
+            "attachments": [
+                {"attachmentId": "a1", "filename": "export.csv", "contentType": "text/csv"},
+                {"attachmentId": "a2", "filename": "scan.pdf", "contentType": "application/pdf"},
+            ],
+        },
+    ]
+    await ingestion_pipeline._expand_gmail_attachments(svc, messages)
+    assert svc.requested == [("gm1", "a1")]
 
 
 @pytest.mark.asyncio

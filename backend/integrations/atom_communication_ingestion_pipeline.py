@@ -93,6 +93,20 @@ def _attachment_text_like(attachment: Dict[str, Any]) -> bool:
     )
 
 
+# Binary-attachment text layer: the shared ingestion service lands Docling
+# output in the documents memory index (core.email_attachment_ingestion).
+try:
+    from core.email_attachment_ingestion import (
+        attachment_ingestible as _binary_extension,
+        ingest_email_attachment_bytes,
+        max_attachments_per_message,
+    )
+except Exception:  # pragma: no cover — degraded: attachments stay metadata-only
+    _binary_extension = None
+    ingest_email_attachment_bytes = None
+    max_attachments_per_message = None
+
+
 def _extract_attachment_text(attachment: Dict[str, Any]) -> Optional[str]:
     """Best-effort text layer for one file attachment. Never raises.
 
@@ -1085,9 +1099,25 @@ class CommunicationIngestionPipeline:
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, self.memory_manager.initialize)
 
+            # Raw attachment payloads (contentBytes/data) are needed for
+            # binary-attachment indexing and don't survive normalization —
+            # capture before, stamp results after.
+            raw_attachments = [
+                att for att in (message_data.get("attachments") or [])
+                if isinstance(att, dict)
+            ]
+
             # Normalize message data
             normalized_data = self._normalize_message(app_type, message_data)
-            
+
+            # Binary attachments (pdf/docx/xlsx/…) get a real text layer in
+            # the documents memory index. Text-like ones skip this — their
+            # text is already folded into the comms content above.
+            if raw_attachments:
+                await self._ingest_binary_attachments(
+                    app_type, raw_attachments, normalized_data
+                )
+
             # Convert to CommunicationData
             comm_data = CommunicationData(**normalized_data)
             
@@ -2222,6 +2252,39 @@ class CommunicationIngestionPipeline:
                 if content:
                     att["data"] = base64.b64encode(content).decode()
                     budget -= 1
+        # Second pass: binary attachments (pdf/docx/…). Their bytes feed the
+        # documents memory index (see _ingest_binary_attachments), which the
+        # text-only expansion above skipped by design. Remaining page budget
+        # applies — text layers always had priority.
+        if os.getenv("ENABLE_EMAIL_ATTACHMENT_MEMORY_INDEX", "true").lower() == "false":
+            return
+        for msg in messages:
+            if budget <= 0:
+                return
+            for att in msg.get("attachments", []) or []:
+                if budget <= 0:
+                    return
+                attachment_id = att.get("attachmentId") or att.get("id")
+                message_id = msg.get("id")
+                if not attachment_id or not message_id or att.get("data"):
+                    continue
+                if not _binary_extension(att.get("filename") or att.get("name") or ""):
+                    continue
+                try:
+                    content = await loop.run_in_executor(
+                        None,
+                        lambda mid=message_id, aid=attachment_id: (
+                            gmail_service.get_attachment_content(mid, aid)
+                        ),
+                    )
+                except Exception as e:
+                    logger.debug(
+                        f"Gmail attachment fetch failed for {message_id}/{attachment_id}: {e}"
+                    )
+                    continue
+                if content:
+                    att["data"] = base64.b64encode(content).decode()
+                    budget -= 1
 
     async def _expand_outlook_attachments(
         self,
@@ -2526,6 +2589,94 @@ class CommunicationIngestionPipeline:
         header = "--- Attachments ---"
         appended = header + "\n" + "\n".join(sections)
         return ((content + "\n\n" + appended) if content else appended), cleaned
+
+    def _binary_memory_ingest_enabled(self) -> bool:
+        return os.getenv("ENABLE_EMAIL_ATTACHMENT_MEMORY_INDEX", "true").lower() != "false"
+
+    async def _ingest_binary_attachments(
+        self,
+        app_type: str,
+        raw_attachments: List[Dict[str, Any]],
+        normalized: Dict[str, Any],
+    ) -> None:
+        """Give binary attachments (pdf/docx/xlsx/…) a real text layer in the
+        documents memory index via core.email_attachment_ingestion.
+
+        Budget-capped per message; failures never fail the message ingest —
+        the attachment stays metadata-only in the comms row. Requires raw
+        bytes in the payload: the Outlook poller expands attachments inline,
+        but the Graph webhook path fetches messages without attachment
+        content, so binary files arriving on that channel are picked up by
+        on-demand (canvas/agent) ingestion instead.
+        """
+        if not self._binary_memory_ingest_enabled():
+            return
+        if ingest_email_attachment_bytes is None or max_attachments_per_message is None:
+            return
+        provider = {"outlook": "outlook", "google": "gmail", "gmail": "gmail"}.get(
+            app_type, app_type
+        )
+        cap = max(0, max_attachments_per_message())
+        meta = normalized.get("metadata") or {}
+        user_id = meta.get("user_id") or "default_user"
+        received_at = normalized.get("timestamp")
+        for att in raw_attachments:
+            if cap <= 0:
+                return
+            filename = (
+                _attachment_field(att, "name", "filename") or ""
+            )
+            if att.get("isInline", att.get("is_inline", False)):
+                continue
+            if not _binary_extension(filename):
+                continue
+            data = att.get("contentBytes") or att.get("data")
+            if not data:
+                continue
+            try:
+                raw = base64.b64decode(data, validate=False)
+            except Exception:
+                try:
+                    raw = base64.urlsafe_b64decode(data + "===")
+                except Exception:
+                    continue
+            if not raw:
+                continue
+            attachment_id = att.get("id") or att.get("attachmentId")
+            message_id = att.get("message_id") or normalized.get("id")
+            if not attachment_id or not message_id:
+                continue
+            cap -= 1
+            result = await ingest_email_attachment_bytes(
+                provider=provider,
+                message_id=str(message_id),
+                attachment_id=str(attachment_id),
+                filename=filename,
+                content=raw,
+                content_type=_attachment_field(
+                    att, "contentType", "content_type", "mimetype"
+                )
+                or "",
+                size=att.get("size") or len(raw),
+                user_id=user_id,
+                email_subject=normalized.get("subject") or "",
+                email_from=normalized.get("sender") or "",
+                email_received_at=(
+                    received_at.isoformat()
+                    if isinstance(received_at, datetime)
+                    else str(received_at or "")
+                ),
+            )
+            for cleaned in normalized.get("attachments") or []:
+                if not isinstance(cleaned, dict):
+                    continue
+                cleaned_id = cleaned.get("id") or cleaned.get("attachmentId")
+                if cleaned_id and str(cleaned_id) == str(attachment_id):
+                    cleaned["ingestion"] = {
+                        "status": result.get("status"),
+                        "doc_id": result.get("doc_id"),
+                    }
+                    break
 
     def _normalize_message(self, app_type: str, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize message data from different apps to unified format,

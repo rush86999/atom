@@ -731,6 +731,7 @@ class AgentGraduationService:
 
         # Update maturity
         try:
+            previous_status = agent.status
             agent.status = AgentStatus[new_maturity.upper()]
         except KeyError:
             logger.error(f"Invalid maturity level: {new_maturity}")
@@ -761,6 +762,24 @@ class AgentGraduationService:
                 get_governance_cache().invalidate_agent(agent_id)
             except Exception as cache_err:
                 logger.debug(f"governance cache invalidate skipped: {cache_err}")
+
+            # Real-time learning surface: announce the promotion to the
+            # workspace UI immediately (the notification below is a second,
+            # asynchronous channel — this is the live one).
+            try:
+                from core.maturity_broadcast import schedule_maturity_broadcast
+
+                schedule_maturity_broadcast(
+                    workspace_id=getattr(agent, "tenant_id", None),
+                    agent_id=agent_id,
+                    previous_confidence=agent.confidence_score,
+                    confidence=agent.confidence_score,
+                    previous_tier=previous_status,
+                    tier=agent.status,
+                    source="graduation",
+                )
+            except Exception as broadcast_err:
+                logger.debug(f"maturity broadcast skipped for {agent_id}: {broadcast_err}")
 
             # P2.1 — fire a graduation notification so the user has a reason
             # to come back (Stage 5 of the new-user journey). Wrapped in

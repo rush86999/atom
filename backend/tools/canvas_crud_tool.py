@@ -618,6 +618,7 @@ async def list_canvases(
     q: Optional[str] = None,
     limit: Optional[int] = 60,
     offset: int = 0,
+    session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """List a user's canvases from the audit trail — searchable and paginated.
 
@@ -633,6 +634,11 @@ async def list_canvases(
     - ``display_title``: title derived from content when no explicit title
       exists (email subject/recipient, first line of a doc) — never a raw UUID.
     - ``snippet``: content excerpt, windowed around the search match.
+    - ``session_id``: scope to canvases touched in one chat session — the
+      agent-chat Artifacts panel lists what that conversation produced. The
+      session filter applies to the audit rows BEFORE the latest-per-canvas
+      window, so a canvas presented in this session still appears even if its
+      newest edit happened elsewhere; ``version`` counts this session's rows.
 
     Args:
         user_id: User requesting the action
@@ -642,6 +648,7 @@ async def list_canvases(
         limit: Page size (default 60; capped at 200; None = no cap for
             internal callers that want the full set)
         offset: Page offset
+        session_id: Optional chat-session scope (CanvasAudit.session_id)
     """
     try:
         from core.database import get_db_session
@@ -651,7 +658,9 @@ async def list_canvases(
 
         with get_db_session() as db:
             # Latest audit row per canvas_id (deterministic: newest created_at,
-            # then id as tiebreak for same-commit timestamps).
+            # then id as tiebreak for same-commit timestamps) + how many rows
+            # this scope has per canvas (the sidebar's v{n} badge — one more
+            # window over the same partition, no extra query).
             rn = (
                 func.row_number()
                 .over(
@@ -660,13 +669,22 @@ async def list_canvases(
                 )
                 .label("rn")
             )
-            base = db.query(CanvasAudit, rn).filter(CanvasAudit.user_id == user_id)
+            version_count = (
+                func.count()
+                .over(partition_by=CanvasAudit.canvas_id)
+                .label("version_count")
+            )
+            base = db.query(CanvasAudit, rn, version_count).filter(
+                CanvasAudit.user_id == user_id
+            )
             if canvas_type:
                 base = base.filter(CanvasAudit.canvas_type == canvas_type)
+            if session_id:
+                base = base.filter(CanvasAudit.session_id == session_id)
 
             subq = base.subquery()
             latest = (
-                db.query(aliased(CanvasAudit, subq))
+                db.query(aliased(CanvasAudit, subq), subq.c.version_count)
                 .filter(subq.c.rn == 1)
                 .order_by(subq.c.created_at.desc(), subq.c.id.desc())
                 .all()
@@ -679,7 +697,7 @@ async def list_canvases(
             # 2. content ONLY for canvases whose audit details carry no body
             #    key at all (chat_draft_to_canvas writes the document only on
             #    the Canvas row — same fallback ladder as read_canvas).
-            all_ids = [row.canvas_id for row in latest]
+            all_ids = [row.canvas_id for row, _vc in latest]
             canvas_names: Dict[str, str] = {}
             if all_ids:
                 for cid, name in (
@@ -689,7 +707,7 @@ async def list_canvases(
                 ):
                     canvas_names[cid] = name
             fallback_ids = []
-            for row in latest:
+            for row, _version_count in latest:
                 details = row.details_json or {}
                 if _audit_body(details) is None and "content" not in details and "data" not in details:
                     fallback_ids.append(row.canvas_id)
@@ -700,7 +718,7 @@ async def list_canvases(
 
             needle = (q or "").strip().lower()
             matches: list = []
-            for row in latest:
+            for row, version_count in latest:
                 if row.action_type == "delete" and not include_deleted:
                     continue
 
@@ -738,6 +756,7 @@ async def list_canvases(
                     "snippet": _content_snippet(body, q),
                     "deleted": row.action_type == "delete",
                     "last_updated": row.created_at.isoformat() if row.created_at else None,
+                    "version": int(version_count or 1),
                 })
 
             total = len(matches)

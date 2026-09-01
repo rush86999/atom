@@ -419,6 +419,10 @@ class ToolRegistry:
         # send_message / wait_for_mention / read_inbox (mention-first,
         # passive-awareness messaging between team members).
         self._register_agent_radio_tools()
+        # Email-canvas attachment CRUD: agent attach/remove/ingest/read of
+        # email attachments (governed by the email_attachment autonomy topic;
+        # sending WITH attachments stays on the send_email circuit).
+        self._register_email_attachment_tools()
 
         logger.info(f"Tool registry initialized with {len(self._tools)} tools")
 
@@ -611,6 +615,110 @@ class ToolRegistry:
             tags=["canvas", "list", "crud", "NEW"],
             cacheable=True  # idempotent list — safe to memoize briefly
         )
+
+    def _register_email_attachment_tools(self):
+        """Register email-canvas attachment tools with metadata.
+
+        Reads are complexity 1 (STUDENT); draft mutations are 2 (INTERN,
+        same tier as update_canvas — attaching to a draft is reversible).
+        Sending WITH attachments stays gated by send_email (3) on the send
+        circuit; per-user mode control is the email_attachment autonomy topic.
+        """
+
+        email_attachment_tools = [
+            (
+                "email_attachment_list",
+                1,
+                "STUDENT",
+                "List attachments on an email canvas draft (metadata only — no file content)",
+                True,
+            ),
+            (
+                "email_attachment_get_text",
+                1,
+                "STUDENT",
+                "Read the extracted TEXT of an email attachment (PDF/DOCX/XLSX/text) — never raw bytes",
+                True,
+            ),
+            (
+                "email_attachment_stage_file",
+                2,
+                "INTERN",
+                "Stage a small generated file (<=256KB) onto the email draft as an attachment",
+                False,
+            ),
+            (
+                "email_attachment_attach",
+                2,
+                "INTERN",
+                "Attach a file from a received email in the thread onto the outgoing draft",
+                False,
+            ),
+            (
+                "email_attachment_remove",
+                2,
+                "INTERN",
+                "Remove an attachment from the email draft (staged files deleted; received ones detached)",
+                False,
+            ),
+            (
+                "email_attachment_ingest",
+                2,
+                "INTERN",
+                "Index an email attachment's text into memory so its content is recallable across chats",
+                False,
+            ),
+        ]
+
+        for name, complexity, maturity, description, cacheable in email_attachment_tools:
+            try:
+                func = self._get_function("tools.email_attachment_tool", name)
+                if not func:
+                    continue
+                params: Dict[str, Any] = {
+                    "user_id": {"type": "str", "description": "Owning user id"},
+                    "canvas_id": {"type": "str", "description": "Email canvas id"},
+                }
+                if name == "email_attachment_get_text":
+                    params.update({
+                        "attachment_id": {"type": "str", "description": "Attachment record id"},
+                        "max_chars": {"type": "int", "optional": True, "description": "Cap on returned text (default 8000)"},
+                    })
+                elif name == "email_attachment_stage_file":
+                    params.update({
+                        "filename": {"type": "str", "description": "File name (extension must be allowed)"},
+                        "content_b64": {"type": "str", "description": "Base64 file content (<=256KB)"},
+                        "content_type": {"type": "str", "optional": True, "description": "MIME type"},
+                        "agent_id": {"type": "str", "optional": True, "description": "Agent id for audit"},
+                    })
+                elif name in ("email_attachment_attach",):
+                    params.update({
+                        "message_id": {"type": "str", "description": "Thread message the file arrived on"},
+                        "attachment_id": {"type": "str", "description": "Attachment id within that message"},
+                        "agent_id": {"type": "str", "optional": True, "description": "Agent id for audit"},
+                    })
+                elif name in ("email_attachment_remove", "email_attachment_ingest"):
+                    params.update({
+                        "attachment_id": {"type": "str", "description": "Attachment record id"},
+                        "agent_id": {"type": "str", "optional": True, "description": "Agent id for audit"},
+                    })
+
+                self.register(
+                    name=name,
+                    function=func,
+                    version="1.0.0",
+                    description=description,
+                    category="email",
+                    complexity=complexity,
+                    maturity_required=maturity,
+                    dependencies=[],
+                    parameters=params,
+                    author="Atom Team",
+                    tags=["email", "attachment", "canvas"],
+                    cacheable=cacheable,
+                )
+            except Exception as e:
+                logger.warning(f"Could not register email attachment tool {name}: {e}")
 
     def _register_browser_tools(self):
         """Register browser automation tools with metadata."""

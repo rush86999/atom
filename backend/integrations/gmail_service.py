@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timezone, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 import requests
 
 # Make Google APIs optional for Gmail integration
@@ -449,7 +451,36 @@ class GmailService(IntegrationService):
             logger.error(f"Failed to get attachment content: {e}")
             return None
     
-    def send_message(self, to: str, subject: str, body: str, cc: str = "", bcc: str = "", thread_id: str = None, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    @staticmethod
+    def _attachment_payloads(attachments: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+        """Resolve attachment dicts to {filename, content_type, content_bytes}.
+
+        Accepts raw bytes (`content_bytes`) or base64 (`content_bytes_b64`).
+        Raises ValueError on entries missing filename or content so the
+        caller's send fails loudly instead of silently dropping a file.
+        """
+        if not attachments:
+            return []
+        resolved = []
+        for att in attachments:
+            data = att.get("content_bytes")
+            if data is None and att.get("content_bytes_b64"):
+                try:
+                    data = base64.b64decode(att["content_bytes_b64"])
+                except Exception:
+                    data = None
+            if not data or not att.get("filename"):
+                raise ValueError(
+                    f"Attachment is missing filename or content: {att.get('filename')!r}"
+                )
+            resolved.append({
+                "filename": att["filename"],
+                "content_type": att.get("content_type") or "application/octet-stream",
+                "content_bytes": bytes(data),
+            })
+        return resolved
+
+    def send_message(self, to: str, subject: str, body: str, cc: str = "", bcc: str = "", thread_id: str = None, token: Optional[str] = None, attachments: Optional[List[Dict[str, Any]]] = None) -> Optional[Dict[str, Any]]:
         """Send an email"""
         try:
             service = self._get_service_with_token(token)
@@ -460,14 +491,24 @@ class GmailService(IntegrationService):
             message = MIMEMultipart()
             message['to'] = to
             message['subject'] = subject
-            
+
             if cc:
                 message['cc'] = cc
             if bcc:
                 message['bcc'] = bcc
-            
+
             message.attach(MIMEText(body, 'plain'))
-            
+
+            for att in self._attachment_payloads(attachments):
+                maintype, _, subtype = (att['content_type'] or 'application/octet-stream').partition('/')
+                if not subtype:
+                    maintype, subtype = 'application', 'octet-stream'
+                part = MIMEBase(maintype, subtype)
+                part.set_payload(att['content_bytes'])
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', 'attachment', filename=att['filename'])
+                message.attach(part)
+
             raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
             
             message_data = {

@@ -212,6 +212,13 @@ class AgentGovernanceService:
         "device_get_location": 2,       # location (INTERN+)
         "device_send_notification": 2,  # notifications (INTERN+)
         "update_canvas": 2,             # canvas state moderation
+        # Email-canvas attachment tools (tools/email_attachment_tool.py):
+        # draft mutations are the same tier as update_canvas — attaching to a
+        # draft is reversible. Sending WITH attachments stays gated by
+        # send_email (3) on the send circuit. Exact keys so substring
+        # resolution can't drop these to the generic default invisibly.
+        "email_attachment_read": 1,     # list / read text (STUDENT+)
+        "email_attachment_write": 2,    # stage / attach / remove / ingest (INTERN+)
         # Memory tools (tools/memory_tool.py contracts): storing durable facts
         # is MODERATE (INTERN+); destroying them is HIGH (SUPERVISED+).
         # Without exact keys both resolved to the level-2 default, letting an
@@ -476,7 +483,7 @@ class AgentGovernanceService:
             feedback.ai_reasoning = f"Accepted by trusted {user.role}."
             # R82: respect polarity — a trusted reviewer's thumbs_up RAISES
             # confidence; corrections/thumbs_down lower it (prior behavior).
-            self._update_confidence_score(agent.id, positive=is_approval, impact_level="high")
+            self._update_confidence_score(agent.id, positive=is_approval, impact_level="high", source="feedback")
 
             try:
                 self.continuous_learning.update_from_feedback(feedback)
@@ -507,7 +514,7 @@ class AgentGovernanceService:
             # corrections/thumbs_down carry the low-impact penalty while
             # pending review.
             if not is_approval:
-                self._update_confidence_score(agent.id, positive=False, impact_level="low")
+                self._update_confidence_score(agent.id, positive=False, impact_level="low", source="feedback")
 
         feedback.adjudicated_at = datetime.now(timezone.utc)
         self.db.commit()
@@ -518,12 +525,16 @@ class AgentGovernanceService:
         positive: bool,
         impact_level: str = "high",
         magnitude: Optional[float] = None,
+        source: str = "outcome",
     ) -> None:
         """Update confidence and manage maturity transitions.
 
         ``magnitude`` optionally overrides the impact-table step size (used by
         the research-informed positive-rating signal, R81j: explicit ratings
         are high-precision but noisy, so they nudge at half the outcome drip).
+        ``source`` labels what moved the score ("outcome", "feedback",
+        "correction") so the real-time maturity event can show the user WHY
+        the agent just learned something.
         """
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id,
@@ -565,7 +576,29 @@ class AgentGovernanceService:
                     state='adapted',
                     metadata={'old_status': prev_status, 'new_status': agent.status, 'confidence': new_score}
                 )
+
+        if agent.status != prev_status or new_score != current:
+            # Gates (can_perform_action) read a cached maturity snapshot;
+            # drop it on EVERY score change so automation sees fresh state
+            # on the next turn, not up to a full TTL later.
             get_governance_cache().invalidate(agent_id)
+            # Real-time evolution surface: push the delta to the workspace
+            # UI (tier transitions included) so the user watches the agent
+            # learn turn-by-turn. Best-effort; never breaks the write.
+            try:
+                from core.maturity_broadcast import schedule_maturity_broadcast
+
+                schedule_maturity_broadcast(
+                    workspace_id=self.workspace_id,
+                    agent_id=agent_id,
+                    previous_confidence=current,
+                    confidence=new_score,
+                    previous_tier=prev_status,
+                    tier=agent.status,
+                    source=source,
+                )
+            except Exception as broadcast_err:
+                logger.debug(f"maturity broadcast skipped for {agent_id}: {broadcast_err}")
 
         self.db.commit()
 

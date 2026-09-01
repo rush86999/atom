@@ -6,7 +6,7 @@ compose interface, and attachment management.
 """
 import re
 import time as _time
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
@@ -26,6 +26,19 @@ _CORRESPONDENT_CACHE: Dict[str, tuple] = {}
 # mailbox is the source (sent mail carries the integration's default
 # signature) and shouldn't be rescanned per composer mount.
 _SIGNATURE_CACHE: Dict[str, tuple] = {}
+
+
+def _audit_now():
+    """Explicit microsecond timestamp for CanvasAudit writes.
+
+    created_at's server_default has SECOND precision (SQLite CURRENT_TIMESTAMP;
+    Postgres now() is fine), so rows written within the same second tie and
+    the "latest state" lookup (order_by created_at desc) becomes
+    nondeterministic — a create row shadowing the update written right after
+    it. Email canvas state IS the latest audit row, so every writer in this
+    service stamps client-side microsecond time.
+    """
+    return datetime.now(timezone.utc)
 
 
 class EmailMessage:
@@ -123,6 +136,7 @@ class EmailCanvasService:
 
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
+                created_at=_audit_now(),
                 tenant_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
@@ -216,6 +230,7 @@ class EmailCanvasService:
             # Create message audit entry
             message_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
+                created_at=_audit_now(),
                 tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
@@ -293,6 +308,7 @@ class EmailCanvasService:
             # Create draft audit entry
             draft_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
+                created_at=_audit_now(),
                 tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
@@ -365,6 +381,7 @@ class EmailCanvasService:
             # Create category audit entry
             category_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
+                created_at=_audit_now(),
                 tenant_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
@@ -393,6 +410,383 @@ class EmailCanvasService:
             self.db.rollback()
             return {"success": False, "error": str(e)}
 
+    # ------------------------------------------------------------------
+    # Attachment CRUD — user (canvas API) and agent (tool) share these.
+    # Received attachments stay mailbox-authoritative (bytes fetched on
+    # demand, never persisted); outbound uploads are staged on disk until
+    # send. Plan: docs/canvas/EMAIL_ATTACHMENT_CRUD_PLAN.md §D1/D2.
+    # ------------------------------------------------------------------
+
+    def _latest_email_metadata(self, canvas_id: str) -> Optional[Dict[str, Any]]:
+        audit = self.db.query(CanvasAudit).filter(
+            CanvasAudit.canvas_id == canvas_id,
+            CanvasAudit.canvas_type == "email",
+        ).order_by(desc(CanvasAudit.created_at)).first()
+        if not audit:
+            return None
+        return dict(audit.details_json or {})
+
+    def _canvas_owner_id(self, canvas_id: str) -> Optional[str]:
+        from sqlalchemy import asc
+
+        first = self.db.query(CanvasAudit).filter(
+            CanvasAudit.canvas_id == canvas_id,
+            CanvasAudit.canvas_type == "email",
+        ).order_by(asc(CanvasAudit.created_at)).first()
+        return first.user_id if first else None
+
+    def _record_attachment_state(
+        self,
+        canvas_id: str,
+        user_id: str,
+        agent_id: Optional[str],
+        metadata: Dict[str, Any],
+        attachment_action: str,
+    ) -> None:
+        """Append an audit row with the new attachment state + broadcast.
+
+        Same audit-append + WS canvas:update contract as record_send, with
+        action="email_attachments" so canvas hosts can update the chip strip.
+        """
+        audit = CanvasAudit(
+            id=str(uuid.uuid4()),
+            tenant_id="default",
+            agent_id=agent_id,
+            user_id=user_id,
+            canvas_id=canvas_id,
+            action_type="email_attachments",
+            canvas_type="email",
+            created_at=_audit_now(),
+            details_json={
+                "canvas_type": "email",
+                "component_type": "attachment_preview",
+                **metadata,
+            },
+        )
+        self.db.add(audit)
+        self.db.commit()
+        try:
+            import asyncio
+
+            from core.websockets import manager as ws_manager
+
+            message = {
+                "type": "canvas:update",
+                "data": {
+                    "action": "email_attachments",
+                    "canvas_id": canvas_id,
+                    "canvas_type": "email",
+                    "component": "email",
+                    "data": {
+                        "attachment_action": attachment_action,
+                        "attachments": metadata.get("attachments", []),
+                    },
+                },
+            }
+            for channel in (f"canvas:{canvas_id}", f"user:{user_id}"):
+                try:
+                    asyncio.create_task(ws_manager.broadcast(channel, dict(message)))
+                except Exception:
+                    pass
+        except Exception as e:  # pragma: no cover - broadcast never breaks CRUD
+            logger.debug(f"Attachment broadcast failed: {e}")
+
+    def list_attachments(self, canvas_id: str, user_id: str) -> Dict[str, Any]:
+        metadata = self._latest_email_metadata(canvas_id)
+        if metadata is None:
+            return {"success": False, "error": "Email canvas not found"}
+        if self._canvas_owner_id(canvas_id) != user_id:
+            return {"success": False, "error": "Not the canvas owner"}
+        return {"success": True, "attachments": metadata.get("attachments", [])}
+
+    def stage_attachments(
+        self,
+        canvas_id: str,
+        user_id: str,
+        files: List[Dict[str, Any]],
+        agent_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Stage uploads onto a draft canvas (provider="local" records).
+
+        files: [{filename, content_bytes, content_type}]. Policy violations
+        (extension/size caps) fail the whole batch with the offending file
+        named — silent partial staging would strand half an email.
+        """
+        from core.email_attachment_store import save_staged
+
+        metadata = self._latest_email_metadata(canvas_id)
+        if metadata is None:
+            return {"success": False, "error": "Email canvas not found"}
+        if self._canvas_owner_id(canvas_id) != user_id:
+            return {"success": False, "error": "Not the canvas owner"}
+
+        attachments = metadata.get("attachments") or []
+        staged = []
+        try:
+            for f in files or []:
+                record = save_staged(
+                    user_id,
+                    canvas_id,
+                    f.get("filename") or "",
+                    f.get("content_bytes") or b"",
+                    f.get("content_type") or "",
+                )
+                if agent_id:
+                    record["added_by"] = {
+                        "actor": "agent",
+                        "user_id": user_id,
+                        "agent_id": agent_id,
+                    }
+                staged.append(record)
+        except ValueError as e:
+            from core.email_attachment_store import delete_staged
+
+            for rec in staged:
+                delete_staged(user_id, canvas_id, rec["attachment_id"])
+            return {"success": False, "error": str(e)}
+
+        attachments.extend(staged)
+        metadata["attachments"] = attachments
+        self._record_attachment_state(canvas_id, user_id, agent_id, metadata, "attach")
+        return {"success": True, "attachments": staged}
+
+    def remove_attachment(
+        self,
+        canvas_id: str,
+        user_id: str,
+        attachment_id: str,
+        agent_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Remove an attachment. Staged: the file is deleted. Received: the
+        record is detached from the canvas view (the mailbox copy is untouched
+        — Graph/Gmail has no per-attachment delete)."""
+        from core.email_attachment_store import delete_staged
+
+        metadata = self._latest_email_metadata(canvas_id)
+        if metadata is None:
+            return {"success": False, "error": "Email canvas not found"}
+        if self._canvas_owner_id(canvas_id) != user_id:
+            return {"success": False, "error": "Not the canvas owner"}
+
+        attachments = metadata.get("attachments") or []
+        found = next(
+            (a for a in attachments if a.get("attachment_id") == attachment_id), None
+        )
+        if not found:
+            return {"success": False, "error": "Attachment not found"}
+
+        staged_deleted = False
+        if found.get("provider") == "local":
+            staged_deleted = delete_staged(user_id, canvas_id, attachment_id)
+        metadata["attachments"] = [
+            a for a in attachments if a.get("attachment_id") != attachment_id
+        ]
+        self._record_attachment_state(canvas_id, user_id, agent_id, metadata, "remove")
+        return {
+            "success": True,
+            "attachment_id": attachment_id,
+            "staged_deleted": staged_deleted,
+            "detached_from_view": found.get("provider") != "local",
+        }
+
+    async def get_attachment_bytes(
+        self, canvas_id: str, user_id: str, attachment_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Resolve an attachment record to raw bytes.
+
+        Staged: read the staged file. Received: stream-through from the
+        provider (Outlook Graph / Gmail) — bytes are never persisted here.
+        Returns {"bytes", "record"} or None.
+        """
+        metadata = self._latest_email_metadata(canvas_id)
+        if metadata is None:
+            return None
+        if self._canvas_owner_id(canvas_id) != user_id:
+            return None
+        record = next(
+            (
+                a
+                for a in metadata.get("attachments") or []
+                if a.get("attachment_id") == attachment_id
+            ),
+            None,
+        )
+        if not record:
+            return None
+
+        if record.get("provider") == "local":
+            from core.email_attachment_store import read_staged
+
+            data = read_staged(user_id, canvas_id, attachment_id)
+            return {"bytes": data, "record": record} if data is not None else None
+
+        message_id = record.get("message_id")
+        if not message_id:
+            return None
+        try:
+            if record.get("provider") == "gmail":
+                from integrations.gmail_service import GmailService
+
+                data = await GmailService().download_attachment(
+                    user_id, message_id, attachment_id
+                )
+            else:
+                from integrations.outlook_service import OutlookService
+
+                data = await OutlookService().download_attachment(
+                    user_id, message_id, attachment_id
+                )
+        except Exception as e:
+            logger.warning(f"Attachment download failed for {attachment_id}: {e}")
+            return None
+        return {"bytes": data, "record": record} if data else None
+
+    async def ingest_attachment(
+        self,
+        canvas_id: str,
+        user_id: str,
+        attachment_id: str,
+        agent_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """On-demand memory indexing of one attachment ("Add to memory").
+
+        Received attachments use the same doc_id scheme as the automatic
+        poller path (provider:message:attachment), so on-demand and automatic
+        ingestion dedup to one row via the upsert content hash.
+        """
+        from core.email_attachment_ingestion import ingest_email_attachment_bytes
+
+        resolved = await self.get_attachment_bytes(canvas_id, user_id, attachment_id)
+        if not resolved or resolved.get("bytes") is None:
+            return {"success": False, "error": "Attachment content unavailable"}
+        record = resolved["record"]
+        provider = record.get("provider") or "local"
+        if provider == "local":
+            doc_provider = "email_canvas"
+            external_message = canvas_id
+        else:
+            doc_provider = provider
+            external_message = record.get("message_id") or canvas_id
+        result = await ingest_email_attachment_bytes(
+            provider=doc_provider,
+            message_id=str(external_message),
+            attachment_id=str(attachment_id),
+            filename=record.get("filename") or "attachment",
+            content=resolved["bytes"],
+            content_type=record.get("content_type") or "",
+            size=record.get("size") or len(resolved["bytes"]),
+            user_id=user_id,
+            email_subject=self._latest_email_metadata(canvas_id).get("subject") or "",
+        )
+
+        metadata = self._latest_email_metadata(canvas_id) or {}
+        for att in metadata.get("attachments") or []:
+            if att.get("attachment_id") == attachment_id:
+                prior = att.get("ingestion") if isinstance(att.get("ingestion"), dict) else {}
+                att["ingestion"] = {
+                    "status": result.get("status"),
+                    "doc_id": result.get("doc_id"),
+                    "ingested_at": (
+                        datetime.now().isoformat()
+                        if result.get("status") == "indexed"
+                        else prior.get("ingested_at")
+                    ),
+                }
+                break
+        self._record_attachment_state(canvas_id, user_id, agent_id, metadata, "ingest")
+        return {"success": result.get("status") == "indexed", "ingestion": result}
+
+    @staticmethod
+    def _attachment_policy_text(data: bytes, filename: str) -> str:
+        """Cheap text layer for the send-time policy scan: text-like files
+        only, decode + printable check + cap (mirrors the comms pipeline's
+        text heuristics). Binary files scan as empty → policy skips them."""
+        ext = (filename or "").rsplit(".", 1)[-1].lower()
+        if ext not in {
+            "txt", "csv", "tsv", "json", "md", "xml", "html", "htm", "log",
+            "yml", "yaml", "ini", "sql", "eml",
+        }:
+            return ""
+        try:
+            text = data[:512_000].decode("utf-8")
+        except UnicodeDecodeError:
+            try:
+                text = data[:512_000].decode("latin-1")
+            except Exception:
+                return ""
+        sample = text[:2000]
+        if sample:
+            printable = sum(ch.isprintable() or ch in "\r\n\t" for ch in sample)
+            if printable / len(sample) < 0.9:
+                return ""
+        return text[:20_000]
+
+    async def _resolve_send_attachments(
+        self,
+        metadata: Dict[str, Any],
+        canvas_id: str,
+        user_id: str,
+        attachment_ids: List[str],
+    ) -> List[Dict[str, Any]]:
+        """Resolve attachment ids to send payloads against a CAPTURED metadata
+        snapshot (the send audit row written later doesn't carry canvas
+        state). Raises ValueError with a user-facing message when an id is
+        unknown or its bytes unavailable."""
+        from core.email_attachment_store import read_staged
+
+        known = {
+            a.get("attachment_id"): a for a in metadata.get("attachments") or []
+        }
+        payloads = []
+        for aid in attachment_ids or []:
+            record = known.get(aid)
+            if not record:
+                raise ValueError(f"Unknown attachment: {aid}")
+            filename = record.get("filename") or "attachment"
+            if record.get("provider") == "local":
+                data = read_staged(user_id, canvas_id, aid)
+            else:
+                resolved = await self.get_attachment_bytes(canvas_id, user_id, aid)
+                data = resolved.get("bytes") if resolved else None
+            if data is None:
+                raise ValueError(f"Attachment content unavailable: {filename}")
+            payloads.append(
+                {
+                    "filename": filename,
+                    "content_type": record.get("content_type")
+                    or "application/octet-stream",
+                    "content_bytes": data,
+                    "policy_text": self._attachment_policy_text(data, filename),
+                }
+            )
+        return payloads
+
+    def _finalize_sent_attachments(
+        self,
+        canvas_id: str,
+        user_id: str,
+        agent_id: Optional[str],
+        metadata: Dict[str, Any],
+        attachment_ids: List[str],
+    ) -> None:
+        """Mark sent attachments in the CAPTURED canvas state; staged files
+        are deleted — the mailbox now holds the durable copy."""
+        from core.email_attachment_store import delete_staged
+
+        changed = False
+        for att in metadata.get("attachments") or []:
+            if att.get("attachment_id") not in attachment_ids:
+                continue
+            if att.get("provider") == "local":
+                delete_staged(user_id, canvas_id, att["attachment_id"])
+                att["staged_deleted"] = True
+            att["sent_at"] = datetime.now().isoformat()
+            changed = True
+        if changed:
+            self._record_attachment_state(
+                canvas_id, user_id, agent_id, metadata, "sent"
+            )
+
     async def send_email(
         self,
         canvas_id: str,
@@ -403,6 +797,7 @@ class EmailCanvasService:
         body: str = "",
         agent_id: Optional[str] = None,
         tenant_id: str = "default",
+        attachment_ids: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Send the composed email through the deterministic email policy.
 
@@ -451,6 +846,46 @@ class EmailCanvasService:
         )
         payload = {"to": to_emails, "cc": cc_emails, "subject": subject}
 
+        # Attachments resolve before the policy so their text rides the
+        # sensitivity scan (1b) and before the wire so a missing file fails
+        # the send instead of shipping an email without its attachments.
+        # The metadata snapshot is captured NOW: the send audit row written
+        # by record_send doesn't carry canvas state, so the sent-attachment
+        # bookkeeping must run against this pre-send snapshot.
+        send_attachments: List[Dict[str, Any]] = []
+        canvas_meta: Optional[Dict[str, Any]] = None
+        if attachment_ids:
+            canvas_meta = self._latest_email_metadata(canvas_id) or {}
+            try:
+                send_attachments = await self._resolve_send_attachments(
+                    canvas_meta, canvas_id, user_id, attachment_ids
+                )
+            except ValueError as e:
+                decision = {
+                    "decision": "block",
+                    "reason": str(e),
+                    "policy": "attachments",
+                }
+                self.record_send(canvas_id, user_id, agent_id, payload, "blocked", decision, tenant_id)
+                return {"success": False, "error": str(e), "status": "blocked"}
+            decision = evaluate_email_action(
+                {
+                    "to": to_emails,
+                    "cc": cc_emails,
+                    "subject": subject,
+                    "body": body,
+                    "attachments": [
+                        {"filename": a["filename"], "text": a["policy_text"]}
+                        for a in send_attachments
+                    ],
+                },
+                {"user_id": user_id, "agent_id": agent_id},
+            )
+            payload["attachments"] = [
+                {"filename": a["filename"], "size": len(a["content_bytes"])}
+                for a in send_attachments
+            ]
+
         if decision["decision"] == "block":
             self.record_send(canvas_id, user_id, agent_id, payload, "blocked", decision, tenant_id)
             return {
@@ -471,6 +906,15 @@ class EmailCanvasService:
                 cc_recipients=cc_emails or [],
                 subject=subject or "",
                 body=body or "",
+                attachments=[
+                    {
+                        "filename": a["filename"],
+                        "content_type": a["content_type"],
+                        "content_bytes": a["content_bytes"],
+                    }
+                    for a in send_attachments
+                ]
+                or None,
             )
         except Exception as e:
             logger.error(f"Email canvas send failed: {e}")
@@ -491,6 +935,10 @@ class EmailCanvasService:
                 if decision.get("reason") else send_detail["error"]
             )
         self.record_send(canvas_id, user_id, agent_id, payload, "sent" if ok else "failed", decision, tenant_id)
+        if ok and send_attachments and canvas_meta is not None:
+            self._finalize_sent_attachments(
+                canvas_id, user_id, agent_id, canvas_meta, attachment_ids or []
+            )
         if ok and agent_id and applied_signature:
             try:
                 from core.student_learning_service import learn_user_style
@@ -1016,6 +1464,7 @@ class EmailCanvasService:
 
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
+            created_at=_audit_now(),
             tenant_id=tenant_id,
             agent_id=agent_id,
             user_id=user_id,
