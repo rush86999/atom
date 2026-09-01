@@ -4,6 +4,7 @@ Tests the Gmail and Outlook API integration for polling and message fetching.
 """
 
 import asyncio
+import json
 import sys
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -434,10 +435,11 @@ class TestOutlookAPIIntegration:
         assert advanced > datetime(2024, 1, 1, 0, 0, 0)
 
     @pytest.mark.asyncio(mode="auto")
-    async def test_truncated_walk_advances_to_newest_seen(self, ingestion_pipeline):
-        """A page-cap truncation consumes everything down to the newest seen
-        message (Graph returns newest-first), so the cursor may move there —
-        the next poll resumes the walk instead of re-reading whole pages."""
+    async def test_truncated_walk_advances_to_oldest_consumed_boundary(self, ingestion_pipeline):
+        """A page-cap truncation consumes everything strictly newer than the
+        oldest consumed message (the request pins $orderBy=receivedDateTime
+        desc), so the cursor moves to that boundary — the next poll resumes
+        the unconsumed older pages instead of skipping or re-reading them."""
         ingestion_pipeline.app_configs["outlook"] = {"user_id": "user-trunc"}
         ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-trunc"] = datetime(
             2024, 1, 1, 0, 0, 0
@@ -456,6 +458,12 @@ class TestOutlookAPIIntegration:
             # truncation path in _fetch_outlook_for_owner.
             "@odata.nextLink": "https://graph.microsoft.com/next",
         }
+        seen_params = {}
+
+        def capture_params(*args, **kwargs):
+            seen_params.update(kwargs.get("params") or {})
+            return Mock(status_code=200, json=lambda: page)
+
         with patch.object(
             ingestion_pipeline, "_outlook_token_owners", return_value=["user-trunc"]
         ), patch(
@@ -465,17 +473,64 @@ class TestOutlookAPIIntegration:
         ), patch('httpx.AsyncClient') as mock_client_class:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
-            mock_client.get = AsyncMock(
-                return_value=Mock(status_code=200, json=lambda: page)
-            )
+            mock_client.get = AsyncMock(side_effect=capture_params)
 
             messages = await ingestion_pipeline._fetch_outlook_messages(None)
 
+        # The walk is newest-first, so the boundary watermark is provable.
+        assert seen_params.get("$orderBy") == "receivedDateTime desc"
         # The mock returns the same page each pass, so the same message shows
         # up once per page walked — the assertion is on its identity + cursor.
         assert {m["id"] for m in messages} == {"trunc-msg-1"}
         advanced = ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-trunc"]
+        # Boundary = oldest consumed timestamp, NOT newest (the newest is
+        # page 1's first message; everything older remains unconsumed).
         assert advanced == datetime.fromisoformat("2024-02-01T12:00:00Z")
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_new_owner_does_not_inherit_global_cursor(self, ingestion_pipeline):
+        """Regression (Greptile): a freshly connected owner must start from
+        its own initial-sync window, never from the loop-level global
+        `last_fetch_outlook` watermark another mailbox left behind — that
+        inheritance made the new owner skip all mail older than the other
+        account's latest message."""
+        ingestion_pipeline.app_configs["outlook"] = {"user_id": "user-new"}
+        # Global watermark from a PREVIOUS owner; the new owner must have NO
+        # per-owner cursor (clear any residue restored from the persisted
+        # fetch-state file) so the walk has to start from its own window.
+        ingestion_pipeline.fetch_timestamps["last_fetch_outlook"] = datetime(
+            2023, 6, 1, 0, 0, 0
+        )
+        ingestion_pipeline.fetch_timestamps.pop("last_fetch_outlook_user-new", None)
+        captured = {}
+
+        def capture_params(*args, **kwargs):
+            captured.update(kwargs.get("params") or {})
+            return Mock(
+                status_code=200,
+                json=lambda: {"value": [], "@odata.nextLink": None},
+            )
+
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-new"]
+        ), patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="token-new",
+        ), patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get = AsyncMock(side_effect=capture_params)
+
+            await ingestion_pipeline._fetch_outlook_messages(datetime(2023, 6, 1))
+
+        # Initial-sync window walk (`ge <now-90d>`), NOT `gt <inherited>` —
+        # the global cursor was never consulted.
+        assert "$filter" in captured
+        assert captured["$filter"].startswith("receivedDateTime ge ")
+        # And the new owner's own cursor starts fresh from this walk.
+        advanced = ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-new"]
+        assert advanced > datetime(2023, 6, 1)
 
     @pytest.mark.asyncio(mode="auto")
     async def test_fetched_messages_carry_mailbox_owner(self, ingestion_pipeline):
@@ -545,6 +600,29 @@ class TestOutlookAPIIntegration:
             },
         )
         assert "user_id" not in anonymous["metadata"]
+
+    def test_owner_filter_enforces_mailbox_boundary(self):
+        """Regression (Greptile): retrieval over the shared comms corpus must
+        drop records stamped for a DIFFERENT owner. Ownerless records (legacy
+        rows, unstamped webhook sources) stay visible, and unfiltered calls
+        (background callers) return everything unchanged."""
+        from integrations.atom_communication_ingestion_pipeline import (
+            _filter_communication_records_by_owner,
+        )
+
+        records = [
+            {"id": "a1", "metadata": json.dumps({"user_id": "user-a"})},
+            {"id": "b1", "metadata": json.dumps({"user_id": "user-b"})},
+            {"id": "legacy", "metadata": json.dumps({"custom": "no owner"})},
+            {"id": "raw", "metadata": "not-json{"},
+            {"id": "empty", "metadata": None},
+        ]
+
+        scoped = _filter_communication_records_by_owner(records, "user-a")
+        assert [r["id"] for r in scoped] == ["a1", "legacy", "raw", "empty"]
+
+        unfiltered = _filter_communication_records_by_owner(records, None)
+        assert len(unfiltered) == 5
 
     def test_email_normalization_redacts_secrets(self, ingestion_pipeline):
         """Email bodies get the same secrets redaction as document files

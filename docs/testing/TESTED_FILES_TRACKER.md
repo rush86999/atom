@@ -7211,3 +7211,13 @@ test_start_outlook_poller_reads_interval_env, test_start_outlook_poller_interval
 test_email_normalization_redacts_secrets). `tests/test_ingestion_status_routes.py` 25 passed
 (start_poller signature change did not break the other consumer). py_compile clean.
 
+
+## Session 2026-09-01 — Review round 2: owner boundary + watermark integrity
+
+**Scope**: pipeline fetch/cursor/search paths, documents_hybrid conversations leg,
+memory_context_assembler knowledge leg + assemble signature, chat_orchestrator identity pass-through.
+
+**Evidence**: test_email_api_ingestion 33/33 (+3: test_truncated_walk_advances_to_oldest_consumed_boundary,
+test_new_owner_does_not_inherit_global_cursor, test_owner_filter_enforces_mailbox_boundary),
+test_knowledge_spotlighting 10/10 (+2 threading), test_memory_context_assembler doubles updated
+(owner_user_id kwarg), 126 passed across assembler/agents/status/memory-index. py_compile clean.

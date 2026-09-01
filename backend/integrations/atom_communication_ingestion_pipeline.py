@@ -543,8 +543,15 @@ class LanceDBMemoryManager:
             logger.error(f"Error generating embedding: {e}")
             return [0.0] * dim
 
-    def search_communications(self, query: str, limit: int = 10, app_type: str = None, tag: str = None, direction: str = None) -> List[Dict]:
-        """Search communications using hybrid search (vector + FTS)"""
+    def search_communications(self, query: str, limit: int = 10, app_type: str = None, tag: str = None, direction: str = None, owner_user_id: Optional[str] = None) -> List[Dict]:
+        """Search communications using hybrid search (vector + FTS).
+
+        owner_user_id enforces the mailbox-ownership boundary on retrieval:
+        records stamped with a different owner's user_id are dropped. Records
+        with no owner stamp (legacy rows, webhook sources that don't stamp)
+        stay visible so existing corpora don't vanish from recall. None (the
+        default) means unfiltered — internal/background callers only.
+        """
         try:
             if self.connections_table is None:
                 logger.error("Connections table not initialized")
@@ -591,7 +598,9 @@ class LanceDBMemoryManager:
             
             results = search_builder.to_pandas()
 
-            return results.to_dict('records')
+            return _filter_communication_records_by_owner(
+                results.to_dict('records'), owner_user_id
+            )
 
         except Exception as hybrid_err:
             # Dim mismatch (query embedder vs stored vectors) or any other
@@ -610,7 +619,9 @@ class LanceDBMemoryManager:
                     f"hybrid comm search failed ({str(hybrid_err)[:120]}) — "
                     f"FTS-only fallback returned {len(fts_results)} rows"
                 )
-                return fts_results.to_dict('records')
+                return _filter_communication_records_by_owner(
+                    fts_results.to_dict('records'), owner_user_id
+                )
             except Exception as fts_err:
                 logger.error(f"Error searching communications: {fts_err}")
                 return []
@@ -2340,7 +2351,10 @@ class CommunicationIngestionPipeline:
         The poller is a background loop with no request context; the
         single-owner config user_id is only a fallback. Each active
         outlook/microsoft grant is polled with its own cursor, so connecting a
-        second account never stops polling the first.
+        second account never stops polling the first. The loop-level
+        ``last_fetch`` argument is intentionally IGNORED here: an owner
+        without its own cursor starts from scratch (initial-sync window), it
+        must never inherit another mailbox's watermark.
         """
         owners = self._outlook_token_owners()
         if not owners:
@@ -2348,9 +2362,13 @@ class CommunicationIngestionPipeline:
             return []
         all_messages: List[Dict[str, Any]] = []
         for owner in owners:
+            # Per-owner cursor ONLY. A first-time owner must start from None
+            # (its own initial-sync window walk) — falling back to the global
+            # `last_fetch_outlook` key would inherit another mailbox's
+            # watermark and permanently skip this owner's older mail.
             owner_cursor = self.fetch_timestamps.get(
                 f"last_fetch_outlook_{owner}"
-            ) or last_fetch
+            )
             messages, new_cursor = await self._fetch_outlook_for_owner(owner, owner_cursor)
             if messages:
                 logger.info(f"Fetched {len(messages)} Outlook messages for user {owner}")
@@ -2381,9 +2399,10 @@ class CommunicationIngestionPipeline:
         (transient Graph error, non-200), so nothing past the old cursor is
         known-consumed and the window must be retried. On a natural end the
         cursor moves to the newest message seen (or now() when the window is
-        empty); on a page-cap truncation it moves only to the newest message
-        seen — Graph returns newest-first, so truncation drops only the
-        oldest mail and the next poll resumes the walk. Re-walked windows
+        empty); on a page-cap truncation it moves to the OLDEST consumed
+        timestamp — with the deterministic newest-first $orderBy, everything
+        strictly newer than that was consumed, so the next poll resumes the
+        unconsumed older pages instead of skipping them. Re-walked windows
         are deduplicated by the poll's seen-id set.
 
         Token source: the user's own IntegrationToken (encrypted,
@@ -2404,6 +2423,11 @@ class CommunicationIngestionPipeline:
 
             all_messages = []
             newest = None
+            # Oldest receivedDateTime consumed so far. With a deterministic
+            # newest-first order this is the exact boundary of consumed pages,
+            # so a truncated walk can resume from it instead of skipping the
+            # unconsumed older pages.
+            min_seen: Optional[datetime] = None
             # None = hold the cursor (walk failed); set on natural end or a
             # clean truncation, see the return-comment in the docstring.
             new_cursor: Optional[datetime] = None
@@ -2411,6 +2435,15 @@ class CommunicationIngestionPipeline:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Build filter for messages since last fetch
                 params = {"$top": 50}
+                # Deterministic newest-first paging. Without it the walk's
+                # page order is unspecified, so NO timestamp watermark is
+                # safe to persist past a truncated walk (unconsumed mail
+                # could sit on either side of the watermark). Graph supports
+                # filter+orderBy on receivedDateTime for messages; if a
+                # backend rejects the combination we retry unsorted and hold
+                # cursors on truncation instead (order_untrusted).
+                order_trusted = True
+                params["$orderBy"] = "receivedDateTime desc"
                 max_fetches = 5
                 if last_fetch:
                     # Graph OData requires UTC 'Z' format — a bare isoformat()
@@ -2456,6 +2489,21 @@ class CommunicationIngestionPipeline:
                                 headers=headers,
                                 params=params
                             )
+                            if response.status_code == 400 and "$orderBy" in params:
+                                # This Graph backend rejects the
+                                # filter+orderBy combination — retry unsorted
+                                # and stop trusting page order for watermark
+                                # purposes (truncations will HOLD).
+                                params = {
+                                    k: v for k, v in params.items()
+                                    if k != "$orderBy"
+                                }
+                                order_trusted = False
+                                response = await client.get(
+                                    f"{graph_base}/me/messages",
+                                    headers=headers,
+                                    params=params,
+                                )
 
                         if response.status_code == 429:
                             # Rate limited
@@ -2565,6 +2613,8 @@ class CommunicationIngestionPipeline:
                                 all_messages.append(normalized_msg)
                                 if newest is None or timestamp > newest:
                                     newest = timestamp
+                                if min_seen is None or timestamp < min_seen:
+                                    min_seen = timestamp
 
                             except Exception as e:
                                 logger.error(f"Error normalizing Outlook message {msg.get('id')}: {e}")
@@ -2588,11 +2638,15 @@ class CommunicationIngestionPipeline:
                         break
 
                 # Page cap hit with more pages pending: truncated, not failed.
-                # Graph returns newest-first, so everything up to `newest` was
-                # consumed — resume from there next poll. With zero messages
-                # consumed, hold.
+                # With a trusted newest-first order, everything STRICTLY newer
+                # than the oldest consumed message was consumed, so the walk
+                # resumes from that boundary next poll (boundary ties may be
+                # re-fetched and dedup drops them; the cursor never jumps past
+                # unconsumed pages). Without a trusted order, or with zero
+                # messages consumed, no watermark is provably safe — hold.
                 if next_link and new_cursor is None and fetch_count >= max_fetches:
-                    new_cursor = newest
+                    if order_trusted and min_seen is not None:
+                        new_cursor = min_seen
 
             if new_cursor is None:
                 logger.warning(
@@ -2870,6 +2924,36 @@ class CommunicationIngestionPipeline:
 
 # Handle multiple managers for physical isolation
 _workspace_memory_managers: Dict[str, 'LanceDBMemoryManager'] = {}
+
+
+def _filter_communication_records_by_owner(
+    records: List[Dict], owner_user_id: Optional[str]
+) -> List[Dict]:
+    """Enforce the mailbox-ownership boundary on communication retrieval.
+
+    Records are kept when they carry no owner stamp (legacy rows and webhook
+    sources that don't stamp yet — filtering them out would make whole
+    corpora vanish from recall) or when their stamp matches the requesting
+    owner. Records stamped for a DIFFERENT owner are dropped: one account's
+    private mail must not surface in another account's context. The stored
+    ``metadata`` column is a JSON string, so the check parses per record.
+    ``owner_user_id=None`` (background/internal callers) returns everything.
+    """
+    if not owner_user_id:
+        return list(records or [])
+    kept: List[Dict] = []
+    for rec in records or []:
+        meta = rec.get("metadata")
+        if isinstance(meta, str):
+            try:
+                meta = json.loads(meta)
+            except Exception:
+                meta = None
+        owner = meta.get("user_id") if isinstance(meta, dict) else None
+        if owner is None or owner == owner_user_id:
+            kept.append(rec)
+    return kept
+
 
 def get_memory_manager(workspace_id: Optional[str] = None) -> LanceDBMemoryManager:
     """Get workspace-isolated memory manager"""

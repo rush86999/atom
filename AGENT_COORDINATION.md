@@ -234,3 +234,29 @@ Env docs: `CLAUDE.md`, `docs/reference/ENVIRONMENT_VARIABLES.md`.
 **Verified**: `tests/test_email_api_ingestion.py` 24/24, `tests/test_ingestion_status_routes.py`
 25/25 (start_poller signature change did not break the other consumer). Phase 0 complete —
 next: Phase 1 (provenance spotlighting) or Phase 2 (drive tree) on request.
+
+---
+
+## 2026-09-01 — ZCode review round 2: ingestion isolation + retrieval boundary
+
+**Change**: `atom_communication_ingestion_pipeline.py` — (a) per-owner cursors are the ONLY
+cursor source: a first-time owner starts from its own initial-sync window, never the global
+`last_fetch_outlook` key (a new owner inheriting another mailbox's watermark skipped its older
+mail); (b) `$orderBy=receivedDateTime desc` on the Graph walk so paging order is deterministic
+(400 → retry unsorted + flag order untrusted); on page-cap truncation the watermark moves to the
+OLDEST consumed timestamp (provable boundary) instead of `newest`, which jumped past unconsumed
+pages; (c) `search_communications(owner_user_id=...)` + module helper
+`_filter_communication_records_by_owner` enforce the mailbox boundary on retrieval: records
+stamped for a different owner are dropped, ownerless (legacy/unstamped) records stay visible.
+`documents_hybrid` conversations leg, `memory_context_assembler._knowledge_leg`,
+`assemble_memory_context(user_id=...)` and the chat orchestrator thread the request-scoped
+identity through to that filter. `memory_context_assembler` fake-legged tests updated for the
+new kwarg.
+
+**Why**: Greptile re-review (score 1/5) flagged the three remaining holes with evidence.
+
+**Verified**: `tests/test_email_api_ingestion.py` 33/33 (new: boundary-watermark truncation,
+no-inheritance, owner-filter), `tests/core/test_knowledge_spotlighting.py` 10/10 (owner
+threading), assembler/agents/status/memory-index 126/126. py_compile clean. fetch-state file
+pollution made the new-owner test order-sensitive — the test now clears its own per-owner key
+first (test residue under `backend/data/` is gitignored).

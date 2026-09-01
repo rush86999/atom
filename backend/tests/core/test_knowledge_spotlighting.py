@@ -171,3 +171,33 @@ class TestSharedProvenanceHelpers:
 
         assert render_knowledge_summaries([]) is None
         assert render_knowledge_summaries(None) is None
+
+
+class TestOwnerScopedRecall:
+    """The request-scoped user identity must reach the comms search so one
+    account's ingested mail cannot surface in another account's context."""
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_knowledge_leg_threads_owner_to_search(self, fake_search_hits):
+        from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+        from core.memory_context_assembler import _knowledge_leg
+
+        with patch.object(
+            DocumentsHybridSearch, "search", AsyncMock(return_value=fake_search_hits)
+        ) as mock_search:
+            await _knowledge_leg("hello", "default", owner_user_id="user-a")
+
+        assert mock_search.await_args.kwargs.get("owner_user_id") == "user-a"
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_knowledge_leg_defaults_unfiltered(self, fake_search_hits):
+        from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+        from core.memory_context_assembler import _knowledge_leg
+
+        with patch.object(
+            DocumentsHybridSearch, "search", AsyncMock(return_value=fake_search_hits)
+        ) as mock_search:
+            await _knowledge_leg("hello", "default")
+
+        # Background/internal callers pass no identity — unfiltered corpus.
+        assert mock_search.await_args.kwargs.get("owner_user_id") is None

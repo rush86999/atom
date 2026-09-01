@@ -91,18 +91,22 @@ async def _graph_leg(message: str, workspace_id: str, tenant_id: str) -> str:
     return context
 
 
-async def _knowledge_leg(message: str, workspace_id: str) -> List[str]:
+async def _knowledge_leg(
+    message: str, workspace_id: str, owner_user_id: Optional[str] = None
+) -> List[str]:
     """Unified hybrid knowledge leg (P1.3) — documents + conversations fused
     by RRF via DocumentsHybridSearch (BM25 FTS5/tsvector + LanceDB vector,
     plus the conversations leg bridged to the comms store — bridge, don't
     copy: no comms record is duplicated into documents). Replaces the
     standalone comms-only leg: the hybrid path covers the comms store itself.
+    owner_user_id scopes comms recall to the requesting account's own mail
+    (ownerless legacy records stay visible); None means unfiltered.
     Runs async I/O directly; per-leg timeout applies at the call site."""
     try:
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
         result = await DocumentsHybridSearch().search(
-            query=message[:500], limit=6
+            query=message[:500], limit=6, owner_user_id=owner_user_id
         )
     except Exception as e:
         logger.debug(f"memory assembler: knowledge leg failed: {e}")
@@ -754,9 +758,15 @@ async def assemble_memory_context(
     workspace_id: str = "default",
     tenant_id: str = "default",
     agent_id: str = "atom_main",
+    user_id: Optional[str] = None,
 ) -> Optional[str]:
     """Return a bounded `RELEVANT MEMORY` prompt block, or None if nothing
-    relevant (or the flag is off). Never raises."""
+    relevant (or the flag is off). Never raises.
+
+    user_id (when the caller has a request-scoped identity) scopes comms
+    recall to that account's own ingested mail — the ownership boundary for
+    the shared communications corpus. Internal/background callers pass None.
+    """
     if not message or not message.strip():
         return None
     try:
@@ -767,7 +777,7 @@ async def assemble_memory_context(
         agent_role = await asyncio.to_thread(_resolve_agent_role, agent_id)
         graph_ctx, knowledge_lines, integration_lines, episode_lines, fact_lines, lessons_block = await asyncio.gather(
             _safe(_graph_leg(message, workspace_id, tenant_id), "graph"),
-            _safe(_knowledge_leg(message, workspace_id), "knowledge"),
+            _safe(_knowledge_leg(message, workspace_id, owner_user_id=user_id), "knowledge"),
             _safe(_integration_records_leg(message, workspace_id, agent_role), "integration_records"),
             _safe(_episodes_leg(message, agent_id), "episodes"),
             _safe(_facts_leg(message, workspace_id), "facts"),
