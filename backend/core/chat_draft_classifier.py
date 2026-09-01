@@ -52,6 +52,12 @@ _DOC_LIKE_TYPES = {"document", "docs", "markdown", "generic", "doc"}
 # locating the header block and stripped from the extracted body.
 _SEPARATOR_LINE = re.compile(r"^\s*(?:-{3,}|\*{3,}|_{3,})\s*$")
 
+# Narration-tolerant rescan: how many ---fenced segments to try, and the
+# fake separator line used to flush the final segment after the loop (must
+# match _SEPARATOR_LINE).
+_MAX_SEGMENT_SCAN = 4
+_SEPARATOR_SENTINEL = "-" * 80
+
 # A standalone closing line ("Best regards,", "**Thanks,**") that
 # introduces an agent-typed sign-off. Must occupy the whole line — "thanks
 # for your patience" is prose, not a closing. Markdown bold may wrap the
@@ -230,16 +236,29 @@ def markdown_table_rows(text: str) -> Optional[List[List[str]]]:
     return None
 
 
+_BR_TAG = re.compile(r"<br\s*/?>", re.IGNORECASE)
+
+
 def _draft_text(content: Any) -> Optional[str]:
     """Accept a markdown string or the ``{"type": "doc", "content": str}``
-    shape chat_draft_to_canvas stores; anything else is not classifiable."""
+    shape chat_draft_to_canvas stores; anything else is not classifiable.
+
+    HTML-ish bodies are normalized first: the email composer stores ``<br>``
+    line breaks (observed in the live incident's canvas body), and header
+    extraction is line-based — without this the entire draft is ONE line and
+    the To/Subject headers can never be lifted into the structured fields."""
     if isinstance(content, str):
-        return content
-    if isinstance(content, dict):
+        text = content
+    elif isinstance(content, dict):
         inner = content.get("content")
-        if isinstance(inner, str):
-            return inner
-    return None
+        if not isinstance(inner, str):
+            return None
+        text = inner
+    else:
+        return None
+    if "<br" in text.lower():
+        text = _BR_TAG.sub("\n", text)
+    return text
 
 
 def _strip_separators(lines: List[str]) -> List[str]:
@@ -251,20 +270,18 @@ def _strip_separators(lines: List[str]) -> List[str]:
     return lines[start:end]
 
 
-def extract_email_draft(content: Any) -> Optional[Dict[str, str]]:
-    """Split an email-shaped draft into ``{"to", "subject", "body"}``.
+def _scan_header_block(lines: List[str]) -> Tuple[Dict[str, str], int]:
+    """Scan a line list for a leading RFC 5322-style header block.
 
-    Returns None when the content is not an email draft (non-text shapes,
-    no header block near the top, or no meaningful body after it).
+    Returns ``(headers, last_header_idx)`` where ``last_header_idx`` is the
+    index of the final header line (-1 when no Subject header was found).
+    The first non-header non-empty line ends the block: notes/prose before
+    any Subject: line means this line list does not open with a draft.
     """
-    text = _draft_text(content)
-    if not text or not text.strip():
-        return None
-
     headers: Dict[str, str] = {}
     last_header_idx = -1
     seen_non_empty = 0
-    for i, line in enumerate(text.splitlines()):
+    for i, line in enumerate(lines):
         if not line.strip() or _SEPARATOR_LINE.match(line):
             continue
         seen_non_empty += 1
@@ -272,8 +289,6 @@ def extract_email_draft(content: Any) -> Optional[Dict[str, str]]:
             break
         m = _HEADER_LINE.match(line)
         if not m:
-            # First non-header line ends the header block — notes/prose
-            # before any Subject: line means this is not a pure draft.
             break
         key = m.group(1).lower()
         value = (m.group(2) or "").strip()
@@ -284,21 +299,67 @@ def extract_email_draft(content: Any) -> Optional[Dict[str, str]]:
         else:
             headers.setdefault("subject", value)
         last_header_idx = i
+    return headers, last_header_idx
 
-    if not headers.get("subject"):
-        return None
 
-    lines = text.splitlines()
-    body = "\n".join(_strip_separators(lines[last_header_idx + 1:])).strip()
+def _extract_from_lines(lines: List[str], start: int, headers: Dict[str, str]) -> Optional[Dict[str, str]]:
+    """Build the draft dict from a header block found at ``lines[start:end]``."""
+    body = "\n".join(_strip_separators(lines[start + 1:])).strip()
     if len(body) < _MIN_BODY_CHARS:
         return None
-
     return {
         "to": headers.get("to", ""),
         "cc": headers.get("cc", ""),
-        "subject": headers["subject"],
+        "subject": headers.get("subject", ""),
         "body": body,
     }
+
+
+def extract_email_draft(content: Any) -> Optional[Dict[str, str]]:
+    """Split an email-shaped draft into ``{"to", "cc", "subject", "body"}``.
+
+    Returns None when the content is not an email draft (non-text shapes,
+    no header block near the top, or no meaningful body after it).
+
+    Narration-tolerant: chat replies usually wrap the draft in prose
+    ("I found the email for X... Here's the draft:") fenced by ``---``
+    separators — observed live as a seeded canvas whose Subject field held
+    a truncated narration sentence and whose To/Cc stayed empty even though
+    the draft carried ``**To:** jschulz@…``. When the top-of-message scan
+    finds no header block, each ``---``-separated segment is rescanned (the
+    draft lives between the fences), so a header block after narration is
+    still lifted into the structured fields and the surrounding commentary
+    stays out of the body.
+    """
+    text = _draft_text(content)
+    if not text or not text.strip():
+        return None
+
+    lines = text.splitlines()
+    headers, last_header_idx = _scan_header_block(lines)
+    if headers.get("subject"):
+        draft = _extract_from_lines(lines, last_header_idx, headers)
+        if draft:
+            return draft
+
+    # Narration-tolerant rescan: try each ---fenced segment (the draft is
+    # between the fences; prose and approval trailers live outside them).
+    segment: List[str] = []
+    segments_scanned = 0
+    for line in list(lines) + [_SEPARATOR_SENTINEL]:
+        if _SEPARATOR_LINE.match(line):
+            if segments_scanned >= _MAX_SEGMENT_SCAN:
+                break
+            segments_scanned += 1
+            seg_headers, seg_idx = _scan_header_block(segment)
+            if seg_headers.get("subject"):
+                draft = _extract_from_lines(segment, seg_idx, seg_headers)
+                if draft:
+                    return draft
+            segment = []
+        else:
+            segment.append(line)
+    return None
 
 
 def normalize_email_content(content: Any) -> Dict[str, str]:

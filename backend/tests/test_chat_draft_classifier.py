@@ -102,10 +102,28 @@ class TestExtractEmailDraft:
         assert draft["subject"] == "Hi"
         assert draft["body"] == "Body with enough content to count."
 
-    def test_notes_before_subject_stay_a_document(self):
-        """The mixed notes+draft expansion must NOT be retyped — the
-        Subject line is buried mid-document, past the header window."""
-        assert extract_email_draft(NOTES_AND_DRAFT) is None
+    def test_narration_then_fenced_draft_extracts(self):
+        """BEHAVIOR CHANGE (Sep 1, 2026 — the "couldn't apply it cleanly"
+        incident): narration-wrapped drafts used to return None here, so
+        chat→canvas seeded email canvases with a truncated narration as the
+        Subject and EMPTY To/Cc even though the draft carried the headers.
+        A header block fenced behind narration is now lifted into the
+        structured fields; the narration and trailers stay out of the body.
+        Update to notes/AGENT_COORDINATION.md documents this flip."""
+        draft = extract_email_draft(NOTES_AND_DRAFT)
+        assert draft is not None
+        assert draft["subject"] == "Re: Your Inquiry — WFS Ltd"
+        assert draft["body"].startswith("Hi Mark,")
+
+    def test_unfenced_mid_document_subject_stays_a_document(self):
+        """Without a fence isolating the draft, a Subject buried past the
+        header window remains prose (the original conservative rule)."""
+        buried = (
+            "Meeting notes from the call:\n\nWe covered pricing and the "
+            "timeline.\n\n**Subject:** Re: Your Inquiry — WFS Ltd\n\nHi "
+            "Mark, thanks for reaching out to Brennan Machinery Inc today."
+        )
+        assert extract_email_draft(buried) is None
 
     def test_doc_mentioning_subject_midtext_is_not_email(self):
         assert extract_email_draft(
@@ -195,9 +213,16 @@ class TestCoerceEmailCanvas:
         assert ctype == "document"
         assert content == "# Notes\n\nJust notes."
 
-    def test_mixed_notes_draft_stays_document(self):
+    def test_narration_wrapped_draft_coerces_with_clean_fields(self):
+        """Aligned with test_narration_then_fenced_draft_extracts: the auto
+        path now retypes a narration-wrapped, fenced email draft into an
+        email canvas carrying the draft's REAL To/Subject — not the
+        degenerate {to: "", subject: narration} seed the old conservatism
+        produced (the "couldn't apply it cleanly" incident)."""
         ctype, content = coerce_email_canvas("document", NOTES_AND_DRAFT)
-        assert ctype == "document"
+        assert ctype == "email"
+        assert content["subject"] == "Re: Your Inquiry — WFS Ltd"
+        assert content["body"].startswith("Hi Mark,")
 
     def test_sheet_and_code_types_never_coerced(self):
         cells = [["Subject:", "x"], ["y", "z"]]
@@ -1024,3 +1049,70 @@ class TestOfficeDraftCreation:
         res = ExcelManager().create_spreadsheet(str(tmp_path / "evil.xlsx"), [["A"]])
         assert res["success"] is False
         assert "outside" in res["error"]
+
+
+# ───────────── narration-tolerant extraction (Sep 1, live incident) ─────────────
+# A chat reply wrapping the draft in prose + "---" fences seeded an email
+# canvas with a truncated narration sentence as the Subject and EMPTY To/Cc
+# even though the draft carried "**To:** jschulz@blumetric.ca" — the top-of-
+# message header scan bailed on the prose. The canvas then made the co-editor
+# edit request ("include to and cc emails as well") maximally hard: the fields
+# it asked to fill were empty, and the polluted subject/body confused both
+# patch and replace modes (the "couldn't apply it cleanly" incident).
+
+NARRATION_WRAPPED_DRAFT = """I found the email for Jacob Schulz from BluMetric. It looks like Chandrakant already sent an initial email to him on August 31st, but if you'd like me to resend it due to the OAuth error, I can do that.<br><br>Here's the draft for the first contact email to Jacob Schulz:<br><br>---
+
+**To:** jschulz@blumetric.ca
+**Subject:** Brennan Machinery | Following Up on Your Inquiry
+
+Hi Jacob,
+
+Chandrakant here from Brennan Machinery. I received your contact form submission and wanted to reach out.
+
+How can I assist you today? I'd be happy to discuss any equipment needs or answer any questions you may have about our machinery solutions.
+
+Looking forward to hearing from you.
+
+Best,
+Chandrakant Sharma
+Brennan Machinery Inc
+
+---
+
+This needs your approval — shall I send this email to Jacob Schulz at jschulz@blumetric.ca?
+"""
+
+
+def test_narration_wrapped_draft_extracts_headers_from_fenced_segment():
+    draft = extract_email_draft(NARRATION_WRAPPED_DRAFT)
+    assert draft is not None
+    assert draft["to"] == "jschulz@blumetric.ca"
+    assert draft["subject"] == "Brennan Machinery | Following Up on Your Inquiry"
+    # the body is the ARTIFACT: no narration before the draft, no approval
+    # trailer after the closing fence
+    assert draft["body"].startswith("Hi Jacob,")
+    assert "approval" not in draft["body"]
+    assert "Here's the draft" not in draft["body"]
+
+
+def test_top_block_draft_still_extracted_unchanged():
+    plain = (
+        "To: a@b.c\nCc: d@e.f\nSubject: Hello there\n\n"
+        "A body long enough to clear the minimum length check for sure."
+    )
+    draft = extract_email_draft(plain)
+    assert draft == {
+        "to": "a@b.c", "cc": "d@e.f", "subject": "Hello there",
+        "body": "A body long enough to clear the minimum length check for sure.",
+    }
+
+
+def test_pure_prose_without_headers_still_returns_none():
+    assert extract_email_draft(
+        "Just checking in about the meeting tomorrow. Let me know what works!"
+    ) is None
+
+
+def test_subjectless_fenced_segment_returns_none():
+    fenced = "some narration\n\n---\n\nTo: a@b.c\n\nonly a To line, no subject here at all, so not a draft\n\n---\n\nmore prose"
+    assert extract_email_draft(fenced) is None

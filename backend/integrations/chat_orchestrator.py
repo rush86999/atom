@@ -1509,6 +1509,71 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"agent lessons lookup skipped: {e}")
             return []
 
+    async def _cross_canvas_learnings(
+        self,
+        user_id: str,
+        canvas: Dict[str, Any],
+        agent_id: Optional[str],
+    ) -> tuple:
+        """The cross-canvas learning channels for the edit plan — the parts
+        of a hire's experience beyond the canvas in front of them:
+
+        - EPISODIC: corrections the supervisor made on OTHER similar canvases
+          of the same kind, ranked SEMANTICALLY (FastEmbed — the LanceDB
+          vector ecosystem — cosine) with a lexical overlap fallback when
+          embeddings are unavailable on the deployment;
+        - DISTILLED: recurring patterns across ALL corrections (e.g. the
+          supervisor consistently fills To/Cc or strips meta-commentary).
+
+        Fault-isolated like every learning lookup: ([], []) on any failure,
+        never blocks the edit."""
+        try:
+            from core.database import get_db_session
+            from core.service_factory import ServiceFactory
+            from core.chat_canvas_editor import _canvas_profile_text
+            from core.canvas_app_schema import normalize_app_type
+            from core.models import Canvas as CanvasModel
+            from services.canvas_context_service import rank_similar_canvas_candidates
+
+            canvas_id = str(canvas.get("canvas_id") or "")
+            if not canvas_id:
+                return [], []
+            canvas_type = normalize_app_type(canvas.get("canvas_type"))
+            profile = _canvas_profile_text(canvas)
+
+            with get_db_session() as db:
+                service = ServiceFactory.get_canvas_context_service(
+                    db, tenant_id=self.tenant_id
+                )
+                candidates = service.get_similar_canvas_candidates(
+                    canvas_id, user_id, canvas_type
+                )
+                similar = await rank_similar_canvas_candidates(
+                    profile, candidates,
+                    now=datetime.now(timezone.utc),
+                )
+                patterns = service.get_correction_patterns(
+                    user_id, agent_id=agent_id, current_canvas_id=canvas_id
+                )
+                # Stamp similar-canvas entries with their titles (the prompt
+                # names them so the model can reason about WHICH past job a
+                # correction came from).
+                if similar:
+                    ids = [e.get("canvas_id") for e in similar if e.get("canvas_id")]
+                    rows = (
+                        db.query(CanvasModel.id, CanvasModel.name)
+                        .filter(CanvasModel.id.in_(ids))
+                        .all()
+                        if ids else []
+                    )
+                    titles = {str(r.id): r.name for r in rows}
+                    for e in similar:
+                        e["title"] = titles.get(str(e.get("canvas_id")))
+            return similar, patterns
+        except Exception as e:
+            logger.debug(f"cross-canvas learning recall skipped: {e}")
+            return [], []
+
     def _recent_canvas_versions(
         self, user_id: str, canvas_id: Any, limit: int = 4, scan: int = 15
     ) -> List[Dict[str, Any]]:
@@ -1554,6 +1619,44 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"canvas versions lookup skipped: {e}")
             return []
 
+    async def _heal_degenerate_canvas(
+        self, user_id: str, canvas: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """One-time deterministic healing of legacy canvases seeded before
+        narration-tolerant draft extraction existed (live case: an email
+        canvas with to=""/cc="" whose body holds the draft with **To:**
+        headers, and a truncated narration sentence as the Subject). Only
+        EMPTY fields are ever filled. Persisted through update_canvas_content
+        so the heal is audit-trailed and broadcast like any other edit, and
+        the edit planner then sees the clean fields. Best-effort: any failure
+        returns the canvas unchanged — never blocks the edit turn."""
+        try:
+            from core.chat_canvas_editor import normalize_degenerate_content
+            from tools.canvas_crud_tool import update_canvas_content
+
+            healed = normalize_degenerate_content(
+                canvas.get("canvas_type"), canvas.get("content")
+            )
+            if healed is None or healed == canvas.get("content"):
+                return canvas
+            result = await update_canvas_content(
+                user_id,
+                str(canvas.get("canvas_id")),
+                healed,
+                str(canvas.get("canvas_type") or "generic"),
+            )
+            if (result or {}).get("success"):
+                logger.info(
+                    f"canvas {canvas.get('canvas_id')} healed: empty fields "
+                    "filled from its own draft text (legacy seed)"
+                )
+                canvas = dict(canvas)
+                canvas["content"] = healed
+            return canvas
+        except Exception as e:
+            logger.debug(f"canvas heal skipped: {e}")
+            return canvas
+
     async def _try_canvas_edit(
         self,
         message: str,
@@ -1571,13 +1674,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         from core.chat_canvas_editor import (
             CanvasPlanUnavailable,
             apply_canvas_edit,
+            describe_apply_failure,
             plan_canvas_edit,
         )
 
         canvas = await self._refresh_canvas_from_store(user_id, canvas)
+        canvas = await self._heal_degenerate_canvas(user_id, canvas)
         corrections = self._recent_canvas_corrections(user_id, canvas.get("canvas_id"))
         versions = self._recent_canvas_versions(user_id, canvas.get("canvas_id"))
         lessons = self._agent_lessons(agent_id, message)
+        similar_corrections, correction_patterns = await self._cross_canvas_learnings(
+            user_id, canvas, agent_id
+        )
 
         try:
             plan = await asyncio.wait_for(
@@ -1586,6 +1694,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     corrections=corrections,
                     versions=versions,
                     lessons=lessons,
+                    similar_corrections=similar_corrections,
+                    correction_patterns=correction_patterns,
                 ),
                 timeout=30,
             )
@@ -1693,7 +1803,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             except Exception as gov_err:
                 logger.debug(f"canvas edit governance check skipped: {gov_err}")
 
-        result = await apply_canvas_edit(plan, user_id, canvas)
+        applied = await apply_canvas_edit(
+            plan, user_id, canvas, return_reason=True
+        )
+        # Tolerant unpack: tests (and any caller using the default
+        # return_reason=False) may hand back the bare result instead of the
+        # (result, reason) pair.
+        if isinstance(applied, tuple) and len(applied) == 2:
+            result, apply_reason = applied
+        else:
+            result, apply_reason = applied, None
         if result is None:
             # The editor classified this as an edit but the write failed
             # (mismatched patch target, undecodable replace payload, store
@@ -1702,17 +1821,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # planner+response pipeline (minutes) and then answered from
             # conversation history with a FALSE success claim ("I've appended
             # … the canvas is now updated") while the canvas never changed.
-            # Say what happened instead — immediately and honestly.
+            # Say what happened instead — immediately, honestly, and with the
+            # failure reason so the user can act on it.
             logger.warning(
-                f"canvas edit apply failed for {canvas.get('canvas_id')} — "
-                f"replying honestly instead of falling through to conversation"
+                f"canvas edit apply failed for {canvas.get('canvas_id')} "
+                f"({apply_reason}) — replying honestly instead of falling "
+                f"through to conversation"
             )
             return {
                 "success": True,
-                "message": (
-                    "I tried to make that edit but couldn't apply it cleanly "
-                    "to the current canvas — nothing was changed. Try rephrasing "
-                    "or pointing me at the exact text to change."
+                "message": describe_apply_failure(
+                    apply_reason, canvas.get("canvas_type"), canvas
                 ),
                 "session_id": session_id,
                 "intent": "canvas_edit",
@@ -1721,6 +1840,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "canvas_edit": {
                         "canvas_id": canvas.get("canvas_id"),
                         "updated": False,
+                        "reason": apply_reason,
                     }
                 },
                 "suggested_actions": [],

@@ -751,6 +751,32 @@ async def lifespan(app: FastAPI):
 
                 _spawn_background_task(_warm_assembler())
 
+            # 8c-ter. Warm LanceDB + FastEmbed UNCONDITIONALLY (the assembler
+            # warm above is experiment-gated): the canvas co-editor's
+            # semantic learning recall embeds profile texts at turn time, and
+            # a cold ONNX model load (multi-second, blocking) inside the
+            # planner's 30s budget is a stall. Both are local and lazy — this
+            # just pays the init once at startup so every later call is ms.
+            async def _warm_lancedb_and_embeddings():
+                try:
+                    from core.lancedb_handler import get_lancedb_handler
+
+                    get_lancedb_handler()._ensure_db()
+                    logger.info("✓ LanceDB connection warmed")
+                except Exception as warm_err:
+                    logger.warning(f"LanceDB warm skipped: {warm_err}")
+                try:
+                    from core.embedding_service import EmbeddingService
+
+                    await EmbeddingService(provider="fastembed").create_fastembed_embedding(
+                        "startup warmup"
+                    )
+                    logger.info("✓ FastEmbed model warmed")
+                except Exception as warm_err:
+                    logger.warning(f"FastEmbed warm skipped: {warm_err}")
+
+            _spawn_background_task(_warm_lancedb_and_embeddings())
+
             # 8c-bis. Discord Gateway client — real-time MESSAGE_CREATE
             # ingestion (P0.4 §7 follow-up). Gated: requires
             # DISCORD_GATEWAY_ENABLED=true AND DISCORD_BOT_TOKEN; messages

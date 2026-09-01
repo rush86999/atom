@@ -41,6 +41,12 @@ CANVAS_EDITOR_MODEL = os.getenv("ATOM_CANVAS_EDITOR_MODEL", "minimax/minimax-m3"
 # can't blow the structured-call budget.
 _MAX_CONTENT_CHARS = 6000
 
+# Total edit-plan prompt budget (chars ≈ tokens/4). Learning sections make
+# the prompt grow; when the budget is exceeded, sections drop by priority:
+# current-canvas corrections > versions > taught lessons > cross-canvas
+# channels — the closest context always outranks the recalled context.
+_MAX_EDIT_PROMPT_CHARS = int(os.getenv("ATOM_CANVAS_EDIT_PROMPT_MAX_CHARS", "48000"))
+
 
 class CanvasPatchOp(BaseModel):
     """One surgical find→replace against the CURRENT canvas content.
@@ -104,18 +110,25 @@ the authority, NOT your memory of earlier drafts:
 - Touch ONLY the parts the request targets. Never reword, reorder, or drop
   text the request doesn't mention, and never revert the user's own wording
   to an earlier draft.
-- For object content (e.g. an email {to, cc, subject, body}) set "field" to
-  the key you are editing (usually "body"); the op applies inside that field
-  only, and the other keys stay untouched.
+- The CANVAS APP section below names this app's real input fields (the same
+  fields its UI renders). For object content set "field" to one of THOSE
+  keys; the op applies inside that field only, and the other keys stay
+  untouched.
+- SET-FIELD ops: to FILL AN EMPTY field (e.g. an empty To or Cc), return
+  {"field": "<name>", "find": "", "replace": "<new value>"}. find="" is
+  accepted ONLY when that field is currently empty — it sets the field.
+  A field that already holds text must be edited with a normal verbatim
+  find→replace inside it.
 - For spreadsheet/grid content (rows, or {cells: ...}) set "cell" to the
   A1 reference instead: {"cell": "B2", "find": <the cell's current value>,
   "replace": <new value>}. "find" must equal the cell's current value.
 - edit_mode="replace" ONLY when the user explicitly asked for a rewrite /
   fresh draft, or no patch can express the change (e.g. reformat
-  everything): then updated_content_json is the COMPLETE new content, in
-  EXACTLY the same shape as the current content (same keys, same types),
-  and every part unrelated to the request must stay IDENTICAL to the
-  current content. Never return a fragment or an explanation.
+  everything): then updated_content_json is the new content. For object
+  content it may contain ONLY the keys you are changing — they are MERGED
+  into the current content and every key you omit is preserved as-is (a
+  full set of keys is also fine). Match the current shape (same value
+  types); never return a fragment or an explanation.
 - RECENT VERSIONS (when present in the prompt) hold earlier drafts of this
   canvas. To go back to one, return edit_mode="replace" copying that
   version's content VERBATIM from the section — then apply any extra change
@@ -132,14 +145,17 @@ the authority, NOT your memory of earlier drafts:
   canvas content (or empty if another step will answer)."""
 
 # Fallback prompt when patch ops fail to match the current content (the
-# model mis-copied "find"): one re-ask for complete content under the same
+# model mis-copied "find"): one re-ask for content under the same
 # preservation duty. Deterministic safety, not a second chance to patch.
+# Field-scoped: the model returns ONLY the keys it is changing (merged on
+# apply) — echoing untouched fields verbatim was the burden that made small
+# models emit oversized, invalid JSON (observed live 2026-08-31).
 _REPLACE_FALLBACK_SUFFIX = (
     "Your ops did not match the current content exactly, so they were "
-    "discarded. Try again with edit_mode=\"replace\": return the COMPLETE "
-    "new content in EXACTLY the current shape, applying the user's request "
-    "and keeping every part the request doesn't touch IDENTICAL to the "
-    "current content shown below."
+    "discarded. Try again with edit_mode=\"replace\": return the new content "
+    "for ONLY the keys you are changing (they will be merged in; keys you "
+    "omit are preserved), applying the user's request. Same shape and value "
+    "types as the current content."
 )
 
 
@@ -234,6 +250,28 @@ def _patch_grid(rows: List[Any], ops: List[CanvasPatchOp]) -> Tuple[List[Any], L
     return grid, failed
 
 
+def _replace_in_text(text: str, find: str, replace: str) -> Tuple[str, bool]:
+    """One find→replace against a text field, two matching tiers.
+
+    Tier 1 exact (the preservation guarantee: what matches is what the
+    planner copied). Tier 2 whitespace-insensitive — Aider's documented
+    ladder (exact → whitespace-normalized) for when the model's copy is
+    right except for indentation/line-wrap drift. Never fuzzy: a tier-2
+    match still anchors on the find text's actual words, only its spacing
+    flexes. Returns (new_text, matched)."""
+    if find in text:
+        return text.replace(find, replace, 1), True
+
+    tokens = find.split()
+    if len(tokens) < 2:
+        return text, False  # single-token finds have no whitespace to flex
+    pattern = re.compile(r"\s+".join(re.escape(t) for t in tokens))
+    m = pattern.search(text)
+    if not m:
+        return text, False
+    return text[:m.start()] + replace + text[m.end():], True
+
+
 def _apply_patch_ops(content: Any, ops: List["CanvasPatchOp"]) -> tuple:
     """Apply surgical find→replace ops against the current content.
 
@@ -241,7 +279,13 @@ def _apply_patch_ops(content: Any, ops: List["CanvasPatchOp"]) -> tuple:
     appear is REPORTED, never guessed at. Returns (new_content, failed_ops)
     — callers decide between committing (no failures) and falling back.
     Object content is edited per-key (op.field), grids per-cell (op.cell);
-    every other key/row keeps its identity, so untouched data can't drift."""
+    every other key/row keeps its identity, so untouched data can't drift.
+
+    Set-field ops (find="") fill an EMPTY field — the "include to and cc
+    emails" case that was structurally impossible before (an empty field
+    has no text to find, so those ops always failed and forced the fragile
+    replace re-ask). A set-field op on a non-empty field is a validation
+    failure, never an overwrite."""
     if not ops:
         return content, []
     failed: List[CanvasPatchOp] = []
@@ -249,9 +293,11 @@ def _apply_patch_ops(content: Any, ops: List["CanvasPatchOp"]) -> tuple:
         text = content
         for op in ops:
             find = op.find or ""
-            if find and find in text:
-                text = text.replace(find, op.replace, 1)
-            else:
+            if not find:
+                failed.append(op)  # set-field needs a named field; not a string canvas
+                continue
+            text, matched = _replace_in_text(text, find, op.replace)
+            if not matched:
                 failed.append(op)
         return text, failed
     if isinstance(content, list):
@@ -279,13 +325,19 @@ def _apply_patch_ops(content: Any, ops: List["CanvasPatchOp"]) -> tuple:
         result = dict(content)
         for op in ops:
             key = op.field
-            if key and isinstance(result.get(key), str):
-                find = op.find or ""
-                if find and find in result[key]:
-                    result[key] = result[key].replace(find, op.replace, 1)
+            if not (key and isinstance(result.get(key), str)):
+                failed.append(op)
+                continue
+            find = op.find or ""
+            if not find:
+                # Set-field: only an empty field may be filled.
+                if not result[key].strip():
+                    result[key] = op.replace
                 else:
                     failed.append(op)
-            else:
+                continue
+            result[key], matched = _replace_in_text(result[key], find, op.replace)
+            if not matched:
                 failed.append(op)
         return result, failed
     return content, list(ops)  # scalars can't patch — force replace fallback
@@ -336,12 +388,83 @@ def _corrections_section(corrections: Optional[List[Dict[str, Any]]]) -> str:
 _VERSION_CHARS = 800
 
 
+def _canvas_profile_text(canvas: Dict[str, Any], bound: int = 1500) -> str:
+    """Bounded profile of the CURRENT canvas for cross-canvas similarity:
+    what this canvas is about (type, title, content head) — the query side
+    of the episodic recall."""
+    parts = [
+        str(canvas.get("canvas_type") or ""),
+        str(canvas.get("title") or ""),
+        _serialize_content(canvas.get("content"))[:bound],
+    ]
+    return " ".join(p for p in parts if p)
+
+
+def _similar_lessons_section(
+    similar_corrections: Optional[List[Dict[str, Any]]],
+    correction_patterns: Optional[List[Dict[str, Any]]],
+) -> str:
+    """Cross-canvas learning channels for the edit planner — the parts of a
+    human's experience beyond the canvas in front of them:
+
+    - EPISODIC: how the supervisor corrected drafts on OTHER similar
+      canvases (relevance × recency ranked by canvas_context_service).
+    - DISTILLED: recurring patterns across ALL the supervisor's corrections
+      (ExpeL-style insights, e.g. "filled the empty 'to' field in 3 of 4
+      corrections").
+
+    Precedence is explicit: these transfer PREFERENCES; the current canvas's
+    own content and its own corrections still outrank them."""
+    if not similar_corrections and not correction_patterns:
+        return ""
+    lines: List[str] = []
+    if similar_corrections:
+        lines.append(
+            "LEARNINGS FROM SIMILAR PAST CANVASES — how your supervisor "
+            "corrected your drafts on other similar canvases of this kind "
+            "(most similar first). Transfer the corrected style, structure, "
+            "and field conventions here:"
+        )
+        for i, entry in enumerate(similar_corrections, 1):
+            entry = entry or {}
+            lines.append(
+                f"[{i}] similar {entry.get('canvas_type') or 'canvas'} canvas "
+                f"(relevance {entry.get('relevance', 0):.2f}):"
+            )
+            for c in (entry.get("corrections") or [])[-2:]:
+                c = c if isinstance(c, dict) else {}
+                original = c.get("original") if isinstance(c.get("original"), dict) else {}
+                corrected = c.get("corrected") if isinstance(c.get("corrected"), dict) else {}
+                lines.append(
+                    f"    BEFORE: {_brief(original.get('content') or original)}\n"
+                    f"      AFTER: {_brief(corrected.get('content') or corrected)}"
+                )
+    if correction_patterns:
+        rendered = "; ".join(
+            f"{p.get('pattern')} ({p.get('count')}/{p.get('total')} corrections)"
+            for p in correction_patterns if isinstance(p, dict) and p.get("pattern")
+        )
+        if rendered:
+            lines.append(
+                "RECURRING SUPERVISOR PREFERENCES across your past canvases "
+                "(distilled from every correction you have received): "
+                + rendered + "."
+            )
+    if not lines:
+        return ""
+    return (
+        "\n".join(lines)
+        + "\nThese transfer preferences only — the CURRENT canvas content "
+        "and the current-canvas corrections above outrank them.\n\n"
+    )
+
+
 def _lessons_section(lessons: Optional[List[Dict[str, Any]]]) -> str:
     """The operating agent's PERMANENT taught lessons (TrainingPanel /teach,
     mentor lessons, observed human corrections), as planner-visible standing
     instructions. Storage alone only moved a confidence score — this section
     is what makes a taught lesson shape the edit it should have been shaping,
-    for every agent and every canvas app/type. Reuses the shared renderer so
+    for every agent and every canvas app. Reuses the shared renderer so
     all work-time surfaces carry the same permanence framing."""
     if not lessons:
         return ""
@@ -427,6 +550,8 @@ async def plan_canvas_edit(
     corrections: Optional[List[Dict[str, Any]]] = None,
     versions: Optional[List[Dict[str, Any]]] = None,
     lessons: Optional[List[Dict[str, Any]]] = None,
+    similar_corrections: Optional[List[Dict[str, Any]]] = None,
+    correction_patterns: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[CanvasEditPlan]:
     """Decide (via cheap structured LLM output) whether this turn edits the
     open canvas, and produce the edit — patch ops by default, complete
@@ -436,22 +561,74 @@ async def plan_canvas_edit(
     _versions_section) — the go-back/restore path. ``lessons`` are the
     operating agent's permanent taught lessons (see _lessons_section) — the
     work-time application of /teach, general across agents and canvas apps.
-    Patch ops are validated against the current content here: a mis-copied
-    "find" gets ONE re-ask in replace mode (still under the preservation
-    duty) rather than a broken write. Returns None on any failure — the
-    caller then falls through to the conversational path."""
+    ``similar_corrections``/``correction_patterns`` are the CROSS-CANVAS
+    learning channels — episodic (corrections on similar other canvases) and
+    distilled (recurring supervisor preference patterns), see
+    _similar_lessons_section. Patch ops are validated against the current
+    content here: a mis-copied "find" gets ONE re-ask in replace mode (still
+    under the preservation duty) rather than a broken write. Returns None on
+    any failure — the caller then falls through to the conversational path."""
     if llm_service is None or not canvas.get("canvas_id"):
         return None
 
-    prompt = (
-        f"{_EDITOR_SYSTEM}\n\n"
-        f"{_lessons_section(lessons)}"
-        f"{_corrections_section(corrections)}"
-        f"{_versions_section(versions, canvas.get('content'))}"
-        f"Canvas type: {canvas.get('canvas_type') or 'generic'}\n"
+    from core.canvas_app_schema import app_prompt_section
+
+    # Prompt budget: the core (system + app + current content + history)
+    # always stays; learning sections are included in priority order and
+    # the lowest-priority ones trim first when the budget is tight —
+    # recalled context must never crowd out the live artifact, and the
+    # whole prompt must fit the serving model's context window.
+    app_section = app_prompt_section(canvas.get("canvas_type"), canvas.get("content"))
+    content_section = (
         f"Current canvas content:\n{_serialize_content(canvas.get('content'))}\n\n"
+    )
+    history_section = (
         f"Recent conversation:\n{_history_transcript(history, message)}\n\n"
         "Return the edit plan."
+    )
+    rendered = {  # canonical layout order; priority = same order
+        "corrections": _corrections_section(corrections),
+        "versions": _versions_section(versions, canvas.get("content")),
+        "lessons": _lessons_section(lessons),
+        "cross": _similar_lessons_section(similar_corrections, correction_patterns),
+    }
+    budget = _MAX_EDIT_PROMPT_CHARS - len(
+        _EDITOR_SYSTEM + app_section + content_section + history_section
+    )
+    included: Dict[str, str] = {}
+    trimmed_any = False
+    for name, section in rendered.items():
+        if not section:
+            continue
+        if len(section) <= budget:
+            included[name] = section
+            budget -= len(section)
+        elif budget > 800:  # keep only when a usable head fits
+            # Reserve the marker's own length so the kept head + marker
+            # still land inside the budget.
+            head = max(0, budget - 60)
+            included[name] = (
+                section[:head]
+                + "\n…(trimmed to fit the model's context budget)\n\n"
+            )
+            trimmed_any = True
+            budget = 0
+        else:
+            trimmed_any = True
+    if trimmed_any:
+        logger.info(
+            f"canvas edit prompt trimmed to {_MAX_EDIT_PROMPT_CHARS} chars — "
+            f"lowest-priority learning sections reduced first"
+        )
+    prompt = (
+        f"{_EDITOR_SYSTEM}\n\n"
+        f"{included.get('corrections', '')}"
+        f"{included.get('versions', '')}"
+        f"{included.get('lessons', '')}"
+        f"{included.get('cross', '')}"
+        f"{app_section}\n"
+        f"{content_section}"
+        f"{history_section}"
     )
 
     # Pin (provider, model) exactly like the planner: generate_structured_
@@ -525,65 +702,186 @@ async def plan_canvas_edit(
             _, failed2 = _apply_patch_ops(canvas.get("content"), replan.ops)
             if not failed2:
                 return replan
+        # Last structured leg failed to produce usable content: one RAW
+        # completion retry, parsed locally with the same repair ladder —
+        # the action planner's proven fallback (_raw_json_action_plan).
+        # Instructor/tool-mode structured calls are exactly where weak
+        # models mangle the embedded JSON string; a raw completion often
+        # carries the same JSON intact.
+        raw_plan = await _raw_json_replace_plan(
+            llm_service, f"{prompt}\n\n{_REPLACE_FALLBACK_SUFFIX}", kwargs
+        )
+        if raw_plan is not None and (raw_plan.updated_content_json or "").strip():
+            logger.info("canvas edit replace plan recovered via raw-JSON fallback")
+            return raw_plan
         return None
     return plan
 
 
-def _decode_replace_content(plan: CanvasEditPlan, current: Any) -> Optional[Any]:
-    """Decode replace-mode content. If the model returned a bare string for
-    a canvas whose content IS a plain string (markdown/doc bodies), a failed
-    JSON parse still yields a usable value — accept it only for that shape.
+def _repair_json(raw: str) -> Optional[Any]:
+    """Second-chance JSON decode for LLM payloads.
 
-    Structured providers still hand back the JSON-encoded string field with
-    markdown fences (or prose) around the object — observed live as
-    "updated_content_json is not valid JSON — discarding", which threw away
-    a real edit and sent the turn into the slow conversational fallback.
-    Strip fences and extract the outermost JSON value before giving up."""
-    raw = (plan.updated_content_json or "").strip()
+    Structured-output providers hand back the JSON-encoded string field with
+    markdown fences, unescaped newlines/quotes, or truncation (observed live
+    as "updated_content_json is not valid JSON — discarding", which threw
+    away a real edit). Defense in depth, in order: strict parse →
+    fence-strip → outermost {...}/{...} extraction → json_repair (the de
+    facto repair library for exactly this failure class). Returns None only
+    when nothing parses."""
+    raw = (raw or "").strip()
     if not raw:
-        # Defensive stop: the planner now re-asks before a content-less
-        # replace plan gets here. Quietly unusable — not a "not valid JSON"
-        # scenario (that warning sent debugging down the wrong path once).
-        logger.debug("canvas edit: replace plan carried no content")
         return None
-    # Strip ```json / ``` fences the model wraps around the payload.
     fence = re.match(r"^```[a-zA-Z0-9]*\s*\n(.*?)\n?```\s*$", raw, re.DOTALL)
     if fence:
         raw = fence.group(1).strip()
     try:
         return json.loads(raw)
     except (json.JSONDecodeError, ValueError):
-        # One salvage pass: the outermost {...} / [...] in the text.
-        for opener, closer in (("{", "}"), ("[", "]")):
-            start = raw.find(opener)
-            end = raw.rfind(closer)
-            if start != -1 and end > start:
-                try:
-                    return json.loads(raw[start:end + 1])
-                except (json.JSONDecodeError, ValueError):
-                    continue
-    if isinstance(current, str):
-        return raw
-    logger.warning("canvas edit: updated_content_json is not valid JSON — discarding")
-    return None
+        pass
+    for opener, closer in (("{", "}"), ("[", "]")):
+        start = raw.find(opener)
+        end = raw.rfind(closer)
+        if start != -1 and end > start:
+            try:
+                return json.loads(raw[start:end + 1])
+            except (json.JSONDecodeError, ValueError):
+                continue
+    try:
+        import json_repair
+
+        repaired = json_repair.loads(raw)
+    except Exception:
+        return None
+    # json_repair "succeeds" on plain prose (returns it as a string) — that
+    # is not an edit payload.
+    if isinstance(repaired, str):
+        return None
+    return repaired
+
+
+def _merge_replace_content(
+    parsed: Any,
+    current: Any,
+    canvas_type: Optional[str],
+) -> Tuple[Optional[Any], Optional[str]]:
+    """Merge a replace-mode payload onto the current content.
+
+    For dict-shaped apps (email, form — content_kind "fields") the payload
+    carries ONLY the keys being changed; omitted keys are preserved. This
+    is the contract that removed the echo burden: requiring models to
+    reproduce the entire body byte-for-byte produced oversized, invalid
+    JSON (observed live 2026-08-31). Keys are validated against the app's
+    real UI fields so nothing the canvas can't render is smuggled in.
+
+    Returns (new_content, failure_reason) — failure_reason None on success.
+    """
+    from core.canvas_app_schema import get_app_spec, known_field_names
+
+    spec = get_app_spec(canvas_type)
+
+    if isinstance(parsed, dict) and isinstance(current, dict):
+        if isinstance(current.get("rows"), list) or isinstance(current.get("cells"), dict):
+            # Grid content: replace stays whole (e.g. a version restore
+            # copies the version's rows verbatim).
+            return parsed, None
+        known = known_field_names(spec)
+        merged = dict(current)
+        applied = 0
+        dropped: List[str] = []
+        for key, value in parsed.items():
+            if key in known or key in current:
+                merged[key] = value
+                applied += 1
+            else:
+                dropped.append(key)
+        if dropped:
+            logger.info(
+                f"canvas edit: dropped non-field key(s) {dropped} not in the "
+                f"{spec.canvas_type} app schema"
+            )
+        if not applied:
+            return None, "replace payload carried none of this app's fields"
+        return merged, None
+
+    # Same-type whole replace stays valid for every other shape
+    # (string canvas, chart data array, …).
+    if type(parsed) is type(current):
+        return parsed, None
+
+    if isinstance(parsed, str) and isinstance(current, dict):
+        # Text drafts get stored as {"content": <str>} wrappers on some
+        # creation paths — accept the unwrapped string back into the wrapper.
+        keys = set(current.keys())
+        if keys == {"content"} and isinstance(current.get("content"), str):
+            return {"content": parsed}, None
+        return None, "replace payload was plain text but the canvas content is structured"
+
+    return None, "replace payload shape does not match the current content"
+
+
+def _decode_replace_content(
+    plan: CanvasEditPlan,
+    current: Any,
+) -> Tuple[Optional[Any], Optional[str]]:
+    """Decode replace-mode content. Returns (content, failure_reason)."""
+    raw = (plan.updated_content_json or "").strip()
+    if not raw:
+        # Defensive stop: the planner now re-asks before a content-less
+        # replace plan gets here. Quietly unusable — not a "not valid JSON"
+        # scenario (that warning sent debugging down the wrong path once).
+        logger.debug("canvas edit: replace plan carried no content")
+        return None, "no_content"
+    parsed = _repair_json(raw)
+    if parsed is None:
+        # Keep a fragment of what the model actually returned in the log —
+        # the 2026-08-31 RCA was blind exactly because the discarded payload
+        # was never captured.
+        logger.warning(
+            "canvas edit: updated_content_json is not valid JSON even after "
+            f"repair — discarding. Payload head: {raw[:400]!r}"
+        )
+        if isinstance(current, str):
+            return raw, None  # a plain-string canvas can take the raw text
+        return None, "not_valid_json"
+    return parsed, None
 
 
 async def apply_canvas_edit(
     plan: CanvasEditPlan,
     user_id: str,
     canvas: Dict[str, Any],
-) -> Optional[Dict[str, Any]]:
+    return_reason: bool = False,
+):
     """Persist the planned edit through the general canvas CRUD layer
     (CanvasAudit append + WS broadcast). Patch ops are re-applied
     deterministically against the canvas content the plan validated against;
-    replace plans store their complete content verbatim. Returns the update
-    result dict on success, None on any failure (caller falls through to
-    the conversational path instead of storing garbage)."""
+    replace plans are decoded, repaired, and — for dict-shaped apps —
+    MERGED field-scoped onto the current content (omitted keys preserved).
+    Per-app policy: file-backed canvases (real .docx/.xlsx/.pptx) refuse
+    content writes — the file is the artifact, a snapshot write would change
+    nothing the user can see.
+
+    Returns the update result dict on success, None on any failure. With
+    ``return_reason=True`` returns ``(result_or_None, reason_or_None)`` so
+    the caller can answer with WHAT failed instead of a generic retry."""
+    from core.canvas_app_schema import get_app_spec
+
+    def _out(result, reason):
+        return (result, reason) if return_reason else result
+
     if not plan or not plan.wants_edit:
-        return None
+        return _out(None, "not_an_edit")
 
     current = canvas.get("content")
+    canvas_id = str(canvas.get("canvas_id"))
+    canvas_type = str(canvas.get("canvas_type") or "generic")
+    spec = get_app_spec(canvas_type)
+
+    if spec.content_kind == "file_backed":
+        return _out(None, "file_backed")
+
     new_content: Any = None
+    reason: Optional[str] = None
 
     if plan.ops:
         new_content, failed = _apply_patch_ops(current, plan.ops)
@@ -592,15 +890,15 @@ async def apply_canvas_edit(
             # the content moved between the two steps — refuse rather than
             # write a partial edit on top of a state nobody saw.
             logger.warning("canvas edit: patch ops no longer match — refusing partial write")
-            return None
+            return _out(None, "ops_no_longer_match")
     else:
-        new_content = _decode_replace_content(plan, current)
+        parsed, decode_reason = _decode_replace_content(plan, current)
+        if parsed is None:
+            return _out(None, decode_reason or "not_valid_json")
+        new_content, reason = _merge_replace_content(parsed, current, canvas_type)
+        if new_content is None:
+            return _out(None, reason or "merge_failed")
 
-    if new_content is None:
-        return None
-
-    canvas_id = str(canvas.get("canvas_id"))
-    canvas_type = str(canvas.get("canvas_type") or "generic")
     try:
         from tools.canvas_crud_tool import update_canvas_content
 
@@ -609,12 +907,170 @@ async def apply_canvas_edit(
         )
     except Exception as e:
         logger.warning(f"canvas edit apply failed for {canvas_id}: {e}")
-        return None
+        return _out(None, f"store_error: {e}")
 
     if not (result or {}).get("success"):
         logger.info(f"canvas edit rejected for {canvas_id}: {(result or {}).get('error')}")
+        return _out(None, f"store_rejected: {(result or {}).get('error')}")
+    return _out(result, None)
+
+
+def normalize_degenerate_content(
+    canvas_type: Optional[str],
+    content: Any,
+) -> Optional[Any]:
+    """Deterministic healing for canvases seeded before the narration-
+    tolerant extractor existed: fill EMPTY input fields of a dict-shaped
+    app from the draft text already inside the content (the live case: an
+    email canvas with to="" / cc="" whose body holds "**To:**
+    jschulz@blumetric.ca"). Only empty fields are ever filled — with ONE
+    narrow exception: a Subject that carries the old seeder's "Draft — "
+    narration marker is replaced by the draft's real subject. Manual user
+    edits can't be clobbered. Returns the healed content, or None when
+    there is nothing to heal (the overwhelmingly common case)."""
+    from core.canvas_app_schema import empty_fillable_fields, get_app_spec, normalize_app_type
+
+    spec = get_app_spec(canvas_type)
+    if spec.content_kind != "fields" or not isinstance(content, dict):
         return None
-    return result
+    empty = empty_fillable_fields(spec, content)
+    if not empty:
+        return None
+    if normalize_app_type(canvas_type) != "email":
+        return None  # email is the app with extractable header-shaped drafts
+    body = content.get("body")
+    if not isinstance(body, str) or not body.strip():
+        return None
+    try:
+        from core.chat_draft_classifier import extract_email_draft
+
+        extracted = extract_email_draft(body)
+    except Exception:
+        return None
+    if not extracted:
+        return None
+    merged = dict(content)
+    healed = False
+    for field_name in ("to", "cc", "subject"):
+        if field_name not in empty and field_name == "subject":
+            # One narrow, code-generated marker exception: the old seeder
+            # filled Subject with "Draft — <first 60 chars of chat
+            # narration>" (chat_routes.py's title builder) when extraction
+            # failed. That narration is never a real subject — replace it
+            # when the draft carries the real one. Any other non-empty
+            # subject stays untouched.
+            current_subject = (merged.get("subject") or "").strip()
+            if not current_subject.startswith("Draft — "):
+                continue
+        elif field_name not in empty:
+            continue
+        if extracted.get(field_name):
+            merged[field_name] = extracted[field_name]
+            healed = True
+    return merged if healed else None
+
+
+async def _raw_json_replace_plan(
+    llm_service: Any,
+    prompt: str,
+    kwargs: Dict[str, Any],
+) -> Optional[CanvasEditPlan]:
+    """Plain-completion fallback for the replace re-ask: ask for raw JSON
+    and parse it locally (repair-tolerant), instead of the Instructor
+    structured path that weak models answer with mangled embedded JSON.
+    Fault-isolated — None on any failure."""
+    try:
+        messages = [
+            {"role": "system", "content": "You reply with a single raw JSON object only. No markdown fences, no tool calls, no prose."},
+            {"role": "user", "content": prompt},
+        ]
+        completion_kwargs = {}
+        pm = (kwargs or {}).get("provider_model")
+        if pm:
+            completion_kwargs["model"] = pm[1]
+        raw = await llm_service.generate_completion(
+            messages, temperature=0.0, max_tokens=2000, **completion_kwargs
+        )
+        if isinstance(raw, dict):
+            if not raw.get("success", True):
+                return None
+            text = raw.get("content") or raw.get("text") or ""
+        else:
+            text = str(raw or "")
+        if not text:
+            return None
+        match = re.search(r"\{.*\}", str(text), re.DOTALL)
+        if not match:
+            return None
+        data = _repair_json(match.group(0))
+        if not isinstance(data, dict):
+            return None
+        fields = {k: v for k, v in data.items() if k in CanvasEditPlan.model_fields}
+        if not fields.get("wants_edit", True):
+            return None
+        if not (fields.get("updated_content_json") or "").strip():
+            return None
+        return CanvasEditPlan(**fields)
+    except Exception as e:
+        logger.debug(f"raw-JSON replace plan fallback failed: {e}")
+        return None
+
+
+def describe_apply_failure(
+    reason: Optional[str],
+    canvas_type: Optional[str],
+    canvas: Optional[Dict[str, Any]] = None,
+) -> str:
+    """The user-facing explanation for an apply failure — specific enough to
+    act on, instead of the old generic "try rephrasing" dead end."""
+    from core.canvas_app_schema import (
+        empty_fillable_fields,
+        get_app_spec,
+    )
+
+    spec = get_app_spec(canvas_type)
+    content = (canvas or {}).get("content")
+    empty = empty_fillable_fields(spec, content)
+    field_hint = ""
+    if empty:
+        pretty = ", ".join(f.upper() if f in ("to", "cc") else f.capitalize()
+                           for f in empty)
+        field_hint = (
+            f" Right now the {pretty} field(s) are empty — tell me the "
+            f'value(s) (e.g. "set {empty[0]}: <value>") and I\'ll fill '
+            "them in directly."
+        )
+
+    if reason == "file_backed":
+        return (
+            f"This is a {spec.label} canvas backed by a real file, so "
+            "canvas-text edits can't change the document itself — tell me "
+            "what to change and I'll route it through the file engine "
+            "instead."
+        )
+    if reason and reason.startswith("store_rejected"):
+        return (
+            "The canvas store refused that edit. Nothing was changed — "
+            f"the store said: {reason.split(':', 1)[1].strip()}. Try again "
+            "in a moment."
+        )
+    if reason == "not_valid_json" or reason == "no_content":
+        return (
+            "I drafted the edit but couldn't produce a clean structured "
+            "payload for this canvas, so nothing was changed. Try a smaller, "
+            "more specific instruction (e.g. one field or one paragraph at "
+            "a time)." + field_hint
+        )
+    if field_hint:
+        return (
+            f"I couldn't apply that edit to the {spec.label} canvas — "
+            f"nothing was changed.{field_hint}"
+        )
+    return (
+        "I tried to make that edit but couldn't apply it cleanly "
+        "to the current canvas — nothing was changed. Try rephrasing "
+        "or pointing me at the exact text to change."
+    )
 
 
 class CanvasActionPlan(BaseModel):

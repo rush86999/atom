@@ -193,7 +193,11 @@ async def test_failed_patch_ops_get_one_replace_mode_reask():
     assert p is rescued
     assert llm.generate_structured_response.await_count == 2
     reask_prompt = llm.generate_structured_response.await_args_list[1].kwargs["prompt"]
-    assert "did not match" in reask_prompt and "IDENTICAL" in reask_prompt
+    # The re-ask is field-scoped now (merge on apply) — it no longer demands
+    # a byte-identical echo of untouched content ("IDENTICAL" era), which was
+    # the burden that made small models emit oversized invalid JSON.
+    assert "did not match" in reask_prompt
+    assert "ONLY the keys you are changing" in reask_prompt
 
 
 @pytest.mark.asyncio
@@ -319,7 +323,7 @@ async def test_canvas_edit_plans_against_durable_store_content():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
         seen["content"] = canvas.get("content")
         return plan
 
@@ -349,7 +353,7 @@ async def test_canvas_edit_passes_supervisor_corrections_to_planner():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
         seen["corrections"] = corrections
         return plan
 
@@ -382,7 +386,7 @@ async def test_canvas_edit_survives_corrections_lookup_failure():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
         seen["corrections"] = corrections
         return plan
 
@@ -1624,7 +1628,7 @@ async def test_canvas_edit_passes_recent_versions_to_planner():
     seen = {}
     versions = [{"audit_id": "a-9", "content": "old draft", "actor": "supervisor"}]
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
         seen["versions"] = versions
         return plan
 
@@ -1680,7 +1684,8 @@ async def test_degenerate_replace_plan_reasks_instead_of_reaching_apply():
     assert p is recovered
     assert llm.generate_structured_response.await_count == 2
     reask_prompt = llm.generate_structured_response.call_args_list[1].kwargs["prompt"]
-    assert "REPLACE_FALLBACK" in reask_prompt or "COMPLETE" in reask_prompt.upper()
+    # Field-scoped contract (see test_failed_patch_ops_get_one_replace_mode_reask).
+    assert "REPLACE_FALLBACK" in reask_prompt or "ONLY THE KEYS YOU ARE CHANGING" in reask_prompt.upper()
 
 
 @pytest.mark.asyncio
@@ -1758,7 +1763,7 @@ async def test_canvas_edit_passes_taught_lessons_to_planner():
     lessons = [{"source": "teacher", "topic": "tone", "lesson": "Formal register only",
                 "learned_at": "2026-08-01T00:00:00+00:00"}]
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
         seen["lessons"] = lessons
         return plan
 
@@ -1781,7 +1786,7 @@ async def test_canvas_edit_without_agent_passes_no_lessons():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
         seen["lessons"] = lessons
         return plan
 
