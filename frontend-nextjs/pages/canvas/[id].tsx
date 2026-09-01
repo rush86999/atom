@@ -28,6 +28,8 @@ interface CanvasMessage {
     type: "user" | "assistant" | "system";
     content: string;
     timestamp: Date;
+    /** True while reply tokens are still arriving over the WebSocket. */
+    streaming?: boolean;
     // Training feedback state + attribution for the feedback calls.
     feedback?: ChatFeedbackType | null;
     model?: string | null;
@@ -372,6 +374,35 @@ export default function CanvasDetailPage() {
             return;
         }
 
+        // STREAMED REPLY: the backend broadcasts reply tokens over this
+        // socket as they generate — render them into a live assistant bubble
+        // so time-to-first-content is seconds, not the full generation.
+        if (msg.type === "chat_token" || msg.type === "chat_token_done") {
+            const data = msg.data || {};
+            // First-message race: tokens arrive BEFORE the POST response
+            // sets chatSessionId (the server creates the session id). Only
+            // filter once the panel knows its session.
+            if (msg.type === "chat_token" && chatSessionId && data.session_id !== chatSessionId) return;
+            setMessages(prev => {
+                const streamId = `stream_${data.session_id}`;
+                const existing = prev.find(m => m.id === streamId);
+                if (msg.type === "chat_token_done") {
+                    const finalContent = String(data.content ?? (existing?.content ?? ""));
+                    if (!finalContent) return prev.filter(m => m.id !== streamId);
+                    if (existing) {
+                        return prev.map(m => (m.id === streamId ? { ...m, content: finalContent, streaming: false } : m));
+                    }
+                    return [...prev, { id: streamId, type: "assistant" as const, content: finalContent, timestamp: new Date() }];
+                }
+                const delta = String(data.delta ?? "");
+                if (existing) {
+                    return prev.map(m => (m.id === streamId ? { ...m, content: m.content + delta } : m));
+                }
+                return [...prev, { id: streamId, type: "assistant" as const, content: delta, timestamp: new Date() }];
+            });
+            return;
+        }
+
         if (msg.type === "canvas:update" || msg.type === "canvas:present") {
             const data = msg.data || msg;
             // mini_app_state broadcasts are consumed by the MiniAppHarness (live
@@ -468,6 +499,17 @@ export default function CanvasDetailPage() {
                 setChatSessionId(data.session_id);
             }
             if (data.success && data.message) {
+                // The authoritative reply replaces the streamed bubble (same
+                // session): covers drift between stream and final text and
+                // the no-stream fallback in one move.
+                const streamId = `stream_${data.session_id}`;
+                setMessages(prev => {
+                    const streamed = prev.find(m => m.id === streamId);
+                    if (streamed) {
+                        return prev.map(m => (m.id === streamId ? { ...m, content: data.message, streaming: false } : m));
+                    }
+                    return prev;
+                });
                 setMessages(prev => [...prev, {
                     id: `a_${Date.now()}`,
                     type: "assistant",

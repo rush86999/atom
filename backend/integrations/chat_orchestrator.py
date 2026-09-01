@@ -12,6 +12,7 @@ import asyncio
 import time
 import json
 import logging
+import os
 import re
 from enum import Enum
 from typing import Dict, Any, List, Optional
@@ -1254,6 +1255,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
                     await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
                                  f"Planned live lookup: {_planned}")
+                    _exec_t0 = time.monotonic()
                     _tool_block = await asyncio.wait_for(
                         execute_tool_plan(
                             _plan, user_id, self.tenant_id,
@@ -1268,7 +1270,6 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         ),
                         timeout=30,
                     )
-                    _exec_t0 = time.monotonic()
                     _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
                     await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
                                  _first_line or "no results")
@@ -1357,12 +1358,84 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 extra_kwargs["sticky_hint"] = sticky_hint
 
             # Use LLMService for completion (delegates Qwen/OpenAI/Anthropic routing internally)
-            response_data = await self.llm_service.generate_completion(
-                messages=messages,
-                model=forced_model,  # "auto" unless overridden
-                tenant_id=self.tenant_id,
-                **extra_kwargs,
-            )
+            # STREAMING REPLY (ATOM_CHAT_STREAMING, default on): tokens are
+            # broadcast over the co-editor's WebSocket as they generate, so
+            # time-to-first-content is ~2-5s instead of the full generation
+            # (~20s+). Accuracy is unchanged — same routed model, same prompt;
+            # the full text is still returned below for persistence, LKGP,
+            # and protocol-tag hygiene. ANY failure falls back to the
+            # non-streaming completion: streaming is pure UX sugar.
+            _streamed: Optional[str] = None
+            if (
+                os.getenv("ATOM_CHAT_STREAMING", "false").lower() == "true"
+                and user_id and session_id
+                and not routing_overrides.get("model")  # explicit model pin = caller wants the old path
+            ):
+                try:
+                    import time as _time
+
+                    from core.websockets import manager as _ws_manager
+
+                    _prompt_for_cx = " ".join(
+                        str(m.get("content") or "") for m in messages
+                    )
+                    _cx = self.llm_service.handler.analyze_query_complexity(_prompt_for_cx)
+                    _s_prov, _s_model = await self.llm_service.handler.get_optimal_provider(_cx)
+
+                    _buf: List[str] = []
+                    _t0 = _time.monotonic()
+                    async for _tok in self.llm_service.stream_completion(
+                        messages=messages,
+                        model=_s_model,
+                        provider_id=_s_prov,
+                        temperature=0.7,
+                        max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
+                    ):
+                        if not _tok:
+                            continue
+                        _buf.append(_tok)
+                        await _ws_manager.broadcast(f"user:{user_id}", {
+                            "type": "chat_token",
+                            "data": {
+                                "session_id": session_id,
+                                "delta": _tok,
+                            },
+                        })
+                    _full = "".join(_buf).strip()
+                    if _full:
+                        stream_ok_msg = re.sub(r"<think>.*?</think>", "", _full, flags=re.DOTALL)
+                        stream_ok_msg = re.sub(r"</?(?:mm:)?think>", "", stream_ok_msg)
+                        _streamed = stream_ok_msg.strip()
+                        await _ws_manager.broadcast(f"user:{user_id}", {
+                            "type": "chat_token_done",
+                            "data": {
+                                "session_id": session_id,
+                                "content": _streamed,
+                                "elapsed_s": round(_time.monotonic() - _t0, 1),
+                            },
+                        })
+                        logger.info(
+                            f"[stage-timing] reply STREAMED: "
+                            f"{_time.monotonic() - _t0:.1f}s to full text "
+                            f"({_s_prov}/{_s_model}, {len(_buf)} chunks)")
+                        response_data = {
+                            "success": True,
+                            "content": _streamed,
+                            "model": _s_model,
+                            "provider": _s_prov,
+                        }
+                    else:
+                        logger.warning("chat streaming produced no tokens — falling back")
+                except Exception as stream_err:
+                    logger.warning(f"chat streaming failed — non-streaming fallback: {stream_err}")
+
+            if _streamed is None:
+                response_data = await self.llm_service.generate_completion(
+                    messages=messages,
+                    model=forced_model,  # "auto" unless overridden
+                    tenant_id=self.tenant_id,
+                    **extra_kwargs,
+                )
             
             logger.info(
                 f"[stage-timing] reply generation: {time.monotonic() - _plan_t0:.1f}s "
