@@ -336,6 +336,25 @@ async def delete_canvas(
     return result
 
 
+@router.post("/{canvas_id}/undelete")
+async def undelete_canvas(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Un-delete a tombstoned canvas (append a restore row; append-only).
+
+    Distinct from POST /{canvas_id}/restore above, which restores an earlier
+    VERSION of a live canvas — this one revives a canvas whose latest audit
+    row is a delete tombstone."""
+
+    from tools.canvas_crud_tool import restore_deleted_canvas
+    result = await restore_deleted_canvas(str(current_user.id), canvas_id)
+    if not result.get("success"):
+        status = 404 if "not found" in str(result.get("error", "")).lower() else 400
+        raise HTTPException(status_code=status, detail=result.get("error"))
+    return result
+
+
 @router.post("/{canvas_id}/fork")
 async def fork_canvas(
     canvas_id: str,

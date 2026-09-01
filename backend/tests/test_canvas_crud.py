@@ -213,3 +213,118 @@ class TestReadCanvasAfterEventRows:
         # the legacy body is served (coerce_email_canvas wraps doc-shaped
         # content into the email composer shape — pre-existing behavior)
         assert result["content"].get("body") == "The real legacy body"
+
+
+class TestRestoreDeletedCanvas:
+    """Un-delete: the delete path is an append-only tombstone, so restore
+    appends a 'restore' row carrying the pre-delete content forward. After
+    restore, the canvas is listed again, readable, and writable."""
+
+    def _seed_full_lifecycle(self, db_session, canvas_id, owner="user-1"):
+        from datetime import datetime, timedelta, timezone
+
+        from core.models import Canvas, CanvasAudit
+
+        db_session.add(Canvas(
+            id=canvas_id, tenant_id="default", created_by=owner,
+            name="To delete", canvas_type="email", status="active",
+            content={"to": "", "subject": "s", "body": "pre-delete body"},
+        ))
+        now = datetime.now(timezone.utc)
+        rows = [
+            ("create", {"content": {"to": "a@b.c", "subject": "s", "body": "draft one"}}),
+            ("update", {"content": {"to": "a@b.c", "subject": "s", "body": "pre-delete body"}}),
+            ("delete", {"deleted": True, "previous_action": "update"}),
+        ]
+        for offset, (action, details) in enumerate(rows):
+            db_session.add(CanvasAudit(
+                canvas_id=canvas_id, tenant_id="default", action_type=action,
+                user_id=owner, canvas_type="email", details_json=details,
+                created_at=now - timedelta(minutes=30 - offset),
+            ))
+        db_session.commit()
+
+    def _patch_session(self, db_session):
+        from unittest.mock import Mock, patch
+
+        ctx = Mock()
+        ctx.__enter__ = Mock(return_value=db_session)
+        ctx.__exit__ = Mock(return_value=False)
+        return patch("core.database.get_db_session", return_value=ctx)
+
+    @pytest.mark.asyncio
+    async def test_restore_appends_row_and_makes_canvas_listed_again(
+        self, db_session,
+    ):
+        import uuid
+
+        from tools.canvas_crud_tool import (
+            list_canvases,
+            restore_deleted_canvas,
+        )
+
+        canvas_id = f"cv-{uuid.uuid4().hex[:8]}"
+        self._seed_full_lifecycle(db_session, canvas_id)
+
+        with self._patch_session(db_session), \
+             patch("tools.canvas_crud_tool._broadcast_canvas_update", new=AsyncMock()):
+            # before: hidden from the default listing (latest row = delete)
+            before = await list_canvases("user-1")
+            assert all(c["canvas_id"] != canvas_id for c in before["canvases"])
+
+            result = await restore_deleted_canvas("user-1", canvas_id)
+            assert result["success"] is True
+
+            after = await list_canvases("user-1")
+            match = [c for c in after["canvases"] if c["canvas_id"] == canvas_id]
+            assert match, "restored canvas must be listed again"
+            assert match[0]["action_type"] != "delete"
+
+    @pytest.mark.asyncio
+    async def test_restore_carries_pre_delete_content(self, db_session):
+        import uuid
+
+        from tools.canvas_crud_tool import read_canvas, restore_deleted_canvas
+
+        canvas_id = f"cv-{uuid.uuid4().hex[:8]}"
+        self._seed_full_lifecycle(db_session, canvas_id)
+
+        with self._patch_session(db_session), \
+             patch("tools.canvas_crud_tool._broadcast_canvas_update", new=AsyncMock()):
+            result = await restore_deleted_canvas("user-1", canvas_id)
+            assert result["success"] is True
+            read = await read_canvas("user-1", canvas_id)
+            assert read.get("success") is not False
+            content = read.get("content") or {}
+            assert content.get("body") == "pre-delete body"
+
+    @pytest.mark.asyncio
+    async def test_restore_rejects_non_deleted_canvas(self, db_session):
+        import uuid
+
+        from tools.canvas_crud_tool import restore_deleted_canvas
+
+        canvas_id = f"cv-{uuid.uuid4().hex[:8]}"
+        self._seed_full_lifecycle(db_session, canvas_id)
+
+        with self._patch_session(db_session):
+            result = await restore_deleted_canvas("user-1", canvas_id)
+            assert result["success"] is True
+            # second restore: latest row is now "restore", not "delete"
+            again = await restore_deleted_canvas("user-1", canvas_id)
+            assert again["success"] is False
+            assert "not deleted" in again["error"]
+
+    @pytest.mark.asyncio
+    async def test_restore_is_owner_only(self, db_session):
+        import uuid
+
+        from tools.canvas_crud_tool import restore_deleted_canvas
+
+        canvas_id = f"cv-{uuid.uuid4().hex[:8]}"
+        self._seed_full_lifecycle(db_session, canvas_id)
+
+        with self._patch_session(db_session):
+            result = await restore_deleted_canvas("someone-else", canvas_id)
+            assert result["success"] is False
+            assert "not found" in result["error"]

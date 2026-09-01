@@ -611,6 +611,81 @@ def _content_snippet(body: Any, q: Optional[str], cap: int = 140) -> Optional[st
     return text[:cap] + ("…" if len(text) > cap else "")
 
 
+
+async def restore_deleted_canvas(
+    user_id: str,
+    canvas_id: str,
+) -> Dict[str, Any]:
+    """Un-delete a tombstoned canvas.
+
+    The delete path is append-only (a CanvasAudit tombstone), so restoring is
+    appending an action_type="restore" row carrying the PRE-delete content
+    forward — nothing is rewritten, the delete stays in history. After this,
+    the latest row is no longer a tombstone: listings include the canvas
+    again, read_canvas serves the restored content, and update_canvas_content
+    accepts writes. Owner-only, like delete. Best-effort WS broadcast re-
+    presents the canvas to open clients.
+    """
+    try:
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+        from sqlalchemy import desc
+
+        with get_db_session() as db:
+            if not _verify_canvas_owner(db, canvas_id, user_id):
+                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+
+            latest = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id,
+            ).order_by(desc(CanvasAudit.created_at)).first()
+
+            if not latest:
+                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+            if latest.action_type != "delete":
+                return {"success": False, "error": "Canvas is not deleted"}
+
+            # The pre-delete content: the most recent row that is not the
+            # tombstone (the tombstone itself carries no content).
+            content_row = db.query(CanvasAudit).filter(
+                CanvasAudit.canvas_id == canvas_id,
+                CanvasAudit.action_type != "delete",
+            ).order_by(desc(CanvasAudit.created_at)).first()
+            if not content_row:
+                return {"success": False, "error": "No content to restore"}
+
+            details = dict(content_row.details_json or {})
+            details["restored_from_delete"] = True
+
+            restore_audit = CanvasAudit(
+                canvas_id=canvas_id,
+                tenant_id=latest.tenant_id,
+                session_id=audit_session_id(None),
+                agent_id=audit_agent_id(None),
+                canvas_type=latest.canvas_type,
+                action_type="restore",
+                user_id=user_id,
+                details_json=details,
+            )
+            db.add(restore_audit)
+            db.commit()
+
+        canvas_type = str(latest.canvas_type or "generic")
+        await _broadcast_canvas_update(
+            user_id, canvas_id, canvas_type,
+            details.get("content"), details.get("title"),
+        )
+
+        logger.info(f"Restored deleted canvas {canvas_id}")
+        return {
+            "success": True,
+            "canvas_id": canvas_id,
+            "action_type": "restore",
+        }
+    except Exception as e:
+        logger.warning(f"Canvas restore failed for {canvas_id}: {e}")
+        return {"success": False, "error": str(e)}
+
+
 async def list_canvases(
     user_id: str,
     canvas_type: Optional[str] = None,

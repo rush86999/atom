@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Layout as LayoutIcon, FileText, Mail, Table, Code, Terminal, Plus, Search, X } from "lucide-react";
+import { Layout as LayoutIcon, FileText, Mail, Table, Code, Terminal, Plus, Search, X, Trash2, RotateCcw } from "lucide-react";
 
 interface CanvasSummary {
     canvas_id: string;
@@ -46,6 +46,13 @@ export default function CanvasIndexPage() {
     const [search, setSearch] = useState("");
     const [debouncedQ, setDebouncedQ] = useState("");
 
+    // Deleted canvases are hidden by default; the toggle fetches them so a
+    // delete is always reversible from the gallery (soft delete = tombstone
+    // row in the audit trail, never a hard delete).
+    const [showDeleted, setShowDeleted] = useState(false);
+    const [busyId, setBusyId] = useState<string | null>(null);
+
+
     // Debounce the search box so typing doesn't fire a request per keystroke.
     useEffect(() => {
         const t = setTimeout(() => setDebouncedQ(search.trim()), 300);
@@ -59,9 +66,11 @@ export default function CanvasIndexPage() {
             // applies) to keep type-count buttons stable regardless of active
             // filter (BUG-073: previously the filter refetch returned only
             // the filtered type, making other buttons vanish).
-            const url = debouncedQ
-                ? `/api/canvas/?q=${encodeURIComponent(debouncedQ)}`
-                : "/api/canvas/";
+            const params = new URLSearchParams();
+            if (debouncedQ) params.set("q", debouncedQ);
+            if (showDeleted) params.set("include_deleted", "true");
+            const qs = params.toString();
+            const url = qs ? `/api/canvas/?${qs}` : "/api/canvas/";
             const allResp = await apiClient.get(url);
             const allData = (allResp as any).data || allResp;
             const all = allData.canvases || [];
@@ -80,9 +89,38 @@ export default function CanvasIndexPage() {
         } finally {
             setLoading(false);
         }
-    }, [filterType, debouncedQ]);
+    }, [filterType, debouncedQ, showDeleted]);
 
     useEffect(() => { fetchCanvases(); }, [fetchCanvases]);
+
+    const handleDelete = async (canvasId: string) => {
+        if (!confirm("Delete this canvas? Its audit history is preserved and it can be restored from the \"Deleted\" filter.")) return;
+        setBusyId(canvasId);
+        try {
+            const { apiClient } = await import("../../lib/api-client");
+            await apiClient.delete(`/api/canvas/${canvasId}`);
+            await fetchCanvases();
+        } catch (e) {
+            console.error("Delete failed:", e);
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const handleRestore = async (canvasId: string) => {
+        setBusyId(canvasId);
+        try {
+            const { apiClient } = await import("../../lib/api-client");
+            await apiClient.post(`/api/canvas/${canvasId}/undelete`);
+            await fetchCanvases();
+        } catch (e) {
+            console.error("Restore failed:", e);
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+
 
     // Derive type counts from ALL canvases (not the filtered subset) so the
     // filter buttons persist regardless of the active filter.
@@ -135,7 +173,17 @@ export default function CanvasIndexPage() {
                 )}
 
                 {/* Type filter */}
-                <div className="flex gap-2 mb-6 flex-wrap">
+                <div className="flex gap-2 mb-6 flex-wrap items-center">
+                    <Button
+                        variant={showDeleted ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowDeleted(v => !v)}
+                        title="Deleted canvases stay in the audit trail — show and restore them"
+                        data-testid="show-deleted-toggle"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                        Show deleted
+                    </Button>
                     <Button
                         variant={filterType === null ? "default" : "outline"}
                         size="sm"
@@ -197,7 +245,29 @@ export default function CanvasIndexPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {canvases.map(c => (
-                            <Link key={c.canvas_id} href={`/canvas/${c.canvas_id}`}>
+                            <div key={c.canvas_id} className="relative">
+                                {c.action_type === "delete" ? (
+                                    <button
+                                        onClick={() => handleRestore(c.canvas_id)}
+                                        disabled={busyId === c.canvas_id}
+                                        className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-background/80 border hover:bg-accent transition-colors"
+                                        title="Restore this deleted canvas"
+                                        data-testid={`restore-${c.canvas_id}`}
+                                    >
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleDelete(c.canvas_id)}
+                                        disabled={busyId === c.canvas_id}
+                                        className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-background/80 border hover:bg-accent text-red-500 transition-colors"
+                                        title="Delete this canvas (restorable)"
+                                        data-testid={`delete-${c.canvas_id}`}
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
+                                <Link href={`/canvas/${c.canvas_id}`}>
                                 <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
                                     <CardHeader>
                                         <div className="flex items-center gap-3">
@@ -235,7 +305,8 @@ export default function CanvasIndexPage() {
                                         </div>
                                     </CardContent>
                                 </Card>
-                            </Link>
+                                </Link>
+                            </div>
                         ))}
                     </div>
                 )}
