@@ -109,6 +109,21 @@ The app runs without Redis (background tasks degrade gracefully).
 
 ---
 
+## 5b. Email / Communication Ingestion
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `ATOM_OUTLOOK_POLL_SECONDS` | `60` | — | How often the Outlook poller checks Graph for new mail (floor 15s). An explicit `polling_interval_seconds` passed to `start_outlook_poller` wins over this. |
+| `ATOM_EMAIL_REDACTION_ENABLED` | `true` | — | Secrets-redact email bodies (reuses the document-path `SecretsRedactor`) before storing in LanceDB. Set `false` to store bodies raw. |
+
+---
+
+## 5c. Provenance Spotlighting
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `ATOM_KNOWLEDGE_SPOTLIGHT_ENABLED` | `true` | — | Render retrieved knowledge (memory assembler knowledge leg + agents' RELEVANT KNOWLEDGE sections) as delimited UNTRUSTED `<provenance>` blocks with per-hit source/staleness/sender markers. Set `false` to restore legacy bare-bullet rendering. |
+
 ## 6. AI Providers (BYOK)
 
 Optional. The server boots without any LLM key — LLM features are disabled

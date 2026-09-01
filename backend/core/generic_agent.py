@@ -1382,8 +1382,18 @@ ORCHESTRATION POWERS:
             if conv_summaries:
                 memory_sections.append(f"RECENT CONVERSATIONS:\n" + "\n".join(conv_summaries))
         if knowledge:
-            doc_summaries = [f"- {k.get('text', '')[:100]}..." for k in knowledge[:3]]
-            memory_sections.append(f"RELEVANT KNOWLEDGE:\n" + "\n".join(doc_summaries))
+            try:
+                # Shared renderer (core/provenance.py): spotlighted UNTRUSTED
+                # ProvenanceTags when knowledge spotlighting is on, legacy
+                # bullets otherwise. One implementation for both agent files.
+                from core.provenance import render_knowledge_summaries
+
+                _k_section = render_knowledge_summaries(knowledge)
+                if _k_section:
+                    memory_sections.append(_k_section)
+            except Exception:
+                doc_summaries = [f"- {k.get('text', '')[:100]}..." for k in knowledge[:3]]
+                memory_sections.append(f"RELEVANT KNOWLEDGE:\n" + "\n".join(doc_summaries))
         if formulas:
             formula_summaries = [f"- {f.get('name', 'Formula')}: {f.get('description', '')[:60]}" for f in formulas[:3]]
             memory_sections.append(f"AVAILABLE FORMULAS:\n" + "\n".join(formula_summaries))

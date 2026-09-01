@@ -80,8 +80,17 @@ class OAuthHandler:
     def __init__(self, config: OAuthConfig):
         self.config = config
     
-    def get_authorization_url(self, state: Optional[str] = None) -> str:
-        """Generate OAuth authorization URL"""
+    def get_authorization_url(self, state: Optional[str] = None, prompt: Optional[str] = None) -> str:
+        """Generate OAuth authorization URL.
+
+        Args:
+            state: OAuth state token.
+            prompt: Optional provider ``prompt`` parameter — e.g.
+                ``select_account`` forces the provider's account picker
+                instead of silently reusing the signed-in session (the
+                "Switch Account" flow). Providers that don't support it are
+                unaffected when the caller omits it.
+        """
         if not self.config.is_configured():
             missing = []
             if not self.config.client_id: missing.append("CLIENT_ID")
@@ -107,6 +116,9 @@ class OAuthHandler:
         
         if state:
             params["state"] = state
+        
+        if prompt:
+            params["prompt"] = prompt
         
         # Add any additional OAuth provider-specific params
         params.update(self.config.additional_params)

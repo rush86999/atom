@@ -50,6 +50,7 @@ class DocumentsHybridSearch:
         since: Optional[datetime] = None,
         source: Optional[str] = None,
         author: Optional[str] = None,
+        owner_user_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         query = (query or "").strip()
         if len(query) < 3:
@@ -94,7 +95,9 @@ class DocumentsHybridSearch:
         conv_results: List[Dict[str, Any]] = []
         from core.experiments import is_enabled as _exp_enabled
         if not source and _exp_enabled("memory_conversations_leg"):
-            conv_results = await self._conversations_leg(query, max(2, limit // 3))
+            conv_results = await self._conversations_leg(
+                query, max(2, limit // 3), owner_user_id=owner_user_id
+            )
             stats["conversation_hits"] = len(conv_results)
             label = f"{label}+conversations" if (results or conv_results) and label != "no_results" else (label if label != "no_results" else "conversations_only")
             if conv_results:
@@ -106,8 +109,14 @@ class DocumentsHybridSearch:
 
         return self._response(query, results[:limit], label, stats)
 
-    async def _conversations_leg(self, query: str, limit: int) -> List[Dict[str, Any]]:
-        """Hybrid search over the communication memory store."""
+    async def _conversations_leg(
+        self, query: str, limit: int, owner_user_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Hybrid search over the communication memory store.
+
+        owner_user_id enforces the mailbox-ownership boundary on the shared
+        comms corpus (see search_communications); None means unfiltered.
+        """
         try:
             from integrations.atom_communication_ingestion_pipeline import (
                 get_ingestion_pipeline,
@@ -121,7 +130,9 @@ class DocumentsHybridSearch:
                     manager.initialize()
                 if getattr(manager, "connections_table", None) is None:
                     return []
-                return manager.search_communications(query[:500], limit)
+                return manager.search_communications(
+                    query[:500], limit, owner_user_id=owner_user_id
+                )
 
             records = await asyncio.to_thread(_search)
         except Exception as e:
@@ -142,6 +153,11 @@ class DocumentsHybridSearch:
                 "bridged": True,
                 "legs": ["conversations"],
                 "score": 0.0,
+                # Attribution (Phase 1): email-derived hits carry who + when so
+                # the knowledge leg can render sender + recency — never a bare
+                # blob from an attacker-controlled inbox.
+                "sender": rec.get("sender_email") or rec.get("sender"),
+                "as_of": str(rec.get("timestamp", ""))[:10] or None,
             })
         return out
 
@@ -297,6 +313,7 @@ class DocumentsHybridSearch:
                     "bridged": True,
                     "rrf": 0.0,
                     "legs": [],
+                    "freshness_status": getattr(doc, "freshness_status", None),
                 },
             )
             entry["rrf"] += 1.0 / (RRF_K + rank)
@@ -315,6 +332,9 @@ class DocumentsHybridSearch:
                 "score": round(e["rrf"], 6),
                 "modified": e["modified"],
                 "bridged": e["bridged"],
+                "freshness_status": e.get("freshness_status"),
+                "sender": e.get("sender"),
+                "as_of": e.get("as_of"),
             }
             for e in fused
         ]

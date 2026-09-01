@@ -200,3 +200,63 @@ pre-existing WIP. Nothing was committed.
   and the canvas email composer offers "Reconnect Outlook now?" when a send fails with
   needs_reconnect. Restarted 8001 (13:13 EDT → PID 50957). Suites: w81a back to its
   7 pre-existing failures only, outlook+policy 207 green, canvas-detail 46/46 pass.
+
+---
+
+## 2026-09-01 — ZCode session: Phase 0 Task 1 (Outlook poller token plumbing)
+
+**Change** (working tree, uncommitted): `integrations/atom_communication_ingestion_pipeline.py`
+— `IngestionConfig.user_id` field; `start_outlook_poller`/`start_poller` accept `user_id` and
+store it in the stream config (idempotent re-start refreshes it); `_fetch_outlook_messages`
+now resolves the token for the configured user instead of `user_id=None`. Callers:
+`api/oauth_routes.py` passes `current_user.id` on Microsoft connect; `main_api_app.py`
+startup recovery passes the active IntegrationToken owner's user_id.
+
+**Why**: the 2026-08-29 cross-user-fallback removal left the poller calling
+`_get_access_token(user_id=None)`, which returns None by design → poller never fetched mail
+(single user included). No behavior regressions: no-cross-user-fallback rule untouched;
+without a configured user the poller still skips with the same warning.
+
+**Verified**: `tests/test_email_api_ingestion.py` 21/21 (2 new regression tests, red first).
+No restart performed. Next: Tasks 0.2 (poll interval env) and 0.3 (email secrets redaction).
+
+---
+
+## 2026-09-01 — ZCode session: Phase 0 Tasks 2-3 (poll interval env + email redaction)
+
+**Change** (working tree, uncommitted): `integrations/atom_communication_ingestion_pipeline.py`
+— `start_outlook_poller` interval default now reads `ATOM_OUTLOOK_POLL_SECONDS`
+(60s default, 15s floor, explicit arg wins); `_normalize_message_impl` email branch
+(EMAIL/GMAIL/OUTLOOK — shared choke point for poller + webhook paths) runs
+`SecretsRedactor` on body content before storage, kill switch `ATOM_EMAIL_REDACTION_ENABLED`.
+Env docs: `CLAUDE.md`, `docs/reference/ENVIRONMENT_VARIABLES.md`.
+
+**Verified**: `tests/test_email_api_ingestion.py` 24/24, `tests/test_ingestion_status_routes.py`
+25/25 (start_poller signature change did not break the other consumer). Phase 0 complete —
+next: Phase 1 (provenance spotlighting) or Phase 2 (drive tree) on request.
+
+---
+
+## 2026-09-01 — ZCode review round 2: ingestion isolation + retrieval boundary
+
+**Change**: `atom_communication_ingestion_pipeline.py` — (a) per-owner cursors are the ONLY
+cursor source: a first-time owner starts from its own initial-sync window, never the global
+`last_fetch_outlook` key (a new owner inheriting another mailbox's watermark skipped its older
+mail); (b) `$orderBy=receivedDateTime desc` on the Graph walk so paging order is deterministic
+(400 → retry unsorted + flag order untrusted); on page-cap truncation the watermark moves to the
+OLDEST consumed timestamp (provable boundary) instead of `newest`, which jumped past unconsumed
+pages; (c) `search_communications(owner_user_id=...)` + module helper
+`_filter_communication_records_by_owner` enforce the mailbox boundary on retrieval: records
+stamped for a different owner are dropped, ownerless (legacy/unstamped) records stay visible.
+`documents_hybrid` conversations leg, `memory_context_assembler._knowledge_leg`,
+`assemble_memory_context(user_id=...)` and the chat orchestrator thread the request-scoped
+identity through to that filter. `memory_context_assembler` fake-legged tests updated for the
+new kwarg.
+
+**Why**: Greptile re-review (score 1/5) flagged the three remaining holes with evidence.
+
+**Verified**: `tests/test_email_api_ingestion.py` 33/33 (new: boundary-watermark truncation,
+no-inheritance, owner-filter), `tests/core/test_knowledge_spotlighting.py` 10/10 (owner
+threading), assembler/agents/status/memory-index 126/126. py_compile clean. fetch-state file
+pollution made the new-owner test order-sensitive — the test now clears its own per-owner key
+first (test residue under `backend/data/` is gitignored).

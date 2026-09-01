@@ -58,7 +58,7 @@ async def test_all_legs_rendered(monkeypatch):
     async def fake_graph(message, ws, tn):
         return "ACME Fabrication — raised inquiry about press brake"
 
-    async def fake_knowledge(message, ws):
+    async def fake_knowledge(message, ws, owner_user_id=None):
         return ["[communication: whatsapp — 2026-08-19] Sarah needs a quote on the press brake"]
 
     async def fake_episodes(message, agent):
@@ -373,7 +373,7 @@ async def test_rerank_phase_reorders_knowledge_block(monkeypatch):
     monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
     monkeypatch.setenv("MEMORY_CONTEXT_RERANK", "true")
 
-    async def fake_knowledge(message, ws):
+    async def fake_knowledge(message, ws, owner_user_id=None):
         return [
             "[doc: zzz] third-place-content",
             "[doc: aaa] most-relevant",
@@ -402,7 +402,7 @@ async def test_rerank_phase_skipped_when_flag_off(monkeypatch):
     monkeypatch.setenv("MEMORY_CONTEXT_ASSEMBLY", "true")
     monkeypatch.setenv("MEMORY_CONTEXT_RERANK", "false")
 
-    async def fake_knowledge(message, ws):
+    async def fake_knowledge(message, ws, owner_user_id=None):
         return ["[doc: aaa] first", "[doc: bbb] second", "[doc: ccc] third"]
 
     with patch.object(mca, "_graph_leg", AsyncMock(return_value="")), \

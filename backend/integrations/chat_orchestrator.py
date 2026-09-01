@@ -1140,6 +1140,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # the hire's identity → role-aware recall: records
                         # synced FOR this employee surface first
                         agent_id=_agent_id,
+                        # mailbox-ownership boundary: comms recall only
+                        # surfaces this account's own ingested mail
+                        user_id=user_id,
                     )
                     if memory_block:
                         messages.append({"role": "system", "content": memory_block})

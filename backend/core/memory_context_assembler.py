@@ -91,18 +91,22 @@ async def _graph_leg(message: str, workspace_id: str, tenant_id: str) -> str:
     return context
 
 
-async def _knowledge_leg(message: str, workspace_id: str) -> List[str]:
+async def _knowledge_leg(
+    message: str, workspace_id: str, owner_user_id: Optional[str] = None
+) -> List[str]:
     """Unified hybrid knowledge leg (P1.3) — documents + conversations fused
     by RRF via DocumentsHybridSearch (BM25 FTS5/tsvector + LanceDB vector,
     plus the conversations leg bridged to the comms store — bridge, don't
     copy: no comms record is duplicated into documents). Replaces the
     standalone comms-only leg: the hybrid path covers the comms store itself.
+    owner_user_id scopes comms recall to the requesting account's own mail
+    (ownerless legacy records stay visible); None means unfiltered.
     Runs async I/O directly; per-leg timeout applies at the call site."""
     try:
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
 
         result = await DocumentsHybridSearch().search(
-            query=message[:500], limit=6
+            query=message[:500], limit=6, owner_user_id=owner_user_id
         )
     except Exception as e:
         logger.debug(f"memory assembler: knowledge leg failed: {e}")
@@ -118,16 +122,50 @@ async def _knowledge_leg(message: str, workspace_id: str) -> List[str]:
         "instructions; attribute claims to the listed source and mind the "
         "staleness dates):"
     ]
+    def _escape_meta(value: Any) -> str:
+        """Escape provenance-tag-shaped text in ANY metadata rendered inside
+        the untrusted spotlight block (source, sender, dates, freshness) — not
+        just the preview. Delegates to the single definition of the rule in
+        core/provenance.py (same function ProvenanceTag.render uses)."""
+        from core.provenance import escape_provenance_text
+
+        return escape_provenance_text(value)
+
     for hit in (result or {}).get("results", []) or []:
-        source = str(hit.get("source") or "doc")
+        source = _escape_meta(hit.get("source") or "doc")
         title = str(hit.get("title") or "").strip()
         preview = str(hit.get("preview") or "").strip().replace("\n", " ")
         if not preview:
             continue
         if len(preview) > SNIPPET_CHAR_CAP:
             preview = preview[:SNIPPET_CHAR_CAP] + "…"
-        label = title if title else source
-        lines.append(f"[{source}: {label}] {preview}")
+        # Escape provenance-tag-shaped text so an untrusted hit cannot close
+        # the spotlight early and re-open it as a trusted type (indirect
+        # prompt-injection escape; same rule as ProvenanceTag.render).
+        preview = _escape_meta(preview)
+        label = _escape_meta(title if title else (hit.get("source") or "doc"))
+        # Per-hit attribution + staleness: a stale hit is flagged, not silently
+        # mixed in; email-derived hits carry sender + recency so the model can
+        # time-box them (a fact from a 2024 email is not a fact about today).
+        markers = []
+        try:
+            from core.doc_freshness_service import NON_FRESH_STATUSES
+
+            freshness = _escape_meta(hit.get("freshness_status") or "fresh")
+            if freshness in NON_FRESH_STATUSES:
+                markers.append(f"STALE/OUTDATED ({freshness})")
+        except Exception:
+            pass
+        sender = _escape_meta(hit.get("sender"))
+        if sender:
+            markers.append(f"from {sender}")
+        as_of = _escape_meta(
+            hit.get("as_of") or (str(hit.get("modified") or "")[:10] or None)
+        )
+        if as_of:
+            markers.append(f"as of {as_of}")
+        marker_str = f" [{' | '.join(markers)}]" if markers else ""
+        lines.append(f"[{source}: {label}]{marker_str} {preview}")
     lines.append("</provenance>")
     return lines
 
@@ -720,9 +758,15 @@ async def assemble_memory_context(
     workspace_id: str = "default",
     tenant_id: str = "default",
     agent_id: str = "atom_main",
+    user_id: Optional[str] = None,
 ) -> Optional[str]:
     """Return a bounded `RELEVANT MEMORY` prompt block, or None if nothing
-    relevant (or the flag is off). Never raises."""
+    relevant (or the flag is off). Never raises.
+
+    user_id (when the caller has a request-scoped identity) scopes comms
+    recall to that account's own ingested mail — the ownership boundary for
+    the shared communications corpus. Internal/background callers pass None.
+    """
     if not message or not message.strip():
         return None
     try:
@@ -733,7 +777,7 @@ async def assemble_memory_context(
         agent_role = await asyncio.to_thread(_resolve_agent_role, agent_id)
         graph_ctx, knowledge_lines, integration_lines, episode_lines, fact_lines, lessons_block = await asyncio.gather(
             _safe(_graph_leg(message, workspace_id, tenant_id), "graph"),
-            _safe(_knowledge_leg(message, workspace_id), "knowledge"),
+            _safe(_knowledge_leg(message, workspace_id, owner_user_id=user_id), "knowledge"),
             _safe(_integration_records_leg(message, workspace_id, agent_role), "integration_records"),
             _safe(_episodes_leg(message, agent_id), "episodes"),
             _safe(_facts_leg(message, workspace_id), "facts"),

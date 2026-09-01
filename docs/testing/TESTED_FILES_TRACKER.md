@@ -7179,3 +7179,68 @@ Canvas suites total 344 passed. Pre-existing failures (fail on baseline too): w7
 TestAgentGuidanceSystem::test_create_audit_success, covpush_canvasroutes TestCanvasCRUD ×2,
 FE canvas-detail chat ×4.
 
+## Session 2026-09-01 — Phase 0 Task 1: Outlook poller token user plumbing
+
+**Scope**: `integrations/atom_communication_ingestion_pipeline.py` (IngestionConfig.user_id;
+start_outlook_poller/start_poller accept user_id + store in config; _fetch_outlook_messages
+resolves token for the configured user instead of user_id=None), `api/oauth_routes.py`
+(passes current_user.id on connect), `main_api_app.py` (startup recovery passes the
+IntegrationToken owner's user_id).
+
+**Why**: poller passed `user_id=None` to `_get_access_token`, which refuses falsy ids by
+design (no cross-user fallback — security decision 2026-08-29), so the background poller
+never fetched mail even with one connected user. Existing tests mocked the token fn, hiding
+the bug.
+
+**Evidence**: `tests/test_email_api_ingestion.py` 21 passed (19 existing + 2 new:
+test_fetch_outlook_messages_uses_configured_user_token, test_start_outlook_poller_stores_user_id).
+Red phase confirmed both new tests failed before the fix. py_compile clean on all 3 touched files.
+
+## Session 2026-09-01 — Phase 0 Tasks 2-3: poll interval env + email secrets redaction
+
+**Scope**: `integrations/atom_communication_ingestion_pipeline.py` —
+`start_outlook_poller` default interval now reads `ATOM_OUTLOOK_POLL_SECONDS`
+(60s default, 15s floor, explicit arg wins); `_normalize_message_impl` email branch
+(EMAIL/GMAIL/OUTLOOK — the shared choke point for poller + webhook paths) runs
+`SecretsRedactor` on body content before storage, kill switch
+`ATOM_EMAIL_REDACTION_ENABLED` (default on). Env docs: `CLAUDE.md`,
+`docs/reference/ENVIRONMENT_VARIABLES.md`.
+
+**Evidence**: `tests/test_email_api_ingestion.py` 24 passed (3 new:
+test_start_outlook_poller_reads_interval_env, test_start_outlook_poller_interval_floor,
+test_email_normalization_redacts_secrets). `tests/test_ingestion_status_routes.py` 25 passed
+(start_poller signature change did not break the other consumer). py_compile clean.
+
+
+## Session 2026-09-01 — Review round 2: owner boundary + watermark integrity
+
+**Scope**: pipeline fetch/cursor/search paths, documents_hybrid conversations leg,
+memory_context_assembler knowledge leg + assemble signature, chat_orchestrator identity pass-through.
+
+**Evidence**: test_email_api_ingestion 33/33 (+3: test_truncated_walk_advances_to_oldest_consumed_boundary,
+test_new_owner_does_not_inherit_global_cursor, test_owner_filter_enforces_mailbox_boundary),
+test_knowledge_spotlighting 10/10 (+2 threading), test_memory_context_assembler doubles updated
+(owner_user_id kwarg), 126 passed across assembler/agents/status/memory-index. py_compile clean.
+
+## Session 2026-09-01 — Review round 3: two-sided continuation windows
+
+**Scope**: pipeline Outlook walk only — page-cap truncation no longer moves the low watermark
+(that still excluded the unconsumed older pages from the next strict-gt filter); it pins an
+inclusive continuation bound (oldest consumed timestamp) and the next poll walks exactly
+(C, bound] to completion before the cursor promotes to the bound. Untrusted page order
+(Graph 400 on filter+orderBy) falls back to full hold. Failure paths preserve an existing
+continuation bound so a transient error can't be mistaken for a drained window.
+
+**Evidence**: test_email_api_ingestion 35/35 (+test_truncated_walk_holds_cursor_and_pins_resume_bound,
++test_continuation_drain_promotes_cursor_and_clears_bound); 219 passed across the seven
+affected suites; py_compile clean.
+
+## Session 2026-09-01 — Review round 4: fractional-second continuation bounds
+
+**Scope**: pipeline Graph filter formatting only — new _format_graph_timestamp keeps
+microseconds on non-zero-fraction values (whole-second values keep the compact form).
+Truncating the continuation bound to whole seconds shrank it below the true consumed
+boundary, letting same-second unconsumed mail fall outside the inclusive le filter.
+
+**Evidence**: test_email_api_ingestion 36/36 (+test_continuation_bound_keeps_fractional_seconds);
+140 passed across the four key suites; py_compile clean.

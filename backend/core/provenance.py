@@ -22,11 +22,20 @@ Design contract:
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+
+def knowledge_spotlight_enabled() -> bool:
+    """Master switch for rendering the knowledge/memory leg as delimited
+    UNTRUSTED retrieved content (spotlighting). Off restores the legacy bare
+    rendering. Separate from ATOM_DATAMARKING so this one surface can be
+    flipped without changing every tool-output renderer."""
+    return os.getenv("ATOM_KNOWLEDGE_SPOTLIGHT_ENABLED", "true").lower() == "true"
 
 
 # ===========================================================================
@@ -102,9 +111,7 @@ class ProvenanceTag:
         # Escape any provenance-tag-shaped text inside the content so an
         # untrusted chunk cannot close its own spotlight and re-open one as a
         # trusted type (indirect-prompt-injection escape).
-        body = (self.content or "").replace(
-            "</provenance", "&lt;/provenance"
-        ).replace("<provenance", "&lt;provenance")
+        body = escape_provenance_text(self.content)
         return (
             f"<provenance {' '.join(attrs)}>\n"
             f"{body}\n"
@@ -115,6 +122,59 @@ class ProvenanceTag:
 def _escape_attr(value: str) -> str:
     """Escape a value for inclusion in an XML-style attribute."""
     return (value or "").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def escape_provenance_text(value: Any) -> str:
+    """Neutralize provenance-tag-shaped text in UNTRUSTED content or metadata
+    rendered inside a spotlight block.
+
+    Without this, a retrieved document — or attacker-controlled METADATA like
+    an email sender name — can close its own ``</provenance>`` block early and
+    re-open one as a trusted type (indirect prompt-injection escape). This is
+    the single definition of the rule so every renderer escapes identically:
+    ``ProvenanceTag.render``, the memory-context assembler, and the agents'
+    knowledge summaries.
+    """
+    return str(value or "").replace(
+        "</provenance", "&lt;/provenance"
+    ).replace("<provenance", "&lt;provenance")
+
+
+def render_knowledge_summaries(
+    knowledge: List[Dict[str, Any]], limit: int = 3, char_cap: int = 100
+) -> Optional[str]:
+    """Render the RELEVANT KNOWLEDGE memory section from retrieved docs.
+
+    One implementation for every agent prompt builder (atom_meta_agent,
+    generic_agent): with knowledge spotlighting enabled, each summary is a
+    delimited UNTRUSTED ProvenanceTag — the same contract as the assembler's
+    knowledge leg (untrusted retrieved data, delimited, source-attributed,
+    escape-proof). Disabled, the legacy bare-bullet rendering is kept.
+
+    Returns the full section text, or None when there is no knowledge.
+    """
+    if not knowledge:
+        return None
+    if knowledge_spotlight_enabled():
+        rendered = []
+        for k in knowledge[:limit]:
+            src = str(k.get("source") or "doc")
+            body = str(k.get("text", ""))
+            if len(body) > char_cap:
+                body = body[:char_cap] + "…"
+            rendered.append(
+                ProvenanceTag(
+                    type=Provenance.RETRIEVED,
+                    source=src,
+                    content=body,
+                ).render()
+            )
+        return "RELEVANT KNOWLEDGE:\n" + "\n".join(rendered)
+    lines = [
+        f"- ({k.get('source') or 'doc'}: {str(k.get('text', ''))[:char_cap]}...)"
+        for k in knowledge[:limit]
+    ]
+    return "RELEVANT KNOWLEDGE:\n" + "\n".join(lines)
 
 
 # ===========================================================================

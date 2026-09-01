@@ -144,6 +144,41 @@ class TestGetAuthorizationUrl:
         assert exc.value.status_code == 500
         assert "CLIENT_ID" in exc.value.detail
 
+    def test_no_prompt_by_default(self, monkeypatch):
+        """Switch-Account support: without prompt the URL must stay unchanged
+        so providers that don't understand the param are never sent it."""
+        cfg = self._configured(monkeypatch)
+        url = OAuthHandler(cfg).get_authorization_url(state="s1")
+        assert "prompt=" not in url
+
+    def test_prompt_select_account_added(self, monkeypatch):
+        """prompt=select_account forces the provider's account picker instead
+        of silently reusing the signed-in session (Microsoft/Google remember
+        the last account — the "Switch Account" flow needs this)."""
+        cfg = self._configured(monkeypatch)
+        url = OAuthHandler(cfg).get_authorization_url(state="s1", prompt="select_account")
+        assert "prompt=select_account" in url
+        assert "state=s1" in url
+        assert "client_id=client-123" in url
+
+    def test_route_prompt_allowlist_contents(self):
+        """Only standard OIDC prompt values may be forwarded from ?prompt=;
+        anything else (arbitrary client input) is dropped by the route."""
+        from api.oauth_routes import ALLOWED_OAUTH_PROMPTS
+
+        assert ALLOWED_OAUTH_PROMPTS == {"select_account", "login", "consent", "none"}
+
+    def test_route_prompt_allowlist_is_wired(self):
+        """The initiate route must consult the allowlist (not pass ?prompt=
+        through verbatim). Source-level pin, same style as
+        test_round71_oauth_routes_auth."""
+        import inspect
+
+        from api import oauth_routes
+
+        src = inspect.getsource(oauth_routes.oauth_initiate)
+        assert "ALLOWED_OAUTH_PROMPTS" in src
+
 
 # ===========================================================================
 # OAuthHandler.exchange_code_for_tokens

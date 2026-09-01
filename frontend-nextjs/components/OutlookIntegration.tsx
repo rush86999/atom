@@ -253,6 +253,29 @@ const OutlookIntegration: React.FC = () => {
         }
     };
 
+    const handleSwitchAccount = async () => {
+        try {
+            // Same flow as handleConnect, but ?prompt=select_account tells
+            // Microsoft to show the account picker instead of reusing the
+            // signed-in session (that's why plain Connect keeps binding the
+            // same account). Same-origin path — no backend base needed.
+            const token =
+                localStorage.getItem("auth_token") ||
+                localStorage.getItem("token");
+            const url = token
+                ? `/api/v1/auth/oauth/microsoft/initiate?token=${encodeURIComponent(token)}&prompt=select_account`
+                : `/api/v1/auth/oauth/microsoft/initiate?prompt=select_account`;
+            window.location.href = url;
+        } catch (error) {
+            console.error("Switch account error:", error);
+            toast({
+                title: "Error",
+                description: "Failed to switch Outlook account.",
+                variant: "destructive",
+            });
+        }
+    };
+
     const getAuthHeaders = (extraHeaders: Record<string, string> = {}) => {
         const token = typeof window !== "undefined"
             ? (localStorage.getItem("auth_token") || localStorage.getItem("token"))
@@ -646,7 +669,7 @@ const OutlookIntegration: React.FC = () => {
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={handleConnect}
+                            onClick={handleSwitchAccount}
                             title="Sign in with a different Microsoft / Outlook account"
                         >
                             <Mail className="mr-2 w-3 h-3" />
