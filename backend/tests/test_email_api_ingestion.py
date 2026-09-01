@@ -534,6 +534,64 @@ class TestOutlookAPIIntegration:
         assert "last_fetch_outlook_resume_user-resume" not in ingestion_pipeline.fetch_timestamps
 
     @pytest.mark.asyncio(mode="auto")
+    async def test_continuation_bound_keeps_fractional_seconds(self, ingestion_pipeline):
+        """Regression (Greptile): Graph receivedDateTime values carry
+        microsecond precision. A continuation bound truncated to whole
+        seconds SHRANK below the true consumed boundary, so an unconsumed
+        message at 12:00:00.5 fell outside an inclusive `le 12:00:00`
+        filter. The bound must round-trip at full precision into the
+        follow-up filter."""
+        ingestion_pipeline.app_configs["outlook"] = {"user_id": "user-frac"}
+        ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-frac"] = datetime(
+            2024, 1, 1, 0, 0, 0
+        )
+        page = {
+            "value": [
+                {
+                    "id": "frac-msg-1",
+                    "receivedDateTime": "2024-02-01T12:00:00.512345Z",
+                    "from": {"emailAddress": {"name": "F", "address": "f@x.com"}},
+                    "subject": "t",
+                    "body": {"contentType": "Text", "content": "hi"},
+                }
+            ],
+            "@odata.nextLink": "https://graph.microsoft.com/next",
+        }
+        seen_filters = []
+
+        def capture_params(*args, **kwargs):
+            if kwargs.get("params", {}).get("$filter"):
+                seen_filters.append(kwargs["params"]["$filter"])
+            return Mock(status_code=200, json=lambda: page)
+
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-frac"]
+        ), patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="token-frac",
+        ), patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get = AsyncMock(side_effect=capture_params)
+
+            await ingestion_pipeline._fetch_outlook_messages(None)
+
+        # The pinned bound keeps the consumed boundary at full precision.
+        bound = ingestion_pipeline.fetch_timestamps[
+            "last_fetch_outlook_resume_user-frac"
+        ]
+        assert bound == datetime.fromisoformat("2024-02-01T12:00:00.512345Z")
+        # …and the formatter never truncates a non-zero-microsecond bound.
+        from integrations.atom_communication_ingestion_pipeline import (
+            _format_graph_timestamp,
+        )
+        assert _format_graph_timestamp(bound) == "2024-02-01T12:00:00.512345Z"
+        assert _format_graph_timestamp(datetime(2024, 2, 1, 12, 0, 0)) == (
+            "2024-02-01T12:00:00Z"
+        )
+
+    @pytest.mark.asyncio(mode="auto")
     async def test_new_owner_does_not_inherit_global_cursor(self, ingestion_pipeline):
         """Regression (Greptile): a freshly connected owner must start from
         its own initial-sync window, never from the loop-level global

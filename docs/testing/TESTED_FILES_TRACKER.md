@@ -7234,3 +7234,13 @@ continuation bound so a transient error can't be mistaken for a drained window.
 **Evidence**: test_email_api_ingestion 35/35 (+test_truncated_walk_holds_cursor_and_pins_resume_bound,
 +test_continuation_drain_promotes_cursor_and_clears_bound); 219 passed across the seven
 affected suites; py_compile clean.
+
+## Session 2026-09-01 — Review round 4: fractional-second continuation bounds
+
+**Scope**: pipeline Graph filter formatting only — new _format_graph_timestamp keeps
+microseconds on non-zero-fraction values (whole-second values keep the compact form).
+Truncating the continuation bound to whole seconds shrank it below the true consumed
+boundary, letting same-second unconsumed mail fall outside the inclusive le filter.
+
+**Evidence**: test_email_api_ingestion 36/36 (+test_continuation_bound_keeps_fractional_seconds);
+140 passed across the four key suites; py_compile clean.

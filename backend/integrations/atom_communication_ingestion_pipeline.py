@@ -46,6 +46,21 @@ _HTML_TAG_RE = _re_mod.compile(r"<(script|style)[^>]*>.*?</\1>|<[^>]+>", _re_mod
 _HTML_WS_RE = _re_mod.compile(r"[ \t]*\n[ \t\n]*")
 
 
+def _format_graph_timestamp(dt: datetime) -> str:
+    """Format a datetime as a Graph OData UTC ('Z') filter value.
+
+    Fractional seconds are preserved when non-zero: Graph receivedDateTime
+    values carry microsecond precision, and truncating a continuation-window
+    bound to whole seconds SHRANK it below the true consumed boundary — an
+    unconsumed message at 12:00:00.5 fell outside an inclusive
+    ``le 12:00:00`` filter and was skipped. The compact form is kept for
+    zero-microsecond values so ordinary cursors stay readable in filters.
+    """
+    if dt.microsecond:
+        return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _html_to_text(html_body: str) -> str:
     """Graph email bodies arrive as HTML; strip tags so FTS/vector search
     indexes readable text instead of markup. Never raises."""
@@ -2474,7 +2489,7 @@ class CommunicationIngestionPipeline:
                     # Graph OData requires UTC 'Z' format — a bare isoformat()
                     # (no timezone marker) returns 400 InvalidFilter, which
                     # silently broke every incremental poll after the first.
-                    ts = last_fetch.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    ts = _format_graph_timestamp(last_fetch)
                     params["$filter"] = f"receivedDateTime gt {ts}"
                 else:
                     # Initial sync: ingest a user-configurable history window
@@ -2486,7 +2501,7 @@ class CommunicationIngestionPipeline:
                     except Exception:
                         history_days = 90
                     since = (datetime.now() - timedelta(days=history_days))
-                    ts = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    ts = _format_graph_timestamp(since)
                     params["$filter"] = f"receivedDateTime ge {ts}"
                     # Enough pages to walk the window in one pass; if it
                     # truncates, the continuation bound pins the consumed
@@ -2500,7 +2515,7 @@ class CommunicationIngestionPipeline:
                     # the range a previous truncated walk left unconsumed.
                     params["$filter"] = (
                         f"{params.get('$filter')} and receivedDateTime le "
-                        f"{resume_max.strftime('%Y-%m-%dT%H:%M:%SZ')}"
+                        f"{_format_graph_timestamp(resume_max)}"
                     )
 
                 # Pagination support
