@@ -65,19 +65,20 @@ def client(db: Session, admin_user):
         app.dependency_overrides.clear()
 
 
-def _make_agent(db: Session, agent_id: str, name: str = "Cascade Test Agent"):
+def _make_agent(db: Session, agent_id: str, name: str = "Cascade Test Agent",
+                category: str = "test", configuration: dict | None = None):
     from core.models import AgentRegistry
 
     agent = AgentRegistry(
         id=agent_id,
         name=name,
         description="delete-cascade test",
-        category="test",
+        category=category,
         status="student",
         confidence_score=0.5,
         module_path="core.generic_agent",
         class_name="GenericAgent",
-        configuration={},
+        configuration=configuration or {},
         enabled=True,
         workspace_id="default",
         created_at=datetime.now(timezone.utc),
@@ -140,6 +141,98 @@ def test_delete_agent_protects_main_agent(db: Session, client: TestClient):
     # Handler-agnostic: the code appears in the body whether or not the
     # app-level exception handler unwraps HTTPException detail.
     assert "CANNOT_DELETE_MAIN_AGENT" in resp.text
+
+
+def test_delete_demo_agent_writes_tombstone(db: Session, client: TestClient):
+    """Deleting a demo_agent-flagged agent must arm the bootstrap tombstone.
+
+    Regression: ensure_demo_agent() re-created the "Demo Assistant" under a
+    fresh id on every backend boot after an operator deleted it, so the
+    deletion never stuck ("agents I delete keep coming back").
+    """
+    from core.admin_bootstrap import DEMO_AGENT_TOMBSTONE_KEY
+    from core.models import RuntimeSetting
+
+    agent_id = "agent-cascade-demo"
+    _make_agent(db, agent_id, "Demo Assistant", category="system",
+                configuration={"demo_agent": True, "graduation_bypass_reason": "onboarding_demo"})
+
+    resp = client.delete(f"/api/agents/{agent_id}")
+    assert resp.status_code == 200
+    db.expire_all()
+    tombstone = db.query(RuntimeSetting).filter(
+        RuntimeSetting.key == DEMO_AGENT_TOMBSTONE_KEY
+    ).first()
+    assert tombstone is not None
+    assert tombstone.value_json.get("agent_id") == agent_id
+
+    # Leave the shared test DB clean for other tests.
+    db.delete(tombstone)
+    db.commit()
+
+
+def test_delete_non_demo_agent_writes_no_tombstone(db: Session, client: TestClient):
+    from core.admin_bootstrap import DEMO_AGENT_TOMBSTONE_KEY
+    from core.models import RuntimeSetting
+
+    agent_id = "agent-cascade-plain"
+    _make_agent(db, agent_id, "Plain Agent")
+
+    resp = client.delete(f"/api/agents/{agent_id}")
+    assert resp.status_code == 200
+    db.expire_all()
+    assert db.query(RuntimeSetting).filter(
+        RuntimeSetting.key == DEMO_AGENT_TOMBSTONE_KEY
+    ).first() is None
+
+
+def test_deleted_demo_agent_stays_deleted_across_boots(db: Session, client: TestClient):
+    """Fresh-install lifecycle: delete demo agent -> next boot must NOT re-create it.
+
+    Regression for the live report "I delete the next agent and the previous
+    one comes back": ensure_demo_agent() re-issued a fresh "Demo Assistant"
+    row on every backend restart. This pins the full loop a fresh install
+    goes through (bootstrap creates it, DELETE arms the tombstone, bootstrap
+    again skips it).
+    """
+    from core.admin_bootstrap import (
+        DEMO_AGENT_NAME, DEMO_AGENT_CATEGORY, DEMO_AGENT_TOMBSTONE_KEY,
+        ensure_demo_agent,
+    )
+    from core.models import AgentRegistry, RuntimeSetting
+
+    # Boot #1: fresh install -> demo agent created.
+    ensure_demo_agent(db)
+    db.commit()
+    demo = db.query(AgentRegistry).filter(
+        AgentRegistry.name == DEMO_AGENT_NAME,
+        AgentRegistry.category == DEMO_AGENT_CATEGORY,
+    ).first()
+    assert demo is not None
+    assert demo.configuration.get("demo_agent") is True
+
+    # Operator deletes it via the endpoint -> tombstone armed.
+    resp = client.delete(f"/api/agents/{demo.id}")
+    assert resp.status_code == 200
+    db.expire_all()
+    assert db.query(AgentRegistry).filter(
+        AgentRegistry.name == DEMO_AGENT_NAME,
+        AgentRegistry.category == DEMO_AGENT_CATEGORY,
+    ).first() is None
+    assert db.get(RuntimeSetting, DEMO_AGENT_TOMBSTONE_KEY) is not None
+
+    # Boot #2: demo agent must NOT come back.
+    ensure_demo_agent(db)
+    db.commit()
+    db.expire_all()
+    assert db.query(AgentRegistry).filter(
+        AgentRegistry.name == DEMO_AGENT_NAME,
+        AgentRegistry.category == DEMO_AGENT_CATEGORY,
+    ).first() is None, "deleted demo agent came back after restart"
+
+    # Leave the shared test DB clean for other tests.
+    db.delete(db.get(RuntimeSetting, DEMO_AGENT_TOMBSTONE_KEY))
+    db.commit()
 
 
 def test_delete_agent_not_found(client: TestClient):

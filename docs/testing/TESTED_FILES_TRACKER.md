@@ -6,6 +6,25 @@
 
 ---
 
+## Session 2026-09-01 (Agent deletion "comes back" — demo-agent tombstone + stale-list race + main-agent button)
+
+**Context**: Live report — deleting agents from `/agents` didn't stick: "I click delete the next test agent and the previous one comes back." Verified endpoints work (curl + Playwright click-through: confirm dialog → DELETE → 200 → refetch). Root causes found: (1) `ensure_demo_agent()` re-created the "Demo Assistant" under a **fresh id on every backend boot** after an operator deletion (log evidence: boot-created ids `6c49e9ac` → `3e1c2a5c` → `9aafd8eb`, two operator deletes in between; docstring claimed otherwise); (2) the agents page polls every 5s AND refetches after mutations, so a slow earlier poll response can land after a later one and resurrect a just-deleted agent in the UI; (3) `atom_main`'s trash button always errors (backend forbids) — hidden instead.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/admin_bootstrap.py` | `DEMO_AGENT_NAME`/`DEMO_AGENT_CATEGORY`/`DEMO_AGENT_TOMBSTONE_KEY` constants; `ensure_demo_agent` skips re-creation when the tombstone row exists, and clears it if the operator re-adds a demo row (re-arm) | updated `test_ensure_demo_agent_*` |
+| `backend/api/agent_routes.py` | `delete_agent` writes the `RuntimeSetting` tombstone in the same transaction when the deleted agent carries `configuration["demo_agent"]` | `test_delete_demo_agent_writes_tombstone`, `test_delete_non_demo_agent_writes_no_tombstone` |
+| `frontend-nextjs/pages/agents/index.tsx` | `fetchAgents` sequence guard (`useRef` counter): only the newest list response may update state — stale poll responses can no longer resurrect deleted agents | tsc clean; no page-level suite exists (covered via e2e) |
+| `frontend-nextjs/components/Agents/AgentCard.tsx` | Delete button hidden for `atom_main` (backend refuses `CANNOT_DELETE_MAIN_AGENT`; button only ever errored) | `AgentCard.test.tsx` +2 (delete shown for normal agents, hidden for main) |
+
+**Fresh-install audit + verification** (no separate code change needed — the fix lives in the shared boot path): confirmed the only boot-time agent provisioning is `ensure_demo_agent()` (now tombstone-aware) — `atom_main` is lazily get-or-created on meta-agent use and is undeletable, the Computer Use Agent is lazily registered on first desktop-automation use, marketplace agents install on demand; nothing else re-creates agents at startup. `runtime_settings` is created by startup `create_all` (same `Base` as agents) AND has the alembic migration `20260824_add_runtime_settings` for alembic-managed installs. End-to-end fresh-install simulation against a brand-new SQLite DB (`create_all` → `ensure_admin_user` → DELETE demo through the real endpoint → `ensure_admin_user` again): demo agent created at boot #1, deleted at boot #2 it did NOT come back, tombstone disarmed when the operator re-adds a demo row, plain-agent deletes never arm tombstones. Checked `cli/daemon.py` + `docker-compose-personal.yml` — both run `main_api_app:app`, i.e. the fixed path.
+
+**Verification**: `test_onboarding_journey.py` 8 passed (+2 new), `test_agent_delete_cascade.py` 7 passed (+3 new — incl. `test_deleted_demo_agent_stays_deleted_across_boots`, the fresh-install lifecycle loop; main-agent protection + not-found), related route suites `test_agent_routes.py`/`test_agent_routes_coverage.py` 88 passed — the single `TestDeleteAgent::test_delete_agent_success` failure is **pre-existing on baseline** (stale RED-style test accesses `sample_agent.id` on an expired ORM instance after the raw-SQL delete; fails with changes stashed too). Frontend: `AgentCard.test.tsx` 6 passed, `tsc --noEmit` clean. Live DB: tombstone `atom.demo_agent.deleted` written so the already-deleted demo agent stays deleted on the next restart; boot-path verified against a live-DB copy (no re-creation). Playwright end-to-end: create → trash → confirm → gone, no errors.
+
+---
+
 ## Session 2026-08-31d (Review-readiness: consolidate stale WorkDrive tests + repair Zoho journey suite)
 
 **Context**: Before handing off for review, the full Zoho suite was run. Two issues: (1) the old `test_zoho_workdrive_teams_fallback.py` (PR #594) had gone stale — `test_org_team_fetch_non_200_warns` asserted `[]` but the service now appends an id-only team entry — 1 failing test + duplicate confusing filename. (2) `test_zoho_user_journey.py` had 4 failing callback tests: the documented `MagicMock(auth_url=...)` fix was missing there, and `test_j2` asserted default fleet-wide token fan-out which R88 deliberately made opt-in (`ATOM_OAUTH_SHARED_INTEGRATION_TOKENS`).

@@ -504,3 +504,37 @@ describe('AgentWorkspace trace pipeline', () => {
     expect(onToggleCollapsed).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('AgentWorkspace structured action payloads', () => {
+  beforeEach(() => {
+    mockWsState = { lastMessage: null, isConnected: false };
+  });
+
+  test('renders a structured {tool, params} action without crashing', () => {
+    // Regression: the backend emits action as a structured object
+    // ({tool, params}); rendering it as a React child threw
+    // "Objects are not valid as a React child" on every chat turn.
+    mockWsState = {
+      isConnected: false,
+      lastMessage: {
+        type: 'agent_step_update',
+        step: {
+          step: 1,
+          thought: 'Planning the send',
+          action: { tool: 'canvas_action_planner', params: { action: 'send_email' } },
+          action_input: { action: 'send_email', to: ['a@b.com'] },
+          observation: 'Planned send_email to a@b.com',
+        },
+      },
+    };
+
+    expect(() => renderWithProviders(<AgentWorkspace sessionId={null} />)).not.toThrow();
+
+    expect(screen.getByText('Step 1')).toBeInTheDocument();
+    // The badge shows the tool NAME, not [object Object]
+    expect(screen.getByText('canvas_action_planner')).toBeInTheDocument();
+    // The params object is stringified into the input line (not [object Object])
+    expect(screen.getByText(/\{"action":"send_email","to":\["a@b.com"\]\}/)).toBeInTheDocument();
+    expect(screen.queryByText(/\[object Object\]/)).not.toBeInTheDocument();
+  });
+});

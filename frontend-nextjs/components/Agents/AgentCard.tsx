@@ -137,7 +137,10 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, progress, onRun, onStop, o
                 <Button variant="outline" size="icon" onClick={() => onViewReasoning(agent.id)} title="View Reasoning Trace">
                     <Brain className="w-4 h-4" />
                 </Button>
-                {onDelete && (
+                {/* The main agent is load-bearing and the backend refuses its
+                    deletion (CANNOT_DELETE_MAIN_AGENT) — a trash button there
+                    would only ever produce an error, so hide it. */}
+                {onDelete && agent.id !== "atom_main" && (
                     <Button
                         variant="outline"
                         size="icon"

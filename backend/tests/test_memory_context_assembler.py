@@ -255,11 +255,16 @@ async def test_knowledge_leg_renders_documents_and_conversations(monkeypatch):
     with patch.object(documents_hybrid.DocumentsHybridSearch, "search", fake_search):
         lines = await mca._knowledge_leg("what did ACME ask about?", "default")
 
-    assert len(lines) == 2
-    assert lines[0].startswith("[ingested: ACME press brake spec.pdf]")
-    assert "84,500" in lines[0]
-    assert lines[1].startswith("[communication: whatsapp — 2026-08-19]")
-    assert "press brake" in lines[1]
+    # Provenance spotlighting: the block is delimited as untrusted retrieved
+    # data (data-not-instructions banner + closing tag) around the hits.
+    assert len(lines) == 4
+    assert lines[0].startswith('<provenance type="retrieved"')
+    assert "untrusted" in lines[0].lower()
+    assert lines[1].startswith("[ingested: ACME press brake spec.pdf]")
+    assert "84,500" in lines[1]
+    assert lines[2].startswith("[communication: whatsapp — 2026-08-19]")
+    assert "press brake" in lines[2]
+    assert lines[3] == "</provenance>"
 
 
 @pytest.mark.asyncio

@@ -383,6 +383,18 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
 
                 if ingestion_pipeline.start_outlook_poller():
                     logger.info("Outlook polling stream started after Microsoft OAuth connect")
+                    try:
+                        from integrations.outlook_realtime import outlook_realtime
+
+                        outlook_realtime.start_renew_loop()
+                        user_id_for_sub = str(target_uid or "default")
+                        import asyncio as _asyncio
+
+                        _asyncio.get_running_loop().create_task(
+                            outlook_realtime.ensure_subscription(user_id_for_sub)
+                        )
+                    except Exception as rt_err:
+                        logger.error(f"Failed to start Outlook realtime channel: {rt_err}")
             except Exception as poller_err:
                 logger.error(f"Failed to start Outlook poller after OAuth connect: {poller_err}")
 

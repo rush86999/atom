@@ -1325,14 +1325,63 @@ async def chat_draft_to_canvas(
     # Email drafts become typed email canvases ({to, subject, body}) so
     # /canvas/{id} renders the composer — To/Subject fields + Send button —
     # instead of a document with the Subject line buried in the body.
-    canvas_type, canvas_content = coerce_email_canvas("document", content)
+    # The owner can override the classifier from the UI: canvas_type forces
+    # the app ("auto" keeps the heuristic). Ordered best-match in the UI:
+    # document and email lead, specialized apps follow. Email keeps its
+    # structured {to, subject, body} mapping; every other app takes the
+    # draft as text content (no data lost — worst case it renders as text).
+    CHAT_DRAFT_CANVAS_TYPES = {
+        "document", "email", "markdown", "code", "sheet", "status_panel",
+        "form", "line_chart", "bar_chart", "pie_chart", "terminal",
+        "orchestration", "office_word", "office_excel", "office_pptx",
+    }
+    requested_type = (body.get("canvas_type") or "auto").strip().lower()
+    office_fallback_warning: Optional[str] = None
+    if requested_type and requested_type != "auto" and requested_type not in CHAT_DRAFT_CANVAS_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported canvas_type: {requested_type}",
+        )
+    if requested_type == "email":
+        from core.chat_draft_classifier import extract_email_draft
+
+        canvas_type = "email"
+        canvas_content = extract_email_draft(content) or {
+            "to": "",
+            "subject": title,
+            "body": content,
+        }
+    elif requested_type in ("office_word", "office_excel", "office_pptx"):
+        # Office apps need a REAL generated file. Run the same materializer
+        # the auto path uses, with the kind the user picked (word→doc,
+        # excel→table, pptx→slides). A draft without the matching shape
+        # falls back to a document canvas + a warning instead of a broken
+        # office component.
+        office_kind = {"office_word": "doc", "office_excel": "table",
+                       "office_pptx": "slides"}[requested_type]
+        office = await _office_draft(content, office_kind, title)
+        if office:
+            canvas_type, canvas_content, title = office
+        else:
+            canvas_type = "document"
+            canvas_content = {"content": content}
+            office_fallback_warning = (
+                f"The draft has no {'table' if office_kind == 'table' else 'slide-outline' if office_kind == 'slides' else 'document'} "
+                f"shape for a {requested_type} canvas — opened as a document instead."
+            )
+    elif requested_type != "auto":
+        canvas_type = requested_type
+        canvas_content = {"content": content}
+    else:
+        canvas_type, canvas_content = coerce_email_canvas("document", content)
 
     # Office drafts become REAL office canvases: excel tables → .xlsx,
     # slide outlines → .pptx, documents → .docx (office_* components bind
     # the file and self-hydrate their structured snapshot). Code drafts
     # open the code editor. Any file-creation failure falls back to the
-    # markdown document path — the draft must still open.
-    if selected and canvas_type == "document":
+    # markdown document path — the draft must still open. (Skipped when the
+    # owner forced a type — their choice outranks the classifier.)
+    if selected and requested_type == "auto" and canvas_type == "document":
         office = await _office_draft(content, selected["kind"], title)
         if office:
             canvas_type, canvas_content, title = office
@@ -1352,12 +1401,17 @@ async def chat_draft_to_canvas(
     # starting point when the user has NO default — stripping would leave a
     # bare draft.
     if canvas_type == "email" and isinstance(canvas_content, dict):
-        from core.canvas_email_service import EmailCanvasService
+        # Signature swap-in is enrichment — a preference-store hiccup must
+        # never 500 the draft-open (observed: missing preferences table).
+        try:
+            from core.canvas_email_service import EmailCanvasService
 
-        default_sig = await EmailCanvasService(db).get_signature(str(current_user.id))
-        canvas_content["body"] = strip_agent_signoff(
-            canvas_content.get("body") or "", default_sig.get("signature")
-        )
+            default_sig = await EmailCanvasService(db).get_signature(str(current_user.id))
+            canvas_content["body"] = strip_agent_signoff(
+                canvas_content.get("body") or "", default_sig.get("signature")
+            )
+        except Exception as sig_err:
+            logger.debug(f"default signature resolution skipped: {sig_err}")
     canvas = Canvas(
         id=canvas_id,
         tenant_id=current_user.tenant_id or "default",
@@ -1392,4 +1446,7 @@ async def chat_draft_to_canvas(
     db.add(audit)
     db.commit()
 
-    return {"success": True, "canvas_id": canvas_id, "url": f"/canvas/{canvas_id}"}
+    result = {"success": True, "canvas_id": canvas_id, "url": f"/canvas/{canvas_id}"}
+    if office_fallback_warning:
+        result["warning"] = office_fallback_warning
+    return result

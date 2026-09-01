@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ChatMessageData, ReasoningStep } from "../GlobalChat/ChatMessage";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { CANVAS_APP_TYPE_OPTIONS } from "@/components/canvas/canvasType";
 import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { VoiceModeOverlay } from "@/components/Voice/VoiceModeOverlay";
@@ -139,6 +140,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
 
     // Expand the latest assistant draft into a co-editable canvas
     const [openingCanvas, setOpeningCanvas] = React.useState(false);
+    // Canvas type for the draft: auto lets the backend classifier decide
+    // (best match); the list is recommended-first — document and email lead,
+    // the other canvas apps follow for when the owner disagrees.
+    const [canvasTypeChoice, setCanvasTypeChoice] = React.useState<string>("auto");
     const lastAssistant = [...messages].reverse().find((m) => m.type === "assistant" && m.content?.trim());
     // Recent assistant contents, newest-first: the backend picks the most
     // recent EMAIL-draft-shaped one, so the button opens the draft even
@@ -159,7 +164,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 title: `Draft — ${String(lastAssistant.content).slice(0, 60)}`,
                 session_id: sessionId,
                 agent_id: initialAgentId,
+                ...(canvasTypeChoice !== "auto" ? { canvas_type: canvasTypeChoice } : {}),
             }, { timeout: 30000 });
+            if (res.data?.warning) {
+                toast({ title: "Canvas type adjusted", description: res.data.warning });
+            }
             if (res.data?.url) {
                 window.location.href = res.data.url;
             }
@@ -305,7 +314,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
 
             {/* Expand the latest draft into a co-editable canvas (training surface) */}
             {lastAssistant && !isProcessing && (
-                <div className="mx-4 mb-2 flex justify-end">
+                <div className="mx-4 mb-2 flex justify-end items-center gap-1.5">
+                    <select
+                        value={canvasTypeChoice}
+                        onChange={(e) => setCanvasTypeChoice(e.target.value)}
+                        aria-label="Canvas type for the draft"
+                        title="Recommended first: document and email cover most drafts — the rest are here for when you disagree with the classifier"
+                        className="h-7 rounded-lg border border-border bg-background text-xs text-muted-foreground px-1.5"
+                        data-testid="canvas-type-select"
+                    >
+                        <option value="auto">Auto (recommended)</option>
+                        {CANVAS_APP_TYPE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label} canvas
+                            </option>
+                        ))}
+                    </select>
                     <button
                         onClick={openInCanvas}
                         disabled={openingCanvas}

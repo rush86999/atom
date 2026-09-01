@@ -647,6 +647,17 @@ async def lifespan(app: FastAPI):
 
                 if ingestion_pipeline.start_outlook_poller():
                     logger.info("✓ Outlook memory poller recovered (connected account found)")
+                    # Real-time channel: Graph subscription lifecycle (no-op
+                    # unless ATOM_GRAPH_WEBHOOK_BASE_URL is configured).
+                    try:
+                        from integrations.outlook_realtime import outlook_realtime
+
+                        outlook_realtime.start_renew_loop()
+                        asyncio.get_running_loop().create_task(
+                            outlook_realtime.ensure_subscription("default")
+                        )
+                    except Exception as rt_err:
+                        logger.debug(f"outlook realtime channel skipped: {rt_err}")
         except Exception as e:
             logger.error(f"Failed to start Outlook memory poller: {e}")
     elif is_test_mode:

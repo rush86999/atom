@@ -399,6 +399,15 @@ async def delete_agent(
         )
 
     agent_name = agent.name
+    # Honoring deletions: the onboarding demo agent is re-created by
+    # ensure_demo_agent() at every bootstrap — a bare delete would make it
+    # reappear on the next restart ("agents I delete keep coming back"). When
+    # the deleted agent carries the demo_agent flag, write a tombstone in the
+    # SAME transaction so the bootstrap skips re-creation from now on.
+    from core.admin_bootstrap import DEMO_AGENT_TOMBSTONE_KEY
+    from core.models import RuntimeSetting
+
+    deleted_demo_agent = bool((agent.configuration or {}).get("demo_agent"))
     # Registry row also via raw SQL: db.delete(agent) makes the ORM null out
     # loaded child FKs (agent_episodes.agent_id is NOT NULL → IntegrityError)
     # for rows the cleanup above already removed from under its identity map.
@@ -406,6 +415,25 @@ async def delete_agent(
         text(f"DELETE FROM {AgentRegistry.__tablename__} WHERE id = :aid"),
         {"aid": agent_id},
     )
+    if deleted_demo_agent:
+        tombstone = db.get(RuntimeSetting, DEMO_AGENT_TOMBSTONE_KEY)
+        if tombstone is not None:
+            tombstone.value_json = {
+                "deleted_at": datetime.datetime.now(timezone.utc).isoformat(),
+                "agent_id": agent_id,
+            }
+            tombstone.updated_by = "system"
+        else:
+            db.add(
+                RuntimeSetting(
+                    key=DEMO_AGENT_TOMBSTONE_KEY,
+                    value_json={
+                        "deleted_at": datetime.datetime.now(timezone.utc).isoformat(),
+                        "agent_id": agent_id,
+                    },
+                    updated_by="system",
+                )
+            )
     db.commit()
 
     return router.success_response(

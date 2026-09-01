@@ -624,3 +624,61 @@ async def upload_document(
     except Exception as e:
         logger.error(f"Upload failed: {e}")
         raise router.internal_error(detail="Internal error")
+
+
+# ==================== Universal Integration Structure Index ====================
+# "Map the territory, not the contents": index an integration's LISTING
+# (folders/files for drives, records for CRM/Books/Inventory) as provenance-
+# stamped metadata rows the hire can search, then pull specific items
+# just-in-time via the agent tools. See docs/integrations/
+# INGESTION_PROVENANCE_DESIGN.md for the security/trust/temporal rationale.
+
+from core.drive_tree_ingestion import (  # noqa: E402 — route-local import keeps startup lean
+    IntegrationMemoryIndexer,
+    available_integrations,
+)
+
+
+class StructureIndexRequest(BaseModel):
+    workspace_id: Optional[str] = None
+    max_rows: Optional[int] = None
+
+
+@router.get("/integrations")
+async def list_indexable_integrations(
+    current_user: User = Depends(get_current_user),
+):
+    """Integrations whose structure can be mapped for the agents."""
+    return {"success": True, "integrations": available_integrations()}
+
+
+@router.get("/integrations/{integration_id}/structure")
+async def get_integration_structure(
+    integration_id: str,
+    current_user: User = Depends(get_current_user),
+    workspace_id: Optional[str] = None,
+):
+    """Normalized listing (folders/files/records) for the selective-ingestion picker."""
+    ws = workspace_id or get_workspace_id(current_user)
+    result = await IntegrationMemoryIndexer(ws).list_structure(
+        integration_id, str(current_user.id)
+    )
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error"))
+    return result
+
+
+@router.post("/integrations/{integration_id}/index-structure")
+async def index_integration_structure(
+    integration_id: str,
+    request: StructureIndexRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Map the integration's structure into agent memory (metadata only)."""
+    ws = request.workspace_id or get_workspace_id(current_user)
+    result = await IntegrationMemoryIndexer(ws).index_structure(
+        integration_id, str(current_user.id), max_rows=request.max_rows or 5000
+    )
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error"))
+    return result

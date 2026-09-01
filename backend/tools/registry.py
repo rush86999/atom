@@ -404,6 +404,10 @@ class ToolRegistry:
         self._register_device_tools()
         self._register_productivity_tools()
         self._register_memory_tools()
+        # Integration memory index: structure search + just-in-time file
+        # ingestion across connected drives and record apps (universal —
+        # adapters in core/drive_tree_ingestion.py).
+        self._register_integration_index_tools()
         # B10: data-analysis & predictive tools carry explicit metadata that
         # the auto-discovery inference cannot recover (e.g. analyze_data is
         # SUPERVISED/3, not INTERN/2, because it runs arbitrary sandboxed
@@ -697,6 +701,14 @@ class ToolRegistry:
             register_memory_tool(self)
         except Exception as e:
             logger.warning(f"Could not register memory tools: {e}")
+
+    def _register_integration_index_tools(self):
+        """Register integration-memory tools (structure search + JIT ingest)."""
+        try:
+            from tools.drive_tool import register_drive_tools
+            register_drive_tools(self)
+        except Exception as e:
+            logger.warning(f"Could not register integration index tools: {e}")
 
     def _register_data_tools(self):
         """Register data-analysis & predictive-modeling tools with explicit

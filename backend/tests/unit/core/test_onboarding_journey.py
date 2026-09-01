@@ -77,6 +77,8 @@ def fake_db():
     query.filter.return_value = filter_chain
     filter_chain.first.return_value = None  # demo agent does not exist yet
     db.query.return_value = query
+    # Session.get(RuntimeSetting, key) → no deletion tombstone by default.
+    db.get.return_value = None
     return db
 
 
@@ -109,6 +111,41 @@ def test_ensure_demo_agent_is_idempotent(fake_db):
 
     fake_db.add.assert_not_called()
     # Existing-agent path returns before the commit; only the lookup happened.
+
+
+def test_ensure_demo_agent_respects_delete_tombstone(fake_db):
+    """A deletion tombstone suppresses re-creation of the (deleted) demo agent.
+
+    Regression: ensure_demo_agent() re-created "Demo Assistant" on every
+    backend boot after the operator deleted it — an operator's deletion never
+    stuck ("agents I delete keep coming back").
+    """
+    from core.admin_bootstrap import ensure_demo_agent
+
+    # No demo row (operator deleted it) but the tombstone is set.
+    fake_db.get.return_value = MagicMock()
+
+    ensure_demo_agent(fake_db)
+
+    fake_db.add.assert_not_called()
+    fake_db.commit.assert_not_called()
+    # The tombstone itself is read exactly once.
+    fake_db.get.assert_called_once()
+
+
+def test_ensure_demo_agent_clears_tombstone_when_row_exists(fake_db):
+    """A present demo agent row means the operator wants it — tombstone cleared."""
+    from core.admin_bootstrap import ensure_demo_agent
+
+    tombstone = MagicMock()
+    fake_db.get.return_value = tombstone
+    fake_db.query.return_value.filter.return_value.first.return_value = MagicMock()
+
+    ensure_demo_agent(fake_db)
+
+    fake_db.add.assert_not_called()
+    fake_db.delete.assert_called_once_with(tombstone)
+    assert fake_db.commit.call_count >= 1
 
 
 # =============================================================================

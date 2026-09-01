@@ -533,11 +533,34 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
         );
     };
 
+    // Backend step events carry `action` as a structured object
+    // ({tool, params}) and `action_input` as the params OBJECT — rendering
+    // either directly throws "Objects are not valid as a React child".
+    // Derive display strings defensively at render time.
+    const actionLabel = (action: unknown): string | undefined => {
+        if (!action) return undefined;
+        if (typeof action === "string") return action;
+        if (typeof action === "object") {
+            const tool = (action as Record<string, unknown>).tool;
+            return typeof tool === "string" ? tool : JSON.stringify(action).slice(0, 60);
+        }
+        return String(action);
+    };
+    const inputLabel = (value: unknown): string | undefined => {
+        if (value === undefined || value === null || value === "") return undefined;
+        if (typeof value === "string") return value;
+        try {
+            return JSON.stringify(value).slice(0, 120);
+        } catch {
+            return String(value);
+        }
+    };
+
     const renderStepCard = (run: AgentRun, step: AgentStep) => (
         <div key={`${run.executionId}-${step.step}`} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <Badge variant="outline" className="text-indigo-400 border-indigo-400">Step {step.step}</Badge>
-                {step.action && <Badge variant="secondary" className="bg-indigo-600 text-white">{step.action}</Badge>}
+                {actionLabel(step.action) && <Badge variant="secondary" className="bg-indigo-600 text-white">{actionLabel(step.action)}</Badge>}
                 {step.step_type && (
                     <Badge variant="outline" className="text-slate-400 border-slate-600 text-[10px]">{step.step_type}</Badge>
                 )}
@@ -563,9 +586,9 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
             {step.thought && (
                 <p className="text-sm text-slate-300 mb-1"><strong>Thinking:</strong> {step.thought}</p>
             )}
-            {step.action_input && (
-                <p className="text-xs text-slate-500 font-mono mb-1 truncate" title={step.action_input}>
-                    input: {step.action_input}
+            {inputLabel(step.action_input) && (
+                <p className="text-xs text-slate-500 font-mono mb-1 truncate" title={inputLabel(step.action_input)}>
+                    input: {inputLabel(step.action_input)}
                 </p>
             )}
             {step.observation && (
@@ -657,7 +680,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                 </div>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
                 <div className="px-4 pt-2">
                     <TabsList className="w-full grid grid-cols-3 bg-slate-800">
                         <TabsTrigger value="tasks" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Tasks</TabsTrigger>
@@ -666,7 +689,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                     </TabsList>
                 </div>
 
-                <TabsContent value="tasks" className="flex-1 p-4 overflow-hidden flex flex-col gap-4">
+                <TabsContent value="tasks" className="flex-1 min-h-0 p-4 overflow-hidden flex flex-col gap-4">
                     {/* Self Reflection / Status */}
                     <Card className="bg-indigo-900/10 border-indigo-500/20">
                         <CardHeader className="pb-2">
@@ -683,7 +706,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                     </Card>
 
                     {/* Execution Steps — current run, with reasoning trace */}
-                    <Card className="flex-1 flex flex-col overflow-hidden bg-slate-900/50 border-slate-800">
+                    <Card className="flex-1 min-h-0 flex flex-col overflow-hidden bg-slate-900/50 border-slate-800">
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-200">
                                 <ListTodo className="h-4 w-4" />
@@ -766,7 +789,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                     )}
                 </TabsContent>
 
-                <TabsContent value="artifacts" className="flex-1 p-0 overflow-hidden relative">
+                <TabsContent value="artifacts" className="flex-1 min-h-0 p-0 overflow-hidden relative">
                     <div className="flex flex-col h-full">
                         <div className="flex-1 overflow-hidden">
                             <CanvasHost lastMessage={lastMessage} sessionId={sessionId} />
@@ -782,7 +805,7 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({
                     </div>
                 </TabsContent>
 
-                <TabsContent value="browser" className="flex-1 p-4 h-full">
+                <TabsContent value="browser" className="flex-1 min-h-0 p-4 h-full">
                     <Card className="h-full flex flex-col bg-slate-900/50 border-slate-800">
                         <CardHeader className="pb-2 border-b border-slate-800">
                             <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-200">

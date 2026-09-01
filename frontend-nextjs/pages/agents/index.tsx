@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -81,6 +81,13 @@ const AgentsDashboard = () => {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
 
+    // Only the newest list fetch may update state. The page polls every 5s
+    // AND refetches after mutations (delete/edit/stop), so a slow earlier
+    // response can land AFTER a later one and resurrect a just-deleted agent
+    // in the UI (live report: "I delete the next agent and the previous one
+    // comes back" — a stale poll's list arrived last).
+    const agentsFetchSeq = useRef(0);
+
     // Run Dialog State
     const [isRunDialogOpen, setIsRunDialogOpen] = useState(false);
     const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
@@ -148,15 +155,17 @@ const AgentsDashboard = () => {
 
     // Fetch Agents
     const fetchAgents = async () => {
+        const seq = ++agentsFetchSeq.current;
         const token = localStorage.getItem('auth_token');
         if (!token) {
+            if (seq !== agentsFetchSeq.current) return;
             setError("Unauthorized: Redirecting to login...");
             router.push('/login');
             return;
         }
 
         try {
-            setError(null);
+            if (seq === agentsFetchSeq.current) setError(null);
             // Direct backend connection to bypass proxy issues
             const res = await fetch(`${API_BASE}/api/agents/`, {
                 headers: {
@@ -167,6 +176,9 @@ const AgentsDashboard = () => {
 
             if (res.ok) {
                 const json = await res.json();
+                // A newer fetch superseded this response while it was in
+                // flight — drop it so a stale list cannot resurrect agents.
+                if (seq !== agentsFetchSeq.current) return;
                 // The backend wraps responses as { success, data, ... }.
                 // Accept either the wrapped shape or a bare array for safety.
                 const data = Array.isArray(json) ? json : (json.data ?? []);
@@ -174,6 +186,7 @@ const AgentsDashboard = () => {
             } else if (res.status === 401 || res.status === 403) {
                 // Token no longer valid (expired/revoked) — clear it and go
                 // to login, same behavior as the axios 401 interceptor.
+                if (seq !== agentsFetchSeq.current) return;
                 setError("Session expired. Redirecting to login...");
                 handleSessionExpired();
             } else {
@@ -181,6 +194,7 @@ const AgentsDashboard = () => {
                 // endpoint now returns {error: {message}} on failure so the
                 // real cause (e.g. DB schema drift) is visible instead of a
                 // generic "Internal Server Error".
+                if (seq !== agentsFetchSeq.current) return;
                 let detail = res.statusText || "Unknown error";
                 try {
                     const json = await res.json();
@@ -192,10 +206,11 @@ const AgentsDashboard = () => {
                 setError(`Failed to load agents: ${detail}`);
             }
         } catch (err: any) {
+            if (seq !== agentsFetchSeq.current) return;
             console.error("Agents fetch error:", err);
             setError(`Failed to load agents: ${err.message || String(err)}. Check console for details.`);
         } finally {
-            setIsLoading(false);
+            if (seq === agentsFetchSeq.current) setIsLoading(false);
         }
     };
 

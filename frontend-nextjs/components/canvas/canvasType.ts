@@ -22,6 +22,42 @@ export const CANVAS_TYPE_OPTIONS = [
 
 export type SwitchableCanvasType = (typeof CANVAS_TYPE_OPTIONS)[number]["value"];
 
+/**
+ * ALL canvas apps, in recommended-first order — this drives the at-open
+ * picker on "Open latest draft in canvas": the top entries are the apps a
+ * chat draft almost always wants (document, email), and the specialized
+ * apps follow for when the user disagrees with the classifier. Office apps
+ * are intentionally absent: they require a real generated FILE, which the
+ * backend's auto path creates only when the draft IS office-shaped.
+ */
+export const CANVAS_APP_TYPE_OPTIONS = [
+    { value: "document", label: "Document" },
+    { value: "email", label: "Email" },
+    { value: "markdown", label: "Markdown" },
+    { value: "code", label: "Code" },
+    { value: "sheet", label: "Sheet" },
+    { value: "status_panel", label: "Status panel" },
+    { value: "form", label: "Form" },
+    { value: "line_chart", label: "Line chart" },
+    { value: "bar_chart", label: "Bar chart" },
+    { value: "pie_chart", label: "Pie chart" },
+    { value: "terminal", label: "Terminal" },
+    { value: "orchestration", label: "Orchestration" },
+    // Office apps DO appear: forcing them generates a REAL file via the
+    // backend office engine (openpyxl/python-pptx/python-docx, LibreOffice
+    // headless when installed for formula recalc). A draft without the
+    // matching shape (table/slides/doc) falls back to a document with a
+    // warning instead of a broken office component.
+    { value: "office_word", label: "Word (docx)" },
+    { value: "office_excel", label: "Excel (xlsx)" },
+    { value: "office_pptx", label: "PowerPoint (pptx)" },
+] as const;
+
+export type CanvasAppType = (typeof CANVAS_APP_TYPE_OPTIONS)[number]["value"];
+
+export const CANVAS_APP_TYPE_VALUES: readonly string[] =
+    CANVAS_APP_TYPE_OPTIONS.map((o) => o.value);
+
 const SWITCHABLE_VALUES = new Set<string>(CANVAS_TYPE_OPTIONS.map((o) => o.value));
 
 // Doc-like legacy canvas_type values ("docs", "generic", "doc") also render

@@ -74,4 +74,37 @@ describe('AgentCard tier badge (P3.1)', () => {
         expect(screen.queryByText(/episodes to next tier/i)).not.toBeInTheDocument();
         expect(screen.queryByText(/Max tier reached/i)).not.toBeInTheDocument();
     });
+
+    it('renders a delete button for deletable agents', () => {
+        render(
+            <AgentCard
+                agent={baseAgent}
+                onRun={noop}
+                onStop={noop}
+                onChat={noop}
+                onEdit={noop}
+                onViewReasoning={noop}
+                onDelete={noop}
+            />
+        );
+        expect(screen.getByTitle('Delete Agent')).toBeInTheDocument();
+    });
+
+    it('hides the delete button for the main agent (atom_main)', () => {
+        // The backend refuses to delete the load-bearing main agent
+        // (CANNOT_DELETE_MAIN_AGENT) — showing a trash button there only
+        // produces a guaranteed error, so the card hides it.
+        render(
+            <AgentCard
+                agent={{ ...baseAgent, id: 'atom_main', name: 'Atom' }}
+                onRun={noop}
+                onStop={noop}
+                onChat={noop}
+                onEdit={noop}
+                onViewReasoning={noop}
+                onDelete={noop}
+            />
+        );
+        expect(screen.queryByTitle('Delete Agent')).not.toBeInTheDocument();
+    });
 });

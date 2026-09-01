@@ -927,7 +927,7 @@ class CommunicationIngestionPipeline:
         """Check if webhook ingestion is enabled for an app"""
         return self.webhook_enabled.get(app_type, False)
 
-    def start_outlook_poller(self, polling_interval_seconds: int = 60) -> bool:
+    def start_outlook_poller(self, polling_interval_seconds: Optional[int] = None) -> bool:
         """
         Start the Outlook real-time polling stream (idempotent).
 
@@ -938,7 +938,9 @@ class CommunicationIngestionPipeline:
         file-based token_storage.
 
         Args:
-            polling_interval_seconds: How often to poll Microsoft Graph for new mail.
+            polling_interval_seconds: How often to poll Microsoft Graph for new
+                mail. Defaults to ATOM_OUTLOOK_POLL_SECONDS (real-time tuning
+                knob; lower it when a fast loop matters more than API quota).
 
         Returns:
             True if the stream is running (or was already running).
@@ -948,6 +950,8 @@ class CommunicationIngestionPipeline:
                 logger.info("Outlook poller already running")
                 return True
 
+            if polling_interval_seconds is None:
+                polling_interval_seconds = int(os.getenv("ATOM_OUTLOOK_POLL_SECONDS", "60"))
             config = IngestionConfig(
                 app_type=CommunicationAppType.OUTLOOK,
                 enabled=True,
@@ -957,7 +961,7 @@ class CommunicationIngestionPipeline:
                 embed_content=True,
                 retention_days=365,
                 vector_dim=768,
-                polling_interval_seconds=max(30, int(polling_interval_seconds)),
+                polling_interval_seconds=max(15, int(polling_interval_seconds)),
             )
             self.configure_app(CommunicationAppType.OUTLOOK, config)
             started = self.start_real_time_stream(CommunicationAppType.OUTLOOK.value)

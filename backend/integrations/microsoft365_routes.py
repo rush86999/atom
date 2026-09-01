@@ -6,7 +6,7 @@ It handles API endpoints for Teams, Outlook, Calendar, and other Microsoft 365 s
 """
 
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from core.auth import get_current_user
@@ -256,17 +256,34 @@ async def create_microsoft365_subscription(
 
 
 @microsoft365_router.post("/webhook")
-async def handle_microsoft365_webhook(validationToken: Optional[str] = None):
+async def handle_microsoft365_webhook(
+    request: Request,
+    validationToken: Optional[str] = None,
+):
     """
     Handle Microsoft Graph webhooks.
     If validationToken is present, it's a verification request (return it back plain text).
-    Otherwise it's a notification payload.
+    Otherwise it's a notification payload: every notification's clientState is
+    verified against the stored subscription secret (anti-spoofing), and each
+    referenced message is fetched and fed into the communication ingestion
+    pipeline — real-time email for agent memory.
     """
     if validationToken:
         from fastapi.responses import PlainTextResponse
         return PlainTextResponse(validationToken)
-    
-    # Process notification logic here
-    # Ideally queue this for background processing
+
+    import asyncio
+
+    from integrations.outlook_realtime import outlook_realtime
+
+    try:
+        payload = await request.json()
+    except Exception:
+        return {"status": "received"}
+
+    # Graph requires a fast 202; ingestion runs as a background task.
+    asyncio.get_running_loop().create_task(
+        outlook_realtime.process_notifications(payload)
+    )
     return {"status": "received"}
 

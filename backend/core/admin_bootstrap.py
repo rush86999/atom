@@ -9,6 +9,7 @@ from core.database import get_db_session
 from core.models import (
     AgentRegistry,
     AgentStatus,
+    RuntimeSetting,
     Tenant,
     User,
     UserStatus,
@@ -17,6 +18,18 @@ from core.models import (
 from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID
 
 logger = logging.getLogger("ATOM_BOOTSTRAP")
+
+#: Identity of the onboarding demo agent (single source for both the
+#: bootstrap creator and the delete endpoint).
+DEMO_AGENT_NAME = "Demo Assistant"
+DEMO_AGENT_CATEGORY = "system"
+
+#: Deletion tombstone. ``delete_agent`` writes a row under this key when an
+#: operator deletes a ``demo_agent``-flagged agent, and ``ensure_demo_agent``
+#: checks it before re-creating one. Without the tombstone every backend
+#: restart resurrected the demo agent under a fresh id — the operator's
+#: deletion never stuck ("agents I delete keep coming back").
+DEMO_AGENT_TOMBSTONE_KEY = "atom.demo_agent.deleted"
 
 
 def _write_password_to_secure_file(password: str) -> str:
@@ -169,19 +182,37 @@ def ensure_demo_agent(db: Session) -> None:
     up automatically; multi-tenant SaaS deployments simply never call this
     function because admin_bootstrap is single-tenant-only.
 
-    Idempotent: if the demo agent already exists, no-op. This keeps restarts
-    cheap and lets an admin delete the demo agent from the UI without it
-    springing back to life on the next process boot.
+    Idempotent: if the demo agent already exists, no-op. A deletion is
+    honored permanently via the ``DEMO_AGENT_TOMBSTONE_KEY`` tombstone the
+    delete endpoint writes — an operator who deletes the demo agent does not
+    get it re-created on the next process boot. If the operator re-adds a
+    "Demo Assistant"/"system" agent themselves, the tombstone is cleared so
+    future deletions re-arm it.
     """
     existing = db.query(AgentRegistry).filter(
-        AgentRegistry.name == "Demo Assistant",
-        AgentRegistry.category == "system",
+        AgentRegistry.name == DEMO_AGENT_NAME,
+        AgentRegistry.category == DEMO_AGENT_CATEGORY,
     ).first()
     if existing:
+        # A demo agent row is present — the operator wants it (either it was
+        # never deleted or they re-created it). Drop any stale tombstone so
+        # its next deletion re-arms.
+        tombstone = db.get(RuntimeSetting, DEMO_AGENT_TOMBSTONE_KEY)
+        if tombstone is not None:
+            db.delete(tombstone)
+            db.commit()
+        return
+
+    # No row: only re-create if the operator has NOT deleted it before.
+    if db.get(RuntimeSetting, DEMO_AGENT_TOMBSTONE_KEY) is not None:
+        logger.info(
+            "BOOTSTRAP: Demo Assistant was deleted by the operator; "
+            "respecting tombstone (no re-creation)."
+        )
         return
 
     demo = AgentRegistry(
-        name="Demo Assistant",
+        name=DEMO_AGENT_NAME,
         description=(
             "Onboarding demo agent. INTERN tier with a governance bypass for "
             "complexity ≤ 2 actions so new users can explore streaming chat "
