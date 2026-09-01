@@ -435,11 +435,12 @@ class TestOutlookAPIIntegration:
         assert advanced > datetime(2024, 1, 1, 0, 0, 0)
 
     @pytest.mark.asyncio(mode="auto")
-    async def test_truncated_walk_advances_to_oldest_consumed_boundary(self, ingestion_pipeline):
-        """A page-cap truncation consumes everything strictly newer than the
-        oldest consumed message (the request pins $orderBy=receivedDateTime
-        desc), so the cursor moves to that boundary — the next poll resumes
-        the unconsumed older pages instead of skipping or re-reading them."""
+    async def test_truncated_walk_holds_cursor_and_pins_resume_bound(self, ingestion_pipeline):
+        """A page-cap truncation must NOT move the low watermark (the strict
+        gt filter would exclude the unconsumed older pages forever). With the
+        newest-first order pinned via $orderBy, the walk instead narrows a
+        continuation bound to the oldest consumed timestamp; the next poll
+        walks exactly the unconsumed remainder (C, bound]."""
         ingestion_pipeline.app_configs["outlook"] = {"user_id": "user-trunc"}
         ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-trunc"] = datetime(
             2024, 1, 1, 0, 0, 0
@@ -477,15 +478,60 @@ class TestOutlookAPIIntegration:
 
             messages = await ingestion_pipeline._fetch_outlook_messages(None)
 
-        # The walk is newest-first, so the boundary watermark is provable.
+        # The walk is newest-first, so the consumed boundary is provable.
         assert seen_params.get("$orderBy") == "receivedDateTime desc"
-        # The mock returns the same page each pass, so the same message shows
-        # up once per page walked — the assertion is on its identity + cursor.
         assert {m["id"] for m in messages} == {"trunc-msg-1"}
-        advanced = ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-trunc"]
-        # Boundary = oldest consumed timestamp, NOT newest (the newest is
-        # page 1's first message; everything older remains unconsumed).
-        assert advanced == datetime.fromisoformat("2024-02-01T12:00:00Z")
+        # Low watermark HELD — unconsumed older pages stay reachable.
+        assert ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-trunc"] == datetime(
+            2024, 1, 1, 0, 0, 0
+        )
+        # Continuation bound pinned to the oldest consumed timestamp.
+        assert ingestion_pipeline.fetch_timestamps[
+            "last_fetch_outlook_resume_user-trunc"
+        ] == datetime.fromisoformat("2024-02-01T12:00:00Z")
+
+    @pytest.mark.asyncio(mode="auto")
+    async def test_continuation_drain_promotes_cursor_and_clears_bound(self, ingestion_pipeline):
+        """When a continuation walk (C, bound] completes naturally, the
+        cursor promotes to the bound and the continuation state clears —
+        proving truncated backfills terminate instead of looping."""
+        ingestion_pipeline.app_configs["outlook"] = {"user_id": "user-resume"}
+        ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-resume"] = datetime(
+            2024, 1, 1, 0, 0, 0
+        )
+        ingestion_pipeline.fetch_timestamps[
+            "last_fetch_outlook_resume_user-resume"
+        ] = datetime.fromisoformat("2024-02-01T12:00:00Z")
+        captured = {}
+
+        def capture_params(*args, **kwargs):
+            captured.update(kwargs.get("params") or {})
+            return Mock(
+                status_code=200,
+                json=lambda: {"value": [], "@odata.nextLink": None},
+            )
+
+        with patch.object(
+            ingestion_pipeline, "_outlook_token_owners", return_value=["user-resume"]
+        ), patch(
+            'integrations.outlook_service.outlook_service._get_access_token',
+            new_callable=AsyncMock,
+            return_value="token-resume",
+        ), patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.get = AsyncMock(side_effect=capture_params)
+
+            await ingestion_pipeline._fetch_outlook_messages(None)
+
+        # The walk targeted exactly the unconsumed remainder (C, bound].
+        assert "receivedDateTime gt 2024-01-01T00:00:00Z" in captured.get("$filter", "")
+        assert "receivedDateTime le 2024-02-01T12:00:00Z" in captured.get("$filter", "")
+        # Drained: cursor promoted to the bound, continuation state cleared.
+        assert ingestion_pipeline.fetch_timestamps[
+            "last_fetch_outlook_user-resume"
+        ] == datetime.fromisoformat("2024-02-01T12:00:00Z")
+        assert "last_fetch_outlook_resume_user-resume" not in ingestion_pipeline.fetch_timestamps
 
     @pytest.mark.asyncio(mode="auto")
     async def test_new_owner_does_not_inherit_global_cursor(self, ingestion_pipeline):

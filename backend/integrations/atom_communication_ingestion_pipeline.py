@@ -2362,48 +2362,73 @@ class CommunicationIngestionPipeline:
             return []
         all_messages: List[Dict[str, Any]] = []
         for owner in owners:
+            cursor_key = f"last_fetch_outlook_{owner}"
+            resume_key = f"last_fetch_outlook_resume_{owner}"
             # Per-owner cursor ONLY. A first-time owner must start from None
             # (its own initial-sync window walk) — falling back to the global
             # `last_fetch_outlook` key would inherit another mailbox's
             # watermark and permanently skip this owner's older mail.
-            owner_cursor = self.fetch_timestamps.get(
-                f"last_fetch_outlook_{owner}"
+            owner_cursor = self.fetch_timestamps.get(cursor_key)
+            # Optional continuation upper bound: when a previous walk hit the
+            # page cap, the remaining range (cursor, resume] is walked to
+            # completion BEFORE the cursor is promoted (see the fetch method).
+            resume_max = self.fetch_timestamps.get(resume_key)
+            messages, new_cursor, new_resume = await self._fetch_outlook_for_owner(
+                owner, owner_cursor, resume_max
             )
-            messages, new_cursor = await self._fetch_outlook_for_owner(owner, owner_cursor)
             if messages:
                 logger.info(f"Fetched {len(messages)} Outlook messages for user {owner}")
             all_messages.extend(messages)
             # Advance the per-owner cursor ONLY when the page walk progressed
-            # cleanly. The $filter is `receivedDateTime gt cursor`, so jumping
-            # the watermark after a failed/truncated walk would permanently
-            # skip everything that arrived inside the unconsumed window.
-            # Holding the cursor just re-walks the same window; the poll dedup
-            # set (_seen_message_ids) drops the already-ingested messages.
+            # cleanly to a proven boundary (natural end or a drained
+            # continuation). A None cursor means hold: the window is retried
+            # next poll and the seen-id dedup set (_seen_message_ids) drops
+            # the re-fetched messages.
             if new_cursor is not None:
-                self.fetch_timestamps[f"last_fetch_outlook_{owner}"] = new_cursor
+                self.fetch_timestamps[cursor_key] = new_cursor
             else:
                 logger.warning(
                     f"Outlook poll incomplete for user {owner} — cursor held at "
                     f"{owner_cursor}, window will be retried next poll"
                 )
+            # Continuation bookkeeping: a fresh bound narrows the remaining
+            # range; None after a walk that had one means the range drained
+            # and the cursor was promoted past it.
+            if new_resume is not None:
+                self.fetch_timestamps[resume_key] = new_resume
+            elif resume_max is not None:
+                self.fetch_timestamps.pop(resume_key, None)
         self._save_fetch_state()
         return all_messages
 
     async def _fetch_outlook_for_owner(
-        self, owner: str, last_fetch: Optional[datetime]
+        self, owner: str, last_fetch: Optional[datetime],
+        resume_max: Optional[datetime] = None,
     ) -> tuple:
         """Fetch + normalize one user's new Outlook mail via Microsoft Graph.
 
-        Returns (messages, new_cursor). ``new_cursor`` is the watermark the
-        caller may persist, or None meaning HOLD: the walk failed mid-page
-        (transient Graph error, non-200), so nothing past the old cursor is
-        known-consumed and the window must be retried. On a natural end the
-        cursor moves to the newest message seen (or now() when the window is
-        empty); on a page-cap truncation it moves to the OLDEST consumed
-        timestamp — with the deterministic newest-first $orderBy, everything
-        strictly newer than that was consumed, so the next poll resumes the
-        unconsumed older pages instead of skipping them. Re-walked windows
-        are deduplicated by the poll's seen-id set.
+        Returns (messages, new_cursor, new_resume). The pair implements a
+        two-sided window so a truncated walk can never skip mail:
+
+        - ``last_fetch`` is the low watermark (exclusive: ``gt``); the walk
+          covers ``(last_fetch, resume_max]`` where ``resume_max`` (inclusive:
+          ``le``) is a continuation bound left by a previous truncated walk.
+        - Natural end: the window drained, so the cursor promotes — to
+          ``resume_max`` when draining a continuation, else to the newest
+          message seen (or now() on an empty window) — and the bound clears
+          (new_resume=None).
+        - Page-cap truncation: the low watermark HOLDS (new_cursor=None) and
+          the bound narrows to the oldest consumed timestamp (new_resume).
+          With the deterministic newest-first $orderBy, everything strictly
+          newer than that bound is consumed, so the next poll walks exactly
+          the unconsumed remainder ``(last_fetch, min_seen]`` — older pages
+          stay reachable instead of falling below the next ``gt`` filter.
+        - Failure: both hold (None cursor, unchanged bound) and the window
+          is retried; the poll's seen-id set deduplicates re-fetched mail.
+
+        ``order_untrusted`` (a Graph backend rejecting filter+orderBy) falls
+        back to hold-on-truncation: no watermark is persisted without a
+        provable page order.
 
         Token source: the user's own IntegrationToken (encrypted,
         OAuth-callback populated) via outlook_service; the legacy file-based
@@ -2417,7 +2442,9 @@ class CommunicationIngestionPipeline:
             access_token = await outlook_service._get_access_token(user_id=owner)
             if not access_token:
                 logger.warning(f"No Microsoft OAuth token found for Outlook polling (user {owner})")
-                return [], None
+                # Keep any continuation bound unchanged — the caller must not
+                # mistake a fetch failure for a drained window.
+                return [], None, resume_max
 
             headers = {"Authorization": f"Bearer {access_token}"}
 
@@ -2425,12 +2452,10 @@ class CommunicationIngestionPipeline:
             newest = None
             # Oldest receivedDateTime consumed so far. With a deterministic
             # newest-first order this is the exact boundary of consumed pages,
-            # so a truncated walk can resume from it instead of skipping the
-            # unconsumed older pages.
+            # so a truncated walk can pin its continuation bound here.
             min_seen: Optional[datetime] = None
-            # None = hold the cursor (walk failed); set on natural end or a
-            # clean truncation, see the return-comment in the docstring.
             new_cursor: Optional[datetime] = None
+            new_resume: Optional[datetime] = None
 
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Build filter for messages since last fetch
@@ -2464,11 +2489,18 @@ class CommunicationIngestionPipeline:
                     ts = since.strftime("%Y-%m-%dT%H:%M:%SZ")
                     params["$filter"] = f"receivedDateTime ge {ts}"
                     # Enough pages to walk the window in one pass; if it
-                    # truncates, the cursor advances only to the newest
-                    # message seen and the next poll resumes the walk.
+                    # truncates, the continuation bound pins the consumed
+                    # boundary and the next poll walks the remainder.
                     max_fetches = 40
                     logger.info(
                         f"Outlook initial sync: fetching {history_days} days of history"
+                    )
+                if resume_max:
+                    # Two-sided continuation window (C, resume_max]: exactly
+                    # the range a previous truncated walk left unconsumed.
+                    params["$filter"] = (
+                        f"{params.get('$filter')} and receivedDateTime le "
+                        f"{resume_max.strftime('%Y-%m-%dT%H:%M:%SZ')}"
                     )
 
                 # Pagination support
@@ -2515,6 +2547,7 @@ class CommunicationIngestionPipeline:
                         elif response.status_code != 200:
                             logger.error(f"Failed to fetch Outlook messages: {response.status_code}")
                             new_cursor = None
+                            new_resume = resume_max
                             break
 
                         data = response.json()
@@ -2623,11 +2656,13 @@ class CommunicationIngestionPipeline:
                         # Check for next page
                         next_link = data.get("@odata.nextLink")
                         if not next_link:
-                            # Natural end: everything available was consumed,
-                            # so the watermark may move even with zero new
-                            # messages (otherwise every poll re-walks an
-                            # empty window forever).
-                            new_cursor = newest or datetime.now()
+                            # Natural end: the window drained, so the cursor
+                            # promotes to a proven boundary — the continuation
+                            # bound when draining one, else the newest message
+                            # seen (or now() on an empty window, so polls
+                            # don't re-walk an empty window forever).
+                            new_cursor = resume_max or newest or datetime.now()
+                            new_resume = None
                             break
 
                         fetch_count += 1
@@ -2635,33 +2670,38 @@ class CommunicationIngestionPipeline:
                     except Exception as e:
                         logger.error(f"Error fetching Outlook messages page: {e}")
                         new_cursor = None
+                        new_resume = resume_max
                         break
 
                 # Page cap hit with more pages pending: truncated, not failed.
-                # With a trusted newest-first order, everything STRICTLY newer
-                # than the oldest consumed message was consumed, so the walk
-                # resumes from that boundary next poll (boundary ties may be
-                # re-fetched and dedup drops them; the cursor never jumps past
-                # unconsumed pages). Without a trusted order, or with zero
-                # messages consumed, no watermark is provably safe — hold.
+                # Hold the low watermark and narrow the continuation bound to
+                # the oldest consumed timestamp — the next poll walks exactly
+                # the unconsumed remainder (C, min_seen] instead of re-reading
+                # consumed pages or skipping below them. Without a trusted
+                # page order, or with zero messages consumed, hold everything.
                 if next_link and new_cursor is None and fetch_count >= max_fetches:
                     if order_trusted and min_seen is not None:
-                        new_cursor = min_seen
+                        new_cursor = None
+                        new_resume = min_seen
+                    else:
+                        # Untrusted page order: no provable boundary — hold
+                        # the current bound unchanged.
+                        new_resume = resume_max
 
             if new_cursor is None:
                 logger.warning(
-                    f"Outlook page walk failed for user {owner} — messages so "
-                    "far are kept, cursor held for retry"
+                    f"Outlook page walk incomplete for user {owner} — cursor held, "
+                    "remaining window will be retried next poll"
                 )
             logger.info(f"Fetched {len(all_messages)} messages from Outlook (user {owner})")
-            return all_messages, new_cursor
+            return all_messages, new_cursor, new_resume
 
         except ImportError:
             logger.warning("token_storage module not available for Outlook polling")
-            return [], None
+            return [], None, resume_max
         except Exception as e:
             logger.error(f"Error fetching Outlook messages (user {owner}): {e}")
-            return [], None
+            return [], None, resume_max
     
     def _index_attachments(
         self, content: str, attachments: List[Dict[str, Any]]

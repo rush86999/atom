@@ -7221,3 +7221,16 @@ memory_context_assembler knowledge leg + assemble signature, chat_orchestrator i
 test_new_owner_does_not_inherit_global_cursor, test_owner_filter_enforces_mailbox_boundary),
 test_knowledge_spotlighting 10/10 (+2 threading), test_memory_context_assembler doubles updated
 (owner_user_id kwarg), 126 passed across assembler/agents/status/memory-index. py_compile clean.
+
+## Session 2026-09-01 — Review round 3: two-sided continuation windows
+
+**Scope**: pipeline Outlook walk only — page-cap truncation no longer moves the low watermark
+(that still excluded the unconsumed older pages from the next strict-gt filter); it pins an
+inclusive continuation bound (oldest consumed timestamp) and the next poll walks exactly
+(C, bound] to completion before the cursor promotes to the bound. Untrusted page order
+(Graph 400 on filter+orderBy) falls back to full hold. Failure paths preserve an existing
+continuation bound so a transient error can't be mistaken for a drained window.
+
+**Evidence**: test_email_api_ingestion 35/35 (+test_truncated_walk_holds_cursor_and_pins_resume_bound,
++test_continuation_drain_promotes_cursor_and_clears_bound); 219 passed across the seven
+affected suites; py_compile clean.
