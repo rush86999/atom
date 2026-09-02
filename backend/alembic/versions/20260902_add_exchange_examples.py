@@ -56,6 +56,8 @@ def upgrade() -> None:
             sa.Column("comment", sa.Text(), nullable=True),
             sa.Column("model", sa.String(), nullable=True),
             sa.Column("provider", sa.String(), nullable=True),
+            sa.Column("embedded", sa.Boolean(), nullable=False, server_default=sa.false()),
+            sa.Column("consolidated", sa.Boolean(), nullable=False, server_default=sa.false()),
             sa.Column(
                 "created_at",
                 sa.DateTime(timezone=True),

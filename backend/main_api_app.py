@@ -969,6 +969,18 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Could not start memory consolidation loop (non-fatal): {e}")
 
+    # 12. Rated-exchange memory maintenance (Phase 56 learning loop upkeep):
+    # backfill missing vectors, distill recurring rejections into pattern
+    # lessons via the teaching circuit, opt-in shadow→enforce latch.
+    if not is_test_mode:
+        try:
+            from core.exchange_memory_maintenance import exchange_maintenance_loop
+
+            _spawn_background_task(exchange_maintenance_loop())
+            logger.info("✓ Exchange memory maintenance background task started")
+        except Exception as e:
+            logger.warning(f"Could not start exchange memory maintenance (non-fatal): {e}")
+
     logger.info("=" * 60)
     logger.info("✓ Server Ready")
 

@@ -1294,6 +1294,11 @@ class ExchangeExample(Base):
 
     model = Column(String, nullable=True)
     provider = Column(String, nullable=True)
+    # Maintenance state (core/exchange_memory_maintenance.py):
+    # embedded — LanceDB vector written (backfill re-embeds False rows);
+    # consolidated — already distilled into a recurring-pattern lesson.
+    embedded = Column(Boolean, nullable=False, default=False)
+    consolidated = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (

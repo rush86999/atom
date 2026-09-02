@@ -212,6 +212,7 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     I("TURN_FACT_RETENTION_DAYS", 0, C_MEM, "Turn-fact retention (0 = forever)"),
     I("TURN_FACT_CB_THRESHOLD", 5, C_MEM, "Turn-fact circuit-break trips"),
     F("TURN_FACT_CB_COOLDOWN_S", 120.0, C_MEM, "Turn-fact circuit cooldown"),
+    S("ATOM_EXCHANGE_MEMORY", "shadow", C_MEM, "Rated-exchange learning loop: off | shadow (capture+teach, no injection) | enforce (inject examples)"),
     # Fleet router
     B("ATOM_FLEET_ROUTING_ENABLED", True, C_FLEET, "Governed fleet dispatch (shadow)"),
     B("ATOM_FLEET_ROUTING_FORCE_ENFORCE", False, C_FLEET, "Return fleet results live"),
