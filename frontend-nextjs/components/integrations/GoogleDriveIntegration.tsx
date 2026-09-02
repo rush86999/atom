@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
-import { authFetch } from "@/lib/auth-headers";
+import { authFetch, getAuthToken } from "@/lib/auth-headers";
 import {
   ChevronRight,
   ArrowRight,
@@ -171,6 +171,16 @@ const GoogleDriveIntegration: React.FC = () => {
     window.location.href = '/api/auth/gdrive/initiate';
   };
 
+  // Mirrors Outlook's Switch Account: ?prompt=select_account forces Google's
+  // account picker instead of reusing the signed-in session.
+  const handleSwitchAccount = () => {
+    const token = getAuthToken();
+    const base = '/api/v1/auth/oauth/google/initiate';
+    window.location.href = token
+      ? `${base}?token=${encodeURIComponent(token)}&prompt=select_account`
+      : `${base}?prompt=select_account`;
+  };
+
   // Handle Google Drive disconnection
   const handleDisconnect = async () => {
     try {
@@ -315,13 +325,22 @@ const GoogleDriveIntegration: React.FC = () => {
               <Badge className="bg-green-500 hover:bg-green-600">Connected</Badge>
               <span className="text-sm text-gray-600 dark:text-gray-400">as {connectionStatus.email}</span>
             </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDisconnect}
-            >
-              Disconnect Google Drive
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSwitchAccount}
+              >
+                Switch Account
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDisconnect}
+              >
+                Disconnect Google Drive
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
-import { authFetch } from "@/lib/auth-headers";
+import { authFetch, getAuthToken } from "@/lib/auth-headers";
 import {
   ChevronRight,
   ExternalLink,
@@ -168,6 +168,17 @@ const OneDriveIntegration: React.FC = () => {
     window.location.href = "/api/auth/onedrive/authorize";
   };
 
+  // Mirrors Outlook's Switch Account: ?prompt=select_account forces Microsoft's
+  // account picker instead of reusing the signed-in session (which is why a
+  // plain reconnect keeps binding the same account).
+  const handleSwitchAccount = () => {
+    const token = getAuthToken();
+    const base = "/api/v1/auth/oauth/microsoft/initiate";
+    window.location.href = token
+      ? `${base}?token=${encodeURIComponent(token)}&prompt=select_account`
+      : `${base}?prompt=select_account`;
+  };
+
   const handleDisconnect = async () => {
     try {
       const response = await authFetch("/api/auth/onedrive/disconnect", {
@@ -299,13 +310,22 @@ const OneDriveIntegration: React.FC = () => {
                 Drive Type: {connectionStatus.drive_type}
               </p>
             )}
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDisconnect}
-            >
-              Disconnect OneDrive
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSwitchAccount}
+              >
+                Switch Account
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDisconnect}
+              >
+                Disconnect OneDrive
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
