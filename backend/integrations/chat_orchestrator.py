@@ -226,6 +226,22 @@ def _references_conversation(message: str) -> bool:
     return bool(message) and bool(_CONVERSATION_REF_RE.search(message))
 
 
+# Approval phrases ("go ahead", "proceed", "yes do it") mean DELIVER the
+# announced artifact now — without this, reply models loop on proposing
+# instead of producing (observed live 2026-09-01: three consecutive
+# "Ready to send once you confirm!" turns on an explicit "go ahead").
+_APPROVAL_EXECUTION_RULE = (
+    "APPROVAL MEANS EXECUTE: when the user says \"go ahead\", \"proceed\", "
+    "\"yes\", \"do it\", or otherwise approves something you proposed or "
+    "announced — deliver the COMPLETE artifact in this reply: the full email "
+    "draft (To/Subject/Body), the complete text, or the concrete result. "
+    "Do NOT ask \"should I proceed?\", do NOT restate that you will do it, "
+    "and do NOT request another confirmation — the user's approval was the "
+    "confirmation. The concise-response limit does not apply to "
+    "user-requested artifacts."
+)
+
+
 class ChatOrchestrator:
     """
     Main orchestrator that connects chat interface with all ATOM features
@@ -1100,7 +1116,8 @@ class ChatOrchestrator:
 
 {_TOOL_CAPABILITY}
 
-When users ask to fetch live data (like CRM leads), acknowledge that the integration needs to be connected first and guide them on setup. Be helpful, specific, and actionable. Keep responses concise (2-4 sentences) unless detail is needed."""
+When users ask to fetch live data (like CRM leads), acknowledge that the integration needs to be connected first and guide them on setup. Be helpful, specific, and actionable. Keep responses concise (2-4 sentences) unless detail is needed.
+""" + _APPROVAL_EXECUTION_RULE
 
             # Chatting WITH a hire: the employee speaks as themselves, not as
             # the platform. Persona and tier behavior come from the registry,
@@ -1131,7 +1148,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         f"Maturity tier: {tier}. {tier_behavior} "
                         f"{_TOOL_CAPABILITY} "
                         "Be helpful, specific, and actionable. Keep responses concise "
-                        "(2-4 sentences) unless detail is needed."
+                        "(2-4 sentences) unless detail is needed. "
+                        + _APPROVAL_EXECUTION_RULE
                     )
 
             messages = [
