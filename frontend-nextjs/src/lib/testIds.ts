@@ -47,6 +47,9 @@ export const AGENT_CHAT = {
 
   /** Per-message "fork from here" button on assistant replies */
   FORK_MESSAGE_BUTTON: 'fork-message-button',
+
+  /** Per-message "open in canvas" button on assistant replies */
+  OPEN_IN_CANVAS_BUTTON: 'open-in-canvas-button',
 } as const;
 
 // ===========================================================================

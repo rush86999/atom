@@ -272,6 +272,35 @@ describe('ChatMessage feedback controls', () => {
     expect(screen.queryByTestId('fork-message-button')).not.toBeInTheDocument();
   });
 
+  it('calls onOpenInCanvas with the full message (open in canvas)', () => {
+    const onOpenInCanvas = jest.fn();
+    const msg = baseMsg();
+    render(
+      <ChatMessage
+        message={msg}
+        onActionClick={jest.fn()}
+        onOpenInCanvas={onOpenInCanvas}
+      />
+    );
+
+    const btn = screen.getByTestId('open-in-canvas-button');
+    expect(btn).toHaveAttribute('aria-label', 'Open in canvas');
+    fireEvent.click(btn);
+    expect(onOpenInCanvas).toHaveBeenCalledWith(msg);
+  });
+
+  it('does not render the open-in-canvas button when onOpenInCanvas is not provided', () => {
+    render(
+      <ChatMessage
+        message={baseMsg()}
+        onActionClick={jest.fn()}
+        onFeedback={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByTestId('open-in-canvas-button')).not.toBeInTheDocument();
+  });
+
   it('submits a comment as thumbs_down feedback with the comment text', () => {
     const onFeedback = jest.fn();
     render(

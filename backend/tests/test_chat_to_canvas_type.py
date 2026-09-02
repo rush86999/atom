@@ -140,3 +140,42 @@ def test_unknown_canvas_type_rejected(db_session):
     })
     assert resp.status_code == 400
     assert "Unsupported canvas_type" in resp.json()["detail"]
+
+
+def test_selection_from_dict_candidates_echoes_message_id(db_session):
+    """Candidates as {id, content} dicts: when the classifier picks an
+    EARLIER reply (the latest message wasn't draft-shaped), the response
+    names it so the UI can tell the user which message became the canvas —
+    the "converted the wrong data silently" fix."""
+    client = _make_client(db_session)
+    latest = "Sure — happy to walk through the details whenever you like."
+    older = "To: mark@example.com\nSubject: Quote follow-up\n\nHi Mark, the quote is attached."
+    resp = client.post("/api/chat/to-canvas", json={
+        "content": latest,
+        "candidates": [
+            {"id": "msg_latest", "content": latest},
+            {"id": "msg_older", "content": older},
+        ],
+        "title": "Draft — latest",
+    })
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["selected_message_id"] == "msg_older"
+
+    canvas = _last_canvas(db_session)
+    assert canvas.canvas_type == "email"
+    assert canvas.content.get("to") == "mark@example.com"
+
+
+def test_latest_message_selection_echoes_its_own_id(db_session):
+    """When the latest message itself is draft-shaped, selection keeps it and
+    names it — the response always identifies the message that became the
+    canvas (single-candidate per-message opens included)."""
+    client = _make_client(db_session)
+    resp = client.post("/api/chat/to-canvas", json={
+        "content": EMAIL_SHAPED,
+        "candidates": [{"id": "msg_latest", "content": EMAIL_SHAPED}],
+        "title": "Draft — quote follow-up",
+    })
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["selected_message_id"] == "msg_latest"

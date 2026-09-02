@@ -17,6 +17,7 @@ from core.chat_draft_classifier import (
     coerce_email_canvas,
     extract_email_draft,
     normalize_email_content,
+    select_draft_message,
 )
 
 
@@ -241,6 +242,95 @@ class TestCoerceEmailCanvas:
     def test_none_type(self):
         ctype, _ = coerce_email_canvas(None, "just text, no headers")
         assert ctype == "generic"
+
+
+# A conversational answer that merely EMBEDS a code snippet — the live
+# wrong-canvas bug: newest-first selection used to open THIS message
+# instead of the real draft sitting older in the history.
+ANSWER_WITH_SNIPPET = (
+    "Happy to explain!\n\n"
+    "Here's a small piece of it:\n\n"
+    "```python\nx = 1\ny = 2\nprint(x + y)\n```\n\n"
+    "The full flow has more steps — the router picks the tool, the tool "
+    "calls the API, and the result streams back into the chat.\n\n"
+    "Want me to walk through any step in detail?"
+)
+
+# A draft-shaped code reply: the code outweighs the framing prose.
+CODE_DRAFT = (
+    "Here's the migration script:\n\n"
+    "```bash\npsql $DB -c 'BEGIN'\nalembic upgrade head\n"
+    "psql $DB -c 'COMMIT'\ncurl -s localhost:8000/health\necho done\n```\n\n"
+    "Ping me if anything fails."
+)
+
+# An answer carrying a small comparison table — prose-dominated.
+TABLE_ANSWER = (
+    "Both options could work — here's a quick side-by-side:\n\n"
+    "| Plan | Price |\n| --- | --- |\n| Basic | $10 |\n\n"
+    "Overall I'd lean Basic for your volume, but happy to go deeper on either."
+)
+
+# A draft-shaped table reply: the table outweighs the framing prose.
+TABLE_DRAFT = (
+    "Here's the roster:\n\n"
+    "| Name | Role |\n| --- | --- |\n| Ana | Ops |\n| Raj | Eng |\n"
+    "| Mei | Design |\n| Zoe | Sales |\n"
+)
+
+
+class TestSelectDraftMessage:
+    """Newest-first draft selection for "Open latest draft in canvas".
+
+    Selection is stricter than detect_draft_kind: code/table candidates
+    count only when the artifact dominates the message, so a later
+    conversational answer can no longer shadow the real draft; dict
+    candidates echo the picked message's id for UI transparency.
+    """
+
+    def test_bare_string_candidates_still_work(self):
+        sel = select_draft_message(["just a conversational answer", MARK_KELLAM_DRAFT])
+        assert sel == {"content": MARK_KELLAM_DRAFT, "kind": "email"}
+
+    def test_dict_candidates_echo_message_id(self):
+        cands = [
+            {"id": "msg_answer", "content": ANSWER_WITH_SNIPPET},
+            {"id": "msg_draft", "content": MARK_KELLAM_DRAFT},
+        ]
+        sel = select_draft_message(cands)
+        assert sel["kind"] == "email"
+        assert sel["message_id"] == "msg_draft"
+
+    def test_snippet_answer_does_not_shadow_older_draft(self):
+        sel = select_draft_message([ANSWER_WITH_SNIPPET, MARK_KELLAM_DRAFT])
+        assert sel["kind"] == "email"
+        assert sel["content"] == MARK_KELLAM_DRAFT
+
+    def test_table_answer_does_not_shadow_older_draft(self):
+        sel = select_draft_message([TABLE_ANSWER, MARK_KELLAM_DRAFT])
+        assert sel["kind"] == "email"
+
+    def test_dominating_code_draft_is_selected(self):
+        sel = select_draft_message([CODE_DRAFT])
+        assert sel["kind"] == "code"
+
+    def test_dominating_table_draft_is_selected(self):
+        sel = select_draft_message([TABLE_DRAFT])
+        assert sel["kind"] == "table"
+
+    def test_newest_draft_wins_among_two_drafts(self):
+        sel = select_draft_message([CODE_DRAFT, MARK_KELLAM_DRAFT])
+        assert sel["kind"] == "code"
+        assert sel["content"] == CODE_DRAFT
+
+    def test_no_qualifying_candidate_returns_none(self):
+        assert select_draft_message(["hello", "how can I help?"]) is None
+        assert select_draft_message([]) is None
+        assert select_draft_message(None) is None
+
+    def test_non_string_content_skipped(self):
+        sel = select_draft_message([{"id": "m1", "content": 42}, MARK_KELLAM_DRAFT])
+        assert sel["kind"] == "email"
 
 
 class _CanvasHarness:

@@ -25,7 +25,8 @@ import {
     ThumbsUp,
     MessageSquare,
     RefreshCw,
-    GitFork
+    GitFork,
+    PanelRight
 } from "lucide-react";
 
 export interface ChatAction {
@@ -80,9 +81,12 @@ interface ChatMessageProps {
      * session. Only meaningful when the message carries a durable backend
      * id (history-loaded messages), which the parent guards. */
     onFork?: (messageId: string) => void;
+    /** Open THIS reply as a co-editable canvas. Deterministic per-message
+     * conversion — no "latest draft" heuristic picks another message. */
+    onOpenInCanvas?: (message: ChatMessageData) => void;
 }
 
-export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, onFork }: ChatMessageProps) {
+export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, onFork, onOpenInCanvas }: ChatMessageProps) {
     const isUser = message.type === 'user';
     const [showComment, setShowComment] = useState(false);
     const [comment, setComment] = useState('');
@@ -217,9 +221,22 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, 
                 )}
 
                 {/* Feedback Controls for Assistant */}
-                {!isUser && (onFeedback || onRegenerate || onFork) && (
+                {!isUser && (onFeedback || onRegenerate || onFork || onOpenInCanvas) && (
                     <div className="flex flex-col mt-2 px-1">
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                            {onOpenInCanvas && (
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6"
+                                    aria-label="Open in canvas"
+                                    title="Open in canvas — edit this reply as a co-editable canvas"
+                                    data-testid={AGENT_CHAT.OPEN_IN_CANVAS_BUTTON}
+                                    onClick={() => onOpenInCanvas(message)}
+                                >
+                                    <PanelRight className="h-3 w-3 text-muted-foreground hover:text-sky-500" />
+                                </Button>
+                            )}
                             {onFork && (
                                 <Button
                                     size="icon"

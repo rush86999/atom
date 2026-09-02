@@ -1467,6 +1467,10 @@ async def chat_draft_to_canvas(
     db.commit()
 
     result = {"success": True, "canvas_id": canvas_id, "url": f"/canvas/{canvas_id}"}
+    # Which history message actually became the canvas — the UI toasts when
+    # selection fell back to an earlier reply instead of the latest one.
+    if selected and selected.get("message_id") is not None:
+        result["selected_message_id"] = selected["message_id"]
     if office_fallback_warning:
         result["warning"] = office_fallback_warning
     return result

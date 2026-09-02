@@ -103,21 +103,87 @@ def strip_agent_signoff(body: str, default_signature: Optional[str]) -> str:
     return body or ""
 
 
-def select_draft_message(candidates: List[str]) -> Optional[Dict[str, str]]:
+def select_draft_message(candidates: List[Any]) -> Optional[Dict[str, Any]]:
     """Pick the message an "open draft in canvas" click actually means.
 
     Chat keeps moving after a draft lands ("one more question…"), so the
     LATEST assistant message is often not the draft at all. Given recent
-    assistant contents newest-first, return ``{"content", "kind"}`` for the
-    most recent message carrying a detectable artifact (email draft, code
-    block, table, titled document — see ``detect_draft_kind``); None when
-    no candidate carries one — callers fall back to the latest message.
+    assistant messages newest-first — each a bare content string, or an
+    ``{"id", "content"}`` dict so the chosen message can be identified in
+    the UI — return ``{"content", "kind", "message_id"?}`` for the most
+    recent DRAFT-SHAPED message; None when no candidate qualifies — callers
+    fall back to the latest message.
+
+    Qualifying is stricter than ``detect_draft_kind``: a conversational
+    ANSWER routinely *contains* a code snippet or a comparison table, and
+    being newer than the real draft it would win the newest-first scan and
+    the canvas would open the wrong message (observed live). So code/table
+    candidates count only when the artifact DOMINATES the message (drafts
+    are mostly artifact, answers are mostly prose); email, slides, and
+    leading-heading documents are draft-shaped by construction.
     """
     for candidate in candidates or []:
-        kind = detect_draft_kind(candidate)
-        if kind:
-            return {"content": candidate, "kind": kind}
+        message_id: Any = None
+        if isinstance(candidate, dict):
+            message_id = candidate.get("id")
+            content = candidate.get("content")
+        else:
+            content = candidate
+        if not isinstance(content, str):
+            continue
+        kind = detect_draft_kind(content)
+        if not kind:
+            continue
+        if kind in ("email", "slides", "doc") or _artifact_dominates(content, kind):
+            selected: Dict[str, Any] = {"content": content, "kind": kind}
+            if message_id is not None:
+                selected["message_id"] = message_id
+            return selected
     return None
+
+
+# A draft IS the artifact with a line or two of framing; an answer is prose
+# that happens to embed one. 2:1 keeps real drafts ("Here's the script:" +
+# 20 code lines) while rejecting snippet-bearing replies.
+_DOMINANCE_RATIO = 2
+
+
+def _nonempty_lines(text: str) -> int:
+    return sum(1 for ln in text.splitlines() if ln.strip())
+
+
+def _artifact_dominates(text: str, kind: str) -> bool:
+    """Whether the code/table artifact outweighs the surrounding prose.
+
+    Code: all fenced-block lines vs everything outside the fences. Table:
+    the first table block's lines (header + separator + rows) vs the rest
+    of the message.
+    """
+    if kind == "code":
+        parts = text.split("```")
+        artifact = sum(_nonempty_lines(part) for part in parts[1::2])
+        prose = sum(_nonempty_lines(part) for part in parts[0::2])
+    elif kind == "table":
+        lines = text.splitlines()
+        artifact, start = 0, -1
+        for i in range(len(lines) - 1):
+            if "|" in lines[i] and _TABLE_SEPARATOR.match(lines[i + 1]):
+                start = i
+                artifact = 2  # header + separator
+                for follow in lines[i + 2:]:
+                    if "|" not in follow or not follow.strip():
+                        break
+                    artifact += 1
+                break
+        if not artifact:
+            return False
+        prose = sum(
+            1 for j, ln in enumerate(lines)
+            if ln.strip() and not (start <= j < start + artifact)
+        )
+    else:
+        return False
+    return artifact >= max(3, _DOMINANCE_RATIO * prose)
 
 
 # Markdown table separator row ("| --- | --- |"), the structural marker of

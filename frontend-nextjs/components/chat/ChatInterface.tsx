@@ -145,33 +145,82 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
     // the other canvas apps follow for when the owner disagrees.
     const [canvasTypeChoice, setCanvasTypeChoice] = React.useState<string>("auto");
     const lastAssistant = [...messages].reverse().find((m) => m.type === "assistant" && m.content?.trim());
-    // Recent assistant contents, newest-first: the backend picks the most
-    // recent EMAIL-draft-shaped one, so the button opens the draft even
-    // when the chat moved on ("one more question…") after it landed.
+    // Recent assistant messages, newest-first, WITH ids: the backend picks
+    // the most recent DRAFT-SHAPED one (an answer that merely embeds a code
+    // snippet or a small table no longer qualifies) and echoes the picked
+    // id, so a fallback to an earlier reply is surfaced instead of silently
+    // converting the wrong message.
     const draftCandidates = [...messages]
         .reverse()
         .filter((m) => m.type === "assistant" && m.content?.trim())
         .slice(0, 10)
-        .map((m) => m.content);
+        .map((m) => ({ id: m.id, content: m.content }));
+
+    const createCanvasFromMessage = async (content: string, candidates: Array<{ id: string; content: string }>) => {
+        const { apiClient } = await import("../../lib/api-client");
+        const res = await apiClient.post("/api/chat/to-canvas", {
+            content,
+            candidates,
+            title: `Draft — ${String(content).slice(0, 60)}`,
+            session_id: sessionId,
+            agent_id: initialAgentId,
+            ...(canvasTypeChoice !== "auto" ? { canvas_type: canvasTypeChoice } : {}),
+        }, { timeout: 30000 });
+        return res.data;
+    };
+
+    const openCanvasFromData = (data: any, clickedMessageId?: string) => {
+        if (data?.warning) {
+            toast({ title: "Canvas type adjusted", description: data.warning });
+        }
+        // Transparency: when the draft scan picked an EARLIER reply than the
+        // one the click was on, say so — conversion must never look like it
+        // grabbed the wrong text. The toast gets a beat to read before the
+        // navigation lands on the canvas.
+        const fellBack = Boolean(
+            clickedMessageId && data?.selected_message_id && data.selected_message_id !== clickedMessageId
+        );
+        if (fellBack) {
+            toast({
+                title: "Opened an earlier reply",
+                description: "The latest message wasn't a draft, so the most recent draft-shaped reply was opened instead.",
+            });
+        }
+        if (data?.url) {
+            if (fellBack) {
+                setTimeout(() => { window.location.href = data.url; }, 1200);
+            } else {
+                window.location.href = data.url;
+            }
+        }
+    };
+
     const openInCanvas = async () => {
         if (!lastAssistant || openingCanvas) return;
         setOpeningCanvas(true);
         try {
-            const { apiClient } = await import("../../lib/api-client");
-            const res = await apiClient.post("/api/chat/to-canvas", {
-                content: lastAssistant.content,
-                candidates: draftCandidates,
-                title: `Draft — ${String(lastAssistant.content).slice(0, 60)}`,
-                session_id: sessionId,
-                agent_id: initialAgentId,
-                ...(canvasTypeChoice !== "auto" ? { canvas_type: canvasTypeChoice } : {}),
-            }, { timeout: 30000 });
-            if (res.data?.warning) {
-                toast({ title: "Canvas type adjusted", description: res.data.warning });
-            }
-            if (res.data?.url) {
-                window.location.href = res.data.url;
-            }
+            const data = await createCanvasFromMessage(lastAssistant.content, draftCandidates);
+            openCanvasFromData(data, lastAssistant.id);
+        } catch {
+            // backend may still be processing; the canvas is created server-side
+        } finally {
+            setOpeningCanvas(false);
+        }
+    };
+
+    // Deterministic per-message conversion: the user picked the reply, so a
+    // single-candidate window lets the classifier type it (email / code /
+    // office shape) but can never re-select a different message from
+    // history — the canvas is exactly the message the button was on.
+    const openMessageInCanvas = async (message: ChatMessageData) => {
+        if (openingCanvas || !message.content?.trim()) return;
+        setOpeningCanvas(true);
+        try {
+            const data = await createCanvasFromMessage(
+                message.content,
+                [{ id: message.id, content: message.content }],
+            );
+            openCanvasFromData(data, message.id);
         } catch {
             // backend may still be processing; the canvas is created server-side
         } finally {
@@ -293,6 +342,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 handleFeedback={handleFeedback}
                 handleRegenerate={handleRegenerate}
                 handleForkFromHere={handleForkFromHere}
+                handleOpenInCanvas={openMessageInCanvas}
             />
 
             <ChatInput
