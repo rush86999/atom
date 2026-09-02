@@ -94,6 +94,10 @@ class UnifiedEvolutionPipeline:
           4. Rollback snapshot — mutation_rollback.snapshot
           5. Deploy (caller-specific)
 
+        Every outcome (accepted or rejected at any gate) is appended to the
+        skill-impact ledger (WikiSkill W1) so the evolvers never re-propose
+        a rejected intervention.
+
         Returns a PipelineResult indicating success/failure and which stage.
         """
         mutation_id = f"pipe_{uuid.uuid4().hex[:12]}"
@@ -110,18 +114,18 @@ class UnifiedEvolutionPipeline:
                 check_config, request.tenant_id
             )
             if not governance_ok:
-                return PipelineResult(
+                return self._record(request, PipelineResult(
                     mutation_id=mutation_id, passed=False,
                     stage="governance",
                     reason="Evolution directive rejected by governance gate",
-                )
+                ))
         except Exception as e:
             logger.warning(f"Pipeline: governance check failed ({e}); blocking mutation")
-            return PipelineResult(
+            return self._record(request, PipelineResult(
                 mutation_id=mutation_id, passed=False,
                 stage="governance",
                 reason=f"Governance check error: {e}",
-            )
+            ))
 
         # 2. Daily limit check
         try:
@@ -135,18 +139,18 @@ class UnifiedEvolutionPipeline:
                     request.agent_id, capability, self._get_workspace_settings(request.tenant_id)
                 )
                 if not within_limit:
-                    return PipelineResult(
+                    return self._record(request, PipelineResult(
                         mutation_id=mutation_id, passed=False,
                         stage="daily_limit",
                         reason=f"Daily mutation limit exceeded for {request.source}",
-                    )
+                    ))
         except Exception as e:
             logger.warning(f"Pipeline: daily limit check failed ({e}); blocking (fail-closed)")
-            return PipelineResult(
+            return self._record(request, PipelineResult(
                 mutation_id=mutation_id, passed=False,
                 stage="daily_limit",
                 reason=f"Daily limit check error: {e}",
-            )
+            ))
 
         # 3. Regression validation — compare parent vs mutated code behavior on
         # the same test inputs in the sandbox. Skipped when no code pair is
@@ -166,23 +170,23 @@ class UnifiedEvolutionPipeline:
                     tenant_id=request.tenant_id,
                 )
                 if not regression.passed:
-                    return PipelineResult(
+                    return self._record(request, PipelineResult(
                         mutation_id=mutation_id, passed=False,
                         stage="regression",
                         reason=(
                             f"Behavioral regression detected on "
                             f"{len(regression.mismatches)}/{len(request.test_inputs)} test inputs"
                         ),
-                    )
+                    ))
             except Exception as e:
                 logger.warning(
                     f"Pipeline: regression validation failed ({e}); blocking (fail-closed)"
                 )
-                return PipelineResult(
+                return self._record(request, PipelineResult(
                     mutation_id=mutation_id, passed=False,
                     stage="regression",
                     reason=f"Regression validation error: {e}",
-                )
+                ))
 
         # 4. Rollback snapshot
         rollback_id = None
@@ -198,22 +202,40 @@ class UnifiedEvolutionPipeline:
         except Exception:
             pass  # rollback is best-effort
 
-        return PipelineResult(
+        return self._record(request, PipelineResult(
             mutation_id=mutation_id,
             passed=True,
             stage="validated",
             rollback_mutation_id=rollback_id,
-        )
+        ))
+
+    def _record(self, request: MutationRequest, result: PipelineResult) -> PipelineResult:
+        """Append the outcome to the skill-impact ledger (best-effort — a
+        ledger failure must never change pipeline behavior)."""
+        try:
+            from core.auto_dev.skill_impact_ledger import record_pipeline_outcome
+            record_pipeline_outcome(self.db, request, result)
+        except Exception as e:
+            logger.debug(f"skill-impact ledger unavailable: {e}")
+        return result
 
     async def rollback(
         self,
         mutation_id: str,
         agent_config: Optional[Dict[str, Any]] = None,
     ) -> bool:
-        """Revert a deployed mutation."""
+        """Revert a deployed mutation. The skill rolls back; the ledger entry
+        flips to rolled_back — the wiki itself is never rolled back (W1)."""
         try:
             from core.auto_dev.mutation_rollback import get_rollback_registry
-            return get_rollback_registry().rollback(mutation_id, agent_config)
+            ok = get_rollback_registry().rollback(mutation_id, agent_config)
+            if ok:
+                try:
+                    from core.auto_dev.skill_impact_ledger import record_rollback
+                    record_rollback(self.db, mutation_id)
+                except Exception:
+                    pass
+            return ok
         except Exception as e:
             logger.error(f"Pipeline rollback failed: {e}")
             return False

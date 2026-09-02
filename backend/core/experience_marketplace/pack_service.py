@@ -37,6 +37,29 @@ logger = logging.getLogger(__name__)
 PACK_KIND = "atom_experience_pack"
 PACK_VERSION = 1
 
+
+def _model_provenance(agent: Any) -> str:
+    """The exporting agent's model, best-effort — WikiSkill W6 ships this so
+    the receiving installation can apply the negative-transfer guard
+    (weak-model skills can degrade a stronger model catastrophically)."""
+    cfg = getattr(agent, "configuration", None)
+    if isinstance(cfg, dict):
+        for key in ("model", "llm_model", "default_model"):
+            val = cfg.get(key)
+            if isinstance(val, str) and val.strip():
+                return val.strip()[:255]
+        llm = cfg.get("llm")
+        if isinstance(llm, dict):
+            val = llm.get("model")
+            if isinstance(val, str) and val.strip():
+                return val.strip()[:255]
+    meta = getattr(agent, "meta_data", None)
+    if isinstance(meta, dict):
+        val = meta.get("model")
+        if isinstance(val, str) and val.strip():
+            return val.strip()[:255]
+    return "unknown"
+
 SENSITIVITY_LADDER = ["public", "internal", "confidential", "restricted"]
 PACK_SECTIONS = ("patterns", "canvas_lessons", "facts", "ontology", "skills")
 ITEM_KINDS = ("pattern", "canvas_lesson", "fact", "skill")
@@ -536,6 +559,7 @@ class ExperiencePackService:
             "pack_version": PACK_VERSION,
             "exported_at": _iso(_now()),
             "source_agent_id": agent_id,
+            "source_model": _model_provenance(agent),
             "sensitivity_ceiling": sensitivity_ceiling,
             "delta": bool(since),
             "cursor": cursor,
@@ -637,6 +661,11 @@ class ExperiencePackService:
         allowed = set(SENSITIVITY_LADDER[: SENSITIVITY_LADDER.index(declared_ceiling) + 1])
 
         source_agent_id = payload.get("source_agent_id") or "unknown"
+        # WikiSkill W6: the exporter's model rides with the pack; every
+        # applied item is stamped with it and QUARANTINED until validated on
+        # this installation (transfer_safety), because skills evolved by a
+        # weaker model can degrade a stronger one catastrophically.
+        source_model = str(payload.get("source_model") or "unknown")[:255]
         sections = payload.get("sections") or {}
         applied = 0
         skipped = 0
@@ -677,6 +706,10 @@ class ExperiencePackService:
                     existing.payload = item_payload
                     existing.content_hash = ch
                     existing.sensitivity = sensitivity
+                    existing.source_model = source_model
+                    # Changed content is new knowledge: re-quarantine until
+                    # validated on this installation (W6).
+                    existing.validation_state = "pending"
                     existing.updated_at = _now()
                     applied += 1
                     continue
@@ -686,6 +719,8 @@ class ExperiencePackService:
                     item_id=item["item_id"], sensitivity=sensitivity,
                     payload=item_payload, content_hash=ch,
                     imported_from=performed_by or "experience_pack",
+                    source_model=source_model,
+                    validation_state="pending",
                 ))
                 applied += 1
 

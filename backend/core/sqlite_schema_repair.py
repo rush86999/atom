@@ -77,10 +77,19 @@ def repair_known_drift() -> None:
     """Repair the known-drifted hot-path tables. Call once at app startup."""
     try:
         from core.database import get_db_session
-        from core.models import AgentReasoningStep
+        from core.models import (
+            AgentReasoningStep,
+            ExperienceItem,
+            Playbook,
+        )
 
         with get_db_session() as db:
             engine = db.get_bind()
             ensure_sqlite_columns(engine, AgentReasoningStep)
+            # WikiSkill columns on tables create_all can't alter (W5/W6):
+            # playbooks.last_eval_result, experience_items.source_model /
+            # validation_state — see 20260902_wikiskill_adaptation.
+            ensure_sqlite_columns(engine, Playbook)
+            ensure_sqlite_columns(engine, ExperienceItem)
     except Exception as e:
         logger.warning(f"known-drift repair skipped: {e}")

@@ -18,17 +18,25 @@ logger = logging.getLogger(__name__)
 
 
 async def run_evals(db, tenant_id: str = "default", limit: int = 20,
-                    llm_service: Any = None) -> Dict[str, Any]:
-    """Run pending cases for a tenant. Returns
+                    llm_service: Any = None,
+                    eval_ids: Optional[list] = None) -> Dict[str, Any]:
+    """Run pending cases for a tenant. ``eval_ids`` restricts the replay to
+    specific cases (the playbook approval gate replays only the evals a
+    draft originated from). Returns
     {ran, passed, failed, skipped, results:[{eval_id, taxonomy, status, detail}]}.
     Never raises on individual cases — a crashing case is a `skipped` with
     the error captured, because the runner must be safe to call from the
     graduation exam."""
     from core.models import IncidentEval
 
-    rows = (db.query(IncidentEval)
-            .filter(IncidentEval.tenant_id == tenant_id)
-            .order_by(IncidentEval.occurrences.desc(), IncidentEval.created_at.desc())
+    rows = db.query(IncidentEval).filter(IncidentEval.tenant_id == tenant_id)
+    if eval_ids is not None:
+        if not eval_ids:
+            return {"ran": 0, "passed": 0, "failed": 0,
+                    "skipped": 0, "results": []}
+        rows = rows.filter(IncidentEval.id.in_(eval_ids))
+    rows = (rows.order_by(IncidentEval.occurrences.desc(),
+                          IncidentEval.created_at.desc())
             .limit(limit).all())
 
     summary: Dict[str, Any] = {"ran": 0, "passed": 0, "failed": 0,

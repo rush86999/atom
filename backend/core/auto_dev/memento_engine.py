@@ -153,6 +153,20 @@ class MementoEngine(BaseLearningEngine):
         error_trace = context.get("error_trace", "")
         tool_calls = context.get("tool_calls_attempted", [])
 
+        # WikiSkill W1: show the proposer the skill-impact ledger so a
+        # previously rejected intervention is not re-proposed.
+        history_block = ""
+        tenant_id = context.get("tenant_id")
+        if tenant_id and self.db is not None:
+            try:
+                from core.auto_dev.skill_impact_ledger import proposer_history_block
+                history_block = proposer_history_block(
+                    self.db, str(tenant_id),
+                    agent_id=context.get("agent_id"),
+                )
+            except Exception:
+                history_block = ""
+
         system_prompt = (
             "You are the Memento Skill Generator. Your goal is to create a new "
             "Python utility function that addresses a gap in the agent's capabilities. "
@@ -167,10 +181,13 @@ class MementoEngine(BaseLearningEngine):
             tool_list = ", ".join(t["tool_name"] for t in tool_calls)
             tool_context = f"\nTools attempted (all failed or insufficient): {tool_list}"
 
+        history_context = f"\n\n{history_block}\n" if history_block else ""
+
         user_prompt = (
             f"Task the agent failed at:\n{task_desc}\n\n"
             f"Error trace:\n{error_trace[:500]}\n"
-            f"{tool_context}\n\n"
+            f"{tool_context}"
+            f"{history_context}\n\n"
             "Generate a Python skill function that would let the agent "
             "succeed at this task. Include:\n"
             "- A clear function name\n"
@@ -264,6 +281,12 @@ class MementoEngine(BaseLearningEngine):
 
         if "error" in failure_analysis:
             raise ValueError(f"Episode analysis failed: {failure_analysis['error']}")
+
+        # The proposer prompt reads the skill-impact ledger (W1); make sure
+        # the scoping keys survive an externally-supplied analysis dict.
+        failure_analysis = dict(failure_analysis)
+        failure_analysis.setdefault("tenant_id", tenant_id)
+        failure_analysis.setdefault("agent_id", agent_id)
 
         # Step 2: Generate skill code
         generated_code = await self.propose_code_change(failure_analysis)

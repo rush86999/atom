@@ -285,3 +285,40 @@ async def test_cycle_survives_a_failing_step(monkeypatch):
     assert summary["promoted"]["promoted"] is True
     assert summary["promoted_panel"]["promoted"] is True
     assert "distilled" in summary
+
+
+@pytest.mark.asyncio
+async def test_loop_awaits_the_cycle(monkeypatch):
+    """Live bug (2026-09-02): exchange_maintenance_loop called the async
+    cycle without await — every sleep-time step (backfill, distill,
+    auto-promote, playbook drafts, WikiSkill patterns) silently never ran
+    and the log showed a bare coroutine object. Pins that the cycle is
+    actually awaited."""
+    calls = {"n": 0}
+
+    async def fake_cycle(db):
+        calls["n"] += 1
+        return {"backfilled": 0}
+
+    monkeypatch.setattr(xm, "run_maintenance_cycle", fake_cycle)
+
+    class _FakeDB:
+        def close(self):
+            pass
+
+    monkeypatch.setattr("core.database.SessionLocal", lambda: _FakeDB())
+
+    class _ExitAfterFirstSleep:
+        def __init__(self):
+            self.n = 0
+
+        async def sleep(self, _seconds):
+            self.n += 1
+            if self.n > 1:
+                raise RuntimeError("loop-exit")
+
+    monkeypatch.setattr(xm, "asyncio", _ExitAfterFirstSleep())
+
+    with pytest.raises(RuntimeError, match="loop-exit"):
+        await xm.exchange_maintenance_loop()
+    assert calls["n"] == 1  # awaited, not merely created

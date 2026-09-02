@@ -96,6 +96,44 @@ class SkillCandidate(Base):
     )
 
 
+class SkillImpactEntry(Base):
+    """
+    WikiSkill W1: skill-impact ledger (the paper's wiki/skill-impact.md).
+
+    One append-only row per mutation proposal outcome, written by the unified
+    evolution pipeline (accept, or rejection at any gate) and by rollbacks.
+    The evolver prompts (Memento, AlphaEvolver) read this ledger via
+    ``rejection_history`` so a rejected intervention is never re-proposed —
+    the paper credits this acceptance history with keeping proposals useful.
+
+    The ledger is write-side knowledge for the OFFLINE evolvers only; it is
+    never injected into runtime agent prompts (WikiSkill W4: the inference
+    agent must not read the raw wiki).
+    """
+
+    __tablename__ = "skill_impact_entries"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(36), nullable=False, index=True)
+    agent_id = Column(String(36), nullable=True, index=True)
+    target = Column(String(255), nullable=False, index=True)  # tool/skill/config key
+    source = Column(String(50), nullable=False, default="unknown")  # engine name
+    # accepted | rejected | rolled_back
+    status = Column(String(20), nullable=False, index=True)
+    stage = Column(String(40), nullable=True)  # governance|daily_limit|regression|validated
+    reason = Column(Text, nullable=True)
+    proposal_summary = Column(Text, nullable=True)
+    unified_diff = Column(Text, nullable=True)
+    validation_score = Column(Float, nullable=True)
+    mutation_id = Column(String(50), nullable=True, index=True)  # pipeline mutation id
+    payload = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        Index("ix_skill_impact_tenant_target", "tenant_id", "target"),
+    )
+
+
 class HypothesisTreeRecord(Base):
     """
     Arbor HTR: Persisted snapshot of a completed hypothesis tree session.

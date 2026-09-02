@@ -240,6 +240,10 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "Company playbooks (processes as data): off = never enter prompts; shadow (recommended) = "
       "approved playbooks advise the agent as context; enforce = reserved for send/edit gates. "
       "Drafts from /teach or sleep-time mining always wait for supervisor approval regardless"),
+    S("ATOM_PLAYBOOK_EVAL_GATE", "shadow", C_LEARN,
+      "WikiSkill W5: replay the playbook's related incident evals when a draft is approved. "
+      "shadow = record the replay outcome on the playbook and approve anyway; enforce = block "
+      "draft→approved while any related eval FAILS (skips never block); off = no replay"),
     S("ATOM_SEND_GROUNDING", "shadow", C_LEARN,
       "Grounded send gate for outbound email: every availability/spec/price claim needs a facts-registry "
       "entry or hedged wording. off = not consulted; shadow (recommended) = verdicts logged, nothing blocked; "

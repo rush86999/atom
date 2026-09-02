@@ -30,6 +30,12 @@ One cycle, four fault-isolated steps:
    — then latch to enforce. The panel only ever runs on mission-critical or
    complex turns, which is the built-in cost control.
 
+5. KNOWLEDGE PATTERNS (WikiSkill wiki layer, W2+W3) — a balanced sample of
+   recent failing (≤5) and passing (≤3) traces per active tenant is
+   distilled into knowledge_patterns pages (failure modes with root cause +
+   workaround, success strategies). Consumed by the OFFLINE evolver prompts
+   only; the runtime agent never reads the raw wiki (W4).
+
 Runs from the app lifespan like the other consolidation loops
 (main_api_app.py), gated on ENABLE_SCHEDULER/test-mode there.
 """
@@ -322,6 +328,67 @@ def _draft_playbooks(db) -> Dict[str, Any]:
     return summary
 
 
+# ---------------------------------------------------------------------------
+# Step 5: knowledge-pattern maintenance (WikiSkill wiki layer, W2+W3)
+# ---------------------------------------------------------------------------
+
+async def _maintain_knowledge_patterns(db) -> Dict[str, Any]:
+    """One Wiki-Maintainer iteration per active tenant (capped): balanced
+    failing+passing trace sample → distilled knowledge_patterns. The LLM
+    path is used when providers are configured; the deterministic path
+    (incident evals + tool-error signatures) keeps the wiki growing offline.
+    Fault-isolated by the cycle."""
+    from core.knowledge_pattern_service import distill_from_traces
+
+    from core.models import AgentEpisode
+
+    since = _recent_window()
+    tenant_rows = (
+        db.query(AgentEpisode.tenant_id)
+        .filter(AgentEpisode.created_at >= since)
+        .distinct()
+        .limit(3)
+        .all()
+    )
+    llm_service = _default_llm()
+    out: Dict[str, Any] = {"tenants": 0, "created": 0, "bumped": 0}
+    for (tenant_id,) in tenant_rows:
+        if not tenant_id:
+            continue
+        try:
+            res = await distill_from_traces(db, tenant_id, llm_service=llm_service)
+            out["tenants"] += 1
+            out["created"] += res.get("created", 0)
+            out["bumped"] += res.get("bumped", 0)
+        except Exception as e:
+            logger.debug("pattern distill skipped for tenant: %s", e)
+    return out
+
+
+def _recent_window(days: int = 7):
+    from datetime import datetime, timedelta, timezone
+
+    return datetime.now(timezone.utc) - timedelta(days=days)
+
+
+def _default_llm():
+    """Best-effort shared LLM probe (same contract as the eval runner)."""
+    try:
+        from core.incident_eval_runner import _default_llm_service
+        return _default_llm_service()
+    except Exception:
+        return None
+
+
+async def _validate_pending_imports(db) -> List[Dict[str, Any]]:
+    """WikiSkill W6: move quarantined experience-pack imports through
+    validation on THIS installation (advisory kinds auto-activate on a
+    clean incident-eval replay; skill kinds wait for human review)."""
+    from core.experience_marketplace.transfer_safety import validate_pending_imports
+
+    return await validate_pending_imports(db, llm_service=_default_llm())
+
+
 def _latch_runtime_setting(db, key: str) -> None:
     """Upsert the runtime-settings row (env still wins as kill-switch) and
     drop the settings cache so the next read sees the latch."""
@@ -367,6 +434,14 @@ async def run_maintenance_cycle(db) -> Dict[str, Any]:
         summary["playbook_drafts"] = _draft_playbooks(db)
     except Exception as e:
         logger.debug("playbook draft step failed: %s", e)
+    try:
+        summary["patterns"] = await _maintain_knowledge_patterns(db)
+    except Exception as e:
+        logger.debug("knowledge pattern step failed: %s", e)
+    try:
+        summary["import_validation"] = await _validate_pending_imports(db)
+    except Exception as e:
+        logger.debug("import validation step failed: %s", e)
     return summary
 
 
@@ -381,7 +456,10 @@ async def exchange_maintenance_loop() -> None:
     while True:
         db = SessionLocal()
         try:
-            summary = run_maintenance_cycle(db)
+            # Live bug (2026-09-02, caught by the WikiSkill live check): the
+            # await was missing — the loop logged a bare coroutine object and
+            # NO maintenance step (backfill/distill/promote/patterns) ever ran.
+            summary = await run_maintenance_cycle(db)
             logger.info("✓ exchange memory maintenance: %s", summary)
         except Exception as e:
             logger.warning(f"exchange memory maintenance failed (non-fatal): {e}")

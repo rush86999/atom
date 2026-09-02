@@ -38,6 +38,19 @@ def playbook_mode() -> str:
     return mode if mode in (_MODE_OFF, _MODE_SHADOW, _MODE_ENFORCE) else _MODE_SHADOW
 
 
+def eval_gate_mode(db=None) -> str:
+    """ATOM_PLAYBOOK_EVAL_GATE: off | shadow | enforce (default shadow).
+    WikiSkill W5 — replay a draft's related incident evals at approval time;
+    only `enforce` can block the promotion (the paper's strict gate, minus
+    the failure mode where neutral proposals deadlock: skips never block)."""
+    try:
+        from core.runtime_settings import get_setting
+        mode = str(get_setting("ATOM_PLAYBOOK_EVAL_GATE", "shadow", db=db) or "shadow").lower()
+    except Exception:
+        return "shadow"
+    return mode if mode in (_MODE_OFF, _MODE_SHADOW, _MODE_ENFORCE) else "shadow"
+
+
 class PlaybookService:
     def __init__(self, db, tenant_id: str = "default",
                  workspace_id: str = "default"):
@@ -113,6 +126,60 @@ class PlaybookService:
             return None
         self.db.commit()
         return row
+
+    # ── approval WITH the WikiSkill validation gate (W5) ──
+    async def approve(self, playbook_id: str, actor: Optional[str] = None,
+                      llm_service: Optional[Any] = None) -> Optional[Dict[str, Any]]:
+        """The gated draft → approved promotion: replay the incident evals
+        the draft originated from (``origin_ids``) before acceptance.
+
+        WikiSkill accepts a skill change only on strict validation
+        improvement; the analog here — related evals must not FAIL (skips
+        never block — a case that cannot run is not evidence of regression).
+        shadow records the replay and approves anyway; enforce blocks while
+        any related eval fails (the draft stays `draft`, the wiki layer —
+        its origin evals — stays intact either way).
+
+        Returns None when the playbook does not exist, else
+        {approved, playbook, eval_gate}.
+        """
+        row = self.get(playbook_id)
+        if row is None:
+            return None
+
+        mode = eval_gate_mode()
+        gate: Optional[Dict[str, Any]] = None
+        if mode != _MODE_OFF:
+            eval_ids = [oid for oid in (row.origin_ids or [])
+                        if isinstance(oid, str)]
+            if eval_ids:
+                gate = await self._replay_origin_evals(eval_ids, llm_service)
+                row.last_eval_result = gate
+
+        if mode == _MODE_ENFORCE and gate and gate.get("failed", 0) > 0:
+            self.db.commit()  # persist last_eval_result; row stays draft
+            return {"approved": False, "playbook": row, "eval_gate": gate}
+
+        row.approval_state = "approved"
+        row.approved_by = actor
+        self.db.commit()
+        return {"approved": True, "playbook": row, "eval_gate": gate}
+
+    async def _replay_origin_evals(self, eval_ids: List[str],
+                                   llm_service: Optional[Any]) -> Dict[str, Any]:
+        from core.incident_eval_runner import run_evals
+
+        summary = await run_evals(self.db, tenant_id=self.tenant_id,
+                                  limit=len(eval_ids),
+                                  llm_service=llm_service,
+                                  eval_ids=eval_ids)
+        return {
+            "ran": summary.get("ran", 0),
+            "passed": summary.get("passed", 0),
+            "failed": summary.get("failed", 0),
+            "skipped": summary.get("skipped", 0),
+            "results": summary.get("results", []),
+        }
 
     # ── capture path: /teach upgrade ──
     def create_from_teach(self, lesson_text: str, *,

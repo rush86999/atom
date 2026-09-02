@@ -12157,6 +12157,15 @@ class ExperienceItem(Base):
     content_hash = Column(String(64), nullable=False, index=True)  # sha256 canonical payload
     superseded_at = Column(DateTime(timezone=True), nullable=True)  # tombstoned by re-import
     imported_from = Column(String(255), nullable=True)  # audit provenance (destination/workspace)
+    # WikiSkill W6 (negative-transfer guard): the exporting agent's model,
+    # stamped at import — weak-model skills can transfer catastrophically
+    # badly (arXiv:2608.27454: a 4B model's skills dropped a large model's
+    # benchmark score 50.5%→18.1%).
+    source_model = Column(String(255), nullable=True)
+    # Transfer quarantine: pending (imported, unvalidated) | active
+    # (validated on this installation) | rejected. NULL = legacy row /
+    # pre-quarantine import, read as active for backward compatibility.
+    validation_state = Column(String(32), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -12577,6 +12586,9 @@ class Playbook(Base):
     # fingerprint of the originating pattern/correction — dedup for drafts.
     fingerprint = Column(String(64), nullable=True, index=True)
     origin_ids = Column(JSONColumn, default=list)
+    # WikiSkill W5: outcome of the incident-eval replay run at approval time
+    # (ATOM_PLAYBOOK_EVAL_GATE shadow/enforce). {ran, failed, results[…]}.
+    last_eval_result = Column(JSONColumn, nullable=True)
 
     created_by = Column(String(255), nullable=True)
     approved_by = Column(String(255), nullable=True)
@@ -12617,3 +12629,52 @@ class IncidentEval(Base):
     last_result = Column(JSONColumn, default=dict)  # {status, detail}
     last_run_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class KnowledgePattern(Base):
+    """WikiSkill W2: the persistent wiki layer — one row per pattern page.
+
+    Structured diagnostic/strategic knowledge distilled from execution
+    traces by the sleep-time maintainer: failure modes (root cause +
+    workaround) and success strategies. The wiki NEVER resets and is NEVER
+    rolled back — re-observations bump ``occurrence_count`` and refresh the
+    text instead of stacking rows (fingerprint dedup).
+
+    Read-side consumers are the OFFLINE evolvers (Memento/AlphaEvolver
+    prompts via the pattern index) and human review surfaces. The runtime
+    agent never reads this table directly (W4: knowledge reaches inference
+    only compiled into approved lessons/playbooks).
+    """
+
+    __tablename__ = "knowledge_patterns"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(255), nullable=False, index=True)
+    workspace_id = Column(String(255), nullable=True, index=True)
+
+    name = Column(String(255), nullable=False)
+    # failure_mode | success_strategy
+    kind = Column(String(32), nullable=False, default="failure_mode", index=True)
+    root_cause = Column(Text, nullable=True)
+    workaround = Column(Text, nullable=True)
+
+    # Episode / incident-eval ids backing this pattern (PURPOSE.md analog:
+    # every pattern stays traceable to the evidence that motivated it).
+    evidence_ids = Column(JSONColumn, default=list)
+    occurrence_count = Column(Integer, nullable=False, default=1)
+
+    # maintainer (LLM distillation) | incident (deterministic) | trace
+    source = Column(String(32), nullable=False, default="maintainer")
+    # active | retired (retire is human action; the maintainer never deletes)
+    status = Column(String(32), nullable=False, default="active", index=True)
+    # sha1(tenant|kind|name) — dedup, wiki grows not stacks.
+    fingerprint = Column(String(64), nullable=False, index=True)
+
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(),
+                        onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_knowledge_patterns_tenant_kind", "tenant_id", "kind"),
+    )

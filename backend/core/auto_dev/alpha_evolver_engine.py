@@ -95,6 +95,21 @@ class AlphaEvolverEngine(BaseLearningEngine):
         if not llm:
             return base_code + "\n# Mutation skipped: LLM unavailable"
 
+        # WikiSkill W1: the proposer sees the skill-impact ledger so rejected
+        # mutations are not re-proposed on the next evolution round.
+        history_block = ""
+        if context.get("tenant_id") and self.db is not None:
+            try:
+                from core.auto_dev.skill_impact_ledger import proposer_history_block
+                history_block = proposer_history_block(
+                    self.db, str(context["tenant_id"]),
+                    target=context.get("target"),
+                    agent_id=context.get("agent_id"),
+                )
+            except Exception:
+                history_block = ""
+        history_context = f"\n\n{history_block}\n" if history_block else ""
+
         system_prompt = (
             "You are the AlphaEvolve Code Mutator. Your goal is to refine and "
             "evolve Python tool code to better achieve a specific objective. "
@@ -103,7 +118,8 @@ class AlphaEvolverEngine(BaseLearningEngine):
         )
         user_prompt = (
             f"Objective: {mutation_prompt}\n\n"
-            f"Original Python Tool Code:\n```python\n{base_code}\n```\n\n"
+            f"Original Python Tool Code:\n```python\n{base_code}\n```\n"
+            f"{history_context}\n"
             "Provide the mutated code now:"
         )
 
@@ -225,6 +241,8 @@ class AlphaEvolverEngine(BaseLearningEngine):
             context={
                 "base_code": base_code,
                 "mutation_prompt": mutation_prompt,
+                "tenant_id": tenant_id,
+                "target": tool_name,
             }
         )
 

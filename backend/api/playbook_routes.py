@@ -93,14 +93,39 @@ async def approve_playbook(
     db: Session = Depends(get_db),
 ):
     """THE HITL gate: a draft (taught or sleep-time-learned) only enters
-    prompts after this. Approval is attributed to the supervisor."""
+    prompts after this. Approval is attributed to the supervisor.
+
+    WikiSkill W5: when the draft originated from incident evals, the evals
+    are replayed first — ATOM_PLAYBOOK_EVAL_GATE=enforce blocks promotion
+    while any of them fails; shadow (default) records the replay outcome on
+    the playbook and approves."""
+    from fastapi import HTTPException
+
     from core.playbook_service import PlaybookService
 
     svc = PlaybookService(db, tenant_id=resolve_tenant_id(current_user))
-    row = svc.set_state(playbook_id, "approved", actor=str(current_user.id))
-    if row is None:
+    result = await svc.approve(playbook_id, actor=str(current_user.id))
+    if result is None:
         raise router.not_found_error("Playbook", playbook_id)
-    return {"success": True, "id": row.id, "approval_state": row.approval_state}
+    if not result["approved"]:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "success": False,
+                "error": "Blocked by the incident-eval gate "
+                         "(ATOM_PLAYBOOK_EVAL_GATE=enforce)",
+                "eval_gate": {
+                    k: v for k, v in (result["eval_gate"] or {}).items()
+                    if k != "results"
+                },
+            },
+        )
+    row = result["playbook"]
+    return {"success": True, "id": row.id, "approval_state": row.approval_state,
+            "eval_gate": {
+                k: v for k, v in (result["eval_gate"] or {}).items()
+                if k != "results"
+            }}
 
 
 @router.post("/{playbook_id}/retire")
