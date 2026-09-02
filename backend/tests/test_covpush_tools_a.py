@@ -1015,7 +1015,9 @@ class TestCanvasCrudTool:
         db3 = self._db(canvas=SimpleNamespace(created_by="u-1"), first=_audit(action_type="delete"))
         with _patch_db(db3):
             res3 = await delete_canvas("u-1", "c-1")
-        assert res3["success"] is False and "already deleted" in res3["error"]
+        # IDEMPOTENT (2026-09-01): double-delete succeeds instead of 400ing
+        # the gallery's delete button mid-refetch.
+        assert res3["success"] is True and res3.get("already_deleted") is True
         db4 = self._db(canvas=SimpleNamespace(created_by="u-1"), first=_audit())
         db4.query.side_effect = RuntimeError("x")
         with _patch_db(db4):

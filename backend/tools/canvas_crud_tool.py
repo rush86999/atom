@@ -463,7 +463,16 @@ async def delete_canvas(
                 return {"success": False, "error": f"Canvas {canvas_id} not found"}
 
             if latest.action_type == "delete":
-                return {"success": False, "error": "Canvas already deleted"}
+                # IDEMPOTENT: deleting an already-deleted canvas succeeds.
+                # The gallery's delete button raced the refetch window once
+                # and the non-idempotent 400 surfaced as an AxiosError
+                # overlay (observed live 2026-09-01). REST DELETE is
+                # idempotent by contract; the outcome is identical.
+                return {
+                    "success": True,
+                    "canvas_id": canvas_id,
+                    "already_deleted": True,
+                }
 
             canvas_type = latest.canvas_type
 
