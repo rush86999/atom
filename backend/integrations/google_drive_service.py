@@ -112,12 +112,17 @@ class GoogleDriveService(IntegrationService):
     # -------------------------------------------------------------------------
 
     async def get_access_token(self, user_id: str) -> Optional[str]:
-        """Resolve a Drive access token from stored connections or env.
+        """Resolve a Drive access token from the unified-OAuth IntegrationToken
+        row, then stored connections, then env.
 
-        Tries a ``google_drive`` connection first, then the shared ``google``
-        connection (the generic Google OAuth app covers Drive when the right
-        scopes were granted). ConnectionService auto-refreshes expired tokens.
+        1. IntegrationToken (providers google/gmail/google_drive — what the
+           /api/v1/auth/oauth/google/callback flow writes; auto-refreshed).
+        2. ConnectionService (UserConnection) — legacy in-app connections.
+        3. GOOGLE_DRIVE_ACCESS_TOKEN env var (dev/convenience).
         """
+        token = await self._integration_token_access(user_id)
+        if token:
+            return token
         for integration_id in ("google_drive", "google"):
             connections = connection_service.get_connections(user_id, integration_id)
             if not connections:
@@ -128,6 +133,83 @@ class GoogleDriveService(IntegrationService):
                 return creds["access_token"]
         # Dev convenience fallback.
         return os.getenv("GOOGLE_DRIVE_ACCESS_TOKEN")
+
+    async def _integration_token_access(self, user_id: str) -> Optional[str]:
+        """Resolve + refresh the unified-OAuth IntegrationToken for Google.
+
+        Mirrors box_service: the /api/v1/auth/oauth/google/callback flow writes
+        an encrypted IntegrationToken (provider ``google``); expired tokens are
+        refreshed with the stored refresh token and persisted. Returns None when
+        no row exists so callers fall through to connection_service/env.
+        """
+        try:
+            from datetime import timedelta
+
+            from core.database import SessionLocal
+            from core.models import IntegrationToken
+            from core.privsec.token_encryption import decrypt_token, encrypt_token
+
+            db = SessionLocal()
+            try:
+                token_record = (
+                    db.query(IntegrationToken)
+                    .filter(
+                        IntegrationToken.user_id == user_id,
+                        IntegrationToken.provider.in_(["google", "google_drive", "gmail"]),
+                        IntegrationToken.status == "active",
+                    )
+                    .first()
+                )
+                if not token_record or not token_record.access_token:
+                    return None
+
+                expires_at = token_record.expires_at
+                if expires_at and expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+                if expires_at and expires_at < (datetime.now(timezone.utc) + timedelta(minutes=2)):
+                    refresh_plain = (
+                        decrypt_token(token_record.refresh_token, allow_plaintext=True)
+                        if token_record.refresh_token
+                        else None
+                    )
+                    new_tokens = await self._refresh(refresh_plain)
+                    if new_tokens and new_tokens.get("access_token"):
+                        token_record.access_token = encrypt_token(new_tokens["access_token"])
+                        token_record.expires_at = datetime.now(timezone.utc) + timedelta(
+                            seconds=int(new_tokens.get("expires_in", 3600))
+                        )
+                        db.commit()
+                        return new_tokens["access_token"]
+                    return None
+
+                return decrypt_token(token_record.access_token, allow_plaintext=True)
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Error getting Google Drive integration token: {e}")
+            return None
+
+    async def _refresh(self, refresh_token: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Exchange a refresh token for a fresh access token (Google OAuth2)."""
+        if not refresh_token:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    "https://oauth2.googleapis.com/token",
+                    data={
+                        "grant_type": "refresh_token",
+                        "refresh_token": refresh_token,
+                        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+                        "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+                    },
+                )
+                response.raise_for_status()
+                return response.json()
+        except Exception as e:
+            logger.error(f"Failed to refresh Google Drive token: {e}")
+            return None
 
     async def authenticate(self, user_id: str) -> Dict[str, Any]:
         """Generate the Google OAuth authorization URL for Drive."""
