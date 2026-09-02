@@ -100,6 +100,69 @@ async def list_categories(
     }
 
 
+@router.get("/learning-status")
+async def learning_status(
+    _admin: User = Depends(_require_admin),
+    db: Any = Depends(get_db),
+) -> Dict[str, Any]:
+    """Modes + health for Admin → Learning & Verification.
+
+    One read-only call backing the guidance page: resolved modes (raw +
+    effective — ``auto`` behaves as shadow until the maintenance latch
+    flips it to enforce) with their source (env override locks the UI
+    control), rated-exchange corpus counts, verification-panel run health.
+    Long-form guidance lives in
+    docs/guides/LEARNING_VERIFICATION_GUIDE.md.
+    """
+    from core.exchange_example_service import (
+        exchange_memory_setting,
+        get_corpus_counts,
+    )
+    from core.runtime_settings import get_int_setting
+    from core.verify_panel import get_panel_run_stats
+
+    try:
+        ex_raw, ex_source = exchange_memory_setting(db=db)
+        panel_res = resolve_setting("ATOM_VERIFY_PANEL", db=db)
+        panel_raw = str(panel_res.value or "auto").strip().lower()
+
+        def _effective(raw: str, fallback: str) -> str:
+            # auto self-regulates: behaves as shadow until the maintenance
+            # latch flips the stored value to enforce.
+            if raw == "auto":
+                return "shadow"
+            return raw if raw in ("off", "shadow", "enforce") else fallback
+
+        return {
+            "success": True,
+            "data": {
+                "exchange": {
+                    "mode": ex_raw,
+                    "effective": _effective(ex_raw, "shadow"),
+                    "source": ex_source,
+                    "env_locked": ex_source == "env",
+                    "counts": get_corpus_counts(db),
+                },
+                "panel": {
+                    "mode": panel_raw,
+                    "effective": _effective(panel_raw, "off"),
+                    "source": panel_res.source,
+                    "env_locked": panel_res.source == "env",
+                    "stats": get_panel_run_stats(db),
+                },
+                "gates": {
+                    "exchange_min_total": 20,
+                    "panel_min_runs": get_int_setting(
+                        "ATOM_VERIFY_PANEL_MIN_RUNS", 20, db=db
+                    ),
+                },
+            },
+        }
+    except Exception as e:
+        logger.error(f"Learning status failed: {e}")
+        raise HTTPException(status_code=500, detail="Learning status unavailable")
+
+
 @router.get("/audit")
 async def audit_history(
     limit: int = 50,

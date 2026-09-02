@@ -7,6 +7,8 @@ interface ZohoAppDetailProps {
   category: string;
   /** Scopes/services this app's connect flow grants (all via one consent). */
   coveredServices: string[];
+  /** Optional per-app deep links, used by the suite-level /integrations/zoho hub. */
+  apps?: { name: string; href: string }[];
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
@@ -25,6 +27,7 @@ const ZohoIntegrationDetail: React.FC<ZohoAppDetailProps> = ({
   description,
   category,
   coveredServices,
+  apps,
 }) => {
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [syncInfo, setSyncInfo] = useState<SyncInfo | null>(null);
@@ -108,6 +111,25 @@ const ZohoIntegrationDetail: React.FC<ZohoAppDetailProps> = ({
           ))}
         </div>
       </div>
+
+      {apps && apps.length > 0 && (
+        <div className="mb-6">
+          <span className="text-xs uppercase tracking-wide text-gray-500">
+            Apps in this suite
+          </span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {apps.map((a) => (
+              <a
+                key={a.href}
+                href={a.href}
+                className="px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300"
+              >
+                {a.name} →
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {checked && connected && (
         <div className="mb-6 p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-sm space-y-1">

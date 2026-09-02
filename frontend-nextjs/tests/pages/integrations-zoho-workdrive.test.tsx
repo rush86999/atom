@@ -1,10 +1,12 @@
 /**
  * Zoho WorkDrive page tests (pages/integrations/zoho-workdrive.tsx)
  *
- * Covers: the page mounts the ingestion component. The shared sidebar Layout
- * is provided by _app.tsx — the page must NOT wrap itself in <Layout> (doing
- * so rendered the sidebar twice). Identity is resolved server-side from the
- * authenticated session (JWT/cookie); no client-derived userId is forwarded.
+ * Covers: the page mounts the ingestion component WITHOUT wrapping itself in
+ * <Layout> — _app.tsx already provides the app shell, and a second wrapper
+ * rendered a duplicate sidebar (the duplicate-navbar bug documented on
+ * ZohoIntegrationDetail). The page no longer derives or forwards a userId —
+ * identity is resolved server-side from the authenticated session
+ * (JWT/cookie), and the demo-user fallback has been removed.
  */
 
 import React from "react";
@@ -18,12 +20,6 @@ jest.mock("@/components/Settings/ZohoWorkDriveIngestion", () => ({
   default: (props: any) => mockIngestion(props),
 }));
 
-// IngestionStatusPanel fetches on mount — stub it out.
-jest.mock("@/components/integrations/IngestionStatusPanel", () => ({
-  __esModule: true,
-  default: () => <div data-testid="status-panel">Status</div>,
-}));
-
 describe("ZohoWorkDrivePage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -33,13 +29,14 @@ describe("ZohoWorkDrivePage", () => {
     ));
   });
 
-  test("renders the ingestion component; sidebar Layout comes from _app.tsx", () => {
+  test("renders the ingestion component without a second app shell", () => {
     render(<ZohoWorkDrivePage />);
 
-    expect(screen.getByTestId("zoho-ingestion")).toBeInTheDocument();
-    // Regression: the page previously wrapped itself in <Layout> on top of
-    // _app.tsx's Layout → two sidebars. The page must not render its own.
     expect(screen.queryByTestId("layout")).not.toBeInTheDocument();
+    expect(screen.getByTestId("zoho-ingestion")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("ingestion-status-panel-loading")
+    ).toBeInTheDocument();
   });
 
   test("does not pass a client-derived userId to the ingestion component", () => {

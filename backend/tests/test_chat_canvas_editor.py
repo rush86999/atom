@@ -126,6 +126,27 @@ async def test_editor_prompt_demands_preservation_and_excludes_sends():
 
 
 @pytest.mark.asyncio
+async def test_plan_prompt_carries_sender_identity_and_bans_cc_guessing():
+    """Sender identity rides into the prompt as resolved data. Without it,
+    "i added my signature, adjust" made the editor GUESS the sender's name
+    from the Cc line — chandrakant@brennan.ca became the signature
+    (observed live 2026-09-02, canvas da27bb76…)."""
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(wants_edit=False))
+    await plan_canvas_edit(
+        "adjust my signature", [], _canvas(), llm,
+        user_identity={"name": "Rish Maniar", "email": "rish@brennan.ca",
+                       "signature": "Rish M.\nBrennan Machinery Inc."},
+    )
+    prompt = llm.generate_structured_response.call_args.kwargs["prompt"]
+    assert "SENDER IDENTITY" in prompt
+    assert "Rish Maniar" in prompt                 # the real sender is named…
+    assert "RECIPIENTS" in prompt                  # …and the To/Cc guess ban is stated
+    assert "Brennan Machinery Inc." in prompt      # default signature rides along
+
+
+@pytest.mark.asyncio
 async def test_plan_prompt_includes_recent_supervisor_corrections():
     """Corrections are the RLHF signal reaching the point of generation:
     AFTER (what the supervisor kept) is shown as the preferred wording."""
@@ -263,6 +284,31 @@ async def test_apply_refuses_patch_when_content_moved_under_the_plan():
     upd.assert_not_awaited()
 
 
+@pytest.mark.asyncio
+async def test_apply_detects_noop_and_skips_the_write():
+    """A plan that reproduces the current content byte-for-byte writes
+    nothing and reports "no_change". Live incident (2026-09-02, canvas
+    da27bb76…): "mark is the dealer and not end user" produced a
+    byte-identical audit row while the reply still claimed "I have updated
+    the email body…" — the user read that as the agent lying ("nothing
+    changed")."""
+    plan = CanvasEditPlan(wants_edit=True, ops=[CanvasPatchOp(find="Hello", replace="Hello")])
+    with patch("tools.canvas_crud_tool.update_canvas_content", new=AsyncMock()) as upd:
+        result, reason = await apply_canvas_edit(
+            plan, "user-1", _canvas(content="Hello"), return_reason=True,
+        )
+    assert result is None and reason == "no_change"
+    upd.assert_not_awaited()
+
+
+def test_describe_apply_failure_no_change_reads_honestly():
+    from core.chat_canvas_editor import describe_apply_failure
+
+    msg = describe_apply_failure("no_change", "email", _canvas())
+    assert "already reflects" in msg
+    assert "nothing" in msg.lower()
+
+
 # ───────────── grid patch ops: sheets as first-class canvases ─────────────
 
 def test_patch_ops_edit_one_cell_of_rows_grid():
@@ -323,7 +369,7 @@ async def test_canvas_edit_plans_against_durable_store_content():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None):
         seen["content"] = canvas.get("content")
         return plan
 
@@ -353,7 +399,7 @@ async def test_canvas_edit_passes_supervisor_corrections_to_planner():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None):
         seen["corrections"] = corrections
         return plan
 
@@ -386,7 +432,7 @@ async def test_canvas_edit_survives_corrections_lookup_failure():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None):
         seen["corrections"] = corrections
         return plan
 
@@ -544,6 +590,58 @@ async def test_canvas_edit_planning_failure_replies_honestly():
     assert resp["data"]["canvas_edit"]["updated"] is False
     assert resp["data"]["canvas_edit"]["plan_unavailable"] is True
     assert "nothing was changed" in resp["message"]
+
+
+@pytest.mark.asyncio
+async def test_canvas_edit_replies_honestly_on_noop():
+    """A no-op edit (planned content == current content) must answer
+    "nothing needed changing". Writing an identical audit row and claiming
+    success read as the agent lying — the user repeated the same feedback
+    three turns in a row while the canvas never moved (observed live
+    2026-09-02, canvas da27bb76…)."""
+    orch = _orch()
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch.object(orch, "_sender_identity", new=AsyncMock(return_value=None)), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(
+             return_value=CanvasEditPlan(wants_edit=True,
+                                         updated_content_json='"x"', reply="done"))), \
+         patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
+             return_value=(None, "no_change"))):
+        resp = await orch._try_canvas_edit(
+            "mark is the dealer and not end user", [], _canvas(),
+            "user-1", "s-1", "exec-1", "hire-1",
+        )
+    assert resp and resp["success"]
+    assert "already reflects" in resp["message"]
+    assert resp["data"]["canvas_edit"]["updated"] is False
+    assert resp["data"]["canvas_edit"]["no_change"] is True
+
+
+@pytest.mark.asyncio
+async def test_canvas_edit_passes_sender_identity_to_planner():
+    """The orchestrator resolves the sender (account + default signature)
+    and hands it to the edit planner — identity is data, never a model
+    guess from the To/Cc fields."""
+    orch = _orch()
+    plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
+    seen = {}
+
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None,
+                        lessons=None, similar_corrections=None, correction_patterns=None,
+                        provenance=None, user_identity=None):
+        seen["identity"] = user_identity
+        return plan
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch.object(orch, "_sender_identity", new=AsyncMock(
+             return_value={"name": "Rish Maniar", "email": "rish@brennan.ca"})), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock(side_effect=fake_plan)), \
+         patch("core.chat_canvas_editor.apply_canvas_edit", new=AsyncMock(
+             return_value={"success": True})):
+        await orch._try_canvas_edit(
+            "adjust the signature", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
+        )
+    assert seen["identity"] == {"name": "Rish Maniar", "email": "rish@brennan.ca"}
 
 
 @pytest.mark.asyncio
@@ -1628,7 +1726,7 @@ async def test_canvas_edit_passes_recent_versions_to_planner():
     seen = {}
     versions = [{"audit_id": "a-9", "content": "old draft", "actor": "supervisor"}]
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None):
         seen["versions"] = versions
         return plan
 
@@ -1763,7 +1861,7 @@ async def test_canvas_edit_passes_taught_lessons_to_planner():
     lessons = [{"source": "teacher", "topic": "tone", "lesson": "Formal register only",
                 "learned_at": "2026-08-01T00:00:00+00:00"}]
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None):
         seen["lessons"] = lessons
         return plan
 
@@ -1786,7 +1884,7 @@ async def test_canvas_edit_without_agent_passes_no_lessons():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None):
         seen["lessons"] = lessons
         return plan
 

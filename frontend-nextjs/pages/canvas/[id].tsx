@@ -68,6 +68,16 @@ export default function CanvasDetailPage() {
 
     // Chat panel state
     const [messages, setMessages] = useState<CanvasMessage[]>([]);
+    // CanvasPanel registers a flush of its pending autosave here; every chat
+    // send awaits it first — the co-editor plans against the durable store,
+    // and an unsaved composer edit ("i added my signature, adjust" inside
+    // the autosave debounce window) was invisible to the agent, which then
+    // planned from the pre-edit snapshot and clobbered the user's work
+    // (observed live 2026-09-02).
+    const panelFlushRef = useRef<(() => Promise<void>) | null>(null);
+    const registerPanelFlush = useCallback((fn: () => Promise<void>) => {
+        panelFlushRef.current = fn;
+    }, []);
     // Mirror for async helpers (late-reply polling) that must read the
     // current transcript without re-creating handleSendMessage per render.
     const messagesRef = useRef<CanvasMessage[]>([]);
@@ -386,6 +396,30 @@ export default function CanvasDetailPage() {
             setMessages(prev => {
                 const streamId = `stream_${data.session_id}`;
                 const existing = prev.find(m => m.id === streamId);
+                // The stream id is session-keyed, so it is REUSED across
+                // turns. A bubble with that id that already FINISHED belongs
+                // to a previous turn: appending this turn's reply into it
+                // rendered the answer under the WRONG question and left the
+                // newest question visually unanswered (observed live
+                // 2026-09-02: turn 3's reply overwrote turn 2's bubble).
+                // Retire the finished bubble (unique permanent id, stays
+                // where it was rendered) and open a fresh stream bubble at
+                // the end of the thread for this turn. `!== true` (not
+                // `=== false`) so a bubble the done event created without
+                // the flag also counts as finished.
+                if (existing && existing.streaming !== true) {
+                    const retired = { ...existing, id: `a_${existing.timestamp.getTime()}_${Math.random().toString(36).slice(2, 7)}` };
+                    const fresh: CanvasMessage = { id: streamId, type: "assistant", content: "", timestamp: new Date(), streaming: true };
+                    if (msg.type === "chat_token_done") {
+                        const finalContent = String(data.content ?? "");
+                        if (!finalContent) return [...prev.map(m => (m.id === streamId ? retired : m))];
+                        fresh.content = finalContent;
+                        fresh.streaming = false;
+                    } else {
+                        fresh.content = String(data.delta ?? "");
+                    }
+                    return [...prev.map(m => (m.id === streamId ? retired : m)), fresh];
+                }
                 if (msg.type === "chat_token_done") {
                     const finalContent = String(data.content ?? (existing?.content ?? ""));
                     if (!finalContent) return prev.filter(m => m.id !== streamId);
@@ -398,7 +432,7 @@ export default function CanvasDetailPage() {
                 if (existing) {
                     return prev.map(m => (m.id === streamId ? { ...m, content: m.content + delta } : m));
                 }
-                return [...prev, { id: streamId, type: "assistant" as const, content: delta, timestamp: new Date() }];
+                return [...prev, { id: streamId, type: "assistant" as const, content: delta, timestamp: new Date(), streaming: true }];
             });
             return;
         }
@@ -454,9 +488,31 @@ export default function CanvasDetailPage() {
             content: chatInput,
             timestamp: new Date(),
         };
-        setMessages(prev => [...prev, userMsg]);
+        setMessages(prev => {
+            // Retire any lingering stream bubble from the PREVIOUS turn
+            // before this turn's user message lands. The stream id is
+            // session-keyed, so a bubble that survived its turn (socket died
+            // before chat_token_done — it stays stuck mid-stream) would
+            // otherwise swallow the NEXT turn's reply and render it under
+            // the wrong question. Renamed here it stays visible where it
+            // was, and this turn's tokens open a fresh bubble.
+            const prevSid = chatSessionId;
+            const retired = prevSid
+                ? prev.map(m => (m.id === `stream_${prevSid}` ? { ...m, id: `a_${m.timestamp.getTime()}_${Math.random().toString(36).slice(2, 7)}` } : m))
+                : prev;
+            return [...retired, userMsg];
+        });
         setChatInput("");
         setIsAgentResponding(true);
+        // Persist any pending composer edit BEFORE the turn reads the canvas:
+        // the agent's view of the draft is the durable store, not this page's
+        // local state (flush is a no-op when nothing is pending).
+        try {
+            await panelFlushRef.current?.();
+        } catch {
+            // A failed flush must not eat the user's message — the autosave
+            // retry path still owns surfacing save problems.
+        }
 
         try {
             const { apiClient } = await import("../../lib/api-client");
@@ -830,7 +886,7 @@ export default function CanvasDetailPage() {
                                     <p className="text-muted-foreground">Loading canvas…</p>
                                 </div>
                             ) : canvasData ? (
-                                <CanvasPanel lastMessage={canvasLastMessage} />
+                                <CanvasPanel lastMessage={canvasLastMessage} registerFlushBeforeSend={registerPanelFlush} />
                             ) : (
                                 <div className="flex items-center justify-center h-full">
                                     <Card className="max-w-md text-center">

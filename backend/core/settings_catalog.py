@@ -71,6 +71,7 @@ C_RADIO = "Agent Radio"
 C_TRUST = "Trust Calibration"
 C_ONTOLOGY = "Ontology Drafts"
 C_ORG = "Org Politics"
+C_LEARN = "Learning & Verification"
 C_GATEWAY = "LLM Gateway"
 C_SEC = "Security & Webhooks"
 C_BPE = "BPE Agent Workspace"
@@ -212,6 +213,28 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     I("TURN_FACT_RETENTION_DAYS", 0, C_MEM, "Turn-fact retention (0 = forever)"),
     I("TURN_FACT_CB_THRESHOLD", 5, C_MEM, "Turn-fact circuit-break trips"),
     F("TURN_FACT_CB_COOLDOWN_S", 120.0, C_MEM, "Turn-fact circuit cooldown"),
+    # --- Learning & Verification (guidance: Admin → Learning & Verification,
+    # or docs/guides/LEARNING_VERIFICATION_GUIDE.md) ---
+    S("ATOM_EXCHANGE_MEMORY", "auto", C_LEARN,
+      "Learning from your ratings: every thumbs up/down becomes a permanent example; comments "
+      "become permanent corrections. auto (recommended) = learns quietly now and starts shaping "
+      "answers by itself once the rated library is big enough (20+ rated exchanges); off = learn "
+      "nothing; shadow = learn but never shape answers; enforce = shape answers now"),
+    I("ATOM_EXCHANGE_DISTILL_MIN", 3, C_LEARN,
+      "How many similar thumbs-down answers with a written comment are distilled into ONE "
+      "permanent correction lesson for student agents"),
+    S("ATOM_VERIFY_PANEL", "auto", C_LEARN,
+      "Answer verification panel: on mission-critical/complex turns, 3 AI judges check the answer "
+      "against its evidence and vote. auto (recommended) = judges run quietly now and ungrounded "
+      "answers start being regenerated once the panel's run record is healthy (20+ runs, 90%+ "
+      "completed, meaningful agreement); off = disabled; shadow = always quiet; enforce = "
+      "regenerate now. Judges only ever run on high-stakes turns, never ordinary chat"),
+    I("ATOM_VERIFY_PANEL_MIN_RUNS", 20, C_LEARN,
+      "Panel auto-promotion gate: minimum recorded panel runs before health is evaluated"),
+    F("ATOM_VERIFY_PANEL_MIN_RAN_RATE", 0.9, C_LEARN,
+      "Panel auto-promotion gate: minimum fraction of runs that completed (0-1)"),
+    F("ATOM_VERIFY_PANEL_MIN_AGREEMENT", 0.5, C_LEARN,
+      "Panel auto-promotion gate: minimum mean judge agreement (0-1) for votes to count as meaningful"),
     # Fleet router
     B("ATOM_FLEET_ROUTING_ENABLED", True, C_FLEET, "Governed fleet dispatch (shadow)"),
     B("ATOM_FLEET_ROUTING_FORCE_ENFORCE", False, C_FLEET, "Return fleet results live"),

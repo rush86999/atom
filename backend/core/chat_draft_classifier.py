@@ -58,6 +58,14 @@ _SEPARATOR_LINE = re.compile(r"^\s*(?:-{3,}|\*{3,}|_{3,})\s*$")
 _MAX_SEGMENT_SCAN = 4
 _SEPARATOR_SENTINEL = "-" * 80
 
+# Loose mid-message scan: how many non-empty lines to walk when looking for
+# a header block that starts AFTER narration prose (no --- fences). Chat
+# replies routinely open with 1-3 narration sentences before an UNFENCED
+# draft ("Based on the email thread…, I'll draft a reply accordingly.\n\n
+# **To:** …") — the live case that seeded a canvas with an empty To, a
+# truncated narration sentence as Subject, and the whole bubble in the body.
+_MAX_LOOSE_SCAN_LINES = 12
+
 # A standalone closing line ("Best regards,", "**Thanks,**") that
 # introduces an agent-typed sign-off. Must occupy the whole line — "thanks
 # for your patience" is prose, not a closing. Markdown bold may wrap the
@@ -381,6 +389,31 @@ def _extract_from_lines(lines: List[str], start: int, headers: Dict[str, str]) -
     }
 
 
+def _loose_header_start(lines: List[str]) -> Optional[int]:
+    """Index of a header block that starts mid-message, after narration
+    prose (no --- fences to segment on).
+
+    Walks the first ``_MAX_LOOSE_SCAN_LINES`` non-empty lines; at the first
+    To:/Cc: line, re-runs the header scanner from there. Requires the block
+    to OPEN with a recipient (To/Cc) and to yield a Subject: requiring only
+    "a Subject: somewhere" would mistake a quoted reply chain's lone
+    "> Subject:" line for the draft itself."""
+    seen = 0
+    for i, line in enumerate(lines):
+        if not line.strip() or _SEPARATOR_LINE.match(line):
+            continue
+        seen += 1
+        if seen > _MAX_LOOSE_SCAN_LINES:
+            break
+        m = _HEADER_LINE.match(line)
+        if not m or m.group(1).lower() not in ("to", "cc"):
+            continue
+        headers, _ = _scan_header_block(lines[i:])
+        if headers.get("subject"):
+            return i
+    return None
+
+
 def extract_email_draft(content: Any) -> Optional[Dict[str, str]]:
     """Split an email-shaped draft into ``{"to", "cc", "subject", "body"}``.
 
@@ -407,6 +440,31 @@ def extract_email_draft(content: Any) -> Optional[Dict[str, str]]:
         draft = _extract_from_lines(lines, last_header_idx, headers)
         if draft:
             return draft
+
+    # Narration-tolerant rescan (unfenced): chat replies usually open with
+    # prose ("Based on the email thread…, I'll draft a reply accordingly.")
+    # and follow it DIRECTLY with the draft's **To:**/**Cc:**/**Subject:**
+    # lines — no --- fences, so the segment rescan below can't reach them.
+    # The header block must open with a recipient to qualify (see
+    # _loose_header_start); everything before it is narration and stays out
+    # of the body.
+    loose_start = _loose_header_start(lines)
+    if loose_start is not None:
+        loose_lines = lines[loose_start:]
+        loose_headers, loose_idx = _scan_header_block(loose_lines)
+        if loose_headers.get("subject"):
+            # Bound the artifact at the closing fence when one follows the
+            # header block — approval trailers / prose after the fence stay
+            # out (the fenced-rescan semantics, now for unfenced narration
+            # too). No fence → the tail through end-of-message is the body.
+            end = len(loose_lines)
+            for k in range(loose_idx + 1, len(loose_lines)):
+                if _SEPARATOR_LINE.match(loose_lines[k]):
+                    end = k
+                    break
+            draft = _extract_from_lines(loose_lines[:end], loose_idx, loose_headers)
+            if draft:
+                return draft
 
     # Narration-tolerant rescan: try each ---fenced segment (the draft is
     # between the fences; prose and approval trailers live outside them).

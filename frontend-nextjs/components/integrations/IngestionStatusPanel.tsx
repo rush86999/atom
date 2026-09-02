@@ -74,30 +74,51 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
   const [refreshing, setRefreshing] = useState(false);
   const [starting, setStarting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const response = await authFetch(
-        `/api/integrations/${integrationId}/ingestion-status`,
-        { headers: authHeaders() }
-      );
-      // A 401/403 means the session died (key rotation, expiry) — route to
-      // login like every other fetch-based caller instead of throwing a raw
-      // "returned 401" error into the console.
-      if (response.status === 401 || response.status === 403) {
-        handleSessionExpired();
-        return;
+      // One quick retry for transient blips: the Next.js proxy occasionally
+      // fails a pooled keep-alive connection to the backend (ECONNRESET →
+      // 500). A status poll should ride through that — the retry lands on a
+      // fresh connection and the stale-status UI keeps working.
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, 750));
+        }
+        response = await authFetch(
+          `/api/integrations/${integrationId}/ingestion-status`,
+          { headers: authHeaders() }
+        );
+        // A 401 means the session died (key rotation, expiry) — route to
+        // login like every other fetch-based caller instead of throwing a raw
+        // "returned 401" error into the console. 403 stays on-page: the user
+        // is authenticated but not permitted, and logging them out here
+        // bounced every non-admin to /login (authFetch now handles this the
+        // same way).
+        if (response.status === 401) {
+          handleSessionExpired();
+          return;
+        }
+        if (response.ok) break;
       }
-      if (!response.ok) {
-        setStatus(null);
-        return;
+      if (!response || !response.ok) {
+        throw new Error(`ingestion-status returned ${response?.status}`);
       }
       const data = await response.json();
       setStatus(data);
     } catch (error) {
-      // Network disconnect or momentary backend restart
-      setStatus(null);
+      // Plain string via console.warn: Next 16's dev overlay fullscreens on
+      // console.error calls carrying an Error object, which turned every
+      // background-poll blip into a full-page "Runtime Error". The panel
+      // keeps showing the last known status until the next poll succeeds.
+      console.warn(
+        `Failed to load ingestion status for ${integrationId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     } finally {
       setRefreshing(false);
       setLoading(false);
@@ -117,6 +138,7 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
   const startSync = async () => {
     setStarting(true);
     setActionError(null);
+    setActionNotice(null);
     try {
       const response = await authFetch(
         `/api/integrations/${integrationId}/ingestion/start`,
@@ -124,6 +146,12 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
       );
       if (response.status === 409) {
         setActionError("No active connection — reconnect this integration first.");
+      } else if (response.ok) {
+        // One-shot starters run in the request background: say so, or the
+        // click looks like a no-op (nothing on the card changes for minutes).
+        setActionNotice(
+          "Sync started — it runs in the background and can take several minutes."
+        );
       } else if (!response.ok) {
         setActionError(`Could not start sync (HTTP ${response.status}).`);
       }
@@ -269,6 +297,12 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
           <p className="text-sm text-red-500 flex items-center">
             <XCircle className="h-4 w-4 mr-2" />
             {actionError}
+          </p>
+        )}
+        {actionNotice && (
+          <p className="text-sm text-blue-600 dark:text-blue-400 flex items-center">
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            {actionNotice}
           </p>
         )}
       </CardContent>

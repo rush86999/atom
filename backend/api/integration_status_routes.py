@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
-from fastapi import Depends, HTTPException
+from fastapi import BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_tenant, get_current_user, User
@@ -490,6 +490,63 @@ _POLLER_APP_TYPES: Dict[str, str] = {
     "discord": "discord",
 }
 
+
+async def _run_zoho_workdrive_full_sync(current_user) -> Dict[str, Any]:
+    # The shared ZohoWorkDriveService instance lives on the routes module.
+    from api.zoho_workdrive_routes import zoho_service
+
+    return await zoho_service.full_sync(str(current_user.id))
+
+
+async def _start_zoho_workdrive_sync(current_user) -> Dict[str, Any]:
+    """Start a full WorkDrive tree sync unless one is already in flight."""
+    from api.zoho_workdrive_routes import zoho_service
+
+    if zoho_service.is_full_sync_running(str(current_user.id)):
+        return {"started": False, "already_running": True}
+    result = await _run_zoho_workdrive_full_sync(current_user)
+    if isinstance(result, dict) and result.get("error") == "sync_already_running":
+        return {"started": False, "already_running": True}
+    return {"started": True, "result": result}
+
+
+async def _start_zoho_suite_sync(current_user) -> Dict[str, Any]:
+    """Start the Zoho suite hybrid sync (Books invoices, CRM leads/deals,
+    projects tasks, inventory, workdrive files).
+
+    One grant covers the whole suite, so every Zoho suite page's Start sync
+    drives the same serialized "zoho" hybrid sync. force=True: a manual click
+    must not be silently skipped by the recently-synced guard. Concurrent
+    clicks are skipped by the per-integration lock (skipped=True).
+    """
+    from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+    from core.personal_scope import resolve_workspace_id
+
+    service = get_hybrid_ingestion_service(resolve_workspace_id(current_user))
+    result = await service.sync_integration_data("zoho", force=True)
+    if isinstance(result, dict) and result.get("skipped"):
+        return {"started": False, "already_running": True}
+    return {"started": True, "result": result}
+
+
+# Integrations without a communication poller whose "start sync" action is a
+# real one-shot ingestion job (file-tree walks, not _fetch_new_messages
+# polling). The start endpoint runs these in the request background and
+# returns immediately; progress lands via the usual ingestion-status payload.
+_SYNC_STARTERS: Dict[str, Any] = {
+    # Dedicated tree-walk ingestion (LanceDB + GraphRAG + metrics cache).
+    "zoho-workdrive": _start_zoho_workdrive_sync,
+    # The rest of the suite drives the serialized "zoho" hybrid sync — one
+    # grant, one sync (Books invoices, CRM leads/deals, projects, inventory,
+    # workdrive files).
+    "zoho": _start_zoho_suite_sync,
+    "zoho-books": _start_zoho_suite_sync,
+    "zoho-crm": _start_zoho_suite_sync,
+    "zoho-inventory": _start_zoho_suite_sync,
+    "zoho-mail": _start_zoho_suite_sync,
+    "zoho-projects": _start_zoho_suite_sync,
+}
+
 # Integrations that sync records through HybridDataIngestionService (its
 # DEFAULT_SYNC_CONFIGS keys). These report last_synced/auto-sync state even
 # though they have no communication-memory poller.
@@ -721,6 +778,7 @@ async def get_integration_ingestion_status(
 @router.post("/{integration_id}/ingestion/start")
 async def start_integration_ingestion(
     integration_id: str,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     tenant: Tenant = Depends(get_current_tenant),
     db: Session = Depends(get_db),
@@ -733,10 +791,31 @@ async def start_integration_ingestion(
     """
     app_type = _POLLER_APP_TYPES.get(integration_id)
     if app_type is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No restartable ingestion poller for '{integration_id}'",
+        starter = _SYNC_STARTERS.get(integration_id)
+        if starter is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No restartable ingestion poller for '{integration_id}'",
+            )
+
+        sources = _connection_sources(current_user, tenant, db)
+        if not (sources.get(integration_id) or {}).get("connected"):
+            raise HTTPException(
+                status_code=409,
+                detail="No active connection for this integration — connect it first",
+            )
+
+        # One-shot sync jobs, not pollers: they can hold the HTTP call open
+        # for minutes, so they run in the request background; the panel
+        # watches the usual ingestion-status payload for progress.
+        background_tasks.add_task(starter, current_user)
+        payload = _integration_ingestion_payload(
+            integration_id, sources, _ingestion_snapshot(), current_user
         )
+        payload["start_attempted"] = True
+        payload["started"] = True
+        payload["mode"] = "background_sync"
+        return payload
 
     sources = _connection_sources(current_user, tenant, db)
     if not (sources.get(integration_id) or {}).get("connected"):

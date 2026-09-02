@@ -33,9 +33,17 @@ interface CanvasState {
 
 interface CanvasHostProps {
     lastMessage: any;
+    /** Hosts (the /canvas/{id} co-editor page) register a callback that
+     *  flushes pending autosave edits; they MUST await it before dispatching
+     *  a chat message — the co-editor plans against the durable store, so
+     *  an unsaved edit ("i added my signature, adjust" sent within the 3s
+     *  autosave window) was invisible to the agent, which then planned from
+     *  the pre-edit snapshot and clobbered the user's work (observed live
+     *  2026-09-02). */
+    registerFlushBeforeSend?: (flush: () => Promise<void>) => void;
 }
 
-export function CanvasPanel({ lastMessage }: CanvasHostProps) {
+export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHostProps) {
     const [state, setState] = useState<CanvasState | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -251,6 +259,20 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
         reset: resetAutosave,
     } = useCanvasAutosave({ save: handleSave });
 
+    // Handed to the chat host: it awaits this BEFORE dispatching a co-editor
+    // message so unsaved composer edits reach the durable store first — the
+    // agent plans against the store, and a message sent inside the autosave
+    // debounce window otherwise read (and then clobbered around) a snapshot
+    // without the user's latest edit (observed live 2026-09-02: a signature
+    // pasted seconds before "i added my signature, adjust" never reached the
+    // agent). flush() self-gates: a no-op when nothing is pending.
+    const flushBeforeSendRef = useRef<() => Promise<void>>(async () => {
+        await flushAutosave();
+    });
+    useEffect(() => {
+        registerFlushBeforeSend?.(() => flushBeforeSendRef.current());
+    }, [registerFlushBeforeSend]);
+
     // Apply one canvas:update / canvas:present frame — from the WebSocket OR
     // from a local store-sync (lib/canvasSync). One guarded path for both.
     const applyCanvasMessage = useCallback((msg: any) => {
@@ -299,6 +321,19 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
                 if (lastSavedSigRef.current !== null && `${component || ""}|${content}` === lastSavedSigRef.current) {
                     return;
                 }
+
+                // A genuinely new payload supersedes local edits — but any
+                // UNSAVED local edit is flushed to the audit trail FIRST
+                // (fire-and-forget; the save snapshots the content ref
+                // synchronously), so the user's work lands in the store —
+                // recoverable via version history, and visible to the
+                // co-editor — even though the incoming frame then wins the
+                // editor. Dropping the pending save outright is what let an
+                // agent broadcast erase a just-pasted signature
+                // (observed live 2026-09-02). flush() self-gates on the
+                // dirty ref, so this is a no-op when nothing is pending and
+                // reads ref state directly (never a stale closure).
+                void flushAutosave();
 
                 // A genuinely new payload supersedes local edits — drop any
                 // pending autosave so its timer can't fire afterwards and
@@ -372,7 +407,7 @@ export function CanvasPanel({ lastMessage }: CanvasHostProps) {
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [emailSignature, resetAutosave]);
+    }, [emailSignature, resetAutosave, flushAutosave]);
 
     useEffect(() => {
         if (lastMessage) applyCanvasMessage(lastMessage);

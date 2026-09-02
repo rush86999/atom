@@ -15,12 +15,16 @@ convention: flag-gated, shadow first, promotion via eval gate).
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any, Dict
 
 from pydantic import BaseModel
 
 from core.hallucination_config import is_sc_fanout_enabled
 from core.llm.self_consistency_voter import SelfConsistencyVoter
+
+logger = logging.getLogger(__name__)
 
 # High-complexity tier values (analyze_query_complexity .value) that count
 # as verification-worthy. "High complexity" per product direction = the top
@@ -60,6 +64,68 @@ JUDGE_PROMPT_TEMPLATE = (
 )
 
 
+def _schedule_run_record(
+    result: Dict[str, Any], *, agent_id: str | None, tenant_id: str
+) -> None:
+    """Fire-and-forget persistence of one panel run (VerifyPanelRun).
+
+    Verdicts were previously computed + logged only — without a durable
+    record there is no evidence base for the opt-in shadow→enforce latch and
+    no queryable history. Best-effort: persistence failure must never touch
+    the reply path."""
+    try:
+        from core.database import SessionLocal
+        from core.models import VerifyPanelRun
+
+        def _write() -> None:
+            db = SessionLocal()
+            try:
+                db.add(VerifyPanelRun(
+                    tenant_id=tenant_id or None,
+                    agent_id=agent_id,
+                    ran=bool(result.get("ran")),
+                    grounded=result.get("grounded"),
+                    agreement=result.get("agreement"),
+                    level=result.get("level"),
+                    samples=result.get("samples"),
+                    error=result.get("error"),
+                ))
+                db.commit()
+            except Exception as e:
+                logger.debug(f"verify panel run record failed: {e}")
+            finally:
+                db.close()
+
+        asyncio.get_running_loop().create_task(asyncio.to_thread(_write))
+    except Exception as e:
+        logger.debug(f"verify panel run record skipped: {e}")
+
+
+def get_panel_run_stats(db) -> Dict[str, Any]:
+    """Health stats over the most recent panel runs — the evidence base the
+    maintenance loop's opt-in shadow→enforce latch gates on (and a ready-made
+    dashboard feed)."""
+    from core.models import VerifyPanelRun
+
+    rows = (
+        db.query(VerifyPanelRun)
+        .order_by(VerifyPanelRun.created_at.desc())
+        .limit(500)
+        .all()
+    )
+    total = len(rows)
+    ran_rows = [r for r in rows if r.ran]
+    agreements = [r.agreement for r in ran_rows if r.agreement is not None]
+    return {
+        "total": total,
+        "ran": len(ran_rows),
+        "ran_rate": round(len(ran_rows) / total, 3) if total else 0.0,
+        "mean_agreement": (
+            round(sum(agreements) / len(agreements), 3) if agreements else 0.0
+        ),
+    }
+
+
 async def verify_reply(
     answer: str,
     evidence: str,
@@ -81,11 +147,14 @@ async def verify_reply(
     ``{"ran": False, "error": ...}`` on any failure — callers must treat
     ran=False as "verification unavailable", never as "verified".
     """
+    result: Dict[str, Any]
     if not answer or not evidence:
-        return {"ran": False, "error": "empty answer or evidence"}
+        result = {"ran": False, "error": "empty answer or evidence"}
+        _schedule_run_record(result, agent_id=agent_id, tenant_id=tenant_id)
+        return result
     try:
         voter = SelfConsistencyVoter(handler=handler, tenant_id=tenant_id)
-        result = await voter.vote_with_consensus(
+        vote_result = await voter.vote_with_consensus(
             prompt=JUDGE_PROMPT_TEMPLATE.format(
                 context=evidence[:6000], answer=answer[:4000]
             ),
@@ -96,18 +165,21 @@ async def verify_reply(
             agent_id=agent_id,
             system_instruction=JUDGE_SYSTEM,
         )
-        if result is None or result.winner is None:
-            return {"ran": False, "error": "panel produced no verdict"}
-        winner: VerifyVerdict = result.winner
-        return {
-            "ran": True,
-            "grounded": bool(winner.grounded),
-            "claims": list(winner.unsupported_claims or []),
-            "note": winner.note,
-            "agreement": round(result.agreement_ratio, 3),
-            "level": result.level,
-            "samples": result.valid_count,
-            "fanout": result.fanout_targets,
-        }
+        if vote_result is None or vote_result.winner is None:
+            result = {"ran": False, "error": "panel produced no verdict"}
+        else:
+            winner: VerifyVerdict = vote_result.winner
+            result = {
+                "ran": True,
+                "grounded": bool(winner.grounded),
+                "claims": list(winner.unsupported_claims or []),
+                "note": winner.note,
+                "agreement": round(vote_result.agreement_ratio, 3),
+                "level": vote_result.level,
+                "samples": vote_result.valid_count,
+                "fanout": vote_result.fanout_targets,
+            }
     except Exception as e:
-        return {"ran": False, "error": str(e)}
+        result = {"ran": False, "error": str(e)}
+    _schedule_run_record(result, agent_id=agent_id, tenant_id=tenant_id)
+    return result

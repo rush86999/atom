@@ -221,3 +221,64 @@ class TestAuditEndpoint:
         assert len(changes) == 1
         assert changes[0]["setting_key"] == "ATOM_TOOL_CACHE_TTL"
         assert changes[0]["new_value_json"] == 45
+
+
+# ============================================================================
+# Learning & Verification status (guidance page feed)
+# ============================================================================
+
+
+class TestLearningStatus:
+    def _patch_stats(self, monkeypatch, counts=None, panel=None):
+        monkeypatch.setattr(
+            "core.exchange_example_service.get_corpus_counts",
+            lambda db: counts or {"positive": 4, "negative": 2, "total": 6},
+        )
+        monkeypatch.setattr(
+            "core.verify_panel.get_panel_run_stats",
+            lambda db: panel or {"total": 25, "ran": 24, "ran_rate": 0.96,
+                                 "mean_agreement": 0.85},
+        )
+
+    def test_non_admin_gets_403(self, db, monkeypatch):
+        self._patch_stats(monkeypatch)
+        client = _client(db, _user(UserRole.MEMBER.value))
+        resp = client.get("/api/v1/admin/settings/learning-status")
+        assert resp.status_code == 403
+
+    def test_admin_payload_shape(self, db, monkeypatch):
+        monkeypatch.delenv("ATOM_EXCHANGE_MEMORY", raising=False)
+        monkeypatch.delenv("ATOM_VERIFY_PANEL", raising=False)
+        self._patch_stats(monkeypatch)
+        client = _client(db, _user())
+        resp = client.get("/api/v1/admin/settings/learning-status")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        # auto is the default: raw mode auto, effective shadow.
+        assert data["exchange"]["mode"] == "auto"
+        assert data["exchange"]["effective"] == "shadow"
+        assert data["exchange"]["source"] == "default"
+        assert data["exchange"]["env_locked"] is False
+        assert data["exchange"]["counts"]["total"] == 6
+        assert data["panel"]["mode"] == "auto"
+        assert data["panel"]["effective"] == "shadow"
+        assert data["panel"]["stats"]["ran_rate"] == 0.96
+        assert data["gates"]["panel_min_runs"] == 20
+
+    def test_pinned_mode_reports_effective(self, db, monkeypatch):
+        monkeypatch.setenv("ATOM_VERIFY_PANEL", "enforce")
+        self._patch_stats(monkeypatch)
+        client = _client(db, _user())
+        data = client.get("/api/v1/admin/settings/learning-status").json()["data"]
+        assert data["panel"]["mode"] == "enforce"
+        assert data["panel"]["effective"] == "enforce"
+        assert data["panel"]["env_locked"] is True
+
+    def test_env_override_reported_as_locked(self, db, monkeypatch):
+        monkeypatch.setenv("ATOM_VERIFY_PANEL", "shadow")
+        self._patch_stats(monkeypatch)
+        client = _client(db, _user())
+        data = client.get("/api/v1/admin/settings/learning-status").json()["data"]
+        assert data["panel"]["mode"] == "shadow"
+        assert data["panel"]["source"] == "env"
+        assert data["panel"]["env_locked"] is True

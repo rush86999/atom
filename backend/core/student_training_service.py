@@ -536,13 +536,38 @@ After completing this training, the agent will be able to handle similar tasks a
             query = query.filter(AgentEpisode.started_at <= window_end)
         episodes = query.count()
         successes = query.filter(AgentEpisode.outcome == "success").count()
-        return {
+        evidence = {
             "episodes": episodes,
             "successes": successes,
             "success_ratio": (successes / episodes) if episodes else 0.0,
             "window_started_at": window_start.isoformat() if window_start else None,
             "required_episodes": _evidence_min_episodes(),
         }
+        # Phase 56: rated-exchange quality signal inside the same window
+        # (thumbs up/down captured from chat). Additive reporting only —
+        # completion is still graded on outcome-tracked episodes; this
+        # surfaces how the human rated the work itself.
+        try:
+            from core.models import ExchangeExample
+
+            rated_q = self.db.query(ExchangeExample).filter(
+                ExchangeExample.agent_id == session.agent_id,
+            )
+            if window_start is not None:
+                rated_q = rated_q.filter(ExchangeExample.created_at >= window_start)
+            if window_end is not None:
+                rated_q = rated_q.filter(ExchangeExample.created_at <= window_end)
+            rated_rows = rated_q.all()
+            rated_pos = sum(1 for r in rated_rows if r.label == "positive")
+            rated_neg = len(rated_rows) - rated_pos
+            evidence["rated_exchanges"] = {
+                "positive": rated_pos,
+                "negative": rated_neg,
+                "ratio": (rated_pos / len(rated_rows)) if rated_rows else 0.0,
+            }
+        except Exception as e:
+            logger.debug(f"rated-exchange evidence unavailable (non-fatal): {e}")
+        return evidence
 
     async def complete_training_session(
         self,
