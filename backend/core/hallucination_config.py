@@ -359,6 +359,12 @@ def get_verify_panel_mode() -> str:
     regeneration; persistent failure appends an honest caveat). Scoped to
     mission-critical or COMPLEX/ADVANCED turns only — the panel costs N extra
     structured calls and must never sit on ordinary chat latency.
+
+    Resolved through runtime settings so the maintenance automation can latch
+    shadow→enforce (opt-in, evidence-gated) and the admin UI can flip it,
+    while an explicit env var still wins as the kill-switch.
     """
-    raw = (os.getenv("ATOM_VERIFY_PANEL") or "off").strip().lower()
+    from core.runtime_settings import get_setting
+
+    raw = str(get_setting("ATOM_VERIFY_PANEL", "off") or "off").strip().lower()
     return raw if raw in ("off", "shadow", "enforce") else "off"

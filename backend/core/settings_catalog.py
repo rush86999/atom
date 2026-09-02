@@ -140,6 +140,7 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     # ------------------------------------------------------------------
     B("ATOM_CASCADE_ROUTING", False, C_HALL, "Retry schema failures same-provider flagship"),
     B("ATOM_SELF_CONSISTENCY", False, C_HALL, "N-sample majority vote master switch"),
+    S("ATOM_VERIFY_PANEL", "off", C_HALL, "Verification panel (judge vote) on mission-critical/high-complexity turns: off | shadow | enforce"),
     I("ATOM_SELF_CONSISTENCY_SAMPLES", 3, C_HALL, "Samples drawn per vote"),
     B("ATOM_SELF_CONSISTENCY_FORCE_PROPOSAL", False, C_HALL, "Route partial/ambiguous votes to proposals"),
     F("ATOM_SELF_CONSISTENCY_HIGH_THRESHOLD", 0.85, C_HALL, "Agreement ≥ this is 'high'"),

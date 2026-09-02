@@ -1305,6 +1305,33 @@ class ExchangeExample(Base):
         Index('idx_exchange_examples_recall', 'workspace_id', 'label', 'created_at'),
     )
 
+class VerifyPanelRun(Base):
+    """
+    One verification-panel invocation (Phase 56 observability).
+
+    Panel verdicts were previously computed and logged but never persisted,
+    so there was no evidence base for gating the opt-in shadow→enforce
+    promotion (and nothing for dashboards). One row per ``verify_reply()``
+    call, written fire-and-forget — persistence failure must never affect
+    the reply. See ``core/exchange_memory_maintenance.py`` for the latch.
+    """
+    __tablename__ = "verify_panel_runs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, nullable=True, index=True)
+    agent_id = Column(String, nullable=True, index=True)
+    ran = Column(Boolean, nullable=False, default=False)
+    grounded = Column(Boolean, nullable=True)
+    agreement = Column(Float, nullable=True)
+    level = Column(String, nullable=True)
+    samples = Column(Integer, nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index('idx_verify_panel_runs_created', 'created_at'),
+    )
+
 class AgentModelMetrics(Base):
     """
     Metrics for tracking Agent Performance (Phase 13).

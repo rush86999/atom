@@ -1,9 +1,9 @@
 """
-Exchange memory maintenance — the sleep-time half of the rated-exchange
-learning loop (Letta sleep-time-compute pattern: reads at turn time, upkeep
-on its own schedule).
+Exchange memory maintenance — the sleep-time half of the learning loops
+(Letta sleep-time-compute pattern: reads at turn time, upkeep on its own
+schedule).
 
-One cycle, three fault-isolated steps over the ExchangeExample corpus:
+One cycle, four fault-isolated steps:
 
 1. BACKFILL — re-embed rows whose LanceDB vector write failed at capture
    time (embedding model cold-start, LanceDB down). Without this, captured
@@ -16,11 +16,17 @@ One cycle, three fault-isolated steps over the ExchangeExample corpus:
    wrong" signal that one-off lessons miss. Rows are marked consolidated so
    each pattern is distilled once.
 
-3. AUTO-PROMOTE — opt-in (ATOM_EXCHANGE_AUTO_PROMOTE): latch
+3. AUTO-PROMOTE (exchanges) — opt-in (ATOM_EXCHANGE_AUTO_PROMOTE): latch
    ATOM_EXCHANGE_MEMORY shadow→enforce via the runtime-settings row once the
-   corpus is big enough to retrieve from (default 20 examples, >=3 of each
-   label). An explicit env var always wins as kill-switch and is never
-   fought by automation; promotion is one-way (never auto-demotes).
+   corpus is big enough to retrieve from. An explicit env var always wins as
+   kill-switch and is never fought by automation; promotion is one-way.
+
+4. AUTO-PROMOTE (verification panel) — opt-in
+   (ATOM_VERIFY_PANEL_AUTO_PROMOTE): latch ATOM_VERIFY_PANEL shadow→enforce
+   once the panel's persisted run record (verify_panel_runs, written by
+   verify_reply) shows it healthy: enough runs, high ran-rate, meaningful
+   vote agreement. off→shadow deliberately stays a human decision — the
+   panel costs N extra structured calls per high-stakes turn.
 
 Runs from the app lifespan like the other consolidation loops
 (main_api_app.py), gated on ENABLE_SCHEDULER/test-mode there.
@@ -201,16 +207,7 @@ def _maybe_auto_promote(db) -> Dict[str, Any]:
     ):
         return {"promoted": False, "reason": "corpus_too_small", "counts": counts}
 
-    from core.models import RuntimeSetting
-    from core.runtime_settings import invalidate_settings_cache
-
-    row = db.query(RuntimeSetting).filter(RuntimeSetting.key == _MODE_FLAG).first()
-    if row is None:
-        row = RuntimeSetting(key=_MODE_FLAG, updated_by="exchange_maintenance")
-        db.add(row)
-    row.value_json = "enforce"
-    db.commit()
-    invalidate_settings_cache()
+    _latch_runtime_setting(db, _MODE_FLAG)
     logger.info(
         "exchange memory: corpus healthy (%d pos / %d neg) — latched "
         "ATOM_EXCHANGE_MEMORY shadow→enforce via runtime settings",
@@ -220,13 +217,76 @@ def _maybe_auto_promote(db) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Step 4: opt-in verification-panel promotion (shadow → enforce latch)
+# ---------------------------------------------------------------------------
+
+_PANEL_FLAG = "ATOM_VERIFY_PANEL"
+_PANEL_AUTOPROMOTE_ENV = "ATOM_VERIFY_PANEL_AUTO_PROMOTE"   # default: off
+_PANEL_MIN_RUNS = 20          # recent runs before the gate even looks
+_PANEL_MIN_RAN_RATE = 0.9     # the panel must actually be running
+_PANEL_MIN_MEAN_AGREEMENT = 0.5  # votes must be meaningful, not coin flips
+
+
+def _maybe_auto_promote_panel(db) -> Dict[str, Any]:
+    """Latch ATOM_VERIFY_PANEL shadow→enforce once the panel's own persisted
+    run record shows it working (enough runs, high ran-rate, meaningful
+    agreement). Opt-in; explicit env kill-switch is never fought; one-way."""
+    from core.hallucination_config import get_verify_panel_mode
+    from core.verify_panel import get_panel_run_stats
+
+    if os.getenv(_PANEL_AUTOPROMOTE_ENV, "").strip().lower() not in ("1", "true", "yes", "on"):
+        return {"promoted": False, "reason": "auto_promote_disabled"}
+    if _PANEL_FLAG in os.environ:
+        return {"promoted": False, "reason": "explicit_env_kill_switch"}
+    current = get_verify_panel_mode()
+    if current != "shadow":
+        # off→shadow deliberately stays a human decision: the panel costs N
+        # extra structured calls per high-stakes turn — automation must not
+        # start spending that money.
+        return {"promoted": False, "reason": f"mode_is_{current}"}
+
+    stats = get_panel_run_stats(db)
+    if stats["total"] < _PANEL_MIN_RUNS:
+        return {"promoted": False, "reason": "not_enough_runs", "stats": stats}
+    if stats["ran_rate"] < _PANEL_MIN_RAN_RATE:
+        return {"promoted": False, "reason": "panel_flaky", "stats": stats}
+    if stats["mean_agreement"] < _PANEL_MIN_MEAN_AGREEMENT:
+        return {"promoted": False, "reason": "votes_not_meaningful", "stats": stats}
+
+    _latch_runtime_setting(db, _PANEL_FLAG)
+    logger.info(
+        "verify panel: healthy over %d runs (ran_rate=%.2f, agreement=%.2f) "
+        "— latched ATOM_VERIFY_PANEL shadow→enforce via runtime settings",
+        stats["total"], stats["ran_rate"], stats["mean_agreement"],
+    )
+    return {"promoted": True, "stats": stats}
+
+
+def _latch_runtime_setting(db, key: str) -> None:
+    """Upsert the runtime-settings row (env still wins as kill-switch) and
+    drop the settings cache so the next read sees the latch."""
+    from core.models import RuntimeSetting
+    from core.runtime_settings import invalidate_settings_cache
+
+    row = db.query(RuntimeSetting).filter(RuntimeSetting.key == key).first()
+    if row is None:
+        row = RuntimeSetting(key=key, updated_by="exchange_maintenance")
+        db.add(row)
+    row.value_json = "enforce"
+    db.commit()
+    invalidate_settings_cache()
+
+
+# ---------------------------------------------------------------------------
 # Cycle + loop
 # ---------------------------------------------------------------------------
 
 async def run_maintenance_cycle(db) -> Dict[str, Any]:
-    """All three steps, each fault-isolated — a failing store never blocks
+    """All four steps, each fault-isolated — a failing store never blocks
     the others. Returns a summary for the log."""
-    summary: Dict[str, Any] = {"backfilled": 0, "distilled": {}, "promoted": {}}
+    summary: Dict[str, Any] = {
+        "backfilled": 0, "distilled": {}, "promoted": {}, "promoted_panel": {},
+    }
     try:
         summary["backfilled"] = _backfill_vectors(db)
     except Exception as e:
@@ -239,6 +299,10 @@ async def run_maintenance_cycle(db) -> Dict[str, Any]:
         summary["promoted"] = _maybe_auto_promote(db)
     except Exception as e:
         logger.debug("exchange auto-promote step failed: %s", e)
+    try:
+        summary["promoted_panel"] = _maybe_auto_promote_panel(db)
+    except Exception as e:
+        logger.debug("panel auto-promote step failed: %s", e)
     return summary
 
 
