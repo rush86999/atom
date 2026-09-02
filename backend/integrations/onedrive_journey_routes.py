@@ -136,7 +136,14 @@ async def authorize(current_user: User = Depends(get_current_user)):
 
 @auth_router.post("/disconnect")
 async def disconnect(current_user: User = Depends(get_current_user)):
-    """Drop the stored OneDrive/Microsoft connections for the user."""
+    """Drop the stored OneDrive/Microsoft connections for the user.
+
+    Removes the legacy ConnectionService rows AND revokes the unified
+    IntegrationToken grant rows. The token resolver (get_access_token) reads
+    and refreshes those IntegrationToken rows — deleting only the legacy
+    connections left the grant active and OneDrive still usable after the
+    user clicked Disconnect.
+    """
     from core.connection_service import connection_service
 
     removed = 0
@@ -147,4 +154,27 @@ async def disconnect(current_user: User = Depends(get_current_user)):
                 removed += 1
         except Exception as e:
             logger.warning(f"OneDrive disconnect failed for {integration_id}: {e}")
+
+    # Revoke the unified grant rows — the same microsoft family the callback
+    # fans out to (microsoft/outlook/onedrive/microsoft365, in sync with
+    # _TOKEN_FANOUT in api/oauth_routes.py). Best-effort: legacy-connection
+    # removal still reports success if the DB revoke hiccups.
+    try:
+        from core.database import SessionLocal
+        from core.models import IntegrationToken
+
+        db = SessionLocal()
+        try:
+            db.query(IntegrationToken).filter(
+                IntegrationToken.user_id == str(current_user.id),
+                IntegrationToken.provider.in_(
+                    ["onedrive", "microsoft", "outlook", "microsoft365"]
+                ),
+            ).update({IntegrationToken.status: "revoked"}, synchronize_session=False)
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"OneDrive IntegrationToken revocation failed: {e}")
+
     return {"success": True, "removed_connections": removed}

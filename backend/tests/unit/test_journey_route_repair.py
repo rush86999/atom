@@ -117,18 +117,28 @@ class TestOneDriveJourney:
         assert r.status_code in (302, 307)
         assert "/api/v1/auth/oauth/microsoft/authorize" in r.headers["location"]
 
-    def test_disconnect_removes_connections(self, client):
+    def test_disconnect_removes_connections_and_revokes_grant(self, client):
         from core import connection_service as cs
+        from unittest.mock import MagicMock
 
         # One connection under "onedrive", one under the shared "microsoft365".
         conns = {"onedrive": [{"id": "c1"}], "microsoft365": [{"id": "c2"}]}
+        # Fake DB session so the revoke never touches a real database.
+        fake_db = MagicMock()
         with patch.object(cs.connection_service, "get_connections",
                           side_effect=lambda uid, iid: conns.get(iid, [])), \
                 patch.object(cs.connection_service, "delete_connection",
-                          side_effect=lambda cid, uid: True) as mock_del:
+                          side_effect=lambda cid, uid: True) as mock_del, \
+                patch("core.database.SessionLocal", return_value=fake_db) as mock_sl:
             r = client.post("/api/auth/onedrive/disconnect")
         assert r.json() == {"success": True, "removed_connections": 2}
         assert mock_del.call_count == 2
+        # Regression (Greptile P1): the unified grant rows the resolver reads
+        # must be revoked too, or OneDrive stays usable after Disconnect.
+        assert mock_sl.called
+        assert fake_db.commit.called
+        update_kw = fake_db.query.return_value.filter.return_value.update.call_args.args[0]
+        assert list(update_kw.values()) == ["revoked"]
 
 
 # ---------------------------------------------------------------------------
