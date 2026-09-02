@@ -328,3 +328,94 @@ class TestRestoreDeletedCanvas:
             result = await restore_deleted_canvas("someone-else", canvas_id)
             assert result["success"] is False
             assert "not found" in result["error"]
+
+
+class TestSameSecondStrictRecency:
+    """Legacy audit rows carry SECOND-precision timestamps: a delete and a
+    restore fired in the same second TIED on created_at and the uuid
+    tiebreak let the older action win — deletes "came back" (observed live
+    2026-09-01, canvas 640ec9a9). Supersede rows must always sort strictly
+    after the row they replace."""
+
+    def _seed_tombstone_same_second(self, db_session, canvas_id):
+        from datetime import datetime, timedelta, timezone
+
+        from core.models import Canvas, CanvasAudit
+
+        db_session.add(Canvas(
+            id=canvas_id, tenant_id="default", created_by="user-1",
+            name="Raced", canvas_type="email", status="active",
+            content={"body": "the draft that must survive"},
+        ))
+        # LEGACY precision: whole-second created_at, delete + restore tied.
+        base = datetime.now(timezone.utc).replace(microsecond=0)
+        db_session.add(CanvasAudit(
+            canvas_id=canvas_id, tenant_id="default", action_type="create",
+            user_id="user-1", canvas_type="email",
+            details_json={"content": {"body": "the draft that must survive"}},
+            created_at=base,
+        ))
+        db_session.add(CanvasAudit(
+            canvas_id=canvas_id, tenant_id="default", action_type="delete",
+            user_id="user-1", canvas_type="email",
+            details_json={"deleted": True}, created_at=base + timedelta(seconds=1),
+        ))
+        db_session.commit()
+        return base
+
+    def _patch_session(self, db_session):
+        from unittest.mock import Mock, patch
+
+        ctx = Mock()
+        ctx.__enter__ = Mock(return_value=db_session)
+        ctx.__exit__ = Mock(return_value=False)
+        return patch("core.database.get_db_session", return_value=ctx)
+
+    @pytest.mark.asyncio
+    async def test_restore_beats_same_second_tombstone(self, db_session):
+        import uuid
+
+        from tools.canvas_crud_tool import (
+            list_canvases,
+            restore_deleted_canvas,
+        )
+
+        canvas_id = f"cv-{uuid.uuid4().hex[:8]}"
+        base = self._seed_tombstone_same_second(db_session, canvas_id)
+
+        with self._patch_session(db_session), \
+             patch("tools.canvas_crud_tool._broadcast_canvas_update", new=AsyncMock()):
+            before = await list_canvases("user-1")
+            # same-second tie + uuid tiebreak must not hide the canvas
+            # permanently — restore explicitly sorts past the tombstone.
+            res = await restore_deleted_canvas("user-1", canvas_id)
+            assert res["success"] is True
+
+            after = await list_canvases("user-1")
+            match = [c for c in after["canvases"] if c["canvas_id"] == canvas_id]
+            assert match, "restored canvas must be listed"
+            assert match[0]["action_type"] == "restore"
+
+    @pytest.mark.asyncio
+    async def test_delete_beats_same_second_restore(self, db_session):
+        import uuid
+
+        from tools.canvas_crud_tool import (
+            delete_canvas,
+            list_canvases,
+            restore_deleted_canvas,
+        )
+
+        canvas_id = f"cv-{uuid.uuid4().hex[:8]}"
+        base = self._seed_tombstone_same_second(db_session, canvas_id)
+
+        with self._patch_session(db_session), \
+             patch("tools.canvas_crud_tool._broadcast_canvas_update", new=AsyncMock()):
+            # bring it back first (legacy tie: restore wins by id)
+            await restore_deleted_canvas("user-1", canvas_id)
+            # then delete — must strictly sort past the same-second restore
+            res = await delete_canvas("user-1", canvas_id)
+            assert res["success"] is True
+
+            after = await list_canvases("user-1")
+            assert all(c["canvas_id"] != canvas_id for c in after["canvases"])

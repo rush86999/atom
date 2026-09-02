@@ -3935,7 +3935,13 @@ class CanvasAudit(Base):
     details_json = Column(JSONColumn, nullable=True)  # Action-specific data
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    # µs python-side default: server_default func.now() is SECOND-precision
+    # (SQLite CURRENT_TIMESTAMP), so same-second audit actions (delete then
+    # restore, observed live) tied on created_at and the uuid tiebreak made
+    # the newest action lose — deletes 'came back'. Microseconds make
+    # strict recency deterministic.
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+                         server_default=func.now(), index=True)
 
     # Relationships
     canvas = relationship("Canvas", back_populates="audit_records")

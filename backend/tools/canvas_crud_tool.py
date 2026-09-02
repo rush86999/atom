@@ -477,6 +477,18 @@ async def delete_canvas(
             canvas_type = latest.canvas_type
 
             # Write the delete audit. Carry tenant_id (NOT NULL).
+            # STRICT RECENCY: legacy audit rows carry SECOND-precision
+            # timestamps (func.now() server default), so a delete fired in the
+            # same second as the action it supersedes tied on created_at and
+            # the uuid tiebreak let the OLD state win — deletes "came back"
+            # (observed live 2026-09-01: delete → restore same second, and a
+            # later delete silently no-opped). The new row is pinned at least
+            # 1µs past the row it supersedes.
+            from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+
+            _prev_ts = latest.created_at or _dt.min.replace(tzinfo=_tz.utc)
+            if _prev_ts.tzinfo is None:
+                _prev_ts = _prev_ts.replace(tzinfo=_tz.utc)
             delete_audit = CanvasAudit(
                 canvas_id=canvas_id,
                 tenant_id=latest.tenant_id,
@@ -485,6 +497,7 @@ async def delete_canvas(
                 canvas_type=canvas_type,
                 action_type="delete",
                 user_id=user_id,
+                created_at=max(_dt.now(_tz.utc), _prev_ts + _td(microseconds=1)),
                 details_json={"deleted": True, "previous_action": latest.action_type},
             )
             db.add(delete_audit)
@@ -665,6 +678,11 @@ async def restore_deleted_canvas(
             details = dict(content_row.details_json or {})
             details["restored_from_delete"] = True
 
+            from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+
+            _prev_ts2 = latest.created_at or _dt.min.replace(tzinfo=_tz.utc)
+            if _prev_ts2.tzinfo is None:
+                _prev_ts2 = _prev_ts2.replace(tzinfo=_tz.utc)
             restore_audit = CanvasAudit(
                 canvas_id=canvas_id,
                 tenant_id=latest.tenant_id,
@@ -673,6 +691,7 @@ async def restore_deleted_canvas(
                 canvas_type=latest.canvas_type,
                 action_type="restore",
                 user_id=user_id,
+                created_at=max(_dt.now(_tz.utc), _prev_ts2 + _td(microseconds=1)),
                 details_json=details,
             )
             db.add(restore_audit)
