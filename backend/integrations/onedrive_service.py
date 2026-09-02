@@ -20,15 +20,15 @@ from pydantic import BaseModel
 
 from core.connection_service import connection_service
 from core.integration_service import IntegrationService
+from core.integrations.token_store import resolve_integration_token
 
 logger = logging.getLogger(__name__)
 
-# Microsoft Graph API scopes for OneDrive
+# Microsoft Graph API scopes for OneDrive (delegated user-level scopes only — no *.All to avoid requiring admin consent)
 ONEDRIVE_SCOPES = [
-    "Files.Read",
-    "Files.Read.All",
-    "Files.ReadWrite",
-    "Sites.Read.All",
+    "https://graph.microsoft.com/Files.Read",
+    "https://graph.microsoft.com/Files.ReadWrite",
+    "https://graph.microsoft.com/User.Read",
     "offline_access",
 ]
 
@@ -95,13 +95,21 @@ class OneDriveService(IntegrationService):
     # -------------------------------------------------------------------------
 
     async def get_access_token(self, user_id: str) -> Optional[str]:
-        """Resolve a usable Graph access token from stored connections.
+        """Resolve a usable Graph access token from IntegrationToken or stored connections.
 
-        Tries an explicit ``onedrive`` connection first, then falls back to the
-        shared ``microsoft365`` connection (same Azure AD app covers both).
-        ConnectionService auto-refreshes expired tokens transparently.
+        1. IntegrationToken (providers onedrive, microsoft, outlook, microsoft365; auto-refreshed).
+        2. ConnectionService (UserConnection) — legacy in-app connections.
+
+        Deliberately NO process-wide env fallback: a shared
+        ONEDRIVE/MICROSOFT_ACCESS_TOKEN would let any authenticated user without
+        their own grant operate on the env-owner's OneDrive (user isolation).
         """
-        for integration_id in ("onedrive", "microsoft365"):
+        token = await resolve_integration_token(
+            user_id, ("onedrive", "microsoft", "outlook", "microsoft365"), self._refresh
+        )
+        if token:
+            return token
+        for integration_id in ("onedrive", "microsoft365", "microsoft", "outlook"):
             connections = connection_service.get_connections(user_id, integration_id)
             if not connections:
                 continue
@@ -110,6 +118,29 @@ class OneDriveService(IntegrationService):
             if creds and creds.get("access_token"):
                 return creds["access_token"]
         return None
+
+    async def _refresh(self, refresh_token: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Exchange a refresh token for a fresh Microsoft Graph access token."""
+        if not refresh_token:
+            return None
+        try:
+            tenant = os.getenv("MICROSOFT_TENANT_ID") or "common"
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
+                    data={
+                        "grant_type": "refresh_token",
+                        "refresh_token": refresh_token,
+                        "client_id": os.getenv("MICROSOFT_CLIENT_ID"),
+                        "client_secret": os.getenv("MICROSOFT_CLIENT_SECRET"),
+                        "scope": " ".join(self.required_scopes),
+                    },
+                )
+                response.raise_for_status()
+                return response.json()
+        except Exception as e:
+            logger.error(f"Failed to refresh OneDrive token: {e}")
+            return None
 
     async def authenticate(self, user_id: str) -> Dict[str, Any]:
         """Generate the Microsoft OAuth authorization URL for OneDrive."""

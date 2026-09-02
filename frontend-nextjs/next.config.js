@@ -171,15 +171,11 @@ const nextConfig = {
         source: "/api/v1/:path*",
         destination: "http://127.0.0.1:8000/api/v1/:path*",
       },
-      {
-        source: "/api/auth/:path*",
-        // Keep the SAME path — the backend mounts auth at /api/auth/* (the
-        // CSRF middleware exempts exactly /api/auth/). Mapping to
-        // /api/v1/auth/* sent login POSTs into the CSRF-protected zone
-        // (403 csrf_token_invalid → the login form showed "Incorrect
-        // username or password") and 404'd next-auth's /api/auth/session.
-        destination: "http://127.0.0.1:8000/api/auth/:path*",
-      },
+      // NOTE: Do NOT add a broad /api/auth/:path* → backend proxy here.
+      // NextAuth's own internal routes — /api/auth/session, /api/auth/csrf,
+      // /api/auth/providers, /api/auth/signout — are served by the Next.js
+      // [...nextauth].ts handler and must NOT be forwarded to the Python backend.
+      // Specific backend auth routes are enumerated individually below.
       {
         source: "/api/shopify/:path*",
         destination: "http://127.0.0.1:8000/api/shopify/:path*",
@@ -295,6 +291,10 @@ const nextConfig = {
       {
         source: "/api/auth/:service/status",
         destination: "http://127.0.0.1:8000/api/auth/:service/status",
+      },
+      {
+        source: "/api/auth/:service/disconnect",
+        destination: "http://127.0.0.1:8000/api/auth/:service/disconnect",
       },
       {
         source: "/api/v1/auth/oauth/:path*",

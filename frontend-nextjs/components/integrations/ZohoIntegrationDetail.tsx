@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { cn } from "../../lib/utils";
+import { authFetch } from "@/lib/auth-headers";
 
 interface ZohoAppDetailProps {
   appName: string;
@@ -67,6 +68,24 @@ const ZohoIntegrationDetail: React.FC<ZohoAppDetailProps> = ({
   }, []);
 
   const connected = tokenInfo?.status === "active";
+
+  // Browser navigation cannot send the Authorization header, and the unified
+  // initiate route fails closed without a valid JWT (header, cookie, or
+  // ?token=) — a bare <a href> to it 401'd with "Could not validate
+  // credentials". Fetch the provider URL with the JWT in the header
+  // (format=json), then navigate to the returned URL; the app JWT never
+  // appears in a URL.
+  const handleConnect = async () => {
+    try {
+      const resp = await authFetch("/api/v1/auth/oauth/zoho/initiate?format=json");
+      if (!resp.ok) throw new Error(`Initiate failed (${resp.status})`);
+      const data = await resp.json();
+      if (!data?.url) throw new Error("No auth URL returned");
+      window.location.href = data.url;
+    } catch (err) {
+      console.error("Zoho connect error:", err);
+    }
+  };
 
   return (
     // No <Layout> here — _app.tsx already wraps every page in the app shell;
@@ -166,17 +185,19 @@ const ZohoIntegrationDetail: React.FC<ZohoAppDetailProps> = ({
         </div>
       )}
 
-      <a
-        href={`${API_BASE}/api/v1/auth/oauth/zoho/initiate`}
+      <button
+        type="button"
+        onClick={handleConnect}
         data-testid="zoho-connect-link"
         className={cn(
+          "cursor-pointer",
           connected
             ? "inline-block border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium px-4 py-2 rounded-md"
             : "inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-md",
         )}
       >
         {connected ? `Reconnect ${appName}` : `Connect ${appName}`}
-      </a>
+      </button>
       <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
         One consent flow connects the entire Zoho suite (Books, Inventory,
         CRM, WorkDrive) with a single Zoho app grant. You must be signed in

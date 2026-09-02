@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
+import { authFetch } from "@/lib/auth-headers";
 import {
   ChevronRight,
   ArrowRight,
@@ -67,6 +68,7 @@ const GoogleDriveIntegration: React.FC = () => {
     { name: 'My Drive', id: undefined }
   ]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [ingestingId, setIngestingId] = useState<string | null>(null);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -77,8 +79,7 @@ const GoogleDriveIntegration: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      // This would typically call your backend API
-      const response = await fetch('/api/gdrive/connection-status');
+      const response = await authFetch('/api/gdrive/connection-status');
       if (response.ok) {
         const data = await response.json();
         setConnectionStatus(data);
@@ -105,15 +106,19 @@ const GoogleDriveIntegration: React.FC = () => {
       if (folderId) params.append('folder_id', folderId);
       if (pageToken) params.append('page_token', pageToken);
 
-      const response = await fetch(`/api/gdrive/list-files?${params.toString()}`);
+      const response = await authFetch(`/api/gdrive/list-files?${params.toString()}`);
 
       if (response.ok) {
-        const data: FileListResponse = await response.json();
+        const data: FileListResponse & { error?: string } = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
 
         if (isLoadMore) {
-          setFiles(prev => [...prev, ...data.files]);
+          setFiles(prev => [...prev, ...(data.files || [])]);
         } else {
-          setFiles(data.files);
+          setFiles(data.files || []);
         }
 
         setNextPageToken(data.nextPageToken);
@@ -166,10 +171,28 @@ const GoogleDriveIntegration: React.FC = () => {
     window.location.href = '/api/auth/gdrive/initiate';
   };
 
+  // Mirrors Outlook's Switch Account: ?prompt=select_account forces Google's
+  // account picker instead of reusing the signed-in session. The JWT goes in
+  // the Authorization header via authFetch, never in a URL (URLs leak into
+  // browser history / request logs).
+  const handleSwitchAccount = async () => {
+    try {
+      const resp = await authFetch(
+        '/api/v1/auth/oauth/google/initiate?prompt=select_account&format=json'
+      );
+      if (!resp.ok) throw new Error(`Initiate failed (${resp.status})`);
+      const data = await resp.json();
+      if (!data?.url) throw new Error('No auth URL returned');
+      window.location.href = data.url;
+    } catch (err) {
+      console.error('Switch account error:', err);
+    }
+  };
+
   // Handle Google Drive disconnection
   const handleDisconnect = async () => {
     try {
-      const response = await fetch('/api/auth/gdrive/disconnect', { method: 'POST' });
+      const response = await authFetch('/api/auth/gdrive/disconnect', { method: 'POST' });
       if (response.ok) {
         toast({
           title: 'Disconnected',
@@ -186,7 +209,7 @@ const GoogleDriveIntegration: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to disconnect Google Drive',
-        variant: 'error',
+        variant: 'destructive',
       });
     }
   };
@@ -194,7 +217,8 @@ const GoogleDriveIntegration: React.FC = () => {
   // Handle file ingestion
   const handleIngestFile = async (file: GoogleDriveFile) => {
     try {
-      const response = await fetch('/api/ingest-gdrive-document', {
+      setIngestingId(file.id);
+      const response = await authFetch('/api/ingest-gdrive-document', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -209,20 +233,23 @@ const GoogleDriveIntegration: React.FC = () => {
         }),
       });
 
-      if (response.ok) {
+      const data = await response.json();
+      if (response.ok && data.success !== false) {
         toast({
           title: 'File Ingested',
           description: `${file.name} has been added to search index`,
         });
       } else {
-        throw new Error('Failed to ingest file');
+        throw new Error(data.error || 'Failed to ingest file');
       }
     } catch (err) {
       toast({
-        title: 'Error',
-        description: 'Failed to ingest file',
-        variant: 'error',
+        title: 'Ingestion Error',
+        description: err instanceof Error ? err.message : 'Failed to ingest file',
+        variant: 'destructive',
       });
+    } finally {
+      setIngestingId(null);
     }
   };
 
@@ -306,13 +333,22 @@ const GoogleDriveIntegration: React.FC = () => {
               <Badge className="bg-green-500 hover:bg-green-600">Connected</Badge>
               <span className="text-sm text-gray-600 dark:text-gray-400">as {connectionStatus.email}</span>
             </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDisconnect}
-            >
-              Disconnect Google Drive
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSwitchAccount}
+              >
+                Switch Account
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDisconnect}
+              >
+                Disconnect Google Drive
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -405,6 +441,7 @@ const GoogleDriveIntegration: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                title="Open in Google Drive"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   window.open(file.webViewLink, '_blank');
@@ -417,12 +454,18 @@ const GoogleDriveIntegration: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                title="Ingest into ATOM Memory"
+                                disabled={ingestingId === file.id}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleIngestFile(file);
                                 }}
                               >
-                                <Download className="h-4 w-4" />
+                                {ingestingId === file.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                                ) : (
+                                  <Download className="h-4 w-4" />
+                                )}
                               </Button>
                             )}
                           </div>

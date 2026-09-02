@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
+import { authFetch } from "@/lib/auth-headers";
 import {
   ChevronRight,
   ExternalLink,
@@ -64,6 +65,7 @@ const OneDriveIntegration: React.FC = () => {
     Array<{ id?: string; name: string }>
   >([{ name: "OneDrive", id: undefined }]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+  const [ingestingId, setIngestingId] = useState<string | null>(null);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(
     undefined,
   );
@@ -75,7 +77,7 @@ const OneDriveIntegration: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch("/api/onedrive/connection-status");
+      const response = await authFetch("/api/onedrive/connection-status");
       if (response.ok) {
         const data = await response.json();
         setConnectionStatus(data);
@@ -105,17 +107,21 @@ const OneDriveIntegration: React.FC = () => {
       if (folderId && folderId !== "root") params.append("folder_id", folderId);
       if (pageToken) params.append("page_token", pageToken);
 
-      const response = await fetch(
+      const response = await authFetch(
         `/api/onedrive/list-files?${params.toString()}`,
       );
 
       if (response.ok) {
-        const data: FileListResponse = await response.json();
+        const data: FileListResponse & { error?: string } = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
 
         if (isLoadMore) {
-          setFiles((prev) => [...prev, ...data.files]);
+          setFiles((prev) => [...prev, ...(data.files || [])]);
         } else {
-          setFiles(data.files);
+          setFiles(data.files || []);
         }
 
         setNextPageToken(data.next_page_token);
@@ -162,9 +168,28 @@ const OneDriveIntegration: React.FC = () => {
     window.location.href = "/api/auth/onedrive/authorize";
   };
 
+  // Mirrors Outlook's Switch Account: ?prompt=select_account forces Microsoft's
+  // account picker instead of reusing the signed-in session (which is why a
+  // plain reconnect keeps binding the same account). The JWT goes in the
+  // Authorization header via authFetch, never in a URL (URLs leak into browser
+  // history / request logs).
+  const handleSwitchAccount = async () => {
+    try {
+      const resp = await authFetch(
+        "/api/v1/auth/oauth/microsoft/initiate?prompt=select_account&format=json"
+      );
+      if (!resp.ok) throw new Error(`Initiate failed (${resp.status})`);
+      const data = await resp.json();
+      if (!data?.url) throw new Error("No auth URL returned");
+      window.location.href = data.url;
+    } catch (err) {
+      console.error("Switch account error:", err);
+    }
+  };
+
   const handleDisconnect = async () => {
     try {
-      const response = await fetch("/api/auth/onedrive/disconnect", {
+      const response = await authFetch("/api/auth/onedrive/disconnect", {
         method: "POST",
       });
       if (response.ok) {
@@ -183,14 +208,15 @@ const OneDriveIntegration: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to disconnect OneDrive",
-        variant: "error",
+        variant: "destructive",
       });
     }
   };
 
   const handleIngestFile = async (file: OneDriveFile) => {
     try {
-      const response = await fetch("/api/onedrive/ingest-document", {
+      setIngestingId(file.id);
+      const response = await authFetch("/api/onedrive/ingest-document", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -205,20 +231,23 @@ const OneDriveIntegration: React.FC = () => {
         }),
       });
 
-      if (response.ok) {
+      const data = await response.json();
+      if (response.ok && data.success !== false) {
         toast({
           title: "File Ingested",
           description: `${file.name} has been added to search index`,
         });
       } else {
-        throw new Error("Failed to ingest file");
+        throw new Error(data.error || "Failed to ingest file");
       }
     } catch (err) {
       toast({
-        title: "Error",
-        description: "Failed to ingest file",
-        variant: "error",
+        title: "Ingestion Error",
+        description: err instanceof Error ? err.message : "Failed to ingest file",
+        variant: "destructive",
       });
+    } finally {
+      setIngestingId(null);
     }
   };
 
@@ -289,13 +318,22 @@ const OneDriveIntegration: React.FC = () => {
                 Drive Type: {connectionStatus.drive_type}
               </p>
             )}
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDisconnect}
-            >
-              Disconnect OneDrive
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSwitchAccount}
+              >
+                Switch Account
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDisconnect}
+              >
+                Disconnect OneDrive
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -386,6 +424,7 @@ const OneDriveIntegration: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                title="Open in OneDrive"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   window.open(file.web_url, "_blank");
@@ -398,12 +437,18 @@ const OneDriveIntegration: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                title="Ingest into ATOM Memory"
+                                disabled={ingestingId === file.id}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleIngestFile(file);
                                 }}
                               >
-                                <Download className="h-4 w-4" />
+                                {ingestingId === file.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                                ) : (
+                                  <Download className="h-4 w-4" />
+                                )}
                               </Button>
                             )}
                           </div>

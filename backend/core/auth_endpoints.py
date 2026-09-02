@@ -360,7 +360,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
         "last_login": current_user.last_login.isoformat() if current_user.last_login else None
     }
- 
+
 # or leave as is if it uses a different table structure not yet in models.py.
 # For now, I'll comment out the old SQLite logic to avoid conflicts and focus on the new Auth.
 # In a real scenario, we'd migrate the password reset tokens to SQLAlchemy too.

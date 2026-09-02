@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 from core.connection_service import connection_service
 from core.integration_service import IntegrationService
+from core.integrations.token_store import resolve_integration_token
 
 logger = logging.getLogger(__name__)
 
@@ -112,12 +113,19 @@ class GoogleDriveService(IntegrationService):
     # -------------------------------------------------------------------------
 
     async def get_access_token(self, user_id: str) -> Optional[str]:
-        """Resolve a Drive access token from stored connections or env.
+        """Resolve a Drive access token from the unified-OAuth IntegrationToken
+        row, then stored connections, then env.
 
-        Tries a ``google_drive`` connection first, then the shared ``google``
-        connection (the generic Google OAuth app covers Drive when the right
-        scopes were granted). ConnectionService auto-refreshes expired tokens.
+        1. IntegrationToken (providers google/gmail/google_drive — what the
+           /api/v1/auth/oauth/google/callback flow writes; auto-refreshed).
+        2. ConnectionService (UserConnection) — legacy in-app connections.
+        3. GOOGLE_DRIVE_ACCESS_TOKEN env var (dev/convenience).
         """
+        token = await resolve_integration_token(
+            user_id, ("google", "google_drive", "gmail"), self._refresh
+        )
+        if token:
+            return token
         for integration_id in ("google_drive", "google"):
             connections = connection_service.get_connections(user_id, integration_id)
             if not connections:
@@ -128,6 +136,27 @@ class GoogleDriveService(IntegrationService):
                 return creds["access_token"]
         # Dev convenience fallback.
         return os.getenv("GOOGLE_DRIVE_ACCESS_TOKEN")
+
+    async def _refresh(self, refresh_token: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Exchange a refresh token for a fresh access token (Google OAuth2)."""
+        if not refresh_token:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    "https://oauth2.googleapis.com/token",
+                    data={
+                        "grant_type": "refresh_token",
+                        "refresh_token": refresh_token,
+                        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+                        "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+                    },
+                )
+                response.raise_for_status()
+                return response.json()
+        except Exception as e:
+            logger.error(f"Failed to refresh Google Drive token: {e}")
+            return None
 
     async def authenticate(self, user_id: str) -> Dict[str, Any]:
         """Generate the Google OAuth authorization URL for Drive."""

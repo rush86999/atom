@@ -16,7 +16,7 @@ server-side from stored connections (ConnectionService auto-refreshes).
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from core.auth import get_current_user
@@ -42,6 +42,7 @@ def _normalize_item(item: Dict[str, Any]) -> Dict[str, Any]:
     """Graph drive item → the OneDriveFile shape the panel renders."""
     file_meta = item.get("file") or {}
     fs = item.get("fileSystemInfo") or {}
+    is_folder = "folder" in item or item.get("is_folder", False)
     return {
         "id": item.get("id"),
         "name": item.get("name"),
@@ -51,6 +52,8 @@ def _normalize_item(item: Dict[str, Any]) -> Dict[str, Any]:
         "web_url": item.get("webUrl"),
         "parent_reference": item.get("parentReference"),
         "size": item.get("size"),
+        "is_folder": is_folder,
+        "icon": "folder" if is_folder else "file",
     }
 
 
@@ -62,6 +65,7 @@ async def connection_status(current_user: User = Depends(get_current_user)):
         "is_connected": bool(token),
         "reason": None if token else "No OneDrive/Microsoft connection found. Connect the integration first.",
         "user_id": str(current_user.id),
+        "email": current_user.email if token else None,
     }
 
 
@@ -132,7 +136,14 @@ async def authorize(current_user: User = Depends(get_current_user)):
 
 @auth_router.post("/disconnect")
 async def disconnect(current_user: User = Depends(get_current_user)):
-    """Drop the stored OneDrive/Microsoft connections for the user."""
+    """Drop the stored OneDrive/Microsoft connections for the user.
+
+    Removes the legacy ConnectionService rows AND revokes the unified
+    IntegrationToken grant rows. The token resolver (get_access_token) reads
+    and refreshes those IntegrationToken rows — deleting only the legacy
+    connections left the grant active and OneDrive still usable after the
+    user clicked Disconnect.
+    """
     from core.connection_service import connection_service
 
     removed = 0
@@ -143,4 +154,29 @@ async def disconnect(current_user: User = Depends(get_current_user)):
                 removed += 1
         except Exception as e:
             logger.warning(f"OneDrive disconnect failed for {integration_id}: {e}")
+
+    # Revoke the unified grant rows — the same microsoft family the callback
+    # fans out to (microsoft/outlook/onedrive/microsoft365, in sync with
+    # _TOKEN_FANOUT in api/oauth_routes.py). A revocation failure must NOT be
+    # masked: the resolver reads these rows, so returning success here while
+    # they stay active would leave OneDrive usable after "Disconnect" and the
+    # UI would report a disconnect that never happened.
+    try:
+        from core.integrations.token_store import revoke_integration_tokens
+
+        revoke_integration_tokens(
+            current_user.id, ("onedrive", "microsoft", "outlook", "microsoft365")
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"OneDrive IntegrationToken revocation failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Could not revoke the OneDrive Microsoft grant — connection "
+                "partially removed, please try again"
+            ),
+        )
+
     return {"success": True, "removed_connections": removed}
