@@ -89,11 +89,15 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
         handleSessionExpired();
         return;
       }
-      if (!response.ok) throw new Error(`ingestion-status returned ${response.status}`);
+      if (!response.ok) {
+        setStatus(null);
+        return;
+      }
       const data = await response.json();
       setStatus(data);
     } catch (error) {
-      console.error("Failed to load ingestion status:", error);
+      // Network disconnect or momentary backend restart
+      setStatus(null);
     } finally {
       setRefreshing(false);
       setLoading(false);
