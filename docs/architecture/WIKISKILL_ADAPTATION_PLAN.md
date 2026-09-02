@@ -89,16 +89,32 @@ model's SpreadSheet score 50.5%→18.1%.
   more than a redundant pattern — the wiki tolerates redundancy; the
   fingerprint dedup keeps it bounded.
 
-### W4 — The runtime agent never reads the raw wiki
+### W4 — The runtime agent never reads the raw wiki (enforced by construction)
 
 * The paper's strongest ablation: runtime wiki access *hurts*; knowledge
-  reaches inference only compiled into skills. Accordingly:
-  * `memory_context_assembler` gains **no** patterns leg — enforced by a test
-    that pins the import graph (`memory_context_assembler` must not import
-    `knowledge_pattern_service`).
-  * Pattern knowledge enters prompts only through compiled artifacts
-    (lessons/playbooks) approved by humans, and through *evolver* prompts
-    (Memento/Alpha), which are offline and gated by the pipeline.
+  reaches inference only compiled into skills. Atom enforces this on three
+  levels:
+  * **By construction** — the wiki read path (`pattern_index` /
+    `recent_patterns`) requires an explicit `consumer` label and raises
+    `RuntimeWikiAccessError` for anything except `consumer="evolver"`.
+    There is no unlabeled way to read the wiki.
+  * **By import graph** — a parametrized test sweeps every runtime
+    prompt-assembly module (`memory_context_assembler`, `generic_agent`,
+    `chat_orchestrator`, `chat_canvas_editor`, `chat_tool_planner`,
+    `verify_panel`) and fails if any references a wiki-layer symbol
+    (`knowledge_pattern_service`, `KnowledgePattern`,
+    `skill_impact_ledger`, `SkillImpactEntry`).
+  * **By prompt** — conversely, both offline proposers (Memento,
+    AlphaEvolver) render the wiki index into their generation prompts:
+    the wiki feeds the proposer, never the inference agent.
+* Layer boundaries by function (why pre-existing surfaces stay):
+  * `field_guides` = **skills layer** (curated *operational rules* —
+    instructions agents execute, the workspace's AGENTS.md analog), so its
+    runtime injection is paper-consistent.
+  * episode retrieval legs = **raw-layer runtime retrieval**, a persistent-
+    memory product feature the paper does not ablate; out of scope.
+  * `knowledge_patterns` + `skill_impact_entries` = **the wiki layer**;
+    evolver-only, enforced as above.
 
 ### W5 — Incident-eval gate on playbook promotion (accept iff validation improves)
 

@@ -35,6 +35,27 @@ _EVIDENCE_CAP = 20
 _WINDOW_DAYS = 7
 _LLM_PATTERNS_CAP = 6
 
+# The only consumer allowed to READ the wiki. WikiSkill's ablation (Table 3):
+# giving the INFERENCE agent wiki access measurably hurts (63.7→60.9) —
+# knowledge reaches the runtime agent only compiled into skills. Every wiki
+# read must therefore declare itself, and the runtime is refused BY
+# CONSTRUCTION, not by convention.
+EVOLVER_CONSUMER = "evolver"
+
+
+class RuntimeWikiAccessError(RuntimeError):
+    """Raised when a non-evolver consumer tries to read the wiki layer."""
+
+
+def _require_evolver(consumer: str) -> None:
+    if consumer != EVOLVER_CONSUMER:
+        raise RuntimeWikiAccessError(
+            "WikiSkill W4: the wiki layer is read by the OFFLINE skill "
+            f"proposers only (consumer='{EVOLVER_CONSUMER}'); got "
+            f"consumer={consumer!r}. Runtime agents must receive knowledge "
+            "compiled into approved lessons/playbooks, never raw wiki access."
+        )
+
 
 def pattern_fingerprint(tenant_id: str, kind: str, name: str) -> str:
     return hashlib.sha1(f"{tenant_id}|{kind}|{(name or '')[:200]}".encode()).hexdigest()
@@ -111,7 +132,12 @@ def upsert_pattern(
 
 def recent_patterns(db: Any, tenant_id: str, workspace_id: Optional[str] = None,
                     kind: Optional[str] = None,
-                    limit: int = MAX_PATTERNS_IN_INDEX) -> List[Any]:
+                    limit: int = MAX_PATTERNS_IN_INDEX,
+                    consumer: str = "") -> List[Any]:
+    """Wiki rows, ordered for proposer consumption. ``consumer`` must be
+    'evolver' — any other (or missing) label raises RuntimeWikiAccessError
+    (W4: runtime wiki access is refused by construction)."""
+    _require_evolver(consumer)
     from core.models import KnowledgePattern
 
     q = db.query(KnowledgePattern).filter(
@@ -129,18 +155,24 @@ def recent_patterns(db: Any, tenant_id: str, workspace_id: Optional[str] = None,
 
 
 def pattern_index(db: Any, tenant_id: str, workspace_id: Optional[str] = None,
-                  limit: int = MAX_PATTERNS_IN_INDEX) -> str:
-    """Compact catalog for the evolver prompt (the proposer reads the index,
-    then pulls patterns on demand — the paper's two-step retrieval)."""
-    rows = recent_patterns(db, tenant_id, workspace_id=workspace_id, limit=limit)
+                  limit: int = MAX_PATTERNS_IN_INDEX,
+                  consumer: str = "") -> str:
+    """Compact catalog for the evolver prompt. The paper's proposer reads the
+    index then pulls pattern pages via read_file; our proposers have no file
+    tool, so each line carries the actionable content directly (workaround
+    for failure modes, trigger context for strategies). ``consumer`` must be
+    'evolver'; see RuntimeWikiAccessError."""
+    rows = recent_patterns(db, tenant_id, workspace_id=workspace_id,
+                           limit=limit, consumer=consumer)
     if not rows:
         return ""
     lines = ["KNOWLEDGE PATTERN INDEX — distilled experience (wiki layer):"]
     for i, r in enumerate(rows, 1):
-        lines.append(
-            f"  {i}. [{r.kind}] {r.name} (seen {r.occurrence_count}x): "
-            f"{(r.root_cause or '')[:160]}"
-        )
+        line = (f"  {i}. [{r.kind}] {r.name} (seen {r.occurrence_count}x): "
+                f"{(r.root_cause or '')[:140]}")
+        if r.workaround:
+            line += f" → do: {r.workaround[:100]}"
+        lines.append(line)
     return "\n".join(lines)
 
 

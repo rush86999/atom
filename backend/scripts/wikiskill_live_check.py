@@ -56,7 +56,7 @@ row, created = upsert_pattern(db, tenant_id=TENANT, name="live-check pattern",
                               kind="failure_mode", root_cause="root cause from live run",
                               workaround="encode the query", evidence_id="live-ep-1")
 occurrences = row.occurrence_count
-idx = pattern_index(db, TENANT)
+idx = pattern_index(db, TENANT, consumer="evolver")
 assert "live-check pattern" in idx and "[failure_mode]" in idx
 sample = sample_traces(db, TENANT)
 results.append(("W2/W3 pattern store + index + sampler",

@@ -153,9 +153,11 @@ class MementoEngine(BaseLearningEngine):
         error_trace = context.get("error_trace", "")
         tool_calls = context.get("tool_calls_attempted", [])
 
-        # WikiSkill W1: show the proposer the skill-impact ledger so a
-        # previously rejected intervention is not re-proposed.
+        # WikiSkill W1+W2: show the proposer the skill-impact ledger (so a
+        # previously rejected intervention is not re-proposed) and the wiki
+        # pattern index (root causes + workarounds distilled from traces).
         history_block = ""
+        index_block = ""
         tenant_id = context.get("tenant_id")
         if tenant_id and self.db is not None:
             try:
@@ -166,6 +168,12 @@ class MementoEngine(BaseLearningEngine):
                 )
             except Exception:
                 history_block = ""
+            try:
+                from core.knowledge_pattern_service import pattern_index
+                index_block = pattern_index(
+                    self.db, str(tenant_id), consumer="evolver")
+            except Exception:
+                index_block = ""
 
         system_prompt = (
             "You are the Memento Skill Generator. Your goal is to create a new "
@@ -182,12 +190,14 @@ class MementoEngine(BaseLearningEngine):
             tool_context = f"\nTools attempted (all failed or insufficient): {tool_list}"
 
         history_context = f"\n\n{history_block}\n" if history_block else ""
+        index_context = f"\n\n{index_block}\n" if index_block else ""
 
         user_prompt = (
             f"Task the agent failed at:\n{task_desc}\n\n"
             f"Error trace:\n{error_trace[:500]}\n"
             f"{tool_context}"
-            f"{history_context}\n\n"
+            f"{history_context}"
+            f"{index_context}\n\n"
             "Generate a Python skill function that would let the agent "
             "succeed at this task. Include:\n"
             "- A clear function name\n"

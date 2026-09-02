@@ -120,9 +120,9 @@ async def test_deterministic_distill_uses_both_trace_kinds(db):
     summary = await distill_from_traces(db, TENANT, workspace_id="ws-1",
                                         llm_service=None)
     assert summary["created"] == 2
-    kinds = {p.kind for p in recent_patterns(db, TENANT)}
+    kinds = {p.kind for p in recent_patterns(db, TENANT, consumer="evolver")}
     assert kinds == {"failure_mode", "success_strategy"}
-    failure = [p for p in recent_patterns(db, TENANT) if p.kind == "failure_mode"][0]
+    failure = [p for p in recent_patterns(db, TENANT, consumer="evolver") if p.kind == "failure_mode"][0]
     assert "outlook" in failure.name or "@" in failure.root_cause
     assert failure.evidence_ids == ["fail-1"]
 
@@ -143,7 +143,7 @@ async def test_llm_distill_creates_curated_patterns(db):
     summary = await distill_from_traces(db, TENANT, llm_service=llm)
     assert summary["mode"] == "llm"
     assert summary["created"] == 2
-    names = {p.name for p in recent_patterns(db, TENANT)}
+    names = {p.name for p in recent_patterns(db, TENANT, consumer="evolver")}
     assert "Unencoded emails in OData filters" in names
 
 
@@ -164,7 +164,7 @@ async def test_idempotent_distill_bumps_not_stacks(db):
                 tool_errors=[{"signature": "zoho.list", "error": "401"}])
     await distill_from_traces(db, TENANT, llm_service=None)
     await distill_from_traces(db, TENANT, llm_service=None)
-    rows = recent_patterns(db, TENANT)
+    rows = recent_patterns(db, TENANT, consumer="evolver")
     assert len(rows) == 1
     assert rows[0].occurrence_count == 2
 
@@ -176,7 +176,7 @@ def test_pattern_index_renders_catalog(db):
                    kind="failure_mode", root_cause="unencoded @", )
     upsert_pattern(db, tenant_id=TENANT, name="summary first",
                    kind="success_strategy", root_cause="rated 5/5")
-    index = pattern_index(db, TENANT)
+    index = pattern_index(db, TENANT, consumer="evolver")
     assert "[failure_mode]" in index and "[success_strategy]" in index
     assert "outlook 400" in index
     # other tenants don't leak in
@@ -184,18 +184,104 @@ def test_pattern_index_renders_catalog(db):
 
 
 def test_pattern_index_empty_when_no_wiki(db):
-    assert pattern_index(db, TENANT) == ""
+    assert pattern_index(db, TENANT, consumer="evolver") == ""
 
 
 # ── W4: the runtime agent never reads the raw wiki ──────────────────────────
 
-def test_runtime_assembler_has_no_wiki_leg():
-    """The paper's ablation: runtime wiki access HURTS (63.7→60.9). Knowledge
-    reaches inference only compiled into approved lessons/playbooks. Pin the
-    import graph so nobody wires the wiki into turn-time context."""
-    import core.memory_context_assembler as assembler
+# Every module that assembles a RUNTIME prompt for the inference agent. The
+# paper's ablation: inference-time wiki access measurably HURTS (63.7→60.9) —
+# knowledge reaches the runtime only compiled into approved lessons/playbooks.
+# The wiki layer is readable by the OFFLINE skill proposers exclusively.
+_RUNTIME_PROMPT_MODULES = (
+    "core.memory_context_assembler",
+    "core.generic_agent",
+    "integrations.chat_orchestrator",
+    "core.chat_canvas_editor",
+    "core.chat_tool_planner",
+    "core.verify_panel",
+)
 
-    src = inspect.getsource(assembler)
-    assert "knowledge_pattern" not in src
-    assert "KnowledgePattern" not in src
-    assert "skill_impact" not in src
+_WIKI_MARKERS = (
+    "knowledge_pattern_service",
+    "KnowledgePattern",
+    "skill_impact_ledger",
+    "SkillImpactEntry",
+)
+
+
+@pytest.mark.parametrize("module_name", _RUNTIME_PROMPT_MODULES)
+def test_runtime_prompt_modules_have_no_wiki_access(module_name):
+    """Pin the import graph of EVERY runtime prompt-assembly path: no wiki
+    table or service may be imported into turn-time context."""
+    import importlib
+    import inspect
+
+    module = importlib.import_module(module_name)
+    src = inspect.getsource(module)
+    for marker in _WIKI_MARKERS:
+        assert marker not in src, (
+            f"{module_name} references wiki-layer symbol {marker!r} — "
+            "WikiSkill W4 forbids runtime wiki access"
+        )
+
+
+def test_wiki_reads_require_evolver_consumer(db):
+    """The read path refuses unlabeled or runtime consumers BY CONSTRUCTION,
+    not by convention."""
+    from core.knowledge_pattern_service import (
+        RuntimeWikiAccessError,
+        pattern_index,
+        recent_patterns,
+    )
+
+    upsert_pattern(db, tenant_id=TENANT, name="guarded pattern",
+                   kind="failure_mode", root_cause="rc")
+
+    with pytest.raises(RuntimeWikiAccessError):
+        pattern_index(db, TENANT)                      # unlabeled
+    with pytest.raises(RuntimeWikiAccessError):
+        pattern_index(db, TENANT, consumer="runtime")  # explicit runtime
+    with pytest.raises(RuntimeWikiAccessError):
+        recent_patterns(db, TENANT)
+    with pytest.raises(RuntimeWikiAccessError):
+        recent_patterns(db, TENANT, consumer="chat")
+
+    # the offline skill proposer is the only sanctioned reader
+    assert "guarded pattern" in pattern_index(db, TENANT, consumer="evolver")
+
+
+@pytest.mark.asyncio
+async def test_proposer_prompts_carry_the_wiki_index(db):
+    """The paper's Skill Proposer reads the wiki index (two-step retrieval:
+    index first, patterns on demand). Both evolvers render it."""
+    upsert_pattern(db, tenant_id=TENANT, name="Unencoded @ in OData filters",
+                   kind="failure_mode", root_cause="@ breaks the filter",
+                   workaround="url-encode the query")
+
+    from core.auto_dev.alpha_evolver_engine import AlphaEvolverEngine
+    from core.auto_dev.memento_engine import MementoEngine
+
+    llm = AsyncMock()
+    llm.generate_completion = AsyncMock(return_value={"content": "def f():\n    pass"})
+
+    memento = MementoEngine(db=db, llm_service=llm)
+    await memento.propose_code_change({
+        "task_description": "search emails", "error_trace": "",
+        "tenant_id": TENANT,
+    })
+    memento_prompt = llm.generate_completion.await_args.kwargs["messages"][1]["content"]
+    assert "KNOWLEDGE PATTERN INDEX" in memento_prompt
+    assert "Unencoded @ in OData filters" in memento_prompt
+
+    llm.generate_completion.reset_mock()
+    llm.generate_completion = AsyncMock(return_value={"content": "def g():\n    return 1"})
+    alpha = AlphaEvolverEngine(db=db, llm_service=llm)
+    await alpha.propose_code_change({
+        "base_code": "def g():\n    return 0",
+        "mutation_prompt": "be faster",
+        "tenant_id": TENANT,
+    })
+    alpha_prompt = llm.generate_completion.await_args.kwargs["messages"][1]["content"]
+    assert "KNOWLEDGE PATTERN INDEX" in alpha_prompt
+    assert "url-encode the query" in alpha_prompt
