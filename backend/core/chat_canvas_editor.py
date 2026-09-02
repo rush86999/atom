@@ -268,6 +268,38 @@ def _identity_section(user_identity: Optional[Dict[str, Any]]) -> str:
     return "\n".join(lines) + "\n\n"
 
 
+def _playbooks_section(playbooks: Optional[List[Dict[str, Any]]]) -> str:
+    """Approved company playbooks matching this turn (Installation
+    Adaptation Plan Phase 3) — the install's OWN process as procedural
+    memory: which steps to follow, which template questions to ask. Advisory
+    (prompt leg), bounded, and ranked by the retrieval service; the CURRENT
+    content section still outranks everything here."""
+    if not playbooks:
+        return ""
+    blocks: List[str] = []
+    for pb in playbooks[:2]:
+        lines: List[str] = [f"### {pb.get('name', 'Process')}"]
+        if pb.get("description"):
+            lines.append(str(pb["description"])[:200])
+        for step in (pb.get("steps") or [])[:6]:
+            lines.append(f"- {str(step)[:200]}")
+        questions = pb.get("template_questions") or []
+        if questions:
+            lines.append("Ask these template questions (verbatim, with the "
+                         "installation's usual examples):")
+            for q in questions[:6]:
+                lines.append(f"- {str(q)[:200]}")
+        blocks.append("\n".join(lines))
+    if not blocks:
+        return ""
+    return (
+        "COMPANY PLAYBOOKS — this installation's own process for drafts like "
+        "this one. Follow the steps and include the template questions "
+        "unless the user explicitly overrides them:\n\n"
+        + "\n\n".join(blocks) + "\n\n"
+    )
+
+
 def _provenance_section(provenance: Optional[Dict[str, Any]]) -> str:
     """Origin transcript: the conversation this canvas was CREATED from
     (canvas_audit's create row carries its session_id; chat_routes hydrates
@@ -635,6 +667,7 @@ async def plan_canvas_edit(
     correction_patterns: Optional[List[Dict[str, Any]]] = None,
     provenance: Optional[Dict[str, Any]] = None,
     user_identity: Optional[Dict[str, Any]] = None,
+    playbooks: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[CanvasEditPlan]:
     """Decide (via cheap structured LLM output) whether this turn edits the
     open canvas, and produce the edit — patch ops by default, complete
@@ -715,6 +748,7 @@ async def plan_canvas_edit(
     prompt = (
         f"{_EDITOR_SYSTEM}\n\n"
         f"{_identity_section(user_identity)}"
+        f"{_playbooks_section(playbooks)}"
         f"{included.get('corrections', '')}"
         f"{included.get('versions', '')}"
         f"{included.get('lessons', '')}"

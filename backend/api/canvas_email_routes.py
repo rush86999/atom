@@ -79,6 +79,9 @@ class SendEmailRequest(BaseModel):
     canvas_id: Optional[str] = None
     agent_id: Optional[str] = None
     attachment_ids: Optional[List[str]] = None
+    # Grounded-send gate (Phase 4): supervisor override for an enforce-mode
+    # block — recorded on the send audit row, never silent.
+    override_grounding: bool = False
 
 
 class SetSignatureRequest(BaseModel):
@@ -166,6 +169,7 @@ async def send_email_canvas(
         agent_id=request.agent_id,
         tenant_id=resolve_tenant_id(current_user),
         attachment_ids=request.attachment_ids,
+        override_grounding=request.override_grounding,
     )
     if not result.get("success"):
         raise router.error_response(

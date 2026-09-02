@@ -798,6 +798,7 @@ class EmailCanvasService:
         agent_id: Optional[str] = None,
         tenant_id: str = "default",
         attachment_ids: Optional[List[str]] = None,
+        override_grounding: bool = False,
     ) -> Dict[str, Any]:
         """Send the composed email through the deterministic email policy.
 
@@ -813,6 +814,42 @@ class EmailCanvasService:
         agents/users co-editing the canvas see it live.
         """
         from core.email_policy import evaluate_email_action
+
+        # Grounded send gate (Installation Adaptation Plan Phase 4): the
+        # draft's factual claims need the facts registry, a hedge, or
+        # playbook coverage. Default mode is shadow — verdict rides the
+        # result and the logs but never blocks; ATOM_SEND_GROUNDING=enforce
+        # turns an unsupported-claim verdict into a refusal (supervisor can
+        # pass override=True, which is logged here).
+        grounding_override = bool(override_grounding)
+        try:
+            from core.send_grounding import gate_send
+
+            grounding = gate_send(
+                self.db, tenant_id, body=body or "", subject=subject or "",
+                override=grounding_override,
+            )
+        except Exception as ground_err:
+            logger.debug(f"send grounding gate skipped: {ground_err}")
+            grounding = {"mode": "off", "outcome": "pass", "findings": [],
+                         "blocked": False}
+        if grounding.get("blocked"):
+            reasons = "; ".join(
+                f.get("text", "")[:120] for f in grounding.get("findings", [])[:3]
+            )
+            self.record_send(canvas_id, user_id, agent_id,
+                             {"to": to_emails, "cc": cc_emails, "subject": subject},
+                             "blocked",
+                             {"policy": "send_grounding", "findings": grounding.get("findings")},
+                             tenant_id)
+            return {
+                "success": False,
+                "error": ("Held by the grounded-send gate: unsupported "
+                          f"claims ({reasons}). Add a source/hedge, or "
+                          "send with override to record the decision."),
+                "status": "blocked",
+                "grounding": grounding,
+            }
 
         # Sending ON BEHALF of a user (agent-initiated): the email carries
         # THAT user's formatting — their stored styled signature is applied
@@ -958,6 +995,7 @@ class EmailCanvasService:
             "status": "sent",
             "decision": decision["decision"],
             "policy": decision["policy"],
+            "grounding": grounding,
         }
 
     async def suggest_contacts(

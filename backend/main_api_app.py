@@ -3431,6 +3431,22 @@ try:
         logger.warning(f"Canvas email routes not found: {e}")
 
     try:
+        from api.installation_profile_routes import router as installation_profile_router
+
+        app.include_router(installation_profile_router)
+        logger.info("✓ Installation Profile Routes Loaded (/api/installation)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Installation profile routes not found: {e}")
+
+    try:
+        from api.playbook_routes import router as playbook_router
+
+        app.include_router(playbook_router)
+        logger.info("✓ Playbook Routes Loaded (/api/playbooks)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Playbook routes not found: {e}")
+
+    try:
         from api.agent_control_routes import router as agent_control_router
 
         app.include_router(agent_control_router)

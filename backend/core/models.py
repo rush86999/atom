@@ -12509,3 +12509,111 @@ class DomainExperienceLedger(Base):
     __table_args__ = (
         Index("ix_domain_ledger_agent_domain_outcome", "agent_id", "domain", "outcome"),
     )
+
+
+class InstallationProfile(Base):
+    """Per-installation knowledge the agent is GIVEN, not code: identity,
+    people/roles, reusable templates, and a facts registry (claims with
+    sources). Part of the Installation Adaptation Plan
+    (docs/architecture/INSTALLATION_ADAPTATION_PLAN.md Phase 1) — new
+    installs reach competence through this data, never per-install code.
+
+    One row per tenant (a fresh row is created on first read).
+    """
+
+    __tablename__ = "installation_profiles"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(255), nullable=False, unique=True, index=True)
+    workspace_id = Column(String(255), nullable=True, index=True)
+
+    # identity: {company_name, sender_name, sender_email, reply_to, signature,
+    #            tone_notes}
+    identity = Column(JSONColumn, default=dict)
+    # people: [{name, role, email, notes}] — roles like "dealer", "vendor",
+    # "internal" teach the agent WHO it is talking about without guessing.
+    people = Column(JSONColumn, default=list)
+    # templates: [{name, description, questions: [...], notes}] — e.g. a
+    # machine-selection question set ("Vipul's template").
+    templates = Column(JSONColumn, default=list)
+    # facts: [{claim, value, source, verified}] — the grounded-send gate's
+    # allowlist (Phase 4): "480V 3-phase available" needs an entry or hedging.
+    facts = Column(JSONColumn, default=list)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(),
+                        onupdate=func.now())
+
+
+class Playbook(Base):
+    """A company process as PROCEDURAL MEMORY (Installation Adaptation Plan
+    Phase 3): trigger conditions + steps + template questions the co-editor
+    loads on demand. Capture paths: authored (wizard/API), taught (/teach),
+    or sleep-time drafts from recurring correction patterns — drafts always
+    wait for supervisor approval, never auto-enforced.
+    """
+
+    __tablename__ = "playbooks"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(255), nullable=False, index=True)
+    workspace_id = Column(String(255), nullable=True, index=True)
+
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    # When the playbook applies: email/sheet/document canvases + keywords.
+    trigger_canvas_type = Column(String(64), nullable=True, index=True)
+    trigger_keywords = Column(JSONColumn, default=list)
+    steps = Column(JSONColumn, default=list)            # ["...", "..."]
+    template_questions = Column(JSONColumn, default=list)  # asked in drafts
+    examples = Column(JSONColumn, default=list)         # worked before/after
+
+    # authored | taught | learned  (learned = sleep-time/reflect draft)
+    source = Column(String(32), nullable=False, default="authored")
+    # draft (NOT in prompts) | approved (prompt leg) | retired
+    approval_state = Column(String(32), nullable=False, default="draft",
+                            index=True)
+    version = Column(Integer, nullable=False, default=1)
+    # fingerprint of the originating pattern/correction — dedup for drafts.
+    fingerprint = Column(String(64), nullable=True, index=True)
+    origin_ids = Column(JSONColumn, default=list)
+
+    created_by = Column(String(255), nullable=True)
+    approved_by = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(),
+                        onupdate=func.now())
+
+
+class IncidentEval(Base):
+    """A live failure turned into a replayable regression case (Installation
+    Adaptation Plan Phase 2 — the Promptfoo "production failure → test case"
+    pattern, in-repo). Generated from supervisor corrections; run per
+    release and as a graduation-exam gate.
+    """
+
+    __tablename__ = "incident_evals"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(255), nullable=False, index=True)
+    canvas_id = Column(String(255), nullable=True, index=True)
+    canvas_type = Column(String(64), nullable=True)
+
+    # grounding | identity | persistence | process | tone | other
+    taxonomy = Column(String(32), nullable=False, index=True)
+    instruction = Column(Text, nullable=True)
+    # {canvas_type, content, title} — the state the failed draft was planned
+    # against, so the case replays deterministically.
+    context_snapshot = Column(JSONColumn, default=dict)
+    # {kind: includes|excludes|changed|no_unverified, value: str}
+    expected_property = Column(JSONColumn, default=dict)
+
+    # correction | no_op | manual
+    source = Column(String(32), nullable=False, default="correction")
+    # sha1(canvas_id|taxonomy|value) — dedups repeated corrections.
+    fingerprint = Column(String(64), nullable=False, index=True)
+    occurrences = Column(Integer, nullable=False, default=1)
+
+    last_result = Column(JSONColumn, default=dict)  # {status, detail}
+    last_run_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

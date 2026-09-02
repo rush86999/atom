@@ -363,6 +363,12 @@ class TeachRequest(BaseModel):
     # for the student's role (same-category senior, or atom_main for
     # system/Meta students).
     acting_agent_id: Optional[str] = None
+    # Installation Adaptation Plan (Phase 3): also capture the lesson as a
+    # structured PLAYBOOK draft (process steps + question templates) —
+    # opt-in so ordinary style lessons don't spawn process objects. Drafts
+    # wait for supervisor approval via /api/playbooks/{id}/approve.
+    as_playbook: bool = False
+    playbook_canvas_type: Optional[str] = None
 
 
 @router.post("/{agent_id}/teach")
@@ -453,7 +459,25 @@ async def teach_agent(
     except Exception as session_lesson_err:
         logger.debug(f"session lesson record skipped: {session_lesson_err}")
 
+    # Installation Adaptation Plan (Phase 3): opt-in structured capture —
+    # the lesson ALSO becomes a playbook draft (process steps + question
+    # templates) awaiting supervisor approval. Fault-isolated: a playbook
+    # capture failure never fails the teach itself.
+    playbook_id = None
+    if req.as_playbook:
+        try:
+            from core.playbook_service import PlaybookService
+
+            row = PlaybookService(db, tenant_id=tenant_id, workspace_id=workspace_id).create_from_teach(
+                req.lesson, agent_id=str(current_user.id),
+                trigger_canvas_type=req.playbook_canvas_type,
+            )
+            playbook_id = row.id
+        except Exception as pb_err:
+            logger.debug(f"teach playbook capture skipped: {pb_err}")
+
     return router.success_response(
-        data=result,
-        message="Lesson recorded — the student's confidence grew",
+        data={**result, **({"playbook_id": playbook_id} if playbook_id else {})},
+        message="Lesson recorded — the student's confidence grew"
+                + (" (playbook draft created — approve it in Playbooks)" if playbook_id else ""),
     )

@@ -412,6 +412,44 @@ class CanvasContextService:
         except Exception as e:
             logger.warning(f"[LEARNING] Failed to record user correction: {e}")
 
+        # Installation Adaptation Plan (Phase 2 + 4): classify WHY the
+        # supervisor corrected, file a replayable regression case, and
+        # draft the rule it implies — the per-install learning loop that
+        # replaces per-install engineering. Runs regardless of agent
+        # binding (evals are per-tenant) and is fault-isolated: a learning
+        # failure never blocks the correction itself.
+        try:
+            from core.failure_taxonomy import classify_correction
+            from core.correction_reflection_service import reflect_on_correction
+            from core.incident_eval_service import generate_from_correction
+
+            original_content = (original_action.get("content")
+                                if isinstance(original_action, dict) else original_action)
+            corrected_content = (corrected_action.get("content")
+                                 if isinstance(corrected_action, dict) else corrected_action)
+            label, _signals = classify_correction(original_content, corrected_content)
+            snapshot = {
+                "canvas_type": context.canvas_type,
+                "title": None,
+                "content": original_content,
+            } if isinstance(original_action, dict) else {}
+            generate_from_correction(
+                self.db, self.tenant_id, canvas_id, context.canvas_type,
+                snapshot=snapshot,
+                original=original_content,
+                corrected=corrected_content,
+                instruction=context_info,
+            )
+            reflect_on_correction(
+                self.db, self.tenant_id, canvas_id, context.canvas_type,
+                original=original_content,
+                corrected=corrected_content,
+                taxonomy=label,
+                instruction=context_info,
+            )
+        except Exception as adapt_err:
+            logger.debug(f"installation adaptation capture skipped: {adapt_err}")
+
         return True
     
     def get_similar_canvas_corrections(

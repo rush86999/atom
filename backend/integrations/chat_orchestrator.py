@@ -2041,6 +2041,32 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"canvas heal skipped: {e}")
             return canvas
 
+    def _relevant_playbooks(
+        self, user_id: str, message: str, canvas_type: Any
+    ) -> List[Dict[str, Any]]:
+        """Approved playbooks matching this turn (Plan Phase 3, shadow by
+        default via ATOM_PLAYBOOKS). Sync + to_thread-wrapped by the caller;
+        fault-isolated — a playbook-store failure degrades to no playbooks,
+        never blocks the edit turn."""
+        try:
+            from core.database import get_db_session
+            from core.playbook_service import PlaybookService
+
+            with get_db_session() as db:
+                tenant = "default"
+                try:
+                    from core.models import User
+                    u = db.query(User).filter(User.id == str(user_id)).first()
+                    if u is not None and getattr(u, "tenant_id", None):
+                        tenant = u.tenant_id
+                except Exception:
+                    pass
+                svc = PlaybookService(db, tenant_id=tenant)
+                return svc.get_relevant(message, canvas_type=canvas_type)
+        except Exception as e:
+            logger.debug(f"playbook retrieval skipped: {e}")
+            return []
+
     async def _sender_identity(
         self, user_id: str, canvas_type: Any
     ) -> Optional[Dict[str, str]]:
@@ -2068,6 +2094,26 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         identity["name"] = name
                     if u.email:
                         identity["email"] = u.email
+
+                # Installation profile (Plan Phase 1): the wizard-entered
+                # identity outranks nothing — it fills the fields the bare
+                # account record lacks (company name, tone notes).
+                try:
+                    from core.installation_profile_service import (
+                        InstallationProfileService,
+                    )
+
+                    tenant = getattr(u, "tenant_id", None) if u else None
+                    ident = InstallationProfileService(db).identity_for_prompts(
+                        tenant or "default")
+                    for key in ("sender_name", "company_name"):
+                        if ident.get(key) and not identity.get("name" if key == "sender_name" else key):
+                            if key == "sender_name":
+                                identity.setdefault("name", ident[key])
+                            else:
+                                identity[key] = ident[key]
+                except Exception as prof_err:
+                    logger.debug(f"installation profile identity skipped: {prof_err}")
 
                 if str(canvas_type or "").lower() == "email" and user_id:
                     try:
@@ -2117,6 +2163,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             user_id, canvas, agent_id
         )
         user_identity = await self._sender_identity(user_id, canvas.get("canvas_type"))
+        playbooks = await asyncio.to_thread(
+            self._relevant_playbooks, user_id, message, canvas.get("canvas_type"))
 
         try:
             plan = await asyncio.wait_for(
@@ -2129,6 +2177,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     correction_patterns=correction_patterns,
                     provenance=provenance,
                     user_identity=user_identity,
+                    playbooks=playbooks,
                 ),
                 timeout=30,
             )

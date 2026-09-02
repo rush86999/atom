@@ -235,6 +235,38 @@ async def _lessons_leg(message: str, agent_id: Optional[str]) -> str:
     return await asyncio.to_thread(_read)
 
 
+async def _playbooks_leg(message: str, workspace_id: str, tenant_id: str) -> str:
+    """Company playbooks matching the turn (Installation Adaptation Plan
+    Phase 3) — the install's own processes as advisory prompt context on
+    every chat surface, not just canvas edits. Keyword-scored by
+    PlaybookService.get_relevant (approved only); empty string renders no
+    block. ATOM_PLAYBOOKS=off short-circuits inside the service."""
+    def _read() -> str:
+        from core.database import SessionLocal
+        from core.playbook_service import PlaybookService
+
+        db = SessionLocal()
+        try:
+            playbooks = PlaybookService(
+                db, tenant_id=tenant_id, workspace_id=workspace_id,
+            ).get_relevant(message, limit=2)
+            if not playbooks:
+                return ""
+            blocks = []
+            for pb in playbooks:
+                lines = [f"Process: {pb.get('name', '')}"]
+                lines.extend(f"- {s}" for s in (pb.get("steps") or [])[:5])
+                for q in (pb.get("template_questions") or [])[:5]:
+                    lines.append(f"- Ask: {q}")
+                blocks.append("\n".join(lines))
+            return ("Company playbook guidance (follow unless the user "
+                    "overrides):\n" + "\n".join(blocks))
+        finally:
+            db.close()
+
+    return await asyncio.to_thread(_read)
+
+
 async def _exchange_examples_leg(message: str, workspace_id: str) -> List[str]:
     """Similar RATED exchanges (Phase 56 positive/negative example loop) —
     the in-context half of learning from feedback: approved answers as
@@ -837,7 +869,7 @@ async def assemble_memory_context(
         # scopes integration-record recall to the work/responsibilities the
         # data was synced for. Same tag the sync route stamps at ingest.
         agent_role = await asyncio.to_thread(_resolve_agent_role, agent_id)
-        graph_ctx, knowledge_lines, integration_lines, episode_lines, fact_lines, lessons_block, exchange_lines = await asyncio.gather(
+        graph_ctx, knowledge_lines, integration_lines, episode_lines, fact_lines, lessons_block, exchange_lines, playbook_block = await asyncio.gather(
             _safe(_graph_leg(message, workspace_id, tenant_id), "graph"),
             _safe(_knowledge_leg(message, workspace_id, owner_user_id=user_id), "knowledge"),
             _safe(_integration_records_leg(message, workspace_id, agent_role), "integration_records"),
@@ -845,6 +877,7 @@ async def assemble_memory_context(
             _safe(_facts_leg(message, workspace_id), "facts"),
             _safe(_lessons_leg(message, agent_id), "lessons"),
             _safe(_exchange_examples_leg(message, workspace_id), "exchange_examples"),
+            _safe(_playbooks_leg(message, workspace_id, tenant_id), "playbooks"),
         )
 
         # P1.4 rerank phase — budget-gated: only when the gather stayed fast
@@ -917,6 +950,10 @@ async def assemble_memory_context(
         # set is tiny and already query-scored at the source.
         if lessons_block:
             blocks.append(lessons_block)
+        if playbook_block:
+            # Company playbooks rank with lessons — standing instructions
+            # from the installation, not reference snippets.
+            blocks.append(playbook_block)
         if graph_ctx:
             blocks.append("KNOWLEDGE GRAPH CONTEXT:\n" + graph_ctx)
         knowledge_block = _bounded_lines(knowledge_lines or [], KNOWLEDGE_CHAR_CAP)

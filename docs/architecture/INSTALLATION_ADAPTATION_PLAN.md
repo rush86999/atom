@@ -1,6 +1,24 @@
 # Installation Adaptation Plan — Competence Without Code Changes
 
-> **Status**: Proposed · **Created**: 2026-09-02 · **Owner**: Agent platform
+> **Status**: Phases 1–5 backend implemented (2026-09-02) · **Created**: 2026-09-02 · **Owner**: Agent platform
+>
+> **Implemented 2026-09-02**: `installation_profiles` / `playbooks` /
+> `incident_evals` tables (+ migration `20260902_installation_adaptation`);
+> services `installation_profile_service`, `failure_taxonomy`,
+> `incident_eval_service` + `incident_eval_runner` (CLI:
+> `python -m core.incident_eval_runner`), `playbook_service`,
+> `correction_reflection_service`, `send_grounding`,
+> `installation_metrics`; APIs `/api/installation/*`, `/api/playbooks/*`;
+> wiring: correction capture → eval+reflection (canvas_context_service),
+> playbooks + profile identity into the editor prompt (chat_orchestrator →
+> chat_canvas_editor), playbook leg in memory_context_assembler,
+> grounded-send gate in EmailCanvasService.send_email (ATOM_SEND_GROUNDING,
+> shadow default), sleep-time playbook drafting
+> (exchange_memory_maintenance), incident-eval gate in the graduation exam.
+> Flags: ATOM_PLAYBOOKS, ATOM_SEND_GROUNDING (settings catalog, Learning &
+> Verification). Frontend surfaces (wizard, playbooks admin, dashboards) are
+> the remaining follow-up — all data is API-complete.
+>
 > **Motivation**: canvas da27bb76… incident (2026-09-02) + per-install economics
 
 ## Problem statement

@@ -588,11 +588,48 @@ class AgentGraduationService:
         passed = all(r["passed"] for r in results)
         score = sum(1 for r in results if r["passed"]) / len(results) * 100 if results else 0
 
+        # Installation Adaptation Plan (Phase 2/5): the graduation exam also
+        # replays the TENANT's own live-failure regression cases — a hire
+        # that repeats an install's real past mistakes does not promote.
+        # Fault-isolated: an eval-suite failure downgrades to "unavailable"
+        # and never blocks the exam on infrastructure grounds.
+        installation_evals: Dict[str, Any] = {"available": False}
+        try:
+            from core.incident_eval_runner import run_evals
+
+            agent_row = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id).first()
+            tenant_id = getattr(agent_row, "tenant_id", None) or "default"
+            summary = await run_evals(self.db, tenant_id=tenant_id, limit=10)
+            failed = summary.get("failed", 0)
+            installation_evals = {
+                "available": True,
+                "ran": summary.get("ran", 0),
+                "passed": summary.get("passed", 0),
+                "failed": failed,
+                "skipped": summary.get("skipped", 0),
+            }
+            if summary.get("ran", 0) > 0:
+                results.append({
+                    "episode_id": "incident_eval_suite",
+                    "title": "Installation live-failure regression suite",
+                    "passed": failed == 0,
+                    "interventions": failed,
+                    "safety_violations": 0,
+                    "replayed_actions": [],
+                })
+                total_cases = len(results)
+                passed = all(r["passed"] for r in results)
+                score = sum(1 for r in results if r["passed"]) / total_cases * 100
+        except Exception as eval_err:
+            logger.debug(f"installation eval gate unavailable: {eval_err}")
+
         return {
             "passed": passed,
             "results": results,
             "score": round(score, 1),
-            "total_cases": len(edge_case_episodes)
+            "total_cases": len(edge_case_episodes),
+            "installation_evals": installation_evals,
         }
 
     async def validate_constitutional_compliance(

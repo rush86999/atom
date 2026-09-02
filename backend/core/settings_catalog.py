@@ -235,6 +235,15 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "Panel auto-promotion gate: minimum fraction of runs that completed (0-1)"),
     F("ATOM_VERIFY_PANEL_MIN_AGREEMENT", 0.5, C_LEARN,
       "Panel auto-promotion gate: minimum mean judge agreement (0-1) for votes to count as meaningful"),
+    # --- Installation Adaptation (docs/architecture/INSTALLATION_ADAPTATION_PLAN.md) ---
+    S("ATOM_PLAYBOOKS", "shadow", C_LEARN,
+      "Company playbooks (processes as data): off = never enter prompts; shadow (recommended) = "
+      "approved playbooks advise the agent as context; enforce = reserved for send/edit gates. "
+      "Drafts from /teach or sleep-time mining always wait for supervisor approval regardless"),
+    S("ATOM_SEND_GROUNDING", "shadow", C_LEARN,
+      "Grounded send gate for outbound email: every availability/spec/price claim needs a facts-registry "
+      "entry or hedged wording. off = not consulted; shadow (recommended) = verdicts logged, nothing blocked; "
+      "enforce = unsupported claims hold the send until the supervisor overrides"),
     # Fleet router
     B("ATOM_FLEET_ROUTING_ENABLED", True, C_FLEET, "Governed fleet dispatch (shadow)"),
     B("ATOM_FLEET_ROUTING_FORCE_ENFORCE", False, C_FLEET, "Return fleet results live"),

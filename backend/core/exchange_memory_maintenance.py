@@ -281,6 +281,47 @@ def _maybe_auto_promote_panel(db) -> Dict[str, Any]:
     return {"promoted": True, "stats": stats}
 
 
+def _draft_playbooks(db) -> Dict[str, Any]:
+    """Plan Phase 3: recurring corrections (IncidentEval.occurrences >= 3)
+    become draft playbooks (source=learned, approval_state=draft) for
+    supervisor review. draft_from_pattern is idempotent per fingerprint —
+    reruns bump the existing draft instead of stacking rows. Cap per cycle
+    keeps the Training panel's review queue human-sized. Fault-isolated by
+    the cycle."""
+    summary: Dict[str, Any] = {"drafted": 0, "bumped": 0}
+    try:
+        from core.models import IncidentEval
+        from core.playbook_service import PlaybookService, playbook_mode
+
+        if playbook_mode() == "off":
+            return summary
+
+        recurring = (db.query(IncidentEval)
+                     .filter(IncidentEval.occurrences >= 3)
+                     .order_by(IncidentEval.occurrences.desc())
+                     .limit(20).all())
+        for row in recurring:
+            name = f"[{row.taxonomy}] recurring correction on {row.canvas_id[:8]}…"
+            svc = PlaybookService(db, tenant_id=row.tenant_id)
+            existing = svc.find_by_pattern(name)
+            drafted = svc.draft_from_pattern(
+                name,
+                trigger_canvas_type=row.canvas_type,
+                origin_id=row.id,
+            )
+            if drafted is None:
+                continue
+            if existing is not None:
+                summary["bumped"] += 1
+            else:
+                summary["drafted"] += 1
+            if summary["drafted"] >= 3:
+                break
+    except Exception as e:
+        logger.debug("playbook drafting skipped: %s", e)
+    return summary
+
+
 def _latch_runtime_setting(db, key: str) -> None:
     """Upsert the runtime-settings row (env still wins as kill-switch) and
     drop the settings cache so the next read sees the latch."""
@@ -322,6 +363,10 @@ async def run_maintenance_cycle(db) -> Dict[str, Any]:
         summary["promoted_panel"] = _maybe_auto_promote_panel(db)
     except Exception as e:
         logger.debug("panel auto-promote step failed: %s", e)
+    try:
+        summary["playbook_drafts"] = _draft_playbooks(db)
+    except Exception as e:
+        logger.debug("playbook draft step failed: %s", e)
     return summary
 
 
