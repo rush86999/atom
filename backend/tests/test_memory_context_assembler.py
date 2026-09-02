@@ -47,7 +47,8 @@ def _stub_lessons_leg():
     """Keep the taught-lessons leg hermetic by default (it opens its own DB
     session). Tests that exercise the leg patch mca._lessons_leg themselves
     and win for the duration."""
-    with patch.object(mca, "_lessons_leg", AsyncMock(return_value="")):
+    with patch.object(mca, "_lessons_leg", AsyncMock(return_value="")), \
+         patch.object(mca, "_exchange_examples_leg", AsyncMock(return_value=[])):
         yield
 
 
