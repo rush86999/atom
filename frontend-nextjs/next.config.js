@@ -293,6 +293,10 @@ const nextConfig = {
         destination: "http://127.0.0.1:8000/api/auth/:service/status",
       },
       {
+        source: "/api/auth/:service/disconnect",
+        destination: "http://127.0.0.1:8000/api/auth/:service/disconnect",
+      },
+      {
         source: "/api/v1/auth/oauth/:path*",
         destination: "http://127.0.0.1:8000/api/v1/auth/oauth/:path*",
       },

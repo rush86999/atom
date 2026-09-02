@@ -158,6 +158,7 @@ class GoogleDriveService(IntegrationService):
                         IntegrationToken.provider.in_(["google", "google_drive", "gmail"]),
                         IntegrationToken.status == "active",
                     )
+                    .order_by(IntegrationToken.updated_at.desc())
                     .first()
                 )
                 if not token_record or not token_record.access_token:

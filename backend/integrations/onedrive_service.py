@@ -131,6 +131,7 @@ class OneDriveService(IntegrationService):
                         IntegrationToken.provider.in_(["onedrive", "microsoft", "outlook", "microsoft365"]),
                         IntegrationToken.status == "active",
                     )
+                    .order_by(IntegrationToken.updated_at.desc())
                     .first()
                 )
                 if not token_record or not token_record.access_token:
