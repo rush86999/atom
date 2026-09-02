@@ -46,12 +46,13 @@ of letting duplicates stack. Each pattern is distilled once.
 
 | Mode | Learning from ratings | Answers shaped by examples |
 |---|---|---|
+| `auto` *(default, recommended)* | ✓ — lessons, cautions, mastery | Starts quiet, then ✓ by itself once the rated library is big enough |
 | `off` | ✗ | ✗ |
-| `shadow` *(default, recommended)* | ✓ — lessons, cautions, mastery | ✗ — replies are unchanged |
-| `enforce` | ✓ | ✓ — similar approved answers and rejected patterns are surfaced to the agent while it answers |
+| `shadow` | ✓ — lessons, cautions, mastery | ✗ — replies are unchanged (pinned) |
+| `enforce` | ✓ | ✓ — similar approved answers and rejected patterns are surfaced to the agent while it answers (pinned) |
 
-Learning itself (storage, lessons, mastery growth) happens in shadow and
-enforce alike. The flag only controls whether answers are shaped.
+Learning itself (storage, lessons, mastery growth) happens in every mode
+except `off`. The flag only controls whether answers are shaped.
 
 ---
 
@@ -63,8 +64,9 @@ documents) and **vote**.
 
 | Mode | Verdicts | Answers |
 |---|---|---|
-| `off` *(default)* | ✗ | unchanged |
-| `shadow` | ✓ recorded | unchanged |
+| `auto` *(default, recommended)* | ✓ recorded | Quiet at first (replies unchanged); ungrounded answers start being regenerated once the judge record is healthy |
+| `off` | ✗ | unchanged |
+| `shadow` | ✓ recorded | unchanged (pinned) |
 | `enforce` | ✓ recorded | An answer a judge **majority** finds ungrounded is regenerated **once**; if it still fails, an honest caveat is attached instead of pretending |
 
 Judges only run where the stakes justify the cost — ordinary simple chat never
@@ -72,22 +74,22 @@ pays for the panel.
 
 ---
 
-## 3. Auto-promotion (opt-in)
+## 3. Auto — the self-regulating default
 
-Both features start conservative (`shadow` for learning, `off` for the panel —
-the panel costs extra AI calls per turn, so turning it on at all is a manual
-decision). If you arm **auto-promotion** for a feature, the hourly maintenance
-cycle will latch it forward by itself — but only when the evidence is healthy,
-and only forward:
+Both features default to `auto`. In auto, they start quiet — everything is
+learned and recorded, but nothing shapes answers yet — and the hourly
+maintenance cycle promotes them to `enforce` **by itself, forward only**,
+once the evidence is healthy:
 
-- **Learning:** promotes `shadow → enforce` once the rated library has
-  20+ exchanges with at least 3 approved and 3 rejected (configurable).
-- **Panel:** promotes `shadow → enforce` once its run record shows
-  ≥ 20 runs, ≥ 90% completed, and meaningful judge agreement (configurable).
+- **Learning:** the rated library needs 20+ exchanges with at least 3
+  approved and 3 rejected (configurable thresholds).
+- **Panel:** the run record needs 20+ runs, ≥ 90% completed, and meaningful
+  judge agreement (configurable thresholds).
 
-Auto-promotion **never demotes**, never turns a paid feature on from `off`,
-and **never overrides an environment variable** — if the flag is set in
-`.env`, that wins and the page control locks.
+Pin `off`, `shadow` or `enforce` if you want to hold a state — a pinned mode
+is never moved by automation. And an **environment variable always wins**:
+if the flag is set in `.env`, that is the kill-switch and the page control
+locks. Auto-promotion never demotes.
 
 ---
 
@@ -109,11 +111,9 @@ The underlying flag keys, for `.env` / automation:
 
 | Key | Values | Default |
 |---|---|---|
-| `ATOM_EXCHANGE_MEMORY` | `off` / `shadow` / `enforce` | `shadow` |
-| `ATOM_EXCHANGE_AUTO_PROMOTE` | `true` / `false` | `false` |
+| `ATOM_EXCHANGE_MEMORY` | `auto` / `off` / `shadow` / `enforce` | `auto` |
 | `ATOM_EXCHANGE_DISTILL_MIN` | integer | `3` |
-| `ATOM_VERIFY_PANEL` | `off` / `shadow` / `enforce` | `off` |
-| `ATOM_VERIFY_PANEL_AUTO_PROMOTE` | `true` / `false` | `false` |
+| `ATOM_VERIFY_PANEL` | `auto` / `off` / `shadow` / `enforce` | `auto` |
 | `ATOM_VERIFY_PANEL_MIN_RUNS` | integer | `20` |
 | `ATOM_VERIFY_PANEL_MIN_RAN_RATE` | float 0–1 | `0.9` |
 | `ATOM_VERIFY_PANEL_MIN_AGREEMENT` | float 0–1 | `0.5` |
@@ -122,12 +122,11 @@ The underlying flag keys, for `.env` / automation:
 
 ## 5. Recommended rollout
 
-1. Rate answers as you normally would — learning is already on in `shadow`.
+1. Rate answers as you normally would — learning is already on, and
+   enforcement will switch on by itself once the library is big enough.
    Write comments when something's wrong.
-2. Give it a week of real usage (the status cards show the corpus growing).
-3. Arm auto-promotion if you want `enforce` to switch on by itself once the
-   library is big enough — or flip `ATOM_EXCHANGE_MEMORY` to `enforce`
-   yourself whenever you like.
-4. For the panel, flip it to `shadow` first, watch the completion rate and
-   agreement on the status cards for a while, then either arm its
-   auto-promotion or set `enforce` manually.
+2. Watch the status cards: the corpus counts and the panel's completion /
+   agreement numbers tell you when promotion is near.
+3. Pin `shadow` or `off` at any time to hold the system where it is, or pin
+   `enforce` to skip the wait. Reset back to `auto` whenever you want the
+   self-regulation to take over again.

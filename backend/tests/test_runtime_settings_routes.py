@@ -254,14 +254,25 @@ class TestLearningStatus:
         resp = client.get("/api/v1/admin/settings/learning-status")
         assert resp.status_code == 200
         data = resp.json()["data"]
-        assert data["exchange"]["mode"] == "shadow"
+        # auto is the default: raw mode auto, effective shadow.
+        assert data["exchange"]["mode"] == "auto"
+        assert data["exchange"]["effective"] == "shadow"
         assert data["exchange"]["source"] == "default"
         assert data["exchange"]["env_locked"] is False
         assert data["exchange"]["counts"]["total"] == 6
-        assert data["exchange"]["auto_promote"] is False
-        assert data["panel"]["mode"] == "off"
+        assert data["panel"]["mode"] == "auto"
+        assert data["panel"]["effective"] == "shadow"
         assert data["panel"]["stats"]["ran_rate"] == 0.96
-        assert data["panel"]["auto_promote"] is False
+        assert data["gates"]["panel_min_runs"] == 20
+
+    def test_pinned_mode_reports_effective(self, db, monkeypatch):
+        monkeypatch.setenv("ATOM_VERIFY_PANEL", "enforce")
+        self._patch_stats(monkeypatch)
+        client = _client(db, _user())
+        data = client.get("/api/v1/admin/settings/learning-status").json()["data"]
+        assert data["panel"]["mode"] == "enforce"
+        assert data["panel"]["effective"] == "enforce"
+        assert data["panel"]["env_locked"] is True
 
     def test_env_override_reported_as_locked(self, db, monkeypatch):
         monkeypatch.setenv("ATOM_VERIFY_PANEL", "shadow")

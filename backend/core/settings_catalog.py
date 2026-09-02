@@ -215,26 +215,20 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     F("TURN_FACT_CB_COOLDOWN_S", 120.0, C_MEM, "Turn-fact circuit cooldown"),
     # --- Learning & Verification (guidance: Admin → Learning & Verification,
     # or docs/guides/LEARNING_VERIFICATION_GUIDE.md) ---
-    S("ATOM_EXCHANGE_MEMORY", "shadow", C_LEARN,
-      "Learning from your ratings: when you rate an answer thumbs up/down, the pair becomes a "
-      "permanent example. off = nothing is learned; shadow (recommended) = the agent learns from "
-      "your ratings but answers are unchanged; enforce = answers also surface similar approved "
-      "answers and past rejected patterns while replying"),
-    B("ATOM_EXCHANGE_AUTO_PROMOTE", False, C_LEARN,
-      "Let the hourly maintenance promote exchange learning from shadow to enforce by itself once "
-      "the rated corpus is large enough to learn from (default: 20+ rated exchanges, 3+ of each)"),
+    S("ATOM_EXCHANGE_MEMORY", "auto", C_LEARN,
+      "Learning from your ratings: every thumbs up/down becomes a permanent example; comments "
+      "become permanent corrections. auto (recommended) = learns quietly now and starts shaping "
+      "answers by itself once the rated library is big enough (20+ rated exchanges); off = learn "
+      "nothing; shadow = learn but never shape answers; enforce = shape answers now"),
     I("ATOM_EXCHANGE_DISTILL_MIN", 3, C_LEARN,
       "How many similar thumbs-down answers with a written comment are distilled into ONE "
       "permanent correction lesson for student agents"),
-    S("ATOM_VERIFY_PANEL", "off", C_LEARN,
+    S("ATOM_VERIFY_PANEL", "auto", C_LEARN,
       "Answer verification panel: on mission-critical/complex turns, 3 AI judges check the answer "
-      "against its evidence and vote. off = disabled; shadow = checks quietly, answers unchanged; "
-      "enforce = answers a judge majority finds ungrounded are regenerated once, with an honest "
-      "caveat if still ungrounded"),
-    B("ATOM_VERIFY_PANEL_AUTO_PROMOTE", False, C_LEARN,
-      "Let the hourly maintenance promote the panel from shadow to enforce by itself once its run "
-      "record is healthy (default: 20+ runs, 90%+ completed, meaningful judge agreement). Turning "
-      "the panel ON at all stays a manual decision because it costs extra AI calls per turn"),
+      "against its evidence and vote. auto (recommended) = judges run quietly now and ungrounded "
+      "answers start being regenerated once the panel's run record is healthy (20+ runs, 90%+ "
+      "completed, meaningful agreement); off = disabled; shadow = always quiet; enforce = "
+      "regenerate now. Judges only ever run on high-stakes turns, never ordinary chat"),
     I("ATOM_VERIFY_PANEL_MIN_RUNS", 20, C_LEARN,
       "Panel auto-promotion gate: minimum recorded panel runs before health is evaluated"),
     F("ATOM_VERIFY_PANEL_MIN_RAN_RATE", 0.9, C_LEARN,

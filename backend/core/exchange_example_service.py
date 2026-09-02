@@ -62,17 +62,33 @@ _MAX_RESPONSE_CHARS = 4000  # full text, but bounded against runaway outputs
 _REGENERATE_COMMENT = "regenerated"  # the frontend's regenerate handler marker
 
 
-def exchange_memory_mode() -> str:
-    """off | shadow | enforce (default shadow).
+_MODES = ("off", "shadow", "enforce")
 
-    Resolved through runtime settings so the maintenance automation can
-    promote shadow→enforce programmatically (UI/admin row), while an
-    explicit env var still wins as the kill-switch — it can never be
-    overridden by automation."""
-    from core.runtime_settings import get_setting
 
-    mode = str(get_setting(_MODE_FLAG, "shadow") or "shadow").strip().lower()
-    return mode if mode in ("off", "shadow", "enforce") else "shadow"
+def exchange_memory_setting(db=None) -> tuple:
+    """Raw resolved setting as (value, source) — 'auto' is a legal value here.
+
+    Sources: explicit env > UI/db row > catalog default. An explicit env var
+    is the operator kill-switch and is never overridden by automation."""
+    from core.runtime_settings import resolve_setting
+
+    res = resolve_setting(_MODE_FLAG, db=db)
+    value = str(res.value or "auto").strip().lower()
+    return value, res.source
+
+
+def exchange_memory_mode(db=None) -> str:
+    """The EFFECTIVE mode: off | shadow | enforce.
+
+    ``auto`` (the default) self-regulates: it behaves as shadow — learning
+    runs, answers unchanged — until the maintenance latch flips the stored
+    value to enforce once the corpus is healthy (see
+    core/exchange_memory_maintenance.py). Pinning off/shadow/enforce holds
+    that state; an explicit env var wins over everything."""
+    value, _ = exchange_memory_setting(db=db)
+    if value == "auto":
+        return "shadow"  # pre-latch effective state
+    return value if value in _MODES else "shadow"
 
 
 # ---------------------------------------------------------------------------

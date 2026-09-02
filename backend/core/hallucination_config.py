@@ -354,17 +354,22 @@ def get_verify_panel_mode() -> str:
     """ATOM_VERIFY_PANEL — verification panel (judge vote) for mission-critical
     and high-complexity reply turns.
 
-    Modes: ``off`` (default) | ``shadow`` (verdict computed + logged, reply
-    untouched) | ``enforce`` (ungrounded-majority replies trigger one grounded
-    regeneration; persistent failure appends an honest caveat). Scoped to
-    mission-critical or COMPLEX/ADVANCED turns only — the panel costs N extra
-    structured calls and must never sit on ordinary chat latency.
+    Raw setting values: ``auto`` (default) | ``off`` | ``shadow`` | ``enforce``.
 
-    Resolved through runtime settings so the maintenance automation can latch
-    shadow→enforce (opt-in, evidence-gated) and the admin UI can flip it,
-    while an explicit env var still wins as the kill-switch.
+    Returns the EFFECTIVE mode. ``auto`` self-regulates: it behaves as shadow
+    (judges vote and are recorded, replies unchanged) until the maintenance
+    latch flips the stored value to enforce once the panel's run record is
+    healthy (core/exchange_memory_maintenance.py). Pinning any explicit value
+    holds it; an explicit env var wins over everything (kill-switch).
+
+    Scoped to mission-critical or COMPLEX/ADVANCED turns only — the panel
+    costs N extra structured calls and must never sit on ordinary chat
+    latency.
     """
-    from core.runtime_settings import get_setting
+    from core.runtime_settings import resolve_setting
 
-    raw = str(get_setting("ATOM_VERIFY_PANEL", "off") or "off").strip().lower()
+    res = resolve_setting("ATOM_VERIFY_PANEL")
+    raw = str(res.value or "auto").strip().lower()
+    if raw == "auto":
+        return "shadow"  # pre-latch effective state
     return raw if raw in ("off", "shadow", "enforce") else "off"

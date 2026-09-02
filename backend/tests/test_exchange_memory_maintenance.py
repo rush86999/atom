@@ -203,32 +203,32 @@ def _healthy_counts():
 
 
 @pytest.mark.asyncio
-async def test_auto_promote_disabled_by_default(monkeypatch):
-    with patch.object(xm, "_auto_promote_exchange", return_value=False):
-        result = xm._maybe_auto_promote(_mock_db())
-    assert result == {"promoted": False, "reason": "auto_promote_disabled"}
+async def test_promote_only_in_auto_mode():
+    db = _mock_db(label_rows=_healthy_counts())
+    with patch("core.exchange_example_service.exchange_memory_setting",
+               return_value=("shadow", "db")):
+        result = xm._maybe_auto_promote(db)
+    assert result == {"promoted": False, "reason": "mode_pinned_shadow"}
+    assert not db.add.called
 
 
 @pytest.mark.asyncio
-async def test_explicit_env_is_a_kill_switch_automation_never_fights(monkeypatch):
-    monkeypatch.setenv("ATOM_EXCHANGE_MEMORY", "shadow")  # operator-pinned
+async def test_env_sourced_auto_is_never_latched(monkeypatch):
+    monkeypatch.setenv("ATOM_EXCHANGE_MEMORY", "auto")  # operator-pinned via env
     db = _mock_db(label_rows=_healthy_counts())
-    with patch.object(xm, "_auto_promote_exchange", return_value=True), \
-         patch("core.exchange_example_service.exchange_memory_mode",
-               return_value="shadow"):
+    with patch("core.exchange_example_service.exchange_memory_setting",
+               return_value=("auto", "env")):
         result = xm._maybe_auto_promote(db)
     assert result == {"promoted": False, "reason": "explicit_env_kill_switch"}
     assert not db.add.called
 
 
 @pytest.mark.asyncio
-async def test_auto_promote_latches_shadow_to_enforce(monkeypatch):
-    monkeypatch.delenv("ATOM_EXCHANGE_MEMORY", raising=False)
+async def test_auto_promote_latches_when_healthy():
     db = _mock_db(label_rows=_healthy_counts())
     invalidate = MagicMock()
-    with patch.object(xm, "_auto_promote_exchange", return_value=True), \
-         patch("core.exchange_example_service.exchange_memory_mode",
-               return_value="shadow"), \
+    with patch("core.exchange_example_service.exchange_memory_setting",
+               return_value=("auto", "db")), \
          patch("core.runtime_settings.invalidate_settings_cache", invalidate):
         result = xm._maybe_auto_promote(db)
 
@@ -242,12 +242,10 @@ async def test_auto_promote_latches_shadow_to_enforce(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_auto_promote_skips_small_corpus(monkeypatch):
-    monkeypatch.delenv("ATOM_EXCHANGE_MEMORY", raising=False)
+async def test_auto_promote_skips_small_corpus():
     db = _mock_db(label_rows=[("positive",)] * 5 + [("negative",)] * 2)
-    with patch.object(xm, "_auto_promote_exchange", return_value=True), \
-         patch("core.exchange_example_service.exchange_memory_mode",
-               return_value="shadow"):
+    with patch("core.exchange_example_service.exchange_memory_setting",
+               return_value=("auto", "db")):
         result = xm._maybe_auto_promote(db)
     assert result["promoted"] is False
     assert result["reason"] == "corpus_too_small"
@@ -255,14 +253,12 @@ async def test_auto_promote_skips_small_corpus(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_auto_promote_never_demotes_enforce(monkeypatch):
-    monkeypatch.delenv("ATOM_EXCHANGE_MEMORY", raising=False)
+async def test_pinned_enforce_never_moves():
     db = _mock_db(label_rows=_healthy_counts())
-    with patch.object(xm, "_auto_promote_exchange", return_value=True), \
-         patch("core.exchange_example_service.exchange_memory_mode",
-               return_value="enforce"):
+    with patch("core.exchange_example_service.exchange_memory_setting",
+               return_value=("enforce", "db")):
         result = xm._maybe_auto_promote(db)
-    assert result["reason"] == "mode_is_enforce"
+    assert result["reason"] == "mode_pinned_enforce"
     assert not db.add.called
 
 
@@ -273,12 +269,19 @@ async def test_auto_promote_never_demotes_enforce(monkeypatch):
 @pytest.mark.asyncio
 async def test_cycle_survives_a_failing_step(monkeypatch):
     db = _mock_db(label_rows=_healthy_counts())
+    invalidate = MagicMock()
     with patch.object(xm, "_backfill_vectors", side_effect=RuntimeError("lance down")), \
-         patch.object(xm, "_auto_promote_exchange", return_value=False), \
-         patch.object(xm, "_auto_promote_panel", return_value=False), \
+         patch("core.exchange_example_service.exchange_memory_setting",
+               return_value=("auto", "db")), \
+         patch("core.runtime_settings.resolve_setting",
+               return_value=SimpleNamespace(value="auto", source="db")), \
+         patch("core.verify_panel.get_panel_run_stats",
+               return_value={"total": 25, "ran": 24, "ran_rate": 0.96,
+                             "mean_agreement": 0.85}), \
+         patch("core.runtime_settings.invalidate_settings_cache", invalidate), \
          patch("core.student_learning_service.auto_observe", AsyncMock()):
         summary = await xm.run_maintenance_cycle(db)
     assert summary["backfilled"] == 0
-    assert summary["promoted"]["reason"] == "auto_promote_disabled"
-    assert summary["promoted_panel"]["reason"] == "auto_promote_disabled"
+    assert summary["promoted"]["promoted"] is True
+    assert summary["promoted_panel"]["promoted"] is True
     assert "distilled" in summary

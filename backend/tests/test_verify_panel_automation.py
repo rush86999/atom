@@ -19,13 +19,16 @@ from core.verify_panel import VerifyVerdict, get_panel_run_stats
 
 
 # ---------------------------------------------------------------------------
-# Flag resolution (runtime settings: explicit env > db row > "off")
+# Flag resolution (runtime settings: explicit env > db row > "auto")
 # ---------------------------------------------------------------------------
 
-def test_panel_mode_defaults_to_off(monkeypatch):
+def test_panel_default_setting_is_auto_effective_shadow(monkeypatch):
     monkeypatch.delenv("ATOM_VERIFY_PANEL", raising=False)
     with patch("core.runtime_settings._db_snapshot", return_value={}):
-        assert get_verify_panel_mode() == "off"
+        assert get_verify_panel_mode() == "shadow"  # auto behaves as shadow
+    from core.settings_catalog import find_spec
+
+    assert find_spec("ATOM_VERIFY_PANEL").default == "auto"
 
 
 def test_panel_env_wins_over_persisted_row(monkeypatch):
@@ -40,6 +43,13 @@ def test_panel_persisted_row_flips_mode(monkeypatch):
     with patch("core.runtime_settings._db_snapshot",
                return_value={"ATOM_VERIFY_PANEL": "enforce"}):
         assert get_verify_panel_mode() == "enforce"
+
+
+def test_panel_persisted_auto_is_effective_shadow(monkeypatch):
+    monkeypatch.delenv("ATOM_VERIFY_PANEL", raising=False)
+    with patch("core.runtime_settings._db_snapshot",
+               return_value={"ATOM_VERIFY_PANEL": "auto"}):
+        assert get_verify_panel_mode() == "shadow"
 
 
 def test_panel_garbage_mode_falls_back_to_off(monkeypatch):
@@ -131,6 +141,11 @@ def _healthy_stats():
     return {"total": 25, "ran": 24, "ran_rate": 0.96, "mean_agreement": 0.85}
 
 
+def _resolved(value="auto", source="db"):
+    """Stand-in for runtime_settings.resolve_setting's result."""
+    return SimpleNamespace(value=value, source=source)
+
+
 def _latch_db():
     """DB mock whose RuntimeSetting lookup finds no existing row, so the
     latch takes the create path (db.add)."""
@@ -140,44 +155,29 @@ def _latch_db():
 
 
 @pytest.mark.asyncio
-async def test_panel_promote_disabled_by_default(monkeypatch):
-    with patch.object(xm, "_auto_promote_panel", return_value=False):
-        result = xm._maybe_auto_promote_panel(_mock_db())
-    assert result == {"promoted": False, "reason": "auto_promote_disabled"}
-
-
 @pytest.mark.asyncio
-async def test_panel_explicit_env_is_kill_switch(monkeypatch):
-    monkeypatch.setenv("ATOM_VERIFY_PANEL", "shadow")  # operator-pinned
-    with patch.object(xm, "_auto_promote_panel", return_value=True), \
-         patch("core.hallucination_config.get_verify_panel_mode",
-               return_value="shadow"):
-        result = xm._maybe_auto_promote_panel(_mock_db())
-    assert result["reason"] == "explicit_env_kill_switch"
-
-
-@pytest.mark.asyncio
-async def test_panel_off_to_shadow_stays_a_human_decision(monkeypatch):
-    """The panel costs N extra structured calls per high-stakes turn —
-    automation must not start spending that money; only shadow→enforce."""
-    monkeypatch.delenv("ATOM_VERIFY_PANEL", raising=False)
+async def test_panel_promote_only_in_auto_mode():
     db = _mock_db()
-    with patch.object(xm, "_auto_promote_panel", return_value=True), \
-         patch("core.hallucination_config.get_verify_panel_mode",
-               return_value="off"):
+    with patch("core.runtime_settings.resolve_setting", return_value=_resolved("shadow")):
         result = xm._maybe_auto_promote_panel(db)
-    assert result["reason"] == "mode_is_off"
+    assert result == {"promoted": False, "reason": "mode_pinned_shadow"}
+
+
+@pytest.mark.asyncio
+async def test_panel_env_sourced_auto_is_never_latched(monkeypatch):
+    monkeypatch.setenv("ATOM_VERIFY_PANEL", "auto")  # operator-pinned via env
+    db = _mock_db()
+    with patch("core.runtime_settings.resolve_setting", return_value=_resolved("auto", "env")):
+        result = xm._maybe_auto_promote_panel(db)
+    assert result["reason"] == "explicit_env_kill_switch"
     assert not db.add.called
 
 
 @pytest.mark.asyncio
-async def test_panel_promote_latches_on_healthy_record(monkeypatch):
-    monkeypatch.delenv("ATOM_VERIFY_PANEL", raising=False)
+async def test_panel_promote_latches_on_healthy_record():
     db = _latch_db()
     invalidate = MagicMock()
-    with patch.object(xm, "_auto_promote_panel", return_value=True), \
-         patch("core.hallucination_config.get_verify_panel_mode",
-               return_value="shadow"), \
+    with patch("core.runtime_settings.resolve_setting", return_value=_resolved("auto")), \
          patch("core.verify_panel.get_panel_run_stats",
                return_value=_healthy_stats()), \
          patch("core.runtime_settings.invalidate_settings_cache", invalidate):
@@ -191,8 +191,7 @@ async def test_panel_promote_latches_on_healthy_record(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_panel_promote_gates_on_evidence(monkeypatch):
-    monkeypatch.delenv("ATOM_VERIFY_PANEL", raising=False)
+async def test_panel_promote_gates_on_evidence():
     db = _mock_db()
     cases = [
         ({"total": 5, "ran": 5, "ran_rate": 1.0, "mean_agreement": 0.9},
@@ -202,11 +201,9 @@ async def test_panel_promote_gates_on_evidence(monkeypatch):
         ({"total": 30, "ran": 29, "ran_rate": 0.97, "mean_agreement": 0.2},
          "votes_not_meaningful"),
     ]
-    with patch.object(xm, "_auto_promote_panel", return_value=True):
+    with patch("core.runtime_settings.resolve_setting", return_value=_resolved("auto")):
         for stats, expected in cases:
-            with patch("core.hallucination_config.get_verify_panel_mode",
-                       return_value="shadow"), \
-                 patch("core.verify_panel.get_panel_run_stats", return_value=stats):
+            with patch("core.verify_panel.get_panel_run_stats", return_value=stats):
                 result = xm._maybe_auto_promote_panel(db)
             assert result["reason"] == expected, stats
             assert result["promoted"] is False
@@ -214,26 +211,27 @@ async def test_panel_promote_gates_on_evidence(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_panel_promote_never_demotes_enforce(monkeypatch):
-    monkeypatch.delenv("ATOM_VERIFY_PANEL", raising=False)
+async def test_panel_pinned_enforce_never_moves():
     db = _mock_db()
-    with patch.object(xm, "_auto_promote_panel", return_value=True), \
-         patch("core.hallucination_config.get_verify_panel_mode",
-               return_value="enforce"):
+    with patch("core.runtime_settings.resolve_setting", return_value=_resolved("enforce")):
         result = xm._maybe_auto_promote_panel(db)
-    assert result["reason"] == "mode_is_enforce"
+    assert result["reason"] == "mode_pinned_enforce"
     assert not db.add.called
 
 
 @pytest.mark.asyncio
-async def test_cycle_includes_panel_step_and_isolates_failures(monkeypatch):
+async def test_cycle_includes_panel_step_and_isolates_failures():
     db = _mock_db()
     with patch.object(xm, "_backfill_vectors", side_effect=RuntimeError("x")), \
-         patch.object(xm, "_auto_promote_exchange", return_value=False), \
-         patch.object(xm, "_auto_promote_panel", return_value=False), \
+         patch("core.exchange_example_service.exchange_memory_setting",
+               return_value=("off", "db")), \
+         patch("core.runtime_settings.resolve_setting", return_value=_resolved("auto")), \
+         patch("core.verify_panel.get_panel_run_stats",
+               return_value=_healthy_stats()), \
+         patch("core.runtime_settings.invalidate_settings_cache", MagicMock()), \
          patch("core.student_learning_service.auto_observe", AsyncMock()):
         summary = await xm.run_maintenance_cycle(db)
     assert summary["backfilled"] == 0
-    assert summary["promoted_panel"]["reason"] == "auto_promote_disabled"
+    assert summary["promoted_panel"]["promoted"] is True
+    assert summary["promoted"]["reason"] == "mode_pinned_off"
     assert "distilled" in summary
-    assert "promoted" in summary

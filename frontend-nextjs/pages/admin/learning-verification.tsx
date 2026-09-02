@@ -56,14 +56,10 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 const MODE_OPTIONS = [
+  { value: "auto", label: "Auto — self-regulates (recommended)" },
   { value: "off", label: "Off — disabled" },
-  { value: "shadow", label: "Shadow — learns/checks quietly, answers unchanged (recommended)" },
-  { value: "enforce", label: "Enforce — actively shapes answers" },
-];
-
-const ON_OFF_OPTIONS = [
-  { value: "true", label: "On" },
-  { value: "false", label: "Off" },
+  { value: "shadow", label: "Shadow — quiet: learn/check only, answers unchanged" },
+  { value: "enforce", label: "Enforce — pin: actively shape answers now" },
 ];
 
 interface FlagDef {
@@ -79,16 +75,9 @@ const FLAGS: FlagDef[] = [
   {
     key: "ATOM_EXCHANGE_MEMORY",
     label: "Learning from your ratings",
-    hint: "Off / Shadow / Enforce — see the guide card below for what each mode does.",
+    hint: "Auto (recommended) learns quietly and starts shaping answers by itself once the rated library is big enough (20+ rated exchanges). Pin shadow to hold, enforce to shape now, off to learn nothing.",
     kind: "select",
     options: MODE_OPTIONS,
-  },
-  {
-    key: "ATOM_EXCHANGE_AUTO_PROMOTE",
-    label: "Auto-promote learning",
-    hint: "Lets the hourly maintenance switch shadow → enforce by itself once there are enough rated exchanges (20+, at least 3 of each).",
-    kind: "select",
-    options: ON_OFF_OPTIONS,
   },
   {
     key: "ATOM_EXCHANGE_DISTILL_MIN",
@@ -99,16 +88,9 @@ const FLAGS: FlagDef[] = [
   {
     key: "ATOM_VERIFY_PANEL",
     label: "Answer verification panel",
-    hint: "Off / Shadow / Enforce — 3 AI judges check mission-critical & complex answers against their evidence.",
+    hint: "Auto (recommended) runs the judges quietly on high-stakes turns and starts regenerating ungrounded answers by itself once the run record is healthy (20+ runs, 90%+ completed, meaningful agreement). Judges never run on ordinary chat.",
     kind: "select",
     options: MODE_OPTIONS,
-  },
-  {
-    key: "ATOM_VERIFY_PANEL_AUTO_PROMOTE",
-    label: "Auto-promote panel",
-    hint: "Lets the hourly maintenance switch shadow → enforce by itself once the panel's run record is healthy. Turning the panel ON at all stays a manual choice (it costs extra AI calls per turn).",
-    kind: "select",
-    options: ON_OFF_OPTIONS,
   },
   {
     key: "ATOM_VERIFY_PANEL_MIN_RUNS",
@@ -135,16 +117,16 @@ const FLAGS: FlagDef[] = [
 interface LearningStatus {
   exchange: {
     mode: string;
+    effective: string;
     source: string;
     env_locked: boolean;
-    auto_promote: boolean;
     counts: { positive: number; negative: number; total: number };
   };
   panel: {
     mode: string;
+    effective: string;
     source: string;
     env_locked: boolean;
-    auto_promote: boolean;
     stats: { total: number; ran: number; ran_rate: number; mean_agreement: number };
   };
 }
@@ -160,16 +142,25 @@ async function fetchStatus(): Promise<LearningStatus> {
 
 function ModeBadge({
   mode,
+  effective,
 }: {
   mode?: string;
+  effective?: string;
 }) {
-  const on = mode === "enforce";
-  const active = mode === "shadow" || on;
-  const label = mode === "enforce" ? "enforce" : mode === "shadow" ? "shadow" : "off";
+  if (mode === "auto") {
+    return (
+      <Badge colorScheme="blue" display="inline-flex" alignItems="center" gap={1}>
+        <CheckCircle2 className="h-3 w-3" />
+        auto · {effective ?? "shadow"}
+      </Badge>
+    );
+  }
+  const on = effective === "enforce";
+  const active = effective === "shadow" || on;
   return (
     <Badge colorScheme={!active ? "gray" : on ? "green" : "blue"} display="inline-flex" alignItems="center" gap={1}>
       {!active ? <PauseCircle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
-      {label}
+      {effective ?? mode ?? "off"}
     </Badge>
   );
 }
@@ -220,7 +211,7 @@ function FlagRow({
             <select
               aria-label={def.label}
               data-testid={`lv-flag-${def.key}`}
-              value={value || "false"}
+              value={value || "auto"}
               disabled={envLocked || busy}
               onChange={(e) => onSave(def.key, e.target.value)}
               className="h-8 rounded-md border border-border bg-background px-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
@@ -453,20 +444,25 @@ const LearningVerificationPage = () => {
               </li>
             </ul>
             <Text fontSize="sm" color="gray.400" mb={3}>
-              <strong>The three modes</strong> (used by both features):{" "}
-              <Code fontSize="xs">off</Code> does nothing;{" "}
+              <strong>The modes</strong> (used by both features):{" "}
+              <Code fontSize="xs">auto</Code> is the default — quiet first, self-promoting when
+              ready (see below); <Code fontSize="xs">off</Code> does nothing;{" "}
               <Code fontSize="xs">shadow</Code> learns and checks quietly while every answer stays
-              exactly what it would have been — this is the recommended starting point;{" "}
-              <Code fontSize="xs">enforce</Code> lets the accumulated examples and verdicts actually
-              shape replies. Learning itself (storage, lessons, mastery) happens in shadow and
-              enforce alike — the flag only controls whether answers are shaped.
+              exactly what it would have been; <Code fontSize="xs">enforce</Code> lets the
+              accumulated examples and verdicts actually shape replies. Learning itself (storage,
+              lessons, mastery) happens in shadow and enforce alike — the flag only controls
+              whether answers are shaped.
             </Text>
             <Text fontSize="sm" color="gray.400">
-              Auto-promotion is opt-in per feature: when armed, the hourly maintenance flips{" "}
-              <Code fontSize="xs">shadow → enforce</Code> by itself once the evidence is healthy
-              (enough rated exchanges, or a healthy judge record). It never flips the other way, it
-              never turns a paid feature on from off, and an environment variable always overrides
-              this page — that is the kill-switch. Full guide:{" "}
+              <strong>Auto is the default, and it is self-regulating.</strong> In{" "}
+              <Code fontSize="xs">auto</Code>, both features start out quiet — learning and judging
+              happen, but nothing shapes answers yet. When the evidence is healthy (a big-enough
+              rated library for learning; a solid judge record for the panel), the hourly
+              maintenance flips them to <Code fontSize="xs">enforce</Code> by itself — forward
+              only, never back. Pin <Code fontSize="xs">shadow</Code>,{" "}
+              <Code fontSize="xs">enforce</Code> or <Code fontSize="xs">off</Code> to hold a state,
+              and note that an environment variable always overrides this page — that is the
+              kill-switch. Full guide:{" "}
               <Code fontSize="xs">docs/guides/LEARNING_VERIFICATION_GUIDE.md</Code>.
             </Text>
           </CardContent>
@@ -481,12 +477,14 @@ const LearningVerificationPage = () => {
             <CardContent>
               {exchange ? (
                 <>
-                  <ModeBadge mode={exchange.mode} />
+                  <ModeBadge mode={exchange.mode} effective={exchange.effective} />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {exchange.mode === "off"
+                    {exchange.effective === "off"
                       ? "Nothing is learned from ratings right now."
-                      : exchange.mode === "shadow"
-                      ? "Ratings are being learned from; answers are unchanged."
+                      : exchange.effective === "shadow"
+                      ? exchange.mode === "auto"
+                        ? "Learning from your ratings; answers unchanged — enforce latches by itself once the library is big enough (20+ rated)."
+                        : "Ratings are being learned from; answers are unchanged."
                       : "Approved examples and rejected patterns also shape answers."}
                   </p>
                   <Box mt={3} display="flex" gap={4} alignItems="center" flexWrap="wrap">
@@ -498,12 +496,6 @@ const LearningVerificationPage = () => {
                     </Badge>
                     <Badge colorScheme="gray">{exchange.counts.total} examples total</Badge>
                   </Box>
-                  {exchange.auto_promote && (
-                    <Text fontSize="xs" color="blue.300" mt={2}>
-                      Auto-promotion armed — enforce latches automatically once the corpus is
-                      healthy.
-                    </Text>
-                  )}
                 </>
               ) : (
                 <Text>—</Text>
@@ -519,12 +511,14 @@ const LearningVerificationPage = () => {
             <CardContent>
               {panel ? (
                 <>
-                  <ModeBadge mode={panel.mode} />
+                  <ModeBadge mode={panel.mode} effective={panel.effective} />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {panel.mode === "off"
+                    {panel.effective === "off"
                       ? "High-stakes answers are not verified."
-                      : panel.mode === "shadow"
-                      ? "Judges vote on every high-stakes answer; replies unchanged."
+                      : panel.effective === "shadow"
+                      ? panel.mode === "auto"
+                        ? "Judges vote on every high-stakes answer; replies unchanged — enforce latches by itself once the run record is healthy."
+                        : "Judges vote on every high-stakes answer; replies unchanged."
                       : "Ungrounded answers are regenerated once, with an honest caveat if still ungrounded."}
                   </p>
                   <Box mt={3} display="flex" gap={3} alignItems="center" flexWrap="wrap">
@@ -538,12 +532,6 @@ const LearningVerificationPage = () => {
                       {Math.round(panel.stats.mean_agreement * 100)}% mean agreement
                     </Badge>
                   </Box>
-                  {panel.auto_promote && (
-                    <Text fontSize="xs" color="blue.300" mt={2}>
-                      Auto-promotion armed — enforce latches automatically once the run record is
-                      healthy.
-                    </Text>
-                  )}
                 </>
               ) : (
                 <Text>—</Text>

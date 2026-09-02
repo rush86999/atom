@@ -16,17 +16,19 @@ One cycle, four fault-isolated steps:
    wrong" signal that one-off lessons miss. Rows are marked consolidated so
    each pattern is distilled once.
 
-3. AUTO-PROMOTE (exchanges) — opt-in (ATOM_EXCHANGE_AUTO_PROMOTE): latch
-   ATOM_EXCHANGE_MEMORY shadow→enforce via the runtime-settings row once the
-   corpus is big enough to retrieve from. An explicit env var always wins as
-   kill-switch and is never fought by automation; promotion is one-way.
+3. AUTO-PROMOTE (exchanges) — both mode flags default to ``auto``:
+   self-regulating. Auto behaves as shadow until this cycle latches the
+   stored value to enforce once the corpus is big enough to retrieve from
+   (20+ rated exchanges, 3+ of each). A pinned off/shadow/enforce never
+   moves; an env-sourced value is the operator kill-switch and is never
+   fought. Promotion is one-way (never auto-demotes).
 
-4. AUTO-PROMOTE (verification panel) — opt-in
-   (ATOM_VERIFY_PANEL_AUTO_PROMOTE): latch ATOM_VERIFY_PANEL shadow→enforce
-   once the panel's persisted run record (verify_panel_runs, written by
-   verify_reply) shows it healthy: enough runs, high ran-rate, meaningful
-   vote agreement. off→shadow deliberately stays a human decision — the
-   panel costs N extra structured calls per high-stakes turn.
+4. AUTO-PROMOTE (verification panel) — same ``auto`` contract: effective
+   shadow (judges vote and are recorded, replies unchanged) until the
+   panel's persisted run record (verify_panel_runs, written by verify_reply)
+   shows it healthy — enough runs, high ran-rate, meaningful vote agreement
+   — then latch to enforce. The panel only ever runs on mission-critical or
+   complex turns, which is the built-in cost control.
 
 Runs from the app lifespan like the other consolidation loops
 (main_api_app.py), gated on ENABLE_SCHEDULER/test-mode there.
@@ -68,18 +70,6 @@ def _distill_min() -> int:
     from core.runtime_settings import get_int_setting
 
     return get_int_setting("ATOM_EXCHANGE_DISTILL_MIN", 3)
-
-
-def _auto_promote_exchange() -> bool:
-    from core.runtime_settings import get_bool_setting
-
-    return get_bool_setting("ATOM_EXCHANGE_AUTO_PROMOTE", False)
-
-
-def _auto_promote_panel() -> bool:
-    from core.runtime_settings import get_bool_setting
-
-    return get_bool_setting("ATOM_VERIFY_PANEL_AUTO_PROMOTE", False)
 
 
 def _panel_min_runs() -> int:
@@ -227,16 +217,16 @@ def _exchange_counts(db) -> Dict[str, int]:
 
 
 def _maybe_auto_promote(db) -> Dict[str, Any]:
-    from core.exchange_example_service import exchange_memory_mode
+    """Latch ATOM_EXCHANGE_MEMORY enforce when mode is ``auto`` (default) and
+    the corpus is healthy. A pinned mode (off/shadow/enforce) never moves;
+    an env-sourced value is the operator kill-switch and is never fought."""
+    from core.exchange_example_service import exchange_memory_setting
 
-    if not _auto_promote_exchange():
-        return {"promoted": False, "reason": "auto_promote_disabled"}
-    # An explicit env var is the operator's kill-switch: never fight it.
-    if _MODE_FLAG in os.environ:
+    raw, source = exchange_memory_setting(db=db)
+    if raw != "auto":
+        return {"promoted": False, "reason": f"mode_pinned_{raw}"}
+    if source == "env":
         return {"promoted": False, "reason": "explicit_env_kill_switch"}
-    current = exchange_memory_mode()
-    if current != "shadow":
-        return {"promoted": False, "reason": f"mode_is_{current}"}
 
     counts = _exchange_counts(db)
     total = counts["positive"] + counts["negative"]
@@ -250,7 +240,7 @@ def _maybe_auto_promote(db) -> Dict[str, Any]:
     _latch_runtime_setting(db, _MODE_FLAG)
     logger.info(
         "exchange memory: corpus healthy (%d pos / %d neg) — latched "
-        "ATOM_EXCHANGE_MEMORY shadow→enforce via runtime settings",
+        "ATOM_EXCHANGE_MEMORY auto→enforce via runtime settings",
         counts["positive"], counts["negative"],
     )
     return {"promoted": True, "counts": counts}
@@ -261,22 +251,18 @@ def _maybe_auto_promote(db) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def _maybe_auto_promote_panel(db) -> Dict[str, Any]:
-    """Latch ATOM_VERIFY_PANEL shadow→enforce once the panel's own persisted
-    run record shows it working (enough runs, high ran-rate, meaningful
-    agreement). Opt-in; explicit env kill-switch is never fought; one-way."""
-    from core.hallucination_config import get_verify_panel_mode
+    """Latch ATOM_VERIFY_PANEL enforce when mode is ``auto`` (default) and
+    the panel's persisted run record is healthy (enough runs, high ran-rate,
+    meaningful agreement). A pinned mode never moves; env never fought."""
+    from core.runtime_settings import resolve_setting
     from core.verify_panel import get_panel_run_stats
 
-    if not _auto_promote_panel():
-        return {"promoted": False, "reason": "auto_promote_disabled"}
-    if _PANEL_FLAG in os.environ:
+    res = resolve_setting(_PANEL_FLAG, db=db)
+    raw = str(res.value or "auto").strip().lower()
+    if raw != "auto":
+        return {"promoted": False, "reason": f"mode_pinned_{raw}"}
+    if res.source == "env":
         return {"promoted": False, "reason": "explicit_env_kill_switch"}
-    current = get_verify_panel_mode()
-    if current != "shadow":
-        # off→shadow deliberately stays a human decision: the panel costs N
-        # extra structured calls per high-stakes turn — automation must not
-        # start spending that money.
-        return {"promoted": False, "reason": f"mode_is_{current}"}
 
     stats = get_panel_run_stats(db)
     if stats["total"] < _panel_min_runs():
@@ -289,7 +275,7 @@ def _maybe_auto_promote_panel(db) -> Dict[str, Any]:
     _latch_runtime_setting(db, _PANEL_FLAG)
     logger.info(
         "verify panel: healthy over %d runs (ran_rate=%.2f, agreement=%.2f) "
-        "— latched ATOM_VERIFY_PANEL shadow→enforce via runtime settings",
+        "— latched ATOM_VERIFY_PANEL auto→enforce via runtime settings",
         stats["total"], stats["ran_rate"], stats["mean_agreement"],
     )
     return {"promoted": True, "stats": stats}
