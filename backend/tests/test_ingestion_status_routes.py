@@ -341,6 +341,68 @@ def test_start_gmail_starts_generic_poller(monkeypatch):
     assert body["stream_running"] is True
 
 
+def test_start_zoho_workdrive_without_connection_returns_409(monkeypatch):
+    # zoho-workdrive has a one-shot sync starter (not a poller): connected
+    # callers get 200 + background full-sync, unconnected get 409 — never the
+    # poller-style 404 that made the panel's "Start sync" button useless.
+    _patch_pipeline(monkeypatch, _StubPipeline())
+    client = _make_client(_make_db(), monkeypatch)
+
+    response = client.post("/api/integrations/zoho-workdrive/ingestion/start")
+    assert response.status_code == 409
+
+
+def test_start_zoho_workdrive_runs_full_sync_in_background(monkeypatch):
+    _patch_pipeline(monkeypatch, _StubPipeline())
+    token = SimpleNamespace(provider="zoho", status="active")
+    client = _make_client(_make_db(integration_tokens=[token]), monkeypatch)
+
+    calls = []
+
+    async def _fake_full_sync(user_id):
+        calls.append(user_id)
+        return {"success": True, "files_ingested": 3}
+
+    from api.zoho_workdrive_routes import zoho_service
+
+    monkeypatch.setattr(zoho_service, "full_sync", _fake_full_sync)
+
+    # TestClient runs background tasks before returning.
+    response = client.post("/api/integrations/zoho-workdrive/ingestion/start")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["started"] is True
+    assert body["mode"] == "background_sync"
+    assert body["start_attempted"] is True
+    assert calls == ["u1"]
+
+
+def test_start_zoho_books_runs_suite_hybrid_sync(monkeypatch):
+    """The whole Zoho suite's Start sync drives the same serialized 'zoho'
+    hybrid sync (one grant covers Books/CRM/inventory/projects/workdrive)."""
+    _patch_pipeline(monkeypatch, _StubPipeline())
+    token = SimpleNamespace(provider="zoho", status="active")
+    client = _make_client(_make_db(integration_tokens=[token]), monkeypatch)
+
+    sync_calls = []
+
+    class _FakeHybrid:
+        async def sync_integration_data(self, integration_id, force=False, **kw):
+            sync_calls.append((integration_id, force))
+            return {"success": True, "records_synced": 10}
+
+    monkeypatch.setattr(
+        "core.hybrid_data_ingestion.get_hybrid_ingestion_service",
+        lambda workspace_id: _FakeHybrid(),
+    )
+
+    body = client.post("/api/integrations/zoho-books/ingestion/start").json()
+    assert body["started"] is True
+    assert body["mode"] == "background_sync"
+    # force=True: a manual click must bypass the recently-synced guard.
+    assert sync_calls == [("zoho", True)]
+
+
 # ---------------------------------------------------------------------------
 # get_integration_health — user-scoped truth (no registry false positives)
 # ---------------------------------------------------------------------------

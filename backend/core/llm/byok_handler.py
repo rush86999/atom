@@ -2552,8 +2552,14 @@ class BYOKHandler:
                             pass  # compression must never break the hot path
                         messages.append({"role": "user", "content": prompt})
 
-                    # Make the request
-                    response = client.chat.completions.create(
+                    # Make the request.
+                    # asyncio.to_thread: `client` is the SYNC OpenAI SDK, so a
+                    # bare call here blocked the event loop for the whole LLM
+                    # round trip — one in-flight extraction/chat turn stalled
+                    # EVERY concurrent request (observed: ingestion-status
+                    # hung 60s while GraphRAG extraction awaited openrouter).
+                    response = await asyncio.to_thread(
+                        client.chat.completions.create,
                         model=model,
                         messages=messages,
                         temperature=temperature,
@@ -2724,7 +2730,8 @@ class BYOKHandler:
                                 f"retrying with {fallback_model}"
                             )
                             try:
-                                response = client.chat.completions.create(
+                                response = await asyncio.to_thread(
+                                    client.chat.completions.create,
                                     model=fallback_model,
                                     messages=messages,
                                     temperature=temperature,
@@ -2805,7 +2812,8 @@ class BYOKHandler:
                                     f"patch={heal_result.rule} keys={heal_result.patched_keys}"
                                 )
                                 try:
-                                    response = client.chat.completions.create(
+                                    response = await asyncio.to_thread(
+                                        client.chat.completions.create,
                                         **heal_result.patched_kwargs
                                     )
                                     self._capture_echoed_model(response)
@@ -2866,7 +2874,8 @@ class BYOKHandler:
                         paid_model = _opencode_paid_fallback_model(model)
                         if paid_model and paid_model != model:
                             try:
-                                response = client.chat.completions.create(
+                                response = await asyncio.to_thread(
+                                    client.chat.completions.create,
                                     model=paid_model,
                                     messages=messages,
                                     temperature=temperature,
@@ -3873,7 +3882,12 @@ class BYOKHandler:
                     if _soft_sc_on and _logprobs_key not in _LOGPROBS_UNSUPPORTED:
                         _create_kwargs["logprobs"] = True
                     try:
-                        result = instructor_client.chat.completions.create(**_create_kwargs)
+                        # to_thread: instructor here wraps the SYNC client — a
+                        # bare call blocked the loop for the whole structured
+                        # round trip (same starvation as generate_response).
+                        result = await asyncio.to_thread(
+                            instructor_client.chat.completions.create, **_create_kwargs
+                        )
                     except Exception as _reasoning_reject:
                         # Some endpoints run reasoning-mandatory models and
                         # reject the disable switch with a 400 ("Reasoning is
@@ -3881,7 +3895,9 @@ class BYOKHandler:
                         # the extra_body rather than failing the stage.
                         if "reasoning" in str(_reasoning_reject).lower() and _create_kwargs.get("extra_body"):
                             _create_kwargs.pop("extra_body", None)
-                            result = instructor_client.chat.completions.create(**_create_kwargs)
+                            result = await asyncio.to_thread(
+                                instructor_client.chat.completions.create, **_create_kwargs
+                            )
                         else:
                             raise
                     except Exception as _soft_exc:
@@ -3894,7 +3910,9 @@ class BYOKHandler:
                             f"soft-SC logprobs request failed for {provider_id}/{model} "
                             f"({_soft_exc}); retrying once without logprobs"
                         )
-                        result = instructor_client.chat.completions.create(**_create_kwargs)
+                        result = await asyncio.to_thread(
+                            instructor_client.chat.completions.create, **_create_kwargs
+                        )
                     self._capture_echoed_model(result)  # reads _raw_response.model
                     _structured_latency_ms = (time.time() - _structured_start) * 1000.0
                     if _soft_sc_on:
@@ -4447,7 +4465,8 @@ class BYOKHandler:
                 }
             ]
 
-            response = client.chat.completions.create(
+            response = await asyncio.to_thread(
+                client.chat.completions.create,
                 model=model,
                 messages=messages,
                 max_tokens=500

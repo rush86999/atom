@@ -1,10 +1,12 @@
 /**
  * Zoho WorkDrive page tests (pages/integrations/zoho-workdrive.tsx)
  *
- * Covers: the page renders inside the shared Layout and mounts the ingestion
- * component. The page no longer derives or forwards a userId — identity is
- * resolved server-side from the authenticated session (JWT/cookie), and the
- * demo-user fallback has been removed.
+ * Covers: the page mounts the ingestion component WITHOUT wrapping itself in
+ * <Layout> — _app.tsx already provides the app shell, and a second wrapper
+ * rendered a duplicate sidebar (the duplicate-navbar bug documented on
+ * ZohoIntegrationDetail). The page no longer derives or forwards a userId —
+ * identity is resolved server-side from the authenticated session
+ * (JWT/cookie), and the demo-user fallback has been removed.
  */
 
 import React from "react";
@@ -12,12 +14,6 @@ import { render, screen } from "@testing-library/react";
 import ZohoWorkDrivePage from "@/pages/integrations/zoho-workdrive";
 
 const mockIngestion = jest.fn();
-
-jest.mock("@/components/layout", () => ({
-  Layout: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="layout">{children}</div>
-  ),
-}));
 
 jest.mock("@/components/Settings/ZohoWorkDriveIngestion", () => ({
   __esModule: true,
@@ -33,11 +29,14 @@ describe("ZohoWorkDrivePage", () => {
     ));
   });
 
-  test("renders the ingestion component inside the shared Layout", () => {
+  test("renders the ingestion component without a second app shell", () => {
     render(<ZohoWorkDrivePage />);
 
-    expect(screen.getByTestId("layout")).toBeInTheDocument();
+    expect(screen.queryByTestId("layout")).not.toBeInTheDocument();
     expect(screen.getByTestId("zoho-ingestion")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("ingestion-status-panel-loading")
+    ).toBeInTheDocument();
   });
 
   test("does not pass a client-derived userId to the ingestion component", () => {

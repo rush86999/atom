@@ -2,6 +2,7 @@ import os
 import json
 import asyncio
 import logging
+import time
 import httpx
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timedelta, timezone
@@ -25,6 +26,10 @@ class ZohoWorkDriveService(IntegrationService):
     PAGE_SIZE = 50
     MAX_LIST_ITEMS = 10000
     MAX_WALK_DEPTH = 25
+    # Pacing/backoff for the Zoho REST API (see _zoho_get). ~3 req/s keeps a
+    # full-tree walk under Zoho's per-DC throttle instead of 429ing it.
+    _MIN_API_INTERVAL_SECONDS = 0.35
+    _MAX_429_RETRIES = 4
     # Global caps for client-triggered recursive traversal — bound request
     # latency and upstream API calls on large drives.
     MAX_RECURSIVE_ITEMS = 2000
@@ -60,6 +65,46 @@ class ZohoWorkDriveService(IntegrationService):
         self.client_secret = config.get("client_secret") or os.getenv("ZOHO_CLIENT_SECRET")
         self.redirect_uri = config.get("redirect_uri") or os.getenv("ZOHO_REDIRECT_URI")
         self.client = httpx.AsyncClient(timeout=30.0)
+        # Client-side pacing + 429 bookkeeping for the shared client (see
+        # _zoho_get): Zoho throttles per-DC traffic hard, and an unpaced
+        # full-tree walk got every listing 429'd into uselessness.
+        self._last_zoho_request_at = 0.0
+        # One-shot full-sync guard: a second concurrent walk just doubles the
+        # API pressure (and 429s the first one).
+        self._full_sync_running: set = set()
+
+    async def _zoho_get(self, url: str, *, headers: Dict[str, str],
+                        params: Optional[Dict[str, Any]] = None):
+        """GET a WorkDrive API URL with pacing and 429 backoff.
+
+        Spaces requests at least _MIN_API_INTERVAL_SECONDS apart and, on 429,
+        retries up to _MAX_429_RETRIES times honoring Retry-After (falling
+        back to exponential backoff capped at 30s).
+        """
+        attempt = 0
+        while True:
+            gap = time.monotonic() - self._last_zoho_request_at
+            if gap < self._MIN_API_INTERVAL_SECONDS:
+                await asyncio.sleep(self._MIN_API_INTERVAL_SECONDS - gap)
+            self._last_zoho_request_at = time.monotonic()
+            response = await self.client.get(url, headers=headers, params=params)
+            if response.status_code == 429 and attempt < self._MAX_429_RETRIES:
+                raw_retry_after = (response.headers.get("Retry-After") or "").strip()
+                try:
+                    delay = min(float(raw_retry_after), 60.0) if raw_retry_after else min(2.0 ** attempt, 30.0)
+                except ValueError:
+                    delay = min(2.0 ** attempt, 30.0)
+                logger.warning(
+                    f"Zoho WorkDrive 429 for {url} — backing off {delay:.1f}s "
+                    f"(attempt {attempt + 1}/{self._MAX_429_RETRIES})"
+                )
+                attempt += 1
+                await asyncio.sleep(delay)
+                continue
+            return response
+
+    def is_full_sync_running(self, user_id: str) -> bool:
+        return user_id in self._full_sync_running
 
     async def get_access_token(self, user_id: str) -> Optional[str]:
         """Fetch access token for user using ConnectionService"""
@@ -427,7 +472,7 @@ class ZohoWorkDriveService(IntegrationService):
             # Explicit team_id: fetch that team's root workspace
             elif team_id:
                 # GET /teams/{team_id} -> get workspace_id from team's root workspace
-                team_res = await self.client.get(f"{self.base_url}/teams/{team_id}", headers=headers)
+                team_res = await self._zoho_get(f"{self.base_url}/teams/{team_id}", headers=headers)
                 if team_res.status_code == 200:
                     team_data = team_res.json().get("data", {})
                     attrs = team_data.get("attributes", {})
@@ -438,11 +483,11 @@ class ZohoWorkDriveService(IntegrationService):
             # parent_id is "root" or folder ID
             elif not parent_id or parent_id == "root":
                 # Default to user's private workspace
-                user_res = await self.client.get(f"{self.base_url}/users/me", headers=headers)
+                user_res = await self._zoho_get(f"{self.base_url}/users/me", headers=headers)
                 if user_res.status_code == 200:
                     zoho_uid = user_res.json().get("data", {}).get("id")
                     if zoho_uid:
-                        ps_res = await self.client.get(f"{self.base_url}/users/{zoho_uid}/privatespace", headers=headers)
+                        ps_res = await self._zoho_get(f"{self.base_url}/users/{zoho_uid}/privatespace", headers=headers)
                         if ps_res.status_code == 200:
                             ps_data = ps_res.json().get("data", [])
                             if ps_data and len(ps_data) > 0:
@@ -457,7 +502,7 @@ class ZohoWorkDriveService(IntegrationService):
             files = []
             offset = 0
             while True:
-                response = await self.client.get(
+                response = await self._zoho_get(
                     target_url,
                     headers=headers,
                     params={"page[limit]": self.PAGE_SIZE, "page[offset]": offset},
@@ -466,7 +511,7 @@ class ZohoWorkDriveService(IntegrationService):
                 # If /files/{parent_id}/files returns 404/400, try /workspaces/{parent_id}/files as fallback
                 if response.status_code in (400, 404) and parent_id != "root":
                     ws_fallback_url = f"{self.base_url}/workspaces/{parent_id}/files"
-                    fallback_res = await self.client.get(
+                    fallback_res = await self._zoho_get(
                         ws_fallback_url,
                         headers=headers,
                         params={"page[limit]": self.PAGE_SIZE, "page[offset]": offset},
@@ -948,6 +993,24 @@ class ZohoWorkDriveService(IntegrationService):
             folder_id: Specific folder ID to sync (with recursive traversal)
             recursive: If True, recursively traverse subfolders
         """
+        # One walk at a time per user: concurrent walks double the API
+        # pressure and 429 each other into uselessness.
+        if user_id in self._full_sync_running:
+            return {"success": False, "error": "sync_already_running"}
+        self._full_sync_running.add(user_id)
+        try:
+            return await self._full_sync_inner(
+                user_id, workspace_id=workspace_id, team_id=team_id,
+                folder_id=folder_id, recursive=recursive,
+            )
+        finally:
+            self._full_sync_running.discard(user_id)
+
+    async def _full_sync_inner(self, user_id: str,
+                               workspace_id: Optional[str] = None,
+                               team_id: Optional[str] = None,
+                               folder_id: Optional[str] = None,
+                               recursive: bool = True) -> Dict[str, Any]:
         ws_id = workspace_id or user_id
 
         

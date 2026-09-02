@@ -29,10 +29,16 @@ export function authHeaders(
 /**
  * fetch() for authenticated backend calls — the general expiry mechanism.
  *
- * Injects the Authorization header and, on 401/403 (expired token, rotated
+ * Injects the Authorization header and, on 401 (expired token, rotated
  * signing key), triggers the shared login redirect instead of letting each
  * caller surface a raw "returned 401" error. The response is still returned
  * so existing `response.ok` checks behave unchanged on other statuses.
+ *
+ * 403 is deliberately NOT a logout trigger: it means the session is valid
+ * but the caller lacks permission (e.g. a non-admin polling
+ * /api/agents/approvals/pending). Logging the user out on a permission
+ * denial bounced every non-admin user to /login on every page. Same policy
+ * as the axios interceptor in lib/api.ts (401 only).
  *
  * Every fetch() that sends authHeaders() should use this instead; ~20
  * integration components previously handled expiry zero times.
@@ -47,7 +53,7 @@ export async function authFetch(
     headers.set("Authorization", `Bearer ${token}`);
   }
   const response = await fetch(input, { ...init, headers });
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     handleSessionExpired();
   }
   return response;
