@@ -57,6 +57,35 @@ Hi Mark,
 
 Thanks for reaching out."""
 
+# The LIVE 2026-09-02 chat bubble (chat_messages row, conversation
+# aca15165…, 02:14:28) that seeded canvas da27bb76… with an empty To, a
+# truncated narration sentence as Subject, and the narration in the body.
+# Narration preamble + UNFENCED draft: the shape the loose scan fixes.
+NARRATED_UNFENCED_DRAFT = (
+    "Based on the email thread, Mark Kellam is from WFS Ltd. "
+    "(mkellam@wfsltd.ca), not Blumetric—Blumetric was a different lead we "
+    "handled earlier. Since Mark asked specifically about 480V 3-phase "
+    "confirmation for machines, I'll draft a reply to him accordingly.  \n"
+    "\n"
+    "**To:** mkellam@wfsltd.ca  \n"
+    "**Cc:** vipul@brennan.ca, chandrakant@brennan.ca  \n"
+    "**Subject:** Re: Brennan Machinery | 480V 3-Phase Confirmation  \n"
+    "\n"
+    '<font size="3" face="Aptos, Calibri, Arial, sans-serif">Hi Mark,  \n'
+    "  \n"
+    "Yes, the machines we discussed are available in 480V 3-phase "
+    "configuration. To ensure we recommend the best fit for your needs, "
+    "could you confirm:  \n"
+    "- The material type and grade you're cutting?  \n"
+    "- The cross-sectional dimensions or profiles?  \n"
+    "  \n"
+    "This will help us verify compatibility and provide accurate specs.\n"
+    "\n"
+    "Best regards,\n"
+    "Chandrakant Sharma\n"
+    "Brennan Machinery Inc.</font>"
+)
+
 
 class TestExtractEmailDraft:
     def test_plain_header_block(self):
@@ -125,6 +154,41 @@ class TestExtractEmailDraft:
             "Mark, thanks for reaching out to Brennan Machinery Inc today."
         )
         assert extract_email_draft(buried) is None
+
+    def test_narration_then_unfenced_draft_extracts(self):
+        """LIVE incident (2026-09-02, canvas da27bb76…): the chat bubble
+        opens with narration prose and follows it DIRECTLY with the draft's
+        **To:**/**Cc:**/**Subject:** lines — no --- fences, so the fenced
+        rescan never reached them. The canvas was seeded with an EMPTY To,
+        a truncated narration sentence as Subject, and the whole bubble
+        (narration included) in the body. The loose mid-message scan lifts
+        a recipient-first header block out of the narration; the narration
+        stays out of the body."""
+        draft = extract_email_draft(NARRATED_UNFENCED_DRAFT)
+        assert draft is not None
+        assert draft["to"] == "mkellam@wfsltd.ca"
+        assert draft["cc"] == "vipul@brennan.ca, chandrakant@brennan.ca"
+        assert draft["subject"] == "Re: Brennan Machinery | 480V 3-Phase Confirmation"
+        # the live bubble wraps the body in a font tag
+        assert draft["body"].lstrip().startswith("<font")
+        assert "Hi Mark," in draft["body"]
+        # the reasoning preamble must NOT leak into the artifact body
+        assert "Blumetric" not in draft["body"]
+        assert "I'll draft a reply" not in draft["body"]
+
+    def test_loose_scan_requires_a_recipient(self):
+        """The loose scan must not fire on a bare buried Subject — same
+        conservative contract as the fenced rules, just deeper into the
+        message. Without a To:/Cc: line opening the block, prose stays
+        prose."""
+        subject_only = (
+            "Team sync notes:\n\nWe discussed the quote.\n\n"
+            "**To do:** follow up with the dealer.\n\n**Subject:** Re: "
+            "Your Inquiry\n\nMore meeting prose that is clearly not an "
+            "email body."
+        )
+        assert extract_email_draft(subject_only) is None
+
 
     def test_doc_mentioning_subject_midtext_is_not_email(self):
         assert extract_email_draft(

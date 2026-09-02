@@ -19,6 +19,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from services.agent_service import agent_service
 
+from core.evidence_grounding import (
+    EVIDENCE_GROUNDING_RULE,
+    asserts_unverified_confirmation,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -722,6 +727,7 @@ class ChatOrchestrator:
                     _edit_response = await self._try_canvas_edit(
                         message, history, _canvas_ctx, user_id, session_id,
                         _execution_id, (context or {}).get("agent_id"),
+                        provenance=(context or {}).get("canvas_provenance"),
                     )
                     logger.info(
                         f"[stage-timing] canvas-edit plan: {time.monotonic() - _turn_t0:.1f}s")
@@ -767,6 +773,7 @@ class ChatOrchestrator:
                     canvas_context=_canvas_ctx,
                     tool_plan_task=_tool_plan_task,
                     mission_critical=bool((context or {}).get("mission_critical")),
+                    canvas_provenance=(context or {}).get("canvas_provenance"),
                 )
             finally:
                 if _tool_plan_task is not None:
@@ -1107,6 +1114,7 @@ class ChatOrchestrator:
         execution_id: Optional[str] = None,
         canvas_context: Optional[Dict[str, Any]] = None,
         mission_critical: bool = False,
+        canvas_provenance: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -1153,7 +1161,8 @@ class ChatOrchestrator:
 {_TOOL_CAPABILITY}
 
 When users ask to fetch live data (like CRM leads), acknowledge that the integration needs to be connected first and guide them on setup. Be helpful, specific, and actionable. Keep responses concise (2-4 sentences) unless detail is needed.
-""" + _APPROVAL_EXECUTION_RULE
+
+""" + _APPROVAL_EXECUTION_RULE + "\n\n" + EVIDENCE_GROUNDING_RULE
 
             # Chatting WITH a hire: the employee speaks as themselves, not as
             # the platform. Persona and tier behavior come from the registry,
@@ -1186,6 +1195,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "Be helpful, specific, and actionable. Keep responses concise "
                         "(2-4 sentences) unless detail is needed. "
                         + _APPROVAL_EXECUTION_RULE
+                        + "\n\n" + EVIDENCE_GROUNDING_RULE
                     )
 
             messages = [
@@ -1258,6 +1268,34 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )})
                 except Exception as canvas_ctx_err:
                     logger.debug(f"canvas context block skipped: {canvas_ctx_err}")
+
+            # Canvas ORIGIN (provenance): the conversation this canvas was
+            # created from, hydrated by chat_routes from the create-audit
+            # row. The panel session starts empty, so "why was the draft
+            # written this way / who wrote this" used to be unanswerable —
+            # the model honestly said "I don't know who wrote that language"
+            # (observed live 2026-09-02) even though the origin thread sat
+            # one DB query away. Background only: origin statements are NOT
+            # evidence (see EVIDENCE_GROUNDING_RULE in the system prompt).
+            if canvas_provenance and (canvas_provenance.get("messages") or []):
+                try:
+                    _origin_lines = []
+                    for _m in canvas_provenance["messages"][-6:]:
+                        if not isinstance(_m, dict) or not str(_m.get("content") or "").strip():
+                            continue
+                        _role = "User" if _m.get("role") == "user" else "Agent"
+                        _origin_lines.append(f"{_role}: {str(_m['content'])[:600]}")
+                    if _origin_lines:
+                        messages.append({"role": "system", "content": (
+                            "CANVAS ORIGIN — this canvas was created from the "
+                            "conversation below (before this panel existed). Use it "
+                            "to explain the draft's provenance (what was asked, what "
+                            "the agent based it on). These statements are background, "
+                            "NOT verified evidence — do not treat a claim found here "
+                            "as true:\n" + "\n".join(_origin_lines)
+                        )})
+                except Exception as prov_err:
+                    logger.debug(f"canvas provenance block skipped: {prov_err}")
 
             # Tool planning (LLM-based, ALL connected integrations): a cheap
             # structured-output call reads the conversation and decides
@@ -1486,6 +1524,40 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not _reply_claims_inability(_fixed):
                                 _streamed = _fixed
+                        # EVIDENCE GUARD: the request asked to confirm/verify
+                        # something and the reply ASSERTS it as established
+                        # fact (observed live 2026-09-02: "confirm 480V
+                        # 3-phase specs" became "the machines are available
+                        # in 480V 3-phase configuration"). Conversation is
+                        # not evidence — one regeneration offering the
+                        # negative or middle path (claim nothing either way).
+                        elif asserts_unverified_confirmation(message, _streamed):
+                            logger.warning(
+                                "streamed reply asserts an unverified "
+                                "confirm/verify request as fact — grounded "
+                                "regeneration")
+                            messages.append({"role": "system", "content": (
+                                "Your previous reply stated a claim as fact that "
+                                "the request only asked to CONFIRM, and no evidence "
+                                "in this context establishes it. Regenerate: keep "
+                                "the reply's useful structure, but for that claim "
+                                "either (a) say plainly it is not yet verified, or "
+                                "(b) make no claim in either direction — word it "
+                                "as confirmation in progress (\"We are "
+                                "confirming X and will follow up with details\") "
+                                "or ask for the missing information (\"Could you "
+                                "share the spec sheets so we can confirm?\"). "
+                                "Do not assert it as true."
+                            )})
+                            _fix = await self.llm_service.generate_completion(
+                                messages=messages,
+                                model=forced_model,
+                                tenant_id=self.tenant_id,
+                                **extra_kwargs,
+                            )
+                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            if _fixed and not asserts_unverified_confirmation(message, _fixed):
+                                _streamed = _fixed
                         await _ws_manager.broadcast(f"user:{user_id}", {
                             "type": "chat_token_done",
                             "data": {
@@ -1549,6 +1621,37 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     _content = _strip_protocol_tags(
                         (response_data or {}).get("content"))
+                # EVIDENCE GUARD (non-streaming path): same confirm→assert
+                # guard as the streaming path — the request asked to
+                # confirm/verify and the reply asserts it as fact.
+                elif asserts_unverified_confirmation(message, _content):
+                    logger.warning(
+                        "reply asserts an unverified confirm/verify request "
+                        "as fact — grounded regeneration")
+                    messages.append({"role": "system", "content": (
+                        "Your previous reply stated a claim as fact that "
+                        "the request only asked to CONFIRM, and no evidence "
+                        "in this context establishes it. Regenerate: keep "
+                        "the reply's useful structure, but for that claim "
+                        "either (a) say plainly it is not yet verified, or "
+                        "(b) make no claim in either direction — word it "
+                        "as confirmation in progress (\"We are "
+                        "confirming X and will follow up with details\") "
+                        "or ask for the missing information (\"Could you "
+                        "share the spec sheets so we can confirm?\"). "
+                        "Do not assert it as true."
+                    )})
+                    response_data = await self.llm_service.generate_completion(
+                        messages=messages,
+                        model=forced_model,
+                        tenant_id=self.tenant_id,
+                        **extra_kwargs,
+                    )
+                    _fixed = _strip_protocol_tags(
+                        (response_data or {}).get("content"))
+                    if _fixed and not asserts_unverified_confirmation(message, _fixed):
+                        _content = _fixed
+                        response_data = {**response_data, "content": _fixed}
                 if _tool_block and len(_content) < 20:
                     # The model emitted protocol syntax instead of an answer
                     # (sanitized away). One firm retry; if it still fails,
@@ -1938,6 +2041,51 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.debug(f"canvas heal skipped: {e}")
             return canvas
 
+    async def _sender_identity(
+        self, user_id: str, canvas_type: Any
+    ) -> Optional[Dict[str, str]]:
+        """Who the draft is sent BY: the account name/email, plus (email
+        canvases) the composer's default signature from its own store —
+        the same source the UI's signature button uses. Live incident
+        (2026-09-02, canvas da27bb76…): no identity reached the editor, so
+        "i added my signature, adjust" made it GUESS the sender's name from
+        the Cc line and sign the draft "Chandrakant". Identity is resolved
+        data, never a model guess. Fault-isolated + time-boxed: a slow
+        signature lookup (integration mining on cache miss) degrades to
+        name/email only — never blocks the edit turn."""
+        identity: Dict[str, str] = {}
+        try:
+            from core.database import get_db_session
+            from core.models import User
+
+            with get_db_session() as db:
+                u = db.query(User).filter(User.id == str(user_id)).first()
+                if u is not None:
+                    name = " ".join(
+                        p for p in (u.first_name, u.last_name) if p
+                    ).strip()
+                    if name:
+                        identity["name"] = name
+                    if u.email:
+                        identity["email"] = u.email
+
+                if str(canvas_type or "").lower() == "email" and user_id:
+                    try:
+                        from core.canvas_email_service import EmailCanvasService
+
+                        sig = await asyncio.wait_for(
+                            EmailCanvasService(db).get_signature(str(user_id)),
+                            timeout=5,
+                        )
+                        value = str((sig or {}).get("signature") or "").strip()
+                        if value:
+                            identity["signature"] = value
+                    except Exception as sig_err:
+                        logger.debug(f"canvas editor signature lookup skipped: {sig_err}")
+        except Exception as e:
+            logger.debug(f"canvas editor identity lookup skipped: {e}")
+        return identity or None
+
     async def _try_canvas_edit(
         self,
         message: str,
@@ -1947,6 +2095,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         session_id: Optional[str],
         execution_id: Optional[str],
         agent_id: Optional[str],
+        provenance: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Canvas co-editor edit step: plan the edit via the canvas editor
         module, persist it through canvas_crud_tool, and return the chat
@@ -1967,6 +2116,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         similar_corrections, correction_patterns = await self._cross_canvas_learnings(
             user_id, canvas, agent_id
         )
+        user_identity = await self._sender_identity(user_id, canvas.get("canvas_type"))
 
         try:
             plan = await asyncio.wait_for(
@@ -1977,6 +2127,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     lessons=lessons,
                     similar_corrections=similar_corrections,
                     correction_patterns=correction_patterns,
+                    provenance=provenance,
+                    user_identity=user_identity,
                 ),
                 timeout=30,
             )
@@ -2094,6 +2246,38 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             result, apply_reason = applied
         else:
             result, apply_reason = applied, None
+        if result is None and apply_reason == "no_change":
+            # The planned edit reproduced the current content byte-for-byte.
+            # Writing it anyway (audit row + "updated!" reply) was the live
+            # "nothing changed" incident: the user repeated the same feedback
+            # three turns in a row while the canvas never moved. Answer
+            # honestly — nothing was written, nothing to learn from.
+            logger.info(
+                f"canvas edit was a no-op for {canvas.get('canvas_id')} — "
+                f"replying honestly instead of claiming an update"
+            )
+            return {
+                "success": True,
+                "message": (
+                    "I read the canvas and it already reflects that — "
+                    "nothing needed changing. If you expected a difference, "
+                    "point me at the specific wording to change."
+                ),
+                "session_id": session_id,
+                "intent": "canvas_edit",
+                "confidence": 0.9,
+                "data": {
+                    "canvas_edit": {
+                        "canvas_id": canvas.get("canvas_id"),
+                        "updated": False,
+                        "no_change": True,
+                    }
+                },
+                "suggested_actions": [],
+                "requires_confirmation": False,
+                "next_steps": [],
+                "timestamp": datetime.now().isoformat(),
+            }
         if result is None:
             # The editor classified this as an edit but the write failed
             # (mismatched patch target, undecodable replace payload, store

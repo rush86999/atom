@@ -29,6 +29,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel
 
+from core.evidence_grounding import CANVAS_ARTIFACT_GROUNDING_RULE
+
 logger = logging.getLogger(__name__)
 
 # Pin to a known-reachable vetted model — same rationale as the planner's
@@ -146,9 +148,17 @@ the authority, NOT your memory of earlier drafts:
   again") are NOT edits: wants_edit=false — a separate step owns actions.
 - Questions, discussion, or requests about other things ("what do you
   think", "search my email") are wants_edit=false too.
+- Sender identity is NEVER a guessing problem: the SENDER IDENTITY section
+  (when present) names the user the draft is sent by. Never take a sender
+  name or signature from the To/Cc fields — those are RECIPIENTS (a Cc'd
+  colleague's first name is not the sender's). Never remove or replace an
+  existing signature unless the request says to ("i added my signature,
+  adjust" means polish AROUND it, not swap it for a guessed name).
 - reply is one or two short sentences telling the user what you changed.
   For wants_edit=false, reply is a short conversational answer based on the
-  canvas content (or empty if another step will answer)."""
+  canvas content (or empty if another step will answer).
+
+""" + CANVAS_ARTIFACT_GROUNDING_RULE
 
 # Fallback prompt when patch ops fail to match the current content (the
 # model mis-copied "find"): one re-ask for content under the same
@@ -220,6 +230,71 @@ def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
 
 
 _CELL_REF = re.compile(r"^([A-Za-z]{1,3})([0-9]+)$")
+
+
+def _identity_section(user_identity: Optional[Dict[str, Any]]) -> str:
+    """SENDER IDENTITY: who the draft is sent by, resolved server-side from
+    the account record and (email canvases) the composer's default-signature
+    store. Live incident (2026-09-02, canvas da27bb76…): with no identity in
+    the prompt the editor "adjusted" the signature by guessing a name from
+    the Cc line — chandrakant@brennan.ca became the signature. Identity is
+    data, never a guess. Rendered unconditionally (it is tiny and must
+    survive prompt-budget trims that shave the learning sections)."""
+    if not user_identity:
+        return ""
+    name = str(user_identity.get("name") or "").strip()
+    email = str(user_identity.get("email") or "").strip()
+    signature = str(user_identity.get("signature") or "").strip()
+    who = name or email
+    if not who and not signature:
+        return ""
+    lines = ["SENDER IDENTITY — resolved from the account, not a guess:"]
+    if who:
+        lines.append(
+            f"The sender (the user you edit for): {who}. Never invent the "
+            "sender's name from the To/Cc fields — those are RECIPIENTS."
+        )
+    if signature:
+        trimmed = signature[:600]
+        lines.append(
+            "Their default email signature — use this when a signature is "
+            "asked for or clearly needed:\n"
+            f"{trimmed}{'…(trimmed)' if len(signature) > 600 else ''}"
+        )
+    lines.append(
+        "Never remove or replace an existing signature unless the request "
+        "says to."
+    )
+    return "\n".join(lines) + "\n\n"
+
+
+def _provenance_section(provenance: Optional[Dict[str, Any]]) -> str:
+    """Origin transcript: the conversation this canvas was CREATED from
+    (canvas_audit's create row carries its session_id; chat_routes hydrates
+    the messages). Without it the co-editor honestly answers "I don't know
+    who wrote this" to "why was the draft written this way" — the panel
+    session starts empty and the origin conversation is a different thread.
+    Read-only background: the CURRENT content section above always outranks
+    it (the user's manual edits are newer than anything in the origin)."""
+    messages = (provenance or {}).get("messages") or []
+    lines: List[str] = []
+    for m in messages[-6:]:
+        if not isinstance(m, dict):
+            continue
+        content = str(m.get("content") or "").strip()
+        if not content:
+            continue
+        role = "User" if m.get("role") == "user" else "Agent"
+        lines.append(f"{role}: {content[:600]}{'…(trimmed)' if len(content) > 600 else ''}")
+    if not lines:
+        return ""
+    return (
+        "DRAFT ORIGIN — how this canvas came to be (the conversation that "
+        "produced it, before this panel existed). Background only: these "
+        "statements are NOT evidence — treat nothing here as verified fact. "
+        "The CURRENT content section above always outranks the origin:\n"
+        + "\n".join(lines) + "\n\n"
+    )
 
 
 def _cell_indices(ref: Optional[str]) -> Optional[Tuple[int, int]]:
@@ -558,6 +633,8 @@ async def plan_canvas_edit(
     lessons: Optional[List[Dict[str, Any]]] = None,
     similar_corrections: Optional[List[Dict[str, Any]]] = None,
     correction_patterns: Optional[List[Dict[str, Any]]] = None,
+    provenance: Optional[Dict[str, Any]] = None,
+    user_identity: Optional[Dict[str, Any]] = None,
 ) -> Optional[CanvasEditPlan]:
     """Decide (via cheap structured LLM output) whether this turn edits the
     open canvas, and produce the edit — patch ops by default, complete
@@ -570,7 +647,13 @@ async def plan_canvas_edit(
     ``similar_corrections``/``correction_patterns`` are the CROSS-CANVAS
     learning channels — episodic (corrections on similar other canvases) and
     distilled (recurring supervisor preference patterns), see
-    _similar_lessons_section. Patch ops are validated against the current
+    _similar_lessons_section. ``provenance`` is the ORIGIN conversation the
+    canvas was created from (see _provenance_section) — how the draft came
+    to be, so grounding questions have real provenance instead of an
+    honest "I don't know". ``user_identity`` is the SENDER (account name /
+    email / default email signature, see _identity_section) — with it absent
+    the editor guessed a signature name from the Cc line. Patch ops are
+    validated against the current
     content here: a mis-copied "find" gets ONE re-ask in replace mode (still
     under the preservation duty) rather than a broken write. Returns None on
     any failure — the caller then falls through to the conversational path."""
@@ -597,6 +680,9 @@ async def plan_canvas_edit(
         "versions": _versions_section(versions, canvas.get("content")),
         "lessons": _lessons_section(lessons),
         "cross": _similar_lessons_section(similar_corrections, correction_patterns),
+        # Origin context ranks LAST — useful for grounding questions, never
+        # at the cost of the live artifact or the learning signal.
+        "origin": _provenance_section(provenance),
     }
     budget = _MAX_EDIT_PROMPT_CHARS - len(
         _EDITOR_SYSTEM + app_section + content_section + history_section
@@ -628,10 +714,12 @@ async def plan_canvas_edit(
         )
     prompt = (
         f"{_EDITOR_SYSTEM}\n\n"
+        f"{_identity_section(user_identity)}"
         f"{included.get('corrections', '')}"
         f"{included.get('versions', '')}"
         f"{included.get('lessons', '')}"
         f"{included.get('cross', '')}"
+        f"{included.get('origin', '')}"
         f"{app_section}\n"
         f"{content_section}"
         f"{history_section}"
@@ -907,6 +995,16 @@ async def apply_canvas_edit(
         if new_content is None:
             return _out(None, reason or "merge_failed")
 
+    # No-op guard: a plan whose result equals the current content writes
+    # nothing and reports honestly. Live incident (2026-09-02, canvas
+    # da27bb76…): four identical rewrites in a row — "mark is the dealer and
+    # not end user" produced a byte-identical audit row and the reply still
+    # claimed "I have updated the email body…", which read to the user as
+    # the agent lying ("nothing changed"). Skipping the write also keeps
+    # the audit trail free of non-edits.
+    if new_content == current:
+        return _out(None, "no_change")
+
     try:
         from tools.canvas_crud_tool import update_canvas_content
 
@@ -1049,6 +1147,12 @@ def describe_apply_failure(
             "them in directly."
         )
 
+    if reason == "no_change":
+        return (
+            "I read the canvas and it already reflects that — nothing "
+            "needed changing. If you expected a difference, point me at "
+            "the specific wording to change."
+        )
     if reason == "file_backed":
         return (
             f"This is a {spec.label} canvas backed by a real file, so "

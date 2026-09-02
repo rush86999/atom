@@ -103,6 +103,69 @@ def _resolve_canvas_agent_id(canvas_id: str, tenant_id: Optional[str]) -> Option
         return None
 
 
+def _canvas_provenance_context(
+    canvas_id: Optional[str],
+    current_session_id: Optional[str],
+    max_messages: int = 8,
+) -> Optional[Dict[str, Any]]:
+    """Hydrate the ORIGIN conversation of a canvas: the chat thread this
+    canvas was created from, resolved through the create-audit row's
+    ``session_id`` (written by chat_draft_to_canvas).
+
+    The canvas panel starts its own session, so a turn on /canvas/{id} had
+    ``conversation_history: []`` even minutes after "generate the draft" —
+    the co-editor honestly answered "I don't know who wrote this draft" to
+    the provenance question that follows it (observed live 2026-09-02,
+    canvas da27bb76…: the origin thread aca15165… sat one query away). The
+    returned messages ride to the orchestrator as ``context[
+    'canvas_provenance']`` and enter the prompts as clearly-labeled,
+    non-evidentiary background. Skipped when the canvas was created in the
+    SAME session that is chatting now (the live transcript already has it).
+    Fault-isolated: any failure returns None and the turn proceeds without
+    provenance.
+    """
+    if not canvas_id:
+        return None
+    try:
+        from sqlalchemy import asc, desc
+
+        from core.database import get_db_session
+        from core.models import CanvasAudit, ChatMessage
+
+        with get_db_session() as db:
+            create_row = (
+                db.query(CanvasAudit.session_id)
+                .filter(
+                    CanvasAudit.canvas_id == str(canvas_id),
+                    CanvasAudit.action_type == "create",
+                )
+                .order_by(asc(CanvasAudit.created_at))
+                .first()
+            )
+            origin_session = (create_row or (None,))[0] if create_row else None
+            if not origin_session or origin_session == current_session_id:
+                return None
+            rows = (
+                db.query(ChatMessage)
+                .filter(ChatMessage.conversation_id == origin_session)
+                .order_by(desc(ChatMessage.created_at))
+                .limit(max_messages)
+                .all()
+            )
+            messages = [
+                {"role": row.role, "content": str(row.content or "")}
+                for row in reversed(rows)
+                if (row.role or "") in ("user", "assistant")
+                and str(row.content or "").strip()
+            ]
+            if not messages:
+                return None
+            return {"session_id": origin_session, "messages": messages}
+    except Exception as e:
+        logger.debug(f"canvas provenance hydration skipped: {e}")
+        return None
+
+
 def _bind_canvas_chat_session(
     canvas_id: Optional[str],
     canvas_type: str,
@@ -956,6 +1019,20 @@ async def send_chat_message(
             "agent_id": getattr(request, "agent_id", None)
             or ((request.context or {}).get("agent_id")),
         }
+        # Canvas turns: hydrate the ORIGIN conversation (the thread the
+        # canvas was created from) so provenance questions ("why was the
+        # draft written this way?") are answerable from the panel — the
+        # panel's own session history starts empty by design.
+        if _canvas_id_for_agent and not context_with_agent.get("canvas_provenance"):
+            _prov = _canvas_provenance_context(
+                str(_canvas_id_for_agent), session_id
+            )
+            if _prov:
+                context_with_agent["canvas_provenance"] = _prov
+                logger.info(
+                    f"[CHATCTX] canvas {_canvas_id_for_agent} origin session "
+                    f"{_prov['session_id']} hydrated ({len(_prov['messages'])} messages)"
+                )
         _ctx_tokens = set_chat_context(session_id, getattr(request, "agent_id", None))
         try:
             response = await chat_orchestrator.process_chat_message(
