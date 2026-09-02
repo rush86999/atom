@@ -100,6 +100,56 @@ async def list_categories(
     }
 
 
+@router.get("/learning-status")
+async def learning_status(
+    _admin: User = Depends(_require_admin),
+    db: Any = Depends(get_db),
+) -> Dict[str, Any]:
+    """Modes + health for Admin → Learning & Verification.
+
+    One read-only call backing the guidance page: resolved modes with their
+    source (env override locks the UI control), rated-exchange corpus
+    counts, verification-panel run health, and whether auto-promotion is
+    armed. Long-form guidance lives in
+    docs/guides/LEARNING_VERIFICATION_GUIDE.md.
+    """
+    import os
+
+    from core.exchange_example_service import get_corpus_counts
+    from core.runtime_settings import get_bool_setting, get_int_setting
+    from core.verify_panel import get_panel_run_stats
+
+    try:
+        ex_mode = resolve_setting("ATOM_EXCHANGE_MEMORY", db=db)
+        panel_mode = resolve_setting("ATOM_VERIFY_PANEL", db=db)
+        return {
+            "success": True,
+            "data": {
+                "exchange": {
+                    "mode": ex_mode.value,
+                    "source": ex_mode.source,
+                    "env_locked": "ATOM_EXCHANGE_MEMORY" in os.environ,
+                    "auto_promote": get_bool_setting(
+                        "ATOM_EXCHANGE_AUTO_PROMOTE", False, db=db
+                    ),
+                    "counts": get_corpus_counts(db),
+                },
+                "panel": {
+                    "mode": panel_mode.value,
+                    "source": panel_mode.source,
+                    "env_locked": "ATOM_VERIFY_PANEL" in os.environ,
+                    "auto_promote": get_bool_setting(
+                        "ATOM_VERIFY_PANEL_AUTO_PROMOTE", False, db=db
+                    ),
+                    "stats": get_panel_run_stats(db),
+                },
+            },
+        }
+    except Exception as e:
+        logger.error(f"Learning status failed: {e}")
+        raise HTTPException(status_code=500, detail="Learning status unavailable")
+
+
 @router.get("/audit")
 async def audit_history(
     limit: int = 50,

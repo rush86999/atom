@@ -31,6 +31,7 @@ import {
     KanbanSquare,
     Brain,
     Wrench,
+    GraduationCap,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -140,6 +141,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             items: [
                 { label: "JIT Verification", icon: Shield, path: "/admin/jit-verification" },
                 { label: "BPE Workspace", icon: Brain, path: "/admin/bpe" },
+                { label: "Learning & Verification", icon: GraduationCap, path: "/admin/learning-verification" },
                 { label: "Self-Healing Harness", icon: Wrench, path: "/settings/harness-evolution" },
                 { label: "Business Facts", icon: CheckCircle, path: "/admin/business-facts" },
                 { label: "User Management", icon: Shield, path: "/admin/users" },

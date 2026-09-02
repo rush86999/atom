@@ -63,8 +63,15 @@ _REGENERATE_COMMENT = "regenerated"  # the frontend's regenerate handler marker
 
 
 def exchange_memory_mode() -> str:
-    """off | shadow | enforce (default shadow)."""
-    mode = (os.getenv(_MODE_FLAG) or "shadow").strip().lower()
+    """off | shadow | enforce (default shadow).
+
+    Resolved through runtime settings so the maintenance automation can
+    promote shadow→enforce programmatically (UI/admin row), while an
+    explicit env var still wins as the kill-switch — it can never be
+    overridden by automation."""
+    from core.runtime_settings import get_setting
+
+    mode = str(get_setting(_MODE_FLAG, "shadow") or "shadow").strip().lower()
     return mode if mode in ("off", "shadow", "enforce") else "shadow"
 
 
@@ -473,6 +480,20 @@ def search_similar_examples(
     except Exception as e:
         logger.debug("exchange example retrieval failed: %s", e)
         return []
+
+
+def get_corpus_counts(db) -> Dict[str, int]:
+    """Whole-corpus rated counts — the Settings page's health numbers for
+    the learning loop (how much there is to learn from)."""
+    out = {"positive": 0, "negative": 0, "total": 0}
+    try:
+        labels = [r[0] for r in db.query(ExchangeExample.label).all()]
+        pos = sum(1 for l in labels if l == "positive")
+        neg = sum(1 for l in labels if l == "negative")
+        out = {"positive": pos, "negative": neg, "total": pos + neg}
+    except Exception as e:
+        logger.debug("corpus counts failed: %s", e)
+    return out
 
 
 def get_rated_exchange_summary(db, agent_id: str) -> Dict[str, Any]:

@@ -133,7 +133,8 @@ async def test_recurring_rejections_distilled_into_one_pattern_lesson():
     ]
     db = _mock_db(label_rows=community)
     observe = AsyncMock()
-    with patch("core.student_learning_service.auto_observe", observe):
+    with patch.object(xm, "_distill_min", return_value=3), \
+         patch("core.student_learning_service.auto_observe", observe):
         result = await xm._consolidate_recurring_negatives(db)
 
     assert result["lessons"] == 1
@@ -157,7 +158,8 @@ async def test_below_threshold_is_not_distilled():
     ]
     db = _mock_db(label_rows=community)
     observe = AsyncMock()
-    with patch("core.student_learning_service.auto_observe", observe):
+    with patch.object(xm, "_distill_min", return_value=3), \
+         patch("core.student_learning_service.auto_observe", observe):
         result = await xm._consolidate_recurring_negatives(db)
     assert result["lessons"] == 0
     assert observe.await_count == 0
@@ -184,7 +186,8 @@ async def test_regenerate_only_bucket_yields_no_reasons_but_still_distills():
     ]
     db = _mock_db(label_rows=community)
     observe = AsyncMock()
-    with patch("core.student_learning_service.auto_observe", observe):
+    with patch.object(xm, "_distill_min", return_value=3), \
+         patch("core.student_learning_service.auto_observe", observe):
         await xm._consolidate_recurring_negatives(db)
     summary = observe.await_args.kwargs["summary"]
     assert "too vague" in summary
@@ -201,18 +204,17 @@ def _healthy_counts():
 
 @pytest.mark.asyncio
 async def test_auto_promote_disabled_by_default(monkeypatch):
-    monkeypatch.delenv("ATOM_EXCHANGE_AUTO_PROMOTE", raising=False)
-    db = _mock_db()
-    result = xm._maybe_auto_promote(db)
+    with patch.object(xm, "_auto_promote_exchange", return_value=False):
+        result = xm._maybe_auto_promote(_mock_db())
     assert result == {"promoted": False, "reason": "auto_promote_disabled"}
 
 
 @pytest.mark.asyncio
 async def test_explicit_env_is_a_kill_switch_automation_never_fights(monkeypatch):
-    monkeypatch.setenv("ATOM_EXCHANGE_AUTO_PROMOTE", "true")
     monkeypatch.setenv("ATOM_EXCHANGE_MEMORY", "shadow")  # operator-pinned
     db = _mock_db(label_rows=_healthy_counts())
-    with patch("core.exchange_example_service.exchange_memory_mode",
+    with patch.object(xm, "_auto_promote_exchange", return_value=True), \
+         patch("core.exchange_example_service.exchange_memory_mode",
                return_value="shadow"):
         result = xm._maybe_auto_promote(db)
     assert result == {"promoted": False, "reason": "explicit_env_kill_switch"}
@@ -221,11 +223,11 @@ async def test_explicit_env_is_a_kill_switch_automation_never_fights(monkeypatch
 
 @pytest.mark.asyncio
 async def test_auto_promote_latches_shadow_to_enforce(monkeypatch):
-    monkeypatch.setenv("ATOM_EXCHANGE_AUTO_PROMOTE", "true")
     monkeypatch.delenv("ATOM_EXCHANGE_MEMORY", raising=False)
     db = _mock_db(label_rows=_healthy_counts())
     invalidate = MagicMock()
-    with patch("core.exchange_example_service.exchange_memory_mode",
+    with patch.object(xm, "_auto_promote_exchange", return_value=True), \
+         patch("core.exchange_example_service.exchange_memory_mode",
                return_value="shadow"), \
          patch("core.runtime_settings.invalidate_settings_cache", invalidate):
         result = xm._maybe_auto_promote(db)
@@ -241,10 +243,10 @@ async def test_auto_promote_latches_shadow_to_enforce(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_auto_promote_skips_small_corpus(monkeypatch):
-    monkeypatch.setenv("ATOM_EXCHANGE_AUTO_PROMOTE", "true")
     monkeypatch.delenv("ATOM_EXCHANGE_MEMORY", raising=False)
     db = _mock_db(label_rows=[("positive",)] * 5 + [("negative",)] * 2)
-    with patch("core.exchange_example_service.exchange_memory_mode",
+    with patch.object(xm, "_auto_promote_exchange", return_value=True), \
+         patch("core.exchange_example_service.exchange_memory_mode",
                return_value="shadow"):
         result = xm._maybe_auto_promote(db)
     assert result["promoted"] is False
@@ -254,10 +256,10 @@ async def test_auto_promote_skips_small_corpus(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_auto_promote_never_demotes_enforce(monkeypatch):
-    monkeypatch.setenv("ATOM_EXCHANGE_AUTO_PROMOTE", "true")
     monkeypatch.delenv("ATOM_EXCHANGE_MEMORY", raising=False)
     db = _mock_db(label_rows=_healthy_counts())
-    with patch("core.exchange_example_service.exchange_memory_mode",
+    with patch.object(xm, "_auto_promote_exchange", return_value=True), \
+         patch("core.exchange_example_service.exchange_memory_mode",
                return_value="enforce"):
         result = xm._maybe_auto_promote(db)
     assert result["reason"] == "mode_is_enforce"
@@ -270,11 +272,13 @@ async def test_auto_promote_never_demotes_enforce(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_cycle_survives_a_failing_step(monkeypatch):
-    monkeypatch.delenv("ATOM_EXCHANGE_AUTO_PROMOTE", raising=False)
     db = _mock_db(label_rows=_healthy_counts())
     with patch.object(xm, "_backfill_vectors", side_effect=RuntimeError("lance down")), \
+         patch.object(xm, "_auto_promote_exchange", return_value=False), \
+         patch.object(xm, "_auto_promote_panel", return_value=False), \
          patch("core.student_learning_service.auto_observe", AsyncMock()):
         summary = await xm.run_maintenance_cycle(db)
     assert summary["backfilled"] == 0
     assert summary["promoted"]["reason"] == "auto_promote_disabled"
+    assert summary["promoted_panel"]["reason"] == "auto_promote_disabled"
     assert "distilled" in summary

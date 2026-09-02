@@ -42,15 +42,19 @@ from typing import Any, Dict, List
 logger = logging.getLogger(__name__)
 
 _MODE_FLAG = "ATOM_EXCHANGE_MEMORY"
-_INTERVAL_ENV = "ATOM_EXCHANGE_MAINTENANCE_INTERVAL_MIN"   # default 60
+_PANEL_FLAG = "ATOM_VERIFY_PANEL"
+_INTERVAL_ENV = "ATOM_EXCHANGE_MAINTENANCE_INTERVAL_MIN"   # default 60 (ops-only, env)
 _FIRST_RUN_DELAY_S = 120          # stay out of boot warmup's way
 _BACKFILL_CAP = 200               # rows re-embedded per cycle
-_DISTILL_MIN_ENV = "ATOM_EXCHANGE_DISTILL_MIN"
-_DISTILL_MIN_DEFAULT = 3          # rejections per topic before distilling
 _DISTILL_CAP_PER_CYCLE = 5
-_AUTOPROMOTE_ENV = "ATOM_EXCHANGE_AUTO_PROMOTE"            # default: off
+# Exchange-corpus size gate for auto-promotion (fixed defaults; the panel's
+# gates are catalog-managed because judges cost money per run, this one
+# only needs "enough examples to retrieve from").
 _AUTOPROMOTE_MIN_TOTAL = 20
 _AUTOPROMOTE_MIN_PER_LABEL = 3
+
+# Opt-ins and health gates are resolved through runtime settings so
+# Admin → Learning & Verification manages them (explicit env still wins).
 
 
 def _env_int(name: str, default: int) -> int:
@@ -58,6 +62,42 @@ def _env_int(name: str, default: int) -> int:
         return int(os.getenv(name, "") or default)
     except ValueError:
         return default
+
+
+def _distill_min() -> int:
+    from core.runtime_settings import get_int_setting
+
+    return get_int_setting("ATOM_EXCHANGE_DISTILL_MIN", 3)
+
+
+def _auto_promote_exchange() -> bool:
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("ATOM_EXCHANGE_AUTO_PROMOTE", False)
+
+
+def _auto_promote_panel() -> bool:
+    from core.runtime_settings import get_bool_setting
+
+    return get_bool_setting("ATOM_VERIFY_PANEL_AUTO_PROMOTE", False)
+
+
+def _panel_min_runs() -> int:
+    from core.runtime_settings import get_int_setting
+
+    return get_int_setting("ATOM_VERIFY_PANEL_MIN_RUNS", 20)
+
+
+def _panel_min_ran_rate() -> float:
+    from core.runtime_settings import get_float_setting
+
+    return get_float_setting("ATOM_VERIFY_PANEL_MIN_RAN_RATE", 0.9)
+
+
+def _panel_min_agreement() -> float:
+    from core.runtime_settings import get_float_setting
+
+    return get_float_setting("ATOM_VERIFY_PANEL_MIN_AGREEMENT", 0.5)
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +174,7 @@ async def _consolidate_recurring_negatives(db) -> Dict[str, Any]:
         .limit(500)
         .all()
     )
-    min_community = _env_int(_DISTILL_MIN_ENV, _DISTILL_MIN_DEFAULT)
+    min_community = _distill_min()
 
     buckets: Dict[tuple, List[Any]] = {}
     for row in unconsolidated:
@@ -189,7 +229,7 @@ def _exchange_counts(db) -> Dict[str, int]:
 def _maybe_auto_promote(db) -> Dict[str, Any]:
     from core.exchange_example_service import exchange_memory_mode
 
-    if os.getenv(_AUTOPROMOTE_ENV, "").strip().lower() not in ("1", "true", "yes", "on"):
+    if not _auto_promote_exchange():
         return {"promoted": False, "reason": "auto_promote_disabled"}
     # An explicit env var is the operator's kill-switch: never fight it.
     if _MODE_FLAG in os.environ:
@@ -220,13 +260,6 @@ def _maybe_auto_promote(db) -> Dict[str, Any]:
 # Step 4: opt-in verification-panel promotion (shadow → enforce latch)
 # ---------------------------------------------------------------------------
 
-_PANEL_FLAG = "ATOM_VERIFY_PANEL"
-_PANEL_AUTOPROMOTE_ENV = "ATOM_VERIFY_PANEL_AUTO_PROMOTE"   # default: off
-_PANEL_MIN_RUNS = 20          # recent runs before the gate even looks
-_PANEL_MIN_RAN_RATE = 0.9     # the panel must actually be running
-_PANEL_MIN_MEAN_AGREEMENT = 0.5  # votes must be meaningful, not coin flips
-
-
 def _maybe_auto_promote_panel(db) -> Dict[str, Any]:
     """Latch ATOM_VERIFY_PANEL shadow→enforce once the panel's own persisted
     run record shows it working (enough runs, high ran-rate, meaningful
@@ -234,7 +267,7 @@ def _maybe_auto_promote_panel(db) -> Dict[str, Any]:
     from core.hallucination_config import get_verify_panel_mode
     from core.verify_panel import get_panel_run_stats
 
-    if os.getenv(_PANEL_AUTOPROMOTE_ENV, "").strip().lower() not in ("1", "true", "yes", "on"):
+    if not _auto_promote_panel():
         return {"promoted": False, "reason": "auto_promote_disabled"}
     if _PANEL_FLAG in os.environ:
         return {"promoted": False, "reason": "explicit_env_kill_switch"}
@@ -246,11 +279,11 @@ def _maybe_auto_promote_panel(db) -> Dict[str, Any]:
         return {"promoted": False, "reason": f"mode_is_{current}"}
 
     stats = get_panel_run_stats(db)
-    if stats["total"] < _PANEL_MIN_RUNS:
+    if stats["total"] < _panel_min_runs():
         return {"promoted": False, "reason": "not_enough_runs", "stats": stats}
-    if stats["ran_rate"] < _PANEL_MIN_RAN_RATE:
+    if stats["ran_rate"] < _panel_min_ran_rate():
         return {"promoted": False, "reason": "panel_flaky", "stats": stats}
-    if stats["mean_agreement"] < _PANEL_MIN_MEAN_AGREEMENT:
+    if stats["mean_agreement"] < _panel_min_agreement():
         return {"promoted": False, "reason": "votes_not_meaningful", "stats": stats}
 
     _latch_runtime_setting(db, _PANEL_FLAG)

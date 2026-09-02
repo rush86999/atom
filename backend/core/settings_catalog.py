@@ -71,6 +71,7 @@ C_RADIO = "Agent Radio"
 C_TRUST = "Trust Calibration"
 C_ONTOLOGY = "Ontology Drafts"
 C_ORG = "Org Politics"
+C_LEARN = "Learning & Verification"
 C_GATEWAY = "LLM Gateway"
 C_SEC = "Security & Webhooks"
 C_BPE = "BPE Agent Workspace"
@@ -140,7 +141,6 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     # ------------------------------------------------------------------
     B("ATOM_CASCADE_ROUTING", False, C_HALL, "Retry schema failures same-provider flagship"),
     B("ATOM_SELF_CONSISTENCY", False, C_HALL, "N-sample majority vote master switch"),
-    S("ATOM_VERIFY_PANEL", "off", C_HALL, "Verification panel (judge vote) on mission-critical/high-complexity turns: off | shadow | enforce"),
     I("ATOM_SELF_CONSISTENCY_SAMPLES", 3, C_HALL, "Samples drawn per vote"),
     B("ATOM_SELF_CONSISTENCY_FORCE_PROPOSAL", False, C_HALL, "Route partial/ambiguous votes to proposals"),
     F("ATOM_SELF_CONSISTENCY_HIGH_THRESHOLD", 0.85, C_HALL, "Agreement ≥ this is 'high'"),
@@ -213,7 +213,34 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     I("TURN_FACT_RETENTION_DAYS", 0, C_MEM, "Turn-fact retention (0 = forever)"),
     I("TURN_FACT_CB_THRESHOLD", 5, C_MEM, "Turn-fact circuit-break trips"),
     F("TURN_FACT_CB_COOLDOWN_S", 120.0, C_MEM, "Turn-fact circuit cooldown"),
-    S("ATOM_EXCHANGE_MEMORY", "shadow", C_MEM, "Rated-exchange learning loop: off | shadow (capture+teach, no injection) | enforce (inject examples)"),
+    # --- Learning & Verification (guidance: Admin → Learning & Verification,
+    # or docs/guides/LEARNING_VERIFICATION_GUIDE.md) ---
+    S("ATOM_EXCHANGE_MEMORY", "shadow", C_LEARN,
+      "Learning from your ratings: when you rate an answer thumbs up/down, the pair becomes a "
+      "permanent example. off = nothing is learned; shadow (recommended) = the agent learns from "
+      "your ratings but answers are unchanged; enforce = answers also surface similar approved "
+      "answers and past rejected patterns while replying"),
+    B("ATOM_EXCHANGE_AUTO_PROMOTE", False, C_LEARN,
+      "Let the hourly maintenance promote exchange learning from shadow to enforce by itself once "
+      "the rated corpus is large enough to learn from (default: 20+ rated exchanges, 3+ of each)"),
+    I("ATOM_EXCHANGE_DISTILL_MIN", 3, C_LEARN,
+      "How many similar thumbs-down answers with a written comment are distilled into ONE "
+      "permanent correction lesson for student agents"),
+    S("ATOM_VERIFY_PANEL", "off", C_LEARN,
+      "Answer verification panel: on mission-critical/complex turns, 3 AI judges check the answer "
+      "against its evidence and vote. off = disabled; shadow = checks quietly, answers unchanged; "
+      "enforce = answers a judge majority finds ungrounded are regenerated once, with an honest "
+      "caveat if still ungrounded"),
+    B("ATOM_VERIFY_PANEL_AUTO_PROMOTE", False, C_LEARN,
+      "Let the hourly maintenance promote the panel from shadow to enforce by itself once its run "
+      "record is healthy (default: 20+ runs, 90%+ completed, meaningful judge agreement). Turning "
+      "the panel ON at all stays a manual decision because it costs extra AI calls per turn"),
+    I("ATOM_VERIFY_PANEL_MIN_RUNS", 20, C_LEARN,
+      "Panel auto-promotion gate: minimum recorded panel runs before health is evaluated"),
+    F("ATOM_VERIFY_PANEL_MIN_RAN_RATE", 0.9, C_LEARN,
+      "Panel auto-promotion gate: minimum fraction of runs that completed (0-1)"),
+    F("ATOM_VERIFY_PANEL_MIN_AGREEMENT", 0.5, C_LEARN,
+      "Panel auto-promotion gate: minimum mean judge agreement (0-1) for votes to count as meaningful"),
     # Fleet router
     B("ATOM_FLEET_ROUTING_ENABLED", True, C_FLEET, "Governed fleet dispatch (shadow)"),
     B("ATOM_FLEET_ROUTING_FORCE_ENFORCE", False, C_FLEET, "Return fleet results live"),
