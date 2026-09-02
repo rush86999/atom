@@ -1367,13 +1367,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # non-streaming completion: streaming is pure UX sugar.
             _streamed: Optional[str] = None
             if (
-                os.getenv("ATOM_CHAT_STREAMING", "false").lower() == "true"
+                os.getenv("ATOM_CHAT_STREAMING", "true").lower() == "true"
                 and user_id and session_id
-                and not routing_overrides.get("model")  # explicit model pin = caller wants the old path
+                # routing_overrides is None on the common path — must not crash
+                and not (routing_overrides or {}).get("model")
             ):
                 try:
                     import time as _time
 
+                    from core.llm.byok_handler import _DEFAULT_COMPLETION_MAX_TOKENS
                     from core.websockets import manager as _ws_manager
 
                     _prompt_for_cx = " ".join(
