@@ -1255,6 +1255,51 @@ class ChatMessage(Base):
     agent_id = Column(String, nullable=True)
     metadata_json = Column(Text, nullable=True)
 
+class ExchangeExample(Base):
+    """
+    A rated (query, response) exchange pair — the atom of the positive/
+    negative example learning loop (Phase 56).
+
+    Captured at feedback time (thumbs up/down, regenerate-as-implicit-down)
+    with FULL text — unlike agent_experience (200/500-char truncations) — so
+    pairs can serve three consumers:
+      - chat-time retrieval: similar approved answers as demonstrations,
+        similar rejected patterns as cautions (memory_context_assembler leg)
+      - teaching circuit: comment-bearing rejections become permanent
+        human_correction lessons for STUDENT agents (StudentLearningService)
+      - maturity/eval evidence: rated-exchange counts feed training-session
+        evidence reporting; the corpus is the regression set for retrieval
+        eval and is available to exam/evolution code.
+
+    Labels are conservative by design (false negatives are the top documented
+    failure mode of negative-sample learning): only explicit thumbs and the
+    regenerate handler count — nothing inferred.
+    """
+    __tablename__ = "exchange_examples"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, nullable=True, index=True)
+    workspace_id = Column(String, nullable=True, index=True)
+    conversation_id = Column(String, nullable=True, index=True)  # chat session id
+    message_id = Column(String, nullable=True)  # frontend message id (may be a client-generated ts)
+    assistant_message_id = Column(String, nullable=True)  # ChatMessage.id of the rated response, when resolved
+    agent_id = Column(String, nullable=True, index=True)  # operating AI employee, when resolvable
+
+    user_query = Column(Text, nullable=False)
+    assistant_response = Column(Text, nullable=False)
+    label = Column(String, nullable=False)  # 'positive' | 'negative'
+    source = Column(String, nullable=False)  # 'explicit_thumbs' | 'regenerate_implicit'
+    comment = Column(Text, nullable=True)
+
+    model = Column(String, nullable=True)
+    provider = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index('idx_exchange_examples_recall', 'workspace_id', 'label', 'created_at'),
+    )
+
 class AgentModelMetrics(Base):
     """
     Metrics for tracking Agent Performance (Phase 13).

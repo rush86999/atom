@@ -1147,9 +1147,34 @@ async def submit_chat_feedback(
     if feedback_val not in ("thumbs_up", "thumbs_down"):
         raise HTTPException(status_code=422, detail="feedback must be 'thumbs_up' or 'thumbs_down'")
 
+    # Phase 56 (positive/negative example learning): persist the full
+    # (query, response) pair BEFORE the learning-router branch. The router
+    # branch below only feeds model routing — and when it is disabled this
+    # endpoint used to silently drop the thumbs entirely. Capture is
+    # flag-gated (ATOM_EXCHANGE_MEMORY), dedupes, and fans the pair into the
+    # teaching circuit (human_correction lessons / mastery exposure).
+    capture_summary: Dict[str, Any] = {"captured": False, "reason": "not_attempted"}
+    try:
+        from core.exchange_example_service import capture_exchange
+
+        capture_summary = await capture_exchange(
+            message_id=request.message_id,
+            feedback=feedback_val,
+            comment=request.comment,
+            session_id=request.session_id,
+            model=request.model,
+            provider=request.provider,
+            user_id=str(current_user.id) if current_user else None,
+        )
+    except Exception as e:
+        logger.warning(f"exchange example capture failed (non-fatal): {e}")
+
     learning_router = _get_learning_router()
     if learning_router is None:
-        # Disabled — acknowledge but don't record.
+        # Disabled — acknowledge but don't record routing feedback. (Capture
+        # above still runs; its outcome is logged, not added to this response
+        # — the response shape is pinned by API consumers and route tests.)
+        logger.info(f"chat feedback routing disabled; exchange capture: {capture_summary}")
         return {"success": True, "recorded": False, "reason": "learning_router_disabled"}
 
     try:
