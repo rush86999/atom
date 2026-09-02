@@ -499,26 +499,32 @@ export default function CanvasDetailPage() {
                 setChatSessionId(data.session_id);
             }
             if (data.success && data.message) {
-                // The authoritative reply replaces the streamed bubble (same
-                // session): covers drift between stream and final text and
-                // the no-stream fallback in one move.
+                // The authoritative reply either FINALIZES the streamed
+                // bubble (same session) or appends a fresh assistant message
+                // (no-stream fallback) — never both, which duplicated every
+                // streamed reply (observed live 2026-09-01).
                 const streamId = `stream_${data.session_id}`;
                 setMessages(prev => {
                     const streamed = prev.find(m => m.id === streamId);
                     if (streamed) {
-                        return prev.map(m => (m.id === streamId ? { ...m, content: data.message, streaming: false } : m));
+                        return prev.map(m => (m.id === streamId ? {
+                            ...m,
+                            content: data.message,
+                            streaming: false,
+                            model: data.model ?? m.model ?? null,
+                            provider: data.provider ?? m.provider ?? null,
+                        } : m));
                     }
-                    return prev;
+                    return [...prev, {
+                        id: `a_${Date.now()}`,
+                        type: "assistant",
+                        content: data.message,
+                        timestamp: new Date(),
+                        // Attribution for the message-level feedback call.
+                        model: data.model ?? null,
+                        provider: data.provider ?? null,
+                    }];
                 });
-                setMessages(prev => [...prev, {
-                    id: `a_${Date.now()}`,
-                    type: "assistant",
-                    content: data.message,
-                    timestamp: new Date(),
-                    // Attribution for the message-level feedback call.
-                    model: data.model ?? null,
-                    provider: data.provider ?? null,
-                }]);
                 // The WS canvas:update broadcast is the primary live carrier,
                 // but a stale socket silently drops it — an auth-expiry close
                 // never reconnects while the JWT lives in localStorage, and a
