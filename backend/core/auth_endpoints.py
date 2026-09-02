@@ -361,53 +361,6 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         "last_login": current_user.last_login.isoformat() if current_user.last_login else None
     }
 
-
-@router.get("/session")
-async def get_session_info(request: Request, db: Session = Depends(get_db)):
-    """Return NextAuth-compatible session object if authenticated, else null.
-
-    NextAuth's client calls /api/auth/session on every page load. The backend
-    serves this so the proxy rewrite in next.config.js doesn't send it to
-    NextAuth (which would 404 since we don't run a NextAuth server). We
-    decode the Bearer token from the Authorization header or from the
-    localStorage-backed cookie pattern without raising — unauthenticated
-    requests just get null back.
-    """
-    from fastapi.responses import JSONResponse
-    try:
-        # Try Authorization header first, then query param fallback
-        auth_header = request.headers.get("Authorization", "")
-        raw_token = None
-        if auth_header.startswith("Bearer "):
-            raw_token = auth_header[7:]
-        if not raw_token:
-            raw_token = request.cookies.get("next-auth.session-token") or \
-                        request.cookies.get("__Secure-next-auth.session-token")
-
-        if raw_token:
-            from core.auth import SECRET_KEY, ALGORITHM
-            from jose import jwt as jose_jwt, JWTError
-            payload = jose_jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
-            user_id = payload.get("sub")
-            if user_id:
-                from core.models import User as _User
-                user = db.query(_User).filter(_User.id == user_id).first()
-                if user:
-                    name = f"{user.first_name or ''} {user.last_name or ''}".strip() or \
-                           (user.email.split('@')[0] if user.email else "User")
-                    return {
-                        "user": {
-                            "id": user.id,
-                            "email": user.email,
-                            "name": name,
-                        },
-                        "expires": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
-                    }
-    except Exception:
-        pass
-    # Return null (not 404) — NextAuth client expects null when unauthenticated
-    return JSONResponse(content=None)
- 
 # or leave as is if it uses a different table structure not yet in models.py.
 # For now, I'll comment out the old SQLite logic to avoid conflicts and focus on the new Auth.
 # In a real scenario, we'd migrate the password reset tokens to SQLAlchemy too.

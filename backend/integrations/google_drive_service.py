@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 from core.connection_service import connection_service
 from core.integration_service import IntegrationService
+from core.integrations.token_store import resolve_integration_token
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,9 @@ class GoogleDriveService(IntegrationService):
         2. ConnectionService (UserConnection) — legacy in-app connections.
         3. GOOGLE_DRIVE_ACCESS_TOKEN env var (dev/convenience).
         """
-        token = await self._integration_token_access(user_id)
+        token = await resolve_integration_token(
+            user_id, ("google", "google_drive", "gmail"), self._refresh
+        )
         if token:
             return token
         for integration_id in ("google_drive", "google"):
@@ -133,63 +136,6 @@ class GoogleDriveService(IntegrationService):
                 return creds["access_token"]
         # Dev convenience fallback.
         return os.getenv("GOOGLE_DRIVE_ACCESS_TOKEN")
-
-    async def _integration_token_access(self, user_id: str) -> Optional[str]:
-        """Resolve + refresh the unified-OAuth IntegrationToken for Google.
-
-        Mirrors box_service: the /api/v1/auth/oauth/google/callback flow writes
-        an encrypted IntegrationToken (provider ``google``); expired tokens are
-        refreshed with the stored refresh token and persisted. Returns None when
-        no row exists so callers fall through to connection_service/env.
-        """
-        try:
-            from datetime import timedelta
-
-            from core.database import SessionLocal
-            from core.models import IntegrationToken
-            from core.privsec.token_encryption import decrypt_token, encrypt_token
-
-            db = SessionLocal()
-            try:
-                token_record = (
-                    db.query(IntegrationToken)
-                    .filter(
-                        IntegrationToken.user_id == user_id,
-                        IntegrationToken.provider.in_(["google", "google_drive", "gmail"]),
-                        IntegrationToken.status == "active",
-                    )
-                    .order_by(IntegrationToken.updated_at.desc())
-                    .first()
-                )
-                if not token_record or not token_record.access_token:
-                    return None
-
-                expires_at = token_record.expires_at
-                if expires_at and expires_at.tzinfo is None:
-                    expires_at = expires_at.replace(tzinfo=timezone.utc)
-
-                if expires_at and expires_at < (datetime.now(timezone.utc) + timedelta(minutes=2)):
-                    refresh_plain = (
-                        decrypt_token(token_record.refresh_token, allow_plaintext=True)
-                        if token_record.refresh_token
-                        else None
-                    )
-                    new_tokens = await self._refresh(refresh_plain)
-                    if new_tokens and new_tokens.get("access_token"):
-                        token_record.access_token = encrypt_token(new_tokens["access_token"])
-                        token_record.expires_at = datetime.now(timezone.utc) + timedelta(
-                            seconds=int(new_tokens.get("expires_in", 3600))
-                        )
-                        db.commit()
-                        return new_tokens["access_token"]
-                    return None
-
-                return decrypt_token(token_record.access_token, allow_plaintext=True)
-            finally:
-                db.close()
-        except Exception as e:
-            logger.error(f"Error getting Google Drive integration token: {e}")
-            return None
 
     async def _refresh(self, refresh_token: Optional[str]) -> Optional[Dict[str, Any]]:
         """Exchange a refresh token for a fresh access token (Google OAuth2)."""

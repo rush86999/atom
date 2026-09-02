@@ -17,7 +17,7 @@ import logging
 from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, urlparse
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from core.auth import get_current_user
@@ -30,6 +30,11 @@ router = APIRouter(prefix="/api/gdrive", tags=["gdrive-journey"])
 
 # Bare router: the panel posts document ingestion to a top-level path.
 ingest_router = APIRouter(prefix="/api", tags=["gdrive-journey"])
+
+# Auth pair the panel calls (mirrors onedrive_journey_routes.auth_router):
+# POST /api/auth/gdrive/disconnect had NO backend route — the rewrite sent it
+# nowhere and the Google grant stayed active after the UI said "Disconnected".
+auth_router = APIRouter(prefix="/api/auth/gdrive", tags=["gdrive-journey"])
 
 _service = GoogleDriveService()
 
@@ -69,6 +74,51 @@ async def connection_status(current_user: User = Depends(get_current_user)):
         "user_id": str(current_user.id),
         "email": current_user.email if token else None,
     }
+
+
+@auth_router.post("/disconnect")
+async def disconnect(current_user: User = Depends(get_current_user)):
+    """Drop the stored Google Drive connections for the user.
+
+    Removes the legacy ConnectionService rows AND revokes the unified
+    IntegrationToken grant rows. The token resolver (get_access_token) reads
+    and refreshes those IntegrationToken rows — deleting only the legacy
+    connections left the grant active and Drive still usable after the user
+    clicked Disconnect.
+    """
+    from core.connection_service import connection_service
+
+    removed = 0
+    for integration_id in ("google_drive", "google"):
+        try:
+            for conn in connection_service.get_connections(str(current_user.id), integration_id):
+                connection_service.delete_connection(conn["id"], str(current_user.id))
+                removed += 1
+        except Exception as e:
+            logger.warning(f"Google Drive disconnect failed for {integration_id}: {e}")
+
+    # Revoke the unified grant rows — the same google family the resolver
+    # reads (google/google_drive/gmail). A revocation failure must NOT be
+    # masked: returning success while the rows stay active would leave Drive
+    # usable after "Disconnect" and the UI would report a disconnect that
+    # never happened.
+    try:
+        from core.integrations.token_store import revoke_integration_tokens
+
+        revoke_integration_tokens(current_user.id, ("google", "google_drive", "gmail"))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Google Drive IntegrationToken revocation failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Could not revoke the Google Drive grant — connection "
+                "partially removed, please try again"
+            ),
+        )
+
+    return {"success": True, "removed_connections": removed}
 
 
 @router.get("/list-files")

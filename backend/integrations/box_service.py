@@ -19,6 +19,7 @@ from urllib.parse import urlencode
 import httpx
 
 from core.integration_service import IntegrationService
+from core.integrations.token_store import resolve_integration_token
 
 logger = logging.getLogger(__name__)
 
@@ -67,53 +68,7 @@ class BoxService(IntegrationService):
         Zoho WorkDrive pattern: expired tokens are refreshed with the stored
         refresh token and persisted.
         """
-        try:
-            from datetime import datetime, timedelta, timezone
-
-            from core.database import SessionLocal
-            from core.models import IntegrationToken
-            from core.privsec.token_encryption import decrypt_token, encrypt_token
-
-            db = SessionLocal()
-            try:
-                token_record = (
-                    db.query(IntegrationToken)
-                    .filter(
-                        IntegrationToken.user_id == user_id,
-                        IntegrationToken.provider == "box",
-                        IntegrationToken.status == "active",
-                    )
-                    .first()
-                )
-                if not token_record or not token_record.access_token:
-                    return None
-
-                expires_at = token_record.expires_at
-                if expires_at and expires_at.tzinfo is None:
-                    expires_at = expires_at.replace(tzinfo=timezone.utc)
-
-                if expires_at and expires_at < (datetime.now(timezone.utc) + timedelta(minutes=2)):
-                    refresh_plain = (
-                        decrypt_token(token_record.refresh_token, allow_plaintext=True)
-                        if token_record.refresh_token
-                        else None
-                    )
-                    new_tokens = await self._refresh(refresh_plain)
-                    if new_tokens and new_tokens.get("access_token"):
-                        token_record.access_token = encrypt_token(new_tokens["access_token"])
-                        token_record.expires_at = datetime.now(timezone.utc) + timedelta(
-                            seconds=new_tokens.get("expires_in", 3600)
-                        )
-                        db.commit()
-                        return new_tokens["access_token"]
-                    return None
-
-                return decrypt_token(token_record.access_token, allow_plaintext=True)
-            finally:
-                db.close()
-        except Exception as e:
-            logger.error(f"Error getting Box integration token: {e}")
-            return None
+        return await resolve_integration_token(user_id, ("box",), self._refresh)
 
     async def _refresh(self, refresh_token: Optional[str]) -> Optional[Dict[str, Any]]:
         """Exchange a refresh token for a fresh access token (Box OAuth2)."""

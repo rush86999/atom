@@ -1725,13 +1725,17 @@ if not is_test_mode:
 
     try:
         from integrations.gdrive_journey_routes import (
+            auth_router as gdrive_auth_journey_router,
             ingest_router as gdrive_ingest_router,
             router as gdrive_journey_router,
         )
 
         app.include_router(gdrive_journey_router, tags=["gdrive-journey"])
         app.include_router(gdrive_ingest_router, tags=["gdrive-journey"])
-        logger.info("  ✓ gdrive-journey (/api/gdrive/*, /api/ingest-gdrive-document)")
+        app.include_router(gdrive_auth_journey_router, tags=["gdrive-journey"])
+        logger.info(
+            "  ✓ gdrive-journey (/api/gdrive/*, /api/ingest-gdrive-document, /api/auth/gdrive/*)"
+        )
     except Exception as e:
         logger.error(f"  ✗ gdrive-journey registration failed: {e}")
 

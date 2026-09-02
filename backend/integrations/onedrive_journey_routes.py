@@ -162,20 +162,11 @@ async def disconnect(current_user: User = Depends(get_current_user)):
     # they stay active would leave OneDrive usable after "Disconnect" and the
     # UI would report a disconnect that never happened.
     try:
-        from core.database import SessionLocal
-        from core.models import IntegrationToken
+        from core.integrations.token_store import revoke_integration_tokens
 
-        db = SessionLocal()
-        try:
-            db.query(IntegrationToken).filter(
-                IntegrationToken.user_id == str(current_user.id),
-                IntegrationToken.provider.in_(
-                    ["onedrive", "microsoft", "outlook", "microsoft365"]
-                ),
-            ).update({IntegrationToken.status: "revoked"}, synchronize_session=False)
-            db.commit()
-        finally:
-            db.close()
+        revoke_integration_tokens(
+            current_user.id, ("onedrive", "microsoft", "outlook", "microsoft365")
+        )
     except HTTPException:
         raise
     except Exception as e:

@@ -28,6 +28,7 @@ def user():
 @pytest.fixture
 def client(user):
     from integrations.gdrive_journey_routes import (
+        auth_router as g_auth,
         ingest_router as g_ingest,
         router as g_router,
     )
@@ -40,6 +41,7 @@ def client(user):
     app.include_router(o_router)
     app.include_router(o_auth)
     app.include_router(g_router)
+    app.include_router(g_auth)
     app.include_router(g_ingest)
     app.dependency_overrides[get_current_user] = lambda: user
     c = TestClient(app, raise_server_exceptions=False)
@@ -205,6 +207,46 @@ class TestGDriveJourney:
             r = client.post("/api/gdrive/sync")
         assert r.json()["success"] is True
         assert mock_sync.call_args.args == ("journey-user-1", "tok")
+
+    def test_disconnect_removes_connections_and_revokes_grant(self, client):
+        from core import connection_service as cs
+
+        # One connection under "google_drive", one under the shared "google".
+        conns = {"google_drive": [{"id": "c1"}], "google": [{"id": "c2"}]}
+        fake_db = MagicMock()
+        with patch.object(cs.connection_service, "get_connections",
+                          side_effect=lambda uid, iid: conns.get(iid, [])), \
+                patch.object(cs.connection_service, "delete_connection",
+                          side_effect=lambda cid, uid: True) as mock_del, \
+                patch("core.database.SessionLocal", return_value=fake_db) as mock_sl:
+            r = client.post("/api/auth/gdrive/disconnect")
+        assert r.status_code == 200
+        assert r.json() == {"success": True, "removed_connections": 2}
+        assert mock_del.call_count == 2
+        # Regression: the endpoint previously did not exist at all — the panel
+        # POST 404'd and the Google grant survived. The revoke must target the
+        # full google family the resolver reads.
+        assert mock_sl.called
+        assert fake_db.commit.called
+        update_kw = fake_db.query.return_value.filter.return_value.update.call_args.args[0]
+        assert list(update_kw.values()) == ["revoked"]
+
+    def test_disconnect_fails_loudly_when_revocation_errors(self, client):
+        from core import connection_service as cs
+
+        conns = {"google_drive": [{"id": "c1"}]}
+        fake_db = MagicMock()
+        fake_db.commit.side_effect = RuntimeError("database is locked")
+        with patch.object(cs.connection_service, "get_connections",
+                          side_effect=lambda uid, iid: conns.get(iid, [])), \
+                patch.object(cs.connection_service, "delete_connection",
+                          side_effect=lambda cid, uid: True), \
+                patch("core.database.SessionLocal", return_value=fake_db):
+            r = client.post("/api/auth/gdrive/disconnect")
+        # A failed revocation must NOT report success — the token rows the
+        # resolver reads are still active, so the UI has to surface the error.
+        assert r.status_code == 500
+        assert "revoke" in r.json()["detail"].lower()
 
 
 # ---------------------------------------------------------------------------
