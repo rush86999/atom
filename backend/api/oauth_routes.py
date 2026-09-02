@@ -214,7 +214,7 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                 check_user = user or await get_current_user(request, db)
                 provider_names = [provider]
                 if provider == "microsoft":
-                    provider_names.append("outlook")
+                    provider_names += ["outlook", "onedrive", "microsoft365"]
                 existing = db.query(_IntegrationToken).filter(
                     _IntegrationToken.user_id == check_user.id,
                     _IntegrationToken.provider.in_(provider_names),
@@ -278,7 +278,7 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
 
             provider_keys = [provider]
             if provider == "microsoft":
-                provider_keys.append("outlook")
+                provider_keys += ["outlook", "onedrive", "microsoft365"]
             if provider == "zoho":
                 # One Zoho app grant covers all four suite services; each
                 # service resolves its own token row by exact provider name

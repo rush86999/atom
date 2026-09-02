@@ -42,10 +42,13 @@ class IngestDocumentRequest(BaseModel):
 def _normalize_file(f: Dict[str, Any]) -> Dict[str, Any]:
     """Drive file resource → the GoogleDriveFile shape the panel renders."""
     caps = f.get("capabilities") or {}
+    mime = f.get("mimeType", "")
     return {
         "id": f.get("id"),
         "name": f.get("name"),
-        "mimeType": f.get("mimeType"),
+        "mimeType": mime,
+        "isFolder": mime == "application/vnd.google-apps.folder",
+        "size": int(f["size"]) if f.get("size") is not None else None,
         "modifiedTime": f.get("modifiedTime"),
         "webViewLink": f.get("webViewLink"),
         "parents": f.get("parents"),
@@ -64,6 +67,7 @@ async def connection_status(current_user: User = Depends(get_current_user)):
         "isConnected": bool(token),
         "reason": None if token else "No Google Drive connection found. Connect the integration first.",
         "user_id": str(current_user.id),
+        "email": current_user.email if token else None,
     }
 
 

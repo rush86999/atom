@@ -42,6 +42,7 @@ def _normalize_item(item: Dict[str, Any]) -> Dict[str, Any]:
     """Graph drive item → the OneDriveFile shape the panel renders."""
     file_meta = item.get("file") or {}
     fs = item.get("fileSystemInfo") or {}
+    is_folder = "folder" in item or item.get("is_folder", False)
     return {
         "id": item.get("id"),
         "name": item.get("name"),
@@ -51,6 +52,8 @@ def _normalize_item(item: Dict[str, Any]) -> Dict[str, Any]:
         "web_url": item.get("webUrl"),
         "parent_reference": item.get("parentReference"),
         "size": item.get("size"),
+        "is_folder": is_folder,
+        "icon": "folder" if is_folder else "file",
     }
 
 
@@ -62,6 +65,7 @@ async def connection_status(current_user: User = Depends(get_current_user)):
         "is_connected": bool(token),
         "reason": None if token else "No OneDrive/Microsoft connection found. Connect the integration first.",
         "user_id": str(current_user.id),
+        "email": current_user.email if token else None,
     }
 
 

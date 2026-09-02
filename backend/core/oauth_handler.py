@@ -269,7 +269,7 @@ MICROSOFT_OAUTH_CONFIG = OAuthConfig(
         # without it /me/sendMail returns 403 notAllowed even though the
         # token can read and draft mail.
         "https://graph.microsoft.com/Mail.Send",
-        "https://graph.microsoft.com/Files.ReadWrite.All",
+        "https://graph.microsoft.com/Files.ReadWrite",
         "https://graph.microsoft.com/Contacts.Read",
         "https://graph.microsoft.com/User.Read",
         "offline_access",

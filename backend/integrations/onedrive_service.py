@@ -23,12 +23,11 @@ from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-# Microsoft Graph API scopes for OneDrive
+# Microsoft Graph API scopes for OneDrive (delegated user-level scopes only — no *.All to avoid requiring admin consent)
 ONEDRIVE_SCOPES = [
-    "Files.Read",
-    "Files.Read.All",
-    "Files.ReadWrite",
-    "Sites.Read.All",
+    "https://graph.microsoft.com/Files.Read",
+    "https://graph.microsoft.com/Files.ReadWrite",
+    "https://graph.microsoft.com/User.Read",
     "offline_access",
 ]
 
@@ -95,13 +94,16 @@ class OneDriveService(IntegrationService):
     # -------------------------------------------------------------------------
 
     async def get_access_token(self, user_id: str) -> Optional[str]:
-        """Resolve a usable Graph access token from stored connections.
+        """Resolve a usable Graph access token from IntegrationToken or stored connections.
 
-        Tries an explicit ``onedrive`` connection first, then falls back to the
-        shared ``microsoft365`` connection (same Azure AD app covers both).
-        ConnectionService auto-refreshes expired tokens transparently.
+        1. IntegrationToken (providers onedrive, microsoft, outlook, microsoft365; auto-refreshed).
+        2. ConnectionService (UserConnection) — legacy in-app connections.
+        3. ONEDRIVE_ACCESS_TOKEN / MICROSOFT_ACCESS_TOKEN env var (dev/convenience).
         """
-        for integration_id in ("onedrive", "microsoft365"):
+        token = await self._integration_token_access(user_id)
+        if token:
+            return token
+        for integration_id in ("onedrive", "microsoft365", "microsoft", "outlook"):
             connections = connection_service.get_connections(user_id, integration_id)
             if not connections:
                 continue
@@ -109,7 +111,80 @@ class OneDriveService(IntegrationService):
             creds = await connection_service.get_connection_credentials(conn_id, user_id)
             if creds and creds.get("access_token"):
                 return creds["access_token"]
-        return None
+        return os.getenv("ONEDRIVE_ACCESS_TOKEN") or os.getenv("MICROSOFT_ACCESS_TOKEN")
+
+    async def _integration_token_access(self, user_id: str) -> Optional[str]:
+        """Resolve + refresh the unified-OAuth IntegrationToken for Microsoft."""
+        try:
+            from datetime import timedelta
+
+            from core.database import SessionLocal
+            from core.models import IntegrationToken
+            from core.privsec.token_encryption import decrypt_token, encrypt_token
+
+            db = SessionLocal()
+            try:
+                token_record = (
+                    db.query(IntegrationToken)
+                    .filter(
+                        IntegrationToken.user_id == user_id,
+                        IntegrationToken.provider.in_(["onedrive", "microsoft", "outlook", "microsoft365"]),
+                        IntegrationToken.status == "active",
+                    )
+                    .first()
+                )
+                if not token_record or not token_record.access_token:
+                    return None
+
+                expires_at = token_record.expires_at
+                if expires_at and expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+                if expires_at and expires_at < (datetime.now(timezone.utc) + timedelta(minutes=2)):
+                    refresh_plain = (
+                        decrypt_token(token_record.refresh_token, allow_plaintext=True)
+                        if token_record.refresh_token
+                        else None
+                    )
+                    new_tokens = await self._refresh(refresh_plain)
+                    if new_tokens and new_tokens.get("access_token"):
+                        token_record.access_token = encrypt_token(new_tokens["access_token"])
+                        token_record.expires_at = datetime.now(timezone.utc) + timedelta(
+                            seconds=int(new_tokens.get("expires_in", 3600))
+                        )
+                        db.commit()
+                        return new_tokens["access_token"]
+                    return None
+
+                return decrypt_token(token_record.access_token, allow_plaintext=True)
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Error getting OneDrive integration token: {e}")
+            return None
+
+    async def _refresh(self, refresh_token: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Exchange a refresh token for a fresh Microsoft Graph access token."""
+        if not refresh_token:
+            return None
+        try:
+            tenant = os.getenv("MICROSOFT_TENANT_ID") or "common"
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
+                    data={
+                        "grant_type": "refresh_token",
+                        "refresh_token": refresh_token,
+                        "client_id": os.getenv("MICROSOFT_CLIENT_ID"),
+                        "client_secret": os.getenv("MICROSOFT_CLIENT_SECRET"),
+                        "scope": " ".join(self.required_scopes),
+                    },
+                )
+                response.raise_for_status()
+                return response.json()
+        except Exception as e:
+            logger.error(f"Failed to refresh OneDrive token: {e}")
+            return None
 
     async def authenticate(self, user_id: str) -> Dict[str, Any]:
         """Generate the Microsoft OAuth authorization URL for OneDrive."""
