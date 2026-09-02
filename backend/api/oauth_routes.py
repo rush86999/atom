@@ -57,7 +57,11 @@ _oauth_limiter = AuthRateLimiter(limit=20, window_seconds=60)
 # One grant fans out to several IntegrationToken provider rows at callback
 # time (see _handle_callback_logic); revoke must fan out identically.
 _TOKEN_FANOUT: Dict[str, list] = {
-    "microsoft": ["microsoft", "outlook"],
+    # Keep in sync with the provider_keys fan-out in _handle_callback_logic:
+    # callback creates all four rows for a microsoft grant, so revoke must
+    # deactivate all four — otherwise onedrive/microsoft365 rows survive a
+    # disconnect and OneDrive keeps resolving/refreshing them.
+    "microsoft": ["microsoft", "outlook", "onedrive", "microsoft365"],
     "zoho": [
         "zoho",
         "zoho_books",

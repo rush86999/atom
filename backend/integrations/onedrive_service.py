@@ -98,7 +98,10 @@ class OneDriveService(IntegrationService):
 
         1. IntegrationToken (providers onedrive, microsoft, outlook, microsoft365; auto-refreshed).
         2. ConnectionService (UserConnection) — legacy in-app connections.
-        3. ONEDRIVE_ACCESS_TOKEN / MICROSOFT_ACCESS_TOKEN env var (dev/convenience).
+
+        Deliberately NO process-wide env fallback: a shared
+        ONEDRIVE/MICROSOFT_ACCESS_TOKEN would let any authenticated user without
+        their own grant operate on the env-owner's OneDrive (user isolation).
         """
         token = await self._integration_token_access(user_id)
         if token:
@@ -111,7 +114,7 @@ class OneDriveService(IntegrationService):
             creds = await connection_service.get_connection_credentials(conn_id, user_id)
             if creds and creds.get("access_token"):
                 return creds["access_token"]
-        return os.getenv("ONEDRIVE_ACCESS_TOKEN") or os.getenv("MICROSOFT_ACCESS_TOKEN")
+        return None
 
     async def _integration_token_access(self, user_id: str) -> Optional[str]:
         """Resolve + refresh the unified-OAuth IntegrationToken for Microsoft."""

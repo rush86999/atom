@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
-import { authFetch, getAuthToken } from "@/lib/auth-headers";
+import { authFetch } from "@/lib/auth-headers";
 import {
   ChevronRight,
   ArrowRight,
@@ -172,13 +172,21 @@ const GoogleDriveIntegration: React.FC = () => {
   };
 
   // Mirrors Outlook's Switch Account: ?prompt=select_account forces Google's
-  // account picker instead of reusing the signed-in session.
-  const handleSwitchAccount = () => {
-    const token = getAuthToken();
-    const base = '/api/v1/auth/oauth/google/initiate';
-    window.location.href = token
-      ? `${base}?token=${encodeURIComponent(token)}&prompt=select_account`
-      : `${base}?prompt=select_account`;
+  // account picker instead of reusing the signed-in session. The JWT goes in
+  // the Authorization header via authFetch, never in a URL (URLs leak into
+  // browser history / request logs).
+  const handleSwitchAccount = async () => {
+    try {
+      const resp = await authFetch(
+        '/api/v1/auth/oauth/google/initiate?prompt=select_account&format=json'
+      );
+      if (!resp.ok) throw new Error(`Initiate failed (${resp.status})`);
+      const data = await resp.json();
+      if (!data?.url) throw new Error('No auth URL returned');
+      window.location.href = data.url;
+    } catch (err) {
+      console.error('Switch account error:', err);
+    }
   };
 
   // Handle Google Drive disconnection

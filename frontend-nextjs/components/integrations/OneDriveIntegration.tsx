@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
-import { authFetch, getAuthToken } from "@/lib/auth-headers";
+import { authFetch } from "@/lib/auth-headers";
 import {
   ChevronRight,
   ExternalLink,
@@ -170,13 +170,21 @@ const OneDriveIntegration: React.FC = () => {
 
   // Mirrors Outlook's Switch Account: ?prompt=select_account forces Microsoft's
   // account picker instead of reusing the signed-in session (which is why a
-  // plain reconnect keeps binding the same account).
-  const handleSwitchAccount = () => {
-    const token = getAuthToken();
-    const base = "/api/v1/auth/oauth/microsoft/initiate";
-    window.location.href = token
-      ? `${base}?token=${encodeURIComponent(token)}&prompt=select_account`
-      : `${base}?prompt=select_account`;
+  // plain reconnect keeps binding the same account). The JWT goes in the
+  // Authorization header via authFetch, never in a URL (URLs leak into browser
+  // history / request logs).
+  const handleSwitchAccount = async () => {
+    try {
+      const resp = await authFetch(
+        "/api/v1/auth/oauth/microsoft/initiate?prompt=select_account&format=json"
+      );
+      if (!resp.ok) throw new Error(`Initiate failed (${resp.status})`);
+      const data = await resp.json();
+      if (!data?.url) throw new Error("No auth URL returned");
+      window.location.href = data.url;
+    } catch (err) {
+      console.error("Switch account error:", err);
+    }
   };
 
   const handleDisconnect = async () => {
