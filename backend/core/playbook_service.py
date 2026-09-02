@@ -189,7 +189,8 @@ class PlaybookService:
             return []
         rows = self.list(include_drafts=False)
         scored: List[tuple] = []
-        msg_l = f" {re.sub(r'[^a-z0-9\s]', ' ', (message or '').lower())} "
+        msg_norm = re.sub(r"[^a-z0-9\s]", " ", (message or "").lower())
+        msg_l = f" {msg_norm} "
         for row in rows:
             keywords = [str(kw).lower().strip()
                         for kw in row.trigger_keywords or [] if str(kw).strip()]
