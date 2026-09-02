@@ -16,7 +16,7 @@ server-side from stored connections (ConnectionService auto-refreshes).
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from core.auth import get_current_user
@@ -157,8 +157,10 @@ async def disconnect(current_user: User = Depends(get_current_user)):
 
     # Revoke the unified grant rows — the same microsoft family the callback
     # fans out to (microsoft/outlook/onedrive/microsoft365, in sync with
-    # _TOKEN_FANOUT in api/oauth_routes.py). Best-effort: legacy-connection
-    # removal still reports success if the DB revoke hiccups.
+    # _TOKEN_FANOUT in api/oauth_routes.py). A revocation failure must NOT be
+    # masked: the resolver reads these rows, so returning success here while
+    # they stay active would leave OneDrive usable after "Disconnect" and the
+    # UI would report a disconnect that never happened.
     try:
         from core.database import SessionLocal
         from core.models import IntegrationToken
@@ -174,7 +176,16 @@ async def disconnect(current_user: User = Depends(get_current_user)):
             db.commit()
         finally:
             db.close()
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning(f"OneDrive IntegrationToken revocation failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Could not revoke the OneDrive Microsoft grant — connection "
+                "partially removed, please try again"
+            ),
+        )
 
     return {"success": True, "removed_connections": removed}

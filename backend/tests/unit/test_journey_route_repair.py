@@ -140,6 +140,24 @@ class TestOneDriveJourney:
         update_kw = fake_db.query.return_value.filter.return_value.update.call_args.args[0]
         assert list(update_kw.values()) == ["revoked"]
 
+    def test_disconnect_fails_loudly_when_revocation_errors(self, client):
+        from core import connection_service as cs
+        from unittest.mock import MagicMock
+
+        conns = {"onedrive": [{"id": "c1"}]}
+        fake_db = MagicMock()
+        fake_db.commit.side_effect = RuntimeError("database is locked")
+        with patch.object(cs.connection_service, "get_connections",
+                          side_effect=lambda uid, iid: conns.get(iid, [])), \
+                patch.object(cs.connection_service, "delete_connection",
+                          side_effect=lambda cid, uid: True), \
+                patch("core.database.SessionLocal", return_value=fake_db):
+            r = client.post("/api/auth/onedrive/disconnect")
+        # A failed revocation must NOT report success — the token rows the
+        # resolver reads are still active, so the UI has to surface the error.
+        assert r.status_code == 500
+        assert "revoke" in r.json()["detail"].lower()
+
 
 # ---------------------------------------------------------------------------
 # Google Drive journey
