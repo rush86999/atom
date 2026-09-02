@@ -125,3 +125,29 @@ async def test_execute_tool_plan_rewrites_generic_web_query():
     assert "blumetric" in captured["query"].lower()
     assert block and "LIVE TOOL RESULTS" in block
     assert "environmental firm" in block
+
+
+# ───────────────── grounding guard (model-quality wobble) ─────────────────
+
+def test_reply_inability_detector_patterns():
+    from integrations.chat_orchestrator import _reply_claims_inability
+    # the LIVE wobble: claims inability while research results were injected
+    assert _reply_claims_inability(
+        "I don't have the ability to research Blumetric directly over the web.")
+    assert _reply_claims_inability(
+        "I'm unable to research that lead over the web to determine their type.")
+    assert _reply_claims_inability("I do not have access to web search.")
+    # legitimate content answers must NOT trip the detector
+    assert not _reply_claims_inability(
+        "Based on my research, BluMetric is an end user — an environmental firm.")
+    assert not _reply_claims_inability(
+        "Here's the follow-up draft emphasizing technical support.")
+
+
+def test_grounding_guard_constants_shape():
+    """The guard is wired into _get_qwen_response for BOTH reply paths."""
+    import inspect
+    from integrations import chat_orchestrator as co
+    src = inspect.getsource(co.ChatOrchestrator._get_qwen_response)
+    assert src.count("_reply_claims_inability") >= 2  # streaming + non-stream paths
+    assert "LIVE TOOL RESULT block IS present" in src

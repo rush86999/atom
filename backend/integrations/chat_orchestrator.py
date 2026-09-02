@@ -242,6 +242,40 @@ _APPROVAL_EXECUTION_RULE = (
 )
 
 
+# Phrases that indicate the reply DENIES having data/ability while a fresh
+# tool result was actually injected — the model-quality wobble class (weak
+# models anchor on their own earlier refusals and contradict the context).
+_INABILITY_RE = re.compile(
+    r"\b(i\s+(?:don't|do not|can't|cannot|can not|won't|will not|am unable|'m unable)"
+    r"\s+(?:have|see|find|access|research|browse|check|reach|view)|"
+    r"unable\s+to\s+(?:research|access|find|browse|check|view|reach)|"
+    r"no\s+(?:access|ability|visibility)\s+to|"
+    r"i\s+don't\s+have\s+(?:the\s+)?(?:ability|access|capability|tools?))",
+    re.IGNORECASE,
+)
+
+
+def _strip_protocol_tags(text: str) -> str:
+    """Strip reasoning/protocol fragments weak models leak into content
+    (minimax "</mm:think>", raw tool-call XML) — shared by the streaming
+    and non-streaming reply paths."""
+    t = str(text or "").strip()
+    t = re.sub(r"<think>.*?</think>", "", t, flags=re.DOTALL)
+    t = re.sub(r"<tool_call>.*?</tool_call>", "", t, flags=re.DOTALL)
+    t = re.sub(r"</?(?:mm:)?think>", "", t)
+    t = re.sub(r"\]?<\]?minimax\[>?", "", t)
+    return t.strip()
+
+
+def _reply_claims_inability(text: str) -> bool:
+    """True when a reply denies having data/ability — detectable wobble that
+    contradicts an injected LIVE TOOL RESULT. Cheap string check, so the
+    guard costs nothing on healthy replies."""
+    if not text:
+        return False
+    return bool(_INABILITY_RE.search(text))
+
+
 class ChatOrchestrator:
     """
     Main orchestrator that connects chat interface with all ATOM features
@@ -1423,9 +1457,31 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         })
                     _full = "".join(_buf).strip()
                     if _full:
-                        stream_ok_msg = re.sub(r"<think>.*?</think>", "", _full, flags=re.DOTALL)
-                        stream_ok_msg = re.sub(r"</?(?:mm:)?think>", "", stream_ok_msg)
-                        _streamed = stream_ok_msg.strip()
+                        _streamed = _strip_protocol_tags(_full)
+                        # GROUNDING GUARD: a streamed reply that denies having
+                        # data contradicts the LIVE TOOL RESULT injected above
+                        # (model-quality wobble, observed live). One grounded
+                        # regeneration — the correction replaces the stream.
+                        if _tool_block and _reply_claims_inability(_streamed):
+                            logger.warning(
+                                "streamed reply claims inability despite tool "
+                                "results — grounded regeneration")
+                            messages.append({"role": "system", "content": (
+                                "Your previous reply wrongly claimed you lack data "
+                                "or ability. A LIVE TOOL RESULT block IS present "
+                                "above — answer the user's current message from it "
+                                "now, in plain language, with no capability "
+                                "disclaimers."
+                            )})
+                            _fix = await self.llm_service.generate_completion(
+                                messages=messages,
+                                model=forced_model,
+                                tenant_id=self.tenant_id,
+                                **extra_kwargs,
+                            )
+                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            if _fixed and not _reply_claims_inability(_fixed):
+                                _streamed = _fixed
                         await _ws_manager.broadcast(f"user:{user_id}", {
                             "type": "chat_token_done",
                             "data": {
@@ -1467,12 +1523,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # content. Strip paired blocks and stray tags before the
                 # reply is stored or displayed — otherwise they persist into
                 # the transcript and the next turn's context.
-                _content = str(response_data.get("content") or "").strip()
-                _content = re.sub(r"<think>.*?</think>", "", _content, flags=re.DOTALL)
-                _content = re.sub(r"<tool_call>.*?</tool_call>", "", _content, flags=re.DOTALL)
-                _content = re.sub(r"</?(?:mm:)?think>", "", _content)
-                _content = re.sub(r"\]?<\]?minimax\[>?", "", _content)
-                _content = _content.strip()
+                _content = _strip_protocol_tags(response_data.get("content"))
+                # GROUNDING GUARD (non-streaming path): same wobble guard as
+                # the streaming path — one grounded regeneration when the
+                # reply denies having data that a LIVE TOOL RESULT provided.
+                if _tool_block and _reply_claims_inability(_content):
+                    logger.warning(
+                        "reply claims inability despite tool results — grounded "
+                        "regeneration")
+                    messages.append({"role": "system", "content": (
+                        "Your previous reply wrongly claimed you lack data or "
+                        "ability. A LIVE TOOL RESULT block IS present above — "
+                        "answer the user's current message from it now, in plain "
+                        "language, with no capability disclaimers."
+                    )})
+                    response_data = await self.llm_service.generate_completion(
+                        messages=messages,
+                        model=forced_model,
+                        tenant_id=self.tenant_id,
+                        **extra_kwargs,
+                    )
+                    _content = _strip_protocol_tags(
+                        (response_data or {}).get("content"))
                 if _tool_block and len(_content) < 20:
                     # The model emitted protocol syntax instead of an answer
                     # (sanitized away). One firm retry; if it still fails,
