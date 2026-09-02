@@ -766,6 +766,7 @@ class ChatOrchestrator:
                     execution_id=_execution_id,
                     canvas_context=_canvas_ctx,
                     tool_plan_task=_tool_plan_task,
+                    mission_critical=bool((context or {}).get("mission_critical")),
                 )
             finally:
                 if _tool_plan_task is not None:
@@ -1105,6 +1106,7 @@ class ChatOrchestrator:
         session_id: Optional[str] = None,
         execution_id: Optional[str] = None,
         canvas_context: Optional[Dict[str, Any]] = None,
+        mission_critical: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -1286,6 +1288,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
             try:
                 from core.chat_tool_planner import execute_tool_plan, plan_tool_use
+                from core.hallucination_config import get_verify_panel_mode
+                from core.verify_panel import verify_reply
 
                 # Full hydrated history for the planner (not the [-6:] main-
                 # model window): in retry-heavy sessions the original request
@@ -1571,7 +1575,60 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _content = _rc
                 if not _content:
                     return None
-                if execution_id:
+                # VERIFICATION PANEL — mission-critical / high-complexity turns only
+                # (PoLL pattern: diverse-provider judge VOTE via the R83 voter).
+                _vpm = get_verify_panel_mode()
+                logger.info(
+                    f"[verify-panel] state: mode={_vpm} tool_block={bool(_tool_block)} "
+                    f"content={bool(_content)} mission={mission_critical}")
+                if _vpm != "off" and _tool_block and _content:
+                    _vp_t0 = time.monotonic()
+                    _verdict = await verify_reply(
+                        _content, _tool_block,
+                        handler=self.llm_service.handler,
+                        tenant_id=self.tenant_id,
+                        agent_id=agent_id,
+                    )
+                    if _verdict.get("ran"):
+                        logger.info(
+                            "[verify-panel] " + _vpm + ": grounded=" + str(_verdict.get("grounded"))
+                            + " agreement=" + str(_verdict.get("agreement"))
+                            + " (" + str(_verdict.get("level")) + ", "
+                            + str(_verdict.get("samples")) + " samples, "
+                            + "%.1fs)" % (time.monotonic() - _vp_t0))
+                        # Enforce only on an AGREED ungrounded verdict — an
+                        # ambiguous split (judges disagreed) is logged, never
+                        # acted on.
+                        if (_vpm == "enforce" and not _verdict.get("grounded")
+                                and _verdict.get("level") in ("high", "partial")):
+                            logger.warning(
+                                "[verify-panel] ungrounded claims: "
+                                + "; ".join(_verdict.get("claims") or ["unspecified"])
+                                + " — grounded regeneration")
+                            messages.append({"role": "system", "content": (
+                                "VERIFICATION FAILURE: your reply contains claims the retrieved "
+                                "evidence does not support: "
+                                + "; ".join(_verdict.get("claims") or ["unspecified"])
+                                + ". Rewrite the answer using ONLY the LIVE TOOL RESULT evidence "
+                                "above. Keep what is supported; drop what is not."
+                            )})
+                            response_data = await self.llm_service.generate_completion(
+                                messages=messages,
+                                model=forced_model,
+                                tenant_id=self.tenant_id,
+                                **extra_kwargs,
+                            )
+                            _content = _strip_protocol_tags((response_data or {}).get("content"))
+                            _verdict2 = await verify_reply(
+                                _content, _tool_block,
+                                handler=self.llm_service.handler,
+                                tenant_id=self.tenant_id,
+                                agent_id=agent_id,
+                            )
+                            if not _verdict2.get("ran") or not _verdict2.get("grounded"):
+                                _content += (
+                                    "\n\n⚠️ *Verification note: automated checks could not confirm "
+                                    "every claim in this reply against the retrieved sources.*")
                     try:
                         await _trace("final_answer",
                                      {"tool": "llm", "params": {"model": response_data.get("model")}},

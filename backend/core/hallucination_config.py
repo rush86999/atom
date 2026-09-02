@@ -22,6 +22,7 @@ import from anywhere, including the voter module.
 from __future__ import annotations
 
 import re
+import os
 from typing import Any
 
 from core.runtime_settings import (
@@ -347,3 +348,17 @@ def get_frontier_model_for_provider(provider: str | None) -> str | None:
     if key.startswith("llmprovider."):
         key = key.split(".", 1)[1]
     return _FRONTIER_BY_PROVIDER.get(key)
+
+
+def get_verify_panel_mode() -> str:
+    """ATOM_VERIFY_PANEL — verification panel (judge vote) for mission-critical
+    and high-complexity reply turns.
+
+    Modes: ``off`` (default) | ``shadow`` (verdict computed + logged, reply
+    untouched) | ``enforce`` (ungrounded-majority replies trigger one grounded
+    regeneration; persistent failure appends an honest caveat). Scoped to
+    mission-critical or COMPLEX/ADVANCED turns only — the panel costs N extra
+    structured calls and must never sit on ordinary chat latency.
+    """
+    raw = (os.getenv("ATOM_VERIFY_PANEL") or "off").strip().lower()
+    return raw if raw in ("off", "shadow", "enforce") else "off"

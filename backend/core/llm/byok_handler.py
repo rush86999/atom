@@ -3502,6 +3502,7 @@ class BYOKHandler:
         provider_model: Optional[tuple] = None,  # R72 F: pin a single (provider, model)
         allow_moa: bool = True,                  # R72 F: opt out of MoA dispatch
         disable_reasoning: bool = False,         # tiny planning calls: skip hidden thinking
+        max_tokens: Optional[int] = None,        # explicit structured cap (SC voter passes this)
         stage_decision_id: Optional[str] = None,  # Stage router: audit-row join
     ) -> Any:
         """
@@ -3843,7 +3844,10 @@ class BYOKHandler:
                     # (observed live on the canvas editor, 2026-08-31). The
                     # cap is a ceiling, not a target — short answers are
                     # unaffected — so default generously and allow override.
+                    # An explicit per-call cap (e.g. the SC voter's 500-token
+                    # judge samples) wins over the env default.
                     _structured_max_tokens = int(
+                        max_tokens) if max_tokens else int(
                         os.getenv("ATOM_STRUCTURED_MAX_TOKENS", "6000")
                     )
                     _create_kwargs = dict(
