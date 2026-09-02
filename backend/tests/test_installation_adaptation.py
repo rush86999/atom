@@ -328,7 +328,8 @@ def test_correction_capture_files_eval_and_reflection(db):
     from services.canvas_context_service import CanvasContextService
 
     db.add(CanvasContext(canvas_id=CANVAS_ID, tenant_id="default",
-                         canvas_type="email", user_id="u1"))
+                         canvas_type="email", user_id="u1",
+                         agent_id="hire-1"))
     db.commit()
 
     ok = CanvasContextService(db, tenant_id="default").record_user_correction(
@@ -349,6 +350,56 @@ def test_correction_capture_files_eval_and_reflection(db):
     drafts = db.query(Playbook).filter(
         Playbook.source == "learned").all()
     assert drafts and drafts[0].approval_state == "draft"
+
+
+def test_correction_evolves_agent_real_time(db):
+    """THE real-time evolution contract: the specific rule implied by a
+    correction is journaled into the agent's permanent lessons IMMEDIATELY,
+    so the very next turn already respects it — no approval wait, no
+    sleep-time cycle. (The playbook draft stays the install-wide promotion
+    path; the user's own agent gets the rule at once.)"""
+    from core.models import AgentRegistry, CanvasContext
+    from core.student_learning_service import get_agent_lessons
+    from services.canvas_context_service import CanvasContextService
+
+    db.add(AgentRegistry(
+        id="hire-1", name="Hire", category="sales", role="sales_assistant",
+        type="worker", capabilities=[], module_path="x", class_name="X",
+        status="student", confidence_score=0.5))
+    db.add(CanvasContext(canvas_id=CANVAS_ID, tenant_id="default",
+                         canvas_type="email", user_id="u1",
+                         agent_id="hire-1"))
+    db.commit()
+
+    svc = CanvasContextService(db, tenant_id="default")
+    correction = {"original": {"type": "canvas_edit",
+                               "content": {"body": "Regards,\nChandrakant"},
+                               "author": "agent"},
+                  "corrected": {"type": "canvas_edit",
+                                "content": {"body": "Regards,\nRish M."},
+                                "author": "supervisor"},
+                  "context": "mark is the dealer"}
+    assert svc.record_user_correction(
+        canvas_id=CANVAS_ID, user_id="u1",
+        original_action=correction["original"],
+        corrected_action=correction["corrected"],
+        context_info=correction["context"])
+    lessons = get_agent_lessons(db, "hire-1")
+    assert lessons, "agent must have learned something immediately"
+    identity_rules = [l for l in lessons
+                      if "Chandrakant" in str(l.get("summary") or "")]
+    assert identity_rules, (
+        "the SPECIFIC rule (the forbidden name) must be in the lesson log "
+        "right now — not a generic 'follow the corrected version'")
+    # journaled exactly once — a second identical correction must not stack
+    svc.record_user_correction(
+        canvas_id=CANVAS_ID, user_id="u1",
+        original_action=correction["original"],
+        corrected_action=correction["corrected"],
+        context_info=correction["context"])
+    again = [l for l in get_agent_lessons(db, "hire-1")
+             if "Chandrakant" in str(l.get("summary") or "")]
+    assert len(again) == len(identity_rules)
 
 
 # ───────────── wiring: the runner replays against a fake planner ─────────────

@@ -440,18 +440,82 @@ class CanvasContextService:
                 corrected=corrected_content,
                 instruction=context_info,
             )
-            reflect_on_correction(
+            rule_row = reflect_on_correction(
                 self.db, self.tenant_id, canvas_id, context.canvas_type,
                 original=original_content,
                 corrected=corrected_content,
                 taxonomy=label,
                 instruction=context_info,
             )
+            # REAL-TIME EVOLUTION: the supervisor's correction IS the
+            # approval for their own agent — journal the specific rule as an
+            # immediate permanent lesson, so the very NEXT turn already
+            # respects it (work-time lessons ride every edit plan and chat
+            # turn). No approval wait: that gate only applies to promoting
+            # the rule INSTALL-WIDE via the playbook draft above.
+            if context.agent_id and rule_row is not None:
+                try:
+                    from core.student_learning_service import get_agent_lessons
+
+                    rule = str((rule_row.steps or [""])[0] or "").strip()
+                    existing = {
+                        str(l.get("summary") or "")
+                        for l in get_agent_lessons(self.db, context.agent_id, limit=50)
+                    }
+                    if rule and rule not in existing:
+                        self._journal_rule_lesson(
+                            context.agent_id, rule,
+                            canvas_id=canvas_id,
+                            playbook_id=rule_row.id,
+                        )
+                        logger.info(
+                            f"[LEARNING] real-time rule journaled for agent "
+                            f"{context.agent_id}: {rule[:80]}"
+                        )
+                except Exception as rt_err:
+                    logger.debug(f"real-time rule journal skipped: {rt_err}")
+                except Exception as rt_err:
+                    logger.debug(f"real-time rule journal skipped: {rt_err}")
         except Exception as adapt_err:
             logger.debug(f"installation adaptation capture skipped: {adapt_err}")
 
         return True
     
+    def _journal_rule_lesson(self, agent_id: str, rule: str,
+                             canvas_id: str, playbook_id: str) -> None:
+        """Append a permanent work-time lesson DIRECTLY to the agent's
+        registry lesson log — status-independent. StudentLearningService
+        (the path for the generic journal above) only accepts STUDENT-status
+        agents, but real-time evolution must work at every tier: a
+        SUPERVISED hire corrected on a canvas needs the rule on its very
+        next turn too. Fresh-dict assign + flag_modified so the JSON column
+        actually flushes. Raises nothing that the caller doesn't catch."""
+        from sqlalchemy.orm.attributes import flag_modified
+
+        from core.models import AgentRegistry
+
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id).first()
+        if agent is None:
+            return
+        config = agent.configuration if isinstance(agent.configuration, dict) else {}
+        learning = dict(config.get("learning") or {})
+        log = list(learning.get("log") or [])
+        log.append({
+            "source": "observation",
+            "observation_type": "human_correction",
+            "summary": rule[:1000],
+            "details": {"canvas_id": canvas_id, "playbook_id": playbook_id,
+                        "real_time": True},
+            "learned_at": datetime.now(timezone.utc).isoformat(),
+        })
+        learning["log"] = log
+        learning["last_learned_at"] = datetime.now(timezone.utc).isoformat()
+        config = {**config, "learning": learning}
+        agent.configuration = config
+        flag_modified(agent, "configuration")
+        self.db.commit()
+
     def get_similar_canvas_corrections(
         self,
         current_canvas_id: str,
