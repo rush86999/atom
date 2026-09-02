@@ -742,20 +742,71 @@ class OutlookService(IntegrationService):
             self.last_send_error = {"error": "Outlook send failed after attaching files."}
         return sent
 
+    async def get_latest_conversation_message_id(
+        self,
+        user_id: str,
+        conversation_id: str,
+        token: Optional[str] = None
+    ) -> Optional[str]:
+        """Resolve an Outlook conversationId to the id of its most recent
+        message. Graph /reply needs a message id, but ingested/searched
+        threads surface a conversationId — this is the bridge."""
+        try:
+            params = {
+                "$filter": f"conversationId eq '{conversation_id}'",
+                "$orderby": "receivedDateTime desc",
+                "$top": 1,
+                "$select": "id,conversationId",
+            }
+            endpoint = (
+                "/me/messages?" + urllib.parse.urlencode(params)
+            )
+            result = await self._make_graph_request(
+                user_id, endpoint, access_token=token
+            )
+            value = (result or {}).get("value") or []
+            return value[0].get("id") if value else None
+        except Exception as e:
+            logger.error(f"Error resolving conversation {conversation_id}: {e}")
+            return None
+
     async def reply_to_email(
         self,
         user_id: str,
         message_id: str,
         comment: str,
+        reply_all: bool = False,
+        to_recipients: Optional[List[str]] = None,
+        cc_recipients: Optional[List[str]] = None,
+        subject: Optional[str] = None,
         token: Optional[str] = None
     ) -> bool:
-        """Reply to an email via Outlook"""
+        """Reply to an email via Outlook. ``reply_all`` targets /replyAll so
+        the whole thread stays on the message instead of only the sender.
+        ``to_recipients``/``cc_recipients``/``subject`` ride the reply's
+        ``message`` override so a caller that shows editable fields (the
+        composer) keeps the user's edits while the reply still lands in
+        the original thread (Graph adds In-Reply-To/References itself)."""
         try:
-            reply_data = {
+            reply_data: Dict[str, Any] = {
                 "comment": comment
             }
+            overrides: Dict[str, Any] = {}
+            if to_recipients:
+                overrides["toRecipients"] = [
+                    {"emailAddress": {"address": email}} for email in to_recipients
+                ]
+            if cc_recipients:
+                overrides["ccRecipients"] = [
+                    {"emailAddress": {"address": email}} for email in cc_recipients
+                ]
+            if subject:
+                overrides["subject"] = subject
+            if overrides:
+                reply_data["message"] = overrides
+            action = "replyAll" if reply_all else "reply"
             result = await self._make_graph_request(
-                user_id, f"/me/messages/{message_id}/reply", "POST", reply_data, access_token=token
+                user_id, f"/me/messages/{message_id}/{action}", "POST", reply_data, access_token=token
             )
             return result is not None
         except Exception as e:

@@ -440,6 +440,26 @@ async def teach_agent(
             raise router.error_response(
                 error_code="AGENT_NOT_FOUND", message=f"Agent {agent_id} not found", status_code=404
             )
+        if result.get("reason") == "student_not_found" and agent.id:
+            # Human supervisor teaching their own hire at ANY tier: the
+            # lesson still lands as permanent standing guidance (same
+            # status-independent journal the canvas-correction path uses) —
+            # only the STUDENT-only confidence/pedagogy circuit is skipped.
+            from core.student_learning_service import journal_standing_lesson
+
+            journaled = journal_standing_lesson(
+                db, str(agent.id), req.lesson,
+                source="teacher",
+                topic=req.topic,
+                teacher_agent_id=req.acting_agent_id or "human_supervisor",
+            )
+            if journaled:
+                return router.success_response(
+                    data={"status": "ok", "mode": "standing_guidance",
+                          "agent_status": agent.status},
+                    message=(f"Lesson recorded as standing guidance for {agent.name} "
+                             f"({agent.status.upper()}) — it applies to all their work"),
+                )
         return router.success_response(
             data={"status": "skipped", "reason": result.get("reason"),
                   "agent_status": agent.status},

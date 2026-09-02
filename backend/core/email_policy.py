@@ -248,6 +248,28 @@ def evaluate_email_action(
                     "policy": "attachment_sensitivity",
                 }
 
+        # 1c. Threaded reply with no explicit recipients: the actual
+        # recipients are derived from the existing thread at send time, so
+        # the egress allowlist below cannot see them (and the thread's last
+        # sender is attacker-influencable). Fail safe: require human
+        # approval. Explicit recipients still fall through to the normal
+        # allowlist checks.
+        is_thread_reply = bool(
+            action.get("thread_id")
+            or action.get("conversation_id")
+            or action.get("reply_to_message_id")
+            or action.get("message_id")
+        )
+        if is_thread_reply and not all_recipients:
+            return {
+                "decision": APPROVE,
+                "reason": (
+                    "Threaded reply: recipients come from the existing "
+                    "thread, which requires human approval"
+                ),
+                "policy": "thread_reply_recipients",
+            }
+
         # 2. Recipient egress allowlist.
         for r in all_recipients:
             if is_external_recipient(r):

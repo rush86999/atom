@@ -1230,6 +1230,11 @@ class CanvasActionPlan(BaseModel):
     subject: Optional[str] = None
     body: Optional[str] = None    # full email body; defaults to canvas content
     reply: str = ""
+    # Threaded reply: when the user says to reply on/in the existing thread,
+    # the plan carries the conversationId from the canvas's email context
+    # and the send becomes a threaded reply instead of a fresh mail.
+    thread_id: Optional[str] = None
+    reply_all: bool = False
 
 
 _ACTION_SYSTEM = """You are the action planner for an AI co-editing panel.
@@ -1253,7 +1258,11 @@ Rules:
   obvious meta notes that aren't part of the artifact itself. Deviate only
   when the message itself asks for content changes.
 - ``action``: exactly "send_email" for any send/dispatch request.
-- ``reply``: one short sentence describing what you will do."""
+- ``reply``: one short sentence describing what you will do.
+- ``thread_id``: when the message asks to reply on/in the thread AND the
+  canvas context shows a conversationId for that thread, copy it here so
+  the send stays in the original conversation; empty for a fresh send.
+  ``reply_all``: true only when the message says reply to everyone."""
 
 
 async def plan_canvas_action(

@@ -257,6 +257,41 @@ def _fire_teaching_circuit(pair: Dict[str, Any], row: ExchangeExample) -> Dict[s
         except Exception as e:
             logger.debug("human_correction fan-out skipped: %s", e)
 
+        # The STUDENT fan-out above skips SUPERVISED/graduated hires. The
+        # operating agent that produced the rejected answer must get the
+        # rule at ANY tier — the supervisor's correction IS the approval
+        # for their own agent (same rationale as the canvas real-time
+        # path). Status-independent, deduped, fire-and-forget.
+        operating_agent_id = (
+            getattr(row, "agent_id", None) or pair.get("agent_id") or ""
+        )
+        if str(operating_agent_id).strip():
+            try:
+                from core.database import SessionLocal
+                from core.student_learning_service import journal_standing_lesson
+
+                jd = SessionLocal()
+                try:
+                    journaled = journal_standing_lesson(
+                        jd, str(operating_agent_id), summary,
+                        source="observation",
+                        observation_type="human_correction",
+                        details={
+                            "example_id": row.id,
+                            "conversation_id": row.conversation_id,
+                            "query": (row.user_query or "")[:300],
+                            "rejection_reason": row.comment[:500],
+                            "feedback_source": row.source,
+                            "surface": "chat_feedback",
+                        },
+                    )
+                finally:
+                    jd.close()
+                if journaled:
+                    fired["operating_agent_lesson"] = True
+            except Exception as e:
+                logger.debug("operating-agent correction journal skipped: %s", e)
+
     agent_id = pair.get("agent_id")
     if agent_id:
         try:

@@ -379,12 +379,15 @@ class MCPService(IntegrationService):
                 },
                 {
                     "name": "send_email",
-                    "description": "Send an email via Gmail, Outlook, or Zoho Mail",
+                    "description": "Send an email via Gmail, Outlook, or Zoho Mail. To reply within an existing thread pass thread_id (from search results) or reply_to_message_id — recipients and subject are inherited; do not re-fetch the thread. reply_all: true = reply to all (Outlook).",
                     "parameters": {
                         "platform": "string (gmail, outlook, zoho_mail, optional)",
-                        "to": "string (recipient email)",
-                        "subject": "string",
-                        "body": "string"
+                        "to": "string (recipient email; optional when thread_id or reply_to_message_id is given)",
+                        "subject": "string (ignored for thread replies)",
+                        "body": "string",
+                        "thread_id": "string (Gmail threadId or Outlook conversationId from search_emails results — reply into that thread)",
+                        "reply_to_message_id": "string (reply to this specific message)",
+                        "reply_all": "boolean (Outlook only — reply to the whole thread)"
                     }
                 },
                 {

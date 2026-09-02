@@ -127,6 +127,77 @@ def get_agent_lessons(
     return lessons[:max(0, limit)]
 
 
+def journal_standing_lesson(
+    db: Session,
+    agent_id: str,
+    lesson: str,
+    *,
+    source: str = "observation",
+    observation_type: Optional[str] = "human_correction",
+    topic: Optional[str] = None,
+    teacher_agent_id: Optional[str] = None,
+    details: Optional[Dict[str, Any]] = None,
+) -> bool:
+    """Append a permanent lesson DIRECTLY to an agent's registry lesson log —
+    status-independent, so a taught rule reaches SUPERVISED and graduated
+    hires too (StudentLearningService's instance methods only accept
+    STUDENT-status agents, but "the supervisor's correction IS the approval
+    for their own agent" — commit eaaa8b71a's rationale, generalized to
+    every teaching surface). Deduped against the existing log so repeated
+    identical lessons don't stack. Fresh-dict assign + flag_modified so the
+    JSON column actually flushes. Returns False when the agent is missing
+    or the lesson is empty/duplicate; raises nothing."""
+    text = str(lesson or "").strip()
+    if not text or not agent_id:
+        return False
+    try:
+        agent = db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id).first()
+        if agent is None:
+            return False
+        existing = {
+            _lesson_text(e) for e in get_agent_lessons(db, agent_id, limit=50)
+        }
+        if text in existing:
+            return False
+
+        if source == "teacher":
+            entry: Dict[str, Any] = {
+                "source": "teacher",
+                "teacher_agent_id": teacher_agent_id or "human_supervisor",
+                "topic": topic or "general",
+                "lesson": text[:2000],
+                "learned_at": datetime.now(timezone.utc).isoformat(),
+            }
+        else:
+            entry = {
+                "source": "observation",
+                "observation_type": observation_type or "human_correction",
+                "summary": text[:1000],
+                "details": dict(details or {}),
+                "learned_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+        from sqlalchemy.orm.attributes import flag_modified
+
+        config = agent.configuration if isinstance(agent.configuration, dict) else {}
+        learning = dict(config.get("learning") or {})
+        log = list(learning.get("log") or [])
+        log.append(entry)
+        if len(log) > MAX_LOG_ENTRIES:
+            del log[:-MAX_LOG_ENTRIES]
+        learning["log"] = log
+        learning["last_learned_at"] = entry["learned_at"]
+        config = {**config, "learning": learning}
+        agent.configuration = config
+        flag_modified(agent, "configuration")
+        db.commit()
+        return True
+    except Exception as e:
+        logger.debug(f"standing-lesson journal skipped for {agent_id}: {e}")
+        return False
+
+
 def learn_user_style(
     db: Session,
     agent_id: str,

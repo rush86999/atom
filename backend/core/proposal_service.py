@@ -595,6 +595,10 @@ Please review and approve or reject this proposal.
                 subject=str(action.get("subject") or ""),
                 body=body,
                 agent_id=proposal.agent_id,
+                # Threaded reply params survive the HITL round-trip so an
+                # approved "reply on the thread" proposal replays as one.
+                thread_id=(str(action.get("thread_id") or "").strip() or None),
+                reply_all=bool(action.get("reply_all")),
             )
             if not (result or {}).get("success"):
                 execution.status = "failed"

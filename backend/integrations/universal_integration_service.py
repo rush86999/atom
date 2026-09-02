@@ -1,4 +1,5 @@
 
+import asyncio
 import logging
 import os
 from typing import Dict, Any, List, Optional
@@ -564,19 +565,56 @@ class UniversalIntegrationService:
                 
         elif service == "gmail":
             if action == "send_message":
-                return {"status": "success", "data": await comm_service.send_message(
-                    to=params.get("to"),
+                # GmailService methods are sync — run them off the event loop
+                # (they were awaited directly before, which raised TypeError
+                # on every gmail send).
+                thread_id = params.get("thread_id")
+                reply_message_id = (
+                    params.get("reply_to_message_id") or params.get("message_id")
+                )
+                if reply_message_id and not thread_id:
+                    msg = await asyncio.to_thread(
+                        comm_service.get_message, reply_message_id, token
+                    )
+                    thread_id = (msg or {}).get("threadId")
+                    if not thread_id:
+                        return {
+                            "status": "error",
+                            "message": f"Message {reply_message_id} has no Gmail thread",
+                        }
+                to = params.get("to")
+                if thread_id and not to:
+                    # Pure thread reply: recipient + In-Reply-To/References
+                    # headers are derived from the thread's last message.
+                    data = await asyncio.to_thread(
+                        comm_service.reply_to_message, thread_id,
+                        params.get("body") or params.get("content") or "", token,
+                    )
+                    return {
+                        "status": "success" if data is not None else "error",
+                        "data": data if data is not None else {"error": "Gmail thread reply failed"},
+                    }
+                return {"status": "success", "data": await asyncio.to_thread(
+                    comm_service.send_message,
+                    to=to,
                     subject=params.get("subject"),
                     body=params.get("body") or params.get("content"),
                     cc=params.get("cc", ""),
                     bcc=params.get("bcc", ""),
-                    thread_id=params.get("thread_id"),
+                    thread_id=thread_id,
                     token=token
                 )}
             elif action == "list_messages":
-                return {"status": "success", "data": await comm_service.get_messages(query=params.get("query", ""), max_results=params.get("max_results", 20), token=token)}
+                return {"status": "success", "data": await asyncio.to_thread(
+                    comm_service.get_messages,
+                    query=params.get("query", ""),
+                    max_results=params.get("max_results", 20),
+                    token=token,
+                )}
             elif action == "get_message":
-                return {"status": "success", "data": await comm_service.get_message(params.get("id"), token=token)}
+                return {"status": "success", "data": await asyncio.to_thread(
+                    comm_service.get_message, params.get("id"), token
+                )}
                 
         elif service == "outlook":
             # Was a dead stub returning "Routed via UIS-Bridge" — wire the real
@@ -585,6 +623,43 @@ class UniversalIntegrationService:
                 return {"status": "error", "message": "Outlook service not available"}
             user_id = (context or {}).get("user_id") or "default_user"
             if action == "send_message":
+                # Threaded reply: reply_to_message_id (or message_id) replies
+                # to that message; thread_id/conversation_id (Outlook
+                # conversationId) resolves to the newest message of the
+                # thread first. Recipients/subject come from the original,
+                # so `to` is only required for standalone sends.
+                reply_message_id = (
+                    params.get("reply_to_message_id") or params.get("message_id")
+                )
+                reply_conversation = (
+                    params.get("thread_id") or params.get("conversation_id")
+                )
+                if reply_message_id or reply_conversation:
+                    if not reply_message_id:
+                        reply_message_id = await comm_service.get_latest_conversation_message_id(
+                            user_id, reply_conversation, token=token,
+                        )
+                        if not reply_message_id:
+                            return {
+                                "status": "error",
+                                "message": f"No message found in Outlook conversation {reply_conversation}",
+                            }
+                    reply_all = bool(params.get("reply_all"))
+                    sent = await comm_service.reply_to_email(
+                        user_id=user_id,
+                        message_id=reply_message_id,
+                        comment=params.get("body") or params.get("content") or "",
+                        reply_all=reply_all,
+                        token=token,
+                    )
+                    return {
+                        "status": "success" if sent else "error",
+                        "data": (
+                            {"reply_to_message_id": reply_message_id, "reply_all": reply_all}
+                            if sent
+                            else {"error": "Outlook reply failed"}
+                        ),
+                    }
                 to = params.get("to") or params.get("to_recipients") or params.get("recipients")
                 if isinstance(to, str):
                     to = [to]

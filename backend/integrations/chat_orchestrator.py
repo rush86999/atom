@@ -2654,6 +2654,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     subject=plan.subject or (canvas.get("title") or ""),
                     body=body,
                     agent_id=agent_id,
+                    thread_id=(plan.thread_id or "").strip() or None,
+                    reply_all=bool(plan.reply_all),
                 )
             if not (result or {}).get("success"):
                 logger.info(f"canvas action send_email rejected: {(result or {}).get('error')}")
@@ -2713,6 +2715,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "cc": cc_line,
                         "subject": plan.subject or "",
                         "body": plan.body or "",
+                        # Threading survives the HITL round-trip: the approved
+                        # proposal must replay as the same threaded reply.
+                        "thread_id": (plan.thread_id or "").strip(),
+                        "reply_all": bool(plan.reply_all),
                     },
                     status="pending_approval",
                 )

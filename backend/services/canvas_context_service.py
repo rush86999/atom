@@ -474,8 +474,6 @@ class CanvasContextService:
                         )
                 except Exception as rt_err:
                     logger.debug(f"real-time rule journal skipped: {rt_err}")
-                except Exception as rt_err:
-                    logger.debug(f"real-time rule journal skipped: {rt_err}")
         except Exception as adapt_err:
             logger.debug(f"installation adaptation capture skipped: {adapt_err}")
 
@@ -484,37 +482,18 @@ class CanvasContextService:
     def _journal_rule_lesson(self, agent_id: str, rule: str,
                              canvas_id: str, playbook_id: str) -> None:
         """Append a permanent work-time lesson DIRECTLY to the agent's
-        registry lesson log — status-independent. StudentLearningService
-        (the path for the generic journal above) only accepts STUDENT-status
-        agents, but real-time evolution must work at every tier: a
-        SUPERVISED hire corrected on a canvas needs the rule on its very
-        next turn too. Fresh-dict assign + flag_modified so the JSON column
-        actually flushes. Raises nothing that the caller doesn't catch."""
-        from sqlalchemy.orm.attributes import flag_modified
+        registry lesson log — status-independent, via the shared
+        journal_standing_lesson helper (the same write the chat teaching
+        circuit and /teach use, so every teaching surface behaves alike)."""
+        from core.student_learning_service import journal_standing_lesson
 
-        from core.models import AgentRegistry
-
-        agent = self.db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id).first()
-        if agent is None:
-            return
-        config = agent.configuration if isinstance(agent.configuration, dict) else {}
-        learning = dict(config.get("learning") or {})
-        log = list(learning.get("log") or [])
-        log.append({
-            "source": "observation",
-            "observation_type": "human_correction",
-            "summary": rule[:1000],
-            "details": {"canvas_id": canvas_id, "playbook_id": playbook_id,
-                        "real_time": True},
-            "learned_at": datetime.now(timezone.utc).isoformat(),
-        })
-        learning["log"] = log
-        learning["last_learned_at"] = datetime.now(timezone.utc).isoformat()
-        config = {**config, "learning": learning}
-        agent.configuration = config
-        flag_modified(agent, "configuration")
-        self.db.commit()
+        journal_standing_lesson(
+            self.db, agent_id, rule,
+            source="observation",
+            observation_type="human_correction",
+            details={"canvas_id": canvas_id, "playbook_id": playbook_id,
+                     "real_time": True},
+        )
 
     def get_similar_canvas_corrections(
         self,

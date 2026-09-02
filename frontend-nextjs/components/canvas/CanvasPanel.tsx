@@ -63,7 +63,7 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
     // fired). Keyed on component too — a type switch can preserve the text,
     // and that broadcast must still apply.
     const lastSavedSigRef = useRef<string | null>(null);
-    const [emailMetadata, setEmailMetadata] = useState({ to: "", cc: "", subject: "" });
+    const [emailMetadata, setEmailMetadata] = useState({ to: "", cc: "", subject: "", thread_id: "" });
     // Email attachments (backend attachment records). Mutations arrive as
     // canvas:update frames with action="email_attachments".
     const [emailAttachments, setEmailAttachments] = useState<EmailAttachmentRecord[]>([]);
@@ -367,7 +367,7 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
                     const to = (typeof data?.to === "string" ? data.to : "") || metadata?.to || "";
                     const cc = (typeof data?.cc === "string" ? data.cc : "") || metadata?.cc || "";
                     const subject = (typeof data?.subject === "string" ? data.subject : "") || metadata?.subject || "";
-                    setEmailMetadata({ to, cc, subject });
+                    setEmailMetadata({ to, cc, subject, thread_id: "" });
 
                     // Reply auto-fill: a Re:/Fw: subject with no recipient
                     // yet resolves the original thread from the mailbox and
@@ -389,6 +389,9 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
                                         ...prev,
                                         to: prev.to.trim() ? prev.to : String(resolved.to),
                                         cc: prev.cc.trim() ? prev.cc : String(resolved.cc || ""),
+                                        // The resolved conversationId makes
+                                        // Send a true threaded reply.
+                                        thread_id: prev.thread_id || String(resolved.thread_id || ""),
                                     }));
                                 }
                             } catch {
@@ -445,6 +448,9 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
                 body: localContentRef.current || "",
                 canvas_id: state?.id || undefined,
                 attachment_ids: emailAttachments.map((a) => a.attachment_id),
+                // Set by resolve-reply when the draft matched an existing
+                // thread — the send then lands in that conversation.
+                thread_id: emailMetadata.thread_id || undefined,
             });
             const data = res?.data || {};
             if (data.success) {
@@ -489,7 +495,7 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
         setState({ ...state, component: conversion.component, data: conversion.data });
         localContentRef.current = conversion.text;
         setEmailBody(conversion.component === "email" ? conversion.text : "");
-        setEmailMetadata({ to: conversion.email.to, cc: conversion.email.cc, subject: conversion.email.subject });
+        setEmailMetadata({ to: conversion.email.to, cc: conversion.email.cc, subject: conversion.email.subject, thread_id: "" });
         setSheetData(conversion.sheet);
         setSignatureOpen(false);
         setShowPreview(false);

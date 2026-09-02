@@ -799,8 +799,16 @@ class EmailCanvasService:
         tenant_id: str = "default",
         attachment_ids: Optional[List[str]] = None,
         override_grounding: bool = False,
+        thread_id: Optional[str] = None,
+        reply_all: bool = False,
     ) -> Dict[str, Any]:
         """Send the composed email through the deterministic email policy.
+
+        With ``thread_id`` (an Outlook conversationId) the send becomes a
+        REPLY inside that thread — Graph derives In-Reply-To/References and
+        the Re: subject; the composer's To/Cc/Subject ride the reply's
+        message override so visible edits still apply. ``reply_all`` keeps
+        every thread participant.
 
         Human-initiated (canvas Send button): the human's click IS the
         authorization for allow/approve decisions, so both send; a BLOCK
@@ -930,6 +938,76 @@ class EmailCanvasService:
                 "error": decision["reason"],
                 "blocked_by": "email_policy",
                 "status": "blocked",
+            }
+
+        # Threaded reply: the whole point of a taught "always reply on the
+        # existing thread" direction — the composer's fields still apply,
+        # but the message lands in the original conversation instead of
+        # starting a fresh thread. Attachments are a standalone-send
+        # feature (the simple Graph reply has no upload path) — refusing
+        # beats silently dropping a file the user ticked.
+        if thread_id:
+            payload["thread_id"] = thread_id
+            payload["reply_all"] = reply_all
+            if send_attachments:
+                decision = {
+                    "decision": "block",
+                    "reason": "Attachments are not supported on threaded replies yet — send standalone or remove them.",
+                    "policy": "thread_reply_attachments",
+                }
+                self.record_send(canvas_id, user_id, agent_id, payload, "blocked", decision, tenant_id)
+                return {
+                    "success": False,
+                    "error": decision["reason"],
+                    "blocked_by": "email_policy",
+                    "status": "blocked",
+                }
+            try:
+                from integrations.outlook_service import OutlookService
+
+                svc = OutlookService()
+                reply_message_id = await svc.get_latest_conversation_message_id(
+                    user_id, thread_id
+                )
+                if not reply_message_id:
+                    self.record_send(canvas_id, user_id, agent_id, payload, "failed",
+                                     {"decision": "error", "reason": f"thread {thread_id} not found"},
+                                     tenant_id)
+                    return {
+                        "success": False,
+                        "error": "Could not find that email thread in the connected mailbox.",
+                        "status": "failed",
+                    }
+                sent = await svc.reply_to_email(
+                    user_id=user_id,
+                    message_id=reply_message_id,
+                    comment=body or "",
+                    reply_all=reply_all,
+                    to_recipients=to_emails or None,
+                    cc_recipients=cc_emails or None,
+                    subject=(subject or "").strip() or None,
+                )
+            except Exception as e:
+                logger.error(f"Email canvas thread reply failed: {e}")
+                self.record_send(canvas_id, user_id, agent_id, payload, "failed", decision, tenant_id)
+                return {"success": False, "error": "Outlook reply failed", "status": "failed"}
+            self.record_send(canvas_id, user_id, agent_id, payload, "sent" if sent else "failed", decision, tenant_id)
+            if not sent:
+                send_detail = dict(getattr(svc, "last_send_error", None) or {})
+                return {
+                    "success": False,
+                    "error": send_detail.get("error", "Outlook reply failed"),
+                    "status": "failed",
+                    **({"needs_reconnect": True} if send_detail.get("needs_reconnect") else {}),
+                }
+            return {
+                "success": True,
+                "status": "sent",
+                "decision": decision["decision"],
+                "policy": decision["policy"],
+                "grounding": grounding,
+                "reply_to_message_id": reply_message_id,
+                "thread_id": thread_id,
             }
 
         svc = None
@@ -1191,7 +1269,10 @@ class EmailCanvasService:
             if sender and sender not in own_addresses:
                 name = str(((m.get("from_field") or {}).get("emailAddress") or {}).get("name") or "").strip()
                 to = f"{name} <{sender}>" if name else sender
-                return {"success": True, "to": to, "cc": "", "source": "thread"}
+                # conversationId rides along so the composer's send can be
+                # a true threaded reply instead of a fresh standalone mail.
+                return {"success": True, "to": to, "cc": "", "source": "thread",
+                        "thread_id": str(m.get("conversation_id") or "") or None}
         for m in candidates:
             sender = addr_of(m.get("from_field")).lower()
             if sender and sender in own_addresses:
@@ -1203,6 +1284,7 @@ class EmailCanvasService:
                         "to": ", ".join(to),
                         "cc": ", ".join(cc),
                         "source": "thread",
+                        "thread_id": str(m.get("conversation_id") or "") or None,
                     }
 
         # Leg 2 — token match for agent-invented subjects.

@@ -82,6 +82,11 @@ class SendEmailRequest(BaseModel):
     # Grounded-send gate (Phase 4): supervisor override for an enforce-mode
     # block — recorded on the send audit row, never silent.
     override_grounding: bool = False
+    # Threaded reply: the composer's resolve-reply prefills this (Outlook
+    # conversationId) so the send lands in the original thread. The visible
+    # To/Cc/Subject still apply via the Graph reply message override.
+    thread_id: Optional[str] = None
+    reply_all: bool = False
 
 
 class SetSignatureRequest(BaseModel):
@@ -170,6 +175,8 @@ async def send_email_canvas(
         tenant_id=resolve_tenant_id(current_user),
         attachment_ids=request.attachment_ids,
         override_grounding=request.override_grounding,
+        thread_id=request.thread_id,
+        reply_all=request.reply_all,
     )
     if not result.get("success"):
         raise router.error_response(
