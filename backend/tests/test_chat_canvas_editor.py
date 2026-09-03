@@ -369,7 +369,7 @@ async def test_canvas_edit_plans_against_durable_store_content():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["content"] = canvas.get("content")
         return plan
 
@@ -399,7 +399,7 @@ async def test_canvas_edit_passes_supervisor_corrections_to_planner():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["corrections"] = corrections
         return plan
 
@@ -432,7 +432,7 @@ async def test_canvas_edit_survives_corrections_lookup_failure():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["corrections"] = corrections
         return plan
 
@@ -462,7 +462,7 @@ async def test_canvas_action_plans_against_durable_store_content():
                             to="m@x", reply="r")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, playbooks=None, fresh_data=None):
         seen["content"] = canvas.get("content")
         return plan
 
@@ -628,7 +628,7 @@ async def test_canvas_edit_passes_sender_identity_to_planner():
 
     async def fake_plan(message, history, canvas, llm, corrections=None, versions=None,
                         lessons=None, similar_corrections=None, correction_patterns=None,
-                        provenance=None, user_identity=None, playbooks=None):
+                        provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["identity"] = user_identity
         return plan
 
@@ -1729,7 +1729,7 @@ async def test_canvas_edit_passes_recent_versions_to_planner():
     seen = {}
     versions = [{"audit_id": "a-9", "content": "old draft", "actor": "supervisor"}]
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["versions"] = versions
         return plan
 
@@ -1864,7 +1864,7 @@ async def test_canvas_edit_passes_taught_lessons_to_planner():
     lessons = [{"source": "teacher", "topic": "tone", "lesson": "Formal register only",
                 "learned_at": "2026-08-01T00:00:00+00:00"}]
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["lessons"] = lessons
         return plan
 
@@ -1887,7 +1887,7 @@ async def test_canvas_edit_without_agent_passes_no_lessons():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["lessons"] = lessons
         return plan
 

@@ -12,8 +12,11 @@ from core.agent_governance_service import AgentGovernanceService
 from core.models import AgentRegistry, AgentStatus, HITLAction, WorkflowExecutionLog
 from core.student_learning_service import (
     StudentLearningService,
+    _canvas_digest,
+    build_canvas_context,
     format_lessons_block,
     get_agent_lessons,
+    journal_standing_lesson,
     learn_user_style,
 )
 
@@ -287,6 +290,129 @@ class TestUserStyleLesson:
         block = format_lessons_block(lessons)
         assert "PERMANENT INSTRUCTIONS" in block
         assert "Email style" in block
+
+
+class TestCanvasContextLessons:
+    """Lessons taught from a canvas (TrainingPanel on /canvas/{id}) pin the
+    canvas they were taught on — at retrieval the agent sees WHAT the lesson
+    is about (canvas name, app, content digest), not just the bare rule."""
+
+    def _canvas(self, db, canvas_id="cv-1", name="Q3 Budget", canvas_type="sheet", content=None):
+        from core.models import Canvas
+
+        canvas = Canvas(
+            id=canvas_id, tenant_id="default", workspace_id="default",
+            created_by="user-1", name=name, canvas_type=canvas_type,
+            content=content if content is not None else {"rows": [["Revenue", 1200], ["Costs", 800]]},
+            status="active",
+        )
+        db.add(canvas)
+        db.commit()
+        return canvas
+
+    def test_build_canvas_context_snapshots_name_type_digest(self, db_session):
+        self._canvas(db_session)
+
+        ctx = build_canvas_context(db_session, "cv-1")
+
+        assert ctx["canvas_id"] == "cv-1"
+        assert ctx["name"] == "Q3 Budget"
+        assert ctx["canvas_type"] == "sheet"
+        assert ctx["label"] == "Sheet"
+        assert "Revenue" in ctx["digest"] and "1200" in ctx["digest"]
+
+    def test_build_canvas_context_fault_isolated(self, db_session):
+        assert build_canvas_context(db_session, "missing-canvas") is None
+        assert build_canvas_context(db_session, None) is None
+
+    def test_teacher_lesson_stores_canvas_context(self, db_session):
+        self._canvas(db_session)
+        student = _make_student(db_session)
+        ctx = build_canvas_context(db_session, "cv-1")
+
+        result = StudentLearningService(db_session).learn_from_teacher(
+            student.id, "human_supervisor", "Costs always go in row 3",
+            topic="budget", canvas_context=ctx,
+        )
+
+        assert result["status"] == "ok"
+        db_session.refresh(student)
+        entry = student.configuration["learning"]["log"][0]
+        assert entry["canvas"]["canvas_id"] == "cv-1"
+        assert entry["canvas"]["label"] == "Sheet"
+
+    def test_standing_lesson_stores_canvas_context(self, db_session):
+        self._canvas(db_session)
+        agent = _make_student(db_session, status="intern")  # journal path is status-independent
+        ctx = build_canvas_context(db_session, "cv-1")
+
+        assert journal_standing_lesson(
+            db_session, agent.id, "Keep cost rows under revenue",
+            source="teacher", topic="budget", canvas_context=ctx,
+        ) is True
+
+        db_session.refresh(agent)
+        entry = agent.configuration["learning"]["log"][0]
+        assert entry["canvas"]["name"] == "Q3 Budget"
+
+    def test_query_matches_canvas_name_not_just_lesson_text(self, db_session):
+        """The canvas a lesson was taught on is part of its subject: a query
+        naming the canvas must surface the lesson even when the rule text
+        never mentions it."""
+        self._canvas(db_session, canvas_id="cv-inv", name="Invoices Q3")
+        ctx = build_canvas_context(db_session, "cv-inv")
+        agent = _make_student(db_session)
+        StudentLearningService(db_session).learn_from_teacher(
+            agent.id, "human_supervisor", "Totals always in bold", topic="formatting",
+            canvas_context=ctx,
+        )
+        StudentLearningService(db_session).learn_from_teacher(
+            agent.id, "human_supervisor", "Quotes over $50k need review", topic="pricing",
+        )
+
+        lessons = get_agent_lessons(db_session, agent.id, query="update the invoices q3 sheet")
+
+        assert lessons[0]["lesson"] == "Totals always in bold"
+
+    def test_format_block_renders_canvas_reference(self):
+        block = format_lessons_block([
+            {"topic": "budget", "lesson": "Costs always go in row 3",
+             "canvas": {"canvas_id": "cv-1", "name": "Q3 Budget",
+                        "canvas_type": "sheet", "label": "Sheet", "digest": ""}},
+        ])
+
+        assert 'taught on canvas "Q3 Budget" (Sheet)' in block
+
+    def test_format_block_without_canvas_stays_clean(self):
+        block = format_lessons_block([{"topic": "tone", "lesson": "Be brief"}])
+
+        assert "taught on canvas" not in block
+
+    def test_canvas_digest_strips_html_and_bounds(self):
+        html = "<p>Hello <b>world</b></p>" + "x" * 900
+
+        digest = _canvas_digest({"body": html})
+
+        assert "<p>" not in digest and "<b>" not in digest
+        assert digest.startswith("Hello world")
+        assert len(digest) <= 401  # _CANVAS_DIGEST_CHARS + ellipsis
+        assert _canvas_digest(None) == ""
+        assert _canvas_digest({"rows": [["a", 1]]}) != ""
+
+    def test_lessons_without_canvas_key_unchanged(self, db_session):
+        """Backward compatibility: pre-canvas lessons score and render exactly
+        as before (no canvas dict in the entry)."""
+        agent = _make_student(db_session)
+        agent.configuration = {"learning": {"log": [
+            {"source": "teacher", "topic": "pricing", "lesson": "Quotes over $50k need review",
+             "learned_at": "2026-08-01T00:00:00+00:00"},
+        ]}}
+        db_session.commit()
+
+        lessons = get_agent_lessons(db_session, agent.id, query="pricing quote review")
+        assert lessons and lessons[0]["lesson"] == "Quotes over $50k need review"
+        assert "canvas" not in lessons[0]
+        assert "taught on canvas" not in format_lessons_block(lessons)
 
 
 class TestTeachingCircuit:

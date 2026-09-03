@@ -2347,7 +2347,7 @@ class MCPService(IntegrationService):
                 if platform: return await service.search(platform, query, context=context)
                 else:
                     results = {}
-                    for p in ["google_drive", "dropbox", "notion"]:
+                    for p in ["google_drive", "dropbox", "notion", "zoho_workdrive"]:
                         try: results[p] = await service.search(p, query, context=context)
                         except Exception as _e:
                             logger.debug("provider %s failed: %s", p, _e, exc_info=True)

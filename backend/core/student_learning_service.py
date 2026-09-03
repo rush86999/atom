@@ -21,6 +21,7 @@ human corrections) back in front of the agent in every chat turn, canvas
 edit plan, and task execution — the point of teaching.
 """
 
+import json
 import logging
 import re
 from datetime import datetime, timezone
@@ -54,6 +55,11 @@ WORK_TIME_LESSON_LIMIT = 5
 _LESSON_TEXT_CHARS = 320
 _LESSON_BLOCK_CHARS = 1600
 
+# A lesson taught from a canvas (TrainingPanel on /canvas/{id}) carries the
+# canvas it was taught on — name, app, and a bounded content digest — so at
+# retrieval the agent knows WHAT the lesson is about, not just the rule.
+_CANVAS_DIGEST_CHARS = 400
+
 # Log entries that carry standing guidance (vs. one-time event observations).
 _PERMANENT_OBSERVATIONS = {"human_correction", "user_style"}
 
@@ -73,6 +79,55 @@ def _is_permanent_lesson(entry: Dict[str, Any]) -> bool:
 
 def _lesson_text(entry: Dict[str, Any]) -> str:
     return str(entry.get("lesson") or entry.get("summary") or "").strip()
+
+
+def _canvas_digest(content: Any) -> str:
+    """Bounded plain-text digest of canvas content at teach time. The digest
+    is recall context ("what the canvas looked like when I was taught this"),
+    not an editable artifact — so lossy flattening is fine."""
+    parts: List[str] = []
+    if isinstance(content, str):
+        parts.append(re.sub(r"<[^>]+>", " ", content))
+    elif isinstance(content, dict):
+        for value in content.values():
+            if isinstance(value, str):
+                parts.append(re.sub(r"<[^>]+>", " ", value))
+            elif value is not None:
+                parts.append(json.dumps(value, default=str, ensure_ascii=False))
+    elif content is not None:
+        parts.append(json.dumps(content, default=str, ensure_ascii=False))
+    text = " ".join(p.strip() for p in parts if p and p.strip())
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) > _CANVAS_DIGEST_CHARS:
+        text = text[:_CANVAS_DIGEST_CHARS] + "…"
+    return text
+
+
+def build_canvas_context(db: Session, canvas_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Snapshot the named canvas (name, app, bounded content digest) for a
+    lesson entry — what the teacher was looking at when they taught it.
+    Fault-isolated: returns None when the canvas is missing or anything
+    fails; a teach must never break on context capture."""
+    if not canvas_id:
+        return None
+    try:
+        from core.canvas_app_schema import get_app_spec, normalize_app_type
+        from core.models import Canvas
+
+        canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+        if canvas is None:
+            return None
+        canvas_type = normalize_app_type(canvas.canvas_type)
+        return {
+            "canvas_id": str(canvas.id),
+            "name": str(canvas.name or "")[:120],
+            "canvas_type": canvas_type,
+            "label": get_app_spec(canvas.canvas_type).label,
+            "digest": _canvas_digest(canvas.content),
+        }
+    except Exception as e:
+        logger.debug(f"canvas context capture skipped for {canvas_id}: {e}")
+        return None
 
 
 def get_agent_lessons(
@@ -115,9 +170,16 @@ def get_agent_lessons(
             if t not in {"the", "and", "for", "with", "this", "that", "please", "can", "you", "your"}
         }
         def _score(entry: Dict[str, Any]) -> int:
+            # The canvas a lesson was taught on is part of the lesson's
+            # subject: "the invoice sheet" should surface the lesson taught
+            # on that canvas even if the rule text never says "invoice".
+            canvas = entry.get("canvas") if isinstance(entry.get("canvas"), dict) else {}
             haystack = " ".join((
                 str(entry.get("topic") or ""),
                 _lesson_text(entry),
+                str(canvas.get("name") or ""),
+                str(canvas.get("label") or ""),
+                str(canvas.get("digest") or ""),
             )).lower()
             return sum(1 for t in q_tokens if t in haystack)
         # Relevance first, recency as the tie-break (reverse() above made
@@ -137,6 +199,7 @@ def journal_standing_lesson(
     topic: Optional[str] = None,
     teacher_agent_id: Optional[str] = None,
     details: Optional[Dict[str, Any]] = None,
+    canvas_context: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """Append a permanent lesson DIRECTLY to an agent's registry lesson log —
     status-independent, so a taught rule reaches SUPERVISED and graduated
@@ -177,6 +240,8 @@ def journal_standing_lesson(
                 "details": dict(details or {}),
                 "learned_at": datetime.now(timezone.utc).isoformat(),
             }
+        if canvas_context:
+            entry["canvas"] = canvas_context
 
         from sqlalchemy.orm.attributes import flag_modified
 
@@ -274,6 +339,12 @@ def format_lessons_block(lessons: List[Dict[str, Any]]) -> str:
         if len(text) > _LESSON_TEXT_CHARS:
             text = text[:_LESSON_TEXT_CHARS] + "…"
         line = f"{i}. [{topic}] {text}"
+        # The canvas the lesson was taught on — the agent should know what
+        # the lesson's subject looks like without being able to ask.
+        canvas = entry.get("canvas") if isinstance(entry.get("canvas"), dict) else {}
+        if canvas.get("name"):
+            label = str(canvas.get("label") or canvas.get("canvas_type") or "").strip()
+            line += f" — taught on canvas \"{canvas['name']}\"" + (f" ({label})" if label else "")
         if used + len(line) + 1 > _LESSON_BLOCK_CHARS:
             break
         lines.append(line)
@@ -306,8 +377,11 @@ class StudentLearningService:
         teacher_agent_id: str,
         lesson: str,
         topic: Optional[str] = None,
+        canvas_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Record a teacher-delivered lesson (fast path)."""
+        """Record a teacher-delivered lesson (fast path). ``canvas_context``
+        (see build_canvas_context) pins the lesson to the canvas it was
+        taught on so retrieval can recall the subject, not just the rule."""
         student = self._get_student(student_agent_id)
         if student is None:
             return {"status": "error", "reason": "student_not_found"}
@@ -319,6 +393,8 @@ class StudentLearningService:
             "lesson": lesson[:2000],
             "learned_at": datetime.now(timezone.utc).isoformat(),
         }
+        if canvas_context:
+            entry["canvas"] = canvas_context
         result = self._apply_learning(student, entry, boost=_TEACHER_BOOST)
 
         # Pedagogy circuit: a taught lesson is a POSITIVE exposure for its

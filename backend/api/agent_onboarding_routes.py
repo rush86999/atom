@@ -358,6 +358,11 @@ class TeachRequest(BaseModel):
 
     lesson: str = Field(min_length=5, max_length=4000, description="The lesson, correction, or worked example")
     topic: Optional[str] = Field(None, max_length=200)
+    # The canvas the lesson was taught from (TrainingPanel on /canvas/{id}).
+    # When present the endpoint snapshots the canvas (name, app, content
+    # digest) into the lesson entry, so every later retrieval — chat turn,
+    # canvas edit plan, task execution — knows what the lesson is about.
+    canvas_id: Optional[str] = Field(None, max_length=64)
     # When an AGENT delivers the lesson (vs a human supervisor). The agent
     # must pass the teach_student governance check and be a qualified mentor
     # for the student's role (same-category senior, or atom_main for
@@ -424,13 +429,17 @@ async def teach_agent(
                 status_code=403,
             )
 
-    from core.student_learning_service import StudentLearningService
+    from core.student_learning_service import StudentLearningService, build_canvas_context
     learning = StudentLearningService(db)
+    # Best-effort capture of the canvas the lesson was taught on (right
+    # panel) — None when the canvas is missing; never blocks the teach.
+    canvas_context = build_canvas_context(db, req.canvas_id)
     result = learning.learn_from_teacher(
         student_agent_id=agent_id,
         teacher_agent_id=req.acting_agent_id or "human_supervisor",
         lesson=req.lesson,
         topic=req.topic,
+        canvas_context=canvas_context,
     )
     if result.get("status") != "ok":
         # learn_from_teacher returns student_not_found for missing AND
@@ -452,6 +461,7 @@ async def teach_agent(
                 source="teacher",
                 topic=req.topic,
                 teacher_agent_id=req.acting_agent_id or "human_supervisor",
+                canvas_context=canvas_context,
             )
             if journaled:
                 return router.success_response(

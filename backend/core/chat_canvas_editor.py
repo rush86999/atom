@@ -21,6 +21,7 @@ Every leg is fault-isolated like the planner: any failure returns None and
 the turn falls through to the normal conversational path — never raises into
 the chat path, never loses the user's message.
 """
+import asyncio
 import json
 import logging
 import os
@@ -177,6 +178,15 @@ the authority, NOT your memory of earlier drafts:
   colleague's first name is not the sender's). Never remove or replace an
   existing signature unless the request says to ("i added my signature,
   adjust" means polish AROUND it, not swap it for a guessed name).
+- EXTERNAL FACTS are never a guessing problem either: names, figures,
+  prices, dates, and specs must come from the user's message, the canvas
+  content, or the FRESH DATA section (when present) — never from memory or
+  plausibility. Live 2026-09-03: with no evidence in the prompt, a price
+  "from the consolidated price list" was typed into a draft as $14,500.00
+  (the workbook said $14,145.00). If a value the request needs is in none
+  of those sources, do not invent it — put an explicitly unfilled
+  placeholder in the content (e.g. "[price — from Consolidated Price
+  List]") and say in `reply` which value needs its source.
 - reply is one or two short sentences telling the user what you changed.
   For wants_edit=false, reply is a short conversational answer based on the
   canvas content (or empty if another step will answer).
@@ -686,6 +696,64 @@ def _versions_section(
     )
 
 
+# Evidence gathering must never cost the edit its own turn: the planner call
+# and the tool execution it triggers live inside this bound. On timeout the
+# edit proceeds without evidence under the EXTERNAL FACTS rule.
+_FRESH_DATA_TIMEOUT_SECONDS = 12
+
+
+async def fetch_fresh_data_section(
+    message: str,
+    history: List[Dict[str, Any]],
+    llm_service: Any,
+    user_id: Optional[str],
+) -> str:
+    """LIVE evidence for edit requests that hinge on data the editor cannot
+    see — a price "from the consolidated price list", specs from a drive
+    file, a status only the CRM knows. Runs the SAME read-only tool planner
+    the chat path uses (core.chat_tool_planner) and returns the shaped
+    section for plan_canvas_edit's prompt. Called by the CONTEXT ASSEMBLER
+    (the chat orchestrator, alongside corrections/versions/lessons) — NOT
+    inside plan_canvas_edit, which owns a single structured LLM call and
+    must not fire extra ones (its callers' replan ladders and tests count
+    those calls). Empty string on any failure or when the planner sees no
+    data need; the edit then proceeds under the EXTERNAL FACTS rule in
+    _EDITOR_SYSTEM. Live 2026-09-03: with no evidence in the prompt, the
+    editor typed $14,500.00 into an email draft as "the price from the
+    consolidated price list" (the workbook said $14,145.00) and then
+    "confirmed" the user's corrected value just as baselessly."""
+    if not message or llm_service is None:
+        return ""
+    try:
+        from core.chat_tool_planner import execute_tool_plan, plan_tool_use
+
+        async def _fetch() -> str:
+            plan = await plan_tool_use(message, history, user_id, llm_service)
+            if not plan or not plan.use_tool:
+                return ""
+            block = await execute_tool_plan(
+                plan,
+                user_id,
+                context={"history": history},
+            )
+            if not block:
+                return ""
+            return (
+                "FRESH DATA for this edit (live tool results, fetched just "
+                f"now):\n{block}\n\n"
+            )
+
+        return await asyncio.wait_for(
+            _fetch(), timeout=_FRESH_DATA_TIMEOUT_SECONDS
+        )
+    except asyncio.TimeoutError:
+        logger.info("canvas edit fresh-data lookup timed out — proceeding without evidence")
+        return ""
+    except Exception as e:  # noqa: BLE001 — fault-isolated by contract
+        logger.debug(f"canvas edit fresh-data lookup skipped: {e}")
+        return ""
+
+
 async def plan_canvas_edit(
     message: str,
     history: List[Dict[str, Any]],
@@ -699,6 +767,7 @@ async def plan_canvas_edit(
     provenance: Optional[Dict[str, Any]] = None,
     user_identity: Optional[Dict[str, Any]] = None,
     playbooks: Optional[List[Dict[str, Any]]] = None,
+    fresh_data: Optional[str] = None,
 ) -> Optional[CanvasEditPlan]:
     """Decide (via cheap structured LLM output) whether this turn edits the
     open canvas, and produce the edit — patch ops by default, complete
@@ -716,7 +785,12 @@ async def plan_canvas_edit(
     to be, so grounding questions have real provenance instead of an
     honest "I don't know". ``user_identity`` is the SENDER (account name /
     email / default email signature, see _identity_section) — with it absent
-    the editor guessed a signature name from the Cc line. Patch ops are
+    the editor guessed a signature name from the Cc line. ``fresh_data`` is
+    the live evidence section the caller gathered via
+    fetch_fresh_data_section (scoped to the acting user) for edit requests
+    that hinge on external facts — a price from a workbook, specs from a
+    drive file.
+    Patch ops are
     validated against the current
     content here: a mis-copied "find" gets ONE re-ask in replace mode (still
     under the preservation duty) rather than a broken write. Returns None on
@@ -739,9 +813,16 @@ async def plan_canvas_edit(
         f"Recent conversation:\n{_history_transcript(history, message)}\n\n"
         "Return the edit plan."
     )
+    # Live evidence when the edit hinges on data the editor cannot see —
+    # fetched by the caller (orchestrator context assembly) via
+    # fetch_fresh_data_section and handed in; never gathered here, so this
+    # function stays a single structured LLM call.
     rendered = {  # canonical layout order; priority = same order
         "corrections": _corrections_section(corrections),
         "versions": _versions_section(versions, canvas.get("content")),
+        # Evidence outranks the learning channels: it is the data THIS edit
+        # is about; lessons/corrections are advisory style guidance.
+        "fresh": fresh_data or "",
         "lessons": _lessons_section(lessons),
         "cross": _similar_lessons_section(similar_corrections, correction_patterns),
         # Origin context ranks LAST — useful for grounding questions, never
@@ -782,6 +863,7 @@ async def plan_canvas_edit(
         f"{_playbooks_section(playbooks)}"
         f"{included.get('corrections', '')}"
         f"{included.get('versions', '')}"
+        f"{included.get('fresh', '')}"
         f"{included.get('lessons', '')}"
         f"{included.get('cross', '')}"
         f"{included.get('origin', '')}"
@@ -1347,7 +1429,14 @@ Rules:
 - ``thread_id``: when the message asks to reply on/in the thread AND the
   canvas context shows a conversationId for that thread, copy it here so
   the send stays in the original conversation; empty for a fresh send.
-  ``reply_all``: true only when the message says reply to everyone."""
+  ``reply_all``: true only when the message says reply to everyone.
+- EXTERNAL FACTS travel with the draft: when composing or amending body
+  text, names, figures, prices, dates, and specs must come from the canvas
+  content, the user's message, or the FRESH DATA section (when present) —
+  never from memory or plausibility. A needed value from none of those
+  stays an explicit placeholder (e.g. "[price — from Consolidated Price
+  List]") and `reply` names it; sending happens with the placeholder
+  visible, never with an invented number."""
 
 
 async def plan_canvas_action(
@@ -1355,15 +1444,21 @@ async def plan_canvas_action(
     history: List[Dict[str, Any]],
     canvas: Dict[str, Any],
     llm_service: Any,
+    fresh_data: Optional[str] = None,
 ) -> Optional[CanvasActionPlan]:
     """Decide whether this turn asks to DO something with the canvas (send
-    email). Returns None on failure — caller falls through."""
+    email). ``fresh_data`` is the caller-gathered live evidence section
+    (fetch_fresh_data_section) — a send that amends the draft with external
+    facts ("send it with the current price") gets the same grounding the
+    edit path has. Returns None on failure — caller falls through."""
     if llm_service is None or not canvas.get("canvas_id"):
         return None
 
+    fresh_section = (fresh_data or "").strip()
     prompt = (
         f"{_ACTION_SYSTEM}\n\n"
-        f"Canvas title: {canvas.get('title') or '(untitled)'}\n"
+        + (f"{fresh_section}\n" if fresh_section else "")
+        + f"Canvas title: {canvas.get('title') or '(untitled)'}\n"
         f"Canvas type: {canvas.get('canvas_type') or 'generic'}\n"
         f"Canvas content:\n{_serialize_content(canvas.get('content'))}\n\n"
         f"Recent conversation:\n{_history_transcript(history, message)}\n\n"

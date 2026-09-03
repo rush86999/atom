@@ -580,6 +580,101 @@ class ZohoWorkDriveService(IntegrationService):
             logger.error(f"Failed to list Zoho WorkDrive files: {e}")
             return []
 
+    async def search_files(self, user_or_token: Optional[str],
+                           query: Optional[str] = None,
+                           limit: int = 20) -> List[Dict[str, Any]]:
+        """Search WorkDrive for files/folders by name or content.
+
+        GET /teams/{team_id}/records?search[all]=… is WorkDrive's server-side
+        search across each team the user belongs to; ``search[all]`` matches
+        file/folder NAMES *and* document content (verified live 2026-09-03:
+        "WG350DSAV" surfaced Consolidated Price List 2019.xlsx, whose body
+        carries the model string — a filename-only search missed it). The
+        generic GET /search endpoint answers 405 Invalid Method on every DC
+        tried, and the earlier state of this service had NO search method at
+        all while UniversalIntegrationService dispatched searches to it — so
+        every planner/registry search raised AttributeError and surfaced as
+        "returned nothing usable" (live 2026-09-03: "consolidated price list
+        2019" — the workbook sat on the drive while the agent answered it had
+        no such file).
+
+        ``user_or_token`` accepts a user id (tokens resolve per user via
+        ConnectionService/IntegrationToken, like every other method here) or
+        a raw Zoho access token ("1000.<id>.<secret>", >40 chars). Search is
+        team-scoped, so the teams of the RESOLVED user are searched; a raw
+        token with no user row behind it finds no teams and returns [].
+
+        Fault-isolated like list_files: any failure returns [] so callers
+        fall back to ingested-workspace memory search instead of erroring.
+        """
+        if not query or not str(query).strip():
+            return []
+        raw = str(user_or_token or "")
+        if raw.startswith("1000.") and len(raw) > 40:
+            token = raw
+        else:
+            token = await self.get_access_token(raw)
+        if not token:
+            return []
+
+        try:
+            headers = {
+                "Authorization": f"Zoho-oauthtoken {token}",
+                "Accept": "application/vnd.api+json",
+            }
+            # Bound the fan-out: each team costs one paced search request.
+            teams = (await self.get_teams(raw))[:5]
+            want = max(1, int(limit))
+            seen_ids = set()
+            files: List[Dict[str, Any]] = []
+            for team in teams:
+                if len(files) >= want:
+                    break
+                team_id = team.get("id")
+                if not team_id:
+                    continue
+                try:
+                    response = await self._zoho_get(
+                        f"{self.base_url}/teams/{team_id}/records",
+                        headers=headers,
+                        params={
+                            "search[all]": str(query),
+                            "page[limit]": self.PAGE_SIZE,
+                        },
+                    )
+                    response.raise_for_status()
+                    page_items = response.json().get("data", [])
+                except Exception as team_err:  # noqa: BLE001 — one team's
+                    # failure must not sink the other teams' hits
+                    logger.warning(
+                        f"WorkDrive team search failed ({team_id}): {team_err}")
+                    continue
+                for item in page_items:
+                    item_id = str(item.get("id") or "")
+                    if item_id and item_id in seen_ids:
+                        continue
+                    seen_ids.add(item_id)
+                    attrs = item.get("attributes", {})
+                    name = attrs.get("name") or attrs.get("display_name", "Untitled")
+                    storage_info = attrs.get("storage_info", {})
+                    try:
+                        size = int(storage_info.get("size_in_bytes") or attrs.get("size") or 0)
+                    except (ValueError, TypeError):
+                        size = 0
+                    files.append({
+                        "id": item.get("id"),
+                        "name": name,
+                        "type": "folder" if (attrs.get("is_folder") or attrs.get("type") in ("folder", "folders")) else "file",
+                        "extension": attrs.get("extn") or attrs.get("extension"),
+                        "size": size,
+                        "modified_at": attrs.get("modified_time_in_iso8601") or attrs.get("modified_time"),
+                    })
+                    if len(files) >= want:
+                        break
+            return files
+        except Exception as e:
+            logger.error(f"Failed to search Zoho WorkDrive: {e}")
+            return []
 
     async def get_folder_tree(self, user_id: str,
                                workspace_id: Optional[str] = None,
@@ -1121,6 +1216,7 @@ class ZohoWorkDriveService(IntegrationService):
         return {
             "operations": [
                 {"id": "list_files", "name": "List Files"},
+                {"id": "search_files", "name": "Search Files"},
                 {"id": "walk_files", "name": "Walk All Files (Recursive)"},
                 {"id": "download_file", "name": "Download File"},
                 {"id": "ingest_file_to_memory", "name": "Ingest File to Memory"},
@@ -1151,6 +1247,7 @@ class ZohoWorkDriveService(IntegrationService):
         """Execute a Zoho WorkDrive operation."""
         operations = {
             "list_files": self.list_files,
+            "search_files": self.search_files,
             "walk_files": self.walk_files,
             "download_file": self.download_file,
             "ingest_file_to_memory": self.ingest_file_to_memory,

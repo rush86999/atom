@@ -243,6 +243,8 @@ export interface TeachingPoint {
   text: string;
   learned_at: string | null;
   teacher_agent_id?: string | null;
+  /** The canvas the lesson was taught on (right-panel teaches), when captured. */
+  canvas?: { canvas_id: string; name: string; canvas_type: string; label: string } | null;
 }
 
 export interface CanvasTrainingContext {
@@ -275,16 +277,19 @@ export async function getCanvasTrainingContext(
   return res.json();
 }
 
-/** Deliver a mentor lesson to a STUDENT agent (the learning channel). */
+/** Deliver a mentor lesson to a STUDENT agent (the learning channel).
+ * canvasId (the canvas the panel is teaching from) is snapshotted into the
+ * lesson so retrieval later knows what the lesson was about. */
 export async function teachAgent(
   agentId: string,
   lesson: string,
-  topic?: string
+  topic?: string,
+  canvasId?: string
 ): Promise<{ status: string; [key: string]: unknown }> {
   const res = await fetchJson(`/api/agents/${agentId}/teach`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lesson, topic }),
+    body: JSON.stringify({ lesson, topic, canvas_id: canvasId }),
   });
   if (!res.ok) throw new Error(`Teach failed (${res.status})`);
   return res.json();
