@@ -122,7 +122,9 @@ class TestCapabilities:
     def test_operations(self):
         svc = _svc()
         caps = svc.get_capabilities()
-        assert caps["operations"] == ['get_items', 'get_inventory_levels', 'check_stock']
+        # search_items added 2026-09-03: the live stock-search leg (see
+        # tests/test_zoho_inventory_search.py for the root-cause story).
+        assert caps["operations"] == ['get_items', 'search_items', 'get_inventory_levels', 'check_stock']
         assert caps["required_params"] == ["access_token"]
         assert caps["supports_webhooks"] is False
 

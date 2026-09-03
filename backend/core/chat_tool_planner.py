@@ -41,6 +41,11 @@ _PROVIDER_ALIASES = {
     "azure": "outlook",
     "google": "gmail",
     "gdrive": "google_drive",
+    # The canonical suite-wide OAuth grant fans out to zoho_* provider rows,
+    # but the "zoho" row itself is a service name nobody implements — as a
+    # connected entry it invited the planner to plan a dead service. Its
+    # searchable face is the CRM.
+    "zoho": "zoho_crm",
 }
 
 # Intent -> real action name per service family in
@@ -52,6 +57,12 @@ _INTENT_ACTIONS: Dict[str, Dict[str, str]] = {
     "teams": {"search": "search_messages", "list": "list_channels"},
     "discord": {"search": "search_messages", "list": "list_channels"},
     "telegram": {"search": "search_messages", "list": "list_channels"},
+    # Inventory has no generic "search" handler in _execute_finance — without
+    # this row a planned zoho_inventory.search matched no branch and every
+    # "is it in stock" answer was really the ingested-file memory search
+    # (live 2026-09-03: WG-350DSAV in stock, agent said "no live stock
+    # records").
+    "zoho_inventory": {"search": "search_items", "list": "list_items"},
 }
 
 # Short human descriptions the planner reads (kept compact — this prompt
@@ -64,6 +75,7 @@ _SERVICE_DESCRIPTIONS = {
     "discord": "community chat — search messages",
     "telegram": "messenger — search messages",
     "zoho_crm": "CRM — search leads, contacts, deals, accounts",
+    "zoho_inventory": "stock inventory — search items by name or SKU and check what is in stock",
     "salesforce": "CRM — search leads, contacts, opportunities",
     "hubspot": "CRM — search contacts, companies, deals",
     "google_drive": "file storage — search documents and files",
@@ -100,6 +112,32 @@ _SERVICE_DESCRIPTIONS = {
 
 # Web tools that ship with the platform (key-gated, no user OAuth needed).
 _PLATFORM_SERVICES = ("web_search", "web_fetch")
+
+
+# Anti-fabrication contract appended to every LIVE TOOL RESULTS block. Live
+# 2026-09-03: asked for a machine's price "from the consolidated price list",
+# the reply model quoted $14,500.00 and even rendered an "exact row" from the
+# workbook — a row that existed nowhere. The evidence excerpts never carried
+# the figure, but nothing told the model to say so instead of filling the
+# gap from plausibility (and when the user quoted the true value, $14,145.00,
+# the model immediately "found the exact row" for that too). Same pattern the
+# production harnesses solve with grounded/cited generation: specific values
+# may come ONLY from attached evidence; absence must be reported, not paved.
+_GROUNDING_RULE = (
+    "GROUNDING RULE: specific facts (names, figures, prices, dates, "
+    "quotations) must come from the evidence above. If the exact value the "
+    "user asks about is not visible in this evidence, say what was found "
+    "and that the source itself must be opened for the exact value — do "
+    "not fill the gap from memory and do not present recalled values as "
+    "if read from the source."
+)
+
+
+def _with_grounding(block: Optional[str]) -> Optional[str]:
+    """Attach the grounding contract to a tool-results block."""
+    if not block:
+        return block
+    return f"{block}\n\n{_GROUNDING_RULE}"
 # Available unconditionally — memory searches the workspace's OWN ingested
 # data (no external key, no OAuth). Coupling it to the Tavily key gate made
 # it vanish wherever web search wasn't configured.
@@ -207,8 +245,21 @@ _connected_cache: Dict[str, Any] = {}
 
 def _catalog_line(connected: List[str]) -> str:
     lines = []
+    try:
+        from integrations.universal_integration_service import SEARCHABLE_SERVICES
+    except Exception:
+        SEARCHABLE_SERVICES = frozenset()
     for svc in list(connected) + _available_platform_services():
-        desc = _SERVICE_DESCRIPTIONS.get(svc, "integration data")
+        desc = _SERVICE_DESCRIPTIONS.get(svc)
+        if desc is None:
+            if svc in SEARCHABLE_SERVICES or svc in _INTENT_ACTIONS:
+                desc = "integration data — live search supported"
+            else:
+                # Honest catalog: a service without a live search would
+                # otherwise get planned and then dead-end into the memory
+                # fallback while the model CLAIMED a live search ran.
+                desc = ("integration data — no live search; use memory for "
+                        "its ingested records")
         lines.append(f"- {svc}: {desc}")
     return "\n".join(lines) if lines else "- (none connected)"
 
@@ -275,8 +326,21 @@ async def plan_tool_use(
     if plan.use_tool:
         allowed = set(connected) | set(_available_platform_services())
         if not plan.service or plan.service not in allowed:
+            # Planner models emit service names in loose forms ("Zoho CRM",
+            # "zoho-inventory") — normalize separators/case against the
+            # allowed set before treating the plan as invalid.
+            if plan.service:
+                normalized = re.sub(r"[^a-z0-9]", "", plan.service.lower())
+                alias = {re.sub(r"[^a-z0-9]", "", s): s for s in allowed}
+                candidate = alias.get(normalized)
+                if candidate and candidate != plan.service:
+                    logger.info(
+                        f"tool planner: normalized service "
+                        f"{plan.service!r} -> {candidate!r}")
+                    plan.service = candidate
+        if not plan.service or plan.service not in allowed:
             # Free planner models occasionally emit use_tool=true with a
-            # null/unknown service on vague retries ("try again"). Two
+            # null/unknown service on vague retries ("try again"). Three
             # deterministic recoveries before giving up — a dead plan here
             # made the model answer from memory while CLAIMING it had
             # "rechecked" the mailbox (observed live 2026-09-02).
@@ -289,6 +353,19 @@ async def plan_tool_use(
                 plan.intent = "search"
                 if not (plan.query or "").strip() or len(plan.query.strip()) < 12:
                     plan.query = _retry_query_from_history(history, message)
+            elif (named := _service_named_in_message(message, connected)) and plan.service is None:
+                # Middle rung for the null-service flake: when the USER'S OWN
+                # WORDS name a connected integration ("is the wg-350dsav in
+                # stock in zoho inventory?"), honor it instead of silently
+                # rerouting to memory — memory answered these turns while
+                # claiming a live check ran (live 2026-09-03, twice).
+                logger.info(
+                    f"tool planner: null service — user message names "
+                    f"connected {named!r}")
+                plan.service = named
+                plan.intent = "search"
+                if not (plan.query or "").strip():
+                    plan.query = message[:120]
             elif plan.service is None and "memory" in allowed:
                 # Last rung, only for the planner's null-service flake: the
                 # model couldn't name ANY service. memory is always available
@@ -330,6 +407,23 @@ def _entry_text(entry: Any) -> str:
             str(v) for v in entry.values() if isinstance(v, (str, int, float))
         )
     return str(entry or "")
+
+
+def _service_named_in_message(
+    message: str, connected: List[str]
+) -> Optional[str]:
+    """The connected integration the user's own words name, if any. Matches
+    service names with separators relaxed ("zoho inventory" matches
+    zoho_inventory); longest name wins when several appear. A deterministic
+    repair for the planner's null-service flake — NOT an intent gate: it
+    never fires when the planner named a valid service itself."""
+    msg = f" {message.lower().replace('-', ' ').replace('_', ' ')} "
+    best, best_len = None, 0
+    for svc in connected:
+        name = svc.lower().replace("_", " ")
+        if name in msg and len(name) > best_len:
+            best, best_len = svc, len(name)
+    return best
 
 
 def _fallback_service_from_history(
@@ -545,7 +639,7 @@ async def _memory_search_block(
                 break
         if not lines:
             return None
-        return (
+        return _with_grounding(
             f"LIVE TOOL RESULTS (memory.search, query='{query}') — hybrid "
             f"search over ingested workspace data; use these to answer:\n"
             + "\n".join(lines[:8])
@@ -623,11 +717,15 @@ async def execute_tool_plan(
                 res = await _mcp.web_search(query, tenant_id)
                 err = str(res.get("error") or "").strip()
                 if err:
-                    return f"{graph_block}LIVE TOOL RESULTS (web_search, query='{query}'): unavailable — {err[:200]}"
+                    return _with_grounding(
+                        f"LIVE TOOL RESULTS (web_search, query='{query}'): unavailable — {err[:200]}"
+                    )
                 answer = str(res.get("answer") or "").strip()
                 results = res.get("results") or []
                 if not answer and not results:
-                    return f"{graph_block}LIVE TOOL RESULTS (web_search, query='{query}'): no results found."
+                    return _with_grounding(
+                        f"LIVE TOOL RESULTS (web_search, query='{query}'): no results found."
+                    )
                 lines = []
                 if answer:
                     lines.append(f"Summary: {answer[:800]}")
@@ -636,7 +734,7 @@ async def execute_tool_plan(
                         f"- {str(r.get('title') or '(untitled)')[:120]} | {str(r.get('url') or '')[:160]}\n"
                         f"  {str(r.get('content') or '')[:400]}"
                     )
-                return (
+                return _with_grounding(
                     f"{graph_block}"
                     f"LIVE TOOL RESULTS (web_search, query='{query}') — "
                     f"use these to answer:\n" + "\n".join(lines)
@@ -665,16 +763,16 @@ async def execute_tool_plan(
                                 f"- {str(r.get('title') or '(untitled)')[:120]} | {str(r.get('url') or '')[:160]}\n"
                                 f"  {str(r.get('content') or '')[:400]}"
                             )
-                        return (
+                        return _with_grounding(
                             f"LIVE TOOL RESULTS (web_fetch→web_search fallback, query='{search_query}') — "
                             f"use these to answer:\n" + "\n".join(lines)
                         )
                 except Exception as fallback_err:
                     logger.warning(f"web_fetch→web_search fallback failed: {fallback_err}")
-                return (
+                return _with_grounding(
                     f"LIVE TOOL RESULTS (web_fetch, query='{query}'): page unreadable — {err_note[:200]}"
                 )
-            return (
+            return _with_grounding(
                 f"LIVE TOOL RESULTS (web_fetch, url={res.get('url')}) — the actual "
                 f"content of this website; use it to answer:\n{content[:6000]}"
             )
@@ -693,7 +791,7 @@ async def execute_tool_plan(
         block = await _memory_search_block(user_id, query, context)
         if block:
             return block
-        return (
+        return _with_grounding(
             f"LIVE TOOL RESULTS (memory.search, query='{query}'): "
             "nothing in the ingested workspace matched."
         )
@@ -800,7 +898,7 @@ async def execute_tool_plan(
                     break
 
             if not emails and not store_lines:
-                return (
+                return _with_grounding(
                     f"LIVE TOOL RESULTS (outlook.search_emails, query='{query}'): "
                     "no matching messages in the mailbox or ingested memory."
                 )
@@ -813,7 +911,7 @@ async def execute_tool_plan(
             )
             if store_lines:
                 listing = (listing + "\n" if listing else "") + "\n".join(store_lines)
-            return (
+            return _with_grounding(
                 f"LIVE TOOL RESULTS (outlook.search_emails, query='{query}') — "
                 f"use these to answer:\n{listing}"
             )
@@ -822,36 +920,73 @@ async def execute_tool_plan(
             return None
 
     # Everything else: the universal integration service (44 integrations,
-    # governance + circuit breaker + masking inside).
+    # governance + circuit breaker + masking inside). Two live paths:
+    #   1. explicit intent->action mappings (_INTENT_ACTIONS) run through
+    #      execute() — per-service handlers (zoho_inventory.search_items,
+    #      slack search_messages, storage search, ...);
+    #   2. plain "search" intents for services with a family search
+    #      implementation route through the search() router — the same
+    #      mechanism MCP/entity search already uses.
+    # Everything else dead-ends HONESTLY ("has no live implementation").
+    # A success-without-data envelope here is what let the model claim it
+    # had searched an integration that was never called (live 2026-09-03:
+    # "searched Zoho Inventory, no live stock records" while the machine
+    # sat in stock).
     try:
-        from integrations.universal_integration_service import UniversalIntegrationService
+        from integrations.universal_integration_service import (
+            UniversalIntegrationService,
+            SEARCHABLE_SERVICES,
+        )
 
-        action = _INTENT_ACTIONS.get(service, _INTENT_ACTIONS["default"]).get(
-            plan.intent or "search", "search"
-        )
+        intent_map = _INTENT_ACTIONS.get(service, _INTENT_ACTIONS["default"])
+        action = intent_map.get(plan.intent or "search", "search")
         svc = UniversalIntegrationService(workspace_id="default")
-        result = await svc.execute(
-            service,
-            action,
-            {"query": query, "limit": 8},
-            context={
-                "user_id": user_id,
-                "workspace_id": "default",
-                "tenant_id": tenant_id,
-                # The acting agent — tool-error signals attach to its
-                # running execution so episodes see them.
-                "agent_id": (context or {}).get("agent_id"),
-            },
-        )
+        if (
+            (plan.intent or "search") == "search"
+            and action == "search"
+            and service in SEARCHABLE_SERVICES
+        ):
+            result = await svc.search(
+                service,
+                query,
+                context={
+                    "user_id": user_id,
+                    "workspace_id": "default",
+                    "tenant_id": tenant_id,
+                    # The acting agent — tool-error signals attach to its
+                    # running execution so episodes see them.
+                    "agent_id": (context or {}).get("agent_id"),
+                },
+            )
+        else:
+            result = await svc.execute(
+                service,
+                action,
+                {"query": query, "limit": 8},
+                context={
+                    "user_id": user_id,
+                    "workspace_id": "default",
+                    "tenant_id": tenant_id,
+                    "agent_id": (context or {}).get("agent_id"),
+                },
+            )
         data = result.get("data") if isinstance(result, dict) else None
         if result.get("status") != "success" or not data:
-            reason = str(result.get("error") or result.get("message") or "no data")[:160]
+            reason = str(result.get("error") or result.get("message") or "no data")
+            if reason.startswith("Routed to "):
+                # The family handler's fall-through envelope: NOTHING ran
+                # for this action. "Routed to ..." reads like a call happened
+                # — exactly the ambiguity the model turned into "I searched
+                # Zoho Inventory".
+                reason = f"{service}.{action} has no live implementation"
+            reason = reason[:160]
             # Empty live search is precisely where the model declares "I
             # don't have that file" about content that IS stored — the
             # ingested workspace indexes copies of these files and every
             # email. Second source instead of a dead end (live 2026-09-03:
             # price-book question routed to zoho_workdrive.search, which
-            # matched no filenames, while the workbook sat fully ingested).
+            # crashed on a missing service method, while the workbook sat
+            # fully ingested).
             mem_block = await _memory_search_block(user_id, query, context)
             if mem_block:
                 return (
@@ -859,12 +994,12 @@ async def execute_tool_plan(
                     f"the live {service} search returned nothing usable "
                     f"({reason}). Ingested-workspace matches:\n{mem_block}"
                 )
-            return (
+            return _with_grounding(
                 f"LIVE TOOL RESULTS ({service}.{action}, query='{query}'): "
                 f"returned nothing usable ({reason})."
             )
         text = str(data)[:2500]
-        return (
+        return _with_grounding(
             f"LIVE TOOL RESULTS ({service}.{action}, query='{query}') — "
             f"use these to answer:\n{text}"
         )
