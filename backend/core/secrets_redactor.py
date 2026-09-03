@@ -84,8 +84,16 @@ class SecretsRedactor:
         (r'\b\d{3}-\d{2}-\d{4}\b', 'SSN'),
         (r'\b\d{9}\b(?=.*ssn|social)', 'SSN'),
         
-        # Credit Card Numbers
-        (r'\b(?:\d{4}[-\s]?){3}\d{4}\b', 'CREDIT_CARD'),
+        # Credit Card Numbers. The lookarounds keep decimal numbers out of
+        # the match: spreadsheet floats serialize with long digit tails
+        # (1.0444000000000001) and the raw 16-digit run used to match,
+        # corrupting ingested price data into [REDACTED_CREDIT_CARD]. Two
+        # contexts are blocked — "digit,dot" (tail starting at the first
+        # fractional digit) and any preceding digit (longer tails let the
+        # run start mid-number). Luhn validation in the match loop filters
+        # the rest (serial numbers, order ids) — real card numbers pass
+        # Luhn, arbitrary digit runs almost never do.
+        (r'(?<![0-9])(?<![0-9][.,])(?:\d{4}[-\s]?){3}\d{4}(?![.,]?\d)', 'CREDIT_CARD'),
         
         # Bank Account Numbers (generic long numbers in financial context)
         (r'account[_\s-]?(?:number|num|#)["\']?\s*[:=]?\s*["\']?(\d{8,17})["\']?', 'BANK_ACCOUNT'),
@@ -144,6 +152,21 @@ class SecretsRedactor:
             except re.error as e:
                 logger.warning(f"Failed to compile pattern for {ptype}: {e}")
     
+    @staticmethod
+    def _luhn_valid(candidate: str) -> bool:
+        """Luhn checksum for card-shaped digit runs (separators ignored)."""
+        digits = [int(ch) for ch in re.sub(r"\D", "", candidate)]
+        if not digits:
+            return False
+        checksum = 0
+        for i, digit in enumerate(reversed(digits)):
+            if i % 2 == 1:
+                digit *= 2
+                if digit > 9:
+                    digit -= 9
+            checksum += digit
+        return checksum % 10 == 0
+
     def redact(self, text: str) -> RedactionResult:
         """
         Redact sensitive information from text.
@@ -171,6 +194,14 @@ class SecretsRedactor:
         for compiled_pattern, secret_type in self.compiled_patterns:
             for match in compiled_pattern.finditer(text):
                 start, end = match.span()
+
+                # Card-shaped digit runs must pass the Luhn checksum — the
+                # pattern alone matches arbitrary 16-digit numbers (serials,
+                # ids), and redacting those corrupts business data.
+                if secret_type == "CREDIT_CARD" and not self._luhn_valid(
+                    match.group(0)
+                ):
+                    continue
                 
                 # Skip if this region was already redacted
                 if any(start <= pos < end for pos in redacted_positions):

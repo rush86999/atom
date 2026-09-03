@@ -24,6 +24,8 @@ raising into the chat path.
 """
 import asyncio
 import logging
+import re
+from pathlib import Path
 import os
 from typing import Any, Dict, List, Optional
 
@@ -89,19 +91,33 @@ _SERVICE_DESCRIPTIONS = {
     # and the reply model confabulated research findings instead.
     "web_search": "web search — search the public internet for facts about a company, person, product, or topic",
     "web_fetch": "browser — fetch and read a specific website page; put the site address (e.g. https://example.com) in the query",
+    # Ingested-workspace memory: hybrid search over EVERYTHING ingestion
+    # stored (emails, chats, documents, CRM records) — vector + lexical.
+    # The first tool that queries the business's own ingested data directly;
+    # available to every agent, no OAuth.
+    "memory": "ingested workspace memory — search ALL emails, chats, documents and records the business has received or stored (emails by person/company/address, quotes, threads, file contents)",
 }
 
 # Web tools that ship with the platform (key-gated, no user OAuth needed).
 _PLATFORM_SERVICES = ("web_search", "web_fetch")
+# Available unconditionally — memory searches the workspace's OWN ingested
+# data (no external key, no OAuth). Coupling it to the Tavily key gate made
+# it vanish wherever web search wasn't configured.
+_ALWAYS_AVAILABLE_SERVICES = ("memory",)
 
 
 def _available_platform_services() -> List[str]:
     """Platform web tools usable right now. Tavily key check is env-only
     here (cheap, every chat turn); tenant BYOK keys are resolved at
     execution time inside mcp_service."""
-    if os.getenv("TAVILY_API_KEY"):
-        return list(_PLATFORM_SERVICES)
-    return []
+    # memory is always available — it searches the workspace's OWN ingested
+    # data (no external key). Only key-gated web tools depend on Tavily.
+    services = [
+        s for s in _PLATFORM_SERVICES
+        if s not in _ALWAYS_AVAILABLE_SERVICES and os.getenv("TAVILY_API_KEY")
+    ]
+    services.extend(_ALWAYS_AVAILABLE_SERVICES)
+    return services
 
 _PLANNER_SYSTEM = """You are the tool planner for an AI automation platform.
 Given the recent conversation and the user's latest message, decide whether
@@ -259,13 +275,284 @@ async def plan_tool_use(
     if plan.use_tool:
         allowed = set(connected) | set(_available_platform_services())
         if not plan.service or plan.service not in allowed:
-            logger.info(f"tool planner: service not connected ({plan.service!r}): {plan.reason[:80]}")
-            return None
+            # Free planner models occasionally emit use_tool=true with a
+            # null/unknown service on vague retries ("try again"). Two
+            # deterministic recoveries before giving up — a dead plan here
+            # made the model answer from memory while CLAIMING it had
+            # "rechecked" the mailbox (observed live 2026-09-02).
+            fallback = _fallback_service_from_history(history, connected, message)
+            if fallback:
+                logger.info(
+                    f"tool planner: invalid service ({plan.service!r}) — "
+                    f"falling back to recently used {fallback!r}")
+                plan.service = fallback
+                plan.intent = "search"
+                if not (plan.query or "").strip() or len(plan.query.strip()) < 12:
+                    plan.query = _retry_query_from_history(history, message)
+            elif plan.service is None and "memory" in allowed:
+                # Last rung, only for the planner's null-service flake: the
+                # model couldn't name ANY service. memory is always available
+                # and searches the workspace's OWN ingested data. Dropping the
+                # plan here made the model answer "I don't have that file"
+                # from a memory context whose legs had timed out — while the
+                # document sat fully indexed (live 2026-09-03: Consolidated
+                # Price List 2019.xlsx). A NAMED but unavailable service
+                # (key-gated web tools, unconnected integrations) still
+                # dead-ends below so the missing dependency stays visible.
+                logger.info(
+                    f"tool planner: invalid service ({plan.service!r}) — "
+                    f"falling back to always-available memory search")
+                plan.service = "memory"
+                plan.intent = "search"
+                if not (plan.query or "").strip():
+                    plan.query = message[:120]
+            else:
+                logger.info(f"tool planner: service not connected ({plan.service!r}): {plan.reason[:80]}")
+                return None
         if plan.intent not in ("search", "list"):
             plan.intent = "search"
         if not (plan.query or "").strip():
             plan.query = message[:120]
     return plan
+
+
+_RETRY_IMPERATIVE = re.compile(
+    r"\b(try again|again|keep looking|recheck|re-check|search again|"
+    r"look again|find it)\b", re.IGNORECASE,
+)
+
+
+def _entry_text(entry: Any) -> str:
+    """All string content of a history entry, whatever its shape — session
+    history, planner history and hydrated turns don't share one schema."""
+    if isinstance(entry, dict):
+        return " ".join(
+            str(v) for v in entry.values() if isinstance(v, (str, int, float))
+        )
+    return str(entry or "")
+
+
+def _fallback_service_from_history(
+    history: List[Dict[str, Any]], connected: List[str], message: str = "",
+) -> Optional[str]:
+    """Retry continuity for 'try again' after a failed tool turn: the most
+    recently mentioned connected service, scanning ALL string values of the
+    history entries (schemas vary). A bare retry imperative with no service
+    mentioned anywhere still defaults to the connected mailbox — a retry
+    means 'retry what you just did', and the mailbox is what an email
+    question was doing."""
+    import re as _re
+
+    for entry in reversed(history or []):
+        text = _entry_text(entry).lower()
+        for svc in connected:
+            # Word-boundary match so "mail" doesn't match "gmail" etc.
+            if _re.search(rf"\b{_re.escape(svc)}\b", text):
+                return svc
+    if _RETRY_IMPERATIVE.search(message or ""):
+        for preferred in ("outlook", "gmail"):
+            if preferred in connected:
+                return preferred
+        return connected[0] if connected else None
+    return None
+
+
+def _retry_query_from_history(
+    history: List[Dict[str, Any]], message: str
+) -> str:
+    """For bare retry imperatives ('try again'), the query is the previous
+    SUBSTANTIVE user message — 'try again' itself carries nothing to
+    search for."""
+    msg_l = (message or "").strip().lower()
+    for entry in reversed(history or []):
+        if not isinstance(entry, dict) or entry.get("role") != "user":
+            continue
+        text = str(entry.get("content") or "").strip()
+        if text and text.lower() != msg_l and len(text) >= 12:
+            return text[:200]
+    return (message or "")[:200]
+
+
+def _search_ingested_by_address(user_id, address, limit=4):
+    """Deterministic LanceDB lookup of ingested messages tied to an email
+    address (sender/recipient/content containment). Graph free-text search
+    does not reliably match sender ADDRESSES (live 2026-09-02: Jacob Schulz's
+    reply never surfaced because 'jschulz' is only the local part of the
+    sender address) — the ingested copy is authoritative here and needs no
+    embeddings. Fault-isolated; [] on anything."""
+    out = []
+    if not address or "@" not in address:
+        return out
+    try:
+        import lancedb
+
+        base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
+        db = lancedb.connect(str(base / "default"))
+        table = db.open_table("atom_communications")
+        df = table.to_arrow().to_pandas()
+        addr_l = address.lower()
+        for _, row in df.iterrows():
+            blob = " ".join(
+                str(row.get(c) or "") for c in ("sender", "recipient", "content", "subject")
+            ).lower()
+            if addr_l in blob:
+                out.append(
+                    f"- [ingested mailbox] From: {row.get('sender')} | "
+                    f"{str(row.get('subject') or '')[:90]} | "
+                    f"{str(row.get('content') or '')[:260]} | "
+                    f"{str(row.get('timestamp') or '')[:19]}"
+                )
+                if len(out) >= limit:
+                    break
+    except Exception as e:
+        logger.debug(f"ingested address search skipped: {e}")
+    return out
+
+
+def _best_content_excerpt(content: str, query: str, width: int = 500) -> str:
+    """Top non-overlapping windows of `content`, ranked by coverage and
+    frequency of the corpus's terms. Single-row documents (file ingests store
+    ONE LanceDB row) expose ~200-char previews to the model — always the
+    document HEAD, so anything mid-file (pricing tabs, formulas) was
+    invisible even though stored. One window is not enough: a query naming
+    the file ("Consolidated Price List 2019") scores its head highest while
+    the asked-about content sits mid-file — so show the best two regions.
+    Terms come from the query PLUS recent conversation (callers pass both):
+    the user's phrasing ("how is Full Cost calculated") carries the words
+    that actually locate the region."""
+    content = content.strip()
+    if len(content) <= width:
+        return content
+    # 4+ chars: drop stopwords ("the", "how") whose frequency drowns real
+    # signal in the freq term; keep "2019", "cost", "tool".
+    terms: List[str] = []
+    for t in re.findall(r"[a-z0-9]{4,}", (query or "").lower()):
+        if t not in terms:
+            terms.append(t)
+    terms = terms[:12]
+    lower = content.lower()
+    step = max(width // 2, 1)
+    scored = []
+    for s in range(0, len(content) - width, step):
+        window = lower[s : s + width]
+        coverage = sum(1 for t in terms if t in window)
+        freq = sum(window.count(t) for t in terms)
+        scored.append((coverage, freq, s))
+    scored.sort(key=lambda x: (-x[0], -x[1], x[2]))
+    picked: List[int] = []
+    for coverage, freq, s in scored:
+        if all(abs(s - p) >= width for p in picked):
+            picked.append(s)
+        if len(picked) >= 2:
+            break
+    picked.sort()
+    parts = []
+    for s in picked:
+        excerpt = content[s : s + width]
+        prefix = "[…earlier content skipped…] " if s > 0 else ""
+        suffix = " […more below…]" if s + width < len(content) else ""
+        parts.append(prefix + excerpt + suffix)
+    return "\n".join(parts)
+
+
+def _doc_hit_excerpt(doc_id: str, query: str, fallback: str, width: int = 600) -> str:
+    """Query-anchored excerpt from the FULL stored text of a file-ingest row
+    (documents table). Falls back to the short preview for rows that are not
+    LanceDB file ingests (PG-bridged records, conversations)."""
+    try:
+        import lancedb
+
+        base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
+        table = lancedb.connect(str(base / "default")).open_table("documents")
+        df = table.to_arrow().to_pandas()
+        ids = df["id"].astype(str)
+        rows = df[ids == str(doc_id)]
+        if rows.empty:
+            # chunked layout: {doc_id}::c0, ::c1, … — join in chunk order so
+            # the excerpt scorer sees the document's natural flow
+            family = df[ids.str.startswith(f"{doc_id}::")]
+            if not family.empty:
+                order = family["id"].astype(str).str.extract(
+                    r"::c(\d+)$", expand=False
+                )
+                family = family.assign(_ord=order.fillna("0").astype(int)).sort_values(
+                    "_ord"
+                )
+                rows = family.drop(columns=["_ord"])
+        if rows.empty:
+            return fallback
+        content = "\n".join(str(r.get("text") or "") for r in rows.to_dict("records"))
+        if not content.strip():
+            return fallback
+        return _best_content_excerpt(content, query, width)
+    except Exception as e:  # noqa: BLE001 — fault-isolated by contract
+        logger.debug(f"doc excerpt unavailable for {doc_id}: {e}")
+        return fallback
+
+
+async def _memory_search_block(
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+) -> Optional[str]:
+    """Hybrid search over the ingested workspace (documents, mailbox copies,
+    records) formatted as a LIVE TOOL RESULTS block. The `memory` service leg
+    of execute_tool_plan, factored out so other legs can fall back to it when
+    their live source comes back empty. None when nothing matched."""
+    try:
+        from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
+
+        result = await DocumentsHybridSearch().search(
+            query[:200], limit=8, owner_user_id=user_id
+        )
+        # Excerpt corpus: the tool query names the SUBJECT; the user's own
+        # words name what they want to KNOW about it. Both locate the region.
+        excerpt_corpus = query + " " + " ".join(
+            _entry_text(m) for m in ((context or {}).get("history") or [])[-3:]
+        )
+        lines: List[str] = []
+        seen_ids = set()
+        for hit in (result or {}).get("results") or []:
+            hid = str(hit.get("id") or "")
+            if hid in seen_ids:
+                continue
+            seen_ids.add(hid)
+            sender = str(hit.get("sender") or "")
+            title = str(hit.get("title") or "")[:100]
+            fallback_preview = str(hit.get("preview") or "")[:220].replace("\n", " ")
+            # Full-content, query-anchored excerpt: the ~200-char preview
+            # only ever showed a document's head, hiding pricing tabs and
+            # formulas that live mid-file in single-row ingests.
+            body = _doc_hit_excerpt(
+                hid, excerpt_corpus, fallback_preview
+            ).replace("\n", " | ")
+            source = str(hit.get("source") or hit.get("title") or "record")
+            lines.append(
+                f"- [{source}] {title}"
+                + (f" | From: {sender}" if sender else "")
+                + f" | {body}"
+            )
+        import re as _re_addr
+
+        _hay = query + " " + " ".join(
+            _entry_text(m) for m in ((context or {}).get("history") or [])[-6:]
+        )
+        for _addr in _re_addr.findall(r"[\w.+-]+@[\w.-]+", _hay):
+            for _line in _search_ingested_by_address(user_id, _addr):
+                if _line not in lines:
+                    lines.append(_line)
+                    if len(lines) >= 8:
+                        break
+            if len(lines) >= 8:
+                break
+        if not lines:
+            return None
+        return (
+            f"LIVE TOOL RESULTS (memory.search, query='{query}') — hybrid "
+            f"search over ingested workspace data; use these to answer:\n"
+            + "\n".join(lines[:8])
+        )
+    except Exception as e:
+        logger.warning(f"memory tool execution failed: {e}")
+        return None
 
 
 async def execute_tool_plan(
@@ -395,20 +682,46 @@ async def execute_tool_plan(
             logger.warning(f"web tool execution failed ({service}): {e}")
             return None
 
+    # Memory: hybrid search over the INGESTED workspace corpus (documents +
+    # communications + records — vector + lexical, conversations leg bridged
+    # to the comms store). Ingestion writes the data; this is the agent tool
+    # that queries it. Available to every agent, no OAuth. Address fragments
+    # (query or conversation context) additionally get a deterministic
+    # ingested-copy lookup, since neither Graph nor semantic search can map
+    # nicknames/addresses reliably (live 2026-09-02: Jason vs Jacob Schulz).
+    if service == "memory":
+        block = await _memory_search_block(user_id, query, context)
+        if block:
+            return block
+        return (
+            f"LIVE TOOL RESULTS (memory.search, query='{query}'): "
+            "nothing in the ingested workspace matched."
+        )
+
     # Outlook: dedicated service with per-user token handling. Graph $search
     # OR-ranks multi-word queries, so a rare surname gets buried under common
     # words ("Mark" → "Pavement Markings") — search each term separately and
     # merge, ranking hits that match more terms first, then by recency.
     if service == "outlook":
         try:
-            from integrations.outlook_service import outlook_service
+            from integrations.outlook_service import (
+                outlook_service,
+                sanitize_graph_kql,
+            )
 
             tokens = [t for t in query.split() if len(t) >= 2][:3] or [query]
             merged: Dict[str, Dict[str, Any]] = {}
             for term in tokens:
+                # Sanitize before the first call: an email address term
+                # ("jschulz@blumetric.ca Jason response") 400s in Graph KQL
+                # as-is, and that 400 used to silently empty the search —
+                # the rare, selective term was exactly the one that failed.
+                kql_term = sanitize_graph_kql(term)
+                if not kql_term:
+                    continue
                 try:
                     emails = await outlook_service.search_emails(
-                        user_id=user_id, query=term, max_results=10, quote=False
+                        user_id=user_id, query=kql_term, max_results=10, quote=False
                     )
                 except Exception as term_err:
                     logger.warning(f"outlook term search failed ({term}): {term_err}")
@@ -433,10 +746,63 @@ async def execute_tool_plan(
 
             ranked = sorted(merged.values(), key=_rank)
             emails = [x["email"] for x in ranked[:8]]
-            if not emails:
+
+            # SECOND SOURCE — the ingested mailbox memory. Graph free-text
+            # $search does not reliably match sender ADDRESSES or nicknames
+            # (live 2026-09-02: "find Jason's response" — the sender is
+            # "Jacob" Schulz, and the address local-part 'jschulz' never
+            # matched), while the ingested copy carries the full content
+            # plus sender/recipient fields. Supplement, don't replace.
+            store_lines: List[str] = []
+            try:
+                from core.hybrid_search.documents_hybrid import (
+                    DocumentsHybridSearch,
+                )
+
+                store_result = await DocumentsHybridSearch().search(
+                    query=query[:200], limit=6, owner_user_id=user_id
+                )
+                seen_subjects = {
+                    str(e.get("subject") or "").strip().lower() for e in emails
+                }
+                for hit in (store_result or {}).get("results") or []:
+                    if str(hit.get("source") or "") != "communication":
+                        continue
+                    sender = str(hit.get("sender") or "?")
+                    title = str(hit.get("title") or "")
+                    snippet = str(hit.get("preview") or "")[:220]
+                    ts = str(hit.get("as_of") or "")
+                    store_lines.append(
+                        f"- [ingested mailbox] From: {sender} | {title} | {snippet} | {ts}"
+                    )
+                    if len(store_lines) >= 4:
+                        break
+            except Exception as store_err:
+                logger.debug(f"comms-store supplement skipped: {store_err}")
+
+            # Address fragments get a DETERMINISTIC ingested lookup —
+            # nicknames ("Jason" vs "Jacob") and Graph's address indexing
+            # both miss these. The user's message often lacks the address
+            # ("find Jason's response"), but the surrounding conversation
+            # carries it — scan the recent history too.
+            import re as _re_addr
+
+            _addr_haystack = query + " " + " ".join(
+                _entry_text(m) for m in ((context or {}).get("history") or [])[-6:]
+            )
+            for _addr in _re_addr.findall(r"[\w.+-]+@[\w.-]+", _addr_haystack):
+                for _line in _search_ingested_by_address(user_id, _addr):
+                    if _line not in store_lines:
+                        store_lines.append(_line)
+                        if len(store_lines) >= 6:
+                            break
+                if len(store_lines) >= 6:
+                    break
+
+            if not emails and not store_lines:
                 return (
                     f"LIVE TOOL RESULTS (outlook.search_emails, query='{query}'): "
-                    "no matching messages in the mailbox."
+                    "no matching messages in the mailbox or ingested memory."
                 )
             listing = "\n".join(
                 f"- From: {((e.get('from_field') or {}).get('emailAddress') or {}).get('address') or '?'} | "
@@ -445,6 +811,8 @@ async def execute_tool_plan(
                 f"received: {str(e.get('received_date_time'))[:19]}"
                 for e in emails[:6]
             )
+            if store_lines:
+                listing = (listing + "\n" if listing else "") + "\n".join(store_lines)
             return (
                 f"LIVE TOOL RESULTS (outlook.search_emails, query='{query}') — "
                 f"use these to answer:\n{listing}"
@@ -466,11 +834,31 @@ async def execute_tool_plan(
             service,
             action,
             {"query": query, "limit": 8},
-            context={"user_id": user_id, "workspace_id": "default", "tenant_id": tenant_id},
+            context={
+                "user_id": user_id,
+                "workspace_id": "default",
+                "tenant_id": tenant_id,
+                # The acting agent — tool-error signals attach to its
+                # running execution so episodes see them.
+                "agent_id": (context or {}).get("agent_id"),
+            },
         )
         data = result.get("data") if isinstance(result, dict) else None
         if result.get("status") != "success" or not data:
             reason = str(result.get("error") or result.get("message") or "no data")[:160]
+            # Empty live search is precisely where the model declares "I
+            # don't have that file" about content that IS stored — the
+            # ingested workspace indexes copies of these files and every
+            # email. Second source instead of a dead end (live 2026-09-03:
+            # price-book question routed to zoho_workdrive.search, which
+            # matched no filenames, while the workbook sat fully ingested).
+            mem_block = await _memory_search_block(user_id, query, context)
+            if mem_block:
+                return (
+                    f"LIVE TOOL RESULTS ({service}.{action}, query='{query}'): "
+                    f"the live {service} search returned nothing usable "
+                    f"({reason}). Ingested-workspace matches:\n{mem_block}"
+                )
             return (
                 f"LIVE TOOL RESULTS ({service}.{action}, query='{query}'): "
                 f"returned nothing usable ({reason})."

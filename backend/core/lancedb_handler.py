@@ -412,6 +412,19 @@ class LanceDBHandler:
                         ]
                     )
 
+                # Freshness columns are top-level and filterable (the search
+                # freshness filter reads them natively). New documents tables
+                # get them from day one; existing tables are migrated in
+                # add_document when an extra column is missing.
+                if table_name == "documents":
+                    fields.extend(
+                        [
+                            pa.field("freshness_status", pa.string()),
+                            pa.field("source_modified_at", pa.string()),
+                            pa.field("source_url", pa.string()),
+                        ]
+                    )
+
                 if dual_vector:
                     fields.append(
                         pa.field("vector_fastembed", pa.list_(pa.float32(), 384))
@@ -680,6 +693,17 @@ class LanceDBHandler:
             logger.error(f"Failed to drop table '{table_name}': {e}")
             return False
 
+    def _table_vector_size(self, table) -> Union[int, None]:
+        """Fixed size of the table's 'vector' column, or None when the schema
+        carries no fixed-size vector (or the table can't be introspected)."""
+        try:
+            for f in table.schema:
+                if f.name == "vector" and hasattr(f.type, "list_size"):
+                    return f.type.list_size
+        except Exception:
+            pass
+        return None
+
     def embed_text(self, text: str) -> Union[Any, None]:
         """
         Embed text using unified LLMService.
@@ -759,8 +783,18 @@ class LanceDBHandler:
             # Generate embedding of the relationship description
             embedding = self.embed_text(description)
             if embedding is None:
-                # Fallback to zero vector if embedding fails (though not ideal)
-                vector_size = 1536 if self.embedding_provider == "openai" else 1536
+                # Embedding failed (dead embedder / event-loop sync call).
+                # The zero-vector fallback MUST match the table's fixed-size
+                # vector column — a hardcoded 1536 against a 384-dim table
+                # failed the FixedSizeList cast and silently dropped the edge.
+                vector_size = self._table_vector_size(table)
+                if vector_size is None:
+                    vector_size = self.vector_columns.get("vector_fastembed", 384) \
+                        if "fastembed" in str(self.embedding_provider).lower() else 1536
+                logger.warning(
+                    f"add_knowledge_edge: embed failed, writing {vector_size}-dim "
+                    "zero vector (edge unsearchable until re-embedded)"
+                )
                 if NUMPY_AVAILABLE:
                     import numpy as np
 
@@ -916,6 +950,27 @@ class LanceDBHandler:
                     # vector column from a Python list of floats.
                     table = self.create_table(table_name)
                 if table is not None:
+                    # Tables created before a top-level column existed (e.g.
+                    # freshness_* on pre-feature documents tables) reject the
+                    # write with "Field ... not found in target schema" —
+                    # migrate them instead of losing the row.
+                    if extra_columns:
+                        missing = [
+                            k
+                            for k in extra_columns
+                            if not self._has_column(table, k)
+                        ]
+                        if missing:
+                            try:
+                                table.add_columns({k: "''" for k in missing})
+                                logger.info(
+                                    f"Added missing column(s) {missing} to '{table_name}'"
+                                )
+                            except Exception as col_err:
+                                logger.warning(
+                                    f"Could not migrate columns {missing} on "
+                                    f"'{table_name}': {col_err}"
+                                )
                     table.add([record])
                 else:
                     return False
@@ -1246,6 +1301,26 @@ class LanceDBHandler:
         except Exception as e:
             logger.error(f"Failed to get document {doc_id}: {e}")
             return None
+
+    def get_document_ids_by_prefix(self, table_name: str, prefix: str) -> list[str]:
+        """All row ids whose id starts with ``prefix``.
+
+        Chunk families ({doc_id}::c0, ::c1, …) need family-wide deletes on
+        re-ingest; id equality alone can't find them. Small tables — full
+        scan is fine (documents ≈ thousands of rows).
+        """
+        self._ensure_db()
+        if self.db is None:
+            return []
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return []
+            ids = table.to_arrow().column("id").to_pylist()
+            return [str(i) for i in ids if str(i).startswith(prefix)]
+        except Exception as e:
+            logger.error(f"Failed to list ids by prefix in '{table_name}': {e}")
+            return []
 
     def delete_documents_by_id(self, table_name: str, doc_id: str) -> bool:
         """Delete ALL rows whose id equals ``doc_id`` from a table.

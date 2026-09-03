@@ -113,6 +113,23 @@ class FormulaExtractor:
             logger.error("openpyxl not installed. Run: pip install openpyxl")
             return []
 
+        # Raw-XML scan FIRST: it reads every <f> element straight from the
+        # package and works for openpyxl-hostile workbooks (Zoho Sheet
+        # exports trip openpyxl's strict reader — either raising outright or,
+        # worse, "succeeding" degenerately with shared strings half-parsed).
+        try:
+            raw_extracted = self._extract_formulas_raw_xml(file_path)
+            if raw_extracted:
+                if auto_store:
+                    self._store_formulas(raw_extracted, user_id, file_path)
+                logger.info(
+                    f"Extracted {len(raw_extracted)} formulas from {file_path} "
+                    f"(raw-XML)"
+                )
+                return raw_extracted
+        except Exception as raw_err:
+            logger.debug(f"raw-XML formula scan failed for {file_path}: {raw_err}")
+
         extracted = []
 
         try:
@@ -132,8 +149,168 @@ class FormulaExtractor:
             return extracted
 
         except Exception as e:
-            logger.error(f"Failed to extract formulas from {file_path}: {e}")
-            return []
+            # openpyxl is strict about workbook XML and hard-fails on
+            # spreadsheets written by non-Excel tools (Zoho Sheet exports trip
+            # read_strings) — the same files that broke content ingestion
+            # before the raw-XML parser existed. Their formulas are plain
+            # well-formed XML: extract them directly instead of returning [].
+            logger.warning(
+                f"openpyxl cannot read {file_path} ({e}) — trying raw-XML formula fallback"
+            )
+            try:
+                extracted = self._extract_formulas_raw_xml(file_path)
+                if auto_store and extracted:
+                    self._store_formulas(extracted, user_id, file_path)
+                if extracted:
+                    logger.info(
+                        f"Extracted {len(extracted)} formulas from {file_path} "
+                        f"(raw-XML fallback)"
+                    )
+                return extracted
+            except Exception as raw_err:
+                logger.error(f"Raw-XML formula fallback failed for {file_path}: {raw_err}")
+                return []
+
+    def _extract_formulas_raw_xml(
+        self,
+        file_path: str,
+        max_sheets: int = 10,
+        max_formulas: int = 200,
+    ) -> List[Dict[str, Any]]:
+        """Extract formulas straight from the xlsx zip (stdlib XML only).
+
+        Fallback for workbooks openpyxl rejects. Formula text lives in <f>
+        elements; headers come from spreadsheet row 1; the same semantic
+        assembly as the XLS path (_parse_xls_formula) builds definitions.
+        Dedupes identical (name, expression) pairs — price books repeat the
+        same markup formula across hundreds of row cells — capped at
+        max_formulas to bound formula-memory noise.
+        """
+        import zipfile
+        import xml.etree.ElementTree as ET
+
+        def _local(tag: str) -> str:
+            return tag.rsplit("}", 1)[-1]
+
+        def _col_num(ref: str) -> int:
+            n = 0
+            for ch in ref:
+                if ch.isalpha():
+                    n = n * 26 + (ord(ch.upper()) - 64)
+                else:
+                    break
+            return n
+
+        out: List[Dict[str, Any]] = []
+        seen: set = set()
+        with zipfile.ZipFile(file_path) as zf:
+            # Header cells reference shared strings by index — resolve them.
+            # <rPh> phonetic runs are pronunciation hints, not content.
+            shared: List[str] = []
+            if "xl/sharedStrings.xml" in zf.namelist():
+                sst_root = ET.fromstring(zf.read("xl/sharedStrings.xml"))
+                for si in sst_root:
+                    if _local(si.tag) != "si":
+                        continue
+                    parts: List[str] = []
+                    for child in si:
+                        tag = _local(child.tag)
+                        if tag == "t":
+                            parts.append(child.text or "")
+                        elif tag == "r":
+                            parts.extend(
+                                sub.text or ""
+                                for sub in child
+                                if _local(sub.tag) == "t"
+                            )
+                    shared.append("".join(parts))
+
+            def _cell_text(c) -> str:
+                ctype = c.get("t")
+                v = next((ch for ch in c if _local(ch.tag) == "v"), None)
+                if v is None:
+                    return ""
+                if ctype == "s":
+                    try:
+                        return shared[int(v.text)]
+                    except (ValueError, IndexError):
+                        return v.text or ""
+                return v.text or ""
+
+            sheet_display: Dict[str, str] = {}
+            try:
+                wb = ET.fromstring(zf.read("xl/workbook.xml"))
+                rels = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
+                rid_target = {
+                    rel.get("Id"): rel.get("Target", "")
+                    for rel in rels
+                    if _local(rel.tag) == "Relationship"
+                }
+                for sh in wb.iter():
+                    if _local(sh.tag) != "sheet":
+                        continue
+                    rid = sh.get(
+                        "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+                    )
+                    target = (rid_target.get(rid) or "").lstrip("/")
+                    if target and not target.startswith("xl/"):
+                        target = f"xl/{target}"
+                    if target:
+                        sheet_display[target] = sh.get("name") or target
+            except Exception:
+                pass  # names best-effort; part filenames still work
+
+            sheets = sorted(
+                n for n in zf.namelist()
+                if n.startswith("xl/worksheets/") and n.endswith(".xml")
+            )
+            for sheet_path in sheets[:max_sheets]:
+                sheet_name = sheet_display.get(
+                    sheet_path, sheet_path.rsplit("/", 1)[-1]
+                )
+                root = ET.fromstring(zf.read(sheet_path))
+                headers: Dict[int, str] = {}
+                for row in root.iter():
+                    if _local(row.tag) != "row":
+                        continue
+                    try:
+                        row_num = int(row.get("r") or "0")
+                    except ValueError:
+                        row_num = 0
+                    for c in row:
+                        if _local(c.tag) != "c":
+                            continue
+                        ref = c.get("r") or ""
+                        col = _col_num(ref)
+                        if row_num == 1:
+                            header_text = _cell_text(c).strip()
+                            if header_text:
+                                headers[col] = header_text
+                            continue
+                        f_el = next(
+                            (ch for ch in c if _local(ch.tag) == "f"), None
+                        )
+                        ftext = (f_el.text or "").strip() if f_el is not None else ""
+                        if not ftext:
+                            continue  # shared-formula dependents carry no body
+                        formula = ftext if ftext.startswith("=") else f"={ftext}"
+                        formula_def = self._parse_xls_formula(
+                            formula_str=formula,
+                            row=max(row_num - 1, 0),
+                            col=max(col - 1, 0),
+                            headers=headers,
+                            sheet_name=sheet_name,
+                        )
+                        if not formula_def:
+                            continue
+                        key = (formula_def.get("name"), formula_def.get("expression"))
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        out.append(formula_def)
+                        if len(out) >= max_formulas:
+                            return out
+            return out
 
     def extract_from_xls(
         self,

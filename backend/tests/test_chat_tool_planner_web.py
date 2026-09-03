@@ -31,9 +31,12 @@ def _tavily_key(monkeypatch):
 
 
 def test_platform_services_present_with_key(monkeypatch):
-    assert _available_platform_services() == ["web_search", "web_fetch"]
+    # memory is ALWAYS available (queries the workspace's own ingested data,
+    # no external key); web tools stay Tavily-key-gated.
     monkeypatch.delenv("TAVILY_API_KEY", raising=False)
-    assert _available_platform_services() == []
+    assert _available_platform_services() == ["memory"]
+    monkeypatch.setenv("TAVILY_API_KEY", "k")
+    assert _available_platform_services() == ["web_search", "web_fetch", "memory"]
 
 
 def test_catalog_includes_web_tools_without_oauth():
@@ -169,3 +172,155 @@ def test_html_to_text_strips_scripts_and_tags():
     text = _html_to_text(html)
     assert "WFS Ltd" in text and "Supply store & dealer" in text
     assert "evil" not in text and "x{}" not in text and "<" not in text
+
+
+# ── invalid-service recovery rungs ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_invalid_service_with_no_history_falls_back_to_memory():
+    """Regression (2026-09-03): planner emitted use_tool=true with
+    service=None for a file-contents question; with no history to recover
+    from, the plan was dropped and the model answered "I don't have that
+    file" while the document sat fully indexed in ingested memory.
+    memory is always available and read-only — the correct last rung."""
+    from core.chat_tool_planner import ToolPlan, plan_tool_use
+
+    llm = MagicMock()
+    llm.generate_structured_response = AsyncMock(
+        return_value=ToolPlan(use_tool=True, service=None, intent="search",
+                              query=None, reason="needs file contents")
+    )
+    with patch("core.chat_tool_planner.get_connected_services", return_value=[]):
+        result = await plan_tool_use(
+            "What products and prices are listed in the Consolidated Price List 2019 file?",
+            [], "user-1", llm,
+        )
+    assert result is not None and result.service == "memory"
+    assert result.intent == "search"
+    assert "Consolidated Price List 2019" in (result.query or "")
+
+
+@pytest.mark.asyncio
+async def test_named_unavailable_service_still_dead_ends(monkeypatch):
+    """A NAMED but unavailable service (web_search without a Tavily key,
+    an unconnected integration) must keep the existing dead-end: the plan is
+    dropped so the missing dependency stays visible — memory is not
+    substituted for it."""
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+    from core.chat_tool_planner import plan_tool_use
+
+    llm = MagicMock()
+    llm.generate_structured_response = AsyncMock(return_value=_plan("web_search"))
+    with patch("core.chat_tool_planner.get_connected_services", return_value=[]):
+        result = await plan_tool_use("check the lead website", [], "user-1", llm)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_history_fallback_still_wins_over_memory():
+    """Existing contract: a recently mentioned connected service is the
+    preferred recovery over the memory rung (retry continuity)."""
+    from core.chat_tool_planner import plan_tool_use
+
+    llm = MagicMock()
+    llm.generate_structured_response = AsyncMock(return_value=_plan(None))
+    history = [{"message": "search outlook for the Acme quote"}]
+    with patch("core.chat_tool_planner.get_connected_services", return_value=["outlook"]):
+        result = await plan_tool_use("try again", history, "user-1", llm)
+    assert result is not None and result.service == "outlook"
+
+
+# ── query-anchored excerpts for single-row documents ───────────────────
+
+
+def test_best_content_excerpt_centers_on_query_terms():
+    from core.chat_tool_planner import _best_content_excerpt
+
+    filler = "Exchange rates row " * 400  # head region, no query terms
+    target = "Full Cost 1.6989830000000001 [=B4*B5*B6*B7] Dealer 2.65 [=D9/B10]"
+    content = filler + " ||| " + target + " ||| " + ("Trailer text " * 400)
+    excerpt = _best_content_excerpt(content, "full cost formula", width=600)
+    assert "Full Cost" in excerpt and "[=B4*B5*B6*B7]" in excerpt
+
+
+def test_best_content_excerpt_short_content_untouched():
+    from core.chat_tool_planner import _best_content_excerpt
+
+    assert _best_content_excerpt("short", "anything") == "short"
+
+
+def test_best_content_excerpt_marks_skipped_regions():
+    from core.chat_tool_planner import _best_content_excerpt
+
+    content = ("head " * 200) + ("body " * 200)
+    excerpt = _best_content_excerpt(content, "body", width=300)
+    assert excerpt.startswith("[…earlier content skipped…]")
+
+
+@pytest.mark.asyncio
+async def test_empty_integration_search_falls_back_to_memory():
+    """Live 2026-09-03: a price-book question routed to
+    zoho_workdrive.search, matched no filenames, and the model answered
+    "I can't confirm…" while the workbook sat fully ingested. An empty live
+    integration result must get a second source: the ingested workspace."""
+    from core.chat_tool_planner import ToolPlan, execute_tool_plan
+
+    plan = ToolPlan(use_tool=True, service="zoho_workdrive", intent="search",
+                    query="Full Cost formula Consolidated Price List 2019",
+                    reason="file contents")
+    empty = AsyncMock(return_value={"status": "success", "data": None})
+    hit = {
+        "id": "doc-not-in-store",
+        "title": "Consolidated Price List 2019.xlsx",
+        "preview": "=== Sheet: MULT SCOTCH TOOLING === Full Cost 1.69 [=B4*B5*B6*B7]",
+        "source": "vector",
+    }
+    with patch("integrations.universal_integration_service.UniversalIntegrationService.execute", empty), \
+         patch("core.hybrid_search.documents_hybrid.DocumentsHybridSearch.search",
+               AsyncMock(return_value={"results": [hit], "label": "hybrid"})):
+        block = await execute_tool_plan(plan, "user-1", "default", {})
+    assert block is not None
+    assert "Ingested-workspace matches" in block
+    assert "Consolidated Price List 2019" in block
+
+
+def test_doc_hit_excerpt_joins_chunk_family(monkeypatch):
+    """Chunked documents ({doc_id}::c{i} rows) must be excerpted as one
+    document — joined in chunk order, then query-anchored."""
+    import re
+
+    import lancedb
+    import pandas as pd
+
+    from core.chat_tool_planner import _doc_hit_excerpt
+    from core.vector_upsert import _split_into_chunks
+
+    filler = "Exchange rates row " * 300
+    target = "Full Cost 1.69 [=B4*B5*B6*B7] " + "detail " * 120
+    text = filler + "|||" + target + "|||" + "trailer " * 300
+    chunks = _split_into_chunks(text, 500, 100)
+    rows = [
+        {"id": f"docX::c{i}", "text": c, "metadata": "{}"}
+        for i, c in enumerate(chunks)
+    ]
+
+    class FakeArrow:
+        def to_pandas(self):
+            return pd.DataFrame(rows)
+
+    class FakeTable:
+        def to_arrow(self):
+            return FakeArrow()
+
+    class FakeDB:
+        def open_table(self, name):
+            return FakeTable()
+
+    monkeypatch.setattr(lancedb, "connect", lambda path: FakeDB())
+    out = _doc_hit_excerpt("docX", "full cost formula", "short fallback")
+    assert "fallback" != out and len(out) > 300
+    assert "Full Cost" in out
+    # every joined chunk id sorts in document order (c2 before c10)
+    ids = [r["id"] for r in rows]
+    assert re.findall(r"::c(\d+)$", "|".join(ids)) is not None
