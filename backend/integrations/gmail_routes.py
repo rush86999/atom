@@ -1,8 +1,11 @@
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -104,3 +107,193 @@ async def send_gmail_message(
         "thread_id": thread_id,
         "message_id": f"msg_{user_id}_{datetime.now().timestamp()}",
     }
+
+
+# ---------------------------------------------------------------------------
+# Real Gmail / Calendar data for the integration page
+# ---------------------------------------------------------------------------
+# The Overview/Inbox/Calendar tabs derive their numbers from GET /emails and
+# GET /events, which no backend route served (the Next.js proxy 404'd and the
+# page silently showed 0). These hit the Gmail + Calendar APIs with the
+# user-scoped unified Google token (same IntegrationToken family the Drive
+# service resolves).
+
+
+async def _resolve_google_token(user_id: str) -> Optional[str]:
+    """User-scoped Google access token via the unified IntegrationToken store."""
+    try:
+        from integrations.google_drive_service import GoogleDriveService
+
+        return await GoogleDriveService().get_access_token(user_id)
+    except Exception as e:
+        logger.warning(f"Gmail token resolution failed: {e}")
+        return None
+
+
+async def _google_get(
+    client, token: str, url: str, params: Optional[Dict[str, Any]] = None
+):
+    """Authenticated Google API GET over a caller-owned client; (status, json-or-None)."""
+    resp = await client.get(
+        url, headers={"Authorization": f"Bearer {token}"}, params=params
+    )
+    if resp.status_code >= 400:
+        try:
+            err = (
+                resp.json().get("error", {}).get("message")
+                or resp.json().get("message")
+            )
+        except Exception:
+            err = resp.text[:200]
+        logger.warning(f"Gmail/Calendar API {resp.status_code}: {err}")
+        return resp.status_code, None
+    return resp.status_code, resp.json()
+
+
+def _fmt_msg_time(ms: Any) -> str:
+    try:
+        return datetime.fromtimestamp(int(ms) / 1000).strftime("%b %d, %Y %I:%M %p")
+    except Exception:
+        return ""
+
+
+_INVISIBLE_CHARS = "\u034f\u200b\u200c\u200d\u2060\ufeff\u00ad\u2007"
+
+
+def _clean_text(value: Any) -> str:
+    """Strip the junk Gmail snippets carry: invisible anti-spam characters
+    (e.g. U+034F / zero-width spaces), HTML entities, and run-on whitespace."""
+    import html as _html
+    import re as _re
+
+    s = str(value or "")
+    s = s.translate({ord(c): None for c in _INVISIBLE_CHARS})
+    s = _html.unescape(s)
+    return _re.sub(r"\s+", " ", s).strip()
+
+
+def _email_from_payload(full: Dict[str, Any]) -> Dict[str, Any]:
+    """Gmail message resource -> the panel's email row shape."""
+    headers = {}
+    for h in (full.get("payload", {}).get("headers") or []):
+        headers[h.get("name", "").lower()] = h.get("value", "")
+    labels = full.get("labelIds") or []
+    return {
+        "id": full.get("id"),
+        "from": _clean_text(headers.get("from", "")),
+        "subject": _clean_text(headers.get("subject", "(no subject)")),
+        "preview": _clean_text(full.get("snippet", "")),
+        "time": _fmt_msg_time(full.get("internalDate")),
+        "unread": "UNREAD" in labels,
+        "important": "IMPORTANT" in labels,
+        "starred": "STARRED" in labels,
+    }
+
+
+@router.get("/emails")
+async def list_emails(
+    q: str = Query(default="in:inbox", description="Gmail search query"),
+    max_results: int = Query(default=20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+):
+    """List real Gmail messages (defaults to the inbox)."""
+    import asyncio
+    import httpx
+
+    token = await _resolve_google_token(str(current_user.id))
+    if not token:
+        return {"emails": [], "total": 0, "error": "not_connected"}
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        st, data = await _google_get(
+            client,
+            token,
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+            {"maxResults": min(max_results, 100), "q": q},
+        )
+        if not data:
+            return {"emails": [], "total": 0, "error": f"gmail_api_error:{st}"}
+
+        ids = [m["id"] for m in data.get("messages", [])[:max_results]]
+        # Fetch message metadata concurrently — sequential per-message calls
+        # made the endpoint take tens of seconds for a full inbox.
+        results = await asyncio.gather(
+            *[
+                _google_get(
+                    client,
+                    token,
+                    f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{mid}",
+                    {"format": "metadata", "metadataHeaders": ["From", "Subject"]},
+                )
+                for mid in ids
+            ]
+        )
+    emails = [
+        _email_from_payload(full) for st_, full in results if st_ and full
+    ]
+    return {"emails": emails, "total": len(emails)}
+
+
+@router.get("/events")
+async def list_events(
+    max_results: int = Query(default=10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+):
+    """List upcoming primary-calendar events."""
+    import httpx
+
+    token = await _resolve_google_token(str(current_user.id))
+    if not token:
+        return {"events": [], "total": 0, "error": "not_connected"}
+
+    from datetime import timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    # Recent finished events (so the "Completed" stat has a real meaning).
+    time_max = now.isoformat()
+    time_min = (now - timedelta(days=30)).isoformat()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        st, data = await _google_get(
+            client,
+            token,
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            {
+                "maxResults": min(max_results, 100),
+                "singleEvents": "true",
+                "orderBy": "startTime",
+                "timeMin": time_min,
+                "timeMax": time_max,
+            },
+        )
+        _, past_data = await _google_get(
+            client,
+            token,
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            {
+                "maxResults": min(max_results, 100),
+                "singleEvents": "true",
+                "orderBy": "startTime",
+                "timeMax": time_max,
+            },
+        )
+    if data is None and past_data is None:
+        return {"events": [], "total": 0, "error": f"calendar_api_error:{st}"}
+
+    def _to_event(it: Dict[str, Any], completed: bool) -> Dict[str, Any]:
+        start = it.get("start") or {}
+        dt = start.get("dateTime") or start.get("date") or ""
+        date_part = dt[:10]
+        time_part = dt[11:16] if len(dt) > 10 else "All day"
+        return {
+            "id": it.get("id"),
+            "title": it.get("summary") or "(no title)",
+            "location": it.get("location") or "",
+            "time": time_part,
+            "date": date_part,
+            "completed": completed,
+        }
+
+    # Upcoming first, then finished events (most recent last).
+    events = [_to_event(it, False) for it in (data or {}).get("items", [])[:max_results]]
+    events += [_to_event(it, True) for it in (past_data or {}).get("items", [])[:max_results]]
+    return {"events": events, "total": len(events)}
