@@ -4,6 +4,7 @@ Chat Routes - API endpoints for the ATOM chat interface
 import logging
 import re
 import os
+import json
 from datetime import datetime, timezone
 
 # Add parent directory to path to import from backend
@@ -302,6 +303,7 @@ class ChatMessageResponse(BaseModel):
     memory_context: Optional[str] = Field(None, description="Auto-retrieved memory context injected before this answer (memory transparency)")
     model: Optional[str] = Field(None, description="Which model produced the response")
     provider: Optional[str] = Field(None, description="Which provider served the response")
+    reasoning: Optional[str] = Field(None, description="The model's chain-of-thought for this reply — rendered by the Reasoning Process drawer and captured with feedback for training")
     error_code: Optional[str] = Field(None, description="Structured error code (e.g. no_llm_provider, budget_exceeded)")
     recovery_url: Optional[str] = Field(None, description="Recovery URL for structured errors")
 
@@ -506,16 +508,27 @@ async def get_chat_history(
                     )
                     .all()
                 )
-                history = [
-                    {
+                history = []
+                for row in rows:
+                    _meta: Dict[str, Any] = {}
+                    if row.metadata_json:
+                        try:
+                            _meta = json.loads(row.metadata_json)
+                        except Exception:
+                            _meta = {}
+                    _entry: Dict[str, Any] = {
                         "id": row.id,
                         "role": row.role,
                         "message": row.content if row.role == "user" else None,
                         "response": {"message": row.content} if row.role == "assistant" else None,
                         "timestamp": row.created_at.isoformat() if row.created_at else None,
                     }
-                    for row in rows
-                ]
+                    # Surface the persisted chain-of-thought so reloading a
+                    # session re-renders the "Reasoning Process" drawer (the
+                    # trace route only covers agent-tool steps, not CoT).
+                    if row.role == "assistant" and _meta.get("reasoning"):
+                        _entry["reasoning"] = _meta["reasoning"]
+                    history.append(_entry)
                 if history:
                     logger.info(
                         f"Loaded {len(history)} messages from DB for session {session_id}"
@@ -862,6 +875,7 @@ class ChatFeedbackRequest(BaseModel):
     model: Optional[str] = Field(None, description="Which model produced the response")
     provider: Optional[str] = Field(None, description="Which provider served the response")
     session_id: Optional[str] = Field(None, description="Conversation session ID")
+    reasoning: Optional[str] = Field(None, description="The agent's chain-of-thought for the rated reply, when the client has it — captured on the ExchangeExample for feedback training (falls back to the persisted message metadata)")
 
 
 @router.patch("/sessions/{session_id}")
@@ -1172,6 +1186,7 @@ async def send_chat_message(
             memory_context=response.get("memory_context"),
             model=response.get("model"),
             provider=response.get("provider"),
+            reasoning=response.get("reasoning"),
         )
 
     except Exception as e:
@@ -1258,6 +1273,7 @@ async def submit_chat_feedback(
             model=request.model,
             provider=request.provider,
             user_id=str(current_user.id) if current_user else None,
+            reasoning=request.reasoning,
         )
     except Exception as e:
         logger.warning(f"exchange example capture failed (non-fatal): {e}")

@@ -18,6 +18,7 @@ import { AutonomyPanel } from "@/components/canvas/AutonomyPanel";
 import { ChatFeedbackControls, ChatFeedbackType } from "@/components/canvas/ChatFeedbackControls";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { ReasoningChain, type ReasoningStep } from "@/components/Agents/ReasoningChain";
+import { reasoningTextToStep } from "@/components/GlobalChat/ChatMessage";
 import { fetchSessionTrace, submitStepFeedback } from "@/lib/agent-trace-api";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import { getCurrentUserId } from "@/lib/identity";
@@ -37,6 +38,8 @@ interface CanvasMessage {
     // Reasoning steps for THIS reply (live-captured from agent_step_update)
     // + the identifiers step-level training feedback needs.
     reasoningTrace?: ReasoningStep[];
+    /** The model's chain-of-thought for this reply (training + drawer). */
+    reasoning?: string;
     executionId?: string;
     agentId?: string;
 }
@@ -558,7 +561,11 @@ export default function CanvasDetailPage() {
                 // The authoritative reply either FINALIZES the streamed
                 // bubble (same session) or appends a fresh assistant message
                 // (no-stream fallback) — never both, which duplicated every
-                // streamed reply (observed live 2026-09-01).
+                // streamed reply (observed live 2026-09-01). Both branches
+                // fall back to the response's chain-of-thought when the WS
+                // steps didn't carry it (stale socket) so the "Reasoning
+                // Process" drawer always has the turn's thinking.
+                const restReasoningStep = reasoningTextToStep(data.reasoning);
                 const streamId = `stream_${data.session_id}`;
                 setMessages(prev => {
                     const streamed = prev.find(m => m.id === streamId);
@@ -569,6 +576,10 @@ export default function CanvasDetailPage() {
                             streaming: false,
                             model: data.model ?? m.model ?? null,
                             provider: data.provider ?? m.provider ?? null,
+                            reasoning: data.reasoning ?? m.reasoning ?? undefined,
+                            reasoningTrace: m.reasoningTrace?.length
+                                ? m.reasoningTrace
+                                : (restReasoningStep ? [restReasoningStep] : m.reasoningTrace),
                         } : m));
                     }
                     return [...prev, {
@@ -579,6 +590,8 @@ export default function CanvasDetailPage() {
                         // Attribution for the message-level feedback call.
                         model: data.model ?? null,
                         provider: data.provider ?? null,
+                        reasoning: data.reasoning || undefined,
+                        ...(restReasoningStep ? { reasoningTrace: [restReasoningStep] } : {}),
                     }];
                 });
                 // The WS canvas:update broadcast is the primary live carrier,
@@ -715,6 +728,9 @@ export default function CanvasDetailPage() {
                         input_summary: msg.content.slice(0, 200),
                         canvas_id: canvasId,
                         source: "canvas_chat",
+                        // The turn's chain-of-thought — the governance
+                        // feedback's original_output is what training judges.
+                        thought: msg.reasoning,
                     },
                     feedbackType: type,
                     comment,
@@ -729,6 +745,7 @@ export default function CanvasDetailPage() {
                     model: msg.model ?? undefined,
                     provider: msg.provider ?? undefined,
                     session_id: chatSessionId ?? undefined,
+                    reasoning: msg.reasoning || undefined,
                 });
             } catch {
                 // router-learning feedback is best-effort by design

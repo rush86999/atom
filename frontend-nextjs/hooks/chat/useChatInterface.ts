@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ChatMessageData, ReasoningStep } from "@/components/GlobalChat/ChatMessage";
+import { ChatMessageData, ReasoningStep, reasoningTextToStep } from "@/components/GlobalChat/ChatMessage";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useToast } from "@/components/ui/use-toast";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -40,6 +40,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
     // Dedupe guard: set true when the REST path appends the assistant message,
     // so the WebSocket streaming:complete path doesn't append a duplicate.
     const _restFulfilledRef = useRef(false);
+    // Reasoning steps that arrive over WS BEFORE the REST response appends
+    // this turn's assistant message. The old handler silently DROPPED them
+    // (steps only attach to a trailing assistant message, and while the
+    // agent is generating the last message is the user's) — so the "Reasoning
+    // Process" drawer never showed anything on the main chat page.
+    const _pendingStepsRef = useRef<ReasoningStep[]>([]);
 
     const { isConnected, lastMessage, streamingContent, subscribe } = useWebSocket();
     const { toast } = useToast();
@@ -112,20 +118,26 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                         const assistantActions = historyItem.response?.suggested_actions || historyItem.response?.metadata?.actions || [];
 
                         if (assistantContent && typeof assistantContent === 'string') {
+                            const historyReasoningStep = reasoningTextToStep(historyItem.reasoning);
                             chatMessages.push({
                                 id: historyItem.id || `msg_assistant_${idx}`,
                                 type: "assistant",
                                 content: assistantContent,
                                 timestamp: new Date(historyItem.timestamp || Date.now()),
                                 actions: assistantActions,
+                                reasoning: historyItem.reasoning || undefined,
+                                ...(historyReasoningStep ? { reasoningTrace: [historyReasoningStep] } : {}),
                             });
                         } else if (assistantContent && typeof assistantContent === 'object' && assistantContent.message) {
+                            const historyReasoningStep = reasoningTextToStep(historyItem.reasoning);
                             chatMessages.push({
                                 id: historyItem.id || `msg_assistant_${idx}`,
                                 type: "assistant",
                                 content: assistantContent.message,
                                 timestamp: new Date(historyItem.timestamp || Date.now()),
                                 actions: assistantContent.suggested_actions || [],
+                                reasoning: historyItem.reasoning || undefined,
+                                ...(historyReasoningStep ? { reasoningTrace: [historyReasoningStep] } : {}),
                             });
                         }
                     });
@@ -217,6 +229,9 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         setIsProcessing(true);
         setStatusMessage("Agent is thinking...");
         _restFulfilledRef.current = false;
+        // This turn's steps belong to THIS turn's reply — drop any stragglers
+        // buffered from a turn that never resolved.
+        _pendingStepsRef.current = [];
 
         try {
             const { apiClient } = await import('../../lib/api-client');
@@ -309,6 +324,18 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     onSessionCreated?.(data.session_id);
                 }
 
+                // Attach this turn's buffered WS steps, and fall back to the
+                // REST payload's chain-of-thought when no WS step carried it
+                // (stale socket / history-only clients still get the drawer).
+                const bufferedSteps = _pendingStepsRef.current;
+                _pendingStepsRef.current = [];
+                const restReasoningStep = reasoningTextToStep(data.reasoning);
+                const reasoningTrace: ReasoningStep[] = [
+                    ...bufferedSteps,
+                    ...(restReasoningStep && !bufferedSteps.some(
+                        s => (s.thought || "").trim() === (data.reasoning || "").trim()
+                    ) ? [restReasoningStep] : []),
+                ];
                 const agentMsg: ChatMessageData = {
                     id: (Date.now() + 1).toString(),
                     type: "assistant",
@@ -318,6 +345,8 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     model: data.model,
                     provider: data.provider,
                     memoryContext: data.memory_context || undefined,
+                    reasoning: data.reasoning || undefined,
+                    ...(reasoningTrace.length ? { reasoningTrace } : {}),
                 };
                 setMessages(prev => [...prev, agentMsg]);
                 // Mark this generation as REST-fulfilled so the WebSocket
@@ -375,6 +404,12 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 comment: comment,
                 model: ratedMessage?.model,
                 provider: ratedMessage?.provider,
+                // The thinking that produced the rated reply — training signal
+                // (backend also falls back to persisted message metadata).
+                reasoning: ratedMessage?.reasoning
+                    || (ratedMessage?.reasoningTrace || [])
+                        .map(s => s.thought || "").filter(Boolean).join("\n\n")
+                    || undefined,
             });
 
             const data = (response as any).data || response;
@@ -608,6 +643,9 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                         reasoningTrace: [...(lastMsg.reasoningTrace || []), step]
                     }];
                 }
+                // Assistant message for this turn doesn't exist yet — buffer
+                // the step; it attaches when the REST reply lands.
+                _pendingStepsRef.current = [..._pendingStepsRef.current, step];
                 return prev;
             });
         }
@@ -625,12 +663,15 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         if (msg.type === "streaming:complete" && msg.id === currentStreamId) {
             // Dedupe guard: skip if the REST path already appended the message.
             if (!_restFulfilledRef.current) {
+                const wsBuffered = _pendingStepsRef.current;
+                _pendingStepsRef.current = [];
                 const agentMsg: ChatMessageData = {
                     id: msg.id,
                     type: "assistant",
                     content: msg.content,
                     timestamp: new Date(),
                     actions: [],
+                    ...(wsBuffered.length ? { reasoningTrace: wsBuffered } : {}),
                 };
                 setMessages(prev => [...prev, agentMsg]);
             }

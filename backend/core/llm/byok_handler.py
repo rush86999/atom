@@ -721,6 +721,12 @@ class BYOKHandler:
         # response and key feedback correctly (instead of the "auto" input).
         self._last_used_model: Optional[str] = None
         self._last_used_provider: Optional[str] = None
+        # Chain-of-thought from the last completed call (delta.reasoning /
+        # reasoning_content / thinking fields, provider-dependent). Like the
+        # model/provider stash above: generate_response returns only text, so
+        # callers read this to persist + display WHAT the model was thinking
+        # (reasoning drawers, feedback training). Cleared per call.
+        self._last_reasoning: Optional[str] = None
         # routing_result_id stashed by _rerank_with_learning when it computed
         # per-decision prompt features, so the outcome hook can recover them
         # (train/serve consistency). None when re-ranking didn't fire.
@@ -995,6 +1001,38 @@ class BYOKHandler:
             set_resolved_model(getattr(raw, "model", None))
         except Exception:
             pass
+
+    @staticmethod
+    def _reasoning_from_message(message: Any) -> str:
+        """Extract chain-of-thought from a completion message across the
+        provider-specific field names: DeepSeek ``reasoning_content``,
+        OpenRouter ``reasoning``, vLLM/SGLang ``reasoning_content``, some
+        clients ``thinking`` — with extras nested in ``model_extra`` when the
+        SDK version predates the field. Returns '' when absent.
+        """
+        if message is None:
+            return ""
+        for attr in ("reasoning_content", "reasoning", "thinking_content", "thinking"):
+            val = getattr(message, attr, None)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+        extra = getattr(message, "model_extra", None)
+        if isinstance(extra, dict):
+            for key in ("reasoning_content", "reasoning", "thinking_content", "thinking"):
+                val = extra.get(key)
+                if isinstance(val, str) and val.strip():
+                    return val.strip()
+        return ""
+
+    def _stash_last_reasoning(self, response: Any) -> None:
+        """Stash the chain-of-thought of the last non-streaming completion
+        onto ``self._last_reasoning`` (same stash pattern as
+        _last_used_model). Best-effort: never raises."""
+        try:
+            msg = response.choices[0].message
+            self._last_reasoning = self._reasoning_from_message(msg) or None
+        except Exception:
+            self._last_reasoning = None
 
     def _model_supports_tools(self, model_id: str) -> bool:
         """
@@ -2337,6 +2375,10 @@ class BYOKHandler:
         except Exception:
             pass
 
+        # Same staleness rule for the chain-of-thought stash: a call that
+        # produces no reasoning must not inherit the previous call's.
+        self._last_reasoning = None
+
         # Phase 72: Trial Restriction Check
         if self._is_trial_restricted():
             logger.warning(f"AI Blocked: Trial expired for workspace {self.workspace_id}")
@@ -2685,6 +2727,7 @@ class BYOKHandler:
                         max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                     )
                     self._capture_echoed_model(response)
+                    self._stash_last_reasoning(response)
 
                     result = response.choices[0].message.content
                     finish_reason = getattr(response.choices[0], "finish_reason", None)
@@ -2857,6 +2900,7 @@ class BYOKHandler:
                                     max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                                 )
                                 self._capture_echoed_model(response)
+                                self._stash_last_reasoning(response)
                                 result = response.choices[0].message.content
                                 if _visible_content_missing(result):
                                     raise _EmptyCompletionError(
@@ -2936,6 +2980,7 @@ class BYOKHandler:
                                         **heal_result.patched_kwargs
                                     )
                                     self._capture_echoed_model(response)
+                                    self._stash_last_reasoning(response)
                                     result = response.choices[0].message.content
                                     if _visible_content_missing(result):
                                         raise _EmptyCompletionError(
@@ -3001,6 +3046,7 @@ class BYOKHandler:
                                     max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                                 )
                                 self._capture_echoed_model(response)
+                                self._stash_last_reasoning(response)
                                 result = response.choices[0].message.content
                                 if _visible_content_missing(result):
                                     raise _EmptyCompletionError(
@@ -4609,6 +4655,7 @@ class BYOKHandler:
         db = None,
         task_type: Optional[str] = "chat",
         extra_kwargs: Optional[Dict[str, Any]] = None,
+        reasoning_sink: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream LLM responses token-by-token with optional governance tracking.
@@ -4626,6 +4673,12 @@ class BYOKHandler:
             extra_kwargs: Extra kwargs forwarded to the provider stream call
                 (e.g. ``stop``/``top_p`` — previously silently dropped, so the
                 gateway's streaming requests could not honor stop sequences).
+            reasoning_sink: Optional dict. When provided, chain-of-thought
+                deltas (``delta.reasoning`` / ``reasoning_content`` /
+                ``thinking`` — provider-dependent) are APPENDED to
+                ``reasoning_sink["deltas"]`` instead of being dropped. Existing
+                callers that don't pass it are unaffected: the yield contract
+                (visible content tokens only) is unchanged.
 
         Yields:
             Individual tokens as they arrive from the LLM
@@ -4744,6 +4797,15 @@ class BYOKHandler:
                     if chunk.choices:
                         choice = chunk.choices[0]
                         delta = choice.delta
+                        # Chain-of-thought deltas ride a separate field
+                        # (provider-dependent name) and were previously
+                        # dropped on the floor. Capture into the caller's
+                        # sink when one is provided; the visible-content
+                        # yield contract is untouched.
+                        if reasoning_sink is not None:
+                            _rdelta = self._reasoning_from_message(delta)
+                            if _rdelta:
+                                reasoning_sink.setdefault("deltas", []).append(_rdelta)
                         if hasattr(delta, 'content') and delta.content:
                             token_count += 1
                             if _stream_content_chars < _STREAM_CONTENT_CAP:

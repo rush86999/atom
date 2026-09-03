@@ -137,6 +137,10 @@ def _resolve_exchange_pair(
             "agent_id": assistant_row.agent_id,
             "conversation_id": assistant_row.conversation_id,
             "tenant_id": assistant_row.tenant_id or "default",
+            # The model's chain-of-thought persisted at reply time
+            # (ChatMessage.metadata_json.reasoning) — feedback training
+            # judges WHAT the agent was thinking, not just what it said.
+            "reasoning": (str(meta.get("reasoning"))[:20000] if meta.get("reasoning") else None),
         }
 
     if message_id:
@@ -329,12 +333,18 @@ async def capture_exchange(
     model: Optional[str] = None,
     provider: Optional[str] = None,
     user_id: Optional[str] = None,
+    reasoning: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Persist the rated exchange pair + fire the teaching circuit.
 
     Called from POST /api/chat/feedback BEFORE the learning-router branch so
     capture happens regardless of router state (the router branch is
     unchanged). Never raises into the caller's flow.
+
+    ``reasoning`` (the model's chain-of-thought for the rated reply) is
+    taken from the request when the client sends it, else recovered from the
+    assistant ChatMessage's persisted metadata — one of the two is always
+    available for turns served by the reasoning-capture path.
     """
     mode = exchange_memory_mode()
     if mode == "off":
@@ -373,6 +383,11 @@ async def capture_exchange(
             comment=(comment or "").strip() or None,
             model=model,
             provider=provider,
+            reasoning=(
+                (reasoning or "").strip()[:20000]
+                or pair.get("reasoning")
+                or None
+            ),
         )
         # Workspace scoping must match chat-time retrieval: the assembler
         # retrieves from resolve_user_workspace(user_id) (chat_orchestrator)

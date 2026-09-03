@@ -1294,6 +1294,11 @@ class ExchangeExample(Base):
 
     model = Column(String, nullable=True)
     provider = Column(String, nullable=True)
+    # The model's chain-of-thought for the rated reply (what the agent was
+    # thinking) — captured at reply time (ChatMessage.metadata_json.reasoning)
+    # and/or from the feedback request, so training judges the reasoning that
+    # produced the response, not just the response.
+    reasoning = Column(Text, nullable=True)
     # Maintenance state (core/exchange_memory_maintenance.py):
     # embedded — LanceDB vector written (backfill re-embeds False rows);
     # consolidated — already distilled into a recurring-pattern lesson.

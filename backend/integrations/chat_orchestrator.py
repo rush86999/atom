@@ -264,11 +264,21 @@ _INABILITY_RE = re.compile(
 )
 
 
-def _strip_protocol_tags(text: str) -> str:
+def _strip_protocol_tags(text: str, captured: Optional[List[str]] = None) -> str:
     """Strip reasoning/protocol fragments weak models leak into content
     (minimax "</mm:think>", raw tool-call XML) — shared by the streaming
-    and non-streaming reply paths."""
+    and non-streaming reply paths.
+
+    When ``captured`` is a list, the inner text of paired ``<think>…</think>``
+    blocks is APPENDED to it before stripping: the model's chain-of-thought is
+    training/audit signal (feedback flows judge ``thought`` text), not junk to
+    silently discard."""
     t = str(text or "").strip()
+    if captured is not None:
+        for _m in re.finditer(r"<think>(.*?)</think>", t, flags=re.DOTALL):
+            _block = (_m.group(1) or "").strip()
+            if _block:
+                captured.append(_block)
     t = re.sub(r"<think>.*?</think>", "", t, flags=re.DOTALL)
     t = re.sub(r"<tool_call>.*?</tool_call>", "", t, flags=re.DOTALL)
     t = re.sub(r"</?(?:mm:)?think>", "", t)
@@ -518,10 +528,15 @@ class ChatOrchestrator:
         step_type: str,
         action: Optional[Dict[str, Any]],
         observation: str,
+        thought: Optional[str] = None,
     ) -> None:
         """Persist + broadcast one chat-turn step for the workspace panel.
         Best-effort on both legs: a DB failure still broadcasts, a broadcast
-        failure still persists."""
+        failure still persists. ``thought`` (the ReAct reasoning OR the
+        model's chain-of-thought for this turn) is persisted AND broadcast —
+        dropping it left every chat surface's "Reasoning Process" collapsible
+        expanding to nothing, and step-feedback training payloads judging an
+        empty thought."""
         try:
             from core.models import AgentReasoningStep
             from core.database import get_db_session
@@ -531,6 +546,7 @@ class ChatOrchestrator:
                     execution_id=execution_id,
                     step_number=step_number,
                     step_type=step_type,
+                    thought=(thought or "")[:20000] or None,
                     action=action,
                     observation=(observation or "")[:2000],
                 ))
@@ -543,6 +559,7 @@ class ChatOrchestrator:
             {
                 "step_number": step_number,
                 "type": step_type,
+                "thought": thought or "",
                 "action": action,
                 "action_input": (action or {}).get("params") or "",
                 "observation": observation,
@@ -913,6 +930,11 @@ class ChatOrchestrator:
                 "model": used_model,
                 "provider": used_provider,
                 "memory_context": (ai_response or {}).get("memory_context") if ai_response else None,
+                # The model's chain-of-thought for this turn (what the agent
+                # was thinking) — rendered by the "Reasoning Process" drawer
+                # and persisted with the assistant message for feedback
+                # training (ExchangeExample.reasoning).
+                "reasoning": (ai_response or {}).get("reasoning") if ai_response else None,
             }
             if budget_failure:
                 response["error_code"] = "budget_exceeded"
@@ -1367,12 +1389,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _planned: Optional[str] = None
             _step_n = 0
 
-            async def _trace(step_type: str, action: Optional[Dict[str, Any]], observation: str) -> None:
+            async def _trace(step_type: str, action: Optional[Dict[str, Any]], observation: str,
+                             thought: Optional[str] = None) -> None:
                 nonlocal _step_n
                 _step_n += 1
                 await self._record_chat_step(
                     session_id, agent_id, execution_id,
-                    _step_n, step_type, action, observation,
+                    _step_n, step_type, action, observation, thought=thought,
                 )
 
             try:
@@ -1512,6 +1535,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # and protocol-tag hygiene. ANY failure falls back to the
             # non-streaming completion: streaming is pure UX sugar.
             _streamed: Optional[str] = None
+            _turn_reasoning: Optional[str] = None
             if (
                 os.getenv("ATOM_CHAT_STREAMING", "true").lower() == "true"
                 and user_id and session_id
@@ -1536,12 +1560,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
                     _buf: List[str] = []
                     _t0 = _time.monotonic()
+                    # Model chain-of-thought capture: reasoning deltas arrive
+                    # on a separate field (delta.reasoning / reasoning_content
+                    # / thinking) which the stream loop previously dropped on
+                    # the floor. Collected here, persisted + broadcast as the
+                    # turn's "thought" step, and returned with the reply so
+                    # feedback training captures WHAT the model was thinking.
+                    _reasoning_parts: List[str] = []
+                    _reasoning_sink: Dict[str, Any] = {"deltas": _reasoning_parts}
                     async for _tok in self.llm_service.stream_completion(
                         messages=messages,
                         model=_s_model,
                         provider_id=_s_prov,
                         temperature=0.7,
                         max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
+                        reasoning_sink=_reasoning_sink,
                     ):
                         if not _tok:
                             continue
@@ -1555,7 +1588,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         })
                     _full = "".join(_buf).strip()
                     if _full:
-                        _streamed = _strip_protocol_tags(_full)
+                        _streamed = _strip_protocol_tags(_full, captured=_reasoning_parts)
                         # GROUNDING GUARD: a streamed reply that denies having
                         # data contradicts the LIVE TOOL RESULT injected above
                         # (model-quality wobble, observed live). One grounded
@@ -1580,6 +1613,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not _reply_claims_inability(_fixed):
                                 _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
                         # EVIDENCE GUARD: the request asked to confirm/verify
                         # something and the reply ASSERTS it as established
                         # fact (observed live 2026-09-02: "confirm 480V
@@ -1614,6 +1648,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not asserts_unverified_confirmation(message, _fixed):
                                 _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
                         # IDENTITY GUARD (streaming): two tiers — a signer
                         # who is not on the tenant's team is the hard
                         # confabulation class (observed live 2026-09-02: a
@@ -1657,6 +1692,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not signature_signer_status(_fixed, _primary, _team):
                                 _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
+                        # Chain-of-thought → a real "thought" step: persisted
+                        # (trace/history) + broadcast (live reasoningTrace in
+                        # every chat surface) + returned for feedback capture.
+                        if _reasoning_parts:
+                            _turn_reasoning = "\n\n".join(
+                                p.strip() for p in _reasoning_parts if p and p.strip()
+                            ).strip() or None
+                        if _turn_reasoning:
+                            try:
+                                await _trace(
+                                    "thought",
+                                    {"tool": "llm", "params": {"model": _s_model, "provider": _s_prov}},
+                                    "model chain-of-thought (expand for training/audit)",
+                                    thought=_turn_reasoning,
+                                )
+                            except Exception:
+                                pass
                         await _ws_manager.broadcast(f"user:{user_id}", {
                             "type": "chat_token_done",
                             "data": {
@@ -1686,6 +1739,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     model=forced_model,  # "auto" unless overridden
                     tenant_id=self.tenant_id,
                     **extra_kwargs,
+                )
+                # Non-streaming path: same chain-of-thought capture as the
+                # streaming leg — the response's separate reasoning field
+                # (if any) plus inline <think> blocks (captured by the strip
+                # call on the next line via the shared _reasoning_parts list).
+                _reasoning_parts: List[str] = []
+                _strip_protocol_tags(response_data.get("content"), captured=_reasoning_parts)
+                _turn_reasoning = (
+                    (response_data or {}).get("reasoning")
+                    or ("\n\n".join(p.strip() for p in _reasoning_parts if p and p.strip()).strip() or None)
                 )
             
             logger.info(
@@ -1875,11 +1938,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                      _content[:300])
                     except Exception:
                         pass
+                # Non-streaming leg: the chain-of-thought step is emitted here
+                # (the streaming leg emits its own right after the stream).
+                if _turn_reasoning and _streamed is None:
+                    try:
+                        await _trace(
+                            "thought",
+                            {"tool": "llm", "params": {"model": response_data.get("model")}},
+                            "model chain-of-thought (expand for training/audit)",
+                            thought=_turn_reasoning,
+                        )
+                    except Exception:
+                        pass
                 return {
                     "content": _content,
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,
+                    "reasoning": _turn_reasoning,
                 }
 
             return None
@@ -3903,14 +3979,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # Store the assistant response; error turns carry a
                     # metadata flag so hydration can exclude them from the
                     # model's context (they remain visible in the UI).
+                    # The model's chain-of-thought rides metadata_json so
+                    # history hydration re-renders it and ExchangeExample
+                    # capture (feedback training) can pick it up.
                     resp_content = response.get("message", "") if isinstance(response, dict) else str(response)
                     if resp_content:
+                        _msg_meta: Dict[str, Any] = {}
+                        if _is_error_turn:
+                            _msg_meta["quality"] = "error"
+                        _turn_reasoning = response.get("reasoning") if isinstance(response, dict) else None
+                        if _turn_reasoning:
+                            _msg_meta["reasoning"] = str(_turn_reasoning)[:20000]
                         db.add(ChatMessageModel(
                             conversation_id=session_id,
                             tenant_id=tenant_id,
                             role="assistant",
                             content=resp_content,
-                            metadata_json=json.dumps({"quality": "error"}) if _is_error_turn else None,
+                            metadata_json=json.dumps(_msg_meta) if _msg_meta else None,
                         ))
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")

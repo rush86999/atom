@@ -340,7 +340,11 @@ class LLMService:
                 "total_tokens": input_tokens + output_tokens
             },
             "model": used_model,
-            "provider": used_provider
+            "provider": used_provider,
+            # The model's chain-of-thought for this call, when the provider
+            # returned one (reasoning_content/reasoning/thinking). None for
+            # models that don't emit it — callers treat it as optional.
+            "reasoning": getattr(handler, "_last_reasoning", None),
         }
 
     async def generate_structured_response(
@@ -708,7 +712,8 @@ class LLMService:
         temperature: float = 0.7,
         max_tokens: int = 1000,
         agent_id: Optional[str] = None,
-        db = None
+        db = None,
+        reasoning_sink: Optional[Dict[str, Any]] = None,
     ):
         """
         Stream LLM responses token-by-token with automatic provider fallback.
@@ -767,7 +772,8 @@ class LLMService:
             temperature=temperature,
             max_tokens=max_tokens,
             agent_id=agent_id,
-            db=db
+            db=db,
+            reasoning_sink=reasoning_sink,
         ):
             yield token
 

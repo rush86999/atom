@@ -58,6 +58,10 @@ export interface ChatMessageData {
     };
     actions?: ChatAction[];
     reasoningTrace?: ReasoningStep[];
+    /** The model's chain-of-thought for this reply ("what the agent was
+     * thinking") — rendered as the reasoning drawer and included in feedback
+     * payloads so training captures the thinking, not just the answer. */
+    reasoning?: string;
     model?: string;
     provider?: string;
     /** The auto-retrieved memory context injected before this answer
@@ -74,6 +78,21 @@ export interface ReasoningStep {
     timestamp?: Date | string;
     status?: string;
     [key: string]: any;
+}
+
+/** Wrap a raw chain-of-thought string as a thought step so every surface
+ * renders it through the same ReasoningChain drawer (WS steps and REST
+ * fallback converge on one shape). Returns null for empty input. */
+export function reasoningTextToStep(text?: string | null): ReasoningStep | null {
+    const t = (text || "").trim();
+    if (!t) return null;
+    return {
+        step: 1,
+        type: "thought",
+        thought: t,
+        content: t,
+        timestamp: new Date().toISOString(),
+    };
 }
 
 interface ChatMessageProps {
