@@ -1,5 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
+import asyncio
 import logging
+import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, Query
 from pydantic import BaseModel, Field
@@ -23,6 +25,12 @@ router = BaseAPIRouter(
 
 # Initialize service
 zoho_service = ZohoWorkDriveService()
+
+# Folder-ingest background jobs (202-style): ingest_folder_tree takes minutes
+# per tree — the synchronous endpoint outlived every browser/proxy timeout
+# and the UI reported phantom 500s while ingestion was still working.
+# In-process registry, pruned to the last 50 finished jobs.
+_folder_ingest_jobs: Dict[str, Dict[str, Any]] = {}
 
 # Pydantic models. None carry user_id: identity comes exclusively from the
 # auth token (router-level get_current_user dependency) — a client-supplied
@@ -125,6 +133,12 @@ async def ingest_file(request_body: IngestRequest, current_user: User = Depends(
 async def ingest_folder(request_body: IngestFolderRequest, current_user: User = Depends(get_current_user)):
     """Recursively ingest all parseable files in one or more folder trees.
 
+    Runs as a BACKGROUND JOB and returns immediately: a folder tree takes
+    minutes (every file downloaded + parsed + embedded), far past any
+    browser/proxy timeout — the synchronous version surfaced as phantom 500s
+    while ingestion was actually still working. Poll
+    GET /ingest-folder/jobs/{job_id} until status is completed/failed.
+
     Supports:
     - folder_id: single root folder ID (or "root" for workspace root)
     - folder_ids: multiple root folder IDs ingested in one call — folders are
@@ -144,50 +158,98 @@ async def ingest_folder(request_body: IngestFolderRequest, current_user: User = 
             message="folder_id or folder_ids is required",
         )
 
-    try:
-        if len(ids) == 1:
-            result = await zoho_service.ingest_folder_tree(
-                str(current_user.id), ids[0],
-                request_body.team_id, request_body.workspace_id,
-                request_body.recursive, max_files=request_body.max_files
-            )
-            record_ingestion_feedback(
-                current_user, "zoho",
-                int(result.get("files_ingested") or 0) if result.get("success") else 0,
-                bool(result.get("success")),
-            )
-            return result
+    job_id = uuid.uuid4().hex[:12]
+    job: Dict[str, Any] = {
+        "job_id": job_id,
+        "user_id": str(current_user.id),
+        "status": "running",
+        "folder_ids": ids,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": None,
+        "result": None,
+        "error": None,
+    }
+    _folder_ingest_jobs[job_id] = job
 
-        results = []
-        total_ingested = 0
-        for fid in ids:
-            try:
-                res = await zoho_service.ingest_folder_tree(
-                    str(current_user.id), fid,
+    async def _run():
+        try:
+            if len(ids) == 1:
+                result = await zoho_service.ingest_folder_tree(
+                    str(current_user.id), ids[0],
                     request_body.team_id, request_body.workspace_id,
                     request_body.recursive, max_files=request_body.max_files
                 )
-            except Exception as folder_err:
-                logger.error(f"Error ingesting Zoho folder tree {fid}: {folder_err}")
-                res = {"success": False, "folder_id": fid, "error": "Failed to ingest folder tree"}
-            if res.get("success"):
-                total_ingested += res.get("files_ingested", 0) or 0
-            results.append({"folder_id": fid, **res})
+                record_ingestion_feedback(
+                    current_user, "zoho",
+                    int(result.get("files_ingested") or 0) if result.get("success") else 0,
+                    bool(result.get("success")),
+                )
+            else:
+                results = []
+                total_ingested = 0
+                for fid in ids:
+                    try:
+                        res = await zoho_service.ingest_folder_tree(
+                            str(current_user.id), fid,
+                            request_body.team_id, request_body.workspace_id,
+                            request_body.recursive, max_files=request_body.max_files
+                        )
+                    except Exception as folder_err:
+                        logger.error(f"Error ingesting Zoho folder tree {fid}: {folder_err}")
+                        res = {"success": False, "folder_id": fid, "error": "Failed to ingest folder tree"}
+                    if res.get("success"):
+                        total_ingested += res.get("files_ingested", 0) or 0
+                    results.append({"folder_id": fid, **res})
 
-        record_ingestion_feedback(
-            current_user, "zoho", total_ingested,
-            any(r.get("success") for r in results),
-        )
-        return {
-            "success": any(r.get("success") for r in results),
-            "folders_requested": len(ids),
-            "folders_succeeded": sum(1 for r in results if r.get("success")),
-            "files_ingested": total_ingested,
-            "results": results,
-        }
-    except Exception as e:
-        logger.error(f"Error ingesting Zoho folder tree: {e}")
-        raise router.internal_error(message="Error ingesting folder", details={"error": "Internal error"})
+                record_ingestion_feedback(
+                    current_user, "zoho", total_ingested,
+                    any(r.get("success") for r in results),
+                )
+                result = {
+                    "success": any(r.get("success") for r in results),
+                    "folders_requested": len(ids),
+                    "folders_succeeded": sum(1 for r in results if r.get("success")),
+                    "files_ingested": total_ingested,
+                    "results": results,
+                }
+            job["status"] = "completed" if result.get("success") else "failed"
+            job["result"] = result
+        except Exception as e:
+            logger.error(f"Folder ingest job {job_id} failed: {e}")
+            job["status"] = "failed"
+            job["error"] = str(e)[:200]
+        finally:
+            job["finished_at"] = datetime.now(timezone.utc).isoformat()
+            # Bound the registry: drop oldest finished jobs beyond 50.
+            finished = sorted(
+                (j for j in _folder_ingest_jobs.values() if j["status"] != "running"),
+                key=lambda j: j.get("finished_at") or "",
+            )
+            for old in finished[:-50]:
+                _folder_ingest_jobs.pop(old["job_id"], None)
+
+    asyncio.create_task(_run())
+    return router.success_response(
+        data={"job_id": job_id, "status": "started", "folder_ids": ids},
+        message="Folder ingestion started — poll /ingest-folder/jobs/{job_id}",
+    )
+
+
+@router.get("/ingest-folder/jobs/{job_id}", summary="Status of a folder ingestion job")
+async def ingest_folder_job_status(job_id: str, current_user: User = Depends(get_current_user)):
+    job = _folder_ingest_jobs.get(job_id)
+    if job is None or job.get("user_id") != str(current_user.id):
+        raise router.not_found_error(resource="Ingestion job", resource_id=job_id)
+    snapshot = {
+        "job_id": job_id,
+        "status": job["status"],
+        "folder_ids": job["folder_ids"],
+        "started_at": job["started_at"],
+        "finished_at": job["finished_at"],
+        "result": job["result"],
+        "error": job["error"],
+    }
+    return router.success_response(data=snapshot)
 
 @router.post("/sync-team", summary="Full sync for specific team/workspace/folder")
 async def sync_team(request_body: SyncTeamRequest, current_user: User = Depends(get_current_user)):

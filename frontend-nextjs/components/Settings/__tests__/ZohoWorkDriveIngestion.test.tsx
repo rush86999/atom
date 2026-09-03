@@ -44,20 +44,43 @@ function mockApi({
 } = {}) {
   global.fetch = jest.fn().mockImplementation((url: string, init?: RequestInit) => {
     const u = String(url);
+    // Parseable-file count for the folder-ingest job result (mirrors the
+    // backend: /ingest-folder only counts supported extensions).
+    const supported = ['.docx', '.xlsx', '.xls', '.csv', '.pdf', '.txt', '.md', '.pptx'];
+    const ingested = fileList.filter(
+      (f: any) => f.type !== 'folder' && supported.some(ext => (f.name || '').toLowerCase().endsWith(ext))
+    ).length;
     if (u.includes('/api/zoho-workdrive/files/list')) {
       const body = JSON.parse(String(init?.body || '{}'));
       const data = body.workspace_id ? teamFiles : fileList;
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data }) });
     }
-    if (u.includes('/api/zoho-workdrive/ingest-folder')) {
-      // Mirror the backend: /ingest-folder only counts parseable extensions.
-      const supported = ['.docx', '.xlsx', '.xls', '.csv', '.pdf', '.txt', '.md', '.pptx'];
-      const ingested = fileList.filter(
-        (f: any) => f.type !== 'folder' && supported.some(ext => (f.name || '').toLowerCase().endsWith(ext))
-      ).length;
+    if (u.includes('/api/zoho-workdrive/ingest-folder/jobs/')) {
+      // Mirror the backend job-status endpoint: the folder ingest runs as a
+      // background job and the component polls until completed/failed.
       return Promise.resolve({
         ok: true,
-        json: async () => ({ success: true, files_ingested: ingested, files_processed: ingested, errors: [] }),
+        json: async () => ({
+          success: true,
+          data: {
+            job_id: 'job-test-1',
+            status: 'completed',
+            result: {
+              success: ingestSuccess,
+              files_ingested: ingested,
+              files_processed: ingested,
+              errors: [],
+            },
+          },
+        }),
+      });
+    }
+    if (u.includes('/api/zoho-workdrive/ingest-folder') && init?.method === 'POST') {
+      // Mirror the backend: /ingest-folder starts a background JOB and
+      // returns its id immediately.
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ success: true, job_id: 'job-test-1', status: 'started' }),
       });
     }
     if (u.includes('/api/zoho-workdrive/ingest')) {
@@ -284,7 +307,7 @@ describe('ZohoWorkDriveIngestion', () => {
       );
     });
     const batchCall = (global.fetch as jest.Mock).mock.calls
-      .filter(([u]) => String(u).includes('/api/zoho-workdrive/ingest-folder'))
+      .filter(([u, init]) => String(u).includes('/api/zoho-workdrive/ingest-folder') && init?.method === 'POST')
       .slice(-1)[0];
     expect(JSON.parse(batchCall[1].body)).toEqual({ folder_id: 'root', recursive: false });
     // Every ingestable visible file is marked ingested on a clean batch
@@ -309,7 +332,7 @@ describe('ZohoWorkDriveIngestion', () => {
       );
     });
     const batchCall = (global.fetch as jest.Mock).mock.calls
-      .filter(([u]) => String(u).includes('/api/zoho-workdrive/ingest-folder'))
+      .filter(([u, init]) => String(u).includes('/api/zoho-workdrive/ingest-folder') && init?.method === 'POST')
       .slice(-1)[0];
     const body = JSON.parse(batchCall[1].body);
     expect(body.folder_ids).toEqual(['d1']);
@@ -334,7 +357,7 @@ describe('ZohoWorkDriveIngestion', () => {
     fireEvent.click(screen.getByRole('button', { name: /Ingest All Files/ }));
     await waitFor(() => {
       const batchCall = (global.fetch as jest.Mock).mock.calls
-        .filter(([u]) => String(u).includes('/api/zoho-workdrive/ingest-folder'))
+        .filter(([u, init]) => String(u).includes('/api/zoho-workdrive/ingest-folder') && init?.method === 'POST')
         .slice(-1)[0];
       // Badge gating succeeded — the toast reports the supported count only
       expect(mockToast.toast).toHaveBeenCalledWith(

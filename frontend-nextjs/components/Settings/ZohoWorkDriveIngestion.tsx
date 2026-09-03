@@ -221,26 +221,61 @@ export default function ZohoWorkDriveIngestion() {
         await fetchFiles({ parent_id: tf.id, workspace_id: tf.workspace_id, team_id: tf.team_id });
     };
 
+    // Folder ingestion runs as a backend JOB (a full tree takes minutes —
+    // the old synchronous request always outlived the browser/proxy timeout
+    // and surfaced as a phantom 500). POST returns {job_id}; poll until the
+    // backend reports completed/failed, then resolve with the final result.
+    const runFolderIngestJob = async (body: Record<string, unknown>): Promise<any> => {
+        const response = await fetch('/api/zoho-workdrive/ingest-folder', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(extractErrorMessage(text, response.status));
+        }
+        const started = await response.json();
+        const jobId = started?.job_id ?? started?.data?.job_id;
+        if (!jobId) {
+            // Backward compat: synchronous result (older backend)
+            return started;
+        }
+        const deadline = Date.now() + 20 * 60 * 1000; // 20 min cap
+        // First poll immediately (fast jobs complete between POST and now),
+        // then every 3s until done.
+        for (;;) {
+            const statusResp = await fetch(`/api/zoho-workdrive/ingest-folder/jobs/${jobId}`, {
+                headers: authHeaders()
+            });
+            if (statusResp.ok) {
+                const snap = await statusResp.json();
+                const job = snap?.data ?? snap;
+                if (job?.status === 'completed' || job?.status === 'failed') {
+                    const result = job.result ?? {};
+                    if (job.status === 'failed') {
+                        return { ...result, success: false, error: job.error || 'Folder ingestion failed' };
+                    }
+                    return result;
+                }
+            }
+            if (Date.now() > deadline) break;
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+        throw new Error('Folder ingestion is still running — check ingestion status in a few minutes.');
+    };
+
     // Hybrid-ingestion explicit pull: ingest one folder's contents on demand
     // (user-selected), regardless of the bulk content-mode setting.
     const handleIngestFolder = async (folder: { id: string; name: string; workspace_id?: string; team_id?: string }) => {
         setIngestingFolder(folder.id);
         try {
-            const response = await fetch('/api/zoho-workdrive/ingest-folder', {
-                method: 'POST',
-                headers: authHeaders(),
-                body: JSON.stringify({
-                    folder_id: folder.id,
-                    ...(folder.workspace_id ? { workspace_id: folder.workspace_id } : {}),
-                    ...(folder.team_id ? { team_id: folder.team_id } : {}),
-                    recursive: true,
-                })
+            const data = await runFolderIngestJob({
+                folder_id: folder.id,
+                ...(folder.workspace_id ? { workspace_id: folder.workspace_id } : {}),
+                ...(folder.team_id ? { team_id: folder.team_id } : {}),
+                recursive: true,
             });
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(extractErrorMessage(text, response.status));
-            }
-            const data = await response.json();
             if (data.success) {
                 const count = data.files_ingested ?? 0;
                 notifyIngestionUpdated("zoho-workdrive");
@@ -273,21 +308,12 @@ export default function ZohoWorkDriveIngestion() {
 
         setIngestingFolders(true);
         try {
-            const response = await fetch('/api/zoho-workdrive/ingest-folder', {
-                method: 'POST',
-                headers: authHeaders(),
-                body: JSON.stringify({
-                    folder_ids: folders.map(f => f.id),
-                    ...(lastParams.workspace_id ? { workspace_id: lastParams.workspace_id } : {}),
-                    ...(lastParams.team_id ? { team_id: lastParams.team_id } : {}),
-                    recursive: true,
-                })
+            const data = await runFolderIngestJob({
+                folder_ids: folders.map(f => f.id),
+                ...(lastParams.workspace_id ? { workspace_id: lastParams.workspace_id } : {}),
+                ...(lastParams.team_id ? { team_id: lastParams.team_id } : {}),
+                recursive: true,
             });
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(extractErrorMessage(text, response.status));
-            }
-            const data = await response.json();
             if (data.success) {
                 const succeeded = data.folders_succeeded ?? folders.length;
                 notifyIngestionUpdated("zoho-workdrive");
@@ -382,24 +408,16 @@ export default function ZohoWorkDriveIngestion() {
 
         setIngestingAll(true);
         try {
-            // Server-side batch: one /ingest-folder call with a max_files cap
+            // Server-side batch: one /ingest-folder job with a max_files cap
             // and aggregated error reporting, instead of N sequential /ingest
-            // requests from the client.
-            const response = await fetch('/api/zoho-workdrive/ingest-folder', {
-                method: 'POST',
-                headers: authHeaders(),
-                body: JSON.stringify({
-                    folder_id: currentFolderId,
-                    ...(lastParams.workspace_id ? { workspace_id: lastParams.workspace_id } : {}),
-                    ...(lastParams.team_id ? { team_id: lastParams.team_id } : {}),
-                    recursive: false,
-                })
+            // requests from the client. Runs as a backend job — polled to
+            // completion.
+            const data = await runFolderIngestJob({
+                folder_id: currentFolderId,
+                ...(lastParams.workspace_id ? { workspace_id: lastParams.workspace_id } : {}),
+                ...(lastParams.team_id ? { team_id: lastParams.team_id } : {}),
+                recursive: false,
             });
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(extractErrorMessage(text, response.status));
-            }
-            const data = await response.json();
             if (data.success) {
                 const ingested = data.files_ingested ?? 0;
                 notifyIngestionUpdated("zoho-workdrive");
