@@ -76,3 +76,51 @@ describe("RichTextEditor Table button", () => {
     promptSpy.mockRestore();
   });
 });
+
+describe("RichTextEditor — multi-line HTML table display", () => {
+  it("renders a pretty-printed (one-tag-per-line) table as a real table", () => {
+    // Agent-drafted tables arrive with newlines between tags. Per-line
+    // sanitizing used to destroy them (empty <table>, hoisted <td> text,
+    // visible escaped </tr>) — the 2026-09-03 canvas incident.
+    const body = [
+      "Hi Jacob,",
+      "",
+      '<table style="border-collapse: collapse; width: 100%;">',
+      "<tr>",
+      '<td style="border: 1pt solid #000; padding: 8px;"><strong>Description</strong></td>',
+      "<td><strong>Price</strong></td>",
+      "</tr>",
+      "<tr>",
+      "<td>Linmac WG-350DSAV</td>",
+      "<td>See Consolidated Price List 2019</td>",
+      "</tr>",
+      "</table>",
+      "",
+      "Regards,",
+      "Rish M.",
+    ].join("\n");
+    const { getByTestId } = render(
+      <RichTextEditor value={body} onChange={() => {}} testIdPrefix="canvas-email-body" />
+    );
+    const editor = getByTestId("canvas-email-body-editor");
+    expect(editor.querySelector("table")).not.toBeNull();
+    expect(editor.querySelectorAll("td").length).toBe(4);
+    expect(editor.textContent).toContain("Linmac WG-350DSAV");
+    // the destruction signatures of the per-line pass
+    expect(editor.innerHTML).not.toContain("&lt;/tr&gt;");
+    expect(editor.innerHTML).not.toMatch(/<table[^>]*><\/table>/);
+  });
+
+  it("still converts plain-text bodies line-by-line", () => {
+    const { getByTestId } = render(
+      <RichTextEditor
+        value={"Hi Jacob,\n\nPlease quote.\n\nRegards,"}
+        onChange={() => {}}
+        testIdPrefix="canvas-email-body"
+      />
+    );
+    const editor = getByTestId("canvas-email-body-editor");
+    expect(editor.innerHTML).toContain("Hi Jacob,<br>");
+    expect(editor.querySelector("table")).toBeNull();
+  });
+});

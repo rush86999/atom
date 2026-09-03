@@ -503,6 +503,12 @@ class OutlookService(IntegrationService):
         import html as _html
 
         text = str(body or "")
+        # Multi-line HTML (agent-drafted tables pretty-print one tag per
+        # line) must be re-joined at tag boundaries BEFORE the line-aware
+        # pass — <br> fragments between <table>/<tr>/<td> elements break the
+        # table out of its own structure at render (same incident class as
+        # the composer's toDisplayHtml, observed live 2026-09-03).
+        text = re.sub(r">\s*\n\s*<", "><", text)
         lines = text.splitlines()
         if not any(OutlookService._HTML_TAG_RE.search(ln) for ln in lines):
             escaped = _html.escape(text)

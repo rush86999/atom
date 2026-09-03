@@ -77,7 +77,13 @@ export const DEFAULT_EMAIL_FONT = "Aptos, 'Segoe UI', Calibri, Arial, sans-serif
 // (newline-separated) MUST be converted for display — newlines are
 // invisible in contentEditable HTML, which read as "all formatting lost".
 function toDisplayHtml(raw: string): string {
-  const text = String(raw ?? "");
+  // Multi-line HTML (agent-drafted tables pretty-print one tag per line)
+  // must be re-joined at tag boundaries BEFORE the per-line pass: a lone
+  // <table>/<tr>/<td> fragment sanitizes outside a table context and is
+  // destroyed (empty <table></table>, hoisted cell text, escaped </tr> —
+  // observed live 2026-09-03: a well-formed quote table flattened into a
+  // bare line list, then persisted by the composer's save).
+  const text = String(raw ?? "").replace(/>\s*\n\s*</g, "><");
   const lines = text.split("\n");
   const tagRe = /<\s*(p|br|div|span|ul|ol|li|h[1-6]|hr|table|thead|tbody|tr|td|th|a|b|i|strong|em|u|font)\b/i;
   if (!lines.some((ln) => tagRe.test(ln))) {
