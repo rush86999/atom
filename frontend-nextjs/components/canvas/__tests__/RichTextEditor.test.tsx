@@ -10,7 +10,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import RichTextEditor, { sanitizeEmailHtml } from "../RichTextEditor";
+import RichTextEditor, { applyCellShading, closestTableCell, sanitizeEmailHtml } from "../RichTextEditor";
 
 describe("sanitizeEmailHtml — tables", () => {
   it("keeps a styled table with rows and cells", () => {
@@ -122,5 +122,58 @@ describe("RichTextEditor — multi-line HTML table display", () => {
     const editor = getByTestId("canvas-email-body-editor");
     expect(editor.innerHTML).toContain("Hi Jacob,<br>");
     expect(editor.querySelector("table")).toBeNull();
+  });
+});
+
+describe("cell shading", () => {
+  it("applyCellShading sets the background of the cell containing the node", () => {
+    document.body.innerHTML =
+      '<table><tr><td id="c1"><strong>Description</strong></td><td id="c2">Price</td></tr></table>';
+    const strong = document.getElementById("c1")!.querySelector("strong")!;
+    // caret inside the <strong> inside the cell — the helper must find the CELL
+    expect(applyCellShading(strong, "#1F3864")).toBe(true);
+    expect((document.getElementById("c1") as HTMLTableCellElement).style.backgroundColor).toBe("rgb(31, 56, 100)");
+    expect((document.getElementById("c2") as HTMLTableCellElement).style.backgroundColor).toBe("");
+  });
+
+  it("applyCellShading with 'none' clears the fill", () => {
+    document.body.innerHTML = '<table><tr><td id="c1" style="background-color: #DBE5F1">x</td></tr></table>';
+    const td = document.getElementById("c1")!;
+    expect(applyCellShading(td, "none")).toBe(true);
+    expect((td as HTMLTableCellElement).style.backgroundColor).toBe("");
+  });
+
+  it("applyCellShading returns false outside a table cell", () => {
+    document.body.innerHTML = '<p id="p">plain</p>';
+    expect(applyCellShading(document.getElementById("p"), "#DBE5F1")).toBe(false);
+    expect(closestTableCell(document.getElementById("p"))).toBeNull();
+  });
+
+  it("shading dropdown shades the cell under the caret and emits HTML", () => {
+    const onChange = jest.fn();
+    const body =
+      '<table><tr><td><strong>Description</strong></td><td>Price</td></tr>' +
+      "<tr><td>Linmac WG-350DSAV</td><td>See price list</td></tr></table>";
+    const { getByTestId } = render(
+      <RichTextEditor value={body} onChange={onChange} testIdPrefix="canvas-email-body" />
+    );
+    const editor = getByTestId("canvas-email-body-editor");
+    const headerCell = editor.querySelector("td")!;
+
+    // caret inside the first header cell
+    const range = document.createRange();
+    range.selectNodeContents(headerCell.querySelector("strong")!);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    fireEvent.change(getByTestId("canvas-email-body-shading"), {
+      target: { value: "#1F3864" },
+    });
+
+    expect((headerCell as HTMLTableCellElement).style.backgroundColor).toBe("rgb(31, 56, 100)");
+    expect(onChange).toHaveBeenCalled();
+    const emitted = onChange.mock.calls[onChange.mock.calls.length - 1][0] as string;
+    expect(emitted.toLowerCase()).toContain("background-color");
   });
 });

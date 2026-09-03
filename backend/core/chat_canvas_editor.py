@@ -152,7 +152,11 @@ the authority, NOT your memory of earlier drafts:
   asks for tabular content (quotes, specs, comparisons, lists of options),
   insert a <table> with inline cell borders
   (style="border-collapse: collapse;" + border: 1pt solid on each cell) —
-  tables render in the outgoing email, they are not stripped.
+  tables render in the outgoing email, they are not stripped. Inline cell
+  styles are supported the same way (background-color shading, font
+  color/size, padding, width): a request to "color/shade/highlight the
+  headings" means restyling the header row's <td> styles in place — keep
+  their text unchanged.
 - Sender identity is NEVER a guessing problem: the SENDER IDENTITY section
   (when present) names the user the draft is sent by. Never take a sender
   name or signature from the To/Cc fields — those are RECIPIENTS (a Cc'd

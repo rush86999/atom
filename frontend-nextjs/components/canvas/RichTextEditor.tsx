@@ -59,6 +59,44 @@ const COLORS: Array<{ label: string; value: string }> = [
   { label: "A", value: "#868e96" }, // gray
 ];
 
+// Cell shading (Outlook-style): applied as inline background-color on the
+// enclosing <td>/<th>. Inline style survives the sanitizer (style attr is
+// allowed) and both the display and send sinks.
+const SHADING_OPTIONS: Array<{ label: string; value: string }> = [
+  { label: "No fill", value: "none" },
+  { label: "Navy", value: "#1F3864" },
+  { label: "Light blue", value: "#DBE5F1" },
+  { label: "Light gray", value: "#D9D9D9" },
+  { label: "Light amber", value: "#FFF2CC" },
+  { label: "Light green", value: "#E2EFDA" },
+  { label: "Light red", value: "#F2DCDB" },
+  { label: "White", value: "#FFFFFF" },
+];
+
+// Walk from the caret's node up to the enclosing table cell. Text nodes and
+// inline elements (<strong>, <a>…) live INSIDE the cell, so the answer for
+// "which cell did the user click" is the nearest td/th ancestor.
+export function closestTableCell(node: Node | null): HTMLTableCellElement | null {
+  let cur: Node | null = node;
+  while (cur) {
+    const name = (cur as Element).tagName?.toLowerCase?.();
+    if (name === "td" || name === "th") return cur as HTMLTableCellElement;
+    cur = cur.parentNode;
+  }
+  return null;
+}
+
+// Shade the table cell containing `node` ("" / "none" clears the fill).
+// Returns false when the caret is not inside a table cell — callers decide
+// on a sensible fallback (the toolbar falls back to inline highlight).
+export function applyCellShading(node: Node | null, color: string): boolean {
+  const cell = closestTableCell(node);
+  if (!cell) return false;
+  if (color && color !== "none") cell.style.backgroundColor = color;
+  else cell.style.removeProperty("background-color");
+  return true;
+}
+
 const FONTS = [
   { label: "Aptos", value: "Aptos, Calibri, Arial, sans-serif" },
   { label: "Calibri", value: "Calibri, Arial, sans-serif" },
@@ -226,6 +264,18 @@ export default function RichTextEditor({
     exec("createLink", url);
   };
 
+  // Shade the table cell the caret is in; outside a table, fall back to an
+  // inline text highlight so the control still does something useful.
+  const applyShading = (color: string) => {
+    const node = window.getSelection()?.anchorNode ?? null;
+    if (applyCellShading(node, color)) {
+      ref.current?.focus();
+      emit();
+    } else if (color && color !== "none") {
+      exec("hiliteColor", color);
+    }
+  };
+
   const insertTable = () => {
     const spec = window.prompt("Table rows,columns (e.g. 3,3)", "3,3");
     if (!spec) return;
@@ -350,6 +400,23 @@ export default function RichTextEditor({
         >
           ▦
         </button>
+        <select
+          title="Cell shading"
+          aria-label="Cell shading"
+          data-testid={`${testIdPrefix}-shading`}
+          value=""
+          className={selectCls}
+          onChange={(e) => {
+            const v = e.target.value;
+            e.target.value = "";
+            if (v) applyShading(v);
+          }}
+        >
+          <option value="">Shading</option>
+          {SHADING_OPTIONS.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
         <button type="button" title="Bulleted list" aria-label="Bulleted list" className={toolbarBtn} onClick={() => exec("insertUnorderedList")}>
           •≡
         </button>

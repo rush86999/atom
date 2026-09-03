@@ -462,7 +462,7 @@ async def test_canvas_action_plans_against_durable_store_content():
                             to="m@x", reply="r")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm):
+    async def fake_plan(message, history, canvas, llm, playbooks=None):
         seen["content"] = canvas.get("content")
         return plan
 
@@ -628,7 +628,7 @@ async def test_canvas_edit_passes_sender_identity_to_planner():
 
     async def fake_plan(message, history, canvas, llm, corrections=None, versions=None,
                         lessons=None, similar_corrections=None, correction_patterns=None,
-                        provenance=None, user_identity=None):
+                        provenance=None, user_identity=None, playbooks=None):
         seen["identity"] = user_identity
         return plan
 
