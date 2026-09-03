@@ -202,7 +202,9 @@ async def list_emails(
 
     token = await _resolve_google_token(str(current_user.id))
     if not token:
-        return {"emails": [], "total": 0, "error": "not_connected"}
+        # Non-2xx so callers can tell "no Google account" apart from an
+        # empty mailbox (proxy/page check response.ok).
+        raise HTTPException(status_code=400, detail="Google account not connected")
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         st, data = await _google_get(
@@ -212,7 +214,11 @@ async def list_emails(
             {"maxResults": min(max_results, 100), "q": q},
         )
         if not data:
-            return {"emails": [], "total": 0, "error": f"gmail_api_error:{st}"}
+            # Upstream failure (e.g. Gmail API disabled / 403) — surface as a
+            # gateway error, never as an empty 200 mailbox.
+            raise HTTPException(
+                status_code=502, detail=f"Google Gmail API error ({st})"
+            )
 
         ids = [m["id"] for m in data.get("messages", [])[:max_results]]
         # Fetch message metadata concurrently — sequential per-message calls
@@ -244,7 +250,9 @@ async def list_events(
 
     token = await _resolve_google_token(str(current_user.id))
     if not token:
-        return {"events": [], "total": 0, "error": "not_connected"}
+        # Non-2xx so callers can tell "no Google account" apart from an
+        # empty calendar (proxy/page check response.ok).
+        raise HTTPException(status_code=400, detail="Google account not connected")
 
     from datetime import timedelta, timezone
 
@@ -265,23 +273,30 @@ async def list_events(
                 "timeMin": now.isoformat(),
             },
         )
-        # RECENT completed events only: last 30 days (bounded, so a huge
-        # history cannot crowd the list with ancient items).
+        # RECENT completed events only, last 30 days. Fetch a generous page
+        # (Calendar API caps at 2500; 1000 covers a month of meetings) and
+        # pick the NEWEST below — an ascending capped query would keep the
+        # oldest items and drop recent meetings.
         st_past, past_data = await _google_get(
             client,
             token,
             _url,
             {
-                "maxResults": min(max_results, 100),
+                "maxResults": 1000,
                 "singleEvents": "true",
                 "orderBy": "startTime",
                 "timeMax": now.isoformat(),
                 "timeMin": (now - timedelta(days=30)).isoformat(),
             },
         )
-    if upcoming_data is None and past_data is None:
-        status = st_up or st_past
-        return {"events": [], "total": 0, "error": f"calendar_api_error:{status}"}
+    if upcoming_data is None:
+        raise HTTPException(
+            status_code=502, detail=f"Google Calendar API error ({st_up or st_past})"
+        )
+
+    def _start_key(it: Dict[str, Any]) -> str:
+        start = it.get("start") or {}
+        return start.get("dateTime") or start.get("date") or ""
 
     def _to_event(it: Dict[str, Any], completed: bool) -> Dict[str, Any]:
         start = it.get("start") or {}
@@ -297,8 +312,12 @@ async def list_events(
             "completed": completed,
         }
 
-    # Upcoming first (ascending), then finished events newest-first.
-    events = [_to_event(it, False) for it in (upcoming_data or {}).get("items", [])[:max_results]]
-    past_items = (past_data or {}).get("items", [])[:max_results]
-    events += [_to_event(it, True) for it in reversed(past_items)]
+    # Upcoming (ascending, capped), then the NEWEST finished events first.
+    events = [
+        _to_event(it, False) for it in (upcoming_data or {}).get("items", [])[:max_results]
+    ]
+    newest_past = sorted(
+        (past_data or {}).get("items", []), key=_start_key, reverse=True
+    )[:max_results]
+    events += [_to_event(it, True) for it in newest_past]
     return {"events": events, "total": len(events)}

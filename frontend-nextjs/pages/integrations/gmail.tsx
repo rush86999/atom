@@ -165,6 +165,8 @@ const GmailIntegrationPage: NextPage = () => {
         )
       )
     : emails;
+  // Overview's "Upcoming Events" must never include finished meetings.
+  const upcomingList = events.filter((e) => !e.completed);
   const visibleEvents = events.filter((e) => {
     const hay = `${e.title || ""} ${e.location || ""}`.toLowerCase();
     if (calQueryL && !hay.includes(calQueryL)) return false;
@@ -289,8 +291,8 @@ const GmailIntegrationPage: NextPage = () => {
               <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
                 <h3 className="text-lg font-semibold mb-4">Upcoming Events</h3>
                 <div className="space-y-3">
-                  {events.length > 0 ? (
-                    events.slice(0, 5).map((event, index) => (
+                  {upcomingList.length > 0 ? (
+                    upcomingList.slice(0, 5).map((event, index) => (
                       <div
                         key={index}
                         className="border rounded-lg p-3 hover:bg-gray-50 dark:bg-gray-800 transition-colors"
