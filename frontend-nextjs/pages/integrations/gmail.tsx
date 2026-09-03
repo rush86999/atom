@@ -40,9 +40,11 @@ const GmailIntegrationPage: NextPage = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [emails, setEmails] = useState<any[]>([]);
-  // Inbox search results live here — the source `emails` list is never
-  // overwritten by a search, so clearing the query restores the full inbox.
-  const [filteredEmails, setFilteredEmails] = useState<any[] | null>(null);
+  // Inbox search text lives in state; the visible list is DERIVED from the
+  // source emails + query (see below), so a search can never go stale when
+  // emails arrive asynchronously, and clearing the query restores the inbox.
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [events, setEvents] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -98,21 +100,34 @@ const GmailIntegrationPage: NextPage = () => {
         ]);
         if (emailsRes.ok) {
           const data = await emailsRes.json();
-          const list = data.emails || data.data || [];
-          setEmails(list);
-          setEmailStats({
-            total: list.length,
-            unread: list.filter((e: any) => e.unread).length,
-            important: list.filter((e: any) => e.important).length,
-            starred: list.filter((e: any) => e.starred).length,
-          });
+          if (data.error) {
+            setLoadError(`Emails: ${data.error}`);
+          } else {
+            const list = data.emails || data.data || [];
+            setEmails(list);
+            setEmailStats({
+              total: list.length,
+              unread: list.filter((e: any) => e.unread).length,
+              important: list.filter((e: any) => e.important).length,
+              starred: list.filter((e: any) => e.starred).length,
+            });
+          }
+        } else {
+          setLoadError(`Failed to load emails (${emailsRes.status})`);
         }
         if (eventsRes.ok) {
           const data = await eventsRes.json();
-          setEvents(data.events || data.data || []);
+          if (data.error) {
+            setLoadError((prev) => prev || `Calendar: ${data.error}`);
+          } else {
+            setEvents(data.events || data.data || []);
+          }
+        } else {
+          setLoadError((prev) => prev || `Failed to load events (${eventsRes.status})`);
         }
       } catch (error) {
         console.error("Failed to load Gmail data:", error);
+        setLoadError("Could not reach the Gmail service");
       }
     };
 
@@ -140,6 +155,16 @@ const GmailIntegrationPage: NextPage = () => {
     completed: events.filter((e) => e.completed).length,
   };
   const calQueryL = calQuery.toLowerCase();
+  // Inbox list is derived from source emails + the live query — never a
+  // stored result array, so it always reflects the latest loaded emails.
+  const inboxQuery = searchQuery.toLowerCase();
+  const visibleInbox = inboxQuery
+    ? emails.filter((e: any) =>
+        [e.from, e.subject, e.preview].some(
+          (f) => typeof f === "string" && f.toLowerCase().includes(inboxQuery)
+        )
+      )
+    : emails;
   const visibleEvents = events.filter((e) => {
     const hay = `${e.title || ""} ${e.location || ""}`.toLowerCase();
     if (calQueryL && !hay.includes(calQueryL)) return false;
@@ -253,8 +278,9 @@ const GmailIntegrationPage: NextPage = () => {
                     ))
                   ) : (
                     <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                      No emails found. Connect your Gmail account to get
-                      started.
+                      {loadError
+                        ? `Couldn't load emails — ${loadError}`
+                        : "No emails found. Connect your Gmail account to get started."}
                     </div>
                   )}
                 </div>
@@ -311,23 +337,25 @@ const GmailIntegrationPage: NextPage = () => {
                 data={emails}
                 dataType="messages"
                 onSearch={(results: any[], filters: any) => {
-                  // Non-destructive: search results never overwrite the
-                  // source list, so clearing the query restores the inbox.
-                  setFilteredEmails(filters?.query ? results : null);
+                  // Store the query only; the visible list is derived from
+                  // the source emails, so results can never go stale.
+                  setSearchQuery(filters?.query || "");
                 }}
                 loading={loading}
                 totalCount={emails.length}
-                resultCount={(filteredEmails ?? emails).length}
+                resultCount={visibleInbox.length}
               />
               <div className="mt-3 space-y-2 max-h-[28rem] overflow-y-auto">
-                {(filteredEmails ?? emails).length > 0 ? (
-                  (filteredEmails ?? emails).map((email, index) => (
+                {visibleInbox.length > 0 ? (
+                  visibleInbox.map((email, index) => (
                     <EmailRow key={index} email={email} />
                   ))
                 ) : (
                   <div className="text-center text-gray-500 dark:text-gray-400 py-8">
                     {emails.length === 0
-                      ? "No emails found. Connect your Gmail account to get started."
+                      ? loadError
+                        ? `Couldn't load emails — ${loadError}`
+                        : "No emails found. Connect your Gmail account to get started."
                       : "No emails match your search."}
                   </div>
                 )}

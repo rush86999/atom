@@ -249,35 +249,39 @@ async def list_events(
     from datetime import timedelta, timezone
 
     now = datetime.now(timezone.utc)
-    # Recent finished events (so the "Completed" stat has a real meaning).
-    time_max = now.isoformat()
-    time_min = (now - timedelta(days=30)).isoformat()
+    _url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
     async with httpx.AsyncClient(timeout=30.0) as client:
-        st, data = await _google_get(
+        # FUTURE events only — the panel's upcoming stats/list. Past events
+        # must never land in here (previously timeMin/max were swapped and the
+        # upcoming bucket silently returned the previous 30 days).
+        st_up, upcoming_data = await _google_get(
             client,
             token,
-            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            _url,
             {
                 "maxResults": min(max_results, 100),
                 "singleEvents": "true",
                 "orderBy": "startTime",
-                "timeMin": time_min,
-                "timeMax": time_max,
+                "timeMin": now.isoformat(),
             },
         )
-        _, past_data = await _google_get(
+        # RECENT completed events only: last 30 days (bounded, so a huge
+        # history cannot crowd the list with ancient items).
+        st_past, past_data = await _google_get(
             client,
             token,
-            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            _url,
             {
                 "maxResults": min(max_results, 100),
                 "singleEvents": "true",
                 "orderBy": "startTime",
-                "timeMax": time_max,
+                "timeMax": now.isoformat(),
+                "timeMin": (now - timedelta(days=30)).isoformat(),
             },
         )
-    if data is None and past_data is None:
-        return {"events": [], "total": 0, "error": f"calendar_api_error:{st}"}
+    if upcoming_data is None and past_data is None:
+        status = st_up or st_past
+        return {"events": [], "total": 0, "error": f"calendar_api_error:{status}"}
 
     def _to_event(it: Dict[str, Any], completed: bool) -> Dict[str, Any]:
         start = it.get("start") or {}
@@ -293,7 +297,8 @@ async def list_events(
             "completed": completed,
         }
 
-    # Upcoming first, then finished events (most recent last).
-    events = [_to_event(it, False) for it in (data or {}).get("items", [])[:max_results]]
-    events += [_to_event(it, True) for it in (past_data or {}).get("items", [])[:max_results]]
+    # Upcoming first (ascending), then finished events newest-first.
+    events = [_to_event(it, False) for it in (upcoming_data or {}).get("items", [])[:max_results]]
+    past_items = (past_data or {}).get("items", [])[:max_results]
+    events += [_to_event(it, True) for it in reversed(past_items)]
     return {"events": events, "total": len(events)}
