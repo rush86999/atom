@@ -209,6 +209,16 @@ def _write_vector(row: ExchangeExample) -> bool:
                 "agent_id": row.agent_id,
                 "example_id": row.id,
             },
+            # Top-level columns: retrieval prefilters on them natively. The
+            # label filter used to exist ONLY inside the metadata JSON while
+            # the search queried a top-level `label` column that no row ever
+            # had — every retrieval leg errored with "No field named label"
+            # (live 2026-09-03, every turn). add_document migrates the
+            # columns in on first write; the search no longer requires them.
+            extra_columns={
+                "label": row.label or "",
+                "conversation_id": row.conversation_id or "",
+            },
             user_id=row.user_id or "exchange_example",
             workspace_id=row.workspace_id or "default",
             doc_id=row.id,
@@ -496,22 +506,17 @@ def search_similar_examples(
         from core.lancedb_handler import LanceDBHandler
 
         handler = LanceDBHandler(workspace_id=workspace_id or "default")
-        safe_ws = str(workspace_id or "default").replace("'", "''")
-        clauses = [f"label == '{label}'", f"workspace_id == '{safe_ws}'"]
-        if exclude_conversation_id:
-            safe_conv = str(exclude_conversation_id).replace("'", "''")
-            # NULL conversation_id rows can't be attributed to the current
-            # conversation — keep them.
-            clauses.append(
-                f"(conversation_id != '{safe_conv}' OR conversation_id IS NULL)"
-            )
+        # Vector filter stays schema-minimal (workspace_id only): older
+        # exchange_examples tables have no top-level `label`/`conversation_id`
+        # columns, and a missing-column filter error killed the whole memory
+        # leg on every turn (live 2026-09-03). Label and conversation
+        # exclusion are applied after SQL hydration — the SQL row is the
+        # source of truth for both.
         hits = handler.search(
             table_name=_VECTOR_TABLE,
             query=query[:500],
-            limit=max(limit * 3, 6),  # over-fetch: the band filters some out
-            filter_str=" AND ".join(clauses),
+            limit=max(limit * 6, 18),  # over-fetch: SQL-side label/exclusion filters
         ) or []
-        hits = filter_examples_by_band(hits, label)[:limit]
         if not hits:
             return []
 
@@ -521,7 +526,8 @@ def search_similar_examples(
         db = SessionLocal()
         try:
             rows = db.query(ExchangeExample).filter(
-                ExchangeExample.id.in_(ids)
+                ExchangeExample.id.in_(ids),
+                ExchangeExample.label == label,
             ).all()
             by_id = {r.id: r for r in rows}
         finally:
@@ -529,9 +535,13 @@ def search_similar_examples(
 
         out: List[Dict[str, Any]] = []
         for h in hits:
+            if len(out) >= limit:
+                break
             r = by_id.get(str(h.get("id")))
             if r is None:
-                continue  # SQL row gone — vector is stale; skip, don't render
+                continue  # SQL row gone or label mismatch — vector is stale; skip
+            if exclude_conversation_id and r.conversation_id == exclude_conversation_id:
+                continue  # same-conversation rejection: the answer being redone
             out.append({
                 "id": r.id,
                 "query": r.user_query,
@@ -542,7 +552,10 @@ def search_similar_examples(
                 "created_at": r.created_at,
                 "score": h.get("score"),
             })
-        return out
+        # Semi-hard similarity band (positives high, negatives mid) — applied
+        # post-hydration now that label filtering happens on the SQL side.
+        out = filter_examples_by_band(out, label)
+        return out[:limit]
     except Exception as e:
         logger.debug("exchange example retrieval failed: %s", e)
         return []

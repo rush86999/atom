@@ -26,6 +26,46 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
+def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) -> str:
+    """Excerpt of ``text`` centered on the best query-token match region.
+
+    A workbook read must surface the REGION the question is about (the
+    WG350DSAV row), not the file head — the head is usually sheet 1 /
+    cover-page boilerplate, which is exactly what the old preview-only paths
+    showed while the answer sat further in. Falls back to the head when no
+    query token appears.
+    """
+    text = text or ""
+    import re as _re
+
+    tokens = [t for t in _re.split(r"[^a-z0-9]+", (query or "").lower()) if len(t) > 2]
+    lower = text.lower()
+    best_pos, best_hits = 0, -1
+    if tokens:
+        for tok in sorted(set(tokens), key=len, reverse=True):
+            start = 0
+            while True:
+                idx = lower.find(tok, start)
+                if idx < 0:
+                    break
+                # count how many DISTINCT tokens appear in this window
+                window = lower[max(0, idx - excerpt_chars // 2): idx + excerpt_chars // 2]
+                hits = sum(1 for t in set(tokens) if t in window)
+                if hits > best_hits:
+                    best_pos, best_hits = idx, hits
+                start = idx + len(tok)
+                if best_hits >= len(set(tokens)):
+                    break
+    if best_hits <= 0:
+        return text[:excerpt_chars]
+    half = excerpt_chars // 2
+    start = max(0, best_pos - half)
+    end = min(len(text), best_pos + half)
+    prefix = "… " if start > 0 else ""
+    suffix = " …" if end < len(text) else ""
+    return f"{prefix}{text[start:end]}{suffix}"
+
 # All native integrations supported by Atom
 NATIVE_INTEGRATIONS = {
     # Sales & CRM
@@ -1222,7 +1262,18 @@ class UniversalIntegrationService:
         tenant_id = context.get("tenant_id", "system")
         storage_service = await registry.get_service_instance(service, tenant_id)
         token = getattr(storage_service, 'access_token', None) or context.get("access_token")
-        
+
+        # The `read` intent (open a file, return its contents) is implemented
+        # ONCE for every storage service — download, extract, ingest (warming
+        # the hybrid index for next time), and return a query-anchored
+        # excerpt. This is step 2 of the find→open→read journey that
+        # previously had no implementation at all (live 2026-09-03: the agent
+        # could search WorkDrive metadata but nothing could open a file).
+        if action in ("read", "read_file", "open_file", "get_file_content"):
+            return await self._read_storage_file(
+                service, storage_service, token, params, context
+            )
+
         if service == "google_drive":
             if action in ("list", "list_files"):
                 return {"status": "success", "data": await storage_service.list_files(token, params.get("folder_id"))}
@@ -1285,6 +1336,166 @@ class UniversalIntegrationService:
                 return {"status": "success", "data": await storage_service.search_files(wd_user, params.get("query"), limit=params.get("limit") or 20)}
 
         return {"status": "success", "message": f"Routed to {service} handler (Registry Storage)"}
+
+    async def _read_storage_file(
+        self,
+        service: str,
+        storage_service: Any,
+        token: Optional[str],
+        params: Dict[str, Any],
+        context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Open a storage file: resolve → download → extract → excerpt.
+
+        One implementation shared by every storage integration (the read leg
+        of find→open→read). Resolution uses an explicit ``file_id`` when the
+        caller has one, otherwise it runs the service's own search and picks
+        the name-best-matching hit. The excerpt is query-anchored so a
+        "find the WG350DSAV row" read returns the region around that model
+        number rather than the workbook's head. The full text is ALSO
+        ingested (best-effort) under the file's stable identity, so this one
+        open warms the hybrid index — later questions hit search, not the
+        download path.
+        """
+        user_id = context.get("user_id")
+        query = (params.get("query") or "").strip()
+        file_id = params.get("file_id") or params.get("id")
+        file_name: Optional[str] = None
+
+        try:
+            # --- resolve the file ---------------------------------------
+            if not file_id:
+                hits: List[Dict[str, Any]] = []
+                if service == "zoho_workdrive":
+                    raw = await storage_service.search_files(
+                        user_id or token, query or " ", limit=5)
+                    hits = (raw or {}).get("data", {}).get("files", []) \
+                        if isinstance(raw, dict) else []
+                elif service == "google_drive":
+                    raw = await storage_service.search_files(token, query)
+                    hits = (raw or {}).get("data", {}).get("files", []) \
+                        if isinstance(raw, dict) else []
+                elif service == "onedrive":
+                    raw = await storage_service.search_files(token, query)
+                    hits = (raw or {}).get("data", {}).get("value", []) \
+                        if isinstance(raw, dict) else []
+                elif service == "box":
+                    raw = await storage_service.search_files(token, query)
+                    hits = (raw or {}).get("data", {}).get("entries", []) \
+                        if isinstance(raw, dict) else []
+                elif service == "dropbox":
+                    hits = await storage_service.search(query or " ", token) or []
+                if not hits:
+                    return {"status": "success", "data": {
+                        "found": False,
+                        "message": f"No file in {service} matched '{query}'.",
+                    }}
+                file_id, file_name = self._best_file_match(hits, query)
+
+            # --- download -------------------------------------------------
+            content: Optional[bytes] = None
+            if service == "zoho_workdrive":
+                content = await storage_service.download_file(user_id or token, file_id)
+            elif service == "google_drive":
+                content = await storage_service.download_file_bytes(token, file_id)
+            elif service == "onedrive":
+                content = await storage_service.download_file_bytes(token, file_id)
+            elif service == "box":
+                content = await storage_service.download_file_bytes(token, file_id)
+            elif service == "dropbox":
+                content = await storage_service.download_file(file_id or query, token)
+            if not content:
+                return {"status": "success", "data": {
+                    "found": True, "file_id": file_id, "file_name": file_name,
+                    "message": f"Found the file in {service} but the download failed.",
+                }}
+            if not file_name:
+                file_name = f"{service}:{file_id}"
+
+            # --- extract --------------------------------------------------
+            from core.auto_document_ingestion import DocumentParser
+
+            file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
+            text = await DocumentParser.parse_document(content, file_ext, file_name)
+            if not text or not text.strip():
+                return {"status": "success", "data": {
+                    "found": True, "file_id": file_id, "file_name": file_name,
+                    "message": f"Opened {file_name} but no text could be extracted from it.",
+                }}
+
+            # --- ingest (warming the hybrid index) — best-effort ----------
+            ingested = False
+            try:
+                from core.auto_document_ingestion import AutoDocumentIngestionService
+
+                ingest_result = await AutoDocumentIngestionService().process_file_bytes(
+                    content,
+                    file_name=file_name,
+                    source=service,
+                    user_id=user_id or "system",
+                    external_id=file_id,
+                    explicit=True,
+                )
+                ingested = ingest_result.get("status") == "ingested"
+            except Exception as ingest_err:  # noqa: BLE001 — read still returns
+                logger.debug(f"read-path ingest skipped for {file_name}: {ingest_err}")
+
+            excerpt = _query_anchored_excerpt(text, query)
+            return {"status": "success", "data": {
+                "found": True,
+                "file_id": file_id,
+                "file_name": file_name,
+                "chars_extracted": len(text),
+                "excerpt": excerpt,
+                "ingested_into_workspace": ingested,
+                "note": (
+                    "Contents above are EXCERPTS around the query. Cite only "
+                    "values visible in them; the file is now ingested for "
+                    "full-text search."
+                ),
+            }}
+        except Exception as e:
+            logger.error(f"read_storage_file failed ({service}, file={file_id}): {e}")
+            return {"status": "error", "message": f"Could not open the file: {e}"}
+
+    @staticmethod
+    def _best_file_match(
+        hits: List[Dict[str, Any]], query: str
+    ) -> tuple:
+        """Pick the hit whose NAME best matches the query tokens (falls back
+        to the top hit). Returns (file_id, file_name)."""
+        import re as _re
+
+        def _norm(s: str) -> str:
+            return _re.sub(r"[^a-z0-9]+", "", str(s or "").lower())
+
+        q_tokens = [t for t in _re.split(r"[^a-z0-9]+", query.lower()) if len(t) > 2]
+        best, best_score = None, -1
+        for h in hits:
+            name = str(
+                h.get("name") or h.get("title")
+                or (h.get("attributes") or {}).get("name", "")
+            )
+            nid = _norm(name)
+            score = sum(1 for t in q_tokens if _norm(t) and _norm(t) in nid)
+            if score > best_score:
+                best, best_score = h, score
+        h = best or hits[0]
+        file_id = (
+            h.get("id") or h.get("file_id") or h.get("fileId")
+            or ((h.get("metadata") or {}).get("id") if isinstance(h.get("metadata"), dict) else None)
+        )
+        # Box wraps metadata; OneDrive nests under parent; keep a last-resort walk
+        if file_id is None and isinstance(h, dict):
+            for v in h.values():
+                if isinstance(v, dict) and v.get("id"):
+                    file_id = v["id"]
+                    break
+        file_name = str(
+            h.get("name") or h.get("title")
+            or (h.get("attributes") or {}).get("name", "")
+        )
+        return file_id, file_name
 
     async def _search_storage(self, service: str, query: str, context: Dict[str, Any]) -> List[Dict]:
         """Search files/pages across storage platforms via Registry"""
@@ -1482,8 +1693,12 @@ class UniversalIntegrationService:
                 # asks about stock ("is the wg-350dsav in stock?"). The service
                 # resolves token/datacenter/org itself and returns slim item
                 # dicts; an empty result flows to the planner's memory fallback.
+                # user_id is required for the per-user token lookup — token
+                # rows are user-keyed, so this previously died on
+                # "no access token available" for every agent turn.
                 return {"status": "success", "data": await fin_service.search_items(
-                    params.get("query", ""), limit=params.get("limit", 8))}
+                    params.get("query", ""), limit=params.get("limit", 8),
+                    user_id=context.get("user_id"))}
             if action == "list_items":
                 return {"status": "success", "data": await fin_service.get_items(token)}
         elif service == "aws_ses":

@@ -964,7 +964,13 @@ async def assemble_memory_context(
             blocks.append("RELATED INTEGRATION RECORDS (CRM/shop/files ingested):\n" + integration_block)
         episodes_block = _bounded_lines(episode_lines or [], EPISODES_CHAR_CAP)
         if episodes_block:
-            blocks.append("RELEVANT PAST EPISODES (prior agent work):\n" + episodes_block)
+            blocks.append(
+                "RELEVANT PAST EPISODES (prior agent work — your own earlier "
+                "statements and actions, NOT verified source documents; they "
+                "may contain mistakes that were later corrected. Never cite "
+                "an episode as the source for a specific fact — find the "
+                "underlying email/document/record first):\n" + episodes_block
+            )
         facts_block = _bounded_lines(fact_lines or [], FACTS_CHAR_CAP)
         if facts_block:
             blocks.append("DURABLE FACTS (previously learned):\n" + facts_block)

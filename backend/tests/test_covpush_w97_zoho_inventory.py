@@ -233,11 +233,15 @@ class TestGetActiveToken:
         db = _FakeDB(record=record)
         svc.refresh_token = AsyncMock(return_value={"access_token": "newtok", "expires_in": 3600})
         with patch("core.database.SessionLocal", return_value=db), \
-             patch("core.privsec.token_encryption.decrypt_token", return_value="refresh-plain"), \
+             patch("core.privsec.token_encryption.decrypt_token", return_value="refresh-plain") as dec, \
              patch("core.privsec.token_encryption.encrypt_token", return_value="enc-newtok"), \
              patch("core.privsec.token_encryption.stamp_credential_metadata") as stamp:
             token = await svc._get_active_token("tid1")
-        assert token == "enc-newtok"
+        # The row stores ciphertext, but the CALLER gets a usable bearer
+        # token: the post-refresh return decrypts what was just encrypted
+        # (returning "enc-newtok" verbatim handed Zoho ciphertext).
+        dec.assert_any_call("enc-newtok", allow_plaintext=True)
+        assert token == "refresh-plain"
         assert db.commits == 1
         assert record.access_token == "enc-newtok"
         stamp.assert_called_once_with(record)

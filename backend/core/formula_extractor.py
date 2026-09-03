@@ -174,7 +174,7 @@ class FormulaExtractor:
     def _extract_formulas_raw_xml(
         self,
         file_path: str,
-        max_sheets: int = 10,
+        max_sheets: Optional[int] = None,
         max_formulas: int = 200,
     ) -> List[Dict[str, Any]]:
         """Extract formulas straight from the xlsx zip (stdlib XML only).

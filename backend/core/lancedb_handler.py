@@ -782,25 +782,32 @@ class LanceDBHandler:
 
             # Generate embedding of the relationship description
             embedding = self.embed_text(description)
+            vector_size = self._table_vector_size(table)
+            if vector_size is None:
+                vector_size = self.vector_columns.get("vector_fastembed", 384) \
+                    if "fastembed" in str(self.embedding_provider).lower() else 1536
             if embedding is None:
                 # Embedding failed (dead embedder / event-loop sync call).
                 # The zero-vector fallback MUST match the table's fixed-size
                 # vector column — a hardcoded 1536 against a 384-dim table
                 # failed the FixedSizeList cast and silently dropped the edge.
-                vector_size = self._table_vector_size(table)
-                if vector_size is None:
-                    vector_size = self.vector_columns.get("vector_fastembed", 384) \
-                        if "fastembed" in str(self.embedding_provider).lower() else 1536
                 logger.warning(
                     f"add_knowledge_edge: embed failed, writing {vector_size}-dim "
                     "zero vector (edge unsearchable until re-embedded)"
                 )
-                if NUMPY_AVAILABLE:
-                    import numpy as np
-
-                    embedding = np.zeros(vector_size)
-                else:
-                    embedding = [0.0] * vector_size
+                embedding = [0.0] * vector_size
+            elif hasattr(embedding, "__len__") and len(embedding) != vector_size:
+                # A SUCCESSFUL embed with the wrong dimension fails the same
+                # cast at table.add() (LanceError Arrow: "ListType can only
+                # be casted to FixedSizeListType…" — live 2026-09-03, edges
+                # dropped on every write while the embedder/table dims
+                # disagreed). Align to the table; the edge stays writable.
+                logger.warning(
+                    f"add_knowledge_edge: embed dim {len(embedding)} != table "
+                    f"dim {vector_size} — resizing (edge unsearchable until "
+                    "re-embedded at the table's dim)"
+                )
+                embedding = (list(embedding) + [0.0] * vector_size)[:vector_size]
 
             # Create unique edge ID
             edge_id = f"{from_id}_{rel_type}_{to_id}"

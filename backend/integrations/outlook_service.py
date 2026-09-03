@@ -27,7 +27,7 @@ GRAPH_API_BASE = os.getenv(
 # Email addresses — usually the rarest, most selective term a mailbox
 # search has — always carry '@' and a dot. Kept: word characters,
 # whitespace and apostrophes (O'Brien).
-_KQL_ILLEGAL = re.compile(r"[^\w\s']")
+_KQL_ILLEGAL = re.compile(r"[^\w\s'\"]")
 
 
 def sanitize_graph_kql(query: str) -> str:
@@ -35,12 +35,27 @@ def sanitize_graph_kql(query: str) -> str:
 
     'jschulz@blumetric.ca' → 'jschulz blumetric ca' — each fragment is
     tokenized against the body ('Email : jschulz@blumetric.ca'), so the
-    lead email still matches. A query that is already legal comes back
-    unchanged, so callers can cheaply up-front-sanitize every term.
+    lead email still matches. Tokens mixing letters and digits (model
+    numbers, SKUs: 'WG350DSAV') are wrapped in double quotes — Graph's KQL
+    parser rejects them bare ("Syntax error: character '3' is not valid at
+    position 2 in 'WG350DSAV'", live 2026-09-03) but accepts them as quoted
+    phrases. A query that is already legal comes back unchanged, so callers
+    can cheaply up-front-sanitize every term.
     """
     if not query:
         return query
-    return _KQL_ILLEGAL.sub(" ", query).strip()
+
+    def _quote_mixed_alnum(match: "re.Match") -> str:
+        token = match.group(0)
+        inner = token.strip('"')
+        if inner != token:
+            return token  # already quoted — leave it alone
+        if re.search(r"[A-Za-z]", inner) and re.search(r"\d", inner):
+            return f'"{inner}"'
+        return token
+
+    cleaned = _KQL_ILLEGAL.sub(" ", query).strip()
+    return re.sub(r"\S+", _quote_mixed_alnum, cleaned)
 
 
 @dataclass

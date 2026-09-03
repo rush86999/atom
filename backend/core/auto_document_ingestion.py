@@ -147,6 +147,69 @@ def _hashlib_sha1(value: str) -> str:
     return hashlib.sha1(value.encode("utf-8")).hexdigest()
 
 
+# Extraction budget: the cap on EXTRACTED TEXT per file (not on source
+# records). The old hard caps (5 sheets x 100 rows, 50 PDF pages, 500 docx
+# paragraphs, 1000 CSV rows) silently truncated real business files — live
+# 2026-09-03, Consolidated Price List 2019.xlsx ingested without its machine
+# pricing sheets, so the agent could never find the WG350DSAV row and
+# confabulated the price instead. The write path chunks arbitrarily long
+# text (vector_upsert ::c{i} rows), so extraction may emit everything up to
+# this budget; the budget only bounds memory and embedding cost for
+# pathological files. Env-tunable per deployment.
+DEFAULT_EXTRACTION_MAX_CHARS = 2_000_000
+
+
+def extraction_max_chars() -> int:
+    try:
+        return max(50_000, int(os.getenv("ATOM_EXTRACTION_MAX_CHARS", "")))
+    except (TypeError, ValueError):
+        return DEFAULT_EXTRACTION_MAX_CHARS
+
+
+class _ExtractionBudget:
+    """Accumulates text parts until the per-file char budget is exhausted.
+
+    Callers append whole logical units (a sheet, a page, a row block) and
+    check ``exhausted`` between units, so a unit is never split mid-way;
+    ``truncation_note(total_units, consumed_units)`` renders the marker that
+    tells recall (and the model) exactly what was skipped.
+    """
+
+    __slots__ = ("limit", "_parts", "_len")
+
+    def __init__(self, limit: Optional[int] = None):
+        self.limit = extraction_max_chars() if limit is None else limit
+        self._parts: List[str] = []
+        self._len = 0
+
+    @property
+    def consumed(self) -> int:
+        return self._len
+
+    @property
+    def exhausted(self) -> bool:
+        return self._len >= self.limit
+
+    def add(self, part: str) -> bool:
+        """Append if budget remains; True when written, False when dropped."""
+        if self.exhausted or not part:
+            return False
+        self._parts.append(part)
+        self._len += len(part)
+        return True
+
+    def join(self, sep: str = "\n") -> str:
+        return sep.join(p for p in self._parts if p)
+
+    def truncation_note(self, total: int, consumed: int) -> str:
+        if consumed >= total:
+            return ""
+        return (
+            f"... (extraction budget reached: showing {consumed} of {total} "
+            f"sections; raise ATOM_EXTRACTION_MAX_CHARS to extract more)"
+        )
+
+
 class DocumentParser:
     """
     Parses various document formats and extracts text.
@@ -261,13 +324,14 @@ class DocumentParser:
             import csv
             text = content.decode("utf-8", errors="ignore")
             reader = csv.reader(io.StringIO(text))
-            rows = []
-            for i, row in enumerate(reader):
-                if i > 1000:  # Limit rows
-                    rows.append("... (truncated)")
+            budget = _ExtractionBudget()
+            total_rows = 0
+            for row in reader:
+                total_rows += 1
+                if not budget.add(" | ".join(row)):
                     break
-                rows.append(" | ".join(row))
-            return "\n".join(rows)
+            note = budget.truncation_note(total_rows, len(budget._parts))
+            return budget.join() + ("\n" + note if note else "")
         except Exception as e:
             logger.error(f"CSV parse error: {e}")
             return content.decode("utf-8", errors="ignore")
@@ -280,10 +344,13 @@ class DocumentParser:
             # Use pypdf (PyPDF2 merged into pypdf package)
             import pypdf as PyPDF2
             reader = PyPDF2.PdfReader(io.BytesIO(content))
-            text_parts = []
-            for page in reader.pages[:50]:  # Limit pages
-                text_parts.append(page.extract_text() or "")
-            return "\n\n".join(text_parts)
+            budget = _ExtractionBudget()
+            total_pages = len(reader.pages)
+            for page in reader.pages:
+                if not budget.add(page.extract_text() or ""):
+                    break
+            note = budget.truncation_note(total_pages, len(budget._parts))
+            return budget.join("\n\n") + ("\n\n" + note if note else "")
         except ImportError:
             logger.warning("pypdf not available, PDF parsing disabled")
             return "[PDF content - parser not available]"
@@ -297,19 +364,32 @@ class DocumentParser:
         try:
             from docx import Document
             doc = Document(io.BytesIO(content))
-            full_text = []
-            
+            budget = _ExtractionBudget()
+            total_units = len(doc.paragraphs) + len(doc.tables)
+            consumed = 0
+
             # Extract paragraphs
-            for para in doc.paragraphs[:500]:
-                full_text.append(para.text)
-            
-            # Also extract tables (from DocumentLifecycleLearner)
-            for table in doc.tables:
-                for row in table.rows:
-                    row_text = [cell.text for cell in row.cells]
-                    full_text.append(" | ".join(row_text))
-                    
-            return "\n".join(full_text)
+            for para in doc.paragraphs:
+                if not budget.add(para.text):
+                    break
+                consumed += 1
+
+            # Also extract tables (from DocumentLifecycleLearner) — table text
+            # shares the budget with paragraphs, so a paragraph-heavy doc
+            # leaves less room for tables and vice versa.
+            if not budget.exhausted:
+                for table in doc.tables:
+                    done = False
+                    for row in table.rows:
+                        if not budget.add(" | ".join(cell.text for cell in row.cells)):
+                            done = True
+                            break
+                    consumed += 1
+                    if done or budget.exhausted:
+                        break
+
+            note = budget.truncation_note(total_units, consumed)
+            return budget.join() + ("\n" + note if note else "")
         except ImportError:
             logger.warning("python-docx not available")
             return "[DOCX content - parser not available]"
@@ -329,16 +409,22 @@ class DocumentParser:
             try:
                 import xlrd
                 wb = xlrd.open_workbook(file_contents=content)
-                parts = []
+                budget = _ExtractionBudget()
+                sheets_done = 0
                 for sheet in wb.sheets():
-                    parts.append(f"--- Sheet: {sheet.name} ---")
+                    if budget.exhausted:
+                        break
+                    budget.add(f"--- Sheet: {sheet.name} ---")
                     for r in range(getattr(sheet, "nrows", 0)):
                         row = []
                         for c in range(getattr(sheet, "ncols", 0)):
                             val = sheet.cell_value(r, c)
                             row.append(str(val) if val is not None else "")
-                        parts.append(" | ".join(row))
-                return "\n".join(parts)
+                        if not budget.add(" | ".join(row)):
+                            break
+                    sheets_done += 1
+                note = budget.truncation_note(len(wb.sheets()), sheets_done)
+                return budget.join() + ("\n" + note if note else "")
             except ImportError:
                 logger.warning("xlrd not installed; cannot parse old .xls (OLE2) files")
                 return ""
@@ -373,30 +459,51 @@ class DocumentParser:
         try:
             import pandas as pd
 
-            # Read all sheets
+            # Read ALL sheets — sheet-count caps silently dropped real pricing
+            # sections (live 2026-09-03: Consolidated Price List 2019.xlsx
+            # ingested without its machine sheets; only the first five sheets
+            # were extracted). Only total extracted chars are bounded.
             xls = pd.ExcelFile(io.BytesIO(content))
-            full_text = []
-            for sheet_name in xls.sheet_names[:5]:  # Limit sheets
-                df = pd.read_excel(xls, sheet_name=sheet_name, nrows=100)  # Limit rows
-                full_text.append(f"--- Sheet: {sheet_name} ---")
-                full_text.append(df.to_string())
-            return "\n".join(full_text)
+            budget = _ExtractionBudget()
+            sheets_done = 0
+            for sheet_name in xls.sheet_names:
+                if budget.exhausted:
+                    break
+                df = pd.read_excel(xls, sheet_name=sheet_name)
+                budget.add(f"--- Sheet: {sheet_name} ---")
+                sheet_text = df.to_string()
+                if len(sheet_text) <= budget.limit - budget.consumed:
+                    budget.add(sheet_text)
+                else:
+                    # Oversized sheet: write line-by-line so the cut lands
+                    # ON the budget instead of one whole sheet past it (a
+                    # single sheet can dwarf the budget; the note must stay
+                    # truthful about how much was actually kept).
+                    for line in sheet_text.splitlines():
+                        if not budget.add(line):
+                            break
+                sheets_done += 1
+            note = budget.truncation_note(len(xls.sheet_names), sheets_done)
+            return budget.join() + ("\n" + note if note else "")
         except ImportError:
             # Fallback to openpyxl
             try:
                 from openpyxl import load_workbook
                 wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
-                text_parts = []
-                for sheet_name in wb.sheetnames[:5]:
+                budget = _ExtractionBudget()
+                sheets_done = 0
+                for sheet_name in wb.sheetnames:
+                    if budget.exhausted:
+                        break
                     sheet = wb[sheet_name]
-                    text_parts.append(f"=== Sheet: {sheet_name} ===")
-                    for i, row in enumerate(sheet.iter_rows(values_only=True)):
-                        if i > 100:
-                            text_parts.append("... (truncated)")
-                            break
+                    budget.add(f"=== Sheet: {sheet_name} ===")
+                    for row in sheet.iter_rows(values_only=True):
                         row_text = " | ".join(str(cell) if cell else "" for cell in row)
-                        text_parts.append(row_text)
-                return "\n".join(text_parts)
+                        if not budget.add(row_text):
+                            break
+                    sheets_done += 1
+                note = budget.truncation_note(len(wb.sheetnames), sheets_done)
+                return budget.join() + ("\n" + note if note else "")
             except ImportError:
                 logger.warning("No Excel parser available")
                 return "[Excel content - parser not available]"
@@ -421,14 +528,16 @@ class DocumentParser:
             return ""
 
     @staticmethod
-    def _parse_xlsx_raw(content: bytes, max_sheets: int = 5, max_rows: int = 100) -> str:
+    def _parse_xlsx_raw(content: bytes, max_sheets: Optional[int] = None, max_rows: Optional[int] = None) -> str:
         """Extract cell text from an xlsx zip with stdlib XML parsing only.
 
         Engine-agnostic last resort for workbooks openpyxl/pandas reject:
         reads sharedStrings.xml (concatenating rich-text runs, ignoring
         structure it doesn't understand), inline strings, and raw values.
         Namespace-agnostic so producer-specific namespaces don't matter.
-        Sheet/row caps mirror the pandas path.
+        All sheets/rows are extracted up to the shared per-file char budget;
+        ``max_sheets``/``max_rows`` remain as optional additional caps for
+        callers that want them.
         """
         import zipfile
         import xml.etree.ElementTree as ET
@@ -485,17 +594,24 @@ class DocumentParser:
             except Exception as name_err:  # noqa: BLE001 — names are best-effort
                 logger.debug(f"workbook sheet-name read failed: {name_err}")
 
-            text_parts = []
+            budget = _ExtractionBudget()
             sheets = sorted(n for n in zf.namelist() if n.startswith("xl/worksheets/") and n.endswith(".xml"))
-            for sheet_path in sheets[:max_sheets]:
-                text_parts.append(f"=== Sheet: {names.get(sheet_path, sheet_path.rsplit('/', 1)[-1])} ===")
+            sheets_done = 0
+            for sheet_path in sheets:
+                if max_sheets is not None and sheets_done >= max_sheets:
+                    break
+                if budget.exhausted:
+                    break
+                budget.add(
+                    f"=== Sheet: {names.get(sheet_path, sheet_path.rsplit('/', 1)[-1])} ==="
+                )
                 root = ET.fromstring(zf.read(sheet_path))
                 rows_shown = 0
                 for row in root.iter():
                     if _local(row.tag) != "row":
                         continue
-                    if rows_shown >= max_rows:
-                        text_parts.append("... (truncated)")
+                    if max_rows is not None and rows_shown >= max_rows:
+                        budget.add("... (truncated)")
                         break
                     cells = []
                     for c in row:
@@ -530,9 +646,13 @@ class DocumentParser:
                         )
                         if f_el is not None and (f_el.text or "").strip():
                             cells[-1] = f"{cells[-1]} [={f_el.text.strip()}]".strip()
-                    text_parts.append(" | ".join(cells))
+                    if not budget.add(" | ".join(cells)):
+                        break
                     rows_shown += 1
-            return "\n".join(text_parts)
+                sheets_done += 1
+            note = budget.truncation_note(len(sheets), sheets_done)
+            text = budget.join() + ("\n" + note if note else "")
+            return text
 
 
 class AutoDocumentIngestionService:
@@ -868,9 +988,13 @@ class AutoDocumentIngestionService:
         # other's row. Never key on file NAME.
         import hashlib as _hashlib
 
-        from core.doc_freshness_service import hash_text, extra_columns_for_ingest
+        from core.doc_freshness_service import (
+            extraction_content_hash,
+            extra_columns_for_ingest,
+            has_current_extraction_version,
+        )
 
-        _content_hash = hash_text(text)
+        _content_hash = extraction_content_hash(text)
         if _external_id:
             _identity_input = f"{source}:{_external_id}"
             _file_doc_id = f"ext_{_hashlib.sha1(_identity_input.encode('utf-8')).hexdigest()[:24]}"
@@ -984,6 +1108,8 @@ class AutoDocumentIngestionService:
         Returns:
             Dict with sync results
         """
+        from core.doc_freshness_service import has_current_extraction_version
+
         settings = self.get_settings(integration_id)
         
         if not settings.enabled and not force:
@@ -1025,14 +1151,26 @@ class AutoDocumentIngestionService:
                     break
 
                 try:
-                    # Skip if already ingested and not modified
+                    # Skip if already ingested and not modified AND the stored
+                    # extraction was produced by the current extractor. The
+                    # second condition is what makes extractor improvements
+                    # self-propagating: after EXTRACTION_VERSION bumps, the
+                    # next sync re-downloads (once) and re-extracts files the
+                    # old extractor truncated, instead of skipping them forever
+                    # because the SOURCE never changed (live 2026-09-03:
+                    # Consolidated Price List 2019.xlsx stored without its
+                    # machine-pricing sheets — the 5-sheet cap — and no sync
+                    # would ever revisit it).
                     external_id = file_info.get("id")
                     if external_id:
                         seen_external_ids.add(external_id)
                     existing: Optional[IngestedDocument] = None
                     if external_id in self.ingested_docs:
                         existing = self.ingested_docs[external_id]
-                        if file_info.get("modified_at") == existing.external_modified_at:
+                        if (
+                            file_info.get("modified_at") == existing.external_modified_at
+                            and has_current_extraction_version(existing.source_content_hash)
+                        ):
                             results["files_skipped"] += 1
                             continue
                         # Source modified_at differs → the stored copy is stale
@@ -1074,12 +1212,12 @@ class AutoDocumentIngestionService:
                     # Ingest into Atom Memory
                     if self.memory_handler:
                         from core.doc_freshness_service import (
-                            hash_text,
+                            extraction_content_hash,
                             extra_columns_for_ingest,
                         )
 
                         source_modified = file_info.get("modified_at")
-                        content_hash = hash_text(text)
+                        content_hash = extraction_content_hash(text)
                         # Content-level idempotency: source modified_at can
                         # change (touch/rename) without the bytes changing —
                         # skip the rewrite and just refresh the cache marker.

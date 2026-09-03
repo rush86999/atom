@@ -87,10 +87,17 @@ class ZohoInventoryService(IntegrationService):
         except Exception as exc:
             return {"success": False, "error": "Zoho Inventory operation failed"}
 
-    async def _get_active_token(self, tenant_id: Optional[str] = None) -> Optional[str]:
-        """Get a valid access token for the tenant, refreshing if necessary"""
+    async def _get_active_token(self, tenant_id: Optional[str] = None, user_id: Optional[str] = None) -> Optional[str]:
+        """Get a valid access token, refreshing if necessary.
+
+        Resolution order: the acting USER's IntegrationToken row first (the
+        unified OAuth connect flow keys rows by user_id — a tenant-scoped
+        lookup with tenant 'default' missed them, so every agent-planned
+        inventory search died on "no access token" while the integration was
+        connected, live 2026-09-03), then the tenant row for system contexts.
+        """
         tid = tenant_id or getattr(self, "session_id", None) or self.tenant_id
-        if not tid:
+        if not tid and not user_id:
             return self.access_token or os.getenv("ZOHO_INVENTORY_ACCESS_TOKEN")
 
         from core.database import SessionLocal
@@ -103,13 +110,31 @@ class ZohoInventoryService(IntegrationService):
         try:
             db = SessionLocal()
         except Exception as e:
-            logger.error(f"Error retrieving Zoho Inventory token for tenant {tid}: {e}")
+            logger.error(f"Error retrieving Zoho Inventory token (user={user_id} tenant={tid}): {e}")
             return None
         try:
-            token_record = db.query(IntegrationToken).filter(
-                IntegrationToken.tenant_id == tid,
-                IntegrationToken.provider == "zoho_inventory"
-            ).first()
+            token_record = None
+            if user_id:
+                # No cross-user fallback: any active token would serve one
+                # user's Zoho data to every authenticated user (same policy
+                # as zoho_workdrive_service._integration_token_access_token).
+                for provider in ("zoho_inventory", "zoho"):
+                    token_record = (
+                        db.query(IntegrationToken)
+                        .filter(
+                            IntegrationToken.user_id == user_id,
+                            IntegrationToken.provider == provider,
+                            IntegrationToken.status == "active",
+                        )
+                        .first()
+                    )
+                    if token_record:
+                        break
+            if token_record is None:
+                token_record = db.query(IntegrationToken).filter(
+                    IntegrationToken.tenant_id == tid,
+                    IntegrationToken.provider == "zoho_inventory"
+                ).first()
 
             if not token_record:
                 return None
@@ -124,12 +149,20 @@ class ZohoInventoryService(IntegrationService):
                     from core.privsec.token_encryption import decrypt_token, encrypt_token, stamp_credential_metadata
                     refresh_plain = decrypt_token(token_record.refresh_token, allow_plaintext=True) if token_record.refresh_token else None
                     new_tokens = await self.refresh_token(refresh_plain)
-                    if new_tokens:
-                        token_record.access_token = encrypt_token(new_tokens["access_token"])
+                    # .get, not [ ]: a failed refresh returns a truthy error
+                    # payload ({"error": ...}) — indexing it raised
+                    # KeyError('access_token') and masked the real problem
+                    # ("refresh failed") as a token-store error.
+                    new_access = (new_tokens or {}).get("access_token")
+                    if new_access:
+                        token_record.access_token = encrypt_token(new_access)
                         token_record.expires_at = datetime.now(timezone.utc) + timedelta(seconds=new_tokens.get("expires_in", 3600))
                         stamp_credential_metadata(token_record)
                         db.commit()
-                        return token_record.access_token
+                        # Decrypt before returning — the row stores ciphertext;
+                        # returning it verbatim handed Zoho an encrypted blob
+                        # as the bearer token.
+                        return decrypt_token(token_record.access_token, allow_plaintext=True)
                 return None
 
             from core.privsec.token_encryption import decrypt_token
@@ -327,6 +360,7 @@ class ZohoInventoryService(IntegrationService):
         token: Optional[str] = None,
         organization_id: Optional[str] = None,
         limit: int = 8,
+        user_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Search live Zoho Inventory items by name/SKU (search_text + pagination).
 
@@ -335,6 +369,11 @@ class ZohoInventoryService(IntegrationService):
         every "Zoho Inventory search" answer was really the ingested-file
         memory search (live 2026-09-03: WG-350DSAV in stock, agent said
         "no live stock records").
+
+        ``user_id`` (the acting user from the executor context) resolves the
+        OAuth token per-user; without it the tenant lookup runs and — for
+        agent turns, where the tenant is 'default' but the token rows are
+        user-keyed — finds nothing.
 
         Never raises: an empty result lets the planner's memory fallback run
         instead of dead-ending the turn."""
@@ -346,7 +385,7 @@ class ZohoInventoryService(IntegrationService):
                 token
                 or self.access_token
                 or os.getenv("ZOHO_INVENTORY_ACCESS_TOKEN")
-                or await self._get_active_token(self.tenant_id)
+                or await self._get_active_token(self.tenant_id, user_id=user_id)
             )
             if not active_token:
                 logger.warning("zoho_inventory.search_items: no access token available")

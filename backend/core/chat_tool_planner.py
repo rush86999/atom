@@ -65,6 +65,23 @@ _INTENT_ACTIONS: Dict[str, Dict[str, str]] = {
     "zoho_inventory": {"search": "search_items", "list": "list_items"},
 }
 
+# File-storage services expose a `read` intent (download + extract + return a
+# query-anchored excerpt). The 3-step file journey — find the file, OPEN it,
+# find the row — previously dead-ended after step 1: search returned only
+# metadata, no executor action existed for opening, so the model narrated the
+# row it could not see (live 2026-09-03 price-book miss). Hybrid search over
+# the ingested workspace stays the FAST path for "what's the price?"-style
+# questions; `read` is for when the user explicitly wants the file opened.
+_STORAGE_SERVICES = (
+    "zoho_workdrive", "google_drive", "onedrive", "dropbox", "box",
+)
+for _storage_svc in _STORAGE_SERVICES:
+    _INTENT_ACTIONS[_storage_svc] = {
+        "search": "search",
+        "list": "list",
+        "read": "read_file",
+    }
+
 # Short human descriptions the planner reads (kept compact — this prompt
 # rides on every chat turn).
 _SERVICE_DESCRIPTIONS = {
@@ -78,12 +95,12 @@ _SERVICE_DESCRIPTIONS = {
     "zoho_inventory": "stock inventory — search items by name or SKU and check what is in stock",
     "salesforce": "CRM — search leads, contacts, opportunities",
     "hubspot": "CRM — search contacts, companies, deals",
-    "google_drive": "file storage — search documents and files",
-    "dropbox": "file storage — search files",
-    "onedrive": "file storage — search files",
-    "box": "file storage — search files",
+    "google_drive": "file storage — search documents and files; `read` intent opens a file and returns its contents (row-level)",
+    "dropbox": "file storage — search files; `read` intent opens a file and returns its contents (row-level)",
+    "onedrive": "file storage — search files; `read` intent opens a file and returns its contents (row-level)",
+    "box": "file storage — search files; `read` intent opens a file and returns its contents (row-level)",
     "notion": "workspace docs — search pages",
-    "zoho_workdrive": "file storage — search files",
+    "zoho_workdrive": "file storage — search files; `read` intent opens a file and returns its contents (row-level)",
     "jira": "project tracker — search issues",
     "linear": "project tracker — search issues",
     "asana": "project tracker — search tasks",
@@ -180,7 +197,11 @@ Rules:
   query MUST contain that name.
 - Return exactly ONE plan. If a search and a URL check would both help,
   plan ONLY web_fetch when the address is known, otherwise web_search.
-- Read-only: only search/list intents. Never plan sends, writes, or deletes.
+- Read-only: search/list intents for lookups; `read` intent ONLY for the
+  file-storage services, when the user asks to OPEN a named file or read a
+  specific row/value out of it ("open the price list and find the WG350DSAV
+  row" → service zoho_workdrive, intent read, query "Consolidated Price List
+  WG350DSAV"). Never plan sends, writes, or deletes.
 - If the conversation or memory already clearly answers it, use_tool=false.
 - Questions about a company/person/website the conversation cannot answer
   from its own content need web_search (topic facts) or web_fetch (read a
@@ -344,21 +365,16 @@ async def plan_tool_use(
             # deterministic recoveries before giving up — a dead plan here
             # made the model answer from memory while CLAIMING it had
             # "rechecked" the mailbox (observed live 2026-09-02).
-            fallback = _fallback_service_from_history(history, connected, message)
-            if fallback:
-                logger.info(
-                    f"tool planner: invalid service ({plan.service!r}) — "
-                    f"falling back to recently used {fallback!r}")
-                plan.service = fallback
-                plan.intent = "search"
-                if not (plan.query or "").strip() or len(plan.query.strip()) < 12:
-                    plan.query = _retry_query_from_history(history, message)
-            elif (named := _service_named_in_message(message, connected)) and plan.service is None:
-                # Middle rung for the null-service flake: when the USER'S OWN
-                # WORDS name a connected integration ("is the wg-350dsav in
-                # stock in zoho inventory?"), honor it instead of silently
-                # rerouting to memory — memory answered these turns while
-                # claiming a live check ran (live 2026-09-03, twice).
+            #
+            # Order matters: the user's OWN WORDS outrank conversation
+            # history. History-first rerouted "check consolidated price list
+            # FILE again" to the recently-used mailbox (live 2026-09-03
+            # 20:11) because earlier turns mentioned outlook — when the
+            # message's named entity (a file → storage) pointed at
+            # zoho_workdrive. Named-entity first, history only for messages
+            # that name nothing.
+            named = _service_named_in_message(message, connected)
+            if named and plan.service is None:
                 logger.info(
                     f"tool planner: null service — user message names "
                     f"connected {named!r}")
@@ -366,6 +382,14 @@ async def plan_tool_use(
                 plan.intent = "search"
                 if not (plan.query or "").strip():
                     plan.query = message[:120]
+            elif (fallback := _fallback_service_from_history(history, connected, message)) and plan.service is None:
+                logger.info(
+                    f"tool planner: invalid service ({plan.service!r}) — "
+                    f"falling back to recently used {fallback!r}")
+                plan.service = fallback
+                plan.intent = "search"
+                if not (plan.query or "").strip() or len(plan.query.strip()) < 12:
+                    plan.query = _retry_query_from_history(history, message)
             elif plan.service is None and "memory" in allowed:
                 # Last rung, only for the planner's null-service flake: the
                 # model couldn't name ANY service. memory is always available
@@ -386,7 +410,10 @@ async def plan_tool_use(
             else:
                 logger.info(f"tool planner: service not connected ({plan.service!r}): {plan.reason[:80]}")
                 return None
-        if plan.intent not in ("search", "list"):
+        allowed_intents = {"search", "list"}
+        if plan.service in _STORAGE_SERVICES:
+            allowed_intents.add("read")
+        if plan.intent not in allowed_intents:
             plan.intent = "search"
         if not (plan.query or "").strip():
             plan.query = message[:120]
@@ -397,6 +424,27 @@ _RETRY_IMPERATIVE = re.compile(
     r"\b(try again|again|keep looking|recheck|re-check|search again|"
     r"look again|find it)\b", re.IGNORECASE,
 )
+
+# Explicit "OPEN the file" language. When the user's words ask to open/read a
+# document — not just locate it — a storage `search` (metadata only) cannot
+# satisfy the ask; the plan upgrades to the `read` intent, which downloads
+# the file, extracts its contents, and returns a query-anchored excerpt.
+# Hybrid/memory search stays the fast path for lookups that DON'T name
+# opening ("what's the price of X?" → search first).
+_EXPLICIT_OPEN = re.compile(
+    r"\b(open|look inside|contents of|find the row|show me the row|"
+    r"the row for|locate the row|exact row)\b",
+    re.IGNORECASE,
+)
+
+
+def _current_message_text(context: Optional[Dict[str, Any]]) -> str:
+    """The user's current message, from the hydrated history tail (last
+    user-role entry). Empty when history is unavailable."""
+    for entry in reversed((context or {}).get("history") or []):
+        if isinstance(entry, dict) and entry.get("role") == "user":
+            return _entry_text(entry)
+    return ""
 
 
 def _entry_text(entry: Any) -> str:
@@ -414,15 +462,32 @@ def _service_named_in_message(
 ) -> Optional[str]:
     """The connected integration the user's own words name, if any. Matches
     service names with separators relaxed ("zoho inventory" matches
-    zoho_inventory); longest name wins when several appear. A deterministic
-    repair for the planner's null-service flake — NOT an intent gate: it
-    never fires when the planner named a valid service itself."""
+    zoho_inventory); longest name wins when several appear. Falls back to
+    FILE-NOUN matching: "check the price list file / workbook / spreadsheet"
+    names a document, and documents live in whichever storage integration is
+    connected (deterministic preference order, most-specific first). A
+    deterministic repair for the planner's null-service flake — NOT an intent
+    gate: it never fires when the planner named a valid service itself."""
     msg = f" {message.lower().replace('-', ' ').replace('_', ' ')} "
     best, best_len = None, 0
     for svc in connected:
         name = svc.lower().replace("_", " ")
         if name in msg and len(name) > best_len:
             best, best_len = svc, len(name)
+    if best:
+        return best
+    # File nouns → connected storage service. These words say "the thing I
+    # mean is a DOCUMENT" without naming the vendor — route to wherever this
+    # user's documents live instead of whatever service was used recently.
+    _FILE_NOUNS = (
+        "workbook", "spreadsheet", "xlsx", "worksheet", "price list file",
+        "file", "document", "docx", "pdf",
+    )
+    if any(noun in msg for noun in _FILE_NOUNS):
+        for storage in ("zoho_workdrive", "google_drive", "onedrive",
+                        "dropbox", "box", "notion"):
+            if storage in connected:
+                return storage
     return best
 
 
@@ -619,8 +684,21 @@ async def _memory_search_block(
                 hid, excerpt_corpus, fallback_preview
             ).replace("\n", " | ")
             source = str(hit.get("source") or hit.get("title") or "record")
+            # Per-hit provenance: documents/files vs mailbox records vs
+            # knowledge nodes. The model previously read these lines as
+            # interchangeable truth and cited "the consolidated price list"
+            # for content that was only ever its own prior chat reply echoed
+            # back (live 2026-09-03). Naming the record type makes the
+            # distinction visible at the evidence itself.
+            source_kind = {
+                "ingested": "document",
+                "documents": "document",
+                "knowledge": "knowledge-node",
+                "communication": "email/chat record",
+                "conversation": "email/chat record",
+            }.get(source.lower(), source.lower() or "record")
             lines.append(
-                f"- [{source}] {title}"
+                f"- [{source_kind}: {source}] {title}"
                 + (f" | From: {sender}" if sender else "")
                 + f" | {body}"
             )
@@ -643,6 +721,11 @@ async def _memory_search_block(
             f"LIVE TOOL RESULTS (memory.search, query='{query}') — hybrid "
             f"search over ingested workspace data; use these to answer:\n"
             + "\n".join(lines[:8])
+            + "\nEVIDENCE TYPES: [document]* lines are ingested file contents "
+            "(searchable); [email/chat record]* lines are received messages; "
+            "[knowledge-node]* lines are extracted entities. Prior assistant "
+            "replies are NEVER in this evidence — a fact that appears only in "
+            "the conversation is not something you 'found in a file'."
         )
     except Exception as e:
         logger.warning(f"memory tool execution failed: {e}")
@@ -923,7 +1006,7 @@ async def execute_tool_plan(
     # governance + circuit breaker + masking inside). Two live paths:
     #   1. explicit intent->action mappings (_INTENT_ACTIONS) run through
     #      execute() — per-service handlers (zoho_inventory.search_items,
-    #      slack search_messages, storage search, ...);
+    #      slack search_messages, storage search/read, ...);
     #   2. plain "search" intents for services with a family search
     #      implementation route through the search() router — the same
     #      mechanism MCP/entity search already uses.
@@ -937,6 +1020,18 @@ async def execute_tool_plan(
             UniversalIntegrationService,
             SEARCHABLE_SERVICES,
         )
+
+        # Search→read auto-chain: storage search planned, but the user's
+        # words explicitly asked to OPEN the file ("check the price list file
+        # again and see if you can find the row") — metadata results cannot
+        # answer that, so upgrade to the read intent (download + extract +
+        # excerpt). Only fires for storage services; other apps keep search.
+        if service in _STORAGE_SERVICES and (plan.intent or "search") == "search":
+            if _EXPLICIT_OPEN.search(f"{query} {_current_message_text(context)}"):
+                logger.info(
+                    f"tool chain: explicit open language — upgrading "
+                    f"{service}.search to read_file")
+                plan.intent = "read"
 
         intent_map = _INTENT_ACTIONS.get(service, _INTENT_ACTIONS["default"])
         action = intent_map.get(plan.intent or "search", "search")
@@ -998,6 +1093,25 @@ async def execute_tool_plan(
                 f"LIVE TOOL RESULTS ({service}.{action}, query='{query}'): "
                 f"returned nothing usable ({reason})."
             )
+        if action == "read_file" and isinstance(data, dict):
+            # The file was OPENED — render the excerpt as first-class
+            # evidence rather than str(dict) noise. found=False /
+            # download-failure envelopes fall through to the generic path.
+            if data.get("found"):
+                ingested_note = (
+                    "now ingested into the workspace for full-text search"
+                    if data.get("ingested_into_workspace") else
+                    "ingest into the workspace was skipped this run"
+                )
+                block = (
+                    f"LIVE TOOL RESULTS ({service}.{action}, query='{query}') — "
+                    f"FILE OPENED: {data.get('file_name')} "
+                    f"({data.get('chars_extracted', '?')} chars extracted, "
+                    f"{ingested_note}).\n"
+                    f"EXCERPT around the query:\n{data.get('excerpt', '')}\n"
+                    f"{data.get('note', '')}"
+                )
+                return _with_grounding(block)
         text = str(data)[:2500]
         return _with_grounding(
             f"LIVE TOOL RESULTS ({service}.{action}, query='{query}') — "

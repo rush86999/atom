@@ -92,6 +92,40 @@ def hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+# Bump whenever DocumentParser output for the same source bytes changes
+# (new file-type coverage, raised truncation caps, format fixes). The
+# version is folded into the stored content hash, so a stale extraction can
+# never satisfy hash-dedup as "unchanged" — every ingest/sync re-extracts
+# exactly once after a bump, then dedup resumes (see
+# extraction_content_hash / has_current_extraction_version).
+EXTRACTION_VERSION = "2"
+
+
+def extraction_content_hash(text: str) -> str:
+    """Content hash of an EXTRACTION, not of the source bytes.
+
+    ``ev<version>:<sha256>`` — the version prefix is what makes re-ingest
+    self-healing: live 2026-09-03, Consolidated Price List 2019.xlsx was
+    stored truncated (5-sheet/100-row cap) and every manual re-ingest
+    short-circuited as "unchanged" because the truncated extraction kept
+    hashing identically. With the version folded in, the new extractor's
+    hash never matches the stored one, the upsert replaces the row, and
+    dedup only resumes once the extraction is current.
+    """
+    return f"ev{EXTRACTION_VERSION}:{hash_text(text)}"
+
+
+def has_current_extraction_version(stored_hash: Optional[str]) -> bool:
+    """True when a stored content hash was produced by the current extractor.
+
+    Unknown/legacy hashes (bare digest, other version) return False so
+    freshness gates re-download rather than trust a row we can't vouch for.
+    """
+    return bool(stored_hash) and str(stored_hash).startswith(
+        f"ev{EXTRACTION_VERSION}:"
+    )
+
+
 def derive_status_from_hash(old_hash: Optional[str], new_hash: str) -> str:
     """If content hashes differ, the source has changed → ``stale``.
 

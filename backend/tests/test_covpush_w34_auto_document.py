@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import os
+
 import pytest
 
 from core.auto_document_ingestion import (
@@ -148,10 +150,17 @@ class TestCsvParser:
         text = DocumentParser._parse_csv(b"a,b\n1,2")
         assert text == "a | b\n1 | 2"
 
-    def test_truncated_rows(self):
-        rows = "\n".join(f"r{i}" for i in range(1200))
+    def test_truncated_rows(self, monkeypatch):
+        """Post-2026-09-03 contract: record-count caps are gone; the ONLY
+        bound is the char budget (ATOM_EXTRACTION_MAX_CHARS, default 2M),
+        which appends a visible truncation note when it cuts."""
+        rows = "\n".join(f"r{i}" for i in range(12000))  # ~73k chars
         text = DocumentParser._parse_csv(rows.encode())
-        assert "truncated" in text
+        assert "r11999" in text and "truncated" not in text  # fits the 2M default
+
+        monkeypatch.setenv("ATOM_EXTRACTION_MAX_CHARS", "30000")
+        text = DocumentParser._parse_csv(rows.encode())
+        assert "extraction budget reached" in text and "r11999" not in text
 
     def test_with_formula_extraction(self):
         extractor = MagicMock()
@@ -453,12 +462,18 @@ class TestSyncIntegration:
         settings.enabled = True
         settings.file_types = ["pdf"]
         settings.max_file_size_mb = 1
+        # Skip-unchanged now ALSO requires the stored hash to carry the
+        # current extraction version — a legacy hash means the stored copy
+        # predates the current extractor and must be re-downloaded.
+        from core.doc_freshness_service import EXTRACTION_VERSION
+
         svc.ingested_docs["f1"] = make_doc(
-            external_id="f1", external_modified_at=datetime.now(timezone.utc))
+            external_id="f1", external_modified_at=datetime.now(timezone.utc),
+            source_content_hash=f"ev{EXTRACTION_VERSION}:h1")
         svc.ingested_docs["f2"] = make_doc(external_id="f2")
         files = [
             {"id": "f1", "name": "a.pdf", "size": 10,
-             "modified_at": svc.ingested_docs["f1"].external_modified_at},  # unchanged
+             "modified_at": svc.ingested_docs["f1"].external_modified_at},  # unchanged + current extraction
             {"id": "f2", "name": "b.txt", "size": 10},  # wrong type
             {"id": "f3", "name": "c.pdf", "size": 99999999},  # too big
         ]

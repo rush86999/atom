@@ -36,9 +36,9 @@ async def upsert_document(
     """Upsert one row by stable ``doc_id``. Returns "written",
     "skipped_unchanged", or "write_failed" (callers decide severity); the
     probe/cleanup legs are best-effort and never block the write."""
-    from core.doc_freshness_service import hash_text
+    from core.doc_freshness_service import extraction_content_hash
 
-    content_hash = hash_text(text)
+    content_hash = extraction_content_hash(text)
 
     try:
         prior = await asyncio.to_thread(handler.get_document_by_id, table_name, doc_id)
@@ -140,9 +140,9 @@ async def upsert_document_chunks(
     single-row upsert (including its family cleanup, so a document that
     shrank from chunked to small leaves no orphan chunks behind).
     """
-    from core.doc_freshness_service import hash_text
+    from core.doc_freshness_service import extraction_content_hash
 
-    content_hash = hash_text(text)
+    content_hash = extraction_content_hash(text)
     chunks = _split_into_chunks(text, chunk_size, chunk_overlap)
     if len(chunks) <= 1:
         # A previously-chunked document that shrank must not leave orphan
