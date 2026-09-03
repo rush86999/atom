@@ -243,12 +243,20 @@ export default function ZohoWorkDriveIngestion() {
         }
         const deadline = Date.now() + 20 * 60 * 1000; // 20 min cap
         // First poll immediately (fast jobs complete between POST and now),
-        // then every 3s until done.
+        // then every 3s until done. Persistent 404s mean the job registry is
+        // gone (backend restarted) — say so instead of polling to timeout.
+        let consecutiveMissing = 0;
         for (;;) {
             const statusResp = await fetch(`/api/zoho-workdrive/ingest-folder/jobs/${jobId}`, {
                 headers: authHeaders()
             });
-            if (statusResp.ok) {
+            if (statusResp.status === 404) {
+                consecutiveMissing += 1;
+                if (consecutiveMissing >= 3) {
+                    throw new Error('Ingestion job was interrupted (the server restarted) — please run the folder ingest again.');
+                }
+            } else if (statusResp.ok) {
+                consecutiveMissing = 0;
                 const snap = await statusResp.json();
                 const job = snap?.data ?? snap;
                 if (job?.status === 'completed' || job?.status === 'failed') {
