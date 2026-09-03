@@ -258,6 +258,15 @@ async def list_events(
 
     now = datetime.now(timezone.utc)
     _url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
+
+    def _event_params(extra: Dict[str, Any]) -> Dict[str, Any]:
+        base: Dict[str, Any] = {
+            "singleEvents": "true",
+            "orderBy": "startTime",
+        }
+        base.update(extra)
+        return base
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         # FUTURE events only — the panel's upcoming stats/list. Past events
         # must never land in here (previously timeMin/max were swapped and the
@@ -266,32 +275,46 @@ async def list_events(
             client,
             token,
             _url,
-            {
-                "maxResults": min(max_results, 100),
-                "singleEvents": "true",
-                "orderBy": "startTime",
-                "timeMin": now.isoformat(),
-            },
+            _event_params(
+                {
+                    "maxResults": min(max_results, 100),
+                    "timeMin": now.isoformat(),
+                }
+            ),
         )
-        # RECENT completed events only, last 30 days. Fetch a generous page
-        # (Calendar API caps at 2500; 1000 covers a month of meetings) and
-        # pick the NEWEST below — an ascending capped query would keep the
-        # oldest items and drop recent meetings.
-        st_past, past_data = await _google_get(
-            client,
-            token,
-            _url,
-            {
-                "maxResults": 1000,
-                "singleEvents": "true",
-                "orderBy": "startTime",
-                "timeMax": now.isoformat(),
-                "timeMin": (now - timedelta(days=30)).isoformat(),
-            },
-        )
-    if upcoming_data is None:
+
+        # RECENT completed events only (last 30 days). The API only sorts
+        # ascending, so a single capped page would keep the OLDEST events and
+        # silently drop the newest meetings. Paginate the whole window, then
+        # sort descending below and keep the newest max_results.
+        past_items: List[Dict[str, Any]] = []
+        page_token: Optional[str] = None
+        st_past = None
+        while True:
+            params = _event_params(
+                {
+                    "maxResults": 1000,
+                    "timeMax": now.isoformat(),
+                    "timeMin": (now - timedelta(days=30)).isoformat(),
+                }
+            )
+            if page_token:
+                params["pageToken"] = page_token
+            st, page = await _google_get(client, token, _url, params)
+            if page is None:
+                st_past = st
+                break
+            past_items.extend(page.get("items", []))
+            page_token = page.get("nextPageToken")
+            if not page_token or len(past_items) >= 10000:
+                break
+
+    # A failed request on EITHER leg is an error — never a silent "0
+    # completed" success response.
+    if upcoming_data is None or page is None:
+        failed = st_up if upcoming_data is None else st_past
         raise HTTPException(
-            status_code=502, detail=f"Google Calendar API error ({st_up or st_past})"
+            status_code=502, detail=f"Google Calendar API error ({failed})"
         )
 
     def _start_key(it: Dict[str, Any]) -> str:
@@ -316,8 +339,6 @@ async def list_events(
     events = [
         _to_event(it, False) for it in (upcoming_data or {}).get("items", [])[:max_results]
     ]
-    newest_past = sorted(
-        (past_data or {}).get("items", []), key=_start_key, reverse=True
-    )[:max_results]
+    newest_past = sorted(past_items, key=_start_key, reverse=True)[:max_results]
     events += [_to_event(it, True) for it in newest_past]
     return {"events": events, "total": len(events)}
