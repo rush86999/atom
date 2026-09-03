@@ -233,7 +233,7 @@ Every public method catches all exceptions and returns `[]`. Failures are best-e
 
 ## Embedded Stack (Personal Edition)
 
-LanceDB runs **embedded** — file-based `./data/lancedb` (or `./data/atom_memory` for the memory handler). No server container. This was already true; Phase 7 just gates the dead S3/R2 codepaths behind `LANCEDB_CLOUD_ENABLED=false` so Personal Edition stops evaluating them.
+LanceDB runs **embedded** — file-based `backend/data/lancedb` (or `backend/data/atom_memory` for the memory handler; paths are anchored to `backend/`, never CWD-relative — see `docs/architecture/MEMORY_STORE_AND_OPERATIONS.md`). No server container. This was already true; Phase 7 just gates the dead S3/R2 codepaths behind `LANCEDB_CLOUD_ENABLED=false` so Personal Edition stops evaluating them.
 
 | Edition | Relational | Vector | Cache |
 |---|---|---|---|

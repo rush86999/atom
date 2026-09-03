@@ -610,16 +610,14 @@ class OneDriveService(IntegrationService):
             logger.error(f"OneDrive PostgreSQL cache sync failed: {e}")
             return {"success": False, "error": "OneDrive cache sync failed"}
 
-    async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
-        """Trigger full dual-pipeline sync for OneDrive.
+    async def _ingest_walked_files(
+        self, access_token: str, files: List[Dict[str, Any]], modified_field: str
+    ) -> Dict[str, Any]:
+        """Ingest walked files into memory with folder-path context.
 
-        Pipeline 1: Ingest every file (all types, all subfolders, pagination
-        followed) into Atom memory (LanceDB + GraphRAG) with folder-path
-        context stamped into the memory metadata.
-        Pipeline 2: Refresh the Postgres metrics cache.
+        Shared tally loop for full_sync (whole drive) and
+        ingest_folder_to_memory (selected subtrees).
         """
-        files = await self.walk_files(access_token)
-
         ingested = 0
         skipped: list[str] = []
         errors: list[str] = []
@@ -628,7 +626,7 @@ class OneDriveService(IntegrationService):
             try:
                 meta = {
                     "folder_path": f.get("path") or "",
-                    "modified_at": f.get("lastModifiedDateTime") or "",
+                    "modified_at": f.get(modified_field) or "",
                 }
                 res = await self.ingest_file_to_memory(access_token, f.get("id"), extra_metadata=meta)
                 inner = res.get("result") or {}
@@ -640,16 +638,50 @@ class OneDriveService(IntegrationService):
                     skipped.append(f"{name} ({inner.get('reason') or 'no_text'})")
             except Exception as file_err:
                 errors.append(f"{name}: {file_err}")
+        return {
+            "files_found": len(files),
+            "files_ingested": ingested,
+            "files_skipped": skipped,
+            "errors": errors,
+        }
+
+    async def ingest_folder_to_memory(
+        self,
+        access_token: str,
+        folder_id: str,
+        folder_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Recursively ingest one folder subtree into Atom memory.
+
+        User-selected folder ingestion ("Ingest folders") — the same
+        walk + parse pipeline as full_sync, scoped to the chosen folder.
+        """
+        files = await self.walk_files(access_token, folder_id=folder_id or None)
+        tally = await self._ingest_walked_files(access_token, files, "lastModifiedDateTime")
+        return {
+            "success": True,
+            "folder_id": folder_id,
+            "folder_name": folder_name,
+            **tally,
+        }
+
+    async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for OneDrive.
+
+        Pipeline 1: Ingest every file (all types, all subfolders, pagination
+        followed) into Atom memory (LanceDB + GraphRAG) with folder-path
+        context stamped into the memory metadata.
+        Pipeline 2: Refresh the Postgres metrics cache.
+        """
+        files = await self.walk_files(access_token)
+        tally = await self._ingest_walked_files(access_token, files, "lastModifiedDateTime")
 
         cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
         return {
             "success": True,
             "workspace_id": workspace_id,
-            "files_found": len(files),
-            "files_ingested": ingested,
-            "files_skipped": skipped,
+            **tally,
             "postgres_cache": cache_result,
-            "errors": errors,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 

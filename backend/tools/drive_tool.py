@@ -223,6 +223,16 @@ async def integration_ingest_item(
             "success": result.get("status") in ("ok", "ingested", "skipped"),
             "result": result,
         }
+        # Per-app feedback: agent pulls count for the integration too — the
+        # card's counts reflect everything that landed, not just panel clicks.
+        from core.ingestion_feedback import record_ingestion_feedback
+
+        record_ingestion_feedback(
+            None, integration_id,
+            1 if result.get("status") in ("ok", "ingested") else 0,
+            bool(out["success"]),
+            workspace_id=ws,
+        )
         if canvas_url:
             out["canvas_url"] = canvas_url
             out["message"] = (

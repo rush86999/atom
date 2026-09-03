@@ -4,6 +4,10 @@
 
 @layer base {
   :root {
+    /* Native form controls (inputs, textareas, selects, scrollbars)
+       must follow the theme — without this, dark mode inherits light
+       text over the browser-default white field background. */
+    color-scheme: light;
     /* Modern AI Light Theme - Clean, Technical, Crisp */
     --background: 210 40% 98%;
     /* Slate 50 */
@@ -42,6 +46,8 @@
   }
 
   .dark {
+    /* Native controls must render dark too (see :root note above). */
+    color-scheme: dark;
     /* Modern AI Dark Theme - Deep Space, Neon Accents, Glassmorphism */
     --background: 230 40% 4%;
     /* Extra Deep Space Blue/Black for higher contrast */

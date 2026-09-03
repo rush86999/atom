@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/lib/api';
+import { notifyIngestionUpdated } from '@/lib/ingestion-events';
 import { listTrainingProposals } from '@/lib/maturity-api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
@@ -415,6 +416,8 @@ export function AgentLaunchGuide({ agents, onAgentsChanged }: AgentLaunchGuidePr
                 `/api/data-ingestion/sync/${sid}?agent_id=${encodeURIComponent(primaryAgent.id)}&force=true`
             );
             const body = res?.data || {};
+            // Per-app feedback: any ingestion card for this app refreshes.
+            notifyIngestionUpdated(sid);
             const label = KNOWN_APPS[sid]?.label || sid;
             pushResult(
                 `${label}: fetched ${body.records_fetched ?? 0} records, ingested ${body.records_ingested ?? 0} into ${primaryAgent.name || 'your employee'}'s memory.` +

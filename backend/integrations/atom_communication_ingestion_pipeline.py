@@ -61,6 +61,119 @@ def _format_graph_timestamp(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _extract_tables_from_html(html_body: str):
+    """Replace <table> elements with markdown and collect structured data.
+
+    Live gap (2026-09-02): Outlook emails carry quote/spec tables as HTML,
+    but plain tag-stripping flattened cells into indistinguishable lines —
+    agents could not recognize a table in ingested data or rebuild one in
+    the email canvas.
+
+    Returns (html_with_markdown_tables, tables) where tables is
+    [{"markdown": str, "rows": [[cell, ...]], "n_rows": int, "n_cols": int}].
+    Single-column/single-row tables (Outlook signature LAYOUT tables) and
+    mostly-empty tables are skipped. bs4 when available; a self-contained
+    scanner otherwise. Never raises."""
+    tables: List[Dict] = []
+    if not html_body or "<table" not in html_body.lower():
+        return html_body, tables
+
+    def _cell_text(raw: str) -> str:
+        text = _HTML_TAG_RE.sub(" ", raw)
+        text = _html_mod.unescape(text)
+        text = _HTML_WS_RE.sub(" ", text).strip()
+        return text.replace("|", "\\|")[:200]
+
+    def _table_data(table_html: str):
+        rows: List[List[str]] = []
+        # Row/cell splitting works on well-formed email tables (Outlook
+        # generates regular markup); a missing </tr> still yields cells.
+        for row_m in _re_mod.finditer(r"<tr[^>]*>(.*?)</tr>", table_html, _re_mod.IGNORECASE | _re_mod.DOTALL):
+            cells = [
+                _cell_text(c)
+                for c in _re_mod.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row_m.group(1), _re_mod.IGNORECASE | _re_mod.DOTALL)
+            ]
+            cells = [c for c in cells if c]
+            if cells:
+                rows.append(cells)
+        rows = rows[:30]
+        if not rows:
+            return None
+        n_cols = max(len(r) for r in rows)
+        if n_cols < 2:
+            return None  # single-column => signature/layout table, not data
+
+        def _row_md(cells: List[str]) -> str:
+            padded = cells + [""] * (n_cols - len(cells))
+            return "| " + " | ".join(padded) + " |"
+
+        md_lines = [_row_md(r) for r in rows]
+        if len(rows) > 1:
+            md_lines.insert(1, "|" + "---|" * n_cols)
+        markdown = "\n".join(md_lines)
+        return {"markdown": markdown, "rows": rows, "n_rows": len(rows), "n_cols": n_cols}
+
+    # bs4 gives reliable nesting/attribute handling; the scanner fallback
+    # covers environments without it (tracking outermost tables only).
+    try:
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(html_body, "html.parser")
+        for table in soup.find_all("table"):
+            if table.find_parent("table"):
+                continue  # nested: the outer table's extraction covers it
+            data = _table_data(str(table))
+            if data:
+                tables.append(data)
+                table.replace_with(data["markdown"])
+        return str(soup), tables
+    except ImportError:
+        pass
+    except Exception:
+        return html_body, tables
+
+    # Regex scanner fallback (no bs4)
+    result = []
+    pos = 0
+    lower = html_body.lower()
+    idx = lower.find("<table")
+    while idx != -1:
+        depth = 0
+        i = idx
+        while i < len(html_body):
+            nxt_open = lower.find("<table", i + 1)
+            nxt_close = lower.find("</table>", i + 1)
+            if nxt_close == -1:
+                i = len(html_body)
+                break
+            if nxt_open != -1 and nxt_open < nxt_close:
+                depth += 1
+                i = nxt_open
+            else:
+                if depth == 0:
+                    end = nxt_close + len("</table>")
+                    break
+                depth -= 1
+                i = nxt_close
+        else:
+            end = len(html_body)
+        table_html = html_body[idx:end]
+        data = _table_data(table_html)
+        if data:
+            tables.append(data)
+            result.append(html_body[pos:idx])
+            result.append("\n" + data["markdown"] + "\n")
+            pos = end
+        nxt = lower.find("<table", end if end > idx else idx + 1)
+        if nxt == -1:
+            break
+        result.append(html_body[pos:nxt])
+        pos = nxt
+        idx = nxt
+    result.append(html_body[pos:])
+    return "".join(result), tables
+
+
 def _html_to_text(html_body: str) -> str:
     """Graph email bodies arrive as HTML; strip tags so FTS/vector search
     indexes readable text instead of markup. Never raises."""
@@ -72,6 +185,19 @@ def _html_to_text(html_body: str) -> str:
         return _HTML_WS_RE.sub("\n", text).strip()
     except Exception:
         return html_body
+
+
+def _html_to_text_with_tables(html_body: str):
+    """Table-aware variant: data tables become markdown (readable text for
+    FTS/vectors AND an unambiguous table shape for agents), structured rows
+    ride in metadata. Never raises."""
+    if not html_body or "<table" not in html_body.lower():
+        return _html_to_text(html_body), []
+    try:
+        replaced, tables = _extract_tables_from_html(html_body)
+        return _html_to_text(replaced), tables
+    except Exception:
+        return _html_to_text(html_body), []
 
 
 # Attachments: text-like formats get a real text layer extracted from
@@ -626,10 +752,64 @@ class LanceDBMemoryManager:
                 search_builder = search_builder.where(f"direction = '{safe_direction}'")
             
             results = search_builder.to_pandas()
+            records = results.to_dict('records')
 
-            return _filter_communication_records_by_owner(
-                results.to_dict('records'), owner_user_id
-            )
+            # FTS merge: the vector+FTS fusion under-ranks exact-token hits
+            # for rare tokens (live 2026-09-02: 'jschulz' — an address
+            # local-part — matched the thread via pure FTS but the fused
+            # ranking buried it under semantic noise). ADDRESS-like tokens
+            # get a dedicated FTS query prepended (a person's address is the
+            # strongest "find their email" signal there is); remaining FTS
+            # rows follow, deduped by id.
+            try:
+                fts_rows = (
+                    self.connections_table.search(query[:500], query_type="fts")
+                    .limit(limit)
+                    .to_pandas()
+                    .to_dict('records')
+                )
+                _addresses = _re_mod.findall(r"[\w.+-]+@[\w.-]+", query)
+                _addr_tokens = _addresses + [
+                    t.split("@")[0] for t in _addresses
+                    if len(t.split("@")[0]) >= 5
+                ]
+                seen_ids = set()
+                prioritized: List[Dict] = []
+                for tok in _addr_tokens[:2]:
+                    try:
+                        for r in (
+                            self.connections_table.search(tok, query_type="fts")
+                            .limit(limit)
+                            .to_pandas()
+                            .to_dict('records')
+                        ):
+                            rid = str(r.get("id"))
+                            if rid not in seen_ids:
+                                seen_ids.add(rid)
+                                prioritized.append(r)
+                    except Exception:
+                        continue
+                fts_ids = {str(r.get("id")) for r in fts_rows + prioritized}
+                records = (
+                    prioritized[:limit]
+                    + [r for r in fts_rows if str(r.get("id")) not in seen_ids][:limit]
+                    + [
+                        r for r in records
+                        if str(r.get("id")) not in fts_ids
+                    ][:limit]
+                )
+            except Exception as fts_merge_err:
+                logger.debug(f"FTS merge skipped: {fts_merge_err}")
+
+            records = [
+                r for r in records
+                if not (
+                    str(r.get("sender") or "") == "system"
+                    and _re_mod.match(r"Message \d+ in conversation", str(r.get("content") or ""))
+                )
+            ]
+
+            return _filter_communication_records_by_owner(records, owner_user_id)
 
         except Exception as hybrid_err:
             # Dim mismatch (query embedder vs stored vectors) or any other
@@ -3016,8 +3196,9 @@ class CommunicationIngestionPipeline:
                 or message_data.get("content")
                 or ""
             )
+            _email_tables: List[Dict] = []
             if str(message_data.get("content_type", "")).lower() == "html":
-                content = _html_to_text(content)
+                content, _email_tables = _html_to_text_with_tables(content)
             # Secrets redaction: email bodies are attacker-controlled text that
             # agents recall later. Reuse the document-path redactor so stored
             # content never carries live credentials. Best-effort — a redactor
@@ -3052,6 +3233,11 @@ class CommunicationIngestionPipeline:
                 "thread_id": message_data.get("thread_id"),
                 "email_metadata": _inner_meta,
             }
+            if _email_tables:
+                # Structured table data (markdown + rows) — agents recognize
+                # the table in ingested data and can rebuild it as a real
+                # HTML table in the email canvas (editor-taught).
+                _email_meta["tables"] = _email_tables[:5]
             if _inner_meta.get("user_id"):
                 _email_meta["user_id"] = _inner_meta["user_id"]
             return {

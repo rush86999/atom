@@ -74,6 +74,12 @@ interface IngestionProgress {
   stream_running: boolean;
   last_synced?: string | null;
   auto_sync_enabled?: boolean;
+  // Time-to-first-ingestion guidance (estimate or measured average).
+  first_ingestion?: {
+    phase: "pending" | "in_progress" | "complete";
+    label: string;
+    measured: boolean;
+  };
 }
 
 const formatIngestedAge = (iso: string | null): string => {
@@ -1006,6 +1012,23 @@ const IntegrationsPage: React.FC = () => {
                             </span>
                             <span>
                               {formatIngestedAge(progress.last_synced)}
+                            </span>
+                          </div>
+                        );
+                      }
+                      // Connected but nothing ingested yet: set the
+                      // expectation for how long the first ingestion takes
+                      // (backend estimate, or the measured average once a
+                      // sync has completed).
+                      const guidance = progress.first_ingestion;
+                      if (integration.connected && guidance && guidance.phase !== "complete") {
+                        return (
+                          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                            <Clock className="w-3 h-3 mr-1 shrink-0" />
+                            <span>
+                              {guidance.phase === "in_progress"
+                                ? `First ingestion in progress — typically takes ${guidance.label}`
+                                : `First sync takes about ${guidance.label} once started`}
                             </span>
                           </div>
                         );

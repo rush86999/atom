@@ -601,6 +601,30 @@ class EpisodeService:
         merged_metadata = metadata or {}
         merged_metadata.update(canvas_metadata)
 
+        # --- Tool-error signals (evolution harness feedstock) ---
+        # The execution's metadata may carry structured tool_errors recorded
+        # at the integration chokepoint. A turn whose tools errored is NOT a
+        # clean success even when the transcript reads as one — downgraded
+        # here so the fail event fires and Memento/AlphaEvolver can learn.
+        # The error text rides into TaskEvent.error_trace as the failure
+        # description Memento analyzes.
+        try:
+            from core.auto_dev.tool_error_signals import (
+                effective_outcome,
+                summarize_tool_errors,
+            )
+
+            execution_errors = list(execution.metadata_json or {}).get("tool_errors") or []
+            if execution_errors:
+                merged_metadata.setdefault("tool_errors", execution_errors)
+            success, outcome = effective_outcome(success, outcome, merged_metadata)
+            if not success and not merged_metadata.get("error"):
+                _tool_summary = summarize_tool_errors(merged_metadata)
+                if _tool_summary:
+                    merged_metadata["error"] = _tool_summary
+        except ImportError:
+            pass
+
         # Create episode
         episode = AgentEpisode(
             agent_id=execution.agent_id,

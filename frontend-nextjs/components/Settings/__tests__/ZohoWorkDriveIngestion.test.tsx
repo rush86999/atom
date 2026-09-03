@@ -6,7 +6,7 @@
  * /team-folders endpoint, passing workspace_id/team_id to /files/list.
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ZohoWorkDriveIngestion from '../ZohoWorkDriveIngestion';
 
@@ -255,10 +255,12 @@ describe('ZohoWorkDriveIngestion', () => {
     render(<ZohoWorkDriveIngestion />);
 
     await loadFiles();
-    // Match the per-file Ingest button exactly (the header also renders an
-    // "Ingest All Files" button that matches a loose /Ingest/ regex); the
-    // first file row is quarterly-report.pdf.
-    const ingestBtn = (await screen.findAllByRole('button', { name: /^Ingest$/ }))[0];
+    // Scope to the file's own row: team-folder rows also render an exact
+    // "Ingest" button (and render before the file list), so a bare
+    // findAllByRole(/^Ingest$/) hits a folder, not quarterly-report.pdf.
+    const ingestBtn = within(
+      (screen.getByText('quarterly-report.pdf').closest('div.justify-between') as HTMLElement)
+    ).getByRole('button', { name: /^Ingest$/ });
     fireEvent.click(ingestBtn);
     await waitFor(() => {
       expect(mockToast.toast).toHaveBeenCalledWith(
@@ -287,6 +289,36 @@ describe('ZohoWorkDriveIngestion', () => {
     expect(JSON.parse(batchCall[1].body)).toEqual({ folder_id: 'root', recursive: false });
     // Every ingestable visible file is marked ingested on a clean batch
     expect(await screen.findAllByText('✓ Ingested to Memory')).toHaveLength(2);
+  });
+
+  it('ingests multiple ticked folders in one folder_ids batch call', async () => {
+    render(<ZohoWorkDriveIngestion />);
+    await loadFiles();
+
+    // Tick both listed folders ("My Folder" is the only one in the fixture's
+    // root listing — tick it and verify the batch envelope, then re-run with
+    // the folder count of the listing by ticking every folder checkbox).
+    const folderChecks = screen.getAllByRole('checkbox', { name: /^Select folder / });
+    expect(folderChecks.length).toBeGreaterThanOrEqual(1);
+    folderChecks.forEach(c => fireEvent.click(c));
+
+    fireEvent.click(screen.getByRole('button', { name: /Ingest \d+ folders?/ }));
+    await waitFor(() => {
+      expect(mockToast.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Folder Ingestion Complete' })
+      );
+    });
+    const batchCall = (global.fetch as jest.Mock).mock.calls
+      .filter(([u]) => String(u).includes('/api/zoho-workdrive/ingest-folder'))
+      .slice(-1)[0];
+    const body = JSON.parse(batchCall[1].body);
+    expect(body.folder_ids).toEqual(['d1']);
+    expect(body.recursive).toBe(true);
+    expect(body.folder_id).toBeUndefined();
+    // Selection clears after a successful run.
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /Ingest \d+ folders?/ })).not.toBeInTheDocument();
+    });
   });
 
   it('batch ingests only parseable extensions and still marks them when unsupported files are present', async () => {
@@ -321,10 +353,11 @@ describe('ZohoWorkDriveIngestion', () => {
     mockApi({ ingestSuccess: false });
     render(<ZohoWorkDriveIngestion />);
     await screen.findByText('quarterly-report.pdf');
-    fireEvent.click(screen.getAllByRole('button', { name: /^Ingest$/ })[0]);
 
-    await loadFiles();
-    const ingestBtn = (await screen.findAllByRole('button', { name: /^Ingest$/ }))[0];
+    // Row-scoped: team-folder rows carry an identical "Ingest" button.
+    const ingestBtn = within(
+      (screen.getByText('quarterly-report.pdf').closest('div.justify-between') as HTMLElement)
+    ).getByRole('button', { name: /^Ingest$/ });
     fireEvent.click(ingestBtn);
 
     await waitFor(() => {

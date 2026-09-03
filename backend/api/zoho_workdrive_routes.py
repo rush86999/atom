@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
+from core.ingestion_feedback import record_ingestion_feedback
 from integrations.zoho_workdrive_service import ZohoWorkDriveService
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,11 @@ class IngestRequest(BaseModel):
     file_id: str = Field(..., description="Zoho WorkDrive file ID")
 
 class IngestFolderRequest(BaseModel):
-    folder_id: str = Field(..., description="Root folder ID to ingest")
+    folder_id: Optional[str] = Field(None, description="Root folder ID to ingest (single-folder form)")
+    folder_ids: Optional[List[str]] = Field(
+        None, min_length=1,
+        description="Multiple folder IDs to ingest in one call (batch form; overrides folder_id)"
+    )
     team_id: Optional[str] = Field(None, description="Explicit team ID")
     workspace_id: Optional[str] = Field(None, description="Explicit workspace ID")
     recursive: bool = Field(True, description="Recursively ingest subfolders")
@@ -105,29 +110,81 @@ async def ingest_file(request_body: IngestRequest, current_user: User = Depends(
     """Download and ingest a file into ATOM knowledge base"""
     try:
         result = await zoho_service.ingest_file_to_memory(str(current_user.id), request_body.file_id)
+        # Suite apps record under the shared "zoho" sync entry — the key the
+        # ingestion-status route reads back for zoho-workdrive.
+        record_ingestion_feedback(
+            current_user, "zoho", 1 if result.get("success") else 0,
+            bool(result.get("success")),
+        )
         return result
     except Exception as e:
         logger.error(f"Error ingesting Zoho file: {e}")
         raise router.internal_error(message="Error ingesting Zoho file", details={"error": "Internal error"})
 
-@router.post("/ingest-folder", summary="Ingest entire folder tree recursively")
+@router.post("/ingest-folder", summary="Ingest entire folder tree(s) recursively")
 async def ingest_folder(request_body: IngestFolderRequest, current_user: User = Depends(get_current_user)):
-    """Recursively ingest all parseable files in a folder tree.
+    """Recursively ingest all parseable files in one or more folder trees.
 
     Supports:
-    - folder_id: root folder ID (or "root" for workspace root)
+    - folder_id: single root folder ID (or "root" for workspace root)
+    - folder_ids: multiple root folder IDs ingested in one call — folders are
+      isolated, so one failed tree never aborts the rest (explicit user
+      selection, honored regardless of the bulk content-mode setting)
     - team_id / workspace_id: explicit team/workspace
     - recursive: traverse subfolders
-    - max_files: safety cap
+    - max_files: safety cap (per folder in batch form)
     - file extensions: .docx, .xlsx, .xls, .csv, .pdf, .txt, .md, .pptx
     """
-    try:
-        result = await zoho_service.ingest_folder_tree(
-            str(current_user.id), request_body.folder_id,
-            request_body.team_id, request_body.workspace_id,
-            request_body.recursive, max_files=request_body.max_files
+    ids = list(request_body.folder_ids) if request_body.folder_ids else (
+        [request_body.folder_id] if request_body.folder_id else []
+    )
+    if not ids:
+        raise router.validation_error(
+            field="folder_id",
+            message="folder_id or folder_ids is required",
         )
-        return result
+
+    try:
+        if len(ids) == 1:
+            result = await zoho_service.ingest_folder_tree(
+                str(current_user.id), ids[0],
+                request_body.team_id, request_body.workspace_id,
+                request_body.recursive, max_files=request_body.max_files
+            )
+            record_ingestion_feedback(
+                current_user, "zoho",
+                int(result.get("files_ingested") or 0) if result.get("success") else 0,
+                bool(result.get("success")),
+            )
+            return result
+
+        results = []
+        total_ingested = 0
+        for fid in ids:
+            try:
+                res = await zoho_service.ingest_folder_tree(
+                    str(current_user.id), fid,
+                    request_body.team_id, request_body.workspace_id,
+                    request_body.recursive, max_files=request_body.max_files
+                )
+            except Exception as folder_err:
+                logger.error(f"Error ingesting Zoho folder tree {fid}: {folder_err}")
+                res = {"success": False, "folder_id": fid, "error": "Failed to ingest folder tree"}
+            if res.get("success"):
+                total_ingested += res.get("files_ingested", 0) or 0
+            results.append({"folder_id": fid, **res})
+
+        record_ingestion_feedback(
+            current_user, "zoho", total_ingested,
+            any(r.get("success") for r in results),
+        )
+        return {
+            "success": any(r.get("success") for r in results),
+            "folders_requested": len(ids),
+            "folders_succeeded": sum(1 for r in results if r.get("success")),
+            "files_ingested": total_ingested,
+            "results": results,
+        }
     except Exception as e:
         logger.error(f"Error ingesting Zoho folder tree: {e}")
         raise router.internal_error(message="Error ingesting folder", details={"error": "Internal error"})
@@ -187,6 +244,11 @@ async def full_sync(current_user: User = Depends(get_current_user)):
         # Identity always comes from the token — never from a client-supplied
         # user_id, and never a silent demo-user fallback.
         result = await zoho_service.full_sync(str(current_user.id))
+        record_ingestion_feedback(
+            current_user, "zoho-workdrive",
+            int((result or {}).get("files_ingested") or 0),
+            bool(isinstance(result, dict) and result.get("success")),
+        )
         return result
     except Exception as e:
         logger.error(f"Error running Zoho WorkDrive full sync: {e}")

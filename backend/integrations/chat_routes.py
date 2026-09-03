@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 # Add parent directory to path to import from backend
 import sys
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -280,6 +280,10 @@ class ChatMessageRequest(BaseModel):
     message: str = Field(..., description="Chat message from user")
     user_id: str = Field(..., description="User ID for context")
     session_id: Optional[str] = Field(None, description="Conversation session ID")
+    images: Optional[List[str]] = Field(
+        None,
+        description="User-submitted images (data URLs, max 2 × 6MB) — routed to vision-capable models",
+    )
     context: Optional[Dict[str, Any]] = Field(None, description="Additional context data")
     agent_id: Optional[str] = Field(None, description="Explicit agent selection — session-linked agent chats record graduation episodes")
 
@@ -1035,12 +1039,24 @@ async def send_chat_message(
                 )
         _ctx_tokens = set_chat_context(session_id, getattr(request, "agent_id", None))
         try:
+            # Chat vision: user-submitted images ride to the LLM as
+            # image_payload (vision-capable model routing inside the handler).
+            _images = None
+            for _img in (request.images or [])[:2]:
+                if (
+                    isinstance(_img, str)
+                    and _img.startswith("data:image/")
+                    and len(_img) <= 8_000_000  # ~6MB binary per image
+                ):
+                    _images = (_images or []) + [_img]
+
             response = await chat_orchestrator.process_chat_message(
                 user_id=active_user_id,
                 message=request.message,
                 session_id=session_id,
                 context=context_with_agent,
                 routing_overrides=routing_overrides or None,
+                images=_images,
             )
         finally:
             reset_chat_context(_ctx_tokens)

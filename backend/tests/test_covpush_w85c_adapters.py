@@ -1158,7 +1158,11 @@ class TestZoho:
         adapter = self._adapter(monkeypatch, client=client)
         invoices = _run(adapter.get_invoices("org-1"))
         assert invoices[0]["type"] == "invoice"
-        assert client.calls[0][2]["params"] == {"organization_id": "org-1", "page_size": 100}
+        # Books/Inventory paginate with page/per_page (page_size was never a
+        # documented Books param) and stop when has_more_page is absent.
+        assert client.calls[0][2]["params"] == {
+            "organization_id": "org-1", "page": 1, "per_page": 100,
+        }
 
     def test_get_invoices_exception_empty(self, monkeypatch):
         def boom(method, url, **kw):

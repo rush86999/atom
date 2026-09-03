@@ -403,6 +403,33 @@ def test_start_zoho_books_runs_suite_hybrid_sync(monkeypatch):
     assert sync_calls == [("zoho", True)]
 
 
+def test_status_uses_hybrid_records_when_pipeline_has_none(monkeypatch):
+    """Document integrations ingest through the hybrid sync — when the
+    communication pipeline has no stats for the app_type, the card must
+    show the hybrid sync's cumulative record count instead of a permanent 0."""
+    _patch_pipeline(monkeypatch, _StubPipeline())
+    token = SimpleNamespace(provider="zoho", status="active")
+    client = _make_client(_make_db(integration_tokens=[token]), monkeypatch)
+
+    class _Stats:
+        last_synced = None
+        auto_sync_enabled = True
+        sync_frequency_minutes = 60
+        total_records_synced = 42
+
+    class _FakeHybrid:
+        usage_stats = {"zoho": _Stats()}
+
+    monkeypatch.setattr(
+        "core.hybrid_data_ingestion.get_hybrid_ingestion_service",
+        lambda workspace_id: _FakeHybrid(),
+    )
+
+    body = client.get("/api/integrations/zoho-books/ingestion-status").json()
+    assert body["connected"] is True
+    assert body["records_ingested"] == 42
+
+
 # ---------------------------------------------------------------------------
 # get_integration_health — user-scoped truth (no registry false positives)
 # ---------------------------------------------------------------------------
@@ -607,3 +634,232 @@ async def test_callback_logic_treats_code_reuse_as_success(monkeypatch):
             "microsoft", "code", SimpleNamespace(), None, db, user
         )
     assert result == {}
+
+
+# ---------------------------------------------------------------------------
+# First-ingestion time guidance ("how long until my data shows up?")
+# ---------------------------------------------------------------------------
+
+
+def test_first_ingestion_pending_uses_static_catalog_range(monkeypatch):
+    """Cold start (no sync ever ran): the static per-integration estimate."""
+    _patch_pipeline(
+        monkeypatch,
+        _StubPipeline(stats={
+            "configured_apps": ["gmail"],
+            "active_streams": [],
+            "total_messages": 0,
+            "app_stats": {},
+        }),
+    )
+    client = _make_client(_make_db(), monkeypatch)
+
+    body = client.get("/api/integrations/gmail/ingestion-status").json()
+    guidance = body["first_ingestion"]
+    assert guidance["phase"] == "pending"
+    assert guidance["measured"] is False
+    assert guidance["range"] == [300, 1800]
+    assert guidance["label"] == "~5–30 min"
+    assert guidance["basis"]
+
+
+def test_first_ingestion_complete_when_records_exist(monkeypatch):
+    _patch_pipeline(monkeypatch, _StubPipeline())
+    client = _make_client(_make_db(), monkeypatch)
+
+    body = client.get("/api/integrations/outlook/ingestion-status").json()
+    assert body["records_ingested"] == 2000
+    assert body["first_ingestion"]["phase"] == "complete"
+
+
+def test_first_ingestion_in_progress_while_sync_runs(monkeypatch):
+    _patch_pipeline(
+        monkeypatch,
+        _StubPipeline(stats={
+            "configured_apps": ["zoho"],
+            "active_streams": [],
+            "total_messages": 0,
+            "app_stats": {},
+        }),
+    )
+
+    class _FakeHybrid:
+        usage_stats = {}
+        _sync_locks = {"zoho": SimpleNamespace(locked=lambda: True)}
+        _sync_started_at = {"zoho": "2026-09-02T13:00:00+00:00"}
+
+    monkeypatch.setattr(
+        "core.hybrid_data_ingestion.get_hybrid_ingestion_service",
+        lambda workspace_id: _FakeHybrid(),
+    )
+    client = _make_client(_make_db(integration_tokens=[SimpleNamespace(provider="zoho", status="active")]), monkeypatch)
+
+    body = client.get("/api/integrations/zoho-books/ingestion-status").json()
+    guidance = body["first_ingestion"]
+    assert guidance["phase"] == "in_progress"
+    assert guidance["range"] == [300, 900]
+
+
+def test_first_ingestion_measured_average_beats_catalog(monkeypatch):
+    """After one completed sync, this workspace's measured average replaces
+    the static estimate."""
+    _patch_pipeline(
+        monkeypatch,
+        _StubPipeline(stats={
+            "configured_apps": ["hubspot"],
+            "active_streams": [],
+            "total_messages": 0,
+            "app_stats": {},
+        }),
+    )
+
+    class _Stats:
+        last_synced = None
+        auto_sync_enabled = True
+        sync_frequency_minutes = 60
+        total_records_synced = 0
+        avg_sync_duration_seconds = 240.0
+
+    class _FakeHybrid:
+        usage_stats = {"hubspot": _Stats()}
+
+    monkeypatch.setattr(
+        "core.hybrid_data_ingestion.get_hybrid_ingestion_service",
+        lambda workspace_id: _FakeHybrid(),
+    )
+    client = _make_client(_make_db(), monkeypatch)
+
+    body = client.get("/api/integrations/hubspot/ingestion-status").json()
+    guidance = body["first_ingestion"]
+    assert guidance["measured"] is True
+    assert guidance["seconds"] == 240
+    assert guidance["label"] == "~4 min"
+    assert guidance["range"] is None
+    assert guidance["phase"] == "pending"
+
+
+def test_batch_first_ingestion_present_for_every_app(monkeypatch):
+    """"For each integration": the batch payload carries guidance for every
+    card, including zero-filled entries and unmapped pass-through types."""
+    _patch_pipeline(monkeypatch, _StubPipeline())
+    client = _make_client(_make_db(), monkeypatch)
+
+    apps = client.get("/api/integrations/ingestion-status").json()["apps"]
+    assert apps, "batch payload must not be empty"
+    for key, entry in apps.items():
+        guidance = entry.get("first_ingestion")
+        assert guidance, f"missing first_ingestion for {key}"
+        assert guidance["phase"] in ("pending", "in_progress", "complete")
+        assert guidance["label"].startswith("~")
+
+
+# ---------------------------------------------------------------------------
+# Storage-drive per-app cards + Start sync (google_drive / onedrive)
+# ---------------------------------------------------------------------------
+
+
+def test_drive_integrations_have_app_type_and_starter():
+    """google_drive/onedrive key the per-app ingestion card: they must map
+    to an app_type (so the card renders records) and have a Start-sync
+    starter (so the card's button isn't a guaranteed 404)."""
+    from api.integration_status_routes import (
+        _INGESTION_APP_TYPES,
+        _SYNC_STARTERS,
+    )
+
+    for integration_id in ("google_drive", "onedrive"):
+        assert _INGESTION_APP_TYPES.get(integration_id) == integration_id
+        assert integration_id in _SYNC_STARTERS
+
+
+def test_start_google_drive_without_connection_returns_409(monkeypatch):
+    _patch_pipeline(monkeypatch, _StubPipeline())
+    client = _make_client(_make_db(), monkeypatch)
+
+    response = client.post("/api/integrations/google_drive/ingestion/start")
+    assert response.status_code == 409
+
+
+def test_start_google_drive_runs_full_sync_in_background(monkeypatch):
+    """A google OAuth grant lights the catalog id, and Start sync runs the
+    one-shot tree walk in the request background, recording per-app
+    ingestion feedback when it lands."""
+    _patch_pipeline(monkeypatch, _StubPipeline())
+    token = SimpleNamespace(provider="google", status="active")
+    client = _make_client(_make_db(integration_tokens=[token]), monkeypatch)
+
+    from integrations.google_drive_service import google_drive_service
+
+    async def _fake_token(user_id):
+        return "tok"
+
+    async def _fake_full_sync(workspace_id, access_token):
+        return {"success": True, "files_ingested": 4}
+
+    monkeypatch.setattr(google_drive_service, "get_access_token", _fake_token)
+    monkeypatch.setattr(google_drive_service, "full_sync", _fake_full_sync)
+
+    recorded = []
+
+    class _FakeHybrid:
+        def record_sync_completion(self, integration_id, records, success):
+            recorded.append((integration_id, records, success))
+
+    monkeypatch.setattr(
+        "core.hybrid_data_ingestion.get_hybrid_ingestion_service",
+        lambda workspace_id: _FakeHybrid(),
+    )
+
+    response = client.post("/api/integrations/google_drive/ingestion/start")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["started"] is True
+    assert body["mode"] == "background_sync"
+    assert recorded == [("google_drive", 4, True)]
+
+
+def test_start_onedrive_runs_full_sync_in_background(monkeypatch):
+    _patch_pipeline(monkeypatch, _StubPipeline())
+    token = SimpleNamespace(provider="microsoft", status="active")
+    client = _make_client(_make_db(integration_tokens=[token]), monkeypatch)
+
+    from integrations.onedrive_service import onedrive_service
+
+    async def _fake_token(user_id):
+        return "tok"
+
+    async def _fake_full_sync(workspace_id, access_token):
+        return {"success": True, "files_ingested": 2}
+
+    monkeypatch.setattr(onedrive_service, "get_access_token", _fake_token)
+    monkeypatch.setattr(onedrive_service, "full_sync", _fake_full_sync)
+
+    recorded = []
+
+    class _FakeHybrid:
+        def record_sync_completion(self, integration_id, records, success):
+            recorded.append((integration_id, records, success))
+
+    monkeypatch.setattr(
+        "core.hybrid_data_ingestion.get_hybrid_ingestion_service",
+        lambda workspace_id: _FakeHybrid(),
+    )
+
+    response = client.post("/api/integrations/onedrive/ingestion/start")
+    assert response.status_code == 200
+    assert response.json()["started"] is True
+    assert recorded == [("onedrive", 2, True)]
+
+
+def test_drive_ingestion_status_payload_shows_app_grid(monkeypatch):
+    """With a google_drive app_type, the card payload carries the memory
+    grid fields and falls back to the recorded hybrid counts (the drives
+    have no communication poller — recorded feedback IS the number)."""
+    _patch_pipeline(monkeypatch, _StubPipeline())
+    token = SimpleNamespace(provider="google", status="active")
+    client = _make_client(_make_db(integration_tokens=[token]), monkeypatch)
+
+    payload = client.get("/api/integrations/google_drive/ingestion-status").json()
+    assert payload["app_type"] == "google_drive"
+    assert payload["connected"] is True
+    assert payload["ingestion_available"] is True

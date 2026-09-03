@@ -12,6 +12,7 @@ import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { authFetch, authHeaders, handleSessionExpired } from "@/lib/auth-headers";
+import { INGESTION_UPDATED_EVENT } from "@/lib/ingestion-events";
 
 /**
  * Data-ingestion progress for one integration, from
@@ -20,6 +21,21 @@ import { authFetch, authHeaders, handleSessionExpired } from "@/lib/auth-headers
  * ingest time, poller/stream state). This is memory ingestion, distinct
  * from the live mailbox/board data the integration pages operate on.
  */
+/**
+ * Time-to-first-ingestion guidance from the backend: phase (pending /
+ * in_progress / complete) plus how long the first ingestion typically
+ * takes — the workspace's measured average sync duration once one sync
+ * has completed, otherwise a static per-integration estimate range.
+ */
+interface FirstIngestion {
+  phase: "pending" | "in_progress" | "complete";
+  label: string;
+  seconds: number | null;
+  range: [number, number] | null;
+  measured: boolean;
+  basis: string;
+}
+
 interface IngestionStatus {
   integration_id: string;
   app_type: string | null;
@@ -35,7 +51,10 @@ interface IngestionStatus {
   last_synced?: string | null;
   auto_sync_enabled?: boolean;
   sync_frequency_minutes?: number | null;
+  sync_in_progress?: boolean;
+  sync_started_at?: string | null;
   start_attempted?: boolean;
+  first_ingestion?: FirstIngestion;
 }
 
 interface IngestionStatusPanelProps {
@@ -75,6 +94,17 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
   const [starting, setStarting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  const connected = status?.connected ?? false;
+  const streamRunning = status?.stream_running ?? false;
+  // Ticks the elapsed-minutes guidance while a sync runs (30s status poll
+  // plus this local timer keeps the line fresh between polls).
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    if (!streamRunning) return;
+    const t = setInterval(() => forceTick((n) => n + 1), 15000);
+    return () => clearInterval(t);
+  }, [streamRunning]);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -129,6 +159,23 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
     refresh();
   }, [refresh]);
 
+  // A panel-level ingest just completed (panel Ingest buttons / folder
+  // batches / structure mapping fire atom:ingestion-updated) — refresh now
+  // so the per-app counters move immediately instead of on the next poll.
+  // Ids are compared slug-normalized: panels use both "zoho_workdrive" and
+  // "zoho-workdrive" spellings for the same app.
+  useEffect(() => {
+    const onIngestionUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ integrationId?: string }>).detail;
+      const fired = detail?.integrationId?.replace(/_/g, "-");
+      if (fired && fired !== integrationId.replace(/_/g, "-")) return;
+      refresh();
+    };
+    window.addEventListener(INGESTION_UPDATED_EVENT, onIngestionUpdated);
+    return () =>
+      window.removeEventListener(INGESTION_UPDATED_EVENT, onIngestionUpdated);
+  }, [refresh, integrationId]);
+
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(refresh, refreshInterval);
@@ -164,19 +211,29 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
     }
   };
 
-  if (loading) {
+  // No payload yet (first load failed, or a poll blip during a backend
+  // restart): keep the neutral loading state. Rendering the full card here
+  // asserted "Not connected" for a perfectly connected account, because
+  // connected defaults to false when status is null.
+  if (loading || !status) {
     return (
       <Card className={className} data-testid="ingestion-status-panel-loading">
         <CardContent className="pt-6 flex items-center space-x-3 text-sm text-gray-500 dark:text-gray-400">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Loading ingestion status…</span>
+          <span>{loading ? "Loading ingestion status…" : "Status temporarily unavailable — retrying…"}</span>
         </CardContent>
       </Card>
     );
   }
 
-  const connected = status?.connected ?? false;
-  const streamRunning = status?.stream_running ?? false;
+  const startedMs = status?.sync_started_at
+    ? new Date(status.sync_started_at).getTime()
+    : NaN;
+  const elapsedMin =
+    streamRunning && !Number.isNaN(startedMs)
+      ? Math.max(0, Math.floor((Date.now() - startedMs) / 60000))
+      : null;
+  const firstSync = (status?.records_ingested ?? 0) === 0;
 
   return (
     <Card className={className} data-testid="ingestion-status-panel">
@@ -261,6 +318,31 @@ const IngestionStatusPanel: React.FC<IngestionStatusPanelProps> = ({
             </p>
           </div>
         )}
+
+        {connected &&
+          firstSync &&
+          status.first_ingestion &&
+          status.first_ingestion.phase !== "complete" && (
+            <p
+              className="text-sm text-gray-500 dark:text-gray-400 flex items-center"
+              data-testid="first-ingestion-guidance"
+            >
+              {status.first_ingestion.phase === "in_progress" ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin text-blue-500" />
+              ) : (
+                <Clock className="h-4 w-4 mr-2" />
+              )}
+              {status.first_ingestion.phase === "in_progress"
+                ? `First ingestion in progress — typically takes ${
+                    status.first_ingestion.label
+                  }${elapsedMin !== null ? ` (${elapsedMin}m elapsed)` : ""}.`
+                : `First sync takes about ${status.first_ingestion.label} once started${
+                    status.first_ingestion.measured
+                      ? ", based on your previous syncs"
+                      : ""
+                  }.`}
+            </p>
+          )}
 
         {connected &&
         !streamRunning &&

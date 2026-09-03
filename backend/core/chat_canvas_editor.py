@@ -148,6 +148,11 @@ the authority, NOT your memory of earlier drafts:
   again") are NOT edits: wants_edit=false — a separate step owns actions.
 - Questions, discussion, or requests about other things ("what do you
   think", "search my email") are wants_edit=false too.
+- EMAIL canvases support real HTML tables (Outlook-style): when the user
+  asks for tabular content (quotes, specs, comparisons, lists of options),
+  insert a <table> with inline cell borders
+  (style="border-collapse: collapse;" + border: 1pt solid on each cell) —
+  tables render in the outgoing email, they are not stripped.
 - Sender identity is NEVER a guessing problem: the SENDER IDENTITY section
   (when present) names the user the draft is sent by. Never take a sender
   name or signature from the To/Cc fields — those are RECIPIENTS (a Cc'd

@@ -66,6 +66,23 @@ def _ontology_enforcement_strict() -> bool:
     write time; the default 'warn' mode writes them flagged."""
     return os.getenv("ATOM_ONTOLOGY_ENFORCEMENT", "warn").strip().lower() == "strict"
 
+
+def _as_float(value: Any, default: float = 0.0) -> float:
+    """LLM-extracted numeric fields arrive as junk sometimes ('ul' from a
+    truncated '<ul>' fragment) — coerce or default instead of poisoning the
+    whole structured-ingestion batch with one ValueError."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
 # ==================== DATA CLASSES (Transient) ====================
 
 @dataclass
@@ -757,7 +774,7 @@ class GraphRAGEngine:
                 ).first()
                 if existing_edge:
                     ep = dict(existing_edge.properties or {})
-                    ep["occurrence_count"] = int(ep.get("occurrence_count", 1)) + 1
+                    ep["occurrence_count"] = _as_int(ep.get("occurrence_count", 1), 1) + 1
                     ep["last_seen"] = now_iso
                     ep.update({k: v for k, v in props.items()
                                if k not in ("occurrence_count", "last_seen")})
@@ -1081,11 +1098,12 @@ class GraphRAGEngine:
                         # Dedup: repeated observations strengthen (occurrence
                         # count + weight) instead of duplicating rows.
                         ep = dict(existing_edge.properties or {})
-                        ep["occurrence_count"] = int(ep.get("occurrence_count", 1)) + 1
+                        ep["occurrence_count"] = _as_int(
+                            ep.get("occurrence_count", 1), 1) + 1
                         ep["last_seen"] = now_iso
                         if confidence is not None:
-                            ep["confidence"] = max(float(confidence),
-                                                   float(ep.get("confidence", 0)))
+                            ep["confidence"] = max(_as_float(confidence, 0.0),
+                                                   _as_float(ep.get("confidence", 0), 0.0))
                         new_prov = props.get("provenance")
                         if new_prov:
                             old_prov = ep.get("provenance") or {}

@@ -804,8 +804,14 @@ class ZohoWorkDriveService(IntegrationService):
         user_id: str,
         file_id: str,
         extra_metadata: Optional[Dict[str, Any]] = None,
+        explicit: bool = True,
     ) -> Dict[str, Any]:
-        """Download a file and process it through the ingestion pipeline"""
+        """Download a file and process it through the ingestion pipeline.
+
+        explicit=True (default) for user/agent-initiated pulls — never
+        content-mode-gated. Bulk walkers pass explicit=False so the
+        integration's content mode (hybrid/list_only) is honored.
+        """
         token = await self.get_access_token(user_id)
         if not token:
             return {"success": False, "error": "No Zoho WorkDrive access token. Connect the integration first."}
@@ -832,6 +838,7 @@ class ZohoWorkDriveService(IntegrationService):
                 user_id=user_id,
                 extra_metadata=extra_metadata,
                 external_id=file_id,
+                explicit=explicit,
             )
 
             if result.get("status") != "ingested":
@@ -975,7 +982,8 @@ class ZohoWorkDriveService(IntegrationService):
                          workspace_id: Optional[str] = None,
                          team_id: Optional[str] = None,
                          folder_id: Optional[str] = None,
-                         recursive: bool = True) -> Dict[str, Any]:
+                         recursive: bool = True,
+                         content_mode: Optional[str] = None) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Zoho WorkDrive.
 
         Pipeline 1: Ingest every file (all types, all subfolders, private
@@ -986,6 +994,12 @@ class ZohoWorkDriveService(IntegrationService):
         captured.
         Pipeline 2: Refresh the Postgres metrics cache.
 
+        content_mode: "full" ingests every file's content. "hybrid" (storage-
+        drive default) and "list_only" keep the file/folder INDEX fresh but
+        skip automatic content ingestion — content lands only via explicit
+        user selection (Ingest button) or agent pull. None = look up the
+        stored setting.
+
         Args:
             user_id: User ID
             workspace_id: Explicit workspace ID (personal or team workspace)
@@ -993,6 +1007,16 @@ class ZohoWorkDriveService(IntegrationService):
             folder_id: Specific folder ID to sync (with recursive traversal)
             recursive: If True, recursively traverse subfolders
         """
+        if content_mode is None:
+            try:
+                from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+                content_mode = get_hybrid_ingestion_service().get_content_mode(
+                    "zoho_workdrive"
+                )
+            except Exception:
+                content_mode = "hybrid"
+        content_mode = (content_mode or "hybrid").lower()
+
         # One walk at a time per user: concurrent walks double the API
         # pressure and 429 each other into uselessness.
         if user_id in self._full_sync_running:
@@ -1002,6 +1026,7 @@ class ZohoWorkDriveService(IntegrationService):
             return await self._full_sync_inner(
                 user_id, workspace_id=workspace_id, team_id=team_id,
                 folder_id=folder_id, recursive=recursive,
+                content_mode=content_mode,
             )
         finally:
             self._full_sync_running.discard(user_id)
@@ -1010,13 +1035,14 @@ class ZohoWorkDriveService(IntegrationService):
                                workspace_id: Optional[str] = None,
                                team_id: Optional[str] = None,
                                folder_id: Optional[str] = None,
-                               recursive: bool = True) -> Dict[str, Any]:
+                               recursive: bool = True,
+                               content_mode: str = "hybrid") -> Dict[str, Any]:
         ws_id = workspace_id or user_id
 
-        
+
         # Use folder_id as root if provided, otherwise "root"
         root_folder = folder_id or "root"
-        
+
         # List files with new parameters
         # Scoped sync honors the requested workspace/team/folder scope; an
         # unscoped full sync walks the private workspace AND all team folders
@@ -1033,29 +1059,44 @@ class ZohoWorkDriveService(IntegrationService):
         ingested = 0
         skipped: list[str] = []
         errors: list[str] = []
-        try:
-            for f in files:
-                name = f.get("name", "") or ""
-                try:
-                    meta = {
-                        "folder_path": f.get("path") or "",
-                        "workdrive_root": f.get("root") or "",
-                        "modified_at": f.get("modified_at") or "",
-                    }
-                    res = await self.ingest_file_to_memory(user_id, f.get("id"), extra_metadata=meta)
-                    inner = res.get("result") or {}
-                    if res.get("success") and inner.get("status") == "ingested":
-                        ingested += 1
-                    elif res.get("error"):
-                        errors.append(f"{name}: {res['error']}")
-                    else:
-                        skipped.append(f"{name} ({inner.get('reason') or 'no_text'})")
-                except Exception as file_err:
-                    logger.warning(f"Ingest failed for {name}: {file_err}")
-                    errors.append(f"{name}: ingest failed")
-        except Exception as e:
-            logger.error(f"Zoho WorkDrive memory ingestion failed: {e}")
-            errors.append("memory ingestion failed")
+
+        if content_mode in ("hybrid", "list_only"):
+            # Index-only pass: the walk above refreshed the file/folder index
+            # and metrics. Content ingestion happens on demand (user Ingest
+            # button / agent pull) — never in bulk, per the content mode.
+            skipped.append(
+                f"content mode '{content_mode}': {len(files)} files indexed, not ingested"
+            )
+            logger.info(
+                f"WorkDrive sync in '{content_mode}' mode: indexed {len(files)} "
+                f"files for {user_id} without content ingestion"
+            )
+        else:
+            try:
+                for f in files:
+                    name = f.get("name", "") or ""
+                    try:
+                        meta = {
+                            "folder_path": f.get("path") or "",
+                            "workdrive_root": f.get("root") or "",
+                            "modified_at": f.get("modified_at") or "",
+                        }
+                        res = await self.ingest_file_to_memory(
+                            user_id, f.get("id"), extra_metadata=meta, explicit=False
+                        )
+                        inner = res.get("result") or {}
+                        if res.get("success") and inner.get("status") == "ingested":
+                            ingested += 1
+                        elif res.get("error"):
+                            errors.append(f"{name}: {res['error']}")
+                        else:
+                            skipped.append(f"{name} ({inner.get('reason') or 'no_text'})")
+                    except Exception as file_err:
+                        logger.warning(f"Ingest failed for {name}: {file_err}")
+                        errors.append(f"{name}: ingest failed")
+            except Exception as e:
+                logger.error(f"Zoho WorkDrive memory ingestion failed: {e}")
+                errors.append("memory ingestion failed")
 
         cache_result = await self.sync_to_postgres_cache(user_id)
         return {

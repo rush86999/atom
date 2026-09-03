@@ -20,7 +20,14 @@ coordination protocol lives in `notes/AGENT_COORDINATION.md` (local, gitignored)
 - **Check for the known cross-cutting bug classes before assuming local cause:**
   - **Path anchoring**: anything resolving `./data/...` or relative paths must
     be anchored to `backend/` (root-vs-backend launches already caused
-    divergent LanceDB stores, DB URLs, and the pricing cache).
+    divergent LanceDB stores, DB URLs, and the pricing cache — most recently
+    2026-09-02, when the agent memory store forked and the agent went
+    memory-blind). Startup reconciliation (`core/memory_store_bootstrap`)
+    now auto-adopts legacy root stores; keep new store access on
+    `LanceDBHandler._resolve_local_db_path`.
+  - **Stale server = false bug reports**: the API server does not run
+    `--reload`. After backend code changes run `scripts/restart_backend.sh`
+    and only then reproduce/verify (`docs/architecture/MEMORY_STORE_AND_OPERATIONS.md`).
   - **Message flattening**: the LLM layer must receive full message lists;
     anything that reduces to (last-prompt, last-system) destroys multi-turn.
   - **Stale caches shadowing durable state**: file/session caches can lag the

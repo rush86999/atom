@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, StopCircle, Paperclip, Mic, X, Loader2 } from "lucide-react";
+import { Send, StopCircle, Paperclip, Mic, X, Loader2, ImageIcon } from "lucide-react";
 import { AGENT_CHAT } from "@/src/lib/testIds";
 
 interface ChatInputProps {
@@ -13,7 +13,9 @@ interface ChatInputProps {
     isUploading: boolean;
     activeAttachments: any[];
     setActiveAttachments: React.Dispatch<React.SetStateAction<any[]>>;
-    handleSend: (overrideText?: string) => Promise<void>;
+    handleSend: (overrideText?: string, images?: string[]) => Promise<void>;
+    pendingImages: string[];
+    setPendingImages: React.Dispatch<React.SetStateAction<string[]>>;
     handleStop: () => void;
     setIsVoiceModeOpen: (isOpen: boolean) => void;
     uploadFile: (file: File) => Promise<any>;
@@ -30,6 +32,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     setActiveAttachments,
     handleSend,
     handleStop,
+    pendingImages = [],
+    setPendingImages = () => {},
     setIsVoiceModeOpen,
     uploadFile,
     toast,
@@ -73,7 +77,58 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     </div>
                 )}
 
+                {pendingImages.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                        {pendingImages.map((img, i) => (
+                            <div key={i} className="relative">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={img} alt={`attachment ${i + 1}`} className="h-14 w-14 object-cover rounded border border-zinc-200 dark:border-white/10" />
+                                <button
+                                    type="button"
+                                    aria-label="Remove image"
+                                    className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-zinc-800 text-white text-[10px] leading-none"
+                                    onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i))}
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <div className="flex gap-2 items-end">
+                    <input
+                        type="file"
+                        accept="image/*"
+                        id="chat-image-upload"
+                        className="hidden"
+                        multiple
+                        onChange={(e) => {
+                            const files = Array.from(e.target.files || []).slice(0, 2);
+                            e.target.value = "";
+                            for (const file of files) {
+                                if (file.size > 6 * 1024 * 1024) {
+                                    toast({ title: "Image too large", description: "Max 6MB per image", variant: "destructive" });
+                                    continue;
+                                }
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    setPendingImages(prev => [...prev, String(reader.result)].slice(0, 2));
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        }}
+                    />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 h-12 w-12"
+                        title="Attach image"
+                        onClick={() => document.getElementById('chat-image-upload')?.click()}
+                        disabled={isUploading || isProcessing}
+                    >
+                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                    </Button>
                     <input
                         type="file"
                         id="chat-file-upload"
@@ -116,7 +171,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         onKeyDown={(e) => {
                             if (e.key === "Enter" && !e.shiftKey) {
                                 e.preventDefault();
-                                handleSend();
+                                if (input.trim() || pendingImages.length) {
+                                    handleSend(undefined, pendingImages);
+                                    setPendingImages([]);
+                                }
                             }
                         }}
                         placeholder="Type a message..."
@@ -129,7 +187,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                             <StopCircle className="h-5 w-5" />
                         </Button>
                     ) : (
-                        <Button onClick={() => handleSend()} size="icon" className="h-12 w-12" disabled={!input.trim()} data-testid={AGENT_CHAT.SEND_BUTTON}>
+                        <Button onClick={() => { handleSend(undefined, pendingImages); setPendingImages([]); }} size="icon" className="h-12 w-12" disabled={!input.trim() && pendingImages.length === 0} data-testid={AGENT_CHAT.SEND_BUTTON}>
                             <Send className="h-5 w-5" />
                         </Button>
                     )}

@@ -53,6 +53,9 @@ _ENV_CREDENTIALS: Dict[str, list] = {
     "dropbox": ["DROPBOX_ACCESS_TOKEN"],
     "freshdesk": ["FRESHDESK_API_KEY"],
     "gdrive": ["GOOGLE_DRIVE_ACCESS_TOKEN"],
+    # The catalog/sync id (DEFAULT_SYNC_CONFIGS, ingestion feedback, the
+    # /integrations/gdrive page's status card) — same app as "gdrive".
+    "google_drive": ["GOOGLE_DRIVE_ACCESS_TOKEN"],
     "github": ["GITHUB_ACCESS_TOKEN", "GITHUB_TOKEN"],
     "gitlab": ["GITLAB_ACCESS_TOKEN", "GITLAB_PERSONAL_ACCESS_TOKEN", "GITLAB_API_TOKEN"],
     "intercom": ["INTERCOM_ACCESS_TOKEN"],
@@ -102,11 +105,18 @@ _EXTRA_PROVIDERS = {"gmail"}
 _IT_PROVIDER_ALIASES: Dict[str, List[str]] = {
     # One Microsoft Graph consent covers every Graph-backed integration.
     "microsoft": ["microsoft365", "outlook", "onedrive", "teams"],
-    "google": ["gmail", "gdrive", "google-workspace"],
+    # One Google consent covers every Google-backed integration. "gdrive"
+    # is the legacy slug; "google_drive" is the catalog/sync id the
+    # ingestion-status card and sync configs key on — both must light up.
+    "google": ["gmail", "gdrive", "google_drive", "google-workspace"],
     # One Zoho app grant covers the suite (same fan-out as the callback).
     # Forms/Flow are webhook-push, but they are part of the same Zoho
     # account, so the suite grant lights their cards like the siblings.
+    # "zoho" itself is the suite hub card (/integrations/zoho) and owns the
+    # canonical hybrid sync — it must light up like its siblings, or the
+    # hub's Start-sync 409s with "no active connection" despite the grant.
     "zoho": [
+        "zoho",
         "zoho-books",
         "zoho-crm",
         "zoho-inventory",
@@ -132,6 +142,7 @@ _PROVIDER_META: Dict[str, Tuple[str, str]] = {
     "dropbox": ("Dropbox", "storage"),
     "freshdesk": ("Freshdesk", "support"),
     "gdrive": ("Google Drive", "storage"),
+    "google_drive": ("Google Drive", "storage"),
     "github": ("GitHub", "development"),
     "gitlab": ("GitLab", "development"),
     "gmail": ("Gmail", "communication"),
@@ -179,6 +190,10 @@ _PING_SPEC: Dict[str, Dict[str, Any]] = {
     "discord": {"method": "GET", "url": "https://discord.com/api/v10/users/@me"},
     "dropbox": {"method": "POST", "url": "https://api.dropboxapi.com/2/users/get_current_account"},
     "gdrive": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/about?fields=user",
+    },
+    "google_drive": {
         "method": "GET",
         "url": "https://www.googleapis.com/drive/v3/about?fields=user",
     },
@@ -465,6 +480,11 @@ _INGESTION_APP_TYPES: Dict[str, str] = {
     "dropbox": "dropbox",
     "box": "box",
     "asana": "asana",
+    # Storage drives: no memory poller, but user-triggered ingests (panel
+    # Ingest buttons, folder batches, full sync) DO record per-app feedback
+    # via record_ingestion_feedback — the card must be able to show it.
+    "google_drive": "google_drive",
+    "onedrive": "onedrive",
     "salesforce": "salesforce",
     "zoom": "zoom",
     "xero": "xero",
@@ -501,12 +521,25 @@ async def _run_zoho_workdrive_full_sync(current_user) -> Dict[str, Any]:
 async def _start_zoho_workdrive_sync(current_user) -> Dict[str, Any]:
     """Start a full WorkDrive tree sync unless one is already in flight."""
     from api.zoho_workdrive_routes import zoho_service
+    from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+    from core.personal_scope import resolve_workspace_id
 
     if zoho_service.is_full_sync_running(str(current_user.id)):
         return {"started": False, "already_running": True}
     result = await _run_zoho_workdrive_full_sync(current_user)
     if isinstance(result, dict) and result.get("error") == "sync_already_running":
         return {"started": False, "already_running": True}
+    # Feed the walk's outcome into the same stats the card reads — the tree
+    # walk bypasses the hybrid pipeline, and without this the WorkDrive
+    # page's counters never moved.
+    success = bool(isinstance(result, dict) and result.get("success"))
+    get_hybrid_ingestion_service(resolve_workspace_id(current_user)) \
+        .record_sync_completion(
+            "zoho", int((result or {}).get("files_ingested") or 0), success
+        )
+    # Background task: nothing else consumes the result, so log the summary
+    # (files found/ingested/skipped) — this is the only completion trail.
+    logger.info(f"[StartSync] zoho-workdrive full_sync finished: {result}")
     return {"started": True, "result": result}
 
 
@@ -524,9 +557,63 @@ async def _start_zoho_suite_sync(current_user) -> Dict[str, Any]:
 
     service = get_hybrid_ingestion_service(resolve_workspace_id(current_user))
     result = await service.sync_integration_data("zoho", force=True)
+    logger.info(f"[StartSync] zoho suite hybrid sync finished: {result}")
     if isinstance(result, dict) and result.get("skipped"):
         return {"started": False, "already_running": True}
     return {"started": True, "result": result}
+
+
+# Storage-drive tree walks have no hybrid lock of their own — one walk at a
+# time per user+drive, or concurrent clicks 429 each other into uselessness.
+_DRIVE_SYNC_RUNNING: set = set()
+
+
+async def _start_drive_tree_sync(current_user, integration_id: str) -> Dict[str, Any]:
+    """Start a storage drive's full-tree ingestion (Google Drive / OneDrive).
+
+    Same shape as the WorkDrive starter: one-shot walk in the request
+    background, outcome recorded as per-app ingestion feedback so the card's
+    counters move. Re-clicks while a walk runs are a no-op.
+    """
+    from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+    from core.personal_scope import resolve_workspace_id
+
+    guard_key = f"{integration_id}:{current_user.id}"
+    if guard_key in _DRIVE_SYNC_RUNNING:
+        return {"started": False, "already_running": True}
+
+    if integration_id == "google_drive":
+        from integrations.google_drive_service import google_drive_service as drive_service
+    else:
+        from integrations.onedrive_service import onedrive_service as drive_service
+
+    token = await drive_service.get_access_token(str(current_user.id))
+    if not token:
+        return {"started": False, "error": "not_connected"}
+
+    _DRIVE_SYNC_RUNNING.add(guard_key)
+    try:
+        result = await drive_service.full_sync(
+            resolve_workspace_id(current_user), token
+        )
+    finally:
+        _DRIVE_SYNC_RUNNING.discard(guard_key)
+
+    success = bool(isinstance(result, dict) and result.get("success"))
+    get_hybrid_ingestion_service(resolve_workspace_id(current_user)) \
+        .record_sync_completion(
+            integration_id, int((result or {}).get("files_ingested") or 0), success
+        )
+    logger.info(f"[StartSync] {integration_id} full_sync finished: {result}")
+    return {"started": True, "result": result}
+
+
+async def _start_google_drive_sync(current_user) -> Dict[str, Any]:
+    return await _start_drive_tree_sync(current_user, "google_drive")
+
+
+async def _start_onedrive_sync(current_user) -> Dict[str, Any]:
+    return await _start_drive_tree_sync(current_user, "onedrive")
 
 
 # Integrations without a communication poller whose "start sync" action is a
@@ -545,6 +632,9 @@ _SYNC_STARTERS: Dict[str, Any] = {
     "zoho-inventory": _start_zoho_suite_sync,
     "zoho-mail": _start_zoho_suite_sync,
     "zoho-projects": _start_zoho_suite_sync,
+    # Storage drives: full-tree walks, same one-shot background shape.
+    "google_drive": _start_google_drive_sync,
+    "onedrive": _start_onedrive_sync,
 }
 
 # Integrations that sync records through HybridDataIngestionService (its
@@ -569,6 +659,137 @@ _HYBRID_SYNC_INTEGRATIONS = frozenset(
 )
 
 
+# =============================================================================
+# Time-to-first-ingestion guidance
+# =============================================================================
+#
+# Every integration gets a "first ingestion takes ~X" expectation so users
+# know what to wait for after connecting / clicking Start sync. Estimates are
+# static cold-start defaults grounded in the sync mechanics (email pollers
+# backfill a configurable history window — 90 days by default; hybrid syncs
+# are bounded by max_records_per_sync; the Zoho suite walks are quota-paced).
+# Once a workspace has completed one hybrid sync, its MEASURED average
+# duration (IntegrationUsageStats.avg_sync_duration_seconds) overrides the
+# static range — a real measurement on this workspace beats a guess.
+
+# Catalog id -> (lo_seconds, hi_seconds, basis).
+_FIRST_INGESTION_ESTIMATES: Dict[str, Tuple[int, int, str]] = {
+    # Email pollers: initial sync pulls the history window (default 90 days).
+    "outlook": (300, 1800, "initial email history backfill (~90 days)"),
+    "gmail": (300, 1800, "initial email history backfill (~90 days)"),
+    # Chat pollers: first fetch pulls recent channel/room history.
+    "slack": (60, 300, "initial channel history backfill"),
+    "teams": (60, 300, "initial chat history backfill"),
+    "whatsapp": (60, 300, "initial chat history backfill"),
+    "telegram": (60, 300, "initial chat history backfill"),
+    "discord": (60, 300, "initial channel history backfill"),
+    # Work/doc apps in the memory pipeline.
+    "notion": (120, 600, "initial pages/databases backfill"),
+    "linear": (60, 300, "initial issue backfill"),
+    "asana": (60, 300, "initial task backfill"),
+    "zoom": (60, 300, "initial meeting record backfill"),
+    "dropbox": (120, 900, "initial file-tree walk"),
+    "box": (120, 900, "initial file-tree walk"),
+    # Hybrid business syncs: bounded by max_records_per_sync (200–1000).
+    "salesforce": (120, 480, "bounded first sync (≤1,000 records)"),
+    "hubspot": (120, 480, "bounded first sync (≤1,000 records)"),
+    "jira": (120, 480, "bounded first sync (≤1,000 records)"),
+    "zendesk": (120, 480, "bounded first sync (≤1,000 records)"),
+    "shopify": (120, 480, "bounded first sync (≤1,000 records)"),
+    "google_calendar": (60, 300, "bounded first sync"),
+    "onedrive": (120, 900, "initial file-tree walk"),
+    "google_drive": (120, 900, "initial file-tree walk"),
+    # Accounting APIs are paginated and slower.
+    "quickbooks": (120, 600, "bounded first sync (paginated API)"),
+    "xero": (120, 600, "bounded first sync (paginated API)"),
+    # One grant, one serialized quota-paced suite walk (7 entity types).
+    "zoho": (300, 900, "paced suite sync (7 entity types)"),
+    "zoho-books": (300, 900, "paced suite sync (7 entity types)"),
+    "zoho-crm": (300, 900, "paced suite sync (7 entity types)"),
+    "zoho-inventory": (300, 900, "paced suite sync (7 entity types)"),
+    "zoho-mail": (300, 900, "paced suite sync (7 entity types)"),
+    "zoho-projects": (300, 900, "paced suite sync (7 entity types)"),
+    "zoho-workdrive": (300, 900, "paced full tree walk (quota-limited API)"),
+}
+
+# Anything ingestion-capable but not in the catalog still gets an honest,
+# wide range instead of no guidance.
+_GENERIC_ESTIMATE = (60, 600, "typical first sync")
+
+
+def _format_seconds(seconds: float) -> str:
+    if seconds < 90:
+        return f"~{int(round(seconds))}s"
+    minutes = seconds / 60
+    if minutes < 90:
+        return f"~{int(round(minutes))} min"
+    return f"~{minutes / 60:.1f} hr"
+
+
+def _format_range(lo: int, hi: int) -> str:
+    if hi < 90:
+        return f"~{lo}–{hi}s"
+    lo_min, hi_min = max(1, round(lo / 60)), round(hi / 60)
+    if lo_min == hi_min:
+        return f"~{lo_min} min"
+    return f"~{lo_min}–{hi_min} min"
+
+
+def _first_ingestion_guidance(
+    integration_id: str,
+    records_ingested: int,
+    stream_running: bool,
+    measured_avg_seconds: Optional[float],
+) -> Dict[str, Any]:
+    """Phase + duration expectation for an integration's first ingestion.
+
+    phase: "pending" (no records yet, nothing running), "in_progress" (a
+    poller/sync is running), "complete" (records exist). Measured averages
+    win over the static catalog; the static range is the cold-start default.
+    """
+    if records_ingested > 0:
+        phase = "complete"
+    elif stream_running:
+        phase = "in_progress"
+    else:
+        phase = "pending"
+
+    if measured_avg_seconds and measured_avg_seconds > 0:
+        return {
+            "phase": phase,
+            "label": _format_seconds(measured_avg_seconds),
+            "seconds": int(round(measured_avg_seconds)),
+            "range": None,
+            "measured": True,
+            "basis": "average of this workspace's completed syncs",
+        }
+    lo, hi, basis = _FIRST_INGESTION_ESTIMATES.get(integration_id, _GENERIC_ESTIMATE)
+    return {
+        "phase": phase,
+        "label": _format_range(lo, hi),
+        "seconds": (lo + hi) // 2,
+        "range": [lo, hi],
+        "measured": False,
+        "basis": basis,
+    }
+
+
+def _content_mode_for(service: Any, integration_id: str) -> str:
+    """Read the content mode off a hybrid service instance.
+
+    Duck-typed: stub/legacy service instances without the content-mode API
+    fall back to the storage-drive default instead of blowing up the whole
+    hybrid-state merge.
+    """
+    get_mode = getattr(service, "get_content_mode", None)
+    if callable(get_mode):
+        return get_mode(integration_id)
+    storage = {"zoho_workdrive", "zoho-workdrive", "onedrive", "google_drive",
+               "gdrive", "dropbox", "box"}
+    normalized = (integration_id or "").strip().lower().replace("-", "_")
+    return "hybrid" if normalized in storage else "full"
+
+
 def _hybrid_sync_entry(current_user: User, integration_id: str) -> Dict[str, Any]:
     """Hybrid sync-service state for one integration (may be all-None).
 
@@ -580,19 +801,46 @@ def _hybrid_sync_entry(current_user: User, integration_id: str) -> Dict[str, Any
         "last_synced": None,
         "auto_sync_enabled": False,
         "sync_frequency_minutes": None,
+        "records_synced": 0,
+        "sync_in_progress": False,
+        "sync_started_at": None,
+        "avg_sync_duration_seconds": None,
     }
     try:
         from core.hybrid_data_ingestion import get_hybrid_ingestion_service
         from core.personal_scope import resolve_workspace_id
 
         service = get_hybrid_ingestion_service(resolve_workspace_id(current_user))
-        stats = service.usage_stats.get(integration_id)
+        # Suite ids (zoho-books, zoho-crm, …) share the "zoho" sync entry and
+        # its per-integration lock — one grant, one serialized sync.
+        sync_key = integration_id
+        if sync_key not in service.usage_stats:
+            sync_key = _INGESTION_APP_TYPES.get(integration_id) or integration_id
+        locks = getattr(service, "_sync_locks", {})
+        lock = locks.get(sync_key)
+        sync_in_progress = bool(lock is not None and lock.locked())
+        started_at = getattr(service, "_sync_started_at", {}).get(sync_key)
+        stats = service.usage_stats.get(sync_key)
         if not stats:
-            return empty
+            # First-ever sync: usage stats only land at completion, but a
+            # running lock must still surface (card badge "Syncing").
+            return {
+                **empty,
+                "sync_in_progress": sync_in_progress,
+                "sync_started_at": _iso_or_none(started_at),
+                "content_mode": _content_mode_for(service, integration_id),
+            }
         return {
             "last_synced": _iso_or_none(getattr(stats, "last_synced", None)),
             "auto_sync_enabled": bool(getattr(stats, "auto_sync_enabled", False)),
             "sync_frequency_minutes": getattr(stats, "sync_frequency_minutes", None),
+            "records_synced": int(getattr(stats, "total_records_synced", 0) or 0),
+            "sync_in_progress": sync_in_progress,
+            "sync_started_at": _iso_or_none(started_at),
+            "avg_sync_duration_seconds": (
+                float(getattr(stats, "avg_sync_duration_seconds", None) or 0) or None
+            ),
+            "content_mode": _content_mode_for(service, integration_id),
         }
     except Exception as e:
         logger.debug(f"Hybrid sync status unavailable for {integration_id}: {e}")
@@ -681,6 +929,31 @@ def _integration_ingestion_payload(
     # Hybrid sync state (business integrations sync through
     # HybridDataIngestionService, not the memory pollers).
     payload.update(_hybrid_sync_entry(current_user, integration_id))
+    # A running one-shot/hybrid sync must show on the card: the badge reads
+    # stream_running, which otherwise only tracks communication pollers —
+    # a running suite sync used to render as "Sync stopped".
+    if payload.get("sync_in_progress"):
+        payload["stream_running"] = True
+        if not payload["ingestion_status"]:
+            payload["ingestion_status"] = "syncing"
+    # Document integrations (Zoho suite, …) ingest through the hybrid sync,
+    # not the communication pipeline — when the pipeline has no count for
+    # this app_type, the hybrid counters ARE the real numbers.
+    if (
+        not payload["records_ingested"]
+        and payload.get("records_synced")
+    ):
+        payload["records_ingested"] = payload["records_synced"]
+        if not payload["last_ingested"] and payload.get("last_synced"):
+            payload["last_ingested"] = payload["last_synced"]
+    # "How long until my data shows up?" — static catalog estimate, or the
+    # workspace's measured average sync duration once one sync has completed.
+    payload["first_ingestion"] = _first_ingestion_guidance(
+        integration_id,
+        payload["records_ingested"],
+        payload["stream_running"],
+        payload.get("avg_sync_duration_seconds"),
+    )
     return payload
 
 
@@ -750,6 +1023,15 @@ async def get_ingestion_status_all(
                 },
             )
             apps[integration_id].update(entry)
+    # Per-integration first-ingestion guidance, same shape as the
+    # per-integration endpoint so cards and panels share one contract.
+    for key, entry in apps.items():
+        entry["first_ingestion"] = _first_ingestion_guidance(
+            key,
+            entry.get("records_ingested") or 0,
+            bool(entry.get("stream_running") or entry.get("sync_in_progress")),
+            entry.get("avg_sync_duration_seconds"),
+        )
     return {
         "available": snapshot["available"],
         "active_streams": snapshot["active_streams"],
@@ -841,3 +1123,51 @@ async def start_integration_ingestion(
     payload["start_attempted"] = True
     payload["stream_running"] = payload["stream_running"] or started
     return payload
+
+
+@router.get("/{integration_id}/content-mode")
+async def get_integration_content_mode(
+    integration_id: str,
+    current_user: User = Depends(get_current_user),
+    tenant: Tenant = Depends(get_current_tenant),
+) -> Dict[str, Any]:
+    """Content-sync mode for a storage drive: full | hybrid | list_only.
+
+    full       — every synced file's content is ingested (disk + LLM cost).
+    hybrid     — file/folder index always fresh; content ingested only for
+                 user-selected or agent-needed files (storage-drive default).
+    list_only  — file/folder index only, no content ingestion.
+    """
+    from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+    from core.personal_scope import resolve_workspace_id
+
+    service = get_hybrid_ingestion_service(resolve_workspace_id(current_user))
+    return {
+        "integration_id": integration_id,
+        "content_mode": _content_mode_for(service, integration_id),
+    }
+
+
+@router.put("/{integration_id}/content-mode")
+async def set_integration_content_mode(
+    integration_id: str,
+    body: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    tenant: Tenant = Depends(get_current_tenant),
+) -> Dict[str, Any]:
+    """Set the content-sync mode for a storage drive."""
+    from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+    from core.personal_scope import resolve_workspace_id
+
+    mode = str((body or {}).get("mode") or "").strip().lower()
+    if mode not in ("full", "hybrid", "list_only"):
+        raise HTTPException(
+            status_code=422,
+            detail="mode must be one of: full, hybrid, list_only",
+        )
+    service = get_hybrid_ingestion_service(resolve_workspace_id(current_user))
+    service.set_content_mode(integration_id, mode)
+    return {
+        "integration_id": integration_id,
+        "content_mode": mode,
+    }

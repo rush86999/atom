@@ -100,7 +100,14 @@ def _resolve_workspace_db(workspace_id: str):
 
         import lancedb
 
-        base_uri = os.getenv("LANCEDB_URI_BASE", "./data/atom_memory")
+        # Anchor relative base paths to backend/ — same rule as
+        # LanceDBHandler._resolve_local_db_path. A raw CWD-relative connect
+        # forked the store on root-vs-backend launches (2026-09-02).
+        from core.lancedb_handler import _resolve_local_db_path
+
+        base_uri = _resolve_local_db_path(
+            os.getenv("LANCEDB_URI_BASE", "./data/atom_memory")
+        )
         return lancedb.connect(os.path.join(base_uri, workspace_id))
     except Exception as e:
         logger.debug(f"file context: workspace db unavailable: {e}")

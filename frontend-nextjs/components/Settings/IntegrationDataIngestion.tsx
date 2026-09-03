@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { notifyIngestionUpdated } from "@/lib/ingestion-events";
 
 /**
  * Universal selective-ingestion panel — "map the territory, not the contents".
@@ -146,6 +147,8 @@ export default function IntegrationDataIngestion() {
       );
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.detail || "Mapping failed");
+      // Immediate per-app feedback: this app's ingestion card refreshes.
+      notifyIngestionUpdated(selected);
       setNotice(
         `Structure mapped: ${data.rows_written} rows indexed (${Object.entries(
           data.counts || {}

@@ -17,6 +17,9 @@ interface UseChatInterfaceProps {
 
 export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }: UseChatInterfaceProps) => {
     const [input, setInput] = useState("");
+    // Pending user-submitted images (data URLs) for the next send — routed
+    // to vision-capable models via the chat request images field.
+    const [pendingImages, setPendingImages] = useState<string[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [statusMessage, setStatusMessage] = useState("Agent is thinking...");
     const [messages, setMessages] = useState<ChatMessageData[]>([]);
@@ -188,12 +191,14 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         }
     };
 
-    const handleSend = async (overrideText?: string): Promise<boolean> => {
+    const handleSend = async (overrideText?: string, images?: string[]): Promise<boolean> => {
         // overrideText is used by handleRegenerate to re-send the original
         // prompt (input is empty at that point). Without it, regenerate would
         // silently delete the exchange and produce nothing.
         const currentInput = (overrideText ?? input).trim();
-        if (!currentInput) return false;
+        if (!currentInput && !(images && images.length)) return false;
+        // An image with no text still needs a message body for the model.
+        const effectiveInput = currentInput || (images && images.length ? "What do you see in this image?" : "");
 
         // Clear any prior provider-error banner before attempting another send.
         setProviderError(null);
@@ -201,12 +206,14 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
         const userMsg: ChatMessageData = {
             id: Date.now().toString(),
             type: "user",
-            content: currentInput,
+            content: effectiveInput,
             timestamp: new Date(),
-        };
+            images,
+        } as any;
 
         setMessages(prev => [...prev, userMsg]);
         setInput("");
+        setPendingImages([]);
         setIsProcessing(true);
         setStatusMessage("Agent is thinking...");
         _restFulfilledRef.current = false;
@@ -222,7 +229,8 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             }, 120000);
 
             const response = await apiClient.post("/api/chat/message", {
-                message: currentInput,
+                message: effectiveInput,
+                images: images && images.length ? images.slice(0, 2) : undefined,
                 session_id: sessionId,
                 user_id: getCurrentUserId(),
                 context: {
@@ -647,6 +655,8 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
     return {
         input,
         setInput,
+        pendingImages,
+        setPendingImages,
         isProcessing,
         statusMessage,
         messages,

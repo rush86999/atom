@@ -63,7 +63,7 @@ Established in-repo patterns this plan reuses rather than reinvents:
   (`core/models.py:10969-10983`).
 - Sensitivity classification for outbound gating: P4 data-taint tracker
   (`core/data_taint_tracker.py`), `sensitivity` column already on `IngestedDocument`.
-- Per-workspace physical storage: `./data/atom_memory/{workspace_id}`
+- Per-workspace physical storage: `backend/data/atom_memory/{workspace_id}` (anchored to `backend/` — never CWD-relative; see `MEMORY_STORE_AND_OPERATIONS.md`)
   (`core/lancedb_handler.py:1530-1572`).
 
 ## 3. Target architecture (org model)

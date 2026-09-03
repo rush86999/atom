@@ -232,7 +232,10 @@ class TestOauthRoutesStateCsrf:
         def _fake_auth_url(state=None, **kwargs):
             return f"https://provider.test/auth?state={state}"
 
-        with patch.object(
+        # R88: initiate resolves the user via a LOCAL `from core.auth import
+        # get_current_user` — patching the source module is the only hook.
+        with patch("core.auth.get_current_user", new=AsyncMock(return_value=_fake_user())), \
+             patch.object(
             OAuthHandler, "get_authorization_url", side_effect=_fake_auth_url
         ):
             resp = client.get(
@@ -289,9 +292,12 @@ class TestOauthRoutesStateCsrf:
 
     def test_unknown_provider_rejected(self, monkeypatch):
         client = self._client(monkeypatch)
-        resp = client.get(
-            "/api/v1/auth/oauth/bogus/initiate", follow_redirects=False
-        )
+        # R88 fail-closed identity: auth resolves (patched here) BEFORE the
+        # provider allowlist, so an unknown provider is a 400, not a 401.
+        with patch("core.auth.get_current_user", new=AsyncMock(return_value=_fake_user())):
+            resp = client.get(
+                "/api/v1/auth/oauth/bogus/initiate", follow_redirects=False
+            )
         assert resp.status_code == 400
 
 

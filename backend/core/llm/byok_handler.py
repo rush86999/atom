@@ -390,10 +390,14 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.ADVANCED: "xiaomi/mimo-v2.5-pro",
     },
     "ollama": {
-        QueryComplexity.SIMPLE: "llama3:8b",
-        QueryComplexity.MODERATE: "llama3:8b",
-        QueryComplexity.COMPLEX: "mistral:7b",
-        QueryComplexity.ADVANCED: "mixtral:8x7b",
+        # One local model, actually pulled (`ollama list` is the source of
+        # truth — routing to catalog names that aren't pulled 404s every
+        # request). llama3.1 (not llama3): the structured-generation path
+        # uses tools, which plain llama3 does not support in Ollama.
+        QueryComplexity.SIMPLE: "llama3.1:8b",
+        QueryComplexity.MODERATE: "llama3.1:8b",
+        QueryComplexity.COMPLEX: "llama3.1:8b",
+        QueryComplexity.ADVANCED: "llama3.1:8b",
     },
     "glm": {  # Zhipu AI GLM family — OpenAI-compatible API
         QueryComplexity.SIMPLE: "glm-4.5",
@@ -788,6 +792,12 @@ class BYOKHandler:
         # All available providers that have clients initialized
         available_providers = list(self.clients.keys())
 
+        # Same availability rule as ranking: a local runtime that isn't
+        # answering stays out of the fallback chain — mid-request fallback
+        # to a dead ollama just adds its connection timeout to the failure.
+        if "ollama" in available_providers and self._ollama_runtime_state()[0] != "up":
+            available_providers = [p for p in available_providers if p != "ollama"]
+
         if not available_providers:
             return []
 
@@ -869,16 +879,33 @@ class BYOKHandler:
         if not required_capability:
             return True  # No capability requirement
 
+        # BYOK composite ids ("openrouter/openai/gpt-4o") — the catalog may
+        # key the base name; try progressively stripped variants so a
+        # vision/tools model behind a router prefix isn't misclassified.
+        def _name_variants(mid: str):
+            yield mid
+            base = mid
+            while "/" in base:
+                base = base.split("/", 1)[1]
+                yield base
+
         # Fast path: use the pre-built index (no DB round-trip).
         if capability_index is not None:
             capabilities = capability_index.get(model_id)
             if capabilities is None:
+                for variant in _name_variants(model_id):
+                    if variant in capability_index:
+                        return required_capability in capability_index[variant]
                 return True  # Unknown model — pass through
             return required_capability in capabilities
 
         try:
             with get_db_session() as db:
-                model = db.query(ModelCatalog).filter_by(model_id=model_id).first()
+                model = None
+                for variant in _name_variants(model_id):
+                    model = db.query(ModelCatalog).filter_by(model_id=variant).first()
+                    if model:
+                        break
                 if not model:
                     return True  # Unknown models pass through
                 capabilities = model.capabilities or ["chat"]
@@ -1003,7 +1030,20 @@ class BYOKHandler:
             True if model supports vision, False otherwise
         """
         capabilities = self.pricing_fetcher.get_model_capabilities(model_id)
-        return capabilities.get("supports_vision", False)
+        if capabilities.get("supports_vision", False):
+            return True
+        # BYOK composite ids ("openrouter/openai/gpt-4o"): the pricing cache
+        # may key the base name — retry stripped variants before concluding
+        # a model is text-only (a false negative demotes perfectly good
+        # BYOK vision models during vision routing).
+        base = model_id or ""
+        while "/" in base:
+            base = base.split("/", 1)[1]
+            if self.pricing_fetcher.get_model_capabilities(base).get(
+                "supports_vision", False
+            ):
+                return True
+        return False
 
     def _model_supports_reasoning(self, model_id: str) -> bool:
         """
@@ -1017,6 +1057,51 @@ class BYOKHandler:
         """
         capabilities = self.pricing_fetcher.get_model_capabilities(model_id)
         return capabilities.get("supports_reasoning", False)
+
+    # Availability probe caching. A DOWN runtime must neither stall routing
+    # (probes are cached, and localhost connection-refused is instant anyway)
+    # nor gate-keep recovery — the down state is re-checked every minute, so
+    # a restarted Ollama rejoins the pool without a restart of the backend.
+    _OLLAMA_PROBE_TTL_UP = 300
+    _OLLAMA_PROBE_TTL_DOWN = 60
+
+    def _ollama_runtime_state(self):
+        """("up", pulled_model_names) when the local Ollama runtime answers
+        /api/tags, else ("down", None). Cached per state so routing never
+        probes per call. Base names are included alongside tagged ones, so a
+        catalog 'llama3.1' matches a pulled 'llama3.1:8b'."""
+        cache = getattr(self, "_ollama_probe_cache", None)
+        now = time.time()
+        if cache:
+            checked_at, state, pulled = cache
+            ttl = (
+                self._OLLAMA_PROBE_TTL_UP
+                if state == "up"
+                else self._OLLAMA_PROBE_TTL_DOWN
+            )
+            if now - checked_at < ttl:
+                return state, pulled
+        base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1").rstrip("/")
+        if base.endswith("/v1"):
+            base = base[: -len("/v1")]
+        try:
+            import httpx
+
+            resp = httpx.get(f"{base}/api/tags", timeout=(1.0, 2.0))
+            resp.raise_for_status()
+            names = {
+                m.get("name")
+                for m in resp.json().get("models", [])
+                if m.get("name")
+            }
+        except Exception:
+            self._ollama_probe_cache = (now, "down", None)
+            return "down", None
+        expanded = set(names)
+        for n in names:
+            expanded.add(n.split(":", 1)[0])
+        self._ollama_probe_cache = (now, "up", expanded)
+        return "up", expanded
 
     def _initialize_clients(self) -> None:
         """Initialize clients for all available providers"""
@@ -1773,11 +1858,24 @@ class BYOKHandler:
 
             for model_id, pricing in fetcher.pricing_cache.items():
                 litellm_provider = pricing.get("litellm_provider", "").lower()
-                
+
                 # Check if we have a client for this provider
                 active_provider = next((p for p in available_providers if p in model_id.lower() or p == litellm_provider), None)
                 if not active_provider:
                     continue
+
+                # Ollama routes ONLY when the local runtime is available —
+                # free local models rank well on value, so an unreachable
+                # runtime sitting in the pool made every request pay its
+                # connection-failure tax before failing over. Availability
+                # is probed (cached) and even when up, only models ACTUALLY
+                # pulled can serve: catalog names that aren't pulled 404.
+                if active_provider == "ollama":
+                    ollama_state, pulled = self._ollama_runtime_state()
+                    if ollama_state != "up":
+                        continue
+                    if model_id.split("/", 1)[-1] not in pulled:
+                        continue
 
                 if active_provider == "openrouter":
                     # OpenRouter hosts 480+ models; only a vetted allowlist
@@ -1991,7 +2089,19 @@ class BYOKHandler:
                 return is_managed_service and provider_id not in own_keys
 
             def is_model_approved(model_id: str, allowed_list: any) -> bool:
-                if (requires_tools or requires_structured) and not self._model_supports_tools(model_id):
+                # The local runtime is the authority for its own models: the
+                # remote catalog carries no capability data for pulled names,
+                # and its conservative default hid working local models
+                # (llama3.1:8b serves tools even though the cache is silent).
+                # Availability + pulled-model gating happens at candidate
+                # time; a local model that genuinely lacks tools surfaces a
+                # normal call error like any other provider mismatch.
+                is_local = model_id.lower().startswith("ollama/")
+                if (
+                    (requires_tools or requires_structured)
+                    and not is_local
+                    and not self._model_supports_tools(model_id)
+                ):
                     return False
 
                 if allowed_list == "*" or "*" in allowed_list:
@@ -2360,13 +2470,22 @@ class BYOKHandler:
                 len(str(m.get("content") or ""))
                 for m in (messages or []) if isinstance(m, dict)
             )
+            # BYOK images count toward context: a typical image costs
+            # ~85-1105 tokens depending on detail (OpenAI accounting) —
+            # reserve the high case so window checks don't under-count.
+            _image_tokens = 1106 if requires_vision else 0
             options = await self.get_ranked_providers(
                 complexity, task_type, prefer_cost, tenant_plan, is_managed,
                 requires_tools=requires_tools, requires_structured=False,
                 turn_index=turn_index,
                 cognitive_tier=forced_tier_enum,
                 max_quality=max_quality_override,
-                estimated_tokens=max(1000, _est_input_chars // 4),
+                estimated_tokens=max(1000, _est_input_chars // 4) + _image_tokens,
+                # Vision turns rank ONLY vision-capable candidates up front —
+                # the old flow ranked vision-blind and either fell back to a
+                # lossy image-description pass or hard-pinned GPT-4o, which a
+                # BYOK user without an OpenAI key cannot call.
+                required_capability=("vision" if requires_vision else None),
             )
 
             # --- LKGP (Last-Known-Good-Path) sticky boost ---

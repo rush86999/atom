@@ -23,6 +23,8 @@ the ENTIRE list, so a caller asking for zero jobs receives all of them.
 """
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -500,6 +502,74 @@ class TestEnqueueRedisPath:
         pushed = redis_queue.redis_client.lpush.call_args.args[1]
         assert json.loads(pushed)["job_id"] == job_id
         process.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# run_worker_loop — the production consumer for the Redis queue.
+#
+# BUG found (fix verified): with Redis configured, enqueue_ingestion_job only
+# LPUSHes to ingestion:webhook:jobs and dequeue_job had NO production caller —
+# pushed jobs sat in Redis forever (the synchronous fallback only runs when
+# Redis is unavailable).
+# ---------------------------------------------------------------------------
+
+class TestWorkerLoop:
+    async def test_no_redis_returns_without_looping(self, no_redis_queue):
+        # Must return promptly, not hang: with no Redis, enqueues already
+        # process inline, so there is nothing to drain.
+        await asyncio.wait_for(no_redis_queue.run_worker_loop(), timeout=1)
+
+    async def _run_worker_briefly(self, queue, **kwargs):
+        # Tick in real milliseconds (not sleep(0)) so the worker's parked
+        # poll_interval sleeps actually elapse between iterations.
+        task = asyncio.create_task(queue.run_worker_loop(**kwargs))
+        try:
+            for _ in range(500):
+                await asyncio.sleep(0.002)
+                yield
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+    async def test_drains_queued_jobs(self, redis_queue):
+        job = _job_dict(job_id="j1")
+        redis_queue.redis_client.rpop = MagicMock(
+            side_effect=[json.dumps(job), json.dumps(job), None]
+        )
+        processed = AsyncMock()
+        with patch.object(redis_queue, "process_webhook_job", processed):
+            async for _ in self._run_worker_briefly(
+                redis_queue, poll_interval_seconds=0.01
+            ):
+                if processed.await_count >= 2:
+                    break
+        assert processed.await_count == 2
+
+    async def test_failed_job_does_not_kill_worker(self, redis_queue):
+        job_a, job_b = _job_dict(job_id="ja"), _job_dict(job_id="jb")
+        redis_queue.redis_client.rpop = MagicMock(
+            side_effect=[json.dumps(job_a), json.dumps(job_b), None]
+        )
+        processed = AsyncMock(side_effect=[RuntimeError("boom"), {"success": True}])
+        with patch.object(redis_queue, "process_webhook_job", processed):
+            async for _ in self._run_worker_briefly(
+                redis_queue, poll_interval_seconds=0.01
+            ):
+                if processed.await_count >= 2:
+                    break
+        assert processed.await_count == 2
+
+    async def test_parks_when_queue_empty(self, redis_queue):
+        redis_queue.redis_client.rpop = MagicMock(return_value=None)
+        processed = AsyncMock()
+        with patch.object(redis_queue, "process_webhook_job", processed):
+            async for _ in self._run_worker_briefly(
+                redis_queue, poll_interval_seconds=60
+            ):
+                pass  # a few loop ticks without a single rpop side effect
+        processed.assert_not_awaited()
+        assert redis_queue.redis_client.rpop.call_count >= 1
 
 
 if __name__ == "__main__":

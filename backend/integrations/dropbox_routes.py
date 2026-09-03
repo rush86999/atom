@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from integrations.auth_handler_dropbox import dropbox_auth_handler
 from integrations.dropbox_service import dropbox_service
 from core.auth import get_current_user
+from core.ingestion_feedback import record_ingestion_feedback
 from core.models import User
 
 logger = logging.getLogger(__name__)
@@ -271,6 +272,11 @@ async def full_sync(
         token = await dropbox_auth_handler.ensure_valid_token()
         result = await dropbox_service.full_sync(
             workspace_id=str(current_user.id), access_token=token
+        )
+        record_ingestion_feedback(
+            current_user, "dropbox",
+            int((result or {}).get("files_ingested") or 0),
+            bool(isinstance(result, dict) and result.get("success")),
         )
         return result
     except HTTPException:

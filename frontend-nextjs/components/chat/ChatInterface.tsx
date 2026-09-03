@@ -47,6 +47,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         setIsVoiceModeOpen,
         activeAttachments,
         setActiveAttachments,
+        pendingImages,
+        setPendingImages,
         isUploading,
         streamingContent,
         currentStreamId,
@@ -350,11 +352,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 setInput={setInput}
                 isProcessing={isProcessing}
                 isUploading={isUploading}
+                pendingImages={pendingImages}
+                setPendingImages={setPendingImages}
                 activeAttachments={activeAttachments}
                 setActiveAttachments={setActiveAttachments}
                 // useChatInterface's handleSend resolves to a success boolean that
                 // ChatInput ignores; adapt to ChatInput's Promise<void> prop type.
-                handleSend={handleSend as unknown as (overrideText?: string) => Promise<void>}
+                handleSend={handleSend as unknown as (overrideText?: string, images?: string[]) => Promise<void>}
                 handleStop={handleStop}
                 setIsVoiceModeOpen={setIsVoiceModeOpen}
                 uploadFile={uploadFile}

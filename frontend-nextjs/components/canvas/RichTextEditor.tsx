@@ -24,8 +24,16 @@ import DOMPurify from "dompurify";
 const ALLOWED_TAGS = [
   "b", "i", "em", "strong", "u", "s", "br", "hr", "a", "span",
   "div", "p", "font", "ul", "ol", "li",
+  // Tables (Outlook-style email tables — quotes, specs, comparisons)
+  "table", "thead", "tbody", "tr", "td", "th",
 ];
-const ALLOWED_ATTR = ["href", "style", "color", "target", "rel", "title", "size", "face"];
+const ALLOWED_ATTR = [
+  "href", "style", "color", "target", "rel", "title", "size", "face",
+  // Table geometry (Outlook composes with border/cellpadding attrs +
+  // inline styles; colspan/rowspan for merged header cells)
+  "border", "cellpadding", "cellspacing", "width", "align",
+  "colspan", "rowspan", "valign",
+];
 
 export function sanitizeEmailHtml(dirty: string | undefined | null): string {
   if (!dirty) return "";
@@ -71,7 +79,7 @@ export const DEFAULT_EMAIL_FONT = "Aptos, 'Segoe UI', Calibri, Arial, sans-serif
 function toDisplayHtml(raw: string): string {
   const text = String(raw ?? "");
   const lines = text.split("\n");
-  const tagRe = /<\s*(p|br|div|span|ul|ol|li|h[1-6]|hr|table|a|b|i|strong|em|u|font)\b/i;
+  const tagRe = /<\s*(p|br|div|span|ul|ol|li|h[1-6]|hr|table|thead|tbody|tr|td|th|a|b|i|strong|em|u|font)\b/i;
   if (!lines.some((ln) => tagRe.test(ln))) {
     const escaped = text
       .replace(/&/g, "&amp;")
@@ -212,6 +220,36 @@ export default function RichTextEditor({
     exec("createLink", url);
   };
 
+  const insertTable = () => {
+    const spec = window.prompt("Table rows,columns (e.g. 3,3)", "3,3");
+    if (!spec) return;
+    const parts = spec.split(/[,xX*\s]+/);
+    const rows = Math.max(1, Math.min(20, parseInt(parts[0], 10) || 0));
+    const cols = Math.max(1, Math.min(20, parseInt(parts[1], 10) || 0));
+    if (!rows || !cols) return;
+    // Outlook-style bordered table: inline cell borders survive email
+    // clients where bare <table border> renders inconsistently.
+    const cell =
+      '<td style="border: 1pt solid rgb(191, 191, 191); padding: 4pt 6pt;">&nbsp;</td>';
+    const row = `<tr>${cell.repeat(cols)}</tr>`;
+    const html =
+      '<table style="border-collapse: collapse;" border="1" cellspacing="0" cellpadding="0">' +
+      `<tbody>${row.repeat(rows)}</tbody></table><br>`;
+    ref.current?.focus();
+    const before = ref.current?.innerHTML ?? "";
+    try {
+      document.execCommand("insertHTML", false, html);
+    } catch {
+      // jsdom / unsupported — the append fallback below still applies
+    }
+    // insertHTML is unimplemented in some environments (jsdom) or no-ops
+    // with no caret selection — detect the no-op and append at the end.
+    if (ref.current && ref.current.innerHTML === before) {
+      ref.current.innerHTML = before + html;
+    }
+    emit();
+  };
+
   const toolbarBtn =
     "h-6 min-w-6 px-1.5 rounded border border-zinc-200 dark:border-white/10 " +
     "hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-200 " +
@@ -295,6 +333,16 @@ export default function RichTextEditor({
           onClick={addLink}
         >
           🔗
+        </button>
+        <button
+          type="button"
+          title="Table"
+          aria-label="Insert table"
+          data-testid={`${testIdPrefix}-table-btn`}
+          className={toolbarBtn}
+          onClick={insertTable}
+        >
+          ▦
         </button>
         <button type="button" title="Bulleted list" aria-label="Bulleted list" className={toolbarBtn} onClick={() => exec("insertUnorderedList")}>
           •≡

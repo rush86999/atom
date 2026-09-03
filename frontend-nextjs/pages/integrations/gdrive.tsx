@@ -10,9 +10,12 @@ const GoogleDriveIntegrationPage: React.FC = () => {
         <title>Google Drive Integration | ATOM</title>
         <meta name="description" content="Connect and manage your Google Drive files with ATOM" />
       </Head>
-  {/* Memory-ingestion progress (uniform across integration pages) */}
+  {/* Memory-ingestion progress (uniform across integration pages).
+      integrationId is the CATALOG id the backend knows — "google_drive",
+      not the page's "gdrive" slug: a wrong id made this card permanently
+      read "Not connected" with zero counts. */}
   <div className="p-6 pb-0 max-w-[1400px] mx-auto w-full">
-    <IngestionStatusPanel integrationId="gdrive" />
+    <IngestionStatusPanel integrationId="google_drive" />
   </div>
 
 

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from core.auth import get_current_user
+from core.ingestion_feedback import record_ingestion_feedback
 from core.models import User
 
 from .box_service import box_service
@@ -134,6 +135,11 @@ async def full_sync(current_user: User = Depends(get_current_user)):
         )
         if not result.get("success") and "No Box access token" in str(result.get("error")):
             raise HTTPException(status_code=400, detail="Box not connected")
+        record_ingestion_feedback(
+            current_user, "box",
+            int((result or {}).get("files_ingested") or 0),
+            bool(result.get("success")),
+        )
         return result
     except HTTPException:
         raise

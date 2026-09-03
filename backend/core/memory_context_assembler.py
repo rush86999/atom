@@ -996,7 +996,9 @@ async def assemble_memory_context(
             "from this conversation; may be incomplete or stale. When the user "
             "refers to something said in this conversation, the transcript "
             "always takes precedence over these snippets. Verify before acting "
-            "on specifics):\n\n"
+            "on specifics. If the user asks about an email or message that is "
+            "NOT in these snippets, do not conclude it doesn't exist — query "
+            "the live mailbox directly with the outlook tool before answering):\n\n"
         )
         body = "\n\n".join(blocks)
         # The header rides inside the budget: trimming only the body and

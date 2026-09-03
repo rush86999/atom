@@ -382,9 +382,12 @@ class TestDocumentsHybridGaps:
         svc = DocumentsHybridSearch()
         with patch.object(svc, "_lexical_leg", return_value=[{"source": "ingested", "id": "1"}]):
             with patch.object(svc, "_vector_leg", return_value=[]):
-                import asyncio
+                # Conversations leg off — this test pins the document-legs
+                # label composition (that slice has its own coverage).
+                with patch("core.experiments.is_enabled", return_value=False):
+                    import asyncio
 
-                result = asyncio.run(svc.search("revenue"))
+                    result = asyncio.run(svc.search("revenue"))
         assert result["hybrid"] == "lexical_only"
 
     def test_semantic_only_label(self):
@@ -412,9 +415,10 @@ class TestDocumentsHybridGaps:
                         0,
                     ),
                 ):
-                    import asyncio
+                    with patch("core.experiments.is_enabled", return_value=False):
+                        import asyncio
 
-                    result = asyncio.run(svc.search("revenue"))
+                        result = asyncio.run(svc.search("revenue"))
         assert result["hybrid"] == "semantic_only"
 
     def test_get_db_uses_session(self, db):
@@ -516,14 +520,17 @@ class TestDocumentsHybridGaps:
         lexical = [{"source": "ingested", "id": "doc_a", "title": "t"}]
         vector = [
             {"id": "doc_a"},  # bridged
-            {"id": "ghost"},  # unbridged
+            {"id": "ghost"},  # unbridged — still returned, flagged bridged:false
         ]
         fused, unbridged = svc._fuse_rrf(lexical, vector)
         assert unbridged == 1
-        assert len(fused) == 1
-        assert fused[0]["id"] == "doc_a"
-        assert set(fused[0]["legs"]) == {"lexical", "vector"}
-        assert fused[0]["rrf"] > 0
+        assert len(fused) == 2
+        merged = [r for r in fused if r["id"] == "doc_a"][0]
+        assert set(merged["legs"]) == {"lexical", "vector"}
+        assert merged["rrf"] > 0
+        ghost = [r for r in fused if r["id"] == "ghost"][0]
+        assert ghost["legs"] == ["vector"]
+        assert ghost["bridged"] is False
 
     def test_fuse_rrf_hydration_failure(self):
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch

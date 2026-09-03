@@ -32,8 +32,39 @@ class IntegrationUsageStats:
     successful_calls: int = 0
     last_used: Optional[datetime] = None
     last_synced: Optional[datetime] = None
-    auto_sync_enabled: bool = False
+    # Auto-sync defaults ON: once an integration has synced, the scheduled
+    # loop keeps it fresh (per-integration frequency). Users can still turn
+    # it off explicitly — the stored False wins over this default.
+    auto_sync_enabled: bool = True
     sync_frequency_minutes: int = 60  # Default: sync hourly
+    # Per-integration incremental-sync cursors (ISO timestamps keyed by
+    # fetch scope, e.g. "zoho_fetch"). Advanced only when a sync completes
+    # cleanly; a failed sync keeps the old cursor so the next run re-pulls
+    # the same window (record upserts are idempotent).
+    sync_cursors: Dict[str, str] = field(default_factory=dict)
+    # Cumulative records pulled across all syncs — surfaced on integration
+    # pages whose Data Ingestion card has no communication-pipeline stats.
+    total_records_synced: int = 0
+    # Measured wall-clock duration of the most recent sync plus a running
+    # average across syncs (seconds). These ground the "first ingestion takes
+    # ~X min" guidance: a real measurement from this workspace beats the
+    # static per-integration estimate once one sync has completed.
+    last_sync_duration_seconds: Optional[float] = None
+    avg_sync_duration_seconds: Optional[float] = None
+    sync_duration_samples: int = 0
+
+    def record_sync_duration(self, seconds: float) -> None:
+        """Fold one completed sync's wall-clock duration into the stats."""
+        self.last_sync_duration_seconds = max(0.0, float(seconds))
+        # Incremental mean over all samples — cheap, stable, and precise
+        # enough for a "~N min" label (no bounded window needed).
+        self.sync_duration_samples += 1
+        if self.avg_sync_duration_seconds is None:
+            self.avg_sync_duration_seconds = self.last_sync_duration_seconds
+        else:
+            self.avg_sync_duration_seconds += (
+                self.last_sync_duration_seconds - self.avg_sync_duration_seconds
+            ) / self.sync_duration_samples
 
 
 @dataclass
@@ -136,6 +167,12 @@ DEFAULT_SYNC_CONFIGS: Dict[str, SyncConfiguration] = {
     ),
 }
 
+# Per-module record bound for the Zoho multi-app sync (Books invoices,
+# Inventory items/sales orders). The adapter pages the provider API up to
+# this many records; 500 keeps a sync to ≤5 requests per module, well
+# inside Books/Inventory rate limits (~100 req/min per org).
+_ZOHO_PER_MODULE_SYNC_LIMIT = 500
+
 
 class HybridDataIngestionService:
     """
@@ -150,7 +187,21 @@ class HybridDataIngestionService:
     
     # Threshold for auto-enabling sync (calls per day)
     AUTO_SYNC_USAGE_THRESHOLD = 10
-    
+
+    # Content-sync modes for storage drives (see get/set_content_mode).
+    CONTENT_MODES = ("full", "hybrid", "list_only")
+    # Storage drives default to "hybrid" — index every file/folder, ingest
+    # content only for user-selected or agent-needed files (bounds disk +
+    # LLM extraction cost).
+    STORAGE_INTEGRATIONS = {
+        "zoho_workdrive",
+        "onedrive",
+        "google_drive",
+        "gdrive",
+        "dropbox",
+        "box",
+    }
+
     def __init__(self, workspace_id: str = "default", tenant_id: str = "default"):
         self.workspace_id = workspace_id
         self.tenant_id = tenant_id
@@ -160,6 +211,11 @@ class HybridDataIngestionService:
         self._sync_tasks: Dict[str, asyncio.Task] = {}
         self._sync_locks: Dict[str, asyncio.Lock] = {}
         self._running = False
+        # Per-integration content mode for storage drives: "full" ingests
+        # every file's content, "hybrid" (default) indexes everything but
+        # ingests content only for user-selected / agent-needed files,
+        # "list_only" keeps just the file/folder index.
+        self.content_modes: Dict[str, str] = {}
         
         # Initialize LanceDB handler
         try:
@@ -189,6 +245,14 @@ class HybridDataIngestionService:
         # usage stats. Previously these were in-memory only and silently lost
         # on every restart.
         self._load_state()
+        # Module fetch failures from the most recent Zoho suite fetch (the
+        # adapter's [] -on-error contract hides them from the record count).
+        self._last_zoho_fetch_errors: List[str] = []
+        # Active OAuth grant ⇒ a scheduled sync exists. Without this, an
+        # integration whose first sync never completed (restart mid-walk)
+        # vanishes from run_scheduled_syncs on every restart — its
+        # ingestion_settings row is only written by a COMPLETED sync.
+        self._seed_token_backed_integrations()
 
     # ------------------------------------------------------------------
     # Phase 0: persistence to ingestion_settings
@@ -197,6 +261,51 @@ class HybridDataIngestionService:
     @staticmethod
     def _persistence_enabled() -> bool:
         return os.getenv("ATOM_INGESTION_PERSIST_STATE", "true").lower() in ("1", "true", "yes")
+
+    def _seed_token_backed_integrations(self):
+        """Seed usage_stats for shipped integrations that have an active token.
+
+        Uses single-operator token semantics (any active row, mirroring
+        ZohoAdapter._load_token's fallback) — workspace drift between the
+        token row and this service must not silently unschedule an
+        integration. Only fills gaps; existing state always wins.
+        """
+        if not self._persistence_enabled():
+            return
+        try:
+            from core.models import IntegrationToken
+
+            db = SessionLocal()
+            try:
+                active_providers = {
+                    row[0]
+                    for row in db.query(IntegrationToken.provider)
+                    .filter(IntegrationToken.status == "active")
+                    .all()
+                }
+            finally:
+                db.close()
+            seeded: List[str] = []
+            for integration_id, config in DEFAULT_SYNC_CONFIGS.items():
+                if integration_id in self.usage_stats or integration_id not in active_providers:
+                    continue
+                self.usage_stats[integration_id] = IntegrationUsageStats(
+                    integration_id=integration_id,
+                    integration_name=integration_id,
+                    workspace_id=self.workspace_id,
+                    auto_sync_enabled=True,
+                )
+                self.sync_configs[integration_id] = config
+                seeded.append(integration_id)
+            for integration_id in seeded:
+                self._persist_integration(integration_id)
+            if seeded:
+                logger.info(
+                    f"Seeded sync state for token-backed integrations: {sorted(seeded)}"
+                )
+        except Exception as e:
+            # Non-fatal by design — degrade to previous in-memory behaviour.
+            logger.debug(f"Token-backed sync seeding skipped: {e}")
 
     def _load_state(self):
         """Rebuild usage_stats / sync_configs from persisted ingestion_settings rows.
@@ -233,7 +342,14 @@ class HybridDataIngestionService:
                         last_synced=last_synced,
                         auto_sync_enabled=bool(usage.get("auto_sync_enabled", row.enabled)),
                         sync_frequency_minutes=usage.get("sync_frequency_minutes", row.sync_frequency_minutes or 60),
+                        total_records_synced=usage.get("total_records_synced", 0),
+                        last_sync_duration_seconds=usage.get("last_sync_duration_seconds"),
+                        avg_sync_duration_seconds=usage.get("avg_sync_duration_seconds"),
+                        sync_duration_samples=usage.get("sync_duration_samples", 0),
+                        sync_cursors=usage.get("sync_cursors") or {},
                     )
+                    if usage.get("content_mode"):
+                        self.content_modes[self._normalize_content_key(row.integration_id)] = usage["content_mode"]
                     self.usage_stats[row.integration_id] = stats
                     if has_config:
                         self.sync_configs[row.integration_id] = SyncConfiguration(
@@ -264,6 +380,64 @@ class HybridDataIngestionService:
         except ValueError:
             return None
 
+    def _normalize_content_key(self, integration_id: str) -> str:
+        return (integration_id or "").strip().lower().replace("-", "_")
+
+    def default_content_mode(self, integration_id: str) -> str:
+        """Storage drives default to hybrid (index all, ingest on demand) to
+        keep disk + LLM cost bounded; everything else ingests fully."""
+        return (
+            "hybrid"
+            if self._normalize_content_key(integration_id) in self.STORAGE_INTEGRATIONS
+            else "full"
+        )
+
+    def get_content_mode(self, integration_id: str) -> str:
+        key = self._normalize_content_key(integration_id)
+        return self.content_modes.get(key) or self.default_content_mode(key)
+
+    def set_content_mode(self, integration_id: str, mode: str) -> None:
+        if mode not in self.CONTENT_MODES:
+            raise ValueError(f"Invalid content mode: {mode}")
+        key = self._normalize_content_key(integration_id)
+        self.content_modes[key] = mode
+        # Ensure a persisted row exists for this integration so the mode
+        # survives restarts (set_content_mode may run before the first sync
+        # creates usage stats).
+        if key not in self.usage_stats:
+            self.usage_stats[key] = IntegrationUsageStats(
+                integration_id=key,
+                integration_name=key,
+                workspace_id=self.workspace_id,
+                auto_sync_enabled=True,
+            )
+        self._persist_integration(key)
+
+    def record_sync_completion(self, integration_id: str,
+                               records_ingested: int, success: bool = True) -> None:
+        """Record a completed sync from OUTSIDE the hybrid pipeline (e.g. the
+        WorkDrive full-sync starter) so integration cards surface real counts.
+
+        Creates the usage entry when missing — same contract as the sync path,
+        so first-run completions are never silently dropped.
+        """
+        stats = self.usage_stats.get(integration_id)
+        if stats is None:
+            stats = IntegrationUsageStats(
+                integration_id=integration_id,
+                integration_name=integration_id,
+                workspace_id=self.workspace_id,
+            )
+            self.usage_stats[integration_id] = stats
+        stats.total_calls += 1
+        if success:
+            stats.successful_calls += 1
+        stats.last_used = datetime.now(timezone.utc)
+        if success:
+            stats.last_synced = datetime.now(timezone.utc)
+            stats.total_records_synced += int(records_ingested or 0)
+        self._persist_integration(integration_id)
+
     def _persist_integration(self, integration_id: str):
         """Write-through the current in-memory state for one integration.
 
@@ -290,8 +464,18 @@ class HybridDataIngestionService:
                     "last_synced": stats.last_synced.isoformat() if stats.last_synced else None,
                     "auto_sync_enabled": stats.auto_sync_enabled,
                     "sync_frequency_minutes": stats.sync_frequency_minutes,
+                    "total_records_synced": stats.total_records_synced,
+                    "last_sync_duration_seconds": stats.last_sync_duration_seconds,
+                    "avg_sync_duration_seconds": stats.avg_sync_duration_seconds,
+                    "sync_duration_samples": stats.sync_duration_samples,
+                    "sync_cursors": stats.sync_cursors or {},
                     **({"sync_role": config.role} if config and config.role else {}),
                 }
+                content_mode = self.content_modes.get(
+                    self._normalize_content_key(integration_id)
+                )
+                if content_mode:
+                    usage_json["content_mode"] = content_mode
 
             db = SessionLocal()
             try:
@@ -430,9 +614,28 @@ class HybridDataIngestionService:
         if lock.locked():
             return {"skipped": True, "reason": "Sync already in progress for this integration"}
         async with lock:
-            return await self._sync_integration_data_impl(
-                integration_id, force=force, discovery_mode=discovery_mode, role=role
-            )
+            # Start-time bookkeeping so status polls can show elapsed time.
+            if not hasattr(self, "_sync_started_at"):
+                self._sync_started_at: Dict[str, datetime] = {}
+            started_at = datetime.now(timezone.utc)
+            self._sync_started_at[integration_id] = started_at
+            try:
+                return await self._sync_integration_data_impl(
+                    integration_id, force=force, discovery_mode=discovery_mode, role=role
+                )
+            finally:
+                self._sync_started_at.pop(integration_id, None)
+                # Wall-clock duration (skipped concurrent calls return early,
+                # so this only sees syncs that actually ran). Feeds the
+                # measured first-ingestion ETA on the integration cards.
+                try:
+                    duration = (datetime.now(timezone.utc) - started_at).total_seconds()
+                    stats = self.usage_stats.get(integration_id)
+                    if stats is not None:
+                        stats.record_sync_duration(duration)
+                        self._persist_integration(integration_id)
+                except Exception as e:
+                    logger.debug(f"Duration recording failed for {integration_id}: {e}")
 
     def _mirror_crm_records_to_sql(self, records: List[Dict[str, Any]], workspace_id: str) -> None:
         """Upsert Zoho CRM leads/deals into sales_leads / sales_deals.
@@ -553,6 +756,18 @@ class HybridDataIngestionService:
             Dict with sync results: records_synced, entities_extracted, etc.
         """
         stats = self.usage_stats.get(integration_id)
+        if stats is None:
+            # First sync on a fresh install: create the entry here. Leaving it
+            # None skipped EVERY stats update below AND persistence (the
+            # `if stats:` guards) — last_synced never landed and the
+            # IngestionSettings row was never written, so integration pages
+            # showed "Never / 0" no matter how many syncs ran.
+            stats = IntegrationUsageStats(
+                integration_id=integration_id,
+                integration_name=integration_id,
+                workspace_id=self.workspace_id,
+            )
+            self.usage_stats[integration_id] = stats
         config = self.sync_configs.get(integration_id)
         if not config:
             # Default-registry fallback: per-workspace config is optional —
@@ -593,9 +808,22 @@ class HybridDataIngestionService:
         }
         
         try:
+            # Watermark for the incremental cursor: taken BEFORE the fetch so
+            # records modified mid-sync are picked up by the next window.
+            fetch_started_at = datetime.now(timezone.utc)
+            # Reset per-run module-error tracking (set by the Zoho fetcher).
+            self._last_zoho_fetch_errors = []
             # Fetch data from integration
             records = await self._fetch_integration_data(integration_id, config, discovery_mode=discovery_mode, role=_role)
             results["records_fetched"] = len(records)
+
+            # A module fetch that failed under its [] -on-error contract must
+            # not mark the sync complete — that would advance the
+            # incremental cursor over records never pulled.
+            fetch_incomplete = integration_id == "zoho" and bool(self._last_zoho_fetch_errors)
+            if fetch_incomplete:
+                results["errors"].extend(self._last_zoho_fetch_errors)
+                results["partial"] = True
 
             # Mirror Zoho CRM leads/deals into the SQL sales tables so the
             # sales dashboard (/api/sales/dashboard/summary) reflects the
@@ -674,6 +902,9 @@ class HybridDataIngestionService:
 
                     # Ingest into LanceDB (to_thread: sync add_document from
                     # the loop thread can never embed — same-thread guard)
+                    # None when there is no memory handler — the GraphRAG
+                    # leg below reads this, so it must always be bound.
+                    _upsert_status = None
                     if self.memory_handler:
                         _meta = {
                             "integration_id": integration_id,
@@ -797,10 +1028,22 @@ class HybridDataIngestionService:
                     results["partial"] = True
                     if stats:
                         stats.last_synced = datetime.now(timezone.utc)
+                        stats.total_records_synced += int(results.get("records_ingested") or 0)
             else:
                 results["success"] = True
                 if stats:
                     stats.last_synced = datetime.now(timezone.utc)
+                    stats.total_records_synced += int(results.get("records_ingested") or 0)
+
+            # An incomplete module fetch downgrades the run regardless of the
+            # per-record error rate: last_synced stays untouched (retry soon)
+            # and the incremental cursor does NOT advance over unpulled data.
+            if fetch_incomplete:
+                results["success"] = False
+                results["partial"] = True
+            elif results["success"] and stats is not None and integration_id == "zoho":
+                stats.sync_cursors[self._ZOHO_CURSOR_KEY] = fetch_started_at.isoformat()
+
             if stats:
                 self._persist_integration(integration_id)
 
@@ -1290,9 +1533,40 @@ class HybridDataIngestionService:
 
         return records
 
+    # One incremental cursor for the whole suite sync. Per-module cursors
+    # would be finer-grained, but every module is bounded by its per-sync
+    # limit and record upserts are idempotent, so a shared window is safe.
+    _ZOHO_CURSOR_KEY = "zoho_fetch"
+    # Re-pull everything when the cursor gets this stale — a periodic full
+    # pass reconciles any delta a provider-side last_modified filter missed
+    # (some Books endpoints filter inconsistently; Airbyte hit this too).
+    _ZOHO_FULL_REPULL_AFTER = timedelta(days=7)
+    # Total WorkDrive file/folder records per suite sync. The walk is
+    # already capped per folder (MAX_RECURSIVE_ITEMS = 2000) — without a
+    # TOTAL cap, 8 folders × 2000 items = 16k records through the ingest
+    # loop, which is what made suite syncs run for hours and die to
+    # restarts before the CRM/Books modules ever ran.
+    _WD_SYNC_FILE_RECORD_CAP = 2000
+
+    def _zoho_incremental_cursor(self) -> Optional[datetime]:
+        """Last cleanly-synced fetch watermark for the Zoho suite — None when
+        absent or stale (stale ⇒ full re-pull for reconciliation)."""
+        stats = self.usage_stats.get("zoho")
+        raw = (stats.sync_cursors or {}).get(self._ZOHO_CURSOR_KEY) if stats else None
+        parsed = self._parse_dt(raw) if raw else None
+        if parsed is None:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) - parsed > self._ZOHO_FULL_REPULL_AFTER:
+            return None
+        return parsed
+
     async def _fetch_zoho_multi_app_data(self, config: SyncConfiguration, discovery_mode: bool = False) -> List[Dict[str, Any]]:
         """Fetch data from all enabled Zoho applications using the Universal Adapter"""
         records = []
+        fetch_errors: List[str] = []
+        modified_since = self._zoho_incremental_cursor()
         try:
             from core.integrations.adapters.zoho import ZohoAdapter
             from core.models import IntegrationToken
@@ -1342,22 +1616,34 @@ class HybridDataIngestionService:
                             break
                     return _resolved_org_id
 
+                def _note_fetch_error(module: str) -> None:
+                    # Fetchers return [] on error (contract) — capture the
+                    # adapter's error flag per module so the sync can refuse
+                    # to advance the incremental cursor over a failed pull.
+                    if adapter.last_error:
+                        fetch_errors.append(f"{module}: {adapter.last_error}")
+
                 for entity_type in config.entity_types:
                     if entity_type == "crm_leads":
-                        records.extend(await adapter.get_leads(limit=100))
+                        records.extend(await adapter.get_leads(limit=100, modified_since=modified_since))
+                        _note_fetch_error("crm_leads")
                     elif entity_type == "crm_deals":
-                        records.extend(await adapter.get_deals(limit=100))
+                        records.extend(await adapter.get_deals(limit=100, modified_since=modified_since))
+                        _note_fetch_error("crm_deals")
                     elif entity_type in ("books_invoices", "inventory_items", "inventory_sales_orders"):
                         # Books/Inventory require organization_id — discovered
                         # and persisted on first sync if absent.
                         org_id = await _resolve_org_id()
                         if org_id:
                             if entity_type == "books_invoices":
-                                records.extend(await adapter.get_invoices(organization_id=org_id, limit=100))
+                                records.extend(await adapter.get_invoices(organization_id=org_id, limit=_ZOHO_PER_MODULE_SYNC_LIMIT, modified_since=modified_since))
+                                _note_fetch_error("books_invoices")
                             elif entity_type == "inventory_items":
-                                records.extend(await adapter.get_items(organization_id=org_id, limit=100))
+                                records.extend(await adapter.get_items(organization_id=org_id, limit=_ZOHO_PER_MODULE_SYNC_LIMIT, modified_since=modified_since))
+                                _note_fetch_error("inventory_items")
                             else:
-                                records.extend(await adapter.get_sales_orders(organization_id=org_id, limit=100))
+                                records.extend(await adapter.get_sales_orders(organization_id=org_id, limit=_ZOHO_PER_MODULE_SYNC_LIMIT, modified_since=modified_since))
+                                _note_fetch_error("inventory_sales_orders")
                     elif entity_type == "projects_tasks":
                         # Discovery mode gates expensive portal/project traversal
                         portal_id = token.credential_metadata.get("portal_id") if token and token.credential_metadata else None
@@ -1376,7 +1662,8 @@ class HybridDataIngestionService:
                         if portal_id:
                             for project_id in projects[:3]: # Sync top 3 active projects
                                 records.extend(await adapter.get_tasks(portal_id=portal_id, project_id=project_id))
-                                
+                        _note_fetch_error("projects_tasks")
+
                     elif entity_type == "workdrive_files":
                         # WorkDrive files/team-folders — the OAuth grant covers
                         # WorkDrive.files/teamfolders; ingest file metadata
@@ -1425,11 +1712,20 @@ class HybridDataIngestionService:
                                 except Exception:
                                     _doc_ingestor = None
 
+                                _wd_appended = 0  # total WD records this sync
                                 for fid in folder_ids[:8]:  # top team folders per sync
+                                    if _wd_appended >= self._WD_SYNC_FILE_RECORD_CAP:
+                                        break
                                     wd_files = await zoho_workdrive_service.list_files(
                                         wd_user, parent_id=fid, recursive=True
                                     )
                                     for f in wd_files:
+                                        if _wd_appended >= self._WD_SYNC_FILE_RECORD_CAP:
+                                            logger.info(
+                                                f"WorkDrive record cap ({self._WD_SYNC_FILE_RECORD_CAP}) "
+                                                "reached for this sync — remaining files next sync"
+                                            )
+                                            break
                                         f_name = (f.get("name") or "").lower()
                                         is_folder = f.get("type") == "folder"
                                         if is_folder:
@@ -1446,6 +1742,7 @@ class HybridDataIngestionService:
                                                 "modified_at": f.get("modified_at"),
                                                 "folder_id": fid,
                                             })
+                                            _wd_appended += 1
                                             continue
                                         ext = ("." + f["extension"].lower()) if f.get("extension") else ""
                                         if ext in _SKIP_EXTS or (ext not in _DOC_EXTS and ext):
@@ -1463,6 +1760,7 @@ class HybridDataIngestionService:
                                             "modified_at": f.get("modified_at"),
                                             "folder_id": fid,
                                         })
+                                        _wd_appended += 1
                                         if (
                                             _doc_ingestor
                                             and ext in (".pdf", ".docx", ".xlsx", ".csv", ".txt", ".md", ".pptx")
@@ -1491,9 +1789,15 @@ class HybridDataIngestionService:
                 logger.info(f"Universal Zoho Sync (Discovery={discovery_mode}): Fetched {len(records)} items across modules")
             finally:
                 db.close()
-                
+
         except Exception as e:
             logger.error(f"Universal Zoho fetch error: {e}")
+            fetch_errors.append(f"fetch: {type(e).__name__}: {e}")
+
+        # Survives the caller's swallow-all except: the sync impl reads this
+        # to mark the run failed so the incremental cursor stays put and the
+        # next pass re-pulls the same window (upserts are idempotent).
+        self._last_zoho_fetch_errors = fetch_errors
 
         return records
 
@@ -1912,14 +2216,26 @@ class HybridDataIngestionService:
 
 # Global internal instance for single-tenant
 _ingestion_service: Optional[HybridDataIngestionService] = None
+# One instance PER workspace, kept alive side by side. The old single-global
+# getter REPLACED the instance whenever a caller resolved a different
+# workspace — destroying the running sync's lock + usage stats mid-flight
+# (observed: suite sync badge flickered off and state vanished between polls
+# because admin ("f348d47d…") and other callers ("default") alternated).
+_ingestion_services: dict[tuple[str, str], HybridDataIngestionService] = {}
 
 
 def get_hybrid_ingestion_service(workspace_id: str = "default", tenant_id: str = "default") -> HybridDataIngestionService:
-    """Get or create the HybridDataIngestionService"""
+    """Get or create the HybridDataIngestionService for this workspace."""
     global _ingestion_service
-    if _ingestion_service is None or _ingestion_service.workspace_id != workspace_id:
-        _ingestion_service = HybridDataIngestionService(workspace_id, tenant_id)
-    return _ingestion_service
+    key = (workspace_id, tenant_id)
+    instance = _ingestion_services.get(key)
+    if instance is None:
+        instance = HybridDataIngestionService(workspace_id, tenant_id)
+        _ingestion_services[key] = instance
+    # Back-compat: code that reads the module global still gets a valid
+    # instance (the most recently requested workspace).
+    _ingestion_service = instance
+    return instance
 
 
 def record_integration_call(

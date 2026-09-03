@@ -221,3 +221,31 @@ def test_closing_tag_lines_pass_unescaped():
     out = OutlookService._body_to_html("<div style=\"x\">Hi</div>\n</div>")
     assert out.count("&lt;/div&gt;") == 0
     assert "</div>" in out
+
+
+# ── HTML tables in the email body (canvas "add table like outlook") ────────
+
+def test_body_to_html_passes_multiline_html_table_through_verbatim():
+    """A table inserted in the canvas email composer spans multiple lines
+    (<tr>/<td> lines). Every table line carries a known tag → the whole
+    body passes through verbatim; escaping would mangle the table into
+    visible HTML text in Outlook."""
+    body = (
+        "<p>Hi Jacob,</p>"
+        '<table style="border-collapse: collapse;">'
+        "<tbody>"
+        "<tr><td>Machine</td><td>Price</td></tr>"
+        "<tr><td>Linmac WG-350DSAV</td><td>$12,400</td></tr>"
+        "</tbody>"
+        "</table>"
+    )
+    html = OutlookService._body_to_html(body)
+    assert "<table" in html and "<td>Machine</td>" in html
+    assert "&lt;table&gt;" not in html, "table must not be escaped into visible text"
+    assert "12,400" in html
+
+
+def test_body_to_html_still_converts_plain_text_lines():
+    body = "Hi Jacob,\nHere are the specs.\nRegards,\nRish M."
+    html = OutlookService._body_to_html(body)
+    assert "<br>" in html and "Hi Jacob," in html

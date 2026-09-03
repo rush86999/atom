@@ -21,6 +21,7 @@ import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import IngestionStatusPanel from '../IngestionStatusPanel';
+import { INGESTION_UPDATED_EVENT } from '@/lib/ingestion-events';
 import { rest } from 'msw';
 import { server } from '@/tests/mocks/server';
 
@@ -61,6 +62,46 @@ describe('IngestionStatusPanel', () => {
     expect(screen.getByTestId('ingestion-last')).toHaveTextContent('5m ago');
     // No start action while the stream is running.
     expect(screen.queryByText('Start sync')).not.toBeInTheDocument();
+  });
+
+  it('refreshes immediately when atom:ingestion-updated fires for its app', async () => {
+    // A panel Ingest just landed — the card must show the new counts the
+    // moment the event fires, not on the next 30s poll.
+    mockStatusOk(statusBody({ records_ingested: 15, stream_running: false }), 'google_drive');
+    render(<IngestionStatusPanel integrationId="google_drive" />);
+    await waitFor(() => {
+      expect(screen.getByTestId('ingestion-records')).toHaveTextContent('15');
+    });
+
+    mockStatusOk(statusBody({ records_ingested: 42, stream_running: false }), 'google_drive');
+    window.dispatchEvent(
+      new CustomEvent(INGESTION_UPDATED_EVENT, {
+        detail: { integrationId: 'google_drive' },
+      })
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ingestion-records')).toHaveTextContent('42');
+    });
+  });
+
+  it('ignores atom:ingestion-updated for a different app', async () => {
+    mockStatusOk(statusBody({ records_ingested: 15, stream_running: false }), 'google_drive');
+    render(<IngestionStatusPanel integrationId="google_drive" />);
+    await waitFor(() => {
+      expect(screen.getByTestId('ingestion-records')).toHaveTextContent('15');
+    });
+
+    mockStatusOk(statusBody({ records_ingested: 99, stream_running: false }), 'google_drive');
+    window.dispatchEvent(
+      new CustomEvent(INGESTION_UPDATED_EVENT, {
+        detail: { integrationId: 'zoho-workdrive' },
+      })
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ingestion-records')).toHaveTextContent('15');
+    });
   });
 
   it('offers Start sync when connected but the stream is stopped', async () => {
@@ -156,5 +197,83 @@ describe('IngestionStatusPanel', () => {
     expect(screen.queryByText('Start sync')).not.toBeInTheDocument();
     expect(screen.queryByTestId('ingestion-records')).not.toBeInTheDocument();
     expect(screen.getByText(/Auto-sync on \(every 15 min\)/i)).toBeInTheDocument();
+  });
+
+  it('guides the user on time to first ingestion before anything is ingested', async () => {
+    mockStatusOk(
+      statusBody({
+        stream_running: false,
+        records_ingested: 0,
+        last_ingested: null,
+        ingestion_status: null,
+        first_ingestion: {
+          phase: 'pending',
+          label: '~5–30 min',
+          seconds: 1050,
+          range: [300, 1800],
+          measured: false,
+          basis: 'initial email history backfill (~90 days)',
+        },
+      })
+    );
+
+    render(<IngestionStatusPanel integrationId="outlook" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('first-ingestion-guidance')).toHaveTextContent(
+        'First sync takes about ~5–30 min once started'
+      );
+    });
+    expect(screen.getByText('Start sync')).toBeInTheDocument();
+  });
+
+  it('shows the running first ingestion with its typical duration', async () => {
+    mockStatusOk(
+      statusBody({
+        stream_running: true,
+        records_ingested: 0,
+        last_ingested: null,
+        ingestion_status: 'active',
+        first_ingestion: {
+          phase: 'in_progress',
+          label: '~5–30 min',
+          seconds: 1050,
+          range: [300, 1800],
+          measured: false,
+          basis: 'initial email history backfill (~90 days)',
+        },
+      })
+    );
+
+    render(<IngestionStatusPanel integrationId="outlook" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('first-ingestion-guidance')).toHaveTextContent(
+        'First ingestion in progress — typically takes ~5–30 min'
+      );
+    });
+    expect(screen.queryByText('Start sync')).not.toBeInTheDocument();
+  });
+
+  it('omits the first-ingestion guidance once records exist', async () => {
+    mockStatusOk(
+      statusBody({
+        first_ingestion: {
+          phase: 'complete',
+          label: '~5–30 min',
+          seconds: 1050,
+          range: [300, 1800],
+          measured: false,
+          basis: 'initial email history backfill (~90 days)',
+        },
+      })
+    );
+
+    render(<IngestionStatusPanel integrationId="outlook" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ingestion-records')).toHaveTextContent('2.0k');
+    });
+    expect(screen.queryByTestId('first-ingestion-guidance')).not.toBeInTheDocument();
   });
 });

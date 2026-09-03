@@ -84,20 +84,69 @@ class UniversalIntegrationService:
         from core.database import SessionLocal
         from core.integration_registry import IntegrationRegistry
 
-        # Circuit Breaker Check
-        if not await circuit_breaker.is_enabled(service):
-            stats = circuit_breaker.get_stats(service)
-            return {
-                "status": "error", 
-                "error": f"Circuit breaker is OPEN for {service}. Cooldown active until {stats['disabled_until']}",
-                "circuit_open": True
-            }
-
         context = context or {}
         user_id = context.get("user_id")
         workspace_id = context.get("workspace_id") or self.workspace_id
         tenant_id = context.get("tenant_id") or workspace_id
         agent_id = context.get("agent_id")
+
+        # --- Tool-error signal capture ---
+        # The evolution harness (ReflectionEngine → Memento/AlphaEvolver)
+        # only learns from FAILED episodes, and episode outcome comes from
+        # execution metadata. Swallowed tool errors (a 400 returned as [])
+        # used to die here invisibly. Record every error/circuit-open/
+        # attribution-hold onto the agent's running execution so episodes
+        # stop recording silent failures as successes. Fire-and-forget,
+        # never breaks the call.
+        async def _record_tool_error(kind: str, detail: str) -> None:
+            try:
+                from core.auto_dev.tool_error_signals import (
+                    record_tool_error,
+                    should_trigger_live,
+                    tool_error_signature,
+                )
+
+                await asyncio.to_thread(
+                    record_tool_error,
+                    agent_id,
+                    service,
+                    action,
+                    f"{kind}: {detail}"[:500],
+                    tenant_id=str(tenant_id or "default"),
+                    user_id=user_id,
+                )
+                # REAL-TIME evolution trigger for the ACTIVE task: the
+                # moment this tool's errors cross the repeat threshold,
+                # propose a tool-mutation fix — no waiting for episode
+                # finalization (one dispatch per signature per 30min).
+                if agent_id and should_trigger_live(
+                    agent_id, tool_error_signature(service, action)
+                ):
+                    from core.auto_dev.reflection_engine import (
+                        trigger_live_tool_fix,
+                    )
+
+                    asyncio.ensure_future(trigger_live_tool_fix(
+                        agent_id=agent_id,
+                        tenant_id=str(tenant_id or "default"),
+                        service=service,
+                        action=action,
+                        error_detail=detail[:400],
+                        execution_id=None,
+                    ))
+            except Exception:
+                pass
+
+        if not await circuit_breaker.is_enabled(service):
+            stats = circuit_breaker.get_stats(service)
+            await _record_tool_error(
+                "circuit_open", f"Circuit breaker OPEN for {service}"
+            )
+            return {
+                "status": "error",
+                "error": f"Circuit breaker is OPEN for {service}. Cooldown active until {stats['disabled_until']}",
+                "circuit_open": True
+            }
 
         # --- Governance Risk Check ---
         # NOTE: the governance_middleware.check_action_risk call was broken
@@ -124,7 +173,55 @@ class UniversalIntegrationService:
                 "intervention_id": risk_result.get("intervention_id"),
                 "message": f"Action paused for manual review: {risk_result['reason']}"
             }
-        
+
+        # --- Outbound attribution check ---
+        # The email body gate (chat_orchestrator + outbound_identity) sees
+        # signatures; IM sends, task assignment, calendar events and CRM
+        # ownership name their sender/assignee/organizer in PARAMS instead.
+        # Same confabulation class (live 2026-09-02: a lead's name used as
+        # sender), gated at this shared chokepoint for ALL integrations.
+        # Shadow by default; enforce refuses off-team attribution. Never
+        # blocks on resolution failure — a broken identity lookup must not
+        # break sends.
+        try:
+            from core.outbound_identity import check_tool_call_attribution
+            identity_verdict = await check_tool_call_attribution(
+                service, action, params, context or {}
+            )
+            if identity_verdict:
+                if (
+                    identity_verdict["mode"] == "enforce"
+                    and identity_verdict["status"] == "external"
+                ):
+                    await _record_tool_error(
+                        "identity_hold",
+                        f"{identity_verdict['field']}='{identity_verdict['value']}' "
+                        "not on tenant team",
+                    )
+                    return {
+                        "status": "paused",
+                        "action": action,
+                        "reason": (
+                            f"{identity_verdict['field']}="
+                            f"'{identity_verdict['value']}' is not on the "
+                            "tenant team — outbound attribution held for "
+                            "review"
+                        ),
+                        "identity_check": identity_verdict,
+                        "message": (
+                            "Action paused: the outbound artifact would be "
+                            "attributed to someone outside the team."
+                        ),
+                    }
+                logger.info(
+                    f"[outbound-identity][{identity_verdict['mode']}] "
+                    f"{service}.{action}: {identity_verdict['field']}="
+                    f"'{identity_verdict['value']}' is "
+                    f"{identity_verdict['status']} (not the acting owner)"
+                )
+        except Exception:
+            pass
+
         try:
             # Use SessionLocal to provide registry with DB access
             with SessionLocal() as db:
@@ -138,6 +235,15 @@ class UniversalIntegrationService:
                 # --- Gatekeeper response field masking (P3) ---
                 # Never return credentials/secret-shaped fields to callers.
                 result = self._mask_response(service, result)
+
+                # Tool-error signal: the integration ran but failed (or the
+                # circuit tripped mid-flight) — feed the evolution harness.
+                if isinstance(result, dict) and result.get("status") in (
+                    "error", "circuit_open",
+                ):
+                    await _record_tool_error(
+                        "tool_error", str(result.get("error") or "")[:400]
+                    )
 
                 # --- Spend Attribution (Phase 44) ---
                 if result.get("status") in ("success", "error"):

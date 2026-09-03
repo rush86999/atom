@@ -10,6 +10,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ChatInput } from '../ChatInput';
+import { AGENT_CHAT } from '@/src/lib/testIds';
 
 describe('ChatInput', () => {
   const mockHandleSend = jest.fn();
@@ -470,5 +471,55 @@ describe('ChatInput', () => {
     // enabled — only input content gates it)
     const buttons = screen.getAllByRole('button');
     expect((buttons[0] as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+// ── image submission (chat vision) ──────────────────────────────────────────
+
+describe('image submission', () => {
+  const props = (overrides: Record<string, unknown> = {}) => ({
+    input: '',
+    setInput: jest.fn(),
+    isProcessing: false,
+    isUploading: false,
+    activeAttachments: [],
+    setActiveAttachments: jest.fn(),
+    handleSend: jest.fn().mockResolvedValue(true),
+    handleStop: jest.fn(),
+    setIsVoiceModeOpen: jest.fn(),
+    uploadFile: jest.fn(),
+    toast: jest.fn(),
+    messagesCount: 0,
+    ...overrides,
+  });
+
+  test('renders pending image thumbnails with a remove control', () => {
+    render(<ChatInput {...props()} pendingImages={['data:image/png;base64,AAA']} />);
+    expect(screen.getByAltText('attachment 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('Remove image')).toBeInTheDocument();
+  });
+
+  test('sends pending images with the message', () => {
+    const handleSend = jest.fn().mockResolvedValue(true);
+    render(
+      <ChatInput
+        {...props({ input: 'what is in this image?', handleSend })}
+        pendingImages={['data:image/png;base64,AAA']}
+      />
+    );
+    fireEvent.click(screen.getByTestId(AGENT_CHAT.SEND_BUTTON));
+    expect(handleSend).toHaveBeenCalledWith(undefined, ['data:image/png;base64,AAA']);
+  });
+
+  test('send is enabled with only images (no text)', () => {
+    render(
+      <ChatInput {...props()} pendingImages={['data:image/png;base64,AAA']} />
+    );
+    expect(screen.getByTestId(AGENT_CHAT.SEND_BUTTON)).not.toBeDisabled();
+  });
+
+  test('image button is disabled while uploading', () => {
+    render(<ChatInput {...props({ isUploading: true })} />);
+    expect(screen.getByTitle('Attach image')).toBeDisabled();
   });
 });

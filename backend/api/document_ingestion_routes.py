@@ -13,6 +13,7 @@ from fastapi import Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from core.base_routes import BaseAPIRouter
+from core.ingestion_feedback import record_ingestion_feedback
 from core.lancedb_handler import get_lancedb_handler
 from core.models import User
 from core.security_dependencies import get_current_user
@@ -191,7 +192,15 @@ async def trigger_document_sync(
         from core.auto_document_ingestion import get_document_ingestion_service
         service = get_document_ingestion_service(get_workspace_id(current_user))
         result = await service.sync_integration(integration_id, force=force)
-        
+
+        # Per-app feedback: the card for THIS integration must reflect the
+        # user-triggered sync (suite apps record under their shared key).
+        record_ingestion_feedback(
+            current_user, integration_id,
+            int(result.get("files_ingested") or 0),
+            bool(result.get("success")),
+        )
+
         return SyncResultResponse(
             integration_id=integration_id,
             success=result.get("success", False),
@@ -681,4 +690,11 @@ async def index_integration_structure(
     )
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error"))
+    # Structure indexing is memory ingestion too — record it against the app
+    # so "Last ingested" reflects mapping the territory, not just contents.
+    record_ingestion_feedback(
+        current_user, integration_id,
+        int(result.get("rows_written") or 0),
+        True,
+    )
     return result

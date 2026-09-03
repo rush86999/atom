@@ -20,6 +20,28 @@ GRAPH_API_BASE = os.getenv(
     "MICROSOFT_GRAPH_BASE_URL", "https://graph.microsoft.com/v1.0"
 ).rstrip("/")
 
+# Characters Graph's $search KQL rejects in free-text terms with a 400
+# ("Syntax error: character '@' is not valid at position 7 in
+# 'jschulz@blumetric.ca'"; live-verified 2026-09-02: '.' is rejected too —
+# 'jschulz blumetric.ca' → "character '.' is not valid at position 17").
+# Email addresses — usually the rarest, most selective term a mailbox
+# search has — always carry '@' and a dot. Kept: word characters,
+# whitespace and apostrophes (O'Brien).
+_KQL_ILLEGAL = re.compile(r"[^\w\s']")
+
+
+def sanitize_graph_kql(query: str) -> str:
+    """Make a free-text query safe for Graph $search KQL.
+
+    'jschulz@blumetric.ca' → 'jschulz blumetric ca' — each fragment is
+    tokenized against the body ('Email : jschulz@blumetric.ca'), so the
+    lead email still matches. A query that is already legal comes back
+    unchanged, so callers can cheaply up-front-sanitize every term.
+    """
+    if not query:
+        return query
+    return _KQL_ILLEGAL.sub(" ", query).strip()
+
 
 @dataclass
 class OutlookUser:
@@ -402,8 +424,12 @@ class OutlookService(IntegrationService):
             }
 
             if query:
+                # OData string literals escape a single quote by doubling it —
+                # a raw query like "O'Brien bandsaw" would otherwise terminate
+                # the literal early and 400 the whole filter.
+                _safe = str(query).replace("'", "''")
                 params["$filter"] = (
-                    f"contains(subject, '{query}') or contains(body/content, '{query}')"
+                    f"contains(subject, '{_safe}') or contains(body/content, '{_safe}')"
                 )
 
             if include_attachments:
@@ -457,7 +483,8 @@ class OutlookService(IntegrationService):
             return []
 
     _HTML_TAG_RE = re.compile(
-        r"<\s*/?\s*(p|br|div|span|ul|ol|li|h[1-6]|hr|table|a|b|i|strong|em|u|font)\b",
+        r"<\s*/?\s*(p|br|div|span|ul|ol|li|h[1-6]|hr|table|thead|tbody|tr|td|th|"
+        r"a|b|i|strong|em|u|font)\b",
         re.IGNORECASE,
     )
 
@@ -1304,6 +1331,11 @@ class OutlookService(IntegrationService):
         passes it through as raw KQL (space-separated terms) — what the chat
         path wants for "find this email … Name : Mark, Kellam", where the
         phrase form would never match the body's punctuation.
+
+        When Graph rejects the query with a 400 (its KQL syntax errors on
+        characters like ``@`` — live 2026-09-02: "jschulz@blumetric.ca" was
+        the only term that could match the lead email, and the 400 silently
+        emptied the search), the query is retried once in sanitized form.
         """
         try:
             # Graph rejects $orderby combined with $search on /me/messages —
@@ -1316,6 +1348,14 @@ class OutlookService(IntegrationService):
             endpoint = f"/me/messages?{query_string}"
 
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
+            if result is None:
+                sanitized = sanitize_graph_kql(query)
+                if sanitized and sanitized != query:
+                    params["$search"] = f'"{sanitized}"' if quote else sanitized
+                    endpoint = f"/me/messages?{urllib.parse.urlencode(params)}"
+                    result = await self._make_graph_request(
+                        user_id, endpoint, access_token=token
+                    )
 
             if result and "value" in result:
                 emails = []

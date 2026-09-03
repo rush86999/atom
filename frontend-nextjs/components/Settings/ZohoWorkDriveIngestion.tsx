@@ -7,6 +7,8 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useToast } from '../ui/use-toast';
 import { HardDrive, RefreshCw, Folder, File, Download, Search, CheckCircle, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Checkbox } from '../ui/checkbox';
+import { notifyIngestionUpdated } from '@/lib/ingestion-events';
 
 interface ZohoFile {
     id: string;
@@ -89,7 +91,10 @@ export default function ZohoWorkDriveIngestion() {
     const [loading, setLoading] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const [ingesting, setIngesting] = useState<string | null>(null);
+    const [ingestingFolder, setIngestingFolder] = useState<string | null>(null);
     const [ingestingAll, setIngestingAll] = useState(false);
+    const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
+    const [ingestingFolders, setIngestingFolders] = useState(false);
     const [ingestedFileIds, setIngestedFileIds] = useState<Set<string>>(new Set());
     const { toast } = useToast();
 
@@ -106,10 +111,24 @@ export default function ZohoWorkDriveIngestion() {
         }
     };
 
-    const handleConnectZoho = () => {
+    const handleConnectZoho = async () => {
         // R88: the authorize endpoint derives identity from the auth session
-        // (JWT/cookie) and fails closed — no user_id is passed or trusted.
-        window.location.href = '/api/v1/auth/oauth/zoho/authorize';
+        // (JWT/cookie) and fails closed. Browser navigations cannot send an
+        // Authorization header, so fetch the provider URL with the JWT in the
+        // header (format=json) and navigate to the returned URL — same
+        // pattern as ZohoIntegrationDetail. A bare navigation 401'd with
+        // "Could not validate credentials".
+        try {
+            const response = await fetch('/api/v1/auth/oauth/zoho/initiate?format=json', {
+                headers: { Authorization: `Bearer ${getAuthToken() || ''}` },
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            if (!data?.url) throw new Error('No auth URL returned');
+            window.location.href = data.url;
+        } catch (err) {
+            console.error('Zoho connect error:', err);
+        }
     };
 
     const fetchTeams = async () => {
@@ -162,6 +181,9 @@ export default function ZohoWorkDriveIngestion() {
                     setIsConnected(true);
                     setFiles(data.data || []);
                     setCurrentFolderId(parent_id);
+                    // The listing changed (navigation/refresh) — selections
+                    // refer to rows that may no longer be on screen.
+                    setSelectedFolderIds(new Set());
                     setLastParams({
                         parent_id,
                         workspace_id,
@@ -199,6 +221,110 @@ export default function ZohoWorkDriveIngestion() {
         await fetchFiles({ parent_id: tf.id, workspace_id: tf.workspace_id, team_id: tf.team_id });
     };
 
+    // Hybrid-ingestion explicit pull: ingest one folder's contents on demand
+    // (user-selected), regardless of the bulk content-mode setting.
+    const handleIngestFolder = async (folder: { id: string; name: string; workspace_id?: string; team_id?: string }) => {
+        setIngestingFolder(folder.id);
+        try {
+            const response = await fetch('/api/zoho-workdrive/ingest-folder', {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    folder_id: folder.id,
+                    ...(folder.workspace_id ? { workspace_id: folder.workspace_id } : {}),
+                    ...(folder.team_id ? { team_id: folder.team_id } : {}),
+                    recursive: true,
+                })
+            });
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(extractErrorMessage(text, response.status));
+            }
+            const data = await response.json();
+            if (data.success) {
+                const count = data.files_ingested ?? 0;
+                notifyIngestionUpdated("zoho-workdrive");
+                toast({
+                    title: "Folder Ingestion Complete",
+                    description: `Ingested ${count} file${count === 1 ? '' : 's'} from "${folder.name}" into AI working memory.` +
+                        (data.errors?.length ? ` (${data.errors.length} failed)` : ''),
+                });
+            } else {
+                throw new Error(data.error || 'Folder ingestion failed');
+            }
+        } catch (err: any) {
+            toast({
+                title: "Folder Ingestion Failed",
+                description: err.message,
+                variant: "error"
+            });
+        } finally {
+            setIngestingFolder(null);
+        }
+    };
+
+    // Multi-folder ingestion: one backend call carries every selected folder;
+    // the server ingests each tree and isolates per-folder failures.
+    const handleIngestSelectedFolders = async () => {
+        const folders = files.filter(
+            f => f.type === 'folder' && selectedFolderIds.has(f.id)
+        );
+        if (folders.length === 0) return;
+
+        setIngestingFolders(true);
+        try {
+            const response = await fetch('/api/zoho-workdrive/ingest-folder', {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    folder_ids: folders.map(f => f.id),
+                    ...(lastParams.workspace_id ? { workspace_id: lastParams.workspace_id } : {}),
+                    ...(lastParams.team_id ? { team_id: lastParams.team_id } : {}),
+                    recursive: true,
+                })
+            });
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(extractErrorMessage(text, response.status));
+            }
+            const data = await response.json();
+            if (data.success) {
+                const succeeded = data.folders_succeeded ?? folders.length;
+                notifyIngestionUpdated("zoho-workdrive");
+                toast({
+                    title: "Folder Ingestion Complete",
+                    description: `Ingested ${data.files_ingested ?? 0} file(s) from ${succeeded} of ${folders.length} folder(s) into AI working memory.` +
+                        ((data.files_ingested ?? 0) === 0 ? ' No parseable files found.' : ''),
+                });
+                setSelectedFolderIds(new Set());
+            } else {
+                throw new Error(data.error || 'Folder ingestion failed');
+            }
+        } catch (err: any) {
+            toast({
+                title: "Folder Ingestion Failed",
+                description: err.message,
+                variant: "error"
+            });
+        } finally {
+            setIngestingFolders(false);
+        }
+    };
+
+    const toggleFolderSelection = (folderId: string, checked: boolean) => {
+        setSelectedFolderIds(prev => {
+            const next = new Set(prev);
+            if (checked) {
+                next.add(folderId);
+            } else {
+                next.delete(folderId);
+            }
+            return next;
+        });
+    };
+
+    const listedFolders = files.filter(f => f.type === 'folder');
+
     const handleBreadcrumb = (b: Breadcrumb) => {
         if (b.id === 'root') {
             fetchFiles({ parent_id: 'root' });
@@ -225,6 +351,7 @@ export default function ZohoWorkDriveIngestion() {
             const data = await response.json();
             if (data.success) {
                 setIngestedFileIds(prev => new Set(prev).add(file.id));
+                notifyIngestionUpdated("zoho-workdrive");
                 toast({
                     title: "Ingestion Successful",
                     description: `Loaded ${file.name} into AI Employee working memory.`,
@@ -275,6 +402,7 @@ export default function ZohoWorkDriveIngestion() {
             const data = await response.json();
             if (data.success) {
                 const ingested = data.files_ingested ?? 0;
+                notifyIngestionUpdated("zoho-workdrive");
                 // Only mark the visible files as ingested when every file in
                 // the folder actually landed — per-file errors are listed in
                 // data.errors and surfaced via the toast instead.
@@ -407,11 +535,57 @@ export default function ZohoWorkDriveIngestion() {
                                             </p>
                                         </div>
                                     </div>
-                                    <Button variant="ghost" size="sm" onClick={() => openTeamFolder(tf)}>
-                                        Open
-                                    </Button>
+                                    <div className="flex items-center gap-2 pr-3">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleIngestFolder({ id: tf.id, name: tf.name, workspace_id: tf.workspace_id, team_id: tf.team_id })}
+                                            disabled={ingestingFolder === tf.id}
+                                            className="border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300"
+                                        >
+                                            <Download className={`w-3 h-3 mr-1 ${ingestingFolder === tf.id ? 'animate-bounce' : ''}`} />
+                                            {ingestingFolder === tf.id ? 'Ingesting…' : 'Ingest'}
+                                        </Button>
+                                        <Button variant="ghost" size="sm" onClick={() => openTeamFolder(tf)}>
+                                            Open
+                                        </Button>
+                                    </div>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {/* Multi-folder selection bar */}
+                    {listedFolders.length > 0 && (
+                        <div className="flex items-center gap-3">
+                            {selectedFolderIds.size > 0 ? (
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleIngestSelectedFolders}
+                                        disabled={ingestingFolders || ingestingAll}
+                                        className="border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300"
+                                    >
+                                        <Download className={`w-4 h-4 mr-2 ${ingestingFolders ? 'animate-bounce' : ''}`} />
+                                        {ingestingFolders
+                                            ? 'Ingesting…'
+                                            : `Ingest ${selectedFolderIds.size} folder${selectedFolderIds.size === 1 ? '' : 's'}`}
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setSelectedFolderIds(new Set())}
+                                        disabled={ingestingFolders}
+                                    >
+                                        Clear selection
+                                    </Button>
+                                </>
+                            ) : (
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    Tick folders to ingest several at once (each folder is ingested with all its subfolders).
+                                </span>
+                            )}
                         </div>
                     )}
 
@@ -459,6 +633,17 @@ export default function ZohoWorkDriveIngestion() {
                                         className={`flex items-center justify-between p-3 hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800 transition-colors${file.type === 'folder' ? ' cursor-pointer' : ''}`}
                                     >
                                         <div className="flex items-center gap-3 min-w-0">
+                                            {file.type === 'folder' && (
+                                                <span onClick={(e) => e.stopPropagation()}>
+                                                    <Checkbox
+                                                        aria-label={`Select folder ${file.name}`}
+                                                        checked={selectedFolderIds.has(file.id)}
+                                                        onCheckedChange={(checked) =>
+                                                            toggleFolderSelection(file.id, checked === true)
+                                                        }
+                                                    />
+                                                </span>
+                                            )}
                                             {file.type === 'folder' ? (
                                                 <Folder className="w-5 h-5 text-yellow-500 flex-shrink-0" />
                                             ) : (
@@ -481,9 +666,21 @@ export default function ZohoWorkDriveIngestion() {
 
                                         <div className="flex items-center gap-2">
                                             {file.type === 'folder' ? (
-                                                <Button variant="ghost" size="sm" onClick={() => fetchFiles({ parent_id: file.id, folderName: file.name })}>
-                                                    Open
-                                                </Button>
+                                                <>
+                                                    <Button variant="ghost" size="sm" onClick={() => fetchFiles({ parent_id: file.id, folderName: file.name })}>
+                                                        Open
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleIngestFolder({ id: file.id, name: file.name })}
+                                                        disabled={ingestingFolder === file.id || ingestingAll}
+                                                        className="border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300"
+                                                    >
+                                                        <Download className={`w-3 h-3 mr-1 ${ingestingFolder === file.id ? 'animate-bounce' : ''}`} />
+                                                        {ingestingFolder === file.id ? 'Ingesting…' : 'Ingest folder'}
+                                                    </Button>
+                                                </>
                                             ) : (
                                                 <Button
                                                     variant={isIngested ? "secondary" : "outline"}

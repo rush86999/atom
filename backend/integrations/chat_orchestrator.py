@@ -23,6 +23,10 @@ from core.evidence_grounding import (
     EVIDENCE_GROUNDING_RULE,
     asserts_unverified_confirmation,
 )
+from core.outbound_identity import (
+    identity_rule_block,
+    signature_signer_status,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -604,7 +608,8 @@ class ChatOrchestrator:
         message: str,
         session_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-        routing_overrides: Optional[Dict[str, str]] = None
+        routing_overrides: Optional[Dict[str, str]] = None,
+        images: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Process a chat message and coordinate across all ATOM features.
@@ -774,6 +779,7 @@ class ChatOrchestrator:
                     tool_plan_task=_tool_plan_task,
                     mission_critical=bool((context or {}).get("mission_critical")),
                     canvas_provenance=(context or {}).get("canvas_provenance"),
+                    images=images,
                 )
             finally:
                 if _tool_plan_task is not None:
@@ -1115,8 +1121,14 @@ class ChatOrchestrator:
         canvas_context: Optional[Dict[str, Any]] = None,
         mission_critical: bool = False,
         canvas_provenance: Optional[Dict[str, Any]] = None,
+        images: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
+
+        ``images``: user-submitted image data URLs for this turn — routed to
+        vision-capable models via the handler's image_payload path (streaming
+        is bypassed on image turns: the stream request has no vision
+        coordination).
 
         Returns ``{"content": str, "model": str, "provider": str}`` on success
         (so model identity can be surfaced to the UI and tied to feedback), or
@@ -1164,6 +1176,42 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
 """ + _APPROVAL_EXECUTION_RULE + "\n\n" + EVIDENCE_GROUNDING_RULE
 
+            # OUTBOUND IDENTITY: resolved per-install data — the agent's
+            # OWNER (agents are owned by, and trained by, one user) falling
+            # back to the session user, plus the tenant team set from users
+            # + installation profile people (role/domain classified).
+            # Appended AFTER the persona branch below, which reassigns the
+            # prompt — both the platform and hire voices carry the rule.
+            _identity_rule = ""
+            _outbound_signers: Optional[Dict[str, Any]] = None
+            if user_id or agent_id:
+                try:
+                    _outbound_signers = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            collect_team_signers, user_id, self.tenant_id, agent_id
+                        ),
+                        timeout=5,
+                    )
+                except Exception as id_err:
+                    logger.debug(f"outbound identity resolution skipped: {id_err}")
+            _primary = (_outbound_signers or {}).get("primary")
+            _team = (_outbound_signers or {}).get("team") or []
+            # Composer signature only matters for email artifacts; mined for
+            # the SIGNING identity (the owner), not the session user.
+            if _primary and _primary.get("user_id") and (
+                (canvas_context or {}).get("canvas_type") == "email"
+            ):
+                try:
+                    _sig_ident = await asyncio.wait_for(
+                        self._sender_identity(_primary["user_id"], "email"),
+                        timeout=5,
+                    )
+                    if (_sig_ident or {}).get("signature"):
+                        _primary = {**_primary, "signature": _sig_ident["signature"]}
+                except Exception as sig_err:
+                    logger.debug(f"composer signature lookup skipped: {sig_err}")
+            _identity_rule = identity_rule_block(_primary, _team)
+
             # Chatting WITH a hire: the employee speaks as themselves, not as
             # the platform. Persona and tier behavior come from the registry,
             # so "chat with my SDR" answers as the SDR within its maturity
@@ -1197,6 +1245,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         + _APPROVAL_EXECUTION_RULE
                         + "\n\n" + EVIDENCE_GROUNDING_RULE
                     )
+
+            if _identity_rule:
+                system_prompt += "\n\n" + _identity_rule
 
             messages = [
                 {
@@ -1354,6 +1405,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         execute_tool_plan(
                             _plan, user_id, self.tenant_id,
                             context={
+                                "agent_id": agent_id,
                                 "history": (planner_history or history or [])[-6:],
                                 "canvas": {
                                     "title": canvas_context.get("title"),
@@ -1465,6 +1517,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 and user_id and session_id
                 # routing_overrides is None on the common path — must not crash
                 and not (routing_overrides or {}).get("model")
+                # image turns use the non-streaming vision path (image_payload
+                # → vision-capable model routing); the stream request has no
+                # vision coordination
+                and not images
             ):
                 try:
                     import time as _time
@@ -1558,6 +1614,49 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not asserts_unverified_confirmation(message, _fixed):
                                 _streamed = _fixed
+                        # IDENTITY GUARD (streaming): two tiers — a signer
+                        # who is not on the tenant's team is the hard
+                        # confabulation class (observed live 2026-09-02: a
+                        # draft to one lead was signed with ANOTHER lead's
+                        # name); a teammate-but-not-owner signature is an
+                        # attribution miss. One regeneration each; if it
+                        # still violates, ship anyway — the supervisor sees
+                        # the draft (HITL), the violation is logged.
+                        elif signature_signer_status(_streamed, _primary, _team):
+                            _wrong, _wrong_kind = signature_signer_status(_streamed, _primary, _team)
+                            _owner = (_primary or {}).get("name")
+                            if _wrong_kind == "external":
+                                logger.warning(
+                                    f"streamed reply signs as {_wrong!r} — NOT on the "
+                                    f"tenant team; identity regeneration")
+                                messages.append({"role": "system", "content": (
+                                    f"Your previous reply signed the message as "
+                                    f"{_wrong!r}, who is not on this business's team. "
+                                    f"The sender is {_owner}. Regenerate the reply "
+                                    "with the SAME content but signed with the "
+                                    "sender's own name/signature only. Never name "
+                                    "a lead, customer, or any external contact as sender."
+                                )})
+                            else:
+                                logger.warning(
+                                    f"streamed reply signs as teammate {_wrong!r} "
+                                    f"instead of the owner; attribution regeneration")
+                                messages.append({"role": "system", "content": (
+                                    f"Your previous reply signed the message as "
+                                    f"{_wrong!r}. You work on behalf of {_owner}; "
+                                    "sign with THEIR name/signature. Regenerate "
+                                    "the reply with the SAME content, signed as "
+                                    f"{_owner}."
+                                )})
+                            _fix = await self.llm_service.generate_completion(
+                                messages=messages,
+                                model=forced_model,
+                                tenant_id=self.tenant_id,
+                                **extra_kwargs,
+                            )
+                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            if _fixed and not signature_signer_status(_fixed, _primary, _team):
+                                _streamed = _fixed
                         await _ws_manager.broadcast(f"user:{user_id}", {
                             "type": "chat_token_done",
                             "data": {
@@ -1650,6 +1749,44 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _fixed = _strip_protocol_tags(
                         (response_data or {}).get("content"))
                     if _fixed and not asserts_unverified_confirmation(message, _fixed):
+                        _content = _fixed
+                        response_data = {**response_data, "content": _fixed}
+                # IDENTITY GUARD (non-streaming): same two-tier wrong-signer
+                # backstop as the streaming path.
+                elif signature_signer_status(_content, _primary, _team):
+                    _wrong, _wrong_kind = signature_signer_status(_content, _primary, _team)
+                    _owner = (_primary or {}).get("name")
+                    if _wrong_kind == "external":
+                        logger.warning(
+                            f"reply signs as {_wrong!r} — NOT on the tenant "
+                            f"team; identity regeneration")
+                        messages.append({"role": "system", "content": (
+                            f"Your previous reply signed the message as "
+                            f"{_wrong!r}, who is not on this business's team. "
+                            f"The sender is {_owner}. Regenerate the reply "
+                            "with the SAME content but signed with the "
+                            "sender's own name/signature only. Never name a "
+                            "lead, customer, or any external contact as sender."
+                        )})
+                    else:
+                        logger.warning(
+                            f"reply signs as teammate {_wrong!r} instead of "
+                            f"the owner; attribution regeneration")
+                        messages.append({"role": "system", "content": (
+                            f"Your previous reply signed the message as "
+                            f"{_wrong!r}. You work on behalf of {_owner}; "
+                            "sign with THEIR name/signature. Regenerate the "
+                            f"reply with the SAME content, signed as {_owner}."
+                        )})
+                    response_data = await self.llm_service.generate_completion(
+                        messages=messages,
+                        model=forced_model,
+                        tenant_id=self.tenant_id,
+                        **extra_kwargs,
+                    )
+                    _fixed = _strip_protocol_tags(
+                        (response_data or {}).get("content"))
+                    if _fixed and not signature_signer_status(_fixed, _primary, _team):
                         _content = _fixed
                         response_data = {**response_data, "content": _fixed}
                 if _tool_block and len(_content) < 20:

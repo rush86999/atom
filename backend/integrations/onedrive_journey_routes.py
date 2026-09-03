@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from core.auth import get_current_user
+from core.ingestion_feedback import record_ingestion_feedback
 from core.models import User
 from integrations.onedrive_service import OneDriveService
 
@@ -36,6 +37,17 @@ _service = OneDriveService()
 class IngestDocumentRequest(BaseModel):
     file_id: str = Field(..., description="Graph drive item id")
     metadata: Optional[Dict[str, Any]] = None
+
+
+class FolderRef(BaseModel):
+    id: str = Field(..., description="Graph drive folder item id")
+    name: Optional[str] = Field(None, description="Folder name (display only)")
+
+
+class IngestFoldersRequest(BaseModel):
+    folders: List[FolderRef] = Field(
+        ..., min_length=1, description="Folders to ingest — each subtree is walked recursively"
+    )
 
 
 def _normalize_item(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -109,7 +121,63 @@ async def ingest_document(
     result = await _service.ingest_file_to_memory(
         token, body.file_id, extra_metadata=extra_meta or None
     )
+    record_ingestion_feedback(
+        current_user, "onedrive", 1 if result.get("success") else 0,
+        bool(result.get("success")),
+    )
     return result
+
+
+@router.post("/ingest-folders")
+async def ingest_folders(
+    body: IngestFoldersRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Ingest multiple folders at once — every selected folder's subtree is
+    walked and ingested (same pipeline as /sync, scoped per folder).
+
+    Folders are processed sequentially and isolated: one bad folder id or
+    inaccessible subtree never aborts the rest.
+    """
+    token = await _service.get_access_token(str(current_user.id))
+    if not token:
+        return {"success": False, "error": "not_connected"}
+
+    results: List[Dict[str, Any]] = []
+    total_ingested = 0
+    for folder in body.folders:
+        try:
+            res = await _service.ingest_folder_to_memory(
+                token, folder.id, folder_name=folder.name
+            )
+        except Exception as e:
+            logger.error(
+                f"OneDrive folder ingestion failed for {folder.name or folder.id}: {e}"
+            )
+            res = {
+                "success": False,
+                "folder_id": folder.id,
+                "folder_name": folder.name,
+                "error": str(e),
+            }
+        if res.get("success"):
+            total_ingested += res.get("files_ingested", 0) or 0
+        results.append(res)
+
+    # Per-app feedback: the user just ingested from THIS integration, so its
+    # card's "Records ingested / Last ingested" must reflect it.
+    record_ingestion_feedback(
+        current_user, "onedrive", total_ingested,
+        any(r.get("success") for r in results),
+    )
+
+    return {
+        "success": any(r.get("success") for r in results),
+        "folders_requested": len(body.folders),
+        "folders_succeeded": sum(1 for r in results if r.get("success")),
+        "files_ingested": total_ingested,
+        "results": results,
+    }
 
 
 @router.post("/sync")
@@ -121,7 +189,13 @@ async def full_sync(current_user: User = Depends(get_current_user)):
     token = await _service.get_access_token(str(current_user.id))
     if not token:
         return {"success": False, "error": "not_connected"}
-    return await _service.full_sync(str(current_user.id), token)
+    result = await _service.full_sync(str(current_user.id), token)
+    record_ingestion_feedback(
+        current_user, "onedrive",
+        int((result or {}).get("files_ingested") or 0),
+        bool(isinstance(result, dict) and result.get("success")),
+    )
+    return result
 
 
 @auth_router.get("/authorize")

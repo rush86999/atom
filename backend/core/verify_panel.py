@@ -54,7 +54,9 @@ JUDGE_SYSTEM = (
     "factual claims — only verify factual assertions (companies, people, "
     "numbers, events, capabilities). Mark grounded=true unless you can name "
     "specific claims the CONTEXT does not support. Be conservative: "
-    "unsupported means the context contradicts or plainly lacks the claim."
+    "unsupported means the context contradicts or plainly lacks the claim. "
+    "Be terse: return the verdict JSON without long reasoning — a verdict "
+    "that runs out of tokens mid-analysis counts as no verdict at all."
 )
 
 JUDGE_PROMPT_TEMPLATE = (
@@ -154,13 +156,18 @@ async def verify_reply(
         return result
     try:
         voter = SelfConsistencyVoter(handler=handler, tenant_id=tenant_id)
+        # max_tokens: 500 was exhausted MID-ANALYSIS by reasoning judges on
+        # the live 2026-09-02 run (finish_reason=length, content=None, all 3
+        # samples) — a judge that never reaches its verdict is vote noise.
+        # The panel only runs on mission-critical/complex turns, so the
+        # extra headroom is cheap; judges that finish early stop anyway.
         vote_result = await voter.vote_with_consensus(
             prompt=JUDGE_PROMPT_TEMPLATE.format(
                 context=evidence[:6000], answer=answer[:4000]
             ),
             response_model=VerifyVerdict,
             temperature=0.0,
-            max_tokens=500,
+            max_tokens=1200,
             sample_count=samples,
             agent_id=agent_id,
             system_instruction=JUDGE_SYSTEM,

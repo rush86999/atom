@@ -441,8 +441,27 @@ async def lifespan(app: FastAPI):
                 or os.getenv("PYTEST_CURRENT_TEST") is not None
             )
             if os.getenv("ENVIRONMENT") != "production" and not is_test_mode:
+                # Register late-imported model modules FIRST — create_all
+                # only covers Base subclasses that have been imported, and
+                # the auto-dev tables (skill_candidates, tool_mutations)
+                # used to be missing on fresh installs until long after.
+                from core.auto_dev import models as _autodev_models  # noqa: F401
+
                 Base.metadata.create_all(bind=engine)
                 logger.info("✓ Database tables initialized")
+
+                # Memory-store reconciliation BEFORE any worker touches
+                # LanceDB: adopt legacy CWD-relative stores (repo-root
+                # data/atom_memory) into the anchored backend store —
+                # idempotent, never overwrites an anchored store that
+                # already has tables.
+                from core.memory_store_bootstrap import reconcile_memory_store
+
+                _store_recon = reconcile_memory_store()
+                if _store_recon.get("migrated"):
+                    logger.warning(
+                        f"✓ Memory store reconciled from legacy location: "
+                        f"{[m['workspace'] for m in _store_recon['migrated']]}")
             elif is_test_mode:
                 logger.info("⊘ Skipping table creation in test mode (fixture managed)")
             else:
@@ -570,14 +589,15 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to run execution recovery sweep: {e}")
 
         # 6. Start Hybrid Ingestion scheduled sync loop (pull integrations into memory)
-        # Opt-in via env (default off) to avoid surprising existing deployments.
-        if os.getenv("ENABLE_INGESTION_SYNC", "false").lower() == "true":
+        # Auto-sync is on by default (integrations should stay fresh without a
+        # manual toggle). Disable explicitly with ENABLE_INGESTION_SYNC=false.
+        if os.getenv("ENABLE_INGESTION_SYNC", "true").lower() == "true":
             try:
                 from core.hybrid_data_ingestion import get_hybrid_ingestion_service
 
                 ingestion_service = get_hybrid_ingestion_service()
                 _spawn_background_task(ingestion_service.run_scheduled_syncs())
-                logger.info("✓ Hybrid ingestion scheduled-sync loop started (ENABLE_INGESTION_SYNC=true)")
+                logger.info("✓ Hybrid ingestion scheduled-sync loop started")
             except Exception as e:
                 logger.error(f"Failed to start hybrid ingestion sync loop: {e}")
 
@@ -619,6 +639,19 @@ async def lifespan(app: FastAPI):
                 logger.info("✓ Org Ingestion Hub member pull loop started (ATOM_ORG_HUB_URL set)")
             except Exception as e:
                 logger.error(f"Failed to start org hub pull loop: {e}")
+
+        # 6c. Webhook ingestion queue worker. With Redis configured,
+        # enqueue_ingestion_job only LPUSHes to ingestion:webhook:jobs and
+        # nothing consumed the queue — pushed records (e.g. zoho_books
+        # deliveries) sat in Redis forever while the no-Redis path processed
+        # inline. This loop RPOPs each job through the same pipeline.
+        try:
+            from core.webhook_ingestion_triggers import WebhookIngestionQueue
+
+            _spawn_background_task(WebhookIngestionQueue().run_worker_loop())
+            logger.info("✓ Webhook ingestion queue worker started")
+        except Exception as e:
+            logger.error(f"Failed to start webhook ingestion queue worker: {e}")
 
         # Outlook: the scripted automation loop is REMOVED — the governed
         # email agent (core.email_agent) handles inbox work through MCP gates
@@ -728,6 +761,19 @@ async def lifespan(app: FastAPI):
             queue_worker = QueueProcessingWorker(interval_seconds=60)
             _spawn_background_task(queue_worker.run())
             logger.info("✓ Queue Processing Worker running")
+
+            # 8c. Proactive Zoho token refresh — keeps the suite grant's
+            # access token fresh ahead of expiry so a connect that isn't
+            # followed by a data sync never degrades into 401s on the
+            # record modules (CRM/Books/Inventory).
+            try:
+                from workers.token_refresh_worker import TokenRefreshWorker
+
+                token_refresh_worker = TokenRefreshWorker(interval_seconds=300)
+                _spawn_background_task(token_refresh_worker.run())
+                logger.info("✓ Token Refresh Worker running")
+            except Exception as e:
+                logger.warning(f"Token Refresh Worker skipped: {e}")
 
             # 8b. Telegram long-polling worker — NAT-friendly IM for the
             # Personal Edition: no public URL, tunnel, or domain required.
@@ -933,6 +979,20 @@ async def lifespan(app: FastAPI):
 
         except Exception as e:
             logger.error(f"Failed to start Supervision System or Webhook Renewal workers: {e}")
+
+    # 10b. Auto-Dev ReflectionEngine — the listener that turns emitted
+    # task-fail events into Memento skill / AlphaEvolver tool-mutation
+    # candidates. The engine and the event emission both existed, but
+    # nothing ever CONSTRUCTED the listener, so failures were emitted into
+    # the void and the evolution harness was inert. Idempotent; sessionless
+    # listener mode (fresh DB session per event).
+    try:
+        from core.auto_dev.reflection_engine import register_global
+
+        register_global()
+        logger.info("✓ Auto-Dev ReflectionEngine registered on event bus")
+    except Exception as e:
+        logger.error(f"Failed to register Auto-Dev ReflectionEngine: {e}")
 
     # 10. Webhook Processing Worker — module does not exist (never created).
     # The old try/except silently swallowed the ImportError on every startup,
@@ -2584,6 +2644,17 @@ try:
         app.include_router(evolution_router, prefix="/api/evolution", tags=["Evolution"])
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load evolution routes: {e}")
+
+    # Auto-Dev review — supervisor surface for pending Memento skill
+    # candidates / AlphaEvolver tool mutations and the tool-error patterns
+    # that produced them (evolution harness journey, 2026-09-02).
+    try:
+        from api.autodev_review_routes import router as autodev_review_router
+
+        app.include_router(autodev_review_router, tags=["Auto-Dev Review"])
+        logger.info("✓ Auto-Dev Review Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Failed to load auto-dev review routes: {e}")
 
     # Canvas Skill Integration
     try:

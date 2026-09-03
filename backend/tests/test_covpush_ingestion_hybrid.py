@@ -91,11 +91,17 @@ class TestHybridUsageStats:
         assert hybrid._check_auto_enable_sync("nope") is None
 
     def test_check_auto_enable_below_threshold(self, hybrid):
+        # Auto-sync defaults ON; the usage threshold only governs
+        # RE-enabling after an explicit opt-out.
+        hybrid.record_integration_usage("hubspot", "HubSpot")
+        hybrid.disable_auto_sync("hubspot")
         for _ in range(5):
             hybrid.record_integration_usage("hubspot", "HubSpot")
         assert hybrid.usage_stats["hubspot"].auto_sync_enabled is False
 
     def test_check_auto_enable_above_threshold(self, hybrid):
+        hybrid.record_integration_usage("hubspot", "HubSpot")
+        hybrid.disable_auto_sync("hubspot")
         for _ in range(11):
             hybrid.record_integration_usage("hubspot", "HubSpot")
         assert hybrid.usage_stats["hubspot"].auto_sync_enabled is True
@@ -140,7 +146,8 @@ class TestHybridUsageStats:
         summary = hybrid.get_usage_summary()
         assert summary["workspace_id"] == "ws-h"
         assert len(summary["integrations"]) == 2
-        assert summary["auto_sync_enabled_count"] == 1
+        # auto-sync defaults ON — both recorded integrations carry True.
+        assert summary["auto_sync_enabled_count"] == 2
         hubspot = [i for i in summary["integrations"] if i["id"] == "hubspot"][0]
         assert hubspot["entity_types"] == ["contacts", "companies", "deals", "tickets"]
 
