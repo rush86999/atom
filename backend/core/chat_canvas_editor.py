@@ -81,8 +81,17 @@ class CanvasEditPlan(BaseModel):
     # reserved for explicit rewrite requests; then every section unrelated
     # to the request must still be reproduced EXACTLY as the current content
     # has it.
+    # "restore": revert the canvas to an earlier version by id —
+    # restore_audit_id names the version (from the RECENT VERSIONS section).
+    # Applied deterministically through the audit-trail restore, so the
+    # restored content is EXACT no matter how long it is (the old path made
+    # the model copy the version's text out of a trimmed excerpt, which
+    # garbled or truncated anything over a few hundred chars).
     edit_mode: Optional[str] = None
     ops: List[CanvasPatchOp] = []
+    # Version to restore (edit_mode="restore"): the audit_id of one of the
+    # RECENT VERSIONS entries, copied verbatim — never invented.
+    restore_audit_id: Optional[str] = None
     # Complete new canvas content as a JSON-encoded string (replace mode) —
     # strings survive every structured-output provider (weak models mangle
     # free-form object fields far more often than string fields).
@@ -138,10 +147,15 @@ the authority, NOT your memory of earlier drafts:
   full set of keys is also fine). Match the current shape (same value
   types); never return a fragment or an explanation.
 - RECENT VERSIONS (when present in the prompt) hold earlier drafts of this
-  canvas. To go back to one, return edit_mode="replace" copying that
-  version's content VERBATIM from the section — then apply any extra change
-  the user asked for on top. Never invent text for a version that isn't
-  shown; if none matches what the user describes, say so instead of guessing.
+  canvas, each stamped with its version_id. To go back to one, PREFER
+  edit_mode="restore" with restore_audit_id set to that version's
+  version_id (copied VERBATIM — never invented): the restore is exact and
+  lossless even for content longer than the excerpt shown. Fall back to
+  edit_mode="replace" copying that version's content only when no
+  version_id is shown for it. Never invent text for a version that isn't
+  shown; if none matches what the user describes, say so instead of
+  guessing. Restoring when the user asks to go back also beats "patching"
+  toward an earlier draft from memory.
 - Remove meta-commentary ("Here's your draft...", "Want me to adjust...")
   from the content itself — the canvas holds only the artifact.
 - Send/dispatch requests ("send it", "email it to Mark", "try sending
@@ -649,17 +663,25 @@ def _versions_section(
         when = (v.get("created_at") or "earlier").replace("T", " ")[:19]
         actor = v.get("actor") or "unknown"
         title = f", title: {v['title']}" if v.get("title") else ""
+        version_id = str(v.get("audit_id") or "").strip()
         trimmed = text[:_VERSION_CHARS] + ("…(trimmed)" if len(text) > _VERSION_CHARS else "")
-        lines.append(f"[{when} — {actor}{title}]\n{trimmed}")
+        stamp = f"[{when} — {actor}{title}]"
+        if version_id:
+            stamp += f" version_id: {version_id}"
+        lines.append(f"{stamp}\n{trimmed}")
 
     if not lines:
         return ""
     return (
-        "RECENT VERSIONS of this canvas (newest first, trimmed). If the user asks to go "
-        "back to / restore / revert to an earlier version or their original draft, pick "
-        "the version they mean and return edit_mode=\"replace\" with that version's "
-        "content VERBATIM — then apply any additional change they asked for on top. "
-        "Never invent text for a version that isn't shown here; if none matches, say so.\n"
+        "RECENT VERSIONS of this canvas (newest first, trimmed; each carries "
+        "its version_id). If the user asks to go back to / restore / revert "
+        "to an earlier version or their original draft, pick the version they "
+        "mean and return edit_mode=\"restore\" with restore_audit_id set to "
+        "that version's version_id — exact, lossless, and preferred over "
+        "copying the excerpt. Only when no version_id is shown fall back to "
+        "edit_mode=\"replace\" with that version's content VERBATIM. Never "
+        "invent a version_id or text for a version that isn't shown here; if "
+        "none matches, say so.\n"
         + "\n---\n".join(lines) + "\n\n"
     )
 
@@ -806,7 +828,18 @@ async def plan_canvas_edit(
     # truncated out of its context) and gets the same one re-ask instead of
     # sailing into apply just to be discarded.
     reask_reason = None
-    if plan.ops:
+    # Restore plans (edit_mode="restore" / restore_audit_id) carry no ops
+    # and no content — they name a version id and the apply step restores
+    # from the audit trail deterministically. A restore plan without an id
+    # is as degenerate as a replace plan without content: same one re-ask.
+    is_restore = (
+        (plan.edit_mode or "").strip().lower() == "restore"
+        or bool((plan.restore_audit_id or "").strip())
+    )
+    if is_restore:
+        if not (plan.restore_audit_id or "").strip():
+            reask_reason = "restore plan carried no version id"
+    elif plan.ops:
         _, failed = _apply_patch_ops(canvas.get("content"), plan.ops)
         if failed:
             reask_reason = f"{len(failed)}/{len(plan.ops)} patch op(s) failed to match"
@@ -995,10 +1028,11 @@ async def apply_canvas_edit(
     (CanvasAudit append + WS broadcast). Patch ops are re-applied
     deterministically against the canvas content the plan validated against;
     replace plans are decoded, repaired, and — for dict-shaped apps —
-    MERGED field-scoped onto the current content (omitted keys preserved).
-    Per-app policy: file-backed canvases (real .docx/.xlsx/.pptx) refuse
-    content writes — the file is the artifact, a snapshot write would change
-    nothing the user can see.
+    MERGED field-scoped onto the current content (omitted keys preserved);
+    restore plans revert to an earlier version by audit_id through the
+    audit-trail restore. Per-app policy: file-backed canvases (real
+    .docx/.xlsx/.pptx) refuse content writes — the file is the artifact, a
+    snapshot write would change nothing the user can see.
 
     Returns the update result dict on success, None on any failure. With
     ``return_reason=True`` returns ``(result_or_None, reason_or_None)`` so
@@ -1018,6 +1052,34 @@ async def apply_canvas_edit(
 
     if spec.content_kind == "file_backed":
         return _out(None, "file_backed")
+
+    # Restore mode: revert to an earlier version by audit_id through the
+    # audit-trail restore (append-only — the pre-restore state stays in
+    # history). Deterministic: the restored content is EXACT regardless of
+    # length, which copying a trimmed prompt excerpt could never be.
+    if (
+        (plan.edit_mode or "").strip().lower() == "restore"
+        or (plan.restore_audit_id or "").strip()
+    ):
+        audit_id = (plan.restore_audit_id or "").strip()
+        if not audit_id:
+            return _out(None, "restore_missing_version")
+        try:
+            from tools.canvas_crud_tool import restore_canvas_version
+
+            result = await restore_canvas_version(user_id, canvas_id, audit_id)
+        except Exception as e:
+            logger.warning(f"canvas restore apply failed for {canvas_id}: {e}")
+            return _out(None, f"store_error: {e}")
+        if not (result or {}).get("success"):
+            err = str((result or {}).get("error") or "")
+            if err.strip().lower() == "version not found":
+                return _out(None, "version_not_found")
+            logger.info(f"canvas restore rejected for {canvas_id}: {err}")
+            return _out(None, f"store_rejected: {err}")
+        if (result or {}).get("no_change"):
+            return _out(None, "no_change")
+        return _out(result, None)
 
     new_content: Any = None
     reason: Optional[str] = None
@@ -1195,6 +1257,20 @@ def describe_apply_failure(
             "I read the canvas and it already reflects that — nothing "
             "needed changing. If you expected a difference, point me at "
             "the specific wording to change."
+        )
+    if reason == "version_not_found":
+        return (
+            "I couldn't find that earlier version in this canvas's history "
+            "— the version may predate the audit trail or wasn't one I "
+            "could see. Nothing was changed. Ask me to go back again and "
+            "I'll pick from the versions I can actually see."
+        )
+    if reason == "restore_missing_version":
+        return (
+            "I meant to revert to an earlier version but couldn't tell "
+            "which one — nothing was changed. Tell me which draft to go "
+            "back to (e.g. \"the version from this morning\") and I'll "
+            "restore it."
         )
     if reason == "file_backed":
         return (

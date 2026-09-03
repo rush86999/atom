@@ -257,6 +257,16 @@ async def update_canvas_content(
 
             # Append a new audit row (append-only trail). Carry the tenant_id
             # from the latest audit row (CanvasAudit.tenant_id is NOT NULL).
+            # STRICT RECENCY: legacy audit rows carry SECOND-precision
+            # timestamps, so an update fired in the same second as the row it
+            # supersedes tied on created_at and ordering could serve the OLD
+            # content (same incident class as the delete tombstone — pinned
+            # at least 1µs past the row it supersedes).
+            from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+
+            _prev_ts = latest.created_at or _dt.min.replace(tzinfo=_tz.utc)
+            if _prev_ts.tzinfo is None:
+                _prev_ts = _prev_ts.replace(tzinfo=_tz.utc)
             new_audit = CanvasAudit(
                 canvas_id=canvas_id,
                 tenant_id=latest.tenant_id,
@@ -265,6 +275,7 @@ async def update_canvas_content(
                 canvas_type=canvas_type,
                 action_type="update",
                 user_id=user_id,
+                created_at=max(_dt.now(_tz.utc), _prev_ts + _td(microseconds=1)),
                 details_json=details,
             )
             db.add(new_audit)
@@ -320,6 +331,109 @@ async def _broadcast_canvas_update(
         logger.debug(f"Canvas update WS broadcast skipped: {ws_err}")
 
 
+_VERSION_PREVIEW_CHARS = 600
+# Upper bound when a caller asks for FULL version content (agents reading a
+# version before reverting). Generous enough for real drafts, tight enough
+# that one version can't blow the agent's context window.
+_VERSION_FULL_CONTENT_CHARS = 20000
+
+
+def _serialize_version_text(content: Any, cap: Optional[int] = None) -> str:
+    """Version content as bounded text for agent-facing listings."""
+    if isinstance(content, str):
+        text = content
+    else:
+        try:
+            import json as _json
+
+            text = _json.dumps(content, indent=2, default=str)
+        except Exception:
+            text = str(content)
+    if cap is not None and len(text) > cap:
+        return text[:cap] + "…(truncated)"
+    return text
+
+
+async def list_canvas_versions(
+    user_id: str,
+    canvas_id: str,
+    limit: int = 20,
+    include_content: bool = False,
+) -> Dict[str, Any]:
+    """List the version history of a canvas (newest first).
+
+    Every write to a canvas appends a CanvasAudit row, so the audit trail IS
+    the version history. Contentless event rows (email_send stamps, delete
+    markers) are not versions and are skipped. The newest content-bearing
+    row is flagged ``is_current`` — restoring to it would be a no-op.
+
+    Companion to ``restore_canvas_version``: the agent lists versions
+    (bounded previews identify each one), picks the right ``audit_id``, and
+    restores. Owner-scoped like every other CRUD entry point.
+
+    Args:
+        user_id: User requesting the action
+        canvas_id: The canvas ID
+        limit: Max versions to return (default 20, capped at 50)
+        include_content: Include each version's full content (bounded)
+            instead of a short preview
+    """
+    try:
+        from core.database import get_db_session
+        from core.models import CanvasAudit
+        from sqlalchemy import desc
+
+        with get_db_session() as db:
+            if not _verify_canvas_owner(db, canvas_id, user_id):
+                return {"success": False, "error": f"Canvas {canvas_id} not found"}
+
+            rows = (
+                db.query(CanvasAudit)
+                .filter(
+                    CanvasAudit.canvas_id == canvas_id,
+                    CanvasAudit.action_type != "delete",
+                )
+                .order_by(desc(CanvasAudit.created_at), desc(CanvasAudit.id))
+                .limit(max(1, min(int(limit or 20), 50)))
+                .all()
+            )
+
+            versions: list = []
+            for r in rows:
+                details = r.details_json or {}
+                content = details.get("content", details.get("data"))
+                if content is None:
+                    continue  # an event stamp, not a version
+                cap = _VERSION_FULL_CONTENT_CHARS if include_content else _VERSION_PREVIEW_CHARS
+                entry = {
+                    "audit_id": r.id,
+                    "created_at": r.created_at.isoformat() if r.created_at else None,
+                    "actor": "agent" if r.agent_id else "supervisor",
+                    "action_type": r.action_type,
+                    "title": details.get("title"),
+                    "restored_from": (details.get("restored_from") or {}).get("audit_id")
+                    if isinstance(details.get("restored_from"), dict)
+                    else None,
+                    "content": _serialize_version_text(content, cap),
+                    "content_truncated": len(_serialize_version_text(content)) > cap,
+                    "is_current": False,
+                }
+                versions.append(entry)
+
+            if versions:
+                versions[0]["is_current"] = True
+
+            return {
+                "success": True,
+                "canvas_id": canvas_id,
+                "versions": versions,
+                "count": len(versions),
+            }
+    except Exception as e:
+        logger.error(f"Canvas version list failed: {e}")
+        return {"success": False, "error": str(e)}
+
+
 async def restore_canvas_version(
     user_id: str,
     canvas_id: str,
@@ -331,6 +445,11 @@ async def restore_canvas_version(
     or deleted — the pre-restore state stays in history as its own version),
     carrying `restored_from` provenance. Broadcasts the same WS update as a
     normal edit so every open canvas converges.
+
+    No-op guard: restoring a version whose content equals the current
+    content appends nothing and reports ``no_change`` — byte-identical
+    "restores" were audit-trail noise that read to the user as an undo that
+    did something (same rationale as the editor's no_change guard).
 
     Type resolution: the restored version's own canvas_type is authoritative
     for its content, EXCEPT when the canvas carries a human type pin
@@ -373,6 +492,18 @@ async def restore_canvas_version(
                 return {"success": False, "error": "Cannot update a deleted canvas"}
 
             latest_details = dict(latest.details_json or {})
+
+            # No-op guard: the requested version IS the current content.
+            latest_body = latest_details.get("content", latest_details.get("data"))
+            if latest_body is not None and content == latest_body:
+                return {
+                    "success": True,
+                    "canvas_id": canvas_id,
+                    "no_change": True,
+                    "restored_from": audit_id,
+                    "message": "Canvas is already at that version — nothing restored",
+                }
+
             if latest_details.get("type_pinned"):
                 canvas_type = latest.canvas_type
             else:
@@ -393,6 +524,15 @@ async def restore_canvas_version(
                 "actor": "agent" if target.agent_id else "supervisor",
             }
 
+            # STRICT RECENCY (same second-precision tie as the delete
+            # tombstone): a restore landing in the same second as the edit it
+            # reverts must still order AFTER that row, or read_canvas serves
+            # the pre-restore content the moment the page refreshes.
+            from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+
+            _prev_ts = latest.created_at or _dt.min.replace(tzinfo=_tz.utc)
+            if _prev_ts.tzinfo is None:
+                _prev_ts = _prev_ts.replace(tzinfo=_tz.utc)
             new_audit = CanvasAudit(
                 canvas_id=canvas_id,
                 tenant_id=latest.tenant_id,
@@ -401,6 +541,7 @@ async def restore_canvas_version(
                 canvas_type=canvas_type,
                 action_type="update",
                 user_id=user_id,
+                created_at=max(_dt.now(_tz.utc), _prev_ts + _td(microseconds=1)),
                 details_json=new_details,
             )
             db.add(new_audit)
