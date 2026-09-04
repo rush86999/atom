@@ -425,20 +425,32 @@ class DocumentParser:
                 wb = xlrd.open_workbook(file_contents=content)
                 budget = _ExtractionBudget(limit=max_chars)
                 sheets_done = 0
+                summaries: List[str] = []
                 for sheet in wb.sheets():
                     if budget.exhausted:
                         break
                     budget.add(f"--- Sheet: {sheet.name} ---")
-                    for r in range(getattr(sheet, "nrows", 0)):
+                    ncols = getattr(sheet, "ncols", 0)
+                    if ncols:
+                        headers = []
+                        for c in range(min(ncols, 40)):
+                            h = " ".join(str(sheet.cell_value(0, c)).split())[:48]
+                            if h:
+                                headers.append(f"{chr(65 + c) if c < 26 else '?'}={h}")
+                        if headers:
+                            budget.add("COLS: " + " | ".join(headers))
+                    for r in range(1, getattr(sheet, "nrows", 0)):
                         row = []
-                        for c in range(getattr(sheet, "ncols", 0)):
+                        for c in range(ncols):
                             val = sheet.cell_value(r, c)
                             row.append(str(val) if val is not None else "")
-                        if not budget.add(" | ".join(row)):
+                        if not budget.add(f"R{r + 1} | " + " | ".join(row)):
                             break
                     sheets_done += 1
+                    summaries.append(f"{sheet.name}: {getattr(sheet, 'nrows', 0)} rows, {ncols} cols")
                 note = budget.truncation_note(len(wb.sheets()), sheets_done)
-                return budget.join() + ("\n" + note if note else "")
+                index = "\n".join([f"WORKBOOK INDEX: {len(summaries)} sheets"] + [f"- {s}" for s in summaries])
+                return index + "\n" + budget.join() + ("\n" + note if note else "")
             except ImportError:
                 logger.warning("xlrd not installed; cannot parse old .xls (OLE2) files")
                 return ""
@@ -480,25 +492,47 @@ class DocumentParser:
             xls = pd.ExcelFile(io.BytesIO(content))
             budget = _ExtractionBudget(limit=max_chars)
             sheets_done = 0
+            summaries: List[str] = []
             for sheet_name in xls.sheet_names:
                 if budget.exhausted:
                     break
                 df = pd.read_excel(xls, sheet_name=sheet_name)
                 budget.add(f"--- Sheet: {sheet_name} ---")
-                sheet_text = df.to_string()
-                if len(sheet_text) <= budget.limit - budget.consumed:
-                    budget.add(sheet_text)
-                else:
-                    # Oversized sheet: write line-by-line so the cut lands
-                    # ON the budget instead of one whole sheet past it (a
-                    # single sheet can dwarf the budget; the note must stay
-                    # truthful about how much was actually kept).
-                    for line in sheet_text.splitlines():
-                        if not budget.add(line):
-                            break
+                # Structure anchoring: column letters -> headers, and the
+                # sheet-row offset (pandas index 0 == sheet row 2).
+                headers = []
+                for i, col in enumerate(df.columns[:40]):
+                    h = " ".join(str(col).split())[:48]
+                    if h and h.lower() != "nan":
+                        letters = (
+                            chr(65 + i) if i < 26 else f"A{chr(65 + i - 26)}"
+                        )
+                        headers.append(f"{letters}={h}")
+                if headers:
+                    budget.add("COLS: " + " | ".join(headers))
+                if len(df):
+                    budget.add(f"ROWS: sheet rows 2..{len(df) + 1}")
+                # Rows in sheet coordinates (pandas index 0 == sheet row 2),
+                # same R# convention as the raw-XML path so a citation is
+                # unambiguous about WHERE the value lives. Values stay
+                # positional — the COLS line above is the single schema
+                # anchor (header=value per row would re-serialize the header
+                # on every row: the token cost SheetCompressor exists to
+                # avoid).
+                for idx, row_vals in enumerate(df.itertuples(index=False, name=None)):
+                    cells = ["" if v is None else " ".join(str(v).split()) for v in row_vals]
+                    while cells and not cells[-1]:
+                        cells.pop()
+                    if not budget.add(f"R{idx + 2} | " + " | ".join(cells)):
+                        break
                 sheets_done += 1
+                summaries.append(
+                    f"{sheet_name}: {len(df)} data rows, {len(df.columns)} cols"
+                    + (f" | headers: {', '.join(str(c) for c in df.columns[:8])}" if len(df.columns) else "")
+                )
             note = budget.truncation_note(len(xls.sheet_names), sheets_done)
-            return budget.join() + ("\n" + note if note else "")
+            index = "\n".join([f"WORKBOOK INDEX: {len(summaries)} sheets"] + [f"- {s}" for s in summaries])
+            return index + "\n" + budget.join() + ("\n" + note if note else "")
         except ImportError:
             # Fallback to openpyxl
             try:
@@ -506,18 +540,35 @@ class DocumentParser:
                 wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
                 budget = _ExtractionBudget(limit=max_chars)
                 sheets_done = 0
+                summaries: List[str] = []
                 for sheet_name in wb.sheetnames:
                     if budget.exhausted:
                         break
                     sheet = wb[sheet_name]
                     budget.add(f"=== Sheet: {sheet_name} ===")
+                    rownum = 0
+                    headers = []
                     for row in sheet.iter_rows(values_only=True):
-                        row_text = " | ".join(str(cell) if cell else "" for cell in row)
-                        if not budget.add(row_text):
+                        rownum += 1
+                        cells = [str(cell) if cell is not None else "" for cell in row]
+                        if rownum == 1:
+                            for i, h in enumerate(cells[:40]):
+                                h = " ".join(h.split())[:48]
+                                if h:
+                                    letters = (
+                                        chr(65 + i) if i < 26 else f"A{chr(65 + i - 26)}"
+                                    )
+                                    headers.append(f"{letters}={h}")
+                            if headers:
+                                budget.add("COLS: " + " | ".join(headers))
+                            continue
+                        if not budget.add(f"R{rownum} | " + " | ".join(cells)):
                             break
                     sheets_done += 1
+                    summaries.append(f"{sheet_name}: {rownum} rows" + (f" | headers: {', '.join(h.split('=',1)[-1] for h in headers[:8])}" if headers else ""))
                 note = budget.truncation_note(len(wb.sheetnames), sheets_done)
-                return budget.join() + ("\n" + note if note else "")
+                index = "\n".join([f"WORKBOOK INDEX: {len(summaries)} sheets"] + [f"- {s}" for s in summaries])
+                return index + "\n" + budget.join() + ("\n" + note if note else "")
             except ImportError:
                 logger.warning("No Excel parser available")
                 return "[Excel content - parser not available]"
@@ -552,6 +603,19 @@ class DocumentParser:
         All sheets/rows are extracted up to the shared per-file char budget;
         ``max_sheets``/``max_rows`` remain as optional additional caps for
         callers that want them.
+
+        Structure preservation (spreadsheet-RAG practice — SpreadsheetLLM/
+        SheetCompressor arXiv:2407.09025 structure anchoring; TableRAG
+        arXiv:2410.04739 schema-first retrieval):
+          - a WORKBOOK INDEX at the head: per sheet — name, row/col counts,
+            header names, formula count ("which sheet has prices?" is
+            answerable from one chunk);
+          - a per-sheet column map (column letter -> header) — the schema
+            anchor that makes rows interpretable without serializing every
+            cell address;
+          - real row numbers on every row (``R17 | ...``) so any hit cites
+            its sheet row ("LINMAC R17") instead of an anonymous tuple;
+          - per-cell formulas kept next to their cached values.
         """
         import zipfile
         import xml.etree.ElementTree as ET
@@ -610,17 +674,25 @@ class DocumentParser:
 
             budget = _ExtractionBudget(limit=max_chars)
             sheets = sorted(n for n in zf.namelist() if n.startswith("xl/worksheets/") and n.endswith(".xml"))
+
+            def _col_letters(ref: str) -> str:
+                """'C17' -> 'C' — the column letters of a cell reference."""
+                return "".join(ch for ch in (ref or "") if ch.isalpha())
+
+            sheet_summaries: List[str] = []
             sheets_done = 0
             for sheet_path in sheets:
                 if max_sheets is not None and sheets_done >= max_sheets:
                     break
                 if budget.exhausted:
                     break
-                budget.add(
-                    f"=== Sheet: {names.get(sheet_path, sheet_path.rsplit('/', 1)[-1])} ==="
-                )
+                sheet_name = names.get(sheet_path, sheet_path.rsplit('/', 1)[-1])
+                budget.add(f"=== Sheet: {sheet_name} ===")
                 root = ET.fromstring(zf.read(sheet_path))
                 rows_shown = 0
+                row_numbers_seen = 0
+                formula_count = 0
+                header_map: List[str] = []
                 for row in root.iter():
                     if _local(row.tag) != "row":
                         continue
@@ -628,6 +700,7 @@ class DocumentParser:
                         budget.add("... (truncated)")
                         break
                     cells = []
+                    row_has_formula = False
                     for c in row:
                         if _local(c.tag) != "c":
                             continue
@@ -660,12 +733,55 @@ class DocumentParser:
                         )
                         if f_el is not None and (f_el.text or "").strip():
                             cells[-1] = f"{cells[-1]} [={f_el.text.strip()}]".strip()
-                    if not budget.add(" | ".join(cells)):
+                            row_has_formula = True
+                    while cells and not str(cells[-1]).strip():
+                        cells.pop()  # trailing empties are noise
+                    # Structure anchoring: the first substantive row of the
+                    # sheet defines the column map (letter -> header).
+                    if not header_map and sum(1 for c in cells if str(c).strip()) >= 2:
+                        for c in row:
+                            if _local(c.tag) != "c":
+                                continue
+                            if len(header_map) >= 40:
+                                break
+                            v = next((ch for ch in c if _local(ch.tag) == "v"), None)
+                            header = ""
+                            if c.get("t") == "s" and v is not None and v.text:
+                                try:
+                                    header = shared[int(v.text)]
+                                except (ValueError, IndexError):
+                                    header = ""
+                            elif c.get("t") == "inlineStr":
+                                header = "".join(
+                                    node.text or "" for node in c.iter()
+                                    if _local(node.tag) == "t"
+                                )
+                            header = " ".join(str(header).split())[:48]
+                            if header:
+                                header_map.append(f"{_col_letters(c.get('r') or '')}={header}")
+                    rownum = row.get("r") or str(rows_shown + 1)
+                    row_numbers_seen += 1
+                    if row_has_formula:
+                        formula_count += 1
+                    prefix = f"R{rownum} | "
+                    if not budget.add(prefix + " | ".join(str(c) for c in cells)):
                         break
                     rows_shown += 1
+                if header_map:
+                    budget.add("COLS: " + " | ".join(header_map))
                 sheets_done += 1
-            note = budget.truncation_note(len(sheets), sheets_done)
-            text = budget.join() + ("\n" + note if note else "")
+                sheet_summaries.append(
+                    f"{sheet_name}: {row_numbers_seen} rows, "
+                    f"{formula_count} formula rows"
+                    + (f" | headers: {', '.join(h.split('=', 1)[-1] for h in header_map[:8])}" if header_map else "")
+                )
+            # Workbook index (TableRAG-style schema-first discovery): one
+            # chunk at the head that answers "which sheet has X" without
+            # walking 4M chars.
+            index_lines = [f"WORKBOOK INDEX: {len(sheet_summaries)} sheets"]
+            index_lines.extend(f"- {s}" for s in sheet_summaries)
+            text = budget.join() + ("\n" + budget.truncation_note(len(sheets), sheets_done) if sheets_done < len(sheets) else "")
+            text = "\n".join(index_lines) + "\n" + text
             return text
 
 

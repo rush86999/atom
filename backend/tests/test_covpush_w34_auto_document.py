@@ -261,7 +261,9 @@ class TestExcelParser:
         with patch.dict("sys.modules", {"pandas": None, "openpyxl": openpyxl_mod}):
             text = await DocumentParser._parse_excel(b"x")
         assert "=== Sheet: S1 ===" in text
-        assert "1 | a" in text
+        # row 1 is the header map; data rows carry sheet row numbers
+        assert "A=1 | B=a" in text
+        assert "R2 | 2 | b" in text
 
     async def test_no_parser(self):
         with patch.dict("sys.modules", {"pandas": None, "openpyxl": None}):

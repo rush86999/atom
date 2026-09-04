@@ -52,6 +52,42 @@ async def test_xlsx_all_sheets_and_rows_extract():
 
 
 @pytest.mark.asyncio
+async def test_xlsx_structured_context_preserved():
+    """Spreadsheet structure (sheet -> column -> cell) must survive: a
+    workbook-level index, per-sheet column-letter header maps, real row
+    numbers, and per-cell formulas. Live 2026-09-03: Consolidated Price List
+    2019.xlsx lost all of this — the agent could not cite 'LINMAC R17'."""
+    from core.auto_document_ingestion import DocumentParser
+    from openpyxl import Workbook
+    import io as _io
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "LINMAC"
+    ws.append(["MODEL", "DESCRIPTION", "LIST PRICE"])  # sheet row 1 = headers
+    ws.append(["WG120", "Small bandsaw", 5200])
+    ws.append(["WG350DSAV", "Bandsaw 230V/3PH/60HZ Double Miter", 14145])  # row 3
+    ws["D1"] = "NET"       # extra column so D can hold a formula cell
+    ws["D3"] = "=C3*0.9"   # formula cell (openpyxl stores no cached value)
+    buf = _io.BytesIO()
+    wb.save(buf)
+
+    text = await DocumentParser._parse_excel(buf.getvalue(), "linmac.xlsx")
+    assert "WORKBOOK INDEX:" in text and "LINMAC" in text
+    assert "A=MODEL" in text and "C=LIST PRICE" in text  # column letter map
+    assert "R3" in text and "WG350DSAV" in text          # real row numbers
+    assert "14145" in text
+
+    # raw-XML path (what Zoho exports fall back to): formulas preserved
+    raw = DocumentParser._parse_xlsx_raw(buf.getvalue())
+    assert "WG350DSAV" in raw and "R3" in raw
+    assert "[=" in raw, "raw-XML path must keep the formula text"
+
+    # workbook index carries the header summary for discovery
+    assert "MODEL" in text.split("=== Sheet")[0] or "MODEL" in text.split("--- Sheet")[0]
+
+
+@pytest.mark.asyncio
 async def test_xlsx_budget_truncates_with_note(monkeypatch):
     """Above the budget floor, the text is bounded and the truncation note
     renders — later sheets are cut, earlier content survives."""

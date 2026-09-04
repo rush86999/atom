@@ -98,7 +98,7 @@ def hash_text(text: str) -> str:
 # never satisfy hash-dedup as "unchanged" — every ingest/sync re-extracts
 # exactly once after a bump, then dedup resumes (see
 # extraction_content_hash / has_current_extraction_version).
-EXTRACTION_VERSION = "3"
+EXTRACTION_VERSION = "4"
 
 
 def extraction_content_hash(text: str) -> str:
