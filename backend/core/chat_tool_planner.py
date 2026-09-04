@@ -198,10 +198,16 @@ Rules:
 - Return exactly ONE plan. If a search and a URL check would both help,
   plan ONLY web_fetch when the address is known, otherwise web_search.
 - Read-only: search/list intents for lookups; `read` intent ONLY for the
-  file-storage services, when the user asks to OPEN a named file or read a
-  specific row/value out of it ("open the price list and find the WG350DSAV
-  row" → service zoho_workdrive, intent read, query "Consolidated Price List
-  WG350DSAV"). Never plan sends, writes, or deletes.
+  file-storage services, when the user wants a specific row, value, price,
+  figure or section OUT OF a named document ("open the catalog and find the
+  ABC-1234 row" → read; "what files do I have about X" → search — search
+  returns only file names/metadata and can never answer what a file SAYS).
+  Never plan sends, writes, or deletes.
+- The query MUST carry every identifying code — model, SKU, part, order or
+  invoice number — EXACTLY as written anywhere in the conversation or open
+  canvas, even when the user's latest message doesn't repeat it ("check the
+  catalog file again and find the row" still means the code mentioned three
+  turns ago).
 - If the conversation or memory already clearly answers it, use_tool=false.
 - Questions about a company/person/website the conversation cannot answer
   from its own content need web_search (topic facts) or web_fetch (read a
@@ -300,6 +306,78 @@ def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
     return "\n".join(lines)
 
 
+def _planner_llm_kwargs(llm_service: Any) -> Dict[str, Any]:
+    """Pin (provider, model): `model=` on generate_structured maps to
+    task_type, NOT model selection — unpinned routing preferred the free
+    local Ollama client by value, which is frequently unreachable; the
+    connection-error retries ate ~6s and often lost the plan entirely.
+    generate_structured_response forwards provider_model into the handler,
+    pinning the option list to one reachable (provider, model)."""
+    kwargs: Dict[str, Any] = {}
+    try:
+        if "openrouter" in llm_service._get_handler().clients:
+            kwargs["provider_model"] = ("openrouter", PLANNER_MODEL)
+    except Exception:
+        pass
+    return kwargs
+
+
+_REPAIR_SYSTEM = """You repair an invalid tool plan for an AI automation
+platform. The previous plan JSON was rejected: {defect}.
+
+Available tools:
+{catalog}
+
+Recent conversation:
+{transcript}
+
+Return a CORRECTED plan:
+- service MUST be one of the exact names in the available list (or null with
+  use_tool=false when no tool can help).
+- intent: search or list for lookups; `read` only for file-storage services
+  when the user wants a specific row/value/section out of a named document.
+- query: minimal retrieval terms that name the subject AND carry every
+  identifying code (model, SKU, part, order, invoice number) exactly as
+  written anywhere in the conversation — the user's current message often
+  says "check the file again" while the code lives in earlier turns."""
+
+
+async def _repair_plan_via_llm(
+    llm_service: Any,
+    defect: str,
+    connected: List[str],
+    catalog: str,
+    history: List[Dict[str, Any]],
+    message: str,
+    kwargs: Dict[str, Any],
+) -> Optional[ToolPlan]:
+    """Second structured LLM pass that FIXES routing instead of guessing it
+    from surface patterns. Regex repair (service-name matching, file nouns,
+    recently-used fallback) kept misrouting fluid conversations — the words
+    that justify a route ("the file", "try again") don't reliably name the
+    service, and only the model sees the context that does (live 2026-09-03:
+    "check consolidated price list file" regex-routed to the mailbox). One
+    corrective call, then deterministic handoff; returns None on failure."""
+    if llm_service is None:
+        return None
+    prompt = (
+        f"{_REPAIR_SYSTEM.format(defect=defect, catalog=catalog, transcript=_history_transcript(history, message))}\n\n"
+        "Return the corrected plan."
+    )
+    try:
+        return await llm_service.generate_structured_response(
+            disable_reasoning=True,
+            prompt=prompt,
+            response_model=ToolPlan,
+            system_instruction="You return only the requested JSON object.",
+            temperature=0.0,
+            **kwargs,
+        )
+    except Exception as e:  # noqa: BLE001 — repair is best-effort
+        logger.warning(f"tool planner: repair re-plan failed: {e}")
+        return None
+
+
 async def plan_tool_use(
     message: str,
     history: List[Dict[str, Any]],
@@ -321,18 +399,7 @@ async def plan_tool_use(
     )
     from core.llm_service import LLMService
 
-    # Pin (provider, model): `model=` on generate_structured maps to
-    # task_type, NOT model selection — unpinned routing preferred the free
-    # local Ollama client by value, which is frequently unreachable; the
-    # connection-error retries ate ~6s and often lost the plan entirely.
-    # generate_structured_response forwards provider_model into the handler,
-    # pinning the option list to one reachable (provider, model).
-    kwargs: Dict[str, Any] = {}
-    try:
-        if "openrouter" in llm_service._get_handler().clients:
-            kwargs["provider_model"] = ("openrouter", PLANNER_MODEL)
-    except Exception:
-        pass
+    kwargs = _planner_llm_kwargs(llm_service)
 
     plan = await llm_service.generate_structured_response(
         disable_reasoning=True,
@@ -349,7 +416,8 @@ async def plan_tool_use(
         if not plan.service or plan.service not in allowed:
             # Planner models emit service names in loose forms ("Zoho CRM",
             # "zoho-inventory") — normalize separators/case against the
-            # allowed set before treating the plan as invalid.
+            # allowed set before treating the plan as invalid. Mechanical
+            # aliasing of the LLM's own choice, not a routing decision.
             if plan.service:
                 normalized = re.sub(r"[^a-z0-9]", "", plan.service.lower())
                 alias = {re.sub(r"[^a-z0-9]", "", s): s for s in allowed}
@@ -361,48 +429,40 @@ async def plan_tool_use(
                     plan.service = candidate
         if not plan.service or plan.service not in allowed:
             # Free planner models occasionally emit use_tool=true with a
-            # null/unknown service on vague retries ("try again"). Three
-            # deterministic recoveries before giving up — a dead plan here
-            # made the model answer from memory while CLAIMING it had
-            # "rechecked" the mailbox (observed live 2026-09-02).
-            #
-            # Order matters: the user's OWN WORDS outrank conversation
-            # history. History-first rerouted "check consolidated price list
-            # FILE again" to the recently-used mailbox (live 2026-09-03
-            # 20:11) because earlier turns mentioned outlook — when the
-            # message's named entity (a file → storage) pointed at
-            # zoho_workdrive. Named-entity first, history only for messages
-            # that name nothing.
-            named = _service_named_in_message(message, connected)
-            if named and plan.service is None:
+            # null/unknown service ("try again", vague messages). Routing
+            # stays with the LLM: one corrective structured pass that sees
+            # the catalog, the conversation and the specific defect, instead
+            # of pattern-matching the message's nouns — the words that
+            # justify a route ("the file", "try again") don't reliably name
+            # the service, and only the model sees the context that does
+            # (live 2026-09-03: "check consolidated price list file"
+            # pattern-routed to the recently-used mailbox).
+            defect = ("no service was named" if not plan.service
+                      else f"service {plan.service!r} is not in the available list")
+            repaired = await _repair_plan_via_llm(
+                llm_service, defect, connected, catalog, history, message,
+                kwargs)
+            if (repaired and repaired.use_tool
+                    and repaired.service in allowed):
                 logger.info(
-                    f"tool planner: null service — user message names "
-                    f"connected {named!r}")
-                plan.service = named
-                plan.intent = "search"
-                if not (plan.query or "").strip():
-                    plan.query = message[:120]
-            elif (fallback := _fallback_service_from_history(history, connected, message)) and plan.service is None:
+                    f"tool planner: LLM repair -> "
+                    f"{repaired.service}.{repaired.intent}")
+                plan = repaired
+            elif repaired and not repaired.use_tool:
+                # The repair pass looked at the context and concluded no
+                # tool can help — honor that instead of forcing memory.
+                logger.info("tool planner: LLM repair declined tool use")
+                return None
+        if not plan.service or plan.service not in allowed:
+            if plan.service is None and "memory" in allowed:
+                # Terminal rung after BOTH passes failed to name a service:
+                # memory is always available and searches the workspace's
+                # OWN ingested data. A constant default, not a content-based
+                # guess — the ingested-store supplement on every other leg
+                # makes this the safest place to land.
                 logger.info(
-                    f"tool planner: invalid service ({plan.service!r}) — "
-                    f"falling back to recently used {fallback!r}")
-                plan.service = fallback
-                plan.intent = "search"
-                if not (plan.query or "").strip() or len(plan.query.strip()) < 12:
-                    plan.query = _retry_query_from_history(history, message)
-            elif plan.service is None and "memory" in allowed:
-                # Last rung, only for the planner's null-service flake: the
-                # model couldn't name ANY service. memory is always available
-                # and searches the workspace's OWN ingested data. Dropping the
-                # plan here made the model answer "I don't have that file"
-                # from a memory context whose legs had timed out — while the
-                # document sat fully indexed (live 2026-09-03: Consolidated
-                # Price List 2019.xlsx). A NAMED but unavailable service
-                # (key-gated web tools, unconnected integrations) still
-                # dead-ends below so the missing dependency stays visible.
-                logger.info(
-                    f"tool planner: invalid service ({plan.service!r}) — "
-                    f"falling back to always-available memory search")
+                    "tool planner: both passes failed — defaulting to "
+                    "always-available memory search")
                 plan.service = "memory"
                 plan.intent = "search"
                 if not (plan.query or "").strip():
@@ -420,33 +480,6 @@ async def plan_tool_use(
     return plan
 
 
-_RETRY_IMPERATIVE = re.compile(
-    r"\b(try again|again|keep looking|recheck|re-check|search again|"
-    r"look again|find it)\b", re.IGNORECASE,
-)
-
-# Explicit "OPEN the file" language. When the user's words ask to open/read a
-# document — not just locate it — a storage `search` (metadata only) cannot
-# satisfy the ask; the plan upgrades to the `read` intent, which downloads
-# the file, extracts its contents, and returns a query-anchored excerpt.
-# Hybrid/memory search stays the fast path for lookups that DON'T name
-# opening ("what's the price of X?" → search first).
-_EXPLICIT_OPEN = re.compile(
-    r"\b(open|look inside|contents of|find the row|show me the row|"
-    r"the row for|locate the row|exact row)\b",
-    re.IGNORECASE,
-)
-
-
-def _current_message_text(context: Optional[Dict[str, Any]]) -> str:
-    """The user's current message, from the hydrated history tail (last
-    user-role entry). Empty when history is unavailable."""
-    for entry in reversed((context or {}).get("history") or []):
-        if isinstance(entry, dict) and entry.get("role") == "user":
-            return _entry_text(entry)
-    return ""
-
-
 def _entry_text(entry: Any) -> str:
     """All string content of a history entry, whatever its shape — session
     history, planner history and hydrated turns don't share one schema."""
@@ -457,81 +490,67 @@ def _entry_text(entry: Any) -> str:
     return str(entry or "")
 
 
-def _service_named_in_message(
-    message: str, connected: List[str]
-) -> Optional[str]:
-    """The connected integration the user's own words name, if any. Matches
-    service names with separators relaxed ("zoho inventory" matches
-    zoho_inventory); longest name wins when several appear. Falls back to
-    FILE-NOUN matching: "check the inventory workbook / client spreadsheet /
-    catalog file" names a document, and documents live in whichever storage
-    integration is connected (deterministic preference order, most-specific
-    first). A deterministic repair for the planner's null-service flake —
-    NOT an intent gate: it never fires when the planner named a valid
-    service itself."""
-    msg = f" {message.lower().replace('-', ' ').replace('_', ' ')} "
-    best, best_len = None, 0
-    for svc in connected:
-        name = svc.lower().replace("_", " ")
-        if name in msg and len(name) > best_len:
-            best, best_len = svc, len(name)
-    if best:
-        return best
-    # File nouns → connected storage service. These words say "the thing I
-    # mean is a DOCUMENT" without naming the vendor — route to wherever this
-    # user's documents live instead of whatever service was used recently.
-    _FILE_NOUNS = (
-        "workbook", "spreadsheet", "xlsx", "worksheet",
-        "file", "document", "docx", "pdf", "catalog", "invoice", "contract",
-        "deck", "presentation", "proposal",
-    )
-    if any(noun in msg for noun in _FILE_NOUNS):
-        for storage in ("zoho_workdrive", "google_drive", "onedrive",
-                        "dropbox", "box", "notion"):
-            if storage in connected:
-                return storage
-    return best
+class _StorageQuery(BaseModel):
+    """LLM-authored retrieval query for a storage-service leg."""
+    query: str
 
 
-def _fallback_service_from_history(
-    history: List[Dict[str, Any]], connected: List[str], message: str = "",
-) -> Optional[str]:
-    """Retry continuity for 'try again' after a failed tool turn: the most
-    recently mentioned connected service, scanning ALL string values of the
-    history entries (schemas vary). A bare retry imperative with no service
-    mentioned anywhere still defaults to the connected mailbox — a retry
-    means 'retry what you just did', and the mailbox is what an email
-    question was doing."""
-    import re as _re
+_STORAGE_QUERY_SYSTEM = """You compose the retrieval query for one
+file-storage lookup (search = find files by name; read = open a file and
+extract the region a question is about).
 
-    for entry in reversed(history or []):
-        text = _entry_text(entry).lower()
-        for svc in connected:
-            # Word-boundary match so "mail" doesn't match "gmail" etc.
-            if _re.search(rf"\b{_re.escape(svc)}\b", text):
-                return svc
-    if _RETRY_IMPERATIVE.search(message or ""):
-        for preferred in ("outlook", "gmail"):
-            if preferred in connected:
-                return preferred
-        return connected[0] if connected else None
-    return None
+Rules:
+- Name the document (its name, type, or the phrase the user used for it)
+  AND every identifying code — model, SKU, part, order or invoice number —
+  EXACTLY as written anywhere in the conversation or open canvas, even when
+  the user's latest message doesn't repeat it ("check the catalog file
+  again and find the row" still means the code from earlier turns).
+- Keep it to retrieval terms: no instructions, no full sentences.
+- If the draft query already does this, return it unchanged."""
 
 
-def _retry_query_from_history(
-    history: List[Dict[str, Any]], message: str
+async def _rewrite_storage_query(
+    llm_service: Any, query: str, intent: str,
+    context: Optional[Dict[str, Any]],
 ) -> str:
-    """For bare retry imperatives ('try again'), the query is the previous
-    SUBSTANTIVE user message — 'try again' itself carries nothing to
-    search for."""
-    msg_l = (message or "").strip().lower()
-    for entry in reversed(history or []):
-        if not isinstance(entry, dict) or entry.get("role") != "user":
-            continue
-        text = str(entry.get("content") or "").strip()
-        if text and text.lower() != msg_l and len(text) >= 12:
-            return text[:200]
-    return (message or "")[:200]
+    """LLM-authored storage query. The planner's query inherits the current
+    message's wording and drops identifiers that live in earlier turns or
+    the open canvas — a read excerpt then anchors on boilerplate and the
+    row stays invisible (live 2026-09-04: three turns). Routing already
+    belongs to the LLM; query AUTHORSHIP does too — pattern scans of the
+    context kept mis-deciding what counts as an identifier. Bounded: on any
+    failure the draft query passes through unchanged."""
+    if llm_service is None:
+        return query
+    ctx = context or {}
+    canvas = _entry_text(ctx.get("canvas") or {})[:1200]
+    transcript = _history_transcript(
+        ctx.get("history") or [], canvas or query)[:2000]
+    prompt = (
+        f"{_STORAGE_QUERY_SYSTEM}\n\n"
+        f"Intent: {intent}\n"
+        f"Draft query from the planner: {query!r}\n\n"
+        f"Open canvas (may hold the identifiers):\n{canvas}\n\n"
+        f"Recent conversation:\n{transcript}\n\n"
+        "Return the query."
+    )
+    try:
+        result = await asyncio.wait_for(
+            llm_service.generate_structured_response(
+                disable_reasoning=True,
+                prompt=prompt,
+                response_model=_StorageQuery,
+                system_instruction="You return only the requested JSON object.",
+                temperature=0.0,
+                **_planner_llm_kwargs(llm_service),
+            ),
+            timeout=10,
+        )
+        rewritten = (getattr(result, "query", "") or "").strip()
+        return rewritten or query
+    except Exception as e:  # noqa: BLE001 — the draft query still works
+        logger.warning(f"storage query rewrite skipped: {e}")
+        return query
 
 
 def _search_ingested_by_address(user_id, address, limit=4):
@@ -877,6 +896,7 @@ async def execute_tool_plan(
     user_id: Optional[str],
     tenant_id: str = "default",
     context: Optional[Dict[str, Any]] = None,
+    llm_service: Any = None,
 ) -> Optional[str]:
     """Run the planned read-only action and return a text block for prompt
     injection. Returns None when nothing usable came back.
@@ -1176,54 +1196,16 @@ async def execute_tool_plan(
             SEARCHABLE_SERVICES,
         )
 
-        # Search→read auto-chain: storage search planned, but the user's
-        # words explicitly asked to OPEN the file ("check the price list file
-        # again and see if you can find the row") — metadata results cannot
-        # answer that, so upgrade to the read intent (download + extract +
-        # excerpt). Only fires for storage services; other apps keep search.
-        if service in _STORAGE_SERVICES and (plan.intent or "search") == "search":
-            if _EXPLICIT_OPEN.search(f"{query} {_current_message_text(context)}"):
-                logger.info(
-                    f"tool chain: explicit open language — upgrading "
-                    f"{service}.search to read_file")
-                plan.intent = "read"
-
-        # CONTEXT TOKEN ENRICHMENT — storage legs. The fallback queries
-        # inherit the current message's wording ("check the catalog file
-        # again and find the row") and drop the identifier that only exists
-        # in the conversation/canvas — the read excerpt then anchors on
-        # header boilerplate and the row stays invisible (live 2026-09-04:
-        # three consecutive turns). Scan the hydrated context for identifier
-        # tokens deterministically instead of hoping the planner LLM
-        # includes them. Intent text (message + history) is scanned first
-        # and wins; canvas markup is scanned second with hex-style tokens
-        # excluded (canvas styling is layout noise, not catalog codes). At
-        # most two tokens join the query — enough to identify, few enough
-        # to keep server-side storage search selective.
+        # Query AUTHORSHIP is an LLM job too (same principle as routing):
+        # the planner's query inherits the current message's wording and
+        # drops identifiers that live in earlier turns or the open canvas —
+        # a read excerpt then anchors on boilerplate and the row stays
+        # invisible (live 2026-09-04: three consecutive turns). One bounded
+        # structured rewrite; on failure the draft query passes through and
+        # the ingested-copy supplements below still carry the answer.
         if service in _STORAGE_SERVICES:
-            ctx = context or {}
-            intent_hay = " ".join(
-                [query, _current_message_text(ctx)]
-                + [_entry_text(m) for m in (ctx.get("history") or [])[-8:]]
-            )
-            extra = [
-                t for t in _product_tokens(intent_hay, min_len=6)
-                if t.lower() not in query.lower()
-            ]
-            if len(extra) < 2:
-                canvas_hay = _entry_text(ctx.get("canvas") or {})
-                taken = {t.lower() for t in extra} | {
-                    w.lower() for w in query.split()
-                }
-                extra += [
-                    t for t in _product_tokens(canvas_hay, min_len=6,
-                                               skip_hexlike=True)
-                    if t.lower() not in taken
-                ]
-            extra = extra[:2]
-            if extra:
-                logger.info(f"tool query enriched with context tokens {extra!r}")
-                query = f"{query} {' '.join(extra)}".strip()
+            query = await _rewrite_storage_query(
+                llm_service, query, plan.intent or "search", context)
 
         intent_map = _INTENT_ACTIONS.get(service, _INTENT_ACTIONS["default"])
         action = intent_map.get(plan.intent or "search", "search")

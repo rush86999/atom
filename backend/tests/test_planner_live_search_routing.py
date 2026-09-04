@@ -102,25 +102,62 @@ class TestPlannerGenericRouting:
 
 
 class TestPlannerRepairRungs:
-    """Deterministic repairs for the planner LLM's flaky plans."""
+    """Routing decisions belong to the LLM — including REPAIRS. When the
+    planner emits a null/unknown service, a corrective structured pass sees
+    the catalog + conversation and re-decides; deterministic code only
+    normalizes the service name (mechanical aliasing) and defaults to
+    memory when both passes fail."""
 
-    def _fake_llm(self, plan):
+    def _fake_llm(self, *plans):
         llm = SimpleNamespace()
-        llm.generate_structured_response = AsyncMock(return_value=plan)
+        llm.generate_structured_response = AsyncMock(side_effect=list(plans))
         return llm
 
-    async def test_null_service_honors_integration_named_by_user(self, monkeypatch):
+    async def test_null_service_repaired_by_second_llm_pass(self, monkeypatch):
         from unittest.mock import patch as _p
 
         monkeypatch.setattr(ctp, "get_connected_services",
                             lambda user_id: ["zoho_inventory", "zoho_crm"])
         flaky = ToolPlan(use_tool=True, service=None, intent="search",
                          query="wg-350dsav")
+        repaired = ToolPlan(use_tool=True, service="zoho_inventory",
+                            intent="search", query="wg-350dsav")
+        llm = self._fake_llm(flaky, repaired)
         with _p.object(ctp, "_available_platform_services", return_value=[]):
             plan = await ctp.plan_tool_use(
-                "is the wg-350dsav in stock in zoho inventory?",
-                [], "user-1", self._fake_llm(flaky))
+                "is the wg-350dsav in stock?", [], "user-1", llm)
+        assert llm.generate_structured_response.await_count == 2
         assert plan.service == "zoho_inventory"
+
+    async def test_repair_can_decline_tool_use(self, monkeypatch):
+        from unittest.mock import patch as _p
+
+        monkeypatch.setattr(ctp, "get_connected_services",
+                            lambda user_id: ["zoho_crm"])
+        flaky = ToolPlan(use_tool=True, service=None, intent="search")
+        declined = ToolPlan(use_tool=False, service=None)
+        llm = self._fake_llm(flaky, declined)
+        with _p.object(ctp, "_available_platform_services", return_value=[]):
+            plan = await ctp.plan_tool_use(
+                "what is 2+2", [], "user-1", llm)
+        assert plan is None
+
+    async def test_double_failure_defaults_to_memory(self, monkeypatch):
+        from unittest.mock import patch as _p
+
+        monkeypatch.setattr(ctp, "get_connected_services",
+                            lambda user_id: ["zoho_crm"])
+        flaky = ToolPlan(use_tool=True, service=None, intent="search",
+                         query="anything")
+        llm = self._fake_llm(flaky, flaky)
+        with _p.object(ctp, "_available_platform_services",
+                       return_value=["memory"]):
+            plan = await ctp.plan_tool_use(
+                "check the file again", [], "user-1", llm)
+        # Constant terminal default (not a content-based guess): memory is
+        # always available and searches the workspace's own ingested data.
+        assert plan.service == "memory"
+        assert plan.intent == "search"
 
     async def test_loose_service_name_normalized(self, monkeypatch):
         from unittest.mock import patch as _p
@@ -133,13 +170,6 @@ class TestPlannerRepairRungs:
             plan = await ctp.plan_tool_use(
                 "search zoho crm for Blumetric", [], "user-1", self._fake_llm(loose))
         assert plan.service == "zoho_crm"
-
-    def test_named_service_matcher_longest_wins_and_ignores_unconnected(self):
-        named = ctp._service_named_in_message
-        assert named("stock in zoho inventory?", ["zoho_inventory", "zoho_crm"]) == "zoho_inventory"
-        assert named("check zoho crm", ["zoho_inventory", "zoho_crm"]) == "zoho_crm"
-        assert named("search slack", ["zoho_crm"]) is None
-        assert named("nothing relevant here", ["zoho_crm"]) is None
 
 
 class TestCatalogAnnotation:

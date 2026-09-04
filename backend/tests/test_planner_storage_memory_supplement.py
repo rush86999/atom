@@ -15,12 +15,13 @@ for mailbox copies):
   the evidence set never contained the row).
 """
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 import core.chat_tool_planner as ctp
-from core.chat_tool_planner import ToolPlan, execute_tool_plan
+from core.chat_tool_planner import ToolPlan, _StorageQuery, execute_tool_plan
 from integrations.universal_integration_service import UniversalIntegrationService
 
 
@@ -189,11 +190,18 @@ class TestProductTokens:
                    for ln in deduped)
 
 
-class TestContextTokenEnrichment:
-    async def test_storage_read_query_gains_model_token_from_history(self, mem_block):
-        """Live 2026-09-04: the user message ('check the price list file …
-        find the row') carries no model number — only the history does. The
-        read excerpt anchored on boilerplate for three consecutive turns."""
+class TestStorageQueryRewrite:
+    """Query authorship is LLM-owned: the planner's draft query inherits the
+    current message's wording and drops identifiers that live in earlier
+    turns. A bounded structured rewrite (fed history + canvas) replaces the
+    old pattern-scan enrichment; on failure the draft passes through."""
+
+    def _llm(self, rewritten):
+        return SimpleNamespace(
+            generate_structured_response=AsyncMock(
+                return_value=_StorageQuery(query=rewritten)))
+
+    async def test_storage_read_query_rewritten_by_llm(self, mem_block):
         captured = {}
 
         async def _exec(self, service, action, params, context=None):
@@ -206,16 +214,48 @@ class TestContextTokenEnrichment:
         ctx = {"history": [
             {"role": "user",
              "content": "my file shows WG350DSAV Bandsaw 230V $14,145.00"},
-            {"role": "assistant", "content": "checked"},
         ]}
         with patch.object(UniversalIntegrationService, "execute", _exec):
             await execute_tool_plan(
                 _plan("zoho_workdrive", intent="read",
                       query="Consolidated Price List"),
-                "user-1", context=ctx)
+                "user-1", context=ctx, llm_service=self._llm(
+                    "Consolidated Price List WG350DSAV"))
         assert "WG350DSAV" in captured["query"]
 
-    async def test_non_storage_query_not_enriched(self, mem_block):
+    async def test_storage_query_passthrough_without_llm(self, mem_block):
+        captured = {}
+
+        async def _exec(self, service, action, params, context=None):
+            captured["query"] = params.get("query")
+            return {"status": "success",
+                    "data": {"found": False, "message": "no file"}}
+
+        with patch.object(UniversalIntegrationService, "execute", _exec):
+            await execute_tool_plan(
+                _plan("zoho_workdrive", intent="read",
+                      query="Consolidated Price List"),
+                "user-1")
+        assert captured["query"] == "Consolidated Price List"
+
+    async def test_rewrite_failure_keeps_draft_query(self, mem_block):
+        captured = {}
+
+        async def _exec(self, service, action, params, context=None):
+            captured["query"] = params.get("query")
+            return {"status": "success",
+                    "data": {"found": False, "message": "no file"}}
+
+        llm = SimpleNamespace(
+            generate_structured_response=AsyncMock(side_effect=RuntimeError("down")))
+        with patch.object(UniversalIntegrationService, "execute", _exec):
+            await execute_tool_plan(
+                _plan("zoho_workdrive", intent="read",
+                      query="Consolidated Price List"),
+                "user-1", llm_service=llm)
+        assert captured["query"] == "Consolidated Price List"
+
+    async def test_non_storage_query_not_rewritten(self, mem_block):
         captured = {}
 
         async def _search(self, service, query, context=None):
@@ -227,7 +267,8 @@ class TestContextTokenEnrichment:
         ]}
         with patch.object(UniversalIntegrationService, "search", _search):
             await execute_tool_plan(
-                _plan("zoho_crm", query="acme leads"), "user-1", context=ctx)
+                _plan("zoho_crm", query="acme leads"), "user-1", context=ctx,
+                llm_service=self._llm("SHOULD NOT APPEAR"))
         assert captured["query"] == "acme leads"
 
 

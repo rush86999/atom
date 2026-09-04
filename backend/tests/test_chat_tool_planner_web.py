@@ -218,17 +218,23 @@ async def test_named_unavailable_service_still_dead_ends(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_history_fallback_still_wins_over_memory():
-    """Existing contract: a recently mentioned connected service is the
-    preferred recovery over the memory rung (retry continuity)."""
+async def test_retry_repaired_to_history_service_over_memory():
+    """New contract: routing repairs are LLM-owned. When the first pass
+    emits a null service, the corrective pass sees the conversation (which
+    mentions outlook) and re-plans outlook — preferred over the constant
+    memory default because the model, not a pattern scan, made the call."""
     from core.chat_tool_planner import plan_tool_use
 
     llm = MagicMock()
-    llm.generate_structured_response = AsyncMock(return_value=_plan(None))
+    llm.generate_structured_response = AsyncMock(side_effect=[
+        _plan(None),
+        _plan("outlook"),
+    ])
     history = [{"message": "search outlook for the Acme quote"}]
     with patch("core.chat_tool_planner.get_connected_services", return_value=["outlook"]):
         result = await plan_tool_use("try again", history, "user-1", llm)
     assert result is not None and result.service == "outlook"
+    assert llm.generate_structured_response.await_count == 2
 
 
 # ── query-anchored excerpts for single-row documents ───────────────────

@@ -1,11 +1,18 @@
 """Planner retry continuity — 'try again' after a failed tool turn must
-re-plan deterministically instead of dying (which made the model answer
-from memory while CLAIMING it had rechecked the mailbox, 2026-09-02)."""
+re-plan instead of dying (which made the model answer from memory while
+CLAIMING it had rechecked the mailbox, 2026-09-02).
 
-from core.chat_tool_planner import (
-    _fallback_service_from_history,
-    _retry_query_from_history,
-)
+Routing is LLM-owned end to end: the corrective pass is itself a structured
+LLM call (it sees the catalog + conversation and re-decides service,
+intent, query), replacing the old pattern repairs — service-name matching,
+file-noun matching, recently-used fallback — which kept misrouting fluid
+conversations because surface words don't reliably name the service.
+"""
+
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+from core.chat_tool_planner import ToolPlan, plan_tool_use
 
 
 HISTORY = [
@@ -14,38 +21,60 @@ HISTORY = [
 ]
 
 
-def test_fallback_finds_mentioned_service():
-    assert _fallback_service_from_history(HISTORY, ["outlook", "zoho"], "try again") == "outlook"
+def _llm(*plans):
+    llm = SimpleNamespace()
+    llm.generate_structured_response = AsyncMock(side_effect=list(plans))
+    return llm
 
 
-def test_fallback_scans_any_entry_shape():
-    """Session history entries aren't guaranteed role/content dicts — every
-    string value is scanned."""
-    weird = [{"text": "the outlook mailbox had nothing", "other": 5}, {"role": "user"}]
-    assert _fallback_service_from_history(weird, ["outlook"], "try again") == "outlook"
+async def test_retry_repaired_to_history_service_by_llm(monkeypatch):
+    """'try again' after an outlook turn: the repair pass sees the history
+    and re-plans outlook — a DECISION from context, not a regex hit."""
+    monkeypatch.setattr("core.chat_tool_planner.get_connected_services",
+                        lambda user_id: ["outlook", "zoho"])
+    monkeypatch.setattr("core.chat_tool_planner._available_platform_services",
+                        lambda: [])
+    flaky = ToolPlan(use_tool=True, service=None, intent="search")
+    repaired = ToolPlan(use_tool=True, service="outlook", intent="search",
+                        query="jschulz blumetric")
+    plan = await plan_tool_use("try again", HISTORY, "user-1",
+                               _llm(flaky, repaired))
+    assert plan.service == "outlook"
+    assert "jschulz" in plan.query
 
 
-def test_bare_retry_defaults_to_connected_mailbox():
-    empty = [{"role": "user", "content": "try again"}]
-    assert _fallback_service_from_history(empty, ["outlook", "zoho"], "try again") == "outlook"
-    assert _fallback_service_from_history(empty, ["zoho", "gmail"], "keep looking") == "gmail"
-    # No retry imperative and no mention → no guess.
-    assert _fallback_service_from_history(empty, ["outlook"], "what is 2+2") is None
-
-
-def test_retry_query_recovers_last_substantive_user_message():
+async def test_retry_repair_query_recovers_substantive_terms(monkeypatch):
+    """The repair pass authors the query from the conversation — the bare
+    'try again' message itself carries nothing to search for."""
+    monkeypatch.setattr("core.chat_tool_planner.get_connected_services",
+                        lambda user_id: ["outlook"])
+    monkeypatch.setattr("core.chat_tool_planner._available_platform_services",
+                        lambda: [])
+    flaky = ToolPlan(use_tool=True, service=None, intent="search")
+    repaired = ToolPlan(use_tool=True, service="outlook", intent="search",
+                        query="Jason dealer Blumetric")
     history = HISTORY + [
-        {"role": "user", "content": "find and show me Jason's response. Also Mark is a dealer and not an employee of Brennan"},
+        {"role": "user",
+         "content": "find and show me Jason's response. Also Mark is a dealer"},
     ]
-    q = _retry_query_from_history(history, "try again")
-    assert "Jason" in q and "dealer" in q
-    # With no prior substantive user message, the bare message is the
-    # documented fallback (the search runs on weak terms; the ingested-
-    # store supplement carries the result).
-    assert _retry_query_from_history(HISTORY, "try again") == "try again"
+    plan = await plan_tool_use("try again", history, "user-1",
+                               _llm(flaky, repaired))
+    assert "Jason" in plan.query
 
 
-def test_memory_service_always_available(monkeypatch):
+async def test_both_passes_fail_defaults_to_memory(monkeypatch):
+    monkeypatch.setattr("core.chat_tool_planner.get_connected_services",
+                        lambda user_id: ["outlook"])
+    monkeypatch.setattr("core.chat_tool_planner._available_platform_services",
+                        lambda: ["memory"])
+    flaky = ToolPlan(use_tool=True, service=None, intent="search",
+                     query="whatever")
+    plan = await plan_tool_use("try again", HISTORY, "user-1",
+                               _llm(flaky, flaky))
+    assert plan.service == "memory"
+
+
+async def test_memory_service_always_available(monkeypatch):
     """The memory tool queries the workspace's OWN ingested data — it must
     never be gated on the Tavily web-search key (coupling made it vanish
     wherever web search wasn't configured)."""

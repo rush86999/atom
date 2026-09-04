@@ -1436,8 +1436,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                        if isinstance(canvas_context, dict) else {}),
                                 } if isinstance(canvas_context, dict) else None,
                             },
+                            llm_service=self.llm_service,
                         ),
-                        timeout=30,
+                        timeout=45,
                     )
                     _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
                     await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
