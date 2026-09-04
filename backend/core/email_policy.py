@@ -401,12 +401,34 @@ def validate_sender(sender: str) -> bool:
 # questions) live on external legs too, so they never flag.
 
 INTERNAL_QUOTE_MIN_WORDS = 6
+# Targeted lower floors — deterministic, high-precision fragment kinds:
+INTERNAL_QUOTE_NUMERIC_MIN_WORDS = 2   # fragments carrying a distinctive number ("hold at 13k")
+INTERNAL_QUOTE_CAPS_MIN_WORDS = 4      # fragments with ALL-CAPS emphasis ("DO NOT QUOTE INTERNALLY")
+INTERNAL_QUOTE_SHINGLE_WORDS = 8       # reworded/reordered fragments (3-gram overlap)
+INTERNAL_QUOTE_SHINGLE_OVERLAP = 0.8
+# Semantic tier. Calibrated 2026-09-04 on BAAI/bge-small-en-v1.5: internal vs
+# paraphrase cosines 0.67-0.82, internal vs unrelated <=0.615 (n=4+16 real
+# thread sentences). Threshold 0.66. Corroboration is deliberately strict:
+# the pair must share a DISTINCTIVE NUMBER that appears nowhere in the
+# customer-visible legs. Numbers are what internal discussion actually
+# guards (pricing floors, discount caps), and published facts (the list
+# price discussed internally, then quoted) carry numbers that ARE in the
+# customer-visible blob — so legitimate internal incubation of customer
+# answers never trips the tier, while "hold at 13k" paraphrases do.
+INTERNAL_QUOTE_SEMANTIC_THRESHOLD = 0.66
+INTERNAL_QUOTE_SEMANTIC_MIN_WORDS = 4
+_MAX_EMBED_FRAGMENTS = 120
+_MAX_EMBED_BODY_SENTENCES = 60
+
+_MATCH_RANK = {"verbatim": 0, "numeric": 1, "caps": 2, "reworded": 3, "semantic": 4}
 
 
 def _strip_email_markup(value: Any) -> str:
-    """HTML-stripped, whitespace-collapsed, lowercased email text. Tags are
-    stripped BEFORE entity-decoding so escaped text ("&lt;table&gt;") is
-    never mistaken for real markup."""
+    """Whitespace-collapsed, lowercased email text with markup removed. Tags
+    are stripped BEFORE entity-decoding so escaped text ("&lt;table&gt;") is
+    never mistaken for real markup. Case is deliberately preserved OUT of
+    this helper's contract — callers needing case must use
+    ``_sentence_parts`` directly."""
     import html as _html
 
     text = re.sub(r"<[^>]+>", " ", str(value or ""))
@@ -414,41 +436,199 @@ def _strip_email_markup(value: Any) -> str:
     return " ".join(text.split()).lower()
 
 
-def _quote_fragments(value: Any) -> List[str]:
-    """Distinctive normalized fragments of an email body: HTML-stripped,
-    sentence-split, >= INTERNAL_QUOTE_MIN_WORDS words."""
-    fragments: List[str] = []
-    for part in re.split(r"(?<=[.!?])\s+", _strip_email_markup(value)):
-        norm = part.strip(" .;:,!?-\"'()")
-        if len(norm.split()) >= INTERNAL_QUOTE_MIN_WORDS:
-            fragments.append(norm)
+def _sentence_parts(value: Any) -> List[str]:
+    """Raw sentence parts of an email body: markup stripped, case preserved,
+    split on newlines/sentence boundaries."""
+    import html as _html
+
+    text = re.sub(r"<[^>]+>", "\n", str(value or ""))
+    text = _html.unescape(text)
+    parts: List[str] = []
+    for line in text.splitlines():
+        parts.extend(re.split(r"(?<=[.!?])\s+", line))
+    return [p for p in (part.strip() for part in parts) if p]
+
+
+def _strong_number_token(token: str) -> bool:
+    """A number distinctive enough to anchor a short fragment: has a digit,
+    at least 2 chars — "13k", "25%", "$14,145.00", "10am" qualify; a lone
+    "3" does not (too generic)."""
+    token = token.strip("$€£(),")
+    return len(token) >= 2 and any(ch.isdigit() for ch in token)
+
+
+def _is_caps_token(token: str) -> bool:
+    return len(token) >= 2 and token.isupper() and any(ch.isalpha() for ch in token)
+
+
+def _internal_fragments(value: Any) -> List[Dict[str, Any]]:
+    """Distinctive normalized fragments of an email body with the flags the
+    tier floors need."""
+    fragments: List[Dict[str, Any]] = []
+    for part in _sentence_parts(value):
+        norm = " ".join(part.split()).lower()
+        tokens = norm.strip(" .;:,!?-\"'()").split()
+        words = len(tokens)
+        if not words:
+            continue
+        raw_tokens = part.split()
+        fragments.append({
+            "text": " ".join(tokens),
+            "words": words,
+            "numeric": any(_strong_number_token(t) for t in tokens),
+            "caps": any(_is_caps_token(t) for t in raw_tokens),
+        })
     return fragments
 
 
-def find_internal_quotes(
-    body: str, internal_texts: List[str], external_texts: List[str]
-) -> List[str]:
-    """Body passages quoted from internal-only thread text, never raised.
+def _trigrams(tokens: List[str]) -> set:
+    return {" ".join(tokens[i:i + 3]) for i in range(len(tokens) - 2)}
 
-    Deterministic and verbatim-level (whitespace/case/HTML normalized) so it
-    never guesses: paraphrased leaks are the grounding gate's problem, not
-    this one. Returns at most 5 fragments, shortest first."""
+
+def _cosine(a: List[float], b: List[float]) -> float:
+    try:
+        import numpy as np
+
+        va, vb = np.asarray(a, dtype=float), np.asarray(b, dtype=float)
+        denom = float(np.linalg.norm(va) * np.linalg.norm(vb))
+        return float(np.dot(va, vb)) / denom if denom else 0.0
+    except Exception:
+        num = sum(x * y for x, y in zip(a, b))
+        na = sum(x * x for x in a) ** 0.5
+        nb = sum(x * x for x in b) ** 0.5
+        return num / (na * nb) if na and nb else 0.0
+
+
+async def find_internal_quotes(
+    body: str,
+    internal_texts: List[str],
+    external_texts: List[str],
+    embed_fn: Optional[Any] = None,
+) -> List[Dict[str, str]]:
+    """Passages of ``body`` that restate internal-only thread text, never
+    raised. Tiered, deterministic apart from the optional semantic tier:
+
+    - ``verbatim``  sentence containment (floor: 6 words)
+    - ``numeric``   short fragments anchored by a distinctive number (2 words)
+    - ``caps``      short fragments carrying ALL-CAPS emphasis (4 words)
+    - ``reworded``  >=8-word fragments whose 3-grams are >=80% present in the
+      body (catches reordering and small edits)
+    - ``semantic``  embedding cosine >= threshold AND the pair shares a
+      distinctive number that appears nowhere in the customer-visible legs
+      (when ``embed_fn`` is provided); embedder failures degrade to the
+      lexical tiers only. Internal passages that were already published in
+      substance — an earlier sent reply with high cosine — are exempt:
+      internally-drafted customer answers are not leaks.
+
+    Text appearing anywhere in the customer-visible legs (external senders,
+    our own mail addressed externally) never flags. Returns at most 5
+    entries ``{"text", "match"}``, most-sensible first."""
     norm_body = _strip_email_markup(body)
     if not norm_body:
         return []
-
+    body_tokens = norm_body.split()
+    body_trigrams = _trigrams(body_tokens)
     external_blob = _strip_email_markup(" ".join(external_texts or []))
+    external_number_tokens = {
+        t for t in external_blob.split() if _strong_number_token(t)
+    }
+    body_sentences = [
+        part.lower()
+        for part in _sentence_parts(body)
+        if len(part.split()) >= INTERNAL_QUOTE_SEMANTIC_MIN_WORDS
+    ][:_MAX_EMBED_BODY_SENTENCES]
+    external_sentences = [
+        part.lower()
+        for part in _sentence_parts(" ".join(external_texts or []))
+        if len(part.split()) >= INTERNAL_QUOTE_SEMANTIC_MIN_WORDS
+    ][:_MAX_EMBED_BODY_SENTENCES]
 
-    flagged: List[str] = []
-    seen: set = set()
+    internal_fragments: List[Dict[str, Any]] = []
+    seen_texts: set = set()
     for text in internal_texts or []:
-        for fragment in _quote_fragments(text):
-            # Substring match against the whole external blob: the customer's
-            # leg usually wraps shared text with extra words ("Quoting your
-            # request: ..."), which exact fragment equality would miss.
-            if fragment in external_blob or fragment in seen:
+        for fragment in _internal_fragments(text):
+            if fragment["text"] in seen_texts:
                 continue
-            if fragment in norm_body:
-                seen.add(fragment)
-                flagged.append(fragment)
-    return sorted(flagged, key=len)[:5]
+            seen_texts.add(fragment["text"])
+            internal_fragments.append(fragment)
+
+    # Semantic tier inputs are chosen before flagging so the embed batch is
+    # a single call.
+    semantic_candidates = [
+        f for f in internal_fragments
+        if f["words"] >= INTERNAL_QUOTE_SEMANTIC_MIN_WORDS
+    ][:_MAX_EMBED_FRAGMENTS]
+    semantic_index = {f["text"]: i for i, f in enumerate(semantic_candidates)}
+    frag_vectors: List[List[float]] = []
+    published_vectors: List[List[float]] = []
+    sent_vectors: List[List[float]] = []
+    if embed_fn is not None and semantic_candidates and body_sentences:
+        try:
+            vectors = await embed_fn(
+                [f["text"] for f in semantic_candidates]
+                + external_sentences
+                + body_sentences
+            )
+            frag_vectors = vectors[:len(semantic_candidates)]
+            published_vectors = vectors[
+                len(semantic_candidates):
+                len(semantic_candidates) + len(external_sentences)
+            ]
+            sent_vectors = vectors[len(semantic_candidates) + len(external_sentences):]
+        except Exception:
+            frag_vectors, published_vectors, sent_vectors = [], [], []
+
+    flagged: List[Dict[str, str]] = []
+    reported: set = set()
+    for fragment in internal_fragments:
+        text = fragment["text"]
+        if text in external_blob:
+            continue
+        hit = None
+        if (
+            fragment["words"] >= INTERNAL_QUOTE_MIN_WORDS
+            or (fragment["numeric"] and fragment["words"] >= INTERNAL_QUOTE_NUMERIC_MIN_WORDS)
+            or (fragment["caps"] and fragment["words"] >= INTERNAL_QUOTE_CAPS_MIN_WORDS)
+        ):
+            if text in norm_body:
+                hit = ("numeric" if fragment["numeric"] and fragment["words"] < INTERNAL_QUOTE_MIN_WORDS
+                       else "caps" if fragment["caps"] and fragment["words"] < INTERNAL_QUOTE_MIN_WORDS
+                       else "verbatim")
+        if hit is None and fragment["words"] >= INTERNAL_QUOTE_SHINGLE_WORDS:
+            grams = _trigrams(text.split())
+            if grams and len(grams & body_trigrams) / len(grams) >= INTERNAL_QUOTE_SHINGLE_OVERLAP:
+                hit = "reworded"
+        if hit is None and frag_vectors:
+            cand_idx = semantic_index.get(text)
+            if cand_idx is not None and cand_idx < len(frag_vectors):
+                # In-substance publication: if this internal passage already
+                # went to the customer inside one of our sent replies, its
+                # ideas are published — internally-drafted customer answers
+                # are not leaks, even when the wording differs.
+                if any(
+                    _cosine(frag_vectors[cand_idx], pv)
+                    >= INTERNAL_QUOTE_SEMANTIC_THRESHOLD
+                    for pv in published_vectors
+                ):
+                    continue
+                frag_numbers = {t for t in text.split() if _strong_number_token(t)}
+                for idx, sent_vector in enumerate(sent_vectors):
+                    if _cosine(frag_vectors[cand_idx], sent_vector) < INTERNAL_QUOTE_SEMANTIC_THRESHOLD:
+                        continue
+                    # The corroborating number must itself be internal-only:
+                    # a number the customer has already seen (the list price
+                    # discussed internally, then quoted) marks published
+                    # facts, not leaks.
+                    sent_numbers = {
+                        t for t in body_sentences[idx].split()
+                        if _strong_number_token(t)
+                    } - external_number_tokens
+                    if frag_numbers & sent_numbers:
+                        hit = "semantic"
+                        break
+        if hit and text not in reported:
+            reported.add(text)
+            flagged.append({"text": text, "match": hit})
+
+    flagged.sort(key=lambda f: (_MATCH_RANK.get(f["match"], 9), len(f["text"])))
+    return flagged[:5]

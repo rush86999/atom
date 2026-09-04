@@ -395,6 +395,11 @@ class TestInternalThreadQuoteGuard:
             return None
 
         svc._make_graph_request = AsyncMock(side_effect=fake_graph)
+        # Deterministic stub embedder: zero vectors keep the semantic tier
+        # inert; it is exercised end-to-end in the dedicated test below.
+        svc._thread_embed = AsyncMock(
+            side_effect=lambda texts: [[0.0] * 8 for _ in texts]
+        )
         return svc
 
     @pytest.mark.asyncio
@@ -474,3 +479,87 @@ class TestInternalThreadQuoteGuard:
         )
 
         assert ok is True
+
+    @pytest.mark.asyncio
+    async def test_semantic_tier_blocks_paraphrased_internal_quote(self):
+        """A paraphrase with no verbatim overlap still blocks when the
+        embedder scores it against internal-only text and content words
+        corroborate the match."""
+        svc = self._svc()
+
+        async def embed_fn(texts):
+            return [
+                [1.0, 0.0] if "13k fallback" in t
+                else [0.9, 0.4] if "strictly confidential" in t
+                else [0.0, 1.0]
+                for t in texts
+            ]
+
+        svc._thread_embed = embed_fn
+
+        ok = await svc.reply_to_email(
+            "u1", "m-anchor",
+            "Hi Jacob — we should keep the 13k floor strictly confidential "
+            "among ourselves. Regards.",
+            to_recipients=["jschulz@blumetric.ca"],
+        )
+
+        assert ok is False
+        detail = svc.last_send_error or {}
+        assert detail.get("policy") == "internal_thread_quote"
+        assert any(q.get("match") == "semantic" for q in detail.get("quotes") or [])
+
+
+class TestLegPagination:
+    @pytest.mark.asyncio
+    async def test_pagination_reaches_beyond_first_page(self):
+        """Internal-only text on page 2 of a long thread is still guarded —
+        the resolver follows @odata.nextLink instead of stopping at page 1."""
+        from integrations.outlook_service import OutlookService
+
+        svc = OutlookService()
+        list_calls = {"n": 0}
+
+        async def paginated(user_id, endpoint, *args, **kwargs):
+            if endpoint == "/me":
+                return {"id": "u1", "mail": "rish@brennan.ca"}
+            if endpoint.startswith("/me/messages/") and "$select=conversationId" in endpoint:
+                return {"conversationId": "conv-9"}
+            if endpoint.startswith("/me/messages?"):
+                list_calls["n"] += 1
+                if list_calls["n"] == 1:
+                    return {
+                        "value": [{
+                            "receivedDateTime": "2026-09-01T10:00:00Z",
+                            "from": {"emailAddress": {"address": "jschulz@blumetric.ca"}},
+                            "body": {"content": "<div>Page one customer content.</div>"},
+                        }],
+                        "@odata.nextLink": (
+                            "https://graph.microsoft.com/v1.0/me/messages?$skiptoken=abc"
+                        ),
+                    }
+                return {"value": [{
+                    "receivedDateTime": "2026-09-02T17:33:17Z",
+                    "from": {"emailAddress": {"address": "vipul@brennan.ca"}},
+                    "body": {"content": "<div>Keep the 13k fallback price "
+                                        "internal until Jacob pushes back.</div>"},
+                }]}
+            if "/reply" in endpoint:
+                return {}
+            return None
+
+        svc._make_graph_request = AsyncMock(side_effect=paginated)
+        svc._thread_embed = AsyncMock(
+            side_effect=lambda texts: [[0.0] * 8 for _ in texts]
+        )
+
+        ok = await svc.reply_to_email(
+            "u1", "m-anchor",
+            "Hi Jacob — keep the 13k fallback price internal until Jacob "
+            "pushes back. Regards.",
+            to_recipients=["jschulz@blumetric.ca"],
+        )
+
+        assert list_calls["n"] == 2, "nextLink page was never fetched"
+        assert ok is False
+        assert (svc.last_send_error or {}).get("policy") == "internal_thread_quote"

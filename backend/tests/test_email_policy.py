@@ -315,7 +315,8 @@ class TestRecipientValidation:
 
 
 class TestInternalQuoteGuard:
-    def test_flags_internal_only_fragment(self):
+    @pytest.mark.asyncio
+    async def test_flags_internal_only_fragment(self):
         internal = [
             "<div>Let's hold the 13k fallback price internal until Jacob pushes back.</div>"
         ]
@@ -324,11 +325,13 @@ class TestInternalQuoteGuard:
             "Hi Jacob — let's hold the 13k fallback price internal until "
             "Jacob pushes back. Regards, Rish"
         )
-        flagged = find_internal_quotes(body, internal, external)
+        flagged = await find_internal_quotes(body, internal, external)
         assert flagged
-        assert "13k fallback price" in flagged[0]
+        assert "13k fallback price" in flagged[0]["text"]
+        assert flagged[0]["match"] == "verbatim"
 
-    def test_facts_shared_with_external_leg_do_not_flag(self):
+    @pytest.mark.asyncio
+    async def test_facts_shared_with_external_leg_do_not_flag(self):
         """A fact the customer already saw lives on the external leg too —
         repeating it in the reply is normal, not a leak."""
         internal = ["<div>The WG-350DSAV is $14,145.00 US list and currently in stock.</div>"]
@@ -337,18 +340,120 @@ class TestInternalQuoteGuard:
             "and currently in stock. Thanks.</div>"
         ]
         body = "The WG-350DSAV is $14,145.00 US list and currently in stock. Best, Rish"
-        assert find_internal_quotes(body, internal, external) == []
+        assert await find_internal_quotes(body, internal, external) == []
 
-    def test_short_generic_fragments_ignored(self):
+    @pytest.mark.asyncio
+    async def test_short_generic_fragments_ignored(self):
         internal = ["<div>Sounds good.</div>"]
         body = "Sounds good. Let me know if anything changes."
-        assert find_internal_quotes(body, internal, []) == []
+        assert await find_internal_quotes(body, internal, []) == []
 
-    def test_html_entities_and_case_normalized(self):
+    @pytest.mark.asyncio
+    async def test_numeric_short_fragment_flags(self):
+        """Internal-only numbers leak even in short phrases — "hold at 13k"
+        is exactly what must never reach the customer."""
+        internal = ["<div>Hold at 13k.</div>"]
+        body = "We can hold at 13k for now, Jacob."
+        flagged = await find_internal_quotes(body, internal, [])
+        assert flagged and flagged[0]["match"] == "numeric"
+
+    @pytest.mark.asyncio
+    async def test_caps_directive_short_fragment_flags(self):
+        internal = ["<div>DO NOT QUOTE INTERNALLY.</div>"]
+        body = "Please remember: do not quote internally when you reply."
+        flagged = await find_internal_quotes(body, internal, [])
+        assert flagged and flagged[0]["match"] == "caps"
+
+    @pytest.mark.asyncio
+    async def test_locally_reworded_fragment_flags(self):
+        """Same sentence with a word swapped — the 3-gram tier catches light
+        edits that verbatim misses."""
+        internal = [
+            "The WG-350DSAV ships from our Nanaimo warehouse by freight next week Tuesday."
+        ]
+        body = (
+            "The WG-350DSAV ships from our Nanaimo warehouse by freight next "
+            "week Monday. Regards"
+        )
+        flagged = await find_internal_quotes(body, internal, [])
+        assert flagged and flagged[0]["match"] == "reworded"
+
+    @pytest.mark.asyncio
+    async def test_semantic_tier_flags_paraphrase_with_corroboration(self):
+        """Embedding similarity alone isn't enough — a paraphrase flags only
+        when it also shares content words or a number."""
+        internal = ["Let's hold the 13k fallback price internal until Jacob pushes back."]
+        body = "We should keep the 13k floor strictly confidential among ourselves. Regards"
+        fake_vectors = {
+            "frag": [1.0, 0.0],
+            "sent": [0.95, 0.31],  # cos ~0.95 with frag
+        }
+
+        async def embed_fn(texts):
+            return [
+                fake_vectors["frag"] if "13k fallback" in t else fake_vectors["sent"]
+                if "confidential" in t else [0.0, 1.0]
+                for t in texts
+            ]
+
+        flagged = await find_internal_quotes(body, internal, [], embed_fn=embed_fn)
+        assert flagged and flagged[0]["match"] == "semantic"
+
+    @pytest.mark.asyncio
+    async def test_semantic_similarity_without_lexical_corroboration_ignores(self):
+        """Identical vectors but zero shared content words/numbers — the
+        corroboration gate keeps embedding neighbors from flagging."""
+        internal = ["alpha bravo charlie delta echo foxtrot."]
+        body = "golf hotel india juliet kilo lima. Regards"
+
+        async def embed_fn(texts):
+            return [[1.0, 0.0] for _ in texts]
+
+        assert await find_internal_quotes(body, internal, [], embed_fn=embed_fn) == []
+
+    @pytest.mark.asyncio
+    async def test_embedder_failure_degrades_to_lexical_tiers(self):
+        internal = ["<div>Let's hold the 13k fallback price internal until Jacob pushes back.</div>"]
+        body = "let's hold the 13k fallback price internal until Jacob pushes back."
+
+        async def broken_embed_fn(texts):
+            raise RuntimeError("model unavailable")
+
+        flagged = await find_internal_quotes(
+            body, internal, [], embed_fn=broken_embed_fn
+        )
+        assert flagged and flagged[0]["match"] == "verbatim"
+
+    @pytest.mark.asyncio
+    async def test_html_entities_and_case_normalized(self):
         internal = ["<div>Do&nbsp;NOT mention the agent drafted this reply.</div>"]
         body = "Do NOT mention the agent drafted this reply. Regards"
-        flagged = find_internal_quotes(body, internal, [])
-        assert flagged and "agent drafted" in flagged[0]
+        flagged = await find_internal_quotes(body, internal, [])
+        assert flagged and "agent drafted" in flagged[0]["text"]
 
-    def test_empty_body_never_flags(self):
-        assert find_internal_quotes("", ["some internal sentence here"], []) == []
+    @pytest.mark.asyncio
+    async def test_empty_body_never_flags(self):
+        assert await find_internal_quotes("", ["some internal sentence here"], []) == []
+
+    @pytest.mark.asyncio
+    async def test_published_in_substance_fragment_is_exempt(self):
+        """A passage already sent to the customer (high cosine vs our sent
+        reply) is published — internally-drafted customer answers are not
+        leaks, even when the wording differs from the internal note."""
+        internal = [
+            "We can offer the linmac wg-350dsav as the closest equivalent to the dm-10."
+        ]
+        external = [
+            "Here are the details: the linmac wg-350dsav is our closest equivalent machine."
+        ]
+        body = "The linmac wg-350dsav is the closest equivalent to the dm-10 you asked about."
+
+        async def embed_fn(texts):
+            return [
+                [1.0, 0.0] if "closest equivalent" in t else [0.0, 1.0]
+                for t in texts
+            ]
+
+        assert await find_internal_quotes(
+            body, internal, external, embed_fn=embed_fn
+        ) == []

@@ -910,12 +910,15 @@ class OutlookService(IntegrationService):
                 logger.warning(f"internal-thread quote check skipped: {e}")
                 flagged, audience_external = [], False
             if flagged:
-                snippet = flagged[0][:120]
+                first = flagged[0]
+                snippet = str(first.get("text", ""))[:120]
+                tier = first.get("match", "verbatim")
                 self.last_send_error = {
                     "error": (
                         "Reply quotes internal-only discussion from this "
-                        f"thread ({len(flagged)} passage(s), e.g. \"{snippet}\"). "
-                        "Remove it, or resend with the internal-quote override."
+                        f"thread ({len(flagged)} passage(s), e.g. \"{snippet}\" "
+                        f"[{tier}]). Remove it, or resend with the internal-quote "
+                        "override."
                     ),
                     "policy": "internal_thread_quote",
                     "quotes": flagged,
@@ -950,6 +953,17 @@ class OutlookService(IntegrationService):
         except Exception as e:
             logger.error(f"Error replying to email: {e}")
             return False
+
+    async def _thread_embed(self, texts: List[str]) -> List[List[float]]:
+        """Embedder for the leak guard's semantic tier, cached process-wide —
+        the fastembed model loads once, not per send."""
+        svc = getattr(OutlookService, "_cached_embedding_service", None)
+        if svc is None:
+            from core.embedding_service import EmbeddingService
+
+            svc = EmbeddingService()
+            OutlookService._cached_embedding_service = svc
+        return await svc.generate_embeddings_batch(texts)
 
     async def _internal_thread_quotes(
         self,
@@ -1012,8 +1026,9 @@ class OutlookService(IntegrationService):
         if not legs.get("internal"):
             return [], audience_external
         return (
-            find_internal_quotes(
-                comment, legs.get("internal") or [], legs.get("external") or []
+            await find_internal_quotes(
+                comment, legs.get("internal") or [], legs.get("external") or [],
+                embed_fn=self._thread_embed,
             ),
             audience_external,
         )
@@ -1031,7 +1046,8 @@ class OutlookService(IntegrationService):
         token: Optional[str] = None,
     ) -> Dict[str, List[str]]:
         """Bodies of a conversation split into customer-visible vs internal-
-        only text, capped at the newest 25 messages.
+        only text. Pagination follows @odata.nextLink so long threads are
+        fully covered (hard cap 200 messages — a guard, not an archive).
 
         External senders are customer-visible — and so is our OWN mail
         addressed to an external recipient (quoting your previous reply to
@@ -1050,13 +1066,28 @@ class OutlookService(IntegrationService):
             return {"internal": [], "external": []}
         params = {
             "$filter": f"conversationId eq '{conversation_id}'",
-            "$top": 25,
+            "$top": 50,
             "$select": "from,toRecipients,ccRecipients,receivedDateTime,body",
         }
-        result = await self._make_graph_request(
-            user_id, "/me/messages?" + urllib.parse.urlencode(params),
-            access_token=token,
-        )
+        url = "/me/messages?" + urllib.parse.urlencode(params)
+        messages: List[Dict[str, Any]] = []
+        for _page in range(4):
+            result = await self._make_graph_request(user_id, url, access_token=token)
+            messages.extend((result or {}).get("value") or [])
+            next_link = str((result or {}).get("@odata.nextLink") or "")
+            if not next_link:
+                break
+            # nextLink is absolute; the client wants base-relative endpoints.
+            if next_link.startswith(self.base_url):
+                url = next_link[len(self.base_url):]
+            else:
+                parts = urllib.parse.urlsplit(next_link)
+                path = parts.path
+                for prefix in ("/v1.0", "/beta"):
+                    if path.startswith(prefix):
+                        path = path[len(prefix):]
+                        break
+                url = path + ("?" + parts.query if parts.query else "")
         legs: Dict[str, List[str]] = {"internal": [], "external": []}
         for message in (result or {}).get("value") or []:
             body = str(((message.get("body") or {}).get("content")) or "")
