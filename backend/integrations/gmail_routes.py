@@ -234,9 +234,18 @@ async def list_emails(
                 for mid in ids
             ]
         )
-    emails = [
-        _email_from_payload(full) for st_, full in results if st_ and full
-    ]
+    # A failed per-message fetch must not look like a smaller/empty mailbox —
+    # report the upstream failure instead of silently dropping the message.
+    failed = [r for r in results if not (r[0] and r[1])]
+    if failed:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Google Gmail API error fetching message metadata "
+                f"({len(failed)}/{len(ids)} failed)"
+            ),
+        )
+    emails = [_email_from_payload(full) for _, full in results]
     return {"emails": emails, "total": len(emails)}
 
 
@@ -284,16 +293,19 @@ async def list_events(
         )
 
         # RECENT completed events only (last 30 days). The API only sorts
-        # ascending, so a single capped page would keep the OLDEST events and
-        # silently drop the newest meetings. Paginate the whole window, then
-        # sort descending below and keep the newest max_results.
+        # ascending, so a capped query would keep the OLDEST events and
+        # silently drop the newest meetings. Paginate to the END of the
+        # window (never truncate while a next page exists) and sort
+        # descending below. A pathological calendar that exceeds a hard
+        # safety bound fails loudly instead of returning a partial set.
+        _MAX_PAST_ITEMS = 100_000
         past_items: List[Dict[str, Any]] = []
         page_token: Optional[str] = None
         st_past = None
         while True:
             params = _event_params(
                 {
-                    "maxResults": 1000,
+                    "maxResults": 2500,
                     "timeMax": now.isoformat(),
                     "timeMin": (now - timedelta(days=30)).isoformat(),
                 }
@@ -306,8 +318,13 @@ async def list_events(
                 break
             past_items.extend(page.get("items", []))
             page_token = page.get("nextPageToken")
-            if not page_token or len(past_items) >= 10000:
+            if not page_token:
                 break
+            if len(past_items) > _MAX_PAST_ITEMS:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Calendar completed-events window exceeds safety bound",
+                )
 
     # A failed request on EITHER leg is an error — never a silent "0
     # completed" success response.
