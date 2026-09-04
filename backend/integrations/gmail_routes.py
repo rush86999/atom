@@ -335,23 +335,29 @@ async def list_events(
             status_code=502, detail=f"Google Calendar API error ({failed})"
         )
 
-    def _start_key(it: Dict[str, Any]) -> str:
-        start = it.get("start") or {}
-        return start.get("dateTime") or start.get("date") or ""
-
-    def _event_end_dt(it: Dict[str, Any]):
-        """Parse an event's end into tz-aware datetime. All-day ends are
-        exclusive next-day dates, so an all-day event finishing today has
-        end.date == tomorrow."""
-        end = (it.get("end") or {}).get("dateTime") or (it.get("end") or {}).get("date")
-        if not end:
+    def _parse_dt(value: Any):
+        """Parse a Google event time (dateTime or all-day date) into a
+        tz-aware datetime. All-day dates start at 00:00Z; naive values are
+        assumed UTC so comparisons across timezones are instant-correct."""
+        if not value:
             return None
         try:
-            if "T" in end:
-                return datetime.fromisoformat(end)
-            return datetime.fromisoformat(end + "T00:00:00+00:00")
+            text = value + "T00:00:00+00:00" if "T" not in value else value
+            dt = datetime.fromisoformat(text)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
         except Exception:
             return None
+
+    def _event_start_dt(it: Dict[str, Any]):
+        return _parse_dt((it.get("start") or {}).get("dateTime") or (it.get("start") or {}).get("date"))
+
+    def _event_end_dt(it: Dict[str, Any]):
+        """Parse an event's end into a tz-aware datetime. All-day ends are
+        exclusive next-day dates, so an all-day event finishing today has
+        end.date == tomorrow."""
+        return _parse_dt((it.get("end") or {}).get("dateTime") or (it.get("end") or {}).get("date"))
 
     # Meetings that started before now but end after now match BOTH buckets
     # (upcoming because their end is after now; past because their start is
@@ -379,9 +385,15 @@ async def list_events(
         }
 
     # Upcoming (ascending, capped), then the NEWEST finished events first.
+    # Completed events sort by parsed start INSTANT — raw RFC3339 strings
+    # with different UTC offsets compare lexicographically and misrank.
     events = [
         _to_event(it, False) for it in (upcoming_data or {}).get("items", [])[:max_results]
     ]
-    newest_past = sorted(finished, key=_start_key, reverse=True)[:max_results]
+    newest_past = sorted(
+        finished,
+        key=lambda it: _event_start_dt(it) or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )[:max_results]
     events += [_to_event(it, True) for it in newest_past]
     return {"events": events, "total": len(events)}
