@@ -798,13 +798,17 @@ class OutlookService(IntegrationService):
     ) -> Optional[str]:
         """Resolve an Outlook conversationId to the id of its most recent
         message. Graph /reply needs a message id, but ingested/searched
-        threads surface a conversationId — this is the bridge."""
+        threads surface a conversationId — this is the bridge.
+
+        The newest-message sort happens client-side: Graph rejects a
+        conversationId $filter combined with $orderby (400 InefficientFilter,
+        observed live 2026-09-04 — it failed for EVERY conversation, making
+        every threaded reply send fail with "thread not found")."""
         try:
             params = {
                 "$filter": f"conversationId eq '{conversation_id}'",
-                "$orderby": "receivedDateTime desc",
-                "$top": 1,
-                "$select": "id,conversationId",
+                "$top": 50,
+                "$select": "id,conversationId,receivedDateTime",
             }
             endpoint = (
                 "/me/messages?" + urllib.parse.urlencode(params)
@@ -813,7 +817,14 @@ class OutlookService(IntegrationService):
                 user_id, endpoint, access_token=token
             )
             value = (result or {}).get("value") or []
-            return value[0].get("id") if value else None
+            if not value:
+                return None
+            # receivedDateTime is ISO-8601 UTC, so lexicographic order is
+            # chronological order.
+            value.sort(
+                key=lambda m: str(m.get("receivedDateTime") or ""), reverse=True
+            )
+            return value[0].get("id")
         except Exception as e:
             logger.error(f"Error resolving conversation {conversation_id}: {e}")
             return None

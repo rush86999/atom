@@ -213,17 +213,28 @@ class TestOutlookConversationResolution:
     @pytest.mark.asyncio
     async def test_returns_latest_message_id(self):
         svc = self._svc()
+        # Graph returns conversation rows unordered (the conversationId
+        # filter can't carry a $orderby) — the resolver must pick the
+        # newest receivedDateTime itself.
         svc._make_graph_request = AsyncMock(
-            return_value={"value": [{"id": "m1", "conversationId": "c1"}]}
+            return_value={
+                "value": [
+                    {"id": "m-old", "conversationId": "c1",
+                     "receivedDateTime": "2026-09-01T10:00:00Z"},
+                    {"id": "m-new", "conversationId": "c1",
+                     "receivedDateTime": "2026-09-02T17:33:17Z"},
+                ]
+            }
         )
 
         resolved = await svc.get_latest_conversation_message_id("u1", "c1")
 
-        assert resolved == "m1"
+        assert resolved == "m-new"
         endpoint = svc._make_graph_request.await_args.args[1]
         assert "/me/messages" in endpoint
         assert "conversationId" in endpoint
-        assert "receivedDateTime" in endpoint
+        # conversationId $filter + $orderby is a Graph 400 InefficientFilter.
+        assert "$orderby" not in endpoint
 
     @pytest.mark.asyncio
     async def test_returns_none_when_conversation_empty(self):
