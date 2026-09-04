@@ -338,6 +338,31 @@ async def list_events(
         start = it.get("start") or {}
         return start.get("dateTime") or start.get("date") or ""
 
+    def _event_end_dt(it: Dict[str, Any]):
+        """Parse an event's end into tz-aware datetime. All-day ends are
+        exclusive next-day dates, so an all-day event finishing today has
+        end.date == tomorrow."""
+        end = (it.get("end") or {}).get("dateTime") or (it.get("end") or {}).get("date")
+        if not end:
+            return None
+        try:
+            if "T" in end:
+                return datetime.fromisoformat(end)
+            return datetime.fromisoformat(end + "T00:00:00+00:00")
+        except Exception:
+            return None
+
+    # Meetings that started before now but end after now match BOTH buckets
+    # (upcoming because their end is after now; past because their start is
+    # before now). An active meeting is not completed — exclude it from the
+    # completed bucket so nothing is double-counted or mislabelled.
+    now_dt = datetime.now(timezone.utc)
+    finished = [
+        it
+        for it in past_items
+        if (end_dt := _event_end_dt(it)) is not None and end_dt <= now_dt
+    ]
+
     def _to_event(it: Dict[str, Any], completed: bool) -> Dict[str, Any]:
         start = it.get("start") or {}
         dt = start.get("dateTime") or start.get("date") or ""
@@ -356,6 +381,6 @@ async def list_events(
     events = [
         _to_event(it, False) for it in (upcoming_data or {}).get("items", [])[:max_results]
     ]
-    newest_past = sorted(past_items, key=_start_key, reverse=True)[:max_results]
+    newest_past = sorted(finished, key=_start_key, reverse=True)[:max_results]
     events += [_to_event(it, True) for it in newest_past]
     return {"events": events, "total": len(events)}
