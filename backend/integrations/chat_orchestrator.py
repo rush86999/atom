@@ -2303,6 +2303,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         playbooks = await asyncio.to_thread(
             self._relevant_playbooks, user_id, message, canvas.get("canvas_type"))
 
+        # Live evidence when the edit hinges on data the editor cannot see
+        # (a price "from the consolidated price list"). Same read-only tool
+        # planner the chat path uses; empty on any failure, and the editor's
+        # EXTERNAL FACTS rule keeps unfilled values placeholder-marked.
+        from core.chat_canvas_editor import fetch_fresh_data_section
+        fresh_data = await fetch_fresh_data_section(
+            message, history, self.llm_service, user_id,
+        )
+
         try:
             plan = await asyncio.wait_for(
                 plan_canvas_edit(
@@ -2315,6 +2324,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     provenance=provenance,
                     user_identity=user_identity,
                     playbooks=playbooks,
+                    fresh_data=fresh_data,
                 ),
                 timeout=30,
             )
@@ -2607,9 +2617,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # (possibly stale) content would dispatch an out-of-date draft.
         canvas = await self._refresh_canvas_from_store(user_id, canvas)
 
+        # Same evidence rule as edits: a send that amends the draft with
+        # external facts ("send it with the current price") gets the live
+        # FRESH DATA section; empty when the planner sees no data need.
+        from core.chat_canvas_editor import fetch_fresh_data_section
+        fresh_data = await fetch_fresh_data_section(
+            message, history, self.llm_service, user_id,
+        )
+
         try:
             plan = await asyncio.wait_for(
-                plan_canvas_action(message, history, canvas, self.llm_service),
+                plan_canvas_action(message, history, canvas, self.llm_service, fresh_data=fresh_data),
                 timeout=25,
             )
         except Exception as e:

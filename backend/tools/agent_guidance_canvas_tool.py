@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
+from core.chat_session_context import audit_session_id
 from core.models import AgentExecution, AgentOperationTracker, AgentRegistry, CanvasAudit
 from core.websockets import manager as ws_manager
 

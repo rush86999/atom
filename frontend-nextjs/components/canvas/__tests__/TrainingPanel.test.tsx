@@ -133,7 +133,8 @@ describe('TrainingPanel', () => {
       expect(mockApi.teachAgent).toHaveBeenCalledWith(
         'agent-1',
         'Always cc the team lead on replies',
-        undefined
+        undefined,
+        'cv-1'
       )
     );
     await waitFor(() =>
@@ -310,6 +311,26 @@ describe('TrainingPanel teaching points', () => {
     expect(points[0]).toHaveTextContent('human_correction');
     expect(points[1]).toHaveTextContent('taught');
     expect(points[1]).toHaveTextContent('Keep refund emails short.');
+  });
+
+  test('teaching points show the canvas they were taught on', async () => {
+    mockApi.getCanvasTrainingContext.mockResolvedValue(makeContext({
+      teaching_points: [
+        {
+          source: 'teacher',
+          topic: 'budget',
+          text: 'Costs always go in row 3.',
+          learned_at: '2026-09-01T10:00:00+00:00',
+          canvas: { canvas_id: 'cv-9', name: 'Q3 Budget', canvas_type: 'sheet', label: 'Sheet' },
+        },
+        { source: 'observation', topic: 'human_correction', text: 'No canvas on this one.', learned_at: '2026-08-31T09:00:00+00:00' },
+      ],
+    }));
+    render(<TrainingPanel canvasId="cv-1" />);
+
+    const points = await waitFor(() => screen.getAllByTestId('teaching-point'));
+    expect(points[0]).toHaveTextContent('canvas "Q3 Budget" (Sheet)');
+    expect(screen.getAllByTestId('teaching-point-canvas')).toHaveLength(1);
   });
 
   test('teaching a lesson refreshes the journal so the new point shows', async () => {

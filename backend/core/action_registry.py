@@ -244,6 +244,31 @@ _CANVAS_UPDATE_SCHEMA = {
     "required": ["canvas_id", "content"],
 }
 
+_CANVAS_LIST_VERSIONS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "canvas_id": {"type": "string", "description": "Canvas ID to list versions of"},
+        "limit": {"type": "integer", "description": "Max versions to return (default 20, max 50)"},
+        "include_content": {
+            "type": "boolean",
+            "description": "Include each version's full content (default false: short preview only)",
+        },
+    },
+    "required": ["canvas_id"],
+}
+
+_CANVAS_RESTORE_VERSION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "canvas_id": {"type": "string", "description": "Canvas ID to revert"},
+        "audit_id": {
+            "type": "string",
+            "description": "Version to revert to (the audit_id from canvas.list_versions)",
+        },
+    },
+    "required": ["canvas_id", "audit_id"],
+}
+
 _TASKS_CREATE_SCHEMA = {
     "type": "object",
     "properties": {
@@ -956,6 +981,55 @@ async def _canvas_update(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[
         canvas_type=args.get("canvas_type", "generic"),
         title=args.get("title"),
     )
+
+
+@register_action(
+    "canvas.list_versions",
+    description=(
+        "List the version history of a canvas, newest first (the append-only "
+        "audit trail). Use this to review earlier drafts and pick the right "
+        "version before reverting — the newest entry is flagged is_current."
+    ),
+    parameters_schema=_CANVAS_LIST_VERSIONS_SCHEMA,
+)
+async def _canvas_list_versions(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.canvas_crud_tool import list_canvas_versions
+
+    canvas_id = args.get("canvas_id")
+    if not canvas_id:
+        return {"success": False, "error": "canvas_id is required"}
+    user_id = _context_user_id(context)
+    if not user_id:
+        return {"success": False, "error": "Authenticated user is required to list canvas versions"}
+    return await list_canvas_versions(
+        user_id,
+        str(canvas_id),
+        limit=int(args.get("limit") or 20),
+        include_content=bool(args.get("include_content") or False),
+    )
+
+
+@register_action(
+    "canvas.restore_version",
+    description=(
+        "Revert a canvas to an earlier version by its audit_id (from "
+        "canvas.list_versions). The restore is appended as a new version — "
+        "nothing is lost, the pre-restore state stays in history, so a "
+        "mistaken revert is itself revertable."
+    ),
+    parameters_schema=_CANVAS_RESTORE_VERSION_SCHEMA,
+)
+async def _canvas_restore_version(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.canvas_crud_tool import restore_canvas_version
+
+    canvas_id = args.get("canvas_id")
+    audit_id = args.get("audit_id")
+    if not canvas_id or not audit_id:
+        return {"success": False, "error": "canvas_id and audit_id are required"}
+    user_id = _context_user_id(context)
+    if not user_id:
+        return {"success": False, "error": "Authenticated user is required to restore a canvas version"}
+    return await restore_canvas_version(user_id, str(canvas_id), str(audit_id))
 
 
 @register_action(

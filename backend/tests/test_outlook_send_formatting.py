@@ -249,3 +249,35 @@ def test_body_to_html_still_converts_plain_text_lines():
     body = "Hi Jacob,\nHere are the specs.\nRegards,\nRish M."
     html = OutlookService._body_to_html(body)
     assert "<br>" in html and "Hi Jacob," in html
+
+
+def test_body_to_html_rejoins_pretty_printed_table_before_line_pass():
+    """Regression 2026-09-03 (canvas ff2dc9ee…): an agent-drafted table is
+    pretty-printed one tag per line. The line-aware pass must re-join tags
+    split across newlines FIRST — otherwise the table ships as <br>-joined
+    fragments (<table>…</table> emptied, <tr> dropped, </tr> escaped into
+    visible text) and Outlook renders a flattened line list."""
+    body = "\n".join([
+        "Hi Jacob,",
+        "",
+        '<table style="border-collapse: collapse; width: 100%;">',
+        "<tr>",
+        '<td style="border: 1pt solid #000; padding: 8px;"><strong>Description</strong></td>',
+        "<td><strong>Price</strong></td>",
+        "</tr>",
+        "<tr>",
+        "<td>Linmac WG-350DSAV</td>",
+        "<td>See Consolidated Price List 2019</td>",
+        "</tr>",
+        "</table>",
+        "",
+        "Regards,",
+        "Rish M.",
+    ])
+    html = OutlookService._body_to_html(body)
+    assert "<td>Linmac WG-350DSAV</td>" in html
+    assert "</td><td>" in html, "cells must stay adjacent inside the row, not <br>-joined"
+    assert html.count("<tr>") == 2 and "&lt;/tr&gt;" not in html
+    assert "<table" in html and "</table>" in html
+    # plain-text lines around the table still convert
+    assert "Hi Jacob,<br>" in html and "Regards,<br>" in html

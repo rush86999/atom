@@ -21,6 +21,7 @@ Every leg is fault-isolated like the planner: any failure returns None and
 the turn falls through to the normal conversational path — never raises into
 the chat path, never loses the user's message.
 """
+import asyncio
 import json
 import logging
 import os
@@ -81,8 +82,17 @@ class CanvasEditPlan(BaseModel):
     # reserved for explicit rewrite requests; then every section unrelated
     # to the request must still be reproduced EXACTLY as the current content
     # has it.
+    # "restore": revert the canvas to an earlier version by id —
+    # restore_audit_id names the version (from the RECENT VERSIONS section).
+    # Applied deterministically through the audit-trail restore, so the
+    # restored content is EXACT no matter how long it is (the old path made
+    # the model copy the version's text out of a trimmed excerpt, which
+    # garbled or truncated anything over a few hundred chars).
     edit_mode: Optional[str] = None
     ops: List[CanvasPatchOp] = []
+    # Version to restore (edit_mode="restore"): the audit_id of one of the
+    # RECENT VERSIONS entries, copied verbatim — never invented.
+    restore_audit_id: Optional[str] = None
     # Complete new canvas content as a JSON-encoded string (replace mode) —
     # strings survive every structured-output provider (weak models mangle
     # free-form object fields far more often than string fields).
@@ -138,10 +148,15 @@ the authority, NOT your memory of earlier drafts:
   full set of keys is also fine). Match the current shape (same value
   types); never return a fragment or an explanation.
 - RECENT VERSIONS (when present in the prompt) hold earlier drafts of this
-  canvas. To go back to one, return edit_mode="replace" copying that
-  version's content VERBATIM from the section — then apply any extra change
-  the user asked for on top. Never invent text for a version that isn't
-  shown; if none matches what the user describes, say so instead of guessing.
+  canvas, each stamped with its version_id. To go back to one, PREFER
+  edit_mode="restore" with restore_audit_id set to that version's
+  version_id (copied VERBATIM — never invented): the restore is exact and
+  lossless even for content longer than the excerpt shown. Fall back to
+  edit_mode="replace" copying that version's content only when no
+  version_id is shown for it. Never invent text for a version that isn't
+  shown; if none matches what the user describes, say so instead of
+  guessing. Restoring when the user asks to go back also beats "patching"
+  toward an earlier draft from memory.
 - Remove meta-commentary ("Here's your draft...", "Want me to adjust...")
   from the content itself — the canvas holds only the artifact.
 - Send/dispatch requests ("send it", "email it to Mark", "try sending
@@ -152,13 +167,26 @@ the authority, NOT your memory of earlier drafts:
   asks for tabular content (quotes, specs, comparisons, lists of options),
   insert a <table> with inline cell borders
   (style="border-collapse: collapse;" + border: 1pt solid on each cell) —
-  tables render in the outgoing email, they are not stripped.
+  tables render in the outgoing email, they are not stripped. Inline cell
+  styles are supported the same way (background-color shading, font
+  color/size, padding, width): a request to "color/shade/highlight the
+  headings" means restyling the header row's <td> styles in place — keep
+  their text unchanged.
 - Sender identity is NEVER a guessing problem: the SENDER IDENTITY section
   (when present) names the user the draft is sent by. Never take a sender
   name or signature from the To/Cc fields — those are RECIPIENTS (a Cc'd
   colleague's first name is not the sender's). Never remove or replace an
   existing signature unless the request says to ("i added my signature,
   adjust" means polish AROUND it, not swap it for a guessed name).
+- EXTERNAL FACTS are never a guessing problem either: names, figures,
+  prices, dates, and specs must come from the user's message, the canvas
+  content, or the FRESH DATA section (when present) — never from memory or
+  plausibility. Live 2026-09-03: with no evidence in the prompt, a price
+  "from the consolidated price list" was typed into a draft as $14,500.00
+  (the workbook said $14,145.00). If a value the request needs is in none
+  of those sources, do not invent it — put an explicitly unfilled
+  placeholder in the content (e.g. "[price — from Consolidated Price
+  List]") and say in `reply` which value needs its source.
 - reply is one or two short sentences telling the user what you changed.
   For wants_edit=false, reply is a short conversational answer based on the
   canvas content (or empty if another step will answer).
@@ -645,19 +673,85 @@ def _versions_section(
         when = (v.get("created_at") or "earlier").replace("T", " ")[:19]
         actor = v.get("actor") or "unknown"
         title = f", title: {v['title']}" if v.get("title") else ""
+        version_id = str(v.get("audit_id") or "").strip()
         trimmed = text[:_VERSION_CHARS] + ("…(trimmed)" if len(text) > _VERSION_CHARS else "")
-        lines.append(f"[{when} — {actor}{title}]\n{trimmed}")
+        stamp = f"[{when} — {actor}{title}]"
+        if version_id:
+            stamp += f" version_id: {version_id}"
+        lines.append(f"{stamp}\n{trimmed}")
 
     if not lines:
         return ""
     return (
-        "RECENT VERSIONS of this canvas (newest first, trimmed). If the user asks to go "
-        "back to / restore / revert to an earlier version or their original draft, pick "
-        "the version they mean and return edit_mode=\"replace\" with that version's "
-        "content VERBATIM — then apply any additional change they asked for on top. "
-        "Never invent text for a version that isn't shown here; if none matches, say so.\n"
+        "RECENT VERSIONS of this canvas (newest first, trimmed; each carries "
+        "its version_id). If the user asks to go back to / restore / revert "
+        "to an earlier version or their original draft, pick the version they "
+        "mean and return edit_mode=\"restore\" with restore_audit_id set to "
+        "that version's version_id — exact, lossless, and preferred over "
+        "copying the excerpt. Only when no version_id is shown fall back to "
+        "edit_mode=\"replace\" with that version's content VERBATIM. Never "
+        "invent a version_id or text for a version that isn't shown here; if "
+        "none matches, say so.\n"
         + "\n---\n".join(lines) + "\n\n"
     )
+
+
+# Evidence gathering must never cost the edit its own turn: the planner call
+# and the tool execution it triggers live inside this bound. On timeout the
+# edit proceeds without evidence under the EXTERNAL FACTS rule.
+_FRESH_DATA_TIMEOUT_SECONDS = 12
+
+
+async def fetch_fresh_data_section(
+    message: str,
+    history: List[Dict[str, Any]],
+    llm_service: Any,
+    user_id: Optional[str],
+) -> str:
+    """LIVE evidence for edit requests that hinge on data the editor cannot
+    see — a price "from the consolidated price list", specs from a drive
+    file, a status only the CRM knows. Runs the SAME read-only tool planner
+    the chat path uses (core.chat_tool_planner) and returns the shaped
+    section for plan_canvas_edit's prompt. Called by the CONTEXT ASSEMBLER
+    (the chat orchestrator, alongside corrections/versions/lessons) — NOT
+    inside plan_canvas_edit, which owns a single structured LLM call and
+    must not fire extra ones (its callers' replan ladders and tests count
+    those calls). Empty string on any failure or when the planner sees no
+    data need; the edit then proceeds under the EXTERNAL FACTS rule in
+    _EDITOR_SYSTEM. Live 2026-09-03: with no evidence in the prompt, the
+    editor typed $14,500.00 into an email draft as "the price from the
+    consolidated price list" (the workbook said $14,145.00) and then
+    "confirmed" the user's corrected value just as baselessly."""
+    if not message or llm_service is None:
+        return ""
+    try:
+        from core.chat_tool_planner import execute_tool_plan, plan_tool_use
+
+        async def _fetch() -> str:
+            plan = await plan_tool_use(message, history, user_id, llm_service)
+            if not plan or not plan.use_tool:
+                return ""
+            block = await execute_tool_plan(
+                plan,
+                user_id,
+                context={"history": history},
+            )
+            if not block:
+                return ""
+            return (
+                "FRESH DATA for this edit (live tool results, fetched just "
+                f"now):\n{block}\n\n"
+            )
+
+        return await asyncio.wait_for(
+            _fetch(), timeout=_FRESH_DATA_TIMEOUT_SECONDS
+        )
+    except asyncio.TimeoutError:
+        logger.info("canvas edit fresh-data lookup timed out — proceeding without evidence")
+        return ""
+    except Exception as e:  # noqa: BLE001 — fault-isolated by contract
+        logger.debug(f"canvas edit fresh-data lookup skipped: {e}")
+        return ""
 
 
 async def plan_canvas_edit(
@@ -673,6 +767,7 @@ async def plan_canvas_edit(
     provenance: Optional[Dict[str, Any]] = None,
     user_identity: Optional[Dict[str, Any]] = None,
     playbooks: Optional[List[Dict[str, Any]]] = None,
+    fresh_data: Optional[str] = None,
 ) -> Optional[CanvasEditPlan]:
     """Decide (via cheap structured LLM output) whether this turn edits the
     open canvas, and produce the edit — patch ops by default, complete
@@ -690,7 +785,12 @@ async def plan_canvas_edit(
     to be, so grounding questions have real provenance instead of an
     honest "I don't know". ``user_identity`` is the SENDER (account name /
     email / default email signature, see _identity_section) — with it absent
-    the editor guessed a signature name from the Cc line. Patch ops are
+    the editor guessed a signature name from the Cc line. ``fresh_data`` is
+    the live evidence section the caller gathered via
+    fetch_fresh_data_section (scoped to the acting user) for edit requests
+    that hinge on external facts — a price from a workbook, specs from a
+    drive file.
+    Patch ops are
     validated against the current
     content here: a mis-copied "find" gets ONE re-ask in replace mode (still
     under the preservation duty) rather than a broken write. Returns None on
@@ -713,9 +813,16 @@ async def plan_canvas_edit(
         f"Recent conversation:\n{_history_transcript(history, message)}\n\n"
         "Return the edit plan."
     )
+    # Live evidence when the edit hinges on data the editor cannot see —
+    # fetched by the caller (orchestrator context assembly) via
+    # fetch_fresh_data_section and handed in; never gathered here, so this
+    # function stays a single structured LLM call.
     rendered = {  # canonical layout order; priority = same order
         "corrections": _corrections_section(corrections),
         "versions": _versions_section(versions, canvas.get("content")),
+        # Evidence outranks the learning channels: it is the data THIS edit
+        # is about; lessons/corrections are advisory style guidance.
+        "fresh": fresh_data or "",
         "lessons": _lessons_section(lessons),
         "cross": _similar_lessons_section(similar_corrections, correction_patterns),
         # Origin context ranks LAST — useful for grounding questions, never
@@ -756,6 +863,7 @@ async def plan_canvas_edit(
         f"{_playbooks_section(playbooks)}"
         f"{included.get('corrections', '')}"
         f"{included.get('versions', '')}"
+        f"{included.get('fresh', '')}"
         f"{included.get('lessons', '')}"
         f"{included.get('cross', '')}"
         f"{included.get('origin', '')}"
@@ -802,7 +910,18 @@ async def plan_canvas_edit(
     # truncated out of its context) and gets the same one re-ask instead of
     # sailing into apply just to be discarded.
     reask_reason = None
-    if plan.ops:
+    # Restore plans (edit_mode="restore" / restore_audit_id) carry no ops
+    # and no content — they name a version id and the apply step restores
+    # from the audit trail deterministically. A restore plan without an id
+    # is as degenerate as a replace plan without content: same one re-ask.
+    is_restore = (
+        (plan.edit_mode or "").strip().lower() == "restore"
+        or bool((plan.restore_audit_id or "").strip())
+    )
+    if is_restore:
+        if not (plan.restore_audit_id or "").strip():
+            reask_reason = "restore plan carried no version id"
+    elif plan.ops:
         _, failed = _apply_patch_ops(canvas.get("content"), plan.ops)
         if failed:
             reask_reason = f"{len(failed)}/{len(plan.ops)} patch op(s) failed to match"
@@ -991,10 +1110,11 @@ async def apply_canvas_edit(
     (CanvasAudit append + WS broadcast). Patch ops are re-applied
     deterministically against the canvas content the plan validated against;
     replace plans are decoded, repaired, and — for dict-shaped apps —
-    MERGED field-scoped onto the current content (omitted keys preserved).
-    Per-app policy: file-backed canvases (real .docx/.xlsx/.pptx) refuse
-    content writes — the file is the artifact, a snapshot write would change
-    nothing the user can see.
+    MERGED field-scoped onto the current content (omitted keys preserved);
+    restore plans revert to an earlier version by audit_id through the
+    audit-trail restore. Per-app policy: file-backed canvases (real
+    .docx/.xlsx/.pptx) refuse content writes — the file is the artifact, a
+    snapshot write would change nothing the user can see.
 
     Returns the update result dict on success, None on any failure. With
     ``return_reason=True`` returns ``(result_or_None, reason_or_None)`` so
@@ -1014,6 +1134,34 @@ async def apply_canvas_edit(
 
     if spec.content_kind == "file_backed":
         return _out(None, "file_backed")
+
+    # Restore mode: revert to an earlier version by audit_id through the
+    # audit-trail restore (append-only — the pre-restore state stays in
+    # history). Deterministic: the restored content is EXACT regardless of
+    # length, which copying a trimmed prompt excerpt could never be.
+    if (
+        (plan.edit_mode or "").strip().lower() == "restore"
+        or (plan.restore_audit_id or "").strip()
+    ):
+        audit_id = (plan.restore_audit_id or "").strip()
+        if not audit_id:
+            return _out(None, "restore_missing_version")
+        try:
+            from tools.canvas_crud_tool import restore_canvas_version
+
+            result = await restore_canvas_version(user_id, canvas_id, audit_id)
+        except Exception as e:
+            logger.warning(f"canvas restore apply failed for {canvas_id}: {e}")
+            return _out(None, f"store_error: {e}")
+        if not (result or {}).get("success"):
+            err = str((result or {}).get("error") or "")
+            if err.strip().lower() == "version not found":
+                return _out(None, "version_not_found")
+            logger.info(f"canvas restore rejected for {canvas_id}: {err}")
+            return _out(None, f"store_rejected: {err}")
+        if (result or {}).get("no_change"):
+            return _out(None, "no_change")
+        return _out(result, None)
 
     new_content: Any = None
     reason: Optional[str] = None
@@ -1192,6 +1340,20 @@ def describe_apply_failure(
             "needed changing. If you expected a difference, point me at "
             "the specific wording to change."
         )
+    if reason == "version_not_found":
+        return (
+            "I couldn't find that earlier version in this canvas's history "
+            "— the version may predate the audit trail or wasn't one I "
+            "could see. Nothing was changed. Ask me to go back again and "
+            "I'll pick from the versions I can actually see."
+        )
+    if reason == "restore_missing_version":
+        return (
+            "I meant to revert to an earlier version but couldn't tell "
+            "which one — nothing was changed. Tell me which draft to go "
+            "back to (e.g. \"the version from this morning\") and I'll "
+            "restore it."
+        )
     if reason == "file_backed":
         return (
             f"This is a {spec.label} canvas backed by a real file, so "
@@ -1267,7 +1429,14 @@ Rules:
 - ``thread_id``: when the message asks to reply on/in the thread AND the
   canvas context shows a conversationId for that thread, copy it here so
   the send stays in the original conversation; empty for a fresh send.
-  ``reply_all``: true only when the message says reply to everyone."""
+  ``reply_all``: true only when the message says reply to everyone.
+- EXTERNAL FACTS travel with the draft: when composing or amending body
+  text, names, figures, prices, dates, and specs must come from the canvas
+  content, the user's message, or the FRESH DATA section (when present) —
+  never from memory or plausibility. A needed value from none of those
+  stays an explicit placeholder (e.g. "[price — from Consolidated Price
+  List]") and `reply` names it; sending happens with the placeholder
+  visible, never with an invented number."""
 
 
 async def plan_canvas_action(
@@ -1275,15 +1444,21 @@ async def plan_canvas_action(
     history: List[Dict[str, Any]],
     canvas: Dict[str, Any],
     llm_service: Any,
+    fresh_data: Optional[str] = None,
 ) -> Optional[CanvasActionPlan]:
     """Decide whether this turn asks to DO something with the canvas (send
-    email). Returns None on failure — caller falls through."""
+    email). ``fresh_data`` is the caller-gathered live evidence section
+    (fetch_fresh_data_section) — a send that amends the draft with external
+    facts ("send it with the current price") gets the same grounding the
+    edit path has. Returns None on failure — caller falls through."""
     if llm_service is None or not canvas.get("canvas_id"):
         return None
 
+    fresh_section = (fresh_data or "").strip()
     prompt = (
         f"{_ACTION_SYSTEM}\n\n"
-        f"Canvas title: {canvas.get('title') or '(untitled)'}\n"
+        + (f"{fresh_section}\n" if fresh_section else "")
+        + f"Canvas title: {canvas.get('title') or '(untitled)'}\n"
         f"Canvas type: {canvas.get('canvas_type') or 'generic'}\n"
         f"Canvas content:\n{_serialize_content(canvas.get('content'))}\n\n"
         f"Recent conversation:\n{_history_transcript(history, message)}\n\n"

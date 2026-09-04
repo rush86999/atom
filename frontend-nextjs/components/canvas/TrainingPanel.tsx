@@ -176,7 +176,9 @@ export function TrainingPanel({
     setError(null);
     setNotice(null);
     try {
-      const result = await teachAgent(agent.id, lesson.trim(), topic.trim() || undefined);
+      // canvasId rides along so the lesson stores WHAT it was taught on —
+      // retrieval later shows the agent the canvas context, not just the rule.
+      const result = await teachAgent(agent.id, lesson.trim(), topic.trim() || undefined, canvasId);
       const status = String((result as Record<string, unknown>).status ?? "ok");
       setNotice(
         status === "ok"
@@ -617,6 +619,12 @@ export function TrainingPanel({
                   <p className="text-[11px] whitespace-pre-line break-words">
                     {tp.text.length > 280 ? `${tp.text.slice(0, 280)}…` : tp.text}
                   </p>
+                  {tp.canvas && (
+                    <p className="text-[10px] text-muted-foreground" data-testid="teaching-point-canvas">
+                      · canvas "{tp.canvas.name}"
+                      {tp.canvas.label ? ` (${tp.canvas.label})` : ""}
+                    </p>
+                  )}
                 </div>
               ))}
               {(ctx?.teaching_points?.length ?? 0) > TEACHING_PREVIEW_COUNT && (

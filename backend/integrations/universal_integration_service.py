@@ -55,6 +55,93 @@ NATIVE_INTEGRATIONS = {
     "aws_ses",
 }
 
+# Services with a LIVE search implementation in UniversalIntegrationService.search()
+# (the family branches below). Single source of truth for:
+#   - chat_tool_planner.execute_tool_plan: plain "search" intents for these
+#     services route through search() instead of execute(), whose family
+#     handlers only implement named actions;
+#   - the planner catalog annotation ("live search supported" vs
+#     "no live search — use memory").
+# Keep in sync with the search() routing — asserted by
+# tests/test_planner_live_search_routing.py.
+SEARCHABLE_SERVICES = frozenset({
+    # CRM
+    "salesforce", "hubspot", "pipedrive", "zoho_crm",
+    # Communication
+    "slack", "teams", "discord", "google_chat", "telegram", "whatsapp",
+    "gmail", "outlook", "zoho_mail",
+    # Calendar
+    "google_calendar", "outlook_calendar",
+    # Project management
+    "linear", "monday", "zoho_projects", "asana", "jira", "trello",
+    # Storage
+    "google_drive", "dropbox", "onedrive", "box", "notion", "zoho_workdrive",
+    # Forms & automation (search the INGESTED records — no live read API)
+    "zoho_forms", "zoho_flow",
+    # Support
+    "zendesk", "freshdesk", "intercom",
+    # Development
+    "github", "gitlab",
+    # Marketing / analytics
+    "mailchimp", "tableau", "google_analytics",
+    # Finance (recent lists, client-side query filter)
+    "stripe", "quickbooks", "xero", "zoho_books",
+    # Dedicated item search (DC-correct service method)
+    "zoho_inventory",
+})
+
+# Execute-path search routing (service → _search_* helper). The search()
+# entry and the execute() families grew separate search implementations;
+# the family chains implemented search for only SOME services, so planner
+# "search" intents silently dead-ended for the rest (live 2026-09-03 class:
+# box, linear, jira, asana, trello, gmail). _dispatch_execution routes
+# search actions for these services through the same _search_* helpers the
+# search() entry uses — one search implementation per service. Kept in sync
+# with the families by tests/test_integration_dispatch_parity.py.
+_SEARCH_ROUTES = {
+    # Communication
+    "slack": "_search_communication",
+    "teams": "_search_communication",
+    "discord": "_search_communication",
+    "google_chat": "_search_communication",
+    "telegram": "_search_communication",
+    "whatsapp": "_search_communication",
+    "gmail": "_search_communication",
+    "outlook": "_search_communication",
+    "zoho_mail": "_search_communication",
+    # Project management
+    "linear": "_search_project_management",
+    "monday": "_search_project_management",
+    "zoho_projects": "_search_project_management",
+    "asana": "_search_project_management",
+    "jira": "_search_project_management",
+    "trello": "_search_project_management",
+    # Storage
+    "google_drive": "_search_storage",
+    "dropbox": "_search_storage",
+    "onedrive": "_search_storage",
+    "box": "_search_storage",
+    "notion": "_search_storage",
+    "zoho_workdrive": "_search_storage",
+    # CRM
+    "salesforce": "_search_crm",
+    "hubspot": "_search_crm",
+    "zoho_crm": "_search_crm",
+    "pipedrive": "_search_crm",
+    # Support
+    "zendesk": "_search_support",
+    "freshdesk": "_search_support",
+    "intercom": "_search_support",
+    # Development
+    "github": "_search_dev",
+    "gitlab": "_search_dev",
+    # Finance (client-side filter over recent lists)
+    "stripe": "_search_finance",
+    "quickbooks": "_search_finance",
+    "xero": "_search_finance",
+    "zoho_books": "_search_finance",
+}
+
 class UniversalIntegrationService:
     """
     Unified interface for accessing third-party integrations.
@@ -76,6 +163,25 @@ class UniversalIntegrationService:
             except Exception:
                 logger.warning(f"Response masking skipped for {service}", exc_info=True)
         return response
+
+    @staticmethod
+    def _filter_by_query(data: Any, query: str, limit: int = 8) -> List[Any]:
+        """Client-side relevance filter for list endpoints that lack a
+        server-side search param. Keeps items matching ANY query term
+        (>=3 chars; falls back to the whole query) in their original
+        (recency) order."""
+        query = (query or "").strip().lower()
+        if not query:
+            return []
+        terms = [t for t in query.split() if len(t) >= 3] or [query]
+        matches: List[Any] = []
+        for item in (data if isinstance(data, (list, tuple)) else [data]):
+            hay = str(item).lower()
+            if any(t in hay for t in terms):
+                matches.append(item)
+                if len(matches) >= limit:
+                    break
+        return matches
 
     async def execute(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
@@ -307,7 +413,24 @@ class UniversalIntegrationService:
         # If still no user_id and not a system agent, raise error
         if not user_id:
             raise ValueError("user_id required for non-system agents")
-        
+
+        # SEARCH PARITY BRIDGE — the search() entry has complete per-service
+        # helpers (_search_*), but the execute() families implemented search
+        # for only SOME services. Everywhere else a planner "search" intent
+        # fell through the family branch chains to a generic routed message
+        # with no data (live 2026-09-03 class: box, linear, jira, asana,
+        # trello, gmail — the planner catalog advertised search while the
+        # execute path silently returned nothing). One search implementation
+        # per service: execute-path searches route through the same helpers.
+        if action == "search":
+            helper = _SEARCH_ROUTES.get(service)
+            if helper is not None:
+                result = await getattr(self, helper)(
+                    service, params.get("query") or "", context)
+                if isinstance(result, dict) and "status" in result:
+                    return result
+                return {"status": "success", "data": result}
+
         if service == "salesforce":
             return await self._execute_salesforce(action, params, user_id, context)
         elif service == "hubspot":
@@ -376,7 +499,7 @@ class UniversalIntegrationService:
                 elif service == "hubspot":
                     result = await self._search_hubspot(query, entity_type, context)
                 elif service in ("slack", "teams", "discord", "google_chat", "telegram", "whatsapp", "gmail", "outlook", "zoho_mail"):
-                    result = await self._search_communication(service, query, entity_type, context)
+                    result = await self._search_communication(service, query, context)
                 elif service in ("google_calendar", "outlook_calendar"):
                     result = await self._search_calendar(service, query, context)
                 elif service in ("linear", "monday", "zoho_projects", "asana", "jira", "trello"):
@@ -410,6 +533,18 @@ class UniversalIntegrationService:
                     result = await self._search_analytics(service, query, context)
                 elif service == "zoho_workdrive":
                     result = await self._execute_storage(service, "search", {"query": query}, context)
+                elif service == "zoho_inventory":
+                    # Live item search — the DC-correct service method (see
+                    # ZohoInventoryService.search_items).
+                    result = await self.execute(
+                        service, "search_items", {"query": query, "limit": 8}, context)
+                elif service in ("stripe", "quickbooks", "xero", "zoho_books"):
+                    # Finance list endpoints have no server-side search param —
+                    # pull the recent list and filter client-side (same pattern
+                    # as _search_dev). Single implementation in _search_finance,
+                    # shared with the execute-path search bridge.
+                    result = {"status": "success",
+                              "data": await self._search_finance(service, query, context)}
                 else:
                     raise ValueError(f"Service '{service}' not supported for search.")
 
@@ -584,7 +719,23 @@ class UniversalIntegrationService:
             return {"status": "error", "message": "access_token and shop are required"}
         
         entity = params.get("entity", "product")
-        
+
+        if action == "search":
+            # Client-side filter over the entity's list — ShopifyService has
+            # no server-side search; without this branch a planner "search"
+            # intent fell through to the generic routed message with no
+            # data while the catalog advertised "search orders, products,
+            # customers".
+            fetch = {
+                "product": shopify.get_products,
+                "order": shopify.get_orders,
+                "customer": shopify.get_customers,
+            }.get(entity)
+            if fetch is None:
+                return {"status": "error", "message": f"Unsupported shopify entity: {entity}"}
+            items = await fetch(access_token, shop)
+            return {"status": "success", "data": self._filter_by_query(items or [], params.get("query") or "")}
+
         if action == "list":
             if entity == "product":
                 return {"status": "success", "data": await shopify.get_products(access_token, shop)}
@@ -631,6 +782,10 @@ class UniversalIntegrationService:
                 return {"status": "success", "data": res}
                 
         elif service == "teams":
+            # Registry-resolved TeamsEnhancedService carries the real
+            # search (TeamsService.get_teams — the old branch here — lists
+            # workspaces, not messages, and the registry class doesn't
+            # even have it).
             if action == "send_message":
                 return {"status": "success", "data": await comm_service.send_message(params.get("chat_id"), params.get("message") or params.get("content"))}
             elif action == "list_chats":
@@ -849,7 +1004,7 @@ class UniversalIntegrationService:
                 
         return {"status": "error", "message": f"Action {action} not supported for {service}"}
 
-    async def _search_communication(self, service: str, query: str, entity_type: str, context: Dict[str, Any]) -> List[Dict]:
+    async def _search_communication(self, service: str, query: str, context: Dict[str, Any]) -> List[Dict]:
         """Global search parity for communication platforms"""
         if service == "slack":
             from integrations.slack_service_unified import slack_unified_service
@@ -871,9 +1026,33 @@ class UniversalIntegrationService:
             gmail_service = GmailService()
             return {"status": "success", "data": gmail_service.search_messages(query)}
         elif service == "teams":
-            from integrations.teams_service import TeamsService
-            teams_service = TeamsService()
-            return {"status": "success", "data": teams_service.get_teams()}
+            # Search lives on the registry class (TeamsEnhancedService.
+            # search_messages) — TeamsService.get_teams, the old shape here,
+            # lists workspaces, not messages.
+            registry = context.get("registry")
+            teams_service = None
+            if registry:
+                teams_service = await registry.get_service_instance(
+                    "teams", context.get("tenant_id", "system"))
+            if not teams_service:
+                return {"status": "error", "message": "Teams service not found in registry"}
+            return {"status": "success", "data": await teams_service.search_messages(
+                context.get("workspace_id") or "default", query)}
+        elif service == "outlook":
+            # Same source the chat planner's dedicated outlook leg uses —
+            # planner-planned outlook searches through the universal path
+            # previously had no branch at all and errored into the memory
+            # fallback while the mailbox was never queried.
+            from integrations.outlook_service import (
+                outlook_service,
+                sanitize_graph_kql,
+            )
+            kql = sanitize_graph_kql(query) or query
+            emails = await outlook_service.search_emails(
+                user_id=context.get("user_id"), query=kql,
+                max_results=10, quote=False,
+            )
+            return {"status": "success", "data": emails or []}
         # Add more search handlers...
         return {"status": "success", "data": []}
 
@@ -1028,6 +1207,11 @@ class UniversalIntegrationService:
              # search_issues is synchronous (requests-based) — do NOT await
              # (awaiting a plain dict raised TypeError).
              return pm_service.search_issues(f"text ~ '{query}'", token=token).get("issues", [])
+        elif service == "trello":
+             # TrelloService.search is synchronous (requests-based) — same
+             # no-await rule as jira above.
+             results = pm_service.search(query)
+             return results or []
         return []
 
     # The following methods have been refactored to use the Registry pattern:
@@ -1059,12 +1243,25 @@ class UniversalIntegrationService:
             if action in ("list", "list_files"):
                 return {"status": "success", "data": await storage_service.list_drive_items(token, params.get("path"))}
             elif action == "search":
-                items = await storage_service.list_drive_items(token, "")
-                return {"status": "success", "data": [i for i in items if params.get("query").lower() in i.get("name", "").lower()]}
+                # Real Graph root search — the service's search_files sat
+                # unused while this branch listed the drive root and
+                # filtered client-side, so only top-folder items ever
+                # matched a search.
+                res = await storage_service.search_files(token, params.get("query"))
+                data = res.get("data") or {} if isinstance(res, dict) else {}
+                return {"status": "success", "data": data.get("value", [])}
 
         elif service == "box":
             if action == "list":
                 return {"status": "success", "data": await storage_service.list_folder_items(token, params.get("folder_id", "0"))}
+            elif action == "search":
+                # The service's search_files (Box GET /search) existed but
+                # this dispatch never offered search — the planner
+                # advertised "box: search files" while every search fell
+                # through to the generic routed message with no data.
+                res = await storage_service.search_files(token, params.get("query"))
+                data = res.get("data") or {} if isinstance(res, dict) else {}
+                return {"status": "success", "data": data.get("entries", [])}
 
         elif service == "notion":
             if action == "search":
@@ -1075,11 +1272,18 @@ class UniversalIntegrationService:
                 return {"status": "success", "data": await storage_service.search_pages_in_workspace(token=token)}
         
         elif service == "zoho_workdrive":
+            # WorkDrive resolves its OAuth token PER USER
+            # (ConnectionService/IntegrationToken rows); the instance carries
+            # no access_token and the executor context usually has none, so
+            # the raw `token` here is None — passing it as user_id silently
+            # emptied every WorkDrive list/search (live 2026-09-03 price-book
+            # miss). Pass the acting user, as execute_operation does.
+            wd_user = context.get("user_id") or token
             if action in ("list", "list_files"):
-                return {"status": "success", "data": await storage_service.list_files(token, params.get("folder_id"))}
+                return {"status": "success", "data": await storage_service.list_files(wd_user, params.get("folder_id"))}
             elif action == "search":
-                return {"status": "success", "data": await storage_service.search_files(token, params.get("query"))}
-        
+                return {"status": "success", "data": await storage_service.search_files(wd_user, params.get("query"), limit=params.get("limit") or 20)}
+
         return {"status": "success", "message": f"Routed to {service} handler (Registry Storage)"}
 
     async def _search_storage(self, service: str, query: str, context: Dict[str, Any]) -> List[Dict]:
@@ -1098,6 +1302,22 @@ class UniversalIntegrationService:
         elif service == "notion":
             res = await storage_service.search(query, token=token)
             return res.get("results", [])
+        elif service == "zoho_workdrive":
+            # Same per-user token resolution as _execute_storage — the
+            # storage branch previously fell through to `return []` here, so
+            # agent-facing search_files fan-outs never saw WorkDrive results.
+            return await storage_service.search_files(
+                context.get("user_id") or token, query)
+        elif service == "onedrive":
+            res = await storage_service.search_files(token, query)
+            return (res.get("data") or {}).get("value", []) if isinstance(res, dict) else []
+        elif service == "box":
+            # Was a silent fall-through `return []` — the MCP no-platform
+            # search_files fan-out (which routes through _search_storage)
+            # never saw Box results even though BoxService.search_files
+            # existed.
+            res = await storage_service.search_files(token, query)
+            return (res.get("data") or {}).get("entries", []) if isinstance(res, dict) else []
         return []
 
     # --- Support Platforms ---
@@ -1208,6 +1428,26 @@ class UniversalIntegrationService:
         return []
 
     # --- Finance Platforms ---
+    async def _search_finance(self, service: str, query: str, context: Dict[str, Any]) -> List[Dict]:
+        """Search across finance platforms — finance list endpoints have no
+        server-side search param, so pull the recent list and filter
+        client-side (same pattern as _search_dev). Shared by the search()
+        entry and the execute-path search bridge."""
+        fin_service = await context["registry"].get_service_instance(service, context.get("tenant_id", "system"))
+        token = getattr(fin_service, "access_token", None) or context.get("access_token")
+        if not fin_service:
+            return {"status": "error", "message": f"{service} service unavailable"}
+        if service == "stripe":
+            # StripeAdapter.get_charges — the branch used to call
+            # list_payments, a method that exists on no stripe class
+            # (AttributeError on the first live finance search).
+            data = await fin_service.get_charges(limit=25)
+        elif service == "quickbooks":
+            data = await fin_service.get_invoices(token=token)
+        else:
+            data = await fin_service.get_invoices(token)
+        return self._filter_by_query(data, query)
+
     async def _execute_finance(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle Stripe, QuickBooks, Xero, Zoho Books via Registry"""
         registry = context.get("registry")
@@ -1217,7 +1457,10 @@ class UniversalIntegrationService:
 
         if service == "stripe":
             if action == "list_payments":
-                return {"status": "success", "data": await fin_service.list_payments(access_token=token, limit=params.get("limit", 10))}
+                # StripeAdapter.get_charges — list_payments exists on no
+                # stripe class (AttributeError class, caught by the parity
+                # test).
+                return {"status": "success", "data": await fin_service.get_charges(limit=params.get("limit", 10))}
             elif action == "get_balance":
                 return {"status": "success", "data": await fin_service.get_balance(access_token=token)}
         elif service == "quickbooks":
@@ -1234,6 +1477,13 @@ class UniversalIntegrationService:
             if action == "list_invoices":
                 return {"status": "success", "data": await fin_service.get_invoices(token)}
         elif service == "zoho_inventory":
+            if action in ("search_items", "search"):
+                # The live search leg the chat tool planner plans when a user
+                # asks about stock ("is the wg-350dsav in stock?"). The service
+                # resolves token/datacenter/org itself and returns slim item
+                # dicts; an empty result flows to the planner's memory fallback.
+                return {"status": "success", "data": await fin_service.search_items(
+                    params.get("query", ""), limit=params.get("limit", 8))}
             if action == "list_items":
                 return {"status": "success", "data": await fin_service.get_items(token)}
         elif service == "aws_ses":
@@ -1257,12 +1507,15 @@ class UniversalIntegrationService:
         if service == "zoho_crm":
             from integrations.zoho_crm_service import ZohoCRMService
             crm = ZohoCRMService()
+            # ZohoCRMService credentials self-resolve (tenant token lookup);
+            # the token= kwargs here TypeError'd on every call (live
+            # 2026-09-03), so zoho_crm list/deals/create always failed.
             if action in ("list", "get_leads"):
-                return {"status": "success", "data": await crm.get_leads(token=access_token)}
+                return {"status": "success", "data": await crm.get_leads()}
             elif action == "get_deals":
-                return {"status": "success", "data": await crm.get_deals(token=access_token)}
+                return {"status": "success", "data": await crm.get_deals()}
             elif action == "create_lead":
-                return {"status": "success", "data": await crm.create_lead(params.get("data", params), token=access_token)}
+                return {"status": "success", "data": await crm.create_lead(params.get("data", params))}
         elif service == "zoho_mail":
             from integrations.zoho_mail_service import ZohoMailService
             zoho_mail_service = ZohoMailService()
@@ -1299,18 +1552,27 @@ class UniversalIntegrationService:
         """Search across CRM platforms"""
         access_token = context.get("access_token")
         if service == "salesforce":
-            # Search Salesforce (implemented in main search method usually)
-            pass
+            # Delegate to the real implementation (the search() entry's
+            # Salesforce search) — this branch used to be a literal `pass`
+            # that returned [] while the catalog advertised the search.
+            # SOQL entity defaults to contact (the common "find this
+            # company/person" intent); the helper only implements
+            # contact/account SOQL.
+            return await self._search_salesforce(
+                query, context.get("entity_type") or "contact",
+                context.get("user_id"), context)
         elif service == "hubspot":
-            # Search HubSpot
-            pass
+            return await self._search_hubspot(query, None, context)
         elif service == "zoho_crm":
             from integrations.zoho_crm_service import ZohoCRMService
             crm = ZohoCRMService()
-            # Zoho CRM doesn't have a direct simple search in the snippet, 
-            # but we can list and filter or implement COQL. For parity, list and filter.
-            leads = await crm.get_leads(token=access_token)
-            return {"status": "success", "data": [l for l in leads if query.lower() in l.get("Last_Name", "").lower() or query.lower() in l.get("Email", "").lower()]}
+            # List-and-filter: Zoho CRM has no simple text search endpoint at
+            # this integration depth. Self-resolving credential path — the
+            # token= kwarg predates it and TypeError'd on every call (live
+            # 2026-09-03), so planner-planned zoho_crm searches always errored
+            # into the memory fallback.
+            leads = await crm.get_leads()
+            return {"status": "success", "data": self._filter_by_query(leads, query)}
         return {"status": "success", "data": []}
 
     async def _search_support(self, service: str, query: str, context: Dict[str, Any]) -> Dict[str, Any]:

@@ -369,7 +369,7 @@ async def test_canvas_edit_plans_against_durable_store_content():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["content"] = canvas.get("content")
         return plan
 
@@ -399,7 +399,7 @@ async def test_canvas_edit_passes_supervisor_corrections_to_planner():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["corrections"] = corrections
         return plan
 
@@ -432,7 +432,7 @@ async def test_canvas_edit_survives_corrections_lookup_failure():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["corrections"] = corrections
         return plan
 
@@ -462,7 +462,7 @@ async def test_canvas_action_plans_against_durable_store_content():
                             to="m@x", reply="r")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm):
+    async def fake_plan(message, history, canvas, llm, playbooks=None, fresh_data=None):
         seen["content"] = canvas.get("content")
         return plan
 
@@ -628,7 +628,7 @@ async def test_canvas_edit_passes_sender_identity_to_planner():
 
     async def fake_plan(message, history, canvas, llm, corrections=None, versions=None,
                         lessons=None, similar_corrections=None, correction_patterns=None,
-                        provenance=None, user_identity=None):
+                        provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["identity"] = user_identity
         return plan
 
@@ -1682,8 +1682,11 @@ def test_versions_section_renders_skips_current_and_trims():
     ]
     out = _versions_section(versions, "current body")
     assert "RECENT VERSIONS" in out
-    assert 'edit_mode="replace"' in out          # the restore contract
-    assert "Never invent text for a version" in out
+    assert 'edit_mode="restore"' in out          # the restore contract (by version_id)
+    assert 'edit_mode="replace"' in out          # the fallback when no version_id is shown
+    assert "version_id: a3" in out               # the id the restore names
+    assert "version_id: a2" in out
+    assert "Never invent a version_id" in out
     assert "original supervisor wording" in out
     assert "supervisor" in out and "agent" in out
     assert "x" * 2000 not in out                # trimmed to the per-version budget
@@ -1726,7 +1729,7 @@ async def test_canvas_edit_passes_recent_versions_to_planner():
     seen = {}
     versions = [{"audit_id": "a-9", "content": "old draft", "actor": "supervisor"}]
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["versions"] = versions
         return plan
 
@@ -1861,7 +1864,7 @@ async def test_canvas_edit_passes_taught_lessons_to_planner():
     lessons = [{"source": "teacher", "topic": "tone", "lesson": "Formal register only",
                 "learned_at": "2026-08-01T00:00:00+00:00"}]
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["lessons"] = lessons
         return plan
 
@@ -1884,7 +1887,7 @@ async def test_canvas_edit_without_agent_passes_no_lessons():
     plan = CanvasEditPlan(wants_edit=True, updated_content_json='"new"', reply="ok")
     seen = {}
 
-    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None):
+    async def fake_plan(message, history, canvas, llm, corrections=None, versions=None, lessons=None, similar_corrections=None, correction_patterns=None, provenance=None, user_identity=None, playbooks=None, fresh_data=None):
         seen["lessons"] = lessons
         return plan
 
@@ -2047,3 +2050,126 @@ async def test_approved_proposal_send_refusal_still_records_failed_execution():
     execution, _proposal, action_type = ep_mock.call_args.args
     assert action_type == "send_email"
     assert execution.status == "failed"
+
+
+# ───────────────────────── restore mode (version revert) ─────────────────────────
+# The recovery path: "go back to my earlier draft" restores an exact version
+# by audit_id through the audit-trail restore — deterministic, lossless, and
+# appended as a new version so the revert itself is revertable.
+
+@pytest.mark.asyncio
+async def test_apply_restore_routes_through_audit_trail_restore():
+    plan = CanvasEditPlan(
+        wants_edit=True,
+        edit_mode="restore",
+        restore_audit_id="a-42",
+        reply="Restored your earlier draft.",
+    )
+    with patch("tools.canvas_crud_tool.restore_canvas_version", new=AsyncMock(
+        return_value={"success": True, "restored_from": "a-42"}
+    )) as restore:
+        result = await apply_canvas_edit(plan, "user-1", _canvas())
+    assert result and result["success"]
+    restore.assert_awaited_once_with("user-1", "c-123", "a-42")
+
+
+@pytest.mark.asyncio
+async def test_apply_restore_without_explicit_mode_still_routes_by_id():
+    # A model that sets restore_audit_id but forgets edit_mode still gets
+    # the deterministic restore — the id is the intent.
+    plan = CanvasEditPlan(wants_edit=True, restore_audit_id="a-7")
+    with patch("tools.canvas_crud_tool.restore_canvas_version", new=AsyncMock(
+        return_value={"success": True}
+    )) as restore:
+        result = await apply_canvas_edit(plan, "user-1", _canvas())
+    assert result and result["success"]
+    restore.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_apply_restore_noop_reports_honestly():
+    plan = CanvasEditPlan(wants_edit=True, edit_mode="restore", restore_audit_id="a-1")
+    with patch("tools.canvas_crud_tool.restore_canvas_version", new=AsyncMock(
+        return_value={"success": True, "no_change": True}
+    )):
+        result, reason = await apply_canvas_edit(
+            plan, "user-1", _canvas(), return_reason=True)
+    assert result is None
+    assert reason == "no_change"
+
+
+@pytest.mark.asyncio
+async def test_apply_restore_unknown_version_maps_to_honest_reason():
+    plan = CanvasEditPlan(wants_edit=True, edit_mode="restore", restore_audit_id="a-ghost")
+    with patch("tools.canvas_crud_tool.restore_canvas_version", new=AsyncMock(
+        return_value={"success": False, "error": "Version not found"}
+    )):
+        result, reason = await apply_canvas_edit(
+            plan, "user-1", _canvas(), return_reason=True)
+    assert result is None
+    assert reason == "version_not_found"
+
+
+def test_describe_apply_failure_version_not_found_is_actionable():
+    from core.chat_canvas_editor import describe_apply_failure
+
+    text = describe_apply_failure("version_not_found", "document")
+    assert "Nothing was changed" in text
+
+
+@pytest.mark.asyncio
+async def test_restore_plan_with_version_id_needs_no_reask():
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    plan = CanvasEditPlan(
+        wants_edit=True, edit_mode="restore", restore_audit_id="a-9",
+        reply="Going back to your first draft.",
+    )
+    llm.generate_structured_response = AsyncMock(return_value=plan)
+    p = await plan_canvas_edit(
+        "restore my original draft", [], _canvas(content="current text"), llm)
+    assert p is plan
+    llm.generate_structured_response.assert_awaited_once()  # no replace re-ask
+
+
+@pytest.mark.asyncio
+async def test_restore_plan_without_version_id_gets_one_reask():
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    degenerate = CanvasEditPlan(wants_edit=True, edit_mode="restore")
+    rescued = CanvasEditPlan(wants_edit=True, updated_content_json='"restored text"')
+    llm.generate_structured_response = AsyncMock(side_effect=[degenerate, rescued])
+    p = await plan_canvas_edit("go back", [], _canvas(content="current"), llm)
+    assert p is rescued
+    assert llm.generate_structured_response.await_count == 2
+
+
+def test_versions_section_carries_version_ids():
+    from core.chat_canvas_editor import _versions_section
+
+    section = _versions_section(
+        [{
+            "audit_id": "a-123",
+            "created_at": "2026-09-01T10:00:00",
+            "actor": "supervisor",
+            "title": "First draft",
+            "content": "the original text",
+        }],
+        current="the edited text",
+    )
+    assert "version_id: a-123" in section
+    assert "restore" in section.lower()
+    assert "edit_mode=\"restore\"" in section
+
+
+def test_versions_section_dropped_when_versions_match_current():
+    from core.chat_canvas_editor import _versions_section
+
+    section = _versions_section(
+        [{
+            "audit_id": "a-1", "created_at": "2026-09-01T10:00:00",
+            "actor": "agent", "content": "same text",
+        }],
+        current="same text",
+    )
+    assert section == ""
