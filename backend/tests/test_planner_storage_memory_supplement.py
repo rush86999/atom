@@ -159,6 +159,65 @@ class TestProductTokens:
         assert len(lines) == 2
         assert "One.xlsx" in lines[0] and "Two.pdf" in lines[1]
 
+    @staticmethod
+    def _fake_lance(monkeypatch, rows):
+        """connect() -> open_table() -> to_lance() -> to_table(filter,
+        columns), serving `rows` for content scans and COLS-filtered rows
+        for column-map queries."""
+        class _FakeLance:
+            def to_table(self, filter=None, columns=None):
+                fl = filter or ""
+                if "COLS:" in fl:
+                    data = [r for r in rows if "COLS:" in r["text"]]
+                elif "LIKE" in fl:
+                    needle = fl.split("LIKE '%")[1].split("%'")[0]
+                    data = [r for r in rows if needle in r["text"]]
+                else:
+                    data = rows
+
+                class _T:
+                    def to_pylist(self):
+                        return data
+                return _T()
+
+        import lancedb
+
+        monkeypatch.setattr(lancedb, "connect", lambda *_a, **_k: type(
+            "DB", (), {"open_table": lambda self, n: type(
+                "T", (), {"to_lance": lambda self: _FakeLance()})()})())
+
+    def test_coordinate_column_map_attaches(self, monkeypatch):
+        """'Which row number and column heading holds X?' — the row chunk
+        carries the R# number; the sheet's schema line (COLS: A=Model |
+        I=US LIST …), stored a few chunks earlier, must be rejoined in the
+        evidence or the model can only answer half the question."""
+        self._fake_lance(monkeypatch, [
+            {"id": "ext_aaa::c5",
+             "text": "COLS: A=Model | H=WT | I=US LIST | N=CDN LIST",
+             "metadata": '{"file_name": "Book.xlsx"}', "source": "s"},
+            {"id": "ext_aaa::c9",
+             "text": "R17 | ACME-100 | Saw | 14145",
+             "metadata": '{"file_name": "Book.xlsx"}', "source": "s"},
+        ])
+        lines = ctp._search_ingested_by_exact_token("u", "ACME-100")
+        assert lines and "sheet column map" in lines[0]
+        assert "I=US LIST" in lines[0]
+
+    def test_coordinate_map_omitted_beyond_window(self, monkeypatch):
+        """A match far past the nearest COLS line may belong to the NEXT
+        sheet — beyond the window the map is omitted rather than
+        misattributed."""
+        self._fake_lance(monkeypatch, [
+            {"id": "ext_aaa::c5",
+             "text": "COLS: A=OldSheetHeader",
+             "metadata": '{"file_name": "Book.xlsx"}', "source": "s"},
+            {"id": "ext_aaa::c60",
+             "text": "R2 | ACME-100 | other sheet",
+             "metadata": '{"file_name": "Book.xlsx"}', "source": "s"},
+        ])
+        lines = ctp._search_ingested_by_exact_token("u", "ACME-100")
+        assert lines and "sheet column map" not in lines[0]
+
     def test_exact_token_match_against_real_store(self):
         """Integration leg (skips without the local store): the live
         2026-09-04 incident — the row lives in chunk c2213 of 3,797 and

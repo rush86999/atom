@@ -650,6 +650,42 @@ def _product_tokens(text: str, min_len: int = 5, skip_hexlike: bool = False,
     return out
 
 
+def _nearest_column_map(
+    lance: Any, doc_id: str, match_ord: int, window: int = 10,
+) -> str:
+    """Column-heading map for a matched workbook row. The ev4 extraction
+    serializes each sheet's headers once ('COLS: A=Model | I=US LIST | …')
+    and rows positionally ('R17 | WG350DSAV | … | 14145 | …') — the row
+    chunk carries its ROW number but not the column names, so a coordinate
+    answer ('row 17, column I — US LIST') needs the sheet's schema line
+    rejoined. Workbooks store sheets sequentially, so the nearest
+    PRECEDING COLS line in the same family is the matched row's schema
+    (capped: a match far past it may belong to the next sheet — beyond the
+    window the map is omitted rather than misattributed). '' when absent."""
+    try:
+        tbl = lance.to_table(
+            filter=(f"id LIKE '{doc_id}::c%' AND text LIKE '%COLS:%'"),
+            columns=["id", "text"],
+        )
+        best_ord, best_text = None, ""
+        for r in tbl.to_pylist():
+            raw = str(r.get("id") or "")
+            try:
+                o = int(raw.rsplit("::c", 1)[1])
+            except (IndexError, ValueError):
+                continue
+            if o < match_ord and (best_ord is None or o > best_ord):
+                best_ord, best_text = o, str(r.get("text") or "")
+        if best_ord is None or match_ord - best_ord > window:
+            return ""
+        pos = best_text.find("COLS:")
+        line = best_text[pos:]
+        line = line.split("\n", 1)[0].strip()
+        return line[:400]
+    except Exception:  # noqa: BLE001 — the map is best-effort context
+        return ""
+
+
 def _search_ingested_by_exact_token(user_id, query, skip_ids=None, limit=3):
     """Deterministic ingested-copy lookup for identifier tokens in the
     query (model numbers, SKUs, part/catalog codes — _product_tokens for the
@@ -713,9 +749,21 @@ def _search_ingested_by_exact_token(user_id, query, skip_ids=None, limit=3):
                         idx = text.upper().find(tok.upper())
                     start = max(0, idx - 160)
                     excerpt = text[start:idx + 340].replace("\n", " | ")
+                    # Column map for coordinate answers ("which row and
+                    # column heading holds X?"): the row chunk carries the
+                    # R# number; the sheet's schema line carries the names.
+                    col_map = ""
+                    if "::c" in rid:
+                        try:
+                            match_ord = int(rid.rsplit("::c", 1)[1])
+                            col_map = _nearest_column_map(
+                                lance, doc, match_ord)
+                        except (IndexError, ValueError):
+                            col_map = ""
+                    coord = f" [sheet column map: {col_map}]" if col_map else ""
                     out.append(
                         f"- [document: {name}{fresh}] EXACT MATCH for '{tok}': "
-                        f"…{excerpt}…"
+                        f"…{excerpt}…{coord}"
                     )
                     seen_rows.append(rid)
                     if doc:
