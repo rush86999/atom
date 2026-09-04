@@ -75,6 +75,33 @@ _INTENT_ACTIONS: Dict[str, Dict[str, str]] = {
 _STORAGE_SERVICES = (
     "zoho_workdrive", "google_drive", "onedrive", "dropbox", "box",
 )
+# Live search services whose queries identifiers must never be lost from.
+# Two tolerance grades, both safe for the net (the net only fires when the
+# draft query carries NO identifier token, and only APPENDS ≤2 codes from
+# the conversation):
+#   - zoho_inventory: server APIs match whole NAME tokens (Zoho search_text
+#     ANDs its tokens; "Linmac WG-350DSAV" → 0 hits though the item is in
+#     stock) — ZohoInventoryService.search_items breaks the enriched query
+#     into per-token attempts (live 2026-09-04, three consecutive turns
+#     planned only "bandsaw" while the conversation carried WG-350DSAV).
+#   - the client-side-filtered families (finance, zoho_crm, linear, asana,
+#     github, mailchimp, google_calendar): UniversalIntegrationService
+#     filters them with the ranked any-term filter
+#     (core.identifier_search.filter_by_terms), so extra terms widen
+#     rather than zero out the match set.
+# Deliberately EXCLUDED: services whose search is a provider-side API with
+# unverified multi-term semantics (monday, jira, trello, freshdesk,
+# intercom, gitlab, salesforce, hubspot, notion) — an appended token can
+# zero those out server-side; add them only with a tolerance check first.
+_ITEM_SEARCH_SERVICES = (
+    "zoho_inventory",
+    # finance — invoices/payments/items carry catalog codes
+    "zoho_books", "quickbooks", "xero", "stripe",
+    # crm — deals/leads reference the products
+    "zoho_crm",
+    # pm / dev / marketing / calendar — client-side ranked filters
+    "linear", "asana", "github", "mailchimp", "google_calendar",
+)
 for _storage_svc in _STORAGE_SERVICES:
     _INTENT_ACTIONS[_storage_svc] = {
         "search": "search",
@@ -92,7 +119,7 @@ _SERVICE_DESCRIPTIONS = {
     "discord": "community chat — search messages",
     "telegram": "messenger — search messages",
     "zoho_crm": "CRM — search leads, contacts, deals, accounts",
-    "zoho_inventory": "stock inventory — search items by name or SKU and check what is in stock",
+    "zoho_inventory": "stock inventory — search items by exact model code ('WG-350DSAV', one code as the whole query — Zoho matches whole words only) and check what is in stock",
     "salesforce": "CRM — search leads, contacts, opportunities",
     "hubspot": "CRM — search contacts, companies, deals",
     "google_drive": "file storage — search documents and files; `read` intent opens a file and returns its contents (row-level)",
@@ -582,6 +609,24 @@ async def _rewrite_storage_query(
     except Exception as e:  # noqa: BLE001 — the draft query still works
         logger.warning(f"storage query rewrite skipped: {e}")
         return query
+
+
+def _context_identifier_net(ctx: Dict[str, Any], query: str, limit: int = 2) -> List[str]:
+    """Identifier tokens (model/SKU-shaped — _product_tokens) that the
+    current message, recent history and open canvas carry but the draft
+    query dropped. Shared by the storage and item-search query nets: small
+    planner models drop codes that live in earlier turns (live 2026-09-04:
+    the user named the exact keywords and the planner still sent
+    'bandsaw' three turns running). Order-preserving, capped."""
+    hay = " ".join(
+        [_current_message_text(ctx)]
+        + [_entry_text(m) for m in (ctx.get("history") or [])[-8:]]
+        + [_entry_text(ctx.get("canvas") or {})]
+    )
+    return [
+        t for t in _product_tokens(hay, min_len=6, skip_hexlike=True)
+        if t.lower() not in (query or "").lower()
+    ][:limit]
 
 
 def _search_ingested_by_address(user_id, address, limit=4):
@@ -1297,19 +1342,18 @@ async def execute_tool_plan(
             # history). Appending ≤2 context identifier tokens is not a
             # routing decision — it only adds search terms, so the exact-
             # copy scan can find the row however the models behave.
-            ctx = context or {}
-            net_hay = " ".join(
-                [_current_message_text(ctx)]
-                + [_entry_text(m) for m in (ctx.get("history") or [])[-8:]]
-                + [_entry_text(ctx.get("canvas") or {})]
-            )
-            extra = [
-                t for t in _product_tokens(net_hay, min_len=6,
-                                           skip_hexlike=True)
-                if t.lower() not in query.lower()
-            ][:2]
+            extra = _context_identifier_net(context or {}, query)
             if extra:
                 logger.info(f"storage query identifier net: {extra!r}")
+                query = f"{query} {' '.join(extra)}".strip()
+        elif service in _ITEM_SEARCH_SERVICES and not _product_tokens(query):
+            # Same net for live item searches: the API matches whole name
+            # tokens, so the draft must carry the model code, not a generic
+            # noun. ZohoInventoryService.search_items retries the enriched
+            # query per token, so appending (not replacing) is safe here.
+            extra = _context_identifier_net(context or {}, query)
+            if extra:
+                logger.info(f"item-search query identifier net: {extra!r}")
                 query = f"{query} {' '.join(extra)}".strip()
 
         intent_map = _INTENT_ACTIONS.get(service, _INTENT_ACTIONS["default"])

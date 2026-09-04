@@ -70,43 +70,54 @@ class TestSearchItems:
         }))
         out = await svc.search_items("wg-350")
         assert [i["name"] for i in out] == ["WG-350DSAV"]
-        url = svc.client.get.call_args.args[0]
-        # CA DC: <api_domain>/inventory/v1 — the api_domain Zoho's own OAuth
-        # response carries (www.zohoapis.ca); inventory.zoho.ca has no DNS.
-        assert url == "https://www.zohoapis.ca/inventory/v1/items"
-        kwargs = svc.client.get.call_args.kwargs
-        assert kwargs["params"]["search_text"] == "wg-350"
-        assert kwargs["params"]["organization_id"] == "org123"
-        assert kwargs["params"]["per_page"] == 100
-        assert kwargs["params"]["page"] == 1
-        assert kwargs["headers"]["Authorization"].startswith("Zoho-oauthtoken ")
+        # The FIRST attempt is the plain search_text pass on the
+        # datacenter-correct host; the ladder then widens (see
+        # TestMultiStrategySearch). CA DC: <api_domain>/inventory/v1 — the
+        # api_domain Zoho's own OAuth response carries (www.zohoapis.ca);
+        # inventory.zoho.ca has no DNS.
+        first = svc.client.get.call_args_list[0]
+        assert first.args[0] == "https://www.zohoapis.ca/inventory/v1/items"
+        assert first.kwargs["params"]["search_text"] == "wg-350"
+        assert first.kwargs["params"]["organization_id"] == "org123"
+        assert first.kwargs["params"]["per_page"] == 100
+        assert first.kwargs["params"]["page"] == 1
+        assert first.kwargs["headers"]["Authorization"].startswith("Zoho-oauthtoken ")
 
-    async def test_paginates_until_has_more_page_false(self):
+    async def test_ladder_widens_to_name_contains(self):
+        # search_text matches name/description tokens only — the second
+        # ladder rung tries name_contains with the same value (live
+        # 2026-09-04: search_text 'bandsaw' matched 42 accessory items while
+        # name_contains reaches exact-name substrings).
         svc = _svc({"access_token": "tok"})
         svc._inventory_base = AsyncMock(return_value="https://inventory.zoho.com/api/v1")
         svc._resolve_organization = AsyncMock(return_value="org1")
         svc.client.get = AsyncMock(side_effect=[
-            _resp(200, {"items": [{"item_id": "a"}, {"item_id": "b"}],
+            _resp(200, {"items": [{"item_id": "a", "name": "saw blade"},
+                                  {"item_id": "b", "name": "saw guide"}],
                         "page_context": {"has_more_page": True}}),
-            _resp(200, {"items": [{"item_id": "c"}],
+            _resp(200, {"items": [{"item_id": "c", "name": "BANDSAW pro"}],
                         "page_context": {"has_more_page": False}}),
         ])
-        out = await svc.search_items("saw")
-        assert [i["item_id"] for i in out] == ["a", "b", "c"]
-        assert svc.client.get.call_count == 2
-        assert svc.client.get.call_args.kwargs["params"]["page"] == 2
+        out = await svc.search_items("saw", limit=5)
+        assert [i["item_id"] for i in out][:2] == ["a", "b"]
+        assert "c" in [i["item_id"] for i in out]
+        assert svc.client.get.call_count >= 2
+        second = svc.client.get.call_args_list[1]
+        assert second.kwargs["params"]["name_contains"] == "saw"
 
     async def test_stops_at_limit(self):
         svc = _svc({"access_token": "tok"})
         svc._inventory_base = AsyncMock(return_value="https://inventory.zoho.com/api/v1")
         svc._resolve_organization = AsyncMock(return_value="org1")
-        svc.client.get = AsyncMock(return_value=_resp(200, {
-            "items": [{"item_id": str(n)} for n in range(50)],
-            "page_context": {"has_more_page": True},
-        }))
+        # Attempt 1 returns a full page; later attempts find nothing new.
+        svc.client.get = AsyncMock(side_effect=[
+            _resp(200, {"items": [{"item_id": str(n), "name": f"saw {n}"} for n in range(50)],
+                        "page_context": {"has_more_page": True}}),
+            _resp(200, {"items": [], "page_context": {"has_more_page": False}}),
+        ])
         out = await svc.search_items("saw", limit=3)
         assert len(out) == 3
-        assert svc.client.get.call_count == 1
+        assert svc.client.get.call_count <= svc._MAX_SEARCH_CALLS
 
     async def test_slim_projection(self):
         slim = ZohoInventoryService._slim_item({
@@ -154,6 +165,141 @@ class TestSearchItems:
         assert await svc.search_items("saw") == []
         params = svc.client.get.call_args.kwargs["params"]
         assert params["organization_id"] == "cfg-org"
+
+
+class TestMultiStrategySearch:
+    """Zoho item search is word-exact (live 2026-09-04): search_text ANDs
+    its tokens, 'wg350dsav' never matches the name 'WG-350DSAV', and a
+    generic noun buries the model code past the limit cut. The ladder must
+    recover the item from prose queries and foreign spellings."""
+
+    async def test_multiword_query_recovers_identifier_token(self):
+        # 'Linmac WG-350DSAV' ANDs to zero on Zoho; the per-token rung
+        # name_contains '350DSAV' finds the stocked saw.
+        svc = _svc({"access_token": "tok"})
+        svc._inventory_base = AsyncMock(return_value="https://inventory.zoho.com/api/v1")
+        svc._resolve_organization = AsyncMock(return_value="org1")
+
+        async def _route(url, headers=None, params=None):
+            value = params.get("name_contains") or params.get("search_text")
+            if value == "350DSAV":
+                return _resp(200, {"items": [
+                    {"item_id": "real", "name": "WG-350DSAV",
+                     "stock_on_hand": 1, "available_stock": 1},
+                ], "page_context": {"has_more_page": False}})
+            return _resp(200, {"items": [],
+                               "page_context": {"has_more_page": False}})
+
+        svc.client.get = AsyncMock(side_effect=_route)
+        out = await svc.search_items("Linmac WG-350DSAV")
+        assert [i["name"] for i in out] == ["WG-350DSAV"]
+        assert out[0]["stock_on_hand"] == 1
+        assert svc.client.get.call_count <= svc._MAX_SEARCH_CALLS
+
+    async def test_hyphenless_price_book_spelling_recovers(self):
+        # 'wg350dsav' (the price-book row spelling) matches nothing on
+        # Zoho; the alpha-prefix-stripped variant '350dsav' is a substring
+        # of 'WG-350DSAV' and the skeleton comparison then scores it exact.
+        svc = _svc({"access_token": "tok"})
+        svc._inventory_base = AsyncMock(return_value="https://inventory.zoho.com/api/v1")
+        svc._resolve_organization = AsyncMock(return_value="org1")
+
+        async def _route(url, headers=None, params=None):
+            value = params.get("name_contains") or params.get("search_text")
+            if value == "350dsav":
+                return _resp(200, {"items": [
+                    {"item_id": "real", "name": "WG-350DSAV",
+                     "stock_on_hand": 1, "available_stock": 1},
+                ], "page_context": {"has_more_page": False}})
+            return _resp(200, {"items": [],
+                               "page_context": {"has_more_page": False}})
+
+        svc.client.get = AsyncMock(side_effect=_route)
+        out = await svc.search_items("wg350dsav")
+        assert [i["name"] for i in out] == ["WG-350DSAV"]
+
+    async def test_exact_hit_stops_ladder_after_first_call(self):
+        svc = _svc({"access_token": "tok"})
+        svc._inventory_base = AsyncMock(return_value="https://inventory.zoho.com/api/v1")
+        svc._resolve_organization = AsyncMock(return_value="org1")
+        svc.client.get = AsyncMock(return_value=_resp(200, {
+            "items": [
+                {"item_id": "r", "name": "WG-350DSAV", "stock_on_hand": 1},
+                {"item_id": "v1", "name": "WG-350DSAV-1", "stock_on_hand": 0},
+                {"item_id": "v5", "name": "WG-350DSAV-5", "stock_on_hand": 0},
+            ],
+            "page_context": {"has_more_page": False},
+        }))
+        out = await svc.search_items("wg-350dsav")
+        assert svc.client.get.call_count == 1
+        assert out[0]["name"] == "WG-350DSAV"
+        assert out[0]["stock_on_hand"] == 1
+
+    async def test_ranking_puts_exact_name_match_first(self):
+        # Zoho's own ordering puts the -1 variant first; the skeleton
+        # comparison must rank the exact name above it.
+        svc = _svc({"access_token": "tok"})
+        svc._inventory_base = AsyncMock(return_value="https://inventory.zoho.com/api/v1")
+        svc._resolve_organization = AsyncMock(return_value="org1")
+        svc.client.get = AsyncMock(return_value=_resp(200, {
+            "items": [
+                {"item_id": "v1", "name": "WG-350DSAV-1", "stock_on_hand": 0},
+                {"item_id": "real", "name": "WG-350DSAV", "stock_on_hand": 1},
+            ],
+            "page_context": {"has_more_page": False},
+        }))
+        out = await svc.search_items("wg-350dsav")
+        assert out[0]["name"] == "WG-350DSAV"
+        assert out[0]["stock_on_hand"] == 1
+
+    async def test_ladder_caps_api_calls_on_generic_noun(self):
+        # A generic term matching a huge catalog must not walk the whole
+        # ladder at full depth forever: hard cap of _MAX_SEARCH_CALLS.
+        svc = _svc({"access_token": "tok"})
+        svc._inventory_base = AsyncMock(return_value="https://inventory.zoho.com/api/v1")
+        svc._resolve_organization = AsyncMock(return_value="org1")
+        svc.client.get = AsyncMock(return_value=_resp(200, {
+            "items": [{"item_id": str(n), "name": f"part {n}"}
+                      for n in range(100)],
+            "page_context": {"has_more_page": True},
+        }))
+        out = await svc.search_items("bandsaw", limit=8)
+        # 'bandsaw' tokenizes to a single token whose rungs duplicate the
+        # two full-query attempts — the assertion is the hard ceiling, not
+        # the exact count.
+        assert svc.client.get.call_count <= svc._MAX_SEARCH_CALLS
+        assert len(out) == 8
+
+    async def test_first_attempt_failure_fails_fast(self):
+        # Attempt 1 down = API unreachable: no ladder hammering.
+        svc = _svc({"access_token": "tok"})
+        svc._inventory_base = AsyncMock(return_value="https://inventory.zoho.com/api/v1")
+        svc._resolve_organization = AsyncMock(return_value="org1")
+        svc.client.get = AsyncMock(side_effect=httpx.ConnectError("net"))
+        assert await svc.search_items("wg-350dsav") == []
+        assert svc.client.get.call_count == 1
+
+    async def test_identifier_tokens_outrank_prose_in_attempt_order(self):
+        # The per-token rungs must try the model code before the brand word.
+        svc = _svc({"access_token": "tok"})
+        svc._inventory_base = AsyncMock(return_value="https://inventory.zoho.com/api/v1")
+        svc._resolve_organization = AsyncMock(return_value="org1")
+        order = []
+
+        async def _route(url, headers=None, params=None):
+            value = params.get("name_contains") or params.get("search_text")
+            order.append(value)
+            return _resp(200, {"items": [],
+                               "page_context": {"has_more_page": False}})
+
+        svc.client.get = AsyncMock(side_effect=_route)
+        await svc.search_items("Linmac WG-350DSAV")
+        # attempt1 full search_text, attempt2 full name_contains, then the
+        # identifier-shaped 'WG-350DSAV' token before the prose 'Linmac'.
+        # 'WG' and '350DSAV' both come out of tokenization; the ladder
+        # carries identifier-shaped ones first.
+        assert order[2] in ("WG", "350DSAV")
+        assert order.index("Linmac") > order.index("350DSAV")
 
 
 class TestDatacenterSuffix:
@@ -281,7 +427,10 @@ class TestDispatchAndRouting:
             {"registry": fake_registry, "tenant_id": "t1"},
         )
         assert out == {"status": "success", "data": [{"name": "WG-350DSAV"}]}
-        fake_fin.search_items.assert_awaited_once_with("wg-350", limit=8)
+        # user_id rides along since the per-user token fix (2026-09-03) —
+        # token rows are user-keyed, agent turns resolve nothing without it.
+        fake_fin.search_items.assert_awaited_once_with(
+            "wg-350", limit=8, user_id=None)
 
 
 def test_module_cache_isolated_per_tenant():

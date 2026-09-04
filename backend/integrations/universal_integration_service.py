@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Dict, Any, List, Optional
 from core.database import SessionLocal
+from core.identifier_search import filter_by_terms
 from integrations.salesforce_service import SalesforceService
 from integrations.hubspot_service import get_hubspot_service
 from integrations.shopify_service import ShopifyService
@@ -234,21 +235,19 @@ class UniversalIntegrationService:
     @staticmethod
     def _filter_by_query(data: Any, query: str, limit: int = 8) -> List[Any]:
         """Client-side relevance filter for list endpoints that lack a
-        server-side search param. Keeps items matching ANY query term
-        (>=3 chars; falls back to the whole query) in their original
-        (recency) order."""
-        query = (query or "").strip().lower()
-        if not query:
-            return []
-        terms = [t for t in query.split() if len(t) >= 3] or [query]
-        matches: List[Any] = []
-        for item in (data if isinstance(data, (list, tuple)) else [data]):
-            hay = str(item).lower()
-            if any(t in hay for t in terms):
-                matches.append(item)
-                if len(matches) >= limit:
-                    break
-        return matches
+        server-side search param. ANY query term (>=3 chars; falls back to
+        the whole query) matches, ranked by total matched-term weight — a
+        record carrying the model code the question is about outranks ones
+        that merely share a prose word — with recency (original) order
+        preserved for ties. Previously this kept the FIRST limit matches in
+        list order, which buried identifier matches under generic-term
+        matches (live 2026-09-04: "bandsaw" matched 42 items while the
+        stocked WG-350DSAV sat past the cut). Shared implementation:
+        core.identifier_search.filter_by_terms."""
+        from core.identifier_search import filter_by_terms
+        return filter_by_terms(
+            data if isinstance(data, (list, tuple)) else [data],
+            query, text_of=str, limit=limit)
 
     async def execute(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
@@ -1130,7 +1129,12 @@ class UniversalIntegrationService:
         if service == "google_calendar":
             from integrations.google_calendar_service import google_calendar_service
             events = google_calendar_service.get_events()
-            return {"status": "success", "data": [e for e in events if query.lower() in e.get("title", "").lower() or query.lower() in e.get("description", "").lower()]}
+            return {"status": "success",
+                    "data": filter_by_terms(
+                        events, query,
+                        text_of=lambda e: " ".join([
+                            e.get("title") or "", e.get("description") or "",
+                        ]))}
         return []
 
     # --- Project Management ---
@@ -1264,12 +1268,18 @@ class UniversalIntegrationService:
 
         if service == "linear":
              issues = await pm_service.get_issues(token)
-             return [i for i in issues if query.lower() in i.get("title", "").lower() or query.lower() in (i.get("description") or "").lower()]
+             # Any-term ranked filter (core.identifier_search) — the old
+             # whole-query substring test zero-hits the moment the query
+             # carries prose + an identifier ("bandsaw WG-350DSAV"), the
+             # exact shape the planner's identifier net produces.
+             return filter_by_terms(
+                 issues, query,
+                 text_of=lambda i: f"{i.get('title', '')} {i.get('description') or ''}")
         elif service == "monday":
              return await pm_service.search_items(token, query)
         elif service == "asana":
              tasks = await pm_service.get_tasks(token)
-             return [t for t in tasks if query.lower() in t.get("name", "").lower()]
+             return filter_by_terms(tasks, query, text_of=lambda t: t.get("name", ""))
         elif service == "jira":
              # search_issues is synchronous (requests-based) — do NOT await
              # (awaiting a plain dict raised TypeError).
@@ -1687,9 +1697,12 @@ class UniversalIntegrationService:
         if service == "github":
             from integrations.github_service import GitHubService
             github_service = GitHubService()
-            # Generic repo search or issue search
+            # Generic repo search or issue search — any-term ranked, same
+            # identifier-tolerant filter as the other client-side families.
             repos = github_service.get_user_repositories()
-            return {"status": "success", "data": [r for r in repos if query.lower() in r.get("name", "").lower()]}
+            return {"status": "success",
+                    "data": filter_by_terms(repos, query,
+                                            text_of=lambda r: r.get("name", ""))}
         elif service == "gitlab":
             from integrations.gitlab_service import GitLabService
             gitlab_service = GitLabService()
@@ -1704,7 +1717,13 @@ class UniversalIntegrationService:
             from integrations.mailchimp_service import MailchimpService
             mailchimp_service = MailchimpService()
             campaigns = await mailchimp_service.get_campaigns(access_token, server_prefix)
-            return {"status": "success", "data": [c for c in campaigns if query.lower() in c.get("settings", {}).get("subject_line", "").lower() or query.lower() in c.get("settings", {}).get("title", "").lower()]}
+            return {"status": "success",
+                    "data": filter_by_terms(
+                        campaigns, query,
+                        text_of=lambda c: " ".join([
+                            (c.get("settings") or {}).get("subject_line") or "",
+                            (c.get("settings") or {}).get("title") or "",
+                        ]))}
         return []
 
     # --- Finance Platforms ---

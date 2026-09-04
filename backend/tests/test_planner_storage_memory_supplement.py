@@ -316,6 +316,14 @@ class TestStorageQueryRewrite:
         assert captured["query"] == "Consolidated Price List"
 
     async def test_non_storage_query_not_rewritten(self, mem_block):
+        # The LLM rewrite is storage-only. monday is on the universal
+        # search path but outside BOTH the storage net and the item-search
+        # net (its search is a provider-side API with unverified multi-term
+        # semantics), so the draft query passes through untouched.
+        # zoho_crm used to be the example here, but it now gets the
+        # deterministic identifier net (see TestItemSearchQueryNet) — its
+        # search filters client-side with the ranked any-term filter, so
+        # appending a code widens rather than zeroes the match set.
         captured = {}
 
         async def _search(self, service, query, context=None):
@@ -327,7 +335,7 @@ class TestStorageQueryRewrite:
         ]}
         with patch.object(UniversalIntegrationService, "search", _search):
             await execute_tool_plan(
-                _plan("zoho_crm", query="acme leads"), "user-1", context=ctx,
+                _plan("monday", query="acme leads"), "user-1", context=ctx,
                 llm_service=self._llm("SHOULD NOT APPEAR"))
         assert captured["query"] == "acme leads"
 
@@ -453,3 +461,96 @@ class TestOutlookEmptyFallback:
                    AsyncMock(return_value={"results": []})):
             block = await execute_tool_plan(_plan("outlook"), "user-1")
         assert "no matching messages in the mailbox or ingested memory" in block
+
+
+class TestItemSearchQueryNet:
+    """Live item APIs match whole NAME tokens — a generic-noun query drowns
+    the model code (live 2026-09-04: three consecutive turns planned only
+    'bandsaw' while the conversation carried 'WG-350DSAV', and the stocked
+    saw sat past the limit cut among 42 description matches). When the
+    draft query carries no identifier token, the context net appends the
+    conversation's model codes; ZohoInventoryService.search_items then
+    retries the enriched query per token."""
+
+    async def test_inventory_query_gains_context_identifier(self, mem_block):
+        captured = {}
+
+        async def _exec(self, service, action, params, context=None):
+            captured["query"] = params.get("query")
+            return {"status": "success", "data": []}
+
+        ctx = {"history": [
+            {"role": "user",
+             "content": "check if the Linmac WG-350DSAV bandsaw is in stock"},
+        ]}
+        with patch.object(UniversalIntegrationService, "execute", _exec):
+            await execute_tool_plan(
+                _plan("zoho_inventory", query="bandsaw"), "user-1", context=ctx)
+        assert captured["query"] == "bandsaw WG-350DSAV"
+
+    async def test_inventory_query_with_identifier_untouched(self, mem_block):
+        # The net is a backstop: when the planner's draft already names the
+        # code, nothing is appended (and the rewrite stays storage-only).
+        captured = {}
+
+        async def _exec(self, service, action, params, context=None):
+            captured["query"] = params.get("query")
+            return {"status": "success", "data": []}
+
+        ctx = {"history": [
+            {"role": "user",
+             "content": "check if the Linmac WG-350DSAV bandsaw is in stock"},
+        ]}
+        with patch.object(UniversalIntegrationService, "execute", _exec):
+            await execute_tool_plan(
+                _plan("zoho_inventory", query="WG-350DSAV"),
+                "user-1", context=ctx)
+        assert captured["query"] == "WG-350DSAV"
+
+    async def test_inventory_query_without_context_stays_clean(self, mem_block):
+        captured = {}
+
+        async def _exec(self, service, action, params, context=None):
+            captured["query"] = params.get("query")
+            return {"status": "success", "data": []}
+
+        with patch.object(UniversalIntegrationService, "execute", _exec):
+            await execute_tool_plan(
+                _plan("zoho_inventory", query="bandsaw"), "user-1")
+        assert captured["query"] == "bandsaw"
+
+    async def test_net_covers_client_side_filtered_families(self, mem_block):
+        # zoho_books searches via the ranked any-term filter
+        # (_search_finance -> _filter_by_query), so an appended identifier
+        # widens rather than zeroes the match set.
+        captured = {}
+
+        async def _search(self, service, query, context=None):
+            captured["query"] = query
+            return {"status": "success", "data": []}
+
+        ctx = {"history": [
+            {"role": "user", "content": "did the WG-350DSAV shipment land?"},
+        ]}
+        with patch.object(UniversalIntegrationService, "search", _search):
+            await execute_tool_plan(
+                _plan("zoho_books", query="shipment"), "user-1", context=ctx)
+        assert captured["query"] == "shipment WG-350DSAV"
+
+    async def test_net_off_for_provider_side_semantics(self, mem_block):
+        # monday's search is a provider-side API with unverified multi-term
+        # semantics — an appended token could zero it out server-side, so
+        # the net deliberately skips it.
+        captured = {}
+
+        async def _search(self, service, query, context=None):
+            captured["query"] = query
+            return {"status": "success", "data": []}
+
+        ctx = {"history": [
+            {"role": "user", "content": "the WG-350DSAV task on the board"},
+        ]}
+        with patch.object(UniversalIntegrationService, "search", _search):
+            await execute_tool_plan(
+                _plan("monday", query="task"), "user-1", context=ctx)
+        assert captured["query"] == "task"

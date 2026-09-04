@@ -6,6 +6,16 @@ from urllib.parse import urlparse
 import httpx
 from fastapi import HTTPException
 
+from core.identifier_search import (
+    identifier_rank as _identifier_rank,
+    identifier_variants as _identifier_variants,
+    normalize_code as _norm_code,
+    query_terms as _query_terms,
+    run_search_ladder as _run_search_ladder,
+)
+
+logger = logging.getLogger(__name__)
+
 logger = logging.getLogger(__name__)
 
 from core.integration_service import IntegrationService
@@ -354,6 +364,37 @@ class ZohoInventoryService(IntegrationService):
             "description": (item.get("description") or "")[:160] or None,
         }
 
+    # Search-ladder bounds: at most this many items-list calls per query
+    # (each ~a round trip), and the candidate pool ranked before the limit
+    # cut. One page of 100 is the pool — deeper pages only matter when a
+    # generic term matches hundreds of items, where no ranking signal
+    # exists anyway.
+    _MAX_SEARCH_CALLS = 5
+    _MAX_CANDIDATES = 100
+
+    async def _fetch_items_page(
+        self, url: str, headers: Dict[str, str], organization_id: str,
+        search_param: str, value: str,
+    ) -> List[Dict[str, Any]]:
+        """One items-list call with a single search parameter
+        (search_text or name_contains), slimmed for ranking."""
+        response = await self.client.get(
+            url,
+            headers=headers,
+            params={
+                "organization_id": organization_id,
+                "per_page": self._MAX_CANDIDATES,
+                "page": 1,
+                search_param: value,
+            },
+        )
+        response.raise_for_status()
+        payload = response.json()
+        return [
+            self._slim_item(item)
+            for item in (payload.get("items") or [])[: self._MAX_CANDIDATES]
+        ]
+
     async def search_items(
         self,
         query: str,
@@ -362,13 +403,27 @@ class ZohoInventoryService(IntegrationService):
         limit: int = 8,
         user_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Search live Zoho Inventory items by name/SKU (search_text + pagination).
+        """Search live Zoho Inventory items by name/SKU.
+
+        Zoho's item search is word-exact (live 2026-09-04, org 110000796196):
+        ``search_text`` ANDs its tokens — 'Linmac WG-350DSAV' returns zero
+        even though 'WG-350DSAV' is in stock — and matches only exact name
+        tokens, so 'wg350dsav' (the price-book spelling) also returns zero.
+        'bandsaw' matches 42 items by description and the saw itself sits
+        past any small limit cut. Queries therefore arrive as prose or in
+        another source's spelling, and a single search_text pass is not
+        enough: this runs the shared identifier ladder
+        (core.identifier_search.run_search_ladder) over Zoho's two indexed
+        search forms — search_text (full-text: name+description+sku) and
+        name_contains (name substring) — and ranks the merged candidates by
+        skeleton name match: exact first, name-contains next, Zoho's own
+        order last.
 
         This is the live leg the chat tool planner intends when it plans
-        zoho_inventory.search — until now that action matched no handler and
-        every "Zoho Inventory search" answer was really the ingested-file
-        memory search (live 2026-09-03: WG-350DSAV in stock, agent said
-        "no live stock records").
+        zoho_inventory.search — until Sep 2026 that action matched no
+        handler and every "Zoho Inventory search" answer was really the
+        ingested-file memory search (live 2026-09-03: WG-350DSAV in stock,
+        agent said "no live stock records").
 
         ``user_id`` (the acting user from the executor context) resolves the
         OAuth token per-user; without it the tenant lookup runs and — for
@@ -399,32 +454,27 @@ class ZohoInventoryService(IntegrationService):
                 return []
 
             headers = {"Authorization": f"Zoho-oauthtoken {active_token}"}
-            items: List[Dict[str, Any]] = []
-            page = 1
-            while page <= 10:  # hard cap: 10 x 100 items covers any sane catalog
-                response = await self.client.get(
-                    f"{base_url}/items",
-                    headers=headers,
-                    params={
-                        "organization_id": active_org,
-                        "search_text": query,
-                        "per_page": 100,
-                        "page": page,
-                    },
-                )
-                response.raise_for_status()
-                payload = response.json()
-                for item in payload.get("items", []):
-                    items.append(self._slim_item(item))
-                    if len(items) >= limit:
-                        break
-                if len(items) >= limit:
-                    break
-                page_context = payload.get("page_context") or {}
-                if not page_context.get("has_more_page"):
-                    break
-                page += 1
-            return items
+            url = f"{base_url}/items"
+
+            async def _fetch(kind: str, value: str) -> List[Dict[str, Any]]:
+                # kind: 'text' -> Zoho full-text search_text (name +
+                # description + sku); 'name' -> name_contains (name
+                # substring, keeps separators).
+                param = "search_text" if kind == "text" else "name_contains"
+                return await self._fetch_items_page(
+                    url, headers, active_org, param, value)
+
+            ranked = await _run_search_ladder(
+                _fetch,
+                query,
+                name_of=lambda item: str(item.get("name") or ""),
+                max_calls=self._MAX_SEARCH_CALLS,
+                limit=limit,
+            )
+            if not ranked:
+                logger.info(
+                    f"zoho_inventory.search_items({query!r}): no items found")
+            return ranked
         except Exception as e:
             logger.warning(f"zoho_inventory.search_items({query!r}) failed: {type(e).__name__}: {e}")
             return []
