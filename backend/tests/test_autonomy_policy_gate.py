@@ -54,11 +54,14 @@ def _gov(allowed=True, agent_status="intern", required="intern"):
 
 
 def test_topics_for_canvas_email_vs_default():
-    """An email canvas exercises sends/CRM; every other surface is a
-    document-ish canvas where edits and tasks are the point."""
-    assert ap.topics_for_canvas("email") == ["send_email", "crm_write"]
-    assert ap.topics_for_canvas("EMAIL") == ["send_email", "crm_write"]
+    """An email canvas exercises sends/attachments/CRM; every other surface
+    is a document-ish canvas where edits and tasks are the point. (The
+    email_attachment topic was added to the email map by the attachment
+    Phase-4 work; pdf canvases lead with the pdf_canvas topic.)"""
+    assert ap.topics_for_canvas("email") == ["send_email", "email_attachment", "crm_write"]
+    assert ap.topics_for_canvas("EMAIL") == ["send_email", "email_attachment", "crm_write"]
     assert ap.topics_for_canvas("orchestration") == ["task_create", "canvas_edit"]
+    assert ap.topics_for_canvas("pdf") == ["pdf_canvas", "task_create"]
     assert ap.topics_for_canvas("document") == ap.DEFAULT_CANVAS_TOPICS
     assert ap.topics_for_canvas("spreadsheet") == ap.DEFAULT_CANVAS_TOPICS
     assert ap.topics_for_canvas(None) == ap.DEFAULT_CANVAS_TOPICS

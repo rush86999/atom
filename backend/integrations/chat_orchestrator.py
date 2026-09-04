@@ -2370,6 +2370,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         canvas = await self._refresh_canvas_from_store(user_id, canvas)
         canvas = await self._heal_degenerate_canvas(user_id, canvas)
+
+        # PDF canvases are byte-backed: their pages/forms/signatures change
+        # only through the maturity-gated pdf_canvas tools — a text patch on
+        # the content JSON would corrupt the document state. Steer the turn
+        # to the tools instead (reads still flow through the planner).
+        if (canvas.get("canvas_type") or "").lower() == "pdf":
+            return {
+                "success": True,
+                "message": (
+                    "This is a PDF canvas — its content is edited through the "
+                    "pdf_canvas tools (page ops, form fill, redact, sign), which "
+                    "follow your approval policy. Tell me what to change and I'll "
+                    "propose it through those tools."
+                ),
+                "data": {
+                    "canvas_action": {
+                        "action": "pdf_tool_redirect",
+                        "canvas_id": canvas.get("canvas_id"),
+                    }
+                },
+            }
+
         corrections = self._recent_canvas_corrections(user_id, canvas.get("canvas_id"))
         versions = self._recent_canvas_versions(user_id, canvas.get("canvas_id"))
         lessons = self._agent_lessons(agent_id, message)

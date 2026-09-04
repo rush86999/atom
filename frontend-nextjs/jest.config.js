@@ -154,6 +154,10 @@ module.exports = {
   bail: false, // Don't stop on first failure (default)
 
   moduleNameMapper: {
+    // BEFORE the @/(.*) catch-all: the real module uses webpack's
+    // new URL(..., import.meta.url), which ts-jest's CJS transform
+    // can't parse — tests get the fake-worker stub instead.
+    "^@/lib/pdf-worker-src$": "<rootDir>/tests/mocks/pdf-worker-src.ts",
     "^@/(.*)$": "<rootDir>/$1",
     "^@pages/(.*)$": "<rootDir>/pages/$1",
     "^@layouts/(.*)$": "<rootDir>/layouts/$1",

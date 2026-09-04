@@ -73,6 +73,11 @@ TOPICS: Dict[str, Dict[str, str]] = {
         "description": "Attaching/removing files on email drafts and reading their contents",
         "default_mode": MODE_AUTO_IF_MATURE,
     },
+    "pdf_canvas": {
+        "label": "PDF documents",
+        "description": "Editing PDF canvases (pages/merge) and approving them for send-out",
+        "default_mode": MODE_AUTO_IF_MATURE,
+    },
 }
 
 # Per-topic gate metadata. governance_action is the action_type fed to
@@ -108,6 +113,15 @@ TOPIC_GATES: Dict[str, Dict[str, Any]] = {
         "min_maturity": "intern",
         "trust_domain": "email_attachment",
     },
+    # Reuses the update_canvas complexity row (INTERN+): pdf page/merge edits
+    # are reversible draft mutations, same blast radius as text-canvas edits.
+    # Approval-to-send (lifecycle approve) carries its own higher bar in the
+    # tool layer (SUPERVISED) on top of this topic gate.
+    "pdf_canvas": {
+        "governance_action": "update_canvas",
+        "min_maturity": "intern",
+        "trust_domain": "pdf_canvas",
+    },
 }
 
 # canvas_type (lowercased) → topics that canvas type PRIMARILY exercises.
@@ -117,6 +131,7 @@ _CANVAS_TYPE_TOPICS: Dict[str, List[str]] = {
     "email": ["send_email", "email_attachment", "crm_write"],
     "mail": ["send_email", "email_attachment", "crm_write"],
     "orchestration": ["task_create", "canvas_edit"],
+    "pdf": ["pdf_canvas", "task_create"],
 }
 DEFAULT_CANVAS_TOPICS = ["canvas_edit", "task_create"]
 

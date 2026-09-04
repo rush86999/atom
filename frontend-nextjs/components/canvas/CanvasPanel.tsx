@@ -15,6 +15,7 @@ import { BarChartCanvas } from "@/components/canvas/BarChart";
 import { PieChartCanvas } from "@/components/canvas/PieChart";
 import { InteractiveForm } from "@/components/canvas/InteractiveForm";
 import { OfficeFileCanvas } from "@/components/canvas/OfficeFileCanvas";
+import { PdfFileCanvas } from "@/components/canvas/PdfFileCanvas";
 import { EmailRecipientField } from "@/components/canvas/EmailRecipientField";
 import { CanvasTypeBadge } from "@/components/canvas/CanvasTypeBadge";
 import { persistCanvasTypeSwitch, switchCanvasType, normalizeCanvasComponent, type SwitchableCanvasType } from "@/components/canvas/canvasType";
@@ -25,7 +26,7 @@ import { EmailAttachmentStrip, type EmailAttachmentRecord } from "@/components/c
 interface CanvasState {
     id?: string;
     visible: boolean;
-    component: "markdown" | "code" | "chart" | "form" | "status_panel" | "eval" | "snapshot" | "browser_view" | "email" | "sheet" | "document" | "office_excel" | "office_word" | "office_pptx" | "custom";
+    component: "markdown" | "code" | "chart" | "form" | "status_panel" | "eval" | "snapshot" | "browser_view" | "email" | "sheet" | "document" | "pdf" | "office_excel" | "office_word" | "office_pptx" | "custom";
     title?: string;
     data: any;
     version?: number;
@@ -596,6 +597,21 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
                     slides: (state.data as any)?.slides || [],
                     filePath: (state.data as any)?.file_path,
                 };
+            // PDF canvas (real file, like office_*): agents read back the
+            // document's shape (filename, page count, lifecycle) — the bytes
+            // themselves stream from /api/canvas/pdf/{id}/file when needed.
+            case "pdf": {
+                const d = (state.data as any)?.file ? state.data : (state.data as any)?.content || {};
+                return {
+                    type: "generic" as const,
+                    component: "pdf" as const,
+                    title: state.title || (d as any)?.file?.filename || "PDF",
+                    filename: (d as any)?.file?.filename,
+                    pageCount: (d as any)?.file?.page_count,
+                    lifecycle: (d as any)?.lifecycle?.state || "drafting",
+                    versionHash: (d as any)?.file?.hash,
+                };
+            }
             default:
                 return {
                     type: "generic" as const,
@@ -795,6 +811,7 @@ function CanvasIcon({ component }: { component: string }) {
         case "office_excel": return <Table2 className="h-4 w-4 text-amber-500" />;
         case "office_word": return <FileText className="h-4 w-4 text-blue-500" />;
         case "office_pptx": return <Presentation className="h-4 w-4 text-orange-500" />;
+        case "pdf": return <FileText className="h-4 w-4 text-red-500" />;
         default: return <Layers className="h-4 w-4 text-indigo-500" />;
     }
 }
@@ -856,6 +873,12 @@ function CanvasContent({
         case "office_word":
         case "office_pptx":
             return <OfficeFileCanvas canvasId={canvasId} data={data} showPreview={showPreview} />;
+
+        // PDF canvas (real file, same family): local page-map edits commit
+        // through /api/canvas/pdf/{id}/pages as audited versions; the viewer
+        // re-renders from the new version's streamed bytes.
+        case "pdf":
+            return <PdfFileCanvas canvasId={canvasId} data={data} />;
 
         case "line_chart":
             return <LineChartCanvas data={resolveChartData(data)} title={resolveChartTitle(data, canvasTitle)} />;

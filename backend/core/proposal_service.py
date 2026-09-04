@@ -65,12 +65,20 @@ class ProposalService:
         if not agent:
             raise ValueError(f"Agent {intern_agent_id} not found")
 
-        if agent.status != AgentStatus.INTERN.value:
-            # Bug 8 fix: was a warning only — non-INTERN agents could still
-            # create proposals. Now enforced as a hard block.
+        if str(agent.status).lower() not in ("student", "intern"):
+            # Proposal creation is the LEARNING tiers' channel: STUDENT and
+            # INTERN hires propose, a human approves/corrects/rejects, and the
+            # outcome feeds training (episodes + corrections below). Originally
+            # the Bug 8 fix hard-blocked every non-INTERN status; per the
+            # supervisor directive ("a student can be asked to propose and edit
+            # for teaching") STUDENT now proposes too — the block remains for
+            # operational tiers (SUPERVISED/AUTONOMOUS execute directly) and
+            # non-operational statuses, still fail-closed.
             raise PermissionError(
-                f"Agent {intern_agent_id} is not an INTERN agent (status: {agent.status}). "
-                f"Only INTERN agents can create proposals."
+                f"Agent {intern_agent_id} is not an INTERN agent eligible to propose "
+                f"(status: {agent.status}). Proposal creation is limited to the "
+                "learning tiers (STUDENT/INTERN) — operational hires execute "
+                "directly instead of proposing."
             )
         # Fetch agent name for denormalization
         # The agent object is already fetched above, so we can use it directly.
@@ -467,6 +475,12 @@ Please review and approve or reject this proposal.
                 # the same deterministic email policy as a human-clicked send
                 # (sensitivity blocks, audit trail, live broadcast).
                 return await self._execute_send_email_action(proposal, proposed_action)
+            elif action_type == "pdf_canvas_edit":
+                # PDF canvas HITL: the approved op runs through the SAME
+                # deterministic service a human click uses (page map, merge,
+                # attach-to-email, lifecycle transitions) — audit + broadcast
+                # included.
+                return await self._execute_pdf_canvas_action(proposal, proposed_action)
             else:
                 logger.warning(f"Unknown action type: {action_type}")
                 return {
@@ -530,6 +544,86 @@ Please review and approve or reject this proposal.
                 _asyncio.run(_write())
         except Exception as e:
             logger.warning(f"Episode creation skipped for {execution.id}: {e}")
+
+    async def _execute_pdf_canvas_action(
+        self, proposal: AgentProposal, action: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Execute an approved pdf_canvas_edit proposal through PdfCanvasService
+        — the same path a human click takes (audited + broadcast)."""
+        from core.database import get_db_session
+        from core.pdf_canvas_service import PdfCanvasService
+
+        canvas_id = action.get("canvas_id")
+        op = action.get("op")
+        user_id = proposal.user_id
+        agent_id = proposal.agent_id
+        if (not canvas_id and op != "generate") or not op:
+            return {"success": False, "error": "pdf_canvas_edit action requires canvas_id and op"}
+
+        with get_db_session() as db:
+            svc = PdfCanvasService(db)
+            if op == "generate":
+                result = svc.generate(
+                    user_id=user_id, tenant_id="default",
+                    template=action.get("template") or "",
+                    doc=action.get("doc") or {},
+                    title=action.get("title"), agent_id=agent_id,
+                )
+            elif op == "page_ops":
+                result = svc.apply_page_ops(
+                    canvas_id, user_id, action.get("pages") or [],
+                    base_hash=action.get("base_hash"), agent_id=agent_id,
+                )
+            elif op == "merge_canvas":
+                result = svc.merge_from_canvas(
+                    canvas_id, user_id, action.get("from_canvas_id") or "", agent_id=agent_id,
+                )
+            elif op == "attach_to_email":
+                result = svc.attach_to_email(
+                    canvas_id, user_id,
+                    email_canvas_id=action.get("email_canvas_id"), agent_id=agent_id,
+                    flatten=bool(action.get("flatten")),
+                )
+            elif op == "form":
+                result = svc.set_form_fields(
+                    canvas_id, user_id, action.get("values") or {},
+                    base_hash=action.get("base_hash"), agent_id=agent_id,
+                )
+            elif op == "flatten":
+                result = svc.flatten_form(canvas_id, user_id, agent_id=agent_id)
+            elif op == "annotate":
+                result = svc.annotate(canvas_id, user_id, action.get("items") or [], agent_id=agent_id)
+            elif op == "redact":
+                result = svc.redact(canvas_id, user_id, action.get("items") or [], agent_id=agent_id)
+            elif op == "signature":
+                result = svc.stamp_signature(
+                    canvas_id, user_id, int(action.get("page", 0)),
+                    action.get("signature_lines") or [], action.get("rect") or [72, 600, 272, 650],
+                    label=action.get("label", ""), agent_id=agent_id,
+                )
+            elif op == "archive_onedrive":
+                result = await svc.archive_to_onedrive(
+                    canvas_id, user_id, folder_path=action.get("folder_path", ""), agent_id=agent_id,
+                )
+            elif op == "docusign":
+                result = svc.send_to_docusign(
+                    canvas_id, user_id,
+                    signer_email=action.get("signer_email") or "",
+                    signer_name=action.get("signer_name") or "",
+                    agent_id=agent_id,
+                )
+            elif op in ("submit_review", "approve", "reopen", "archive"):
+                result = svc.transition(canvas_id, user_id, op, agent_id=agent_id)
+            else:
+                return {"success": False, "error": f"Unknown pdf_canvas op: {op}"}
+
+        return {
+            "success": bool(result.get("success")),
+            "op": op,
+            "canvas_id": canvas_id,
+            "error": result.get("error"),
+            "executed_at": datetime.now().isoformat(),
+        }
 
     async def _execute_send_email_action(
         self,
