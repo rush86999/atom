@@ -35,31 +35,58 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
     cover-page boilerplate, which is exactly what the old preview-only paths
     showed while the answer sat further in. Falls back to the head when no
     query token appears.
+
+    RAREST-TOKEN ANCHOR first: the query token with the fewest occurrences
+    in the text is the identifying one (the model number vs "price"/"list"
+    boilerplate). Coverage scoring alone loses exactly here — a row region
+    is a numeric dump, so header windows containing "consolidated price
+    list" out-score it 3-to-1 and the excerpt lands thousands of rows away
+    (live 2026-09-04: 'wg350dsav' at offset 2.4M of a 4.1M-char workbook
+    never surfaced). When the rarest token is itself frequent (>50 hits,
+    i.e. not identifying), fall back to distinct-token coverage scoring.
     """
     text = text or ""
     import re as _re
 
     tokens = [t for t in _re.split(r"[^a-z0-9]+", (query or "").lower()) if len(t) > 2]
     lower = text.lower()
+    uniq = set(tokens)
+    if not uniq:
+        return text[:excerpt_chars]
+    counts = {t: lower.count(t) for t in uniq}
+    # Anchor only on tokens PRESENT in the text: an enriched context token
+    # may name a different product entirely (count 0) — anchoring on it
+    # would land on the head and be worse than coverage scoring.
+    present = {t: c for t, c in counts.items() if c > 0}
+    half = excerpt_chars // 2
+    if present:
+        anchor = min(present, key=lambda t: (present[t], -len(t)))
+        if present[anchor] <= 50:
+            idx = lower.find(anchor)
+            start = max(0, idx - half)
+            end = min(len(text), idx + half)
+            prefix = "… " if start > 0 else ""
+            suffix = " …" if end < len(text) else ""
+            return f"{prefix}{text[start:end]}{suffix}"
     best_pos, best_hits = 0, -1
-    if tokens:
-        for tok in sorted(set(tokens), key=len, reverse=True):
-            start = 0
-            while True:
-                idx = lower.find(tok, start)
-                if idx < 0:
-                    break
-                # count how many DISTINCT tokens appear in this window
-                window = lower[max(0, idx - excerpt_chars // 2): idx + excerpt_chars // 2]
-                hits = sum(1 for t in set(tokens) if t in window)
-                if hits > best_hits:
-                    best_pos, best_hits = idx, hits
-                start = idx + len(tok)
-                if best_hits >= len(set(tokens)):
-                    break
+    for tok in sorted(uniq, key=len, reverse=True):
+        start = 0
+        finds = 0
+        while finds < 2000:  # cap: boilerplate tokens can occur thousands of times
+            idx = lower.find(tok, start)
+            if idx < 0:
+                break
+            finds += 1
+            # count how many DISTINCT tokens appear in this window
+            window = lower[max(0, idx - excerpt_chars // 2): idx + excerpt_chars // 2]
+            hits = sum(1 for t in uniq if t in window)
+            if hits > best_hits:
+                best_pos, best_hits = idx, hits
+            start = idx + len(tok)
+            if best_hits >= len(uniq):
+                break
     if best_hits <= 0:
         return text[:excerpt_chars]
-    half = excerpt_chars // 2
     start = max(0, best_pos - half)
     end = min(len(text), best_pos + half)
     prefix = "… " if start > 0 else ""

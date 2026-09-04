@@ -568,6 +568,79 @@ def _search_ingested_by_address(user_id, address, limit=4):
     return out
 
 
+_PRODUCT_TOKEN_RE = re.compile(
+    r"\b(?=[A-Za-z-]*\d)(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9][A-Za-z0-9-]{4,}\b"
+)
+
+
+def _search_ingested_by_exact_token(user_id, query, skip_ids=None, limit=3):
+    """Deterministic ingested-copy lookup for rare PRODUCT tokens in the
+    query — model numbers / SKUs ("WG350DSAV", "ALU-400": mixed letters and
+    digits). Vector search and lexical analyzers both mangle these: the row
+    carrying the model sits mid-file among numeric columns and never cracks
+    the top-8 (live 2026-09-04: 'Consolidated Price List WG350DSAV' returned
+    the workbook's head chunks while the row sat in chunk c2213 of 3,797).
+    A containment scan finds it exactly — the same repair pattern addresses
+    get from _search_ingested_by_address. Fault-isolated; [] on anything."""
+    out: List[str] = []
+    seen_rows: List[str] = []
+    try:
+        tokens = list(dict.fromkeys(
+            m.group(0) for m in _PRODUCT_TOKEN_RE.finditer(query or "")
+        ))[:3]
+        if not tokens:
+            return out
+        import json as _json
+        import lancedb
+
+        base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
+        lance = (lancedb.connect(str(base / "default"))
+                 .open_table("documents").to_lance())
+        for tok in tokens:
+            # The same model is written both ways — canvas prose hyphenates
+            # ("WG-350DSAV") while the workbook cell stores the bare code
+            # ("WG350DSAV"); scan both spellings or the identifying row is
+            # missed in favor of lookalike records.
+            variants = [tok]
+            bare = tok.replace("-", "")
+            if bare != tok and bare not in variants:
+                variants.append(bare)
+            for variant in variants:
+                safe = variant.replace("'", "''")
+                tbl = lance.to_table(
+                    filter=f"text LIKE '%{safe}%'",
+                    columns=["id", "text", "metadata", "source"],
+                )
+                for row in tbl.to_pylist()[:limit]:
+                    if skip_ids and str(row.get("id") or "") in skip_ids:
+                        continue
+                    key = str(row.get("id") or "")
+                    if key in seen_rows:
+                        continue
+                    seen_rows.append(key)
+                    try:
+                        md = _json.loads(row.get("metadata") or "{}")
+                    except Exception:  # noqa: BLE001 — metadata is best-effort
+                        md = {}
+                    name = (md.get("file_name") or str(row.get("source") or "")
+                            or "ingested file")
+                    ingested_on = str(md.get("ingested_at") or "")[:10]
+                    fresh = f" — ingested {ingested_on}" if ingested_on else ""
+                    text = str(row.get("text") or "")
+                    idx = text.upper().find(variant.upper())
+                    if idx < 0:
+                        idx = text.upper().find(tok.upper())
+                    start = max(0, idx - 160)
+                    excerpt = text[start:idx + 340].replace("\n", " | ")
+                    out.append(
+                        f"- [document: {name}{fresh}] EXACT MATCH for '{tok}': "
+                        f"…{excerpt}…"
+                    )
+    except Exception as e:  # noqa: BLE001 — fault-isolated by contract
+        logger.debug(f"ingested exact-token search skipped: {e}")
+    return out
+
+
 def _best_content_excerpt(content: str, query: str, width: int = 500) -> str:
     """Top non-overlapping windows of `content`, ranked by coverage and
     frequency of the corpus's terms. Single-row documents (file ingests store
@@ -730,6 +803,17 @@ async def _memory_search_block(
                         break
             if len(lines) >= 8:
                 break
+        # Exact-token leg runs LAST but ranks FIRST: an exact model-number
+        # match is the strongest evidence for "find the row" questions, so
+        # it must not be cut by the 8-line cap when the hybrid legs already
+        # filled the block.
+        exact_lines = [
+            _l for _l in _search_ingested_by_exact_token(
+                user_id, query, skip_ids=seen_ids)
+            if _l not in lines
+        ]
+        if exact_lines:
+            lines = exact_lines + lines
         if not lines:
             return None
         return _with_grounding(
@@ -1067,6 +1151,28 @@ async def execute_tool_plan(
                     f"tool chain: explicit open language — upgrading "
                     f"{service}.search to read_file")
                 plan.intent = "read"
+
+        # CONTEXT TOKEN ENRICHMENT — storage legs. The fallback queries
+        # inherit the current message's wording ("check the price list file
+        # again and find the row") and drop the model number that only
+        # exists in the conversation/canvas — the read excerpt then anchors
+        # on header boilerplate and the row stays invisible (live
+        # 2026-09-04: three consecutive turns). The mixed-alphanumeric
+        # token (WG350DSAV, ALU-400) is the identifying key; scan the
+        # hydrated context for it deterministically instead of hoping the
+        # planner LLM includes it. One token is enough — history is scanned
+        # before canvas styling, and short tokens (DM10) don't qualify.
+        if service in _STORAGE_SERVICES:
+            hay = (
+                query + " " + _current_message_text(context) + " "
+                + " ".join(_entry_text(m) for m in ((context or {}).get("history") or [])[-8:])
+                + " " + _entry_text((context or {}).get("canvas") or {})
+            )
+            for tok in _PRODUCT_TOKEN_RE.findall(hay):
+                if len(tok) >= 6 and tok.lower() not in query.lower():
+                    logger.info(f"tool query enriched with context token {tok!r}")
+                    query = f"{query} {tok}".strip()
+                    break
 
         intent_map = _INTENT_ACTIONS.get(service, _INTENT_ACTIONS["default"])
         action = intent_map.get(plan.intent or "search", "search")
