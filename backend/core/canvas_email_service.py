@@ -1264,15 +1264,42 @@ class EmailCanvasService:
             key=ts,
             reverse=True,
         )
+        own_domains = {
+            addr.rpartition("@")[2] for addr in own_addresses if "@" in addr
+        }
+
+        def sender_of(m: Dict[str, Any]) -> str:
+            return addr_of(m.get("from_field")).lower()
+
+        def is_external(m: Dict[str, Any]) -> bool:
+            sender = sender_of(m)
+            return (
+                bool(sender) and "@" in sender
+                and sender not in own_addresses
+                and sender.rpartition("@")[2] not in own_domains
+            )
+
+        def thread_reply(m: Dict[str, Any]) -> Dict[str, Any]:
+            name = str(((m.get("from_field") or {}).get("emailAddress") or {}).get("name") or "").strip()
+            sender = sender_of(m)
+            to = f"{name} <{sender}>" if name else sender
+            # conversationId rides along so the composer's send can be
+            # a true threaded reply instead of a fresh standalone mail.
+            return {"success": True, "to": to, "cc": "", "source": "thread",
+                    "thread_id": str(m.get("conversation_id") or "") or None}
+
+        # Customer threads carry internal legs (colleague notes in the same
+        # conversation). Prefilling To from the newest non-self sender can
+        # therefore aim a customer reply at an internal colleague — prefer
+        # the newest message from OUTSIDE the user's own domain, and only
+        # fall back to any non-self sender for internal-only threads.
         for m in candidates:
-            sender = addr_of(m.get("from_field")).lower()
+            if is_external(m):
+                return thread_reply(m)
+        for m in candidates:
+            sender = sender_of(m)
             if sender and sender not in own_addresses:
-                name = str(((m.get("from_field") or {}).get("emailAddress") or {}).get("name") or "").strip()
-                to = f"{name} <{sender}>" if name else sender
-                # conversationId rides along so the composer's send can be
-                # a true threaded reply instead of a fresh standalone mail.
-                return {"success": True, "to": to, "cc": "", "source": "thread",
-                        "thread_id": str(m.get("conversation_id") or "") or None}
+                return thread_reply(m)
         for m in candidates:
             sender = addr_of(m.get("from_field")).lower()
             if sender and sender in own_addresses:

@@ -288,6 +288,62 @@ class TestResolveReplySurfacesThreadId:
         assert result["to"] is not None
         assert result["thread_id"] == "conv-77"
 
+    @pytest.mark.asyncio
+    async def test_mixed_thread_prefills_external_sender(self, db):
+        """The same conversation often carries internal legs (colleague
+        notes). Prefill must aim the reply at the newest OUTSIDE-the-org
+        sender, never at an internal colleague (observed 2026-09-04)."""
+        from core.canvas_email_service import EmailCanvasService
+
+        svc = EmailCanvasService(db)
+        outlook = MagicMock()
+        outlook.search_emails = AsyncMock(return_value=[
+            {
+                "id": "m-internal", "subject": "RE: Quotation",
+                "conversation_id": "conv-88",
+                "from_field": {"emailAddress": {"address": "vipul@brennan.ca",
+                                                "name": "Vipul"}},
+                "received_date_time": "2026-09-02T17:33:17Z",
+            },
+            {
+                "id": "m-external", "subject": "RE: Quotation",
+                "conversation_id": "conv-88",
+                "from_field": {"emailAddress": {"address": "jacob@customer.ca",
+                                                "name": "Jacob"}},
+                "received_date_time": "2026-09-02T17:08:35Z",
+            },
+        ])
+        outlook.get_user_profile = AsyncMock(
+            return_value={"mail": "rish@brennan.ca"}
+        )
+        with patch("integrations.outlook_service.OutlookService", return_value=outlook):
+            result = await svc.resolve_reply_recipients("u1", "Re: Quotation")
+
+        assert "jacob@customer.ca" in result["to"]
+        assert result["thread_id"] == "conv-88"
+
+    @pytest.mark.asyncio
+    async def test_unknown_domain_keeps_newest_non_self_sender(self, db):
+        """No own address resolvable → no domain filter — previous behavior
+        (newest non-self sender) is preserved."""
+        from core.canvas_email_service import EmailCanvasService
+
+        svc = EmailCanvasService(db)
+        outlook = MagicMock()
+        outlook.search_emails = AsyncMock(return_value=[{
+            "id": "m1", "subject": "RE: Quotation",
+            "conversation_id": "conv-77",
+            "from_field": {"emailAddress": {"address": "colleague@anywhere.com",
+                                            "name": "Col"}},
+            "received_date_time": "2026-09-01T10:00:00Z",
+        }])
+        outlook.get_user_profile = AsyncMock(return_value={})
+        with patch("integrations.outlook_service.OutlookService", return_value=outlook):
+            result = await svc.resolve_reply_recipients("u1", "Re: Quotation")
+
+        assert "colleague@anywhere.com" in result["to"]
+        assert result["thread_id"] == "conv-77"
+
 
 class TestReplyOverridesPayload:
     @pytest.mark.asyncio

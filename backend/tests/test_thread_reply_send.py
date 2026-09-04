@@ -230,11 +230,62 @@ class TestOutlookConversationResolution:
         resolved = await svc.get_latest_conversation_message_id("u1", "c1")
 
         assert resolved == "m-new"
-        endpoint = svc._make_graph_request.await_args.args[1]
-        assert "/me/messages" in endpoint
+        messages_calls = [
+            c for c in svc._make_graph_request.await_args_list
+            if "/me/messages" in str(c.args[1])
+        ]
+        assert messages_calls, "conversation lookup never hit /me/messages"
+        endpoint = messages_calls[0].args[1]
         assert "conversationId" in endpoint
         # conversationId $filter + $orderby is a Graph 400 InefficientFilter.
         assert "$orderby" not in endpoint
+
+    @pytest.mark.asyncio
+    async def test_prefers_external_sender_in_mixed_thread(self):
+        """Customer threads carry internal legs (colleague notes in the same
+        conversation) — the reply anchor must be the newest EXTERNAL
+        message, not the thread's overall newest (an internal note)."""
+        svc = self._svc()
+
+        async def fake_graph(user_id, endpoint, *args, **kwargs):
+            if endpoint == "/me":
+                return {"id": "u1", "mail": "rish@brennan.ca"}
+            return {
+                "value": [
+                    {"id": "m-internal", "receivedDateTime": "2026-09-02T17:33:17Z",
+                     "from": {"emailAddress": {"address": "vipul@brennan.ca"}}},
+                    {"id": "m-external", "receivedDateTime": "2026-09-02T17:08:35Z",
+                     "from": {"emailAddress": {"address": "jschulz@blumetric.ca"}}},
+                ]
+            }
+
+        svc._make_graph_request = AsyncMock(side_effect=fake_graph)
+
+        resolved = await svc.get_latest_conversation_message_id("u1", "c1")
+
+        assert resolved == "m-external"
+
+    @pytest.mark.asyncio
+    async def test_internal_only_thread_falls_back_to_newest(self):
+        svc = self._svc()
+
+        async def fake_graph(user_id, endpoint, *args, **kwargs):
+            if endpoint == "/me":
+                return {"id": "u1", "mail": "rish@brennan.ca"}
+            return {
+                "value": [
+                    {"id": "m-older", "receivedDateTime": "2026-09-01T10:00:00Z",
+                     "from": {"emailAddress": {"address": "vipul@brennan.ca"}}},
+                    {"id": "m-newest", "receivedDateTime": "2026-09-02T17:33:17Z",
+                     "from": {"emailAddress": {"address": "chandrakant@brennan.ca"}}},
+                ]
+            }
+
+        svc._make_graph_request = AsyncMock(side_effect=fake_graph)
+
+        resolved = await svc.get_latest_conversation_message_id("u1", "c1")
+
+        assert resolved == "m-newest"
 
     @pytest.mark.asyncio
     async def test_returns_none_when_conversation_empty(self):

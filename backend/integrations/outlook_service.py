@@ -794,11 +794,21 @@ class OutlookService(IntegrationService):
         self,
         user_id: str,
         conversation_id: str,
-        token: Optional[str] = None
+        token: Optional[str] = None,
+        prefer_external_sender: bool = True,
     ) -> Optional[str]:
-        """Resolve an Outlook conversationId to the id of its most recent
-        message. Graph /reply needs a message id, but ingested/searched
-        threads surface a conversationId — this is the bridge.
+        """Resolve an Outlook conversationId to the id of the message a
+        reply should anchor to. Graph /reply needs a message id, but
+        ingested/searched threads surface a conversationId — this is the
+        bridge.
+
+        The anchor prefers the newest message from OUTSIDE the user's own
+        domain: customer threads routinely carry internal legs (colleague
+        notes in the same conversation), and rooting the reply's
+        In-Reply-To/References in an internal message is the classic
+        mixed-thread mistake (observed live 2026-09-04 — a customer reply
+        anchored on an internal colleague's note). Internal-only threads
+        fall back to the newest message overall.
 
         The newest-message sort happens client-side: Graph rejects a
         conversationId $filter combined with $orderby (400 InefficientFilter,
@@ -808,7 +818,7 @@ class OutlookService(IntegrationService):
             params = {
                 "$filter": f"conversationId eq '{conversation_id}'",
                 "$top": 50,
-                "$select": "id,conversationId,receivedDateTime",
+                "$select": "id,conversationId,receivedDateTime,from",
             }
             endpoint = (
                 "/me/messages?" + urllib.parse.urlencode(params)
@@ -819,6 +829,25 @@ class OutlookService(IntegrationService):
             value = (result or {}).get("value") or []
             if not value:
                 return None
+            if prefer_external_sender:
+                own_domain = None
+                try:
+                    profile = await self.get_user_profile(user_id, token=token)
+                    for key in ("mail", "userPrincipalName"):
+                        own_domain = self._email_domain(
+                            str((profile or {}).get(key) or "")
+                        )
+                        if own_domain:
+                            break
+                except Exception:
+                    own_domain = None
+                if own_domain:
+                    external = [
+                        m for m in value
+                        if self._sender_domain(m) not in (None, own_domain)
+                    ]
+                    if external:
+                        value = external
             # receivedDateTime is ISO-8601 UTC, so lexicographic order is
             # chronological order.
             value.sort(
@@ -828,6 +857,19 @@ class OutlookService(IntegrationService):
         except Exception as e:
             logger.error(f"Error resolving conversation {conversation_id}: {e}")
             return None
+
+    @staticmethod
+    def _email_domain(addr: str) -> Optional[str]:
+        if not addr or "@" not in addr:
+            return None
+        return addr.strip().rpartition("@")[2].lower() or None
+
+    @classmethod
+    def _sender_domain(cls, message: Dict[str, Any]) -> Optional[str]:
+        addr = str(
+            (((message or {}).get("from") or {}).get("emailAddress") or {}).get("address") or ""
+        )
+        return cls._email_domain(addr)
 
     async def reply_to_email(
         self,
