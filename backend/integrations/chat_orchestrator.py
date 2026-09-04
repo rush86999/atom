@@ -2382,12 +2382,22 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         # Live evidence when the edit hinges on data the editor cannot see
         # (a price "from the consolidated price list"). Same read-only tool
-        # planner the chat path uses; empty on any failure, and the editor's
-        # EXTERNAL FACTS rule keeps unfilled values placeholder-marked.
+        # planner the chat path uses. When a live-data need EXISTS but the
+        # lookup failed, DECLINE the edit (None → the tool/conversational
+        # path answers the lookup): applying a data-dependent edit without
+        # its evidence fabricated values on the user's real draft (live
+        # 2026-09-04: 'In Stock' + placeholder price invented on timeout).
         from core.chat_canvas_editor import fetch_fresh_data_section
-        fresh_data = await fetch_fresh_data_section(
+        fresh = await fetch_fresh_data_section(
             message, history, self.llm_service, user_id,
         )
+        if fresh.needed and not fresh.ok:
+            logger.info(
+                "canvas edit declined: the turn needs live data and the "
+                "lookup failed — falling through to the tool path instead "
+                "of editing without evidence")
+            return None
+        fresh_data = fresh.section
 
         try:
             plan = await asyncio.wait_for(
@@ -2696,11 +2706,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         # Same evidence rule as edits: a send that amends the draft with
         # external facts ("send it with the current price") gets the live
-        # FRESH DATA section; empty when the planner sees no data need.
+        # FRESH DATA section; when that need exists but the lookup failed,
+        # DECLINE (None → the conversational/tool path answers) — a send
+        # composed from guessed values is fabrication, not assistance.
         from core.chat_canvas_editor import fetch_fresh_data_section
-        fresh_data = await fetch_fresh_data_section(
+        fresh = await fetch_fresh_data_section(
             message, history, self.llm_service, user_id,
         )
+        if fresh.needed and not fresh.ok:
+            logger.info(
+                "canvas action declined: the turn needs live data and the "
+                "lookup failed — falling through to the tool path")
+            return None
+        fresh_data = fresh.section
 
         try:
             plan = await asyncio.wait_for(

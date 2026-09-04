@@ -26,7 +26,7 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from pydantic import BaseModel
 
@@ -698,8 +698,28 @@ def _versions_section(
 
 # Evidence gathering must never cost the edit its own turn: the planner call
 # and the tool execution it triggers live inside this bound. On timeout the
-# edit proceeds without evidence under the EXTERNAL FACTS rule.
-_FRESH_DATA_TIMEOUT_SECONDS = 12
+# edit is DECLINED (see FreshDataResult) — proceeding without evidence made
+# the editor fabricate values on the user's real draft (live 2026-09-04:
+# 'In Stock' delivery + placeholder price invented when the lookup timed
+# out). 20s: the lookup now includes the planner's repair pass and the
+# storage query rewrite, so 12s false-timed-out constantly.
+_FRESH_DATA_TIMEOUT_SECONDS = 20
+
+
+class FreshDataResult(NamedTuple):
+    """Outcome of the edit's live-evidence lookup.
+
+    needed=False            — the planner saw no live-data need; the edit
+                              may proceed without evidence.
+    needed=True, ok=True    — ``section`` carries real tool evidence.
+    needed=True, ok=False   — a live-data need EXISTED but the lookup
+                              failed/timed out. Callers must decline the
+                              edit: applying guessed values is fabrication.
+    """
+
+    section: str
+    needed: bool
+    ok: bool
 
 
 async def fetch_fresh_data_section(
@@ -707,7 +727,7 @@ async def fetch_fresh_data_section(
     history: List[Dict[str, Any]],
     llm_service: Any,
     user_id: Optional[str],
-) -> str:
+) -> FreshDataResult:
     """LIVE evidence for edit requests that hinge on data the editor cannot
     see — a price "from the consolidated price list", specs from a drive
     file, a status only the CRM knows. Runs the SAME read-only tool planner
@@ -716,42 +736,51 @@ async def fetch_fresh_data_section(
     (the chat orchestrator, alongside corrections/versions/lessons) — NOT
     inside plan_canvas_edit, which owns a single structured LLM call and
     must not fire extra ones (its callers' replan ladders and tests count
-    those calls). Empty string on any failure or when the planner sees no
-    data need; the edit then proceeds under the EXTERNAL FACTS rule in
-    _EDITOR_SYSTEM. Live 2026-09-03: with no evidence in the prompt, the
-    editor typed $14,500.00 into an email draft as "the price from the
-    consolidated price list" (the workbook said $14,145.00) and then
-    "confirmed" the user's corrected value just as baselessly."""
+    those calls).
+
+    Live 2026-09-03: with no evidence in the prompt, the editor typed
+    $14,500.00 into an email draft as "the price from the consolidated
+    price list" (the workbook said $14,145.00) and then "confirmed" the
+    user's corrected value just as baselessly. Live 2026-09-04: when the
+    lookup timed out, it invented 'In Stock' delivery on the real draft.
+    Hence the three-state result: a data-dependent edit whose lookup failed
+    must be DECLINED by the caller, never applied on guesses."""
     if not message or llm_service is None:
-        return ""
+        return FreshDataResult("", False, True)
     try:
         from core.chat_tool_planner import execute_tool_plan, plan_tool_use
 
-        async def _fetch() -> str:
+        async def _fetch() -> Tuple[bool, str]:
             plan = await plan_tool_use(message, history, user_id, llm_service)
             if not plan or not plan.use_tool:
-                return ""
+                return False, ""
             block = await execute_tool_plan(
                 plan,
                 user_id,
                 context={"history": history},
             )
             if not block:
-                return ""
-            return (
+                return True, ""
+            return True, (
                 "FRESH DATA for this edit (live tool results, fetched just "
                 f"now):\n{block}\n\n"
             )
 
-        return await asyncio.wait_for(
+        needed, section = await asyncio.wait_for(
             _fetch(), timeout=_FRESH_DATA_TIMEOUT_SECONDS
         )
+        return FreshDataResult(section=section, needed=needed,
+                               ok=bool(section) or not needed)
     except asyncio.TimeoutError:
-        logger.info("canvas edit fresh-data lookup timed out — proceeding without evidence")
-        return ""
+        logger.info(
+            "canvas edit fresh-data lookup timed out — reporting failed "
+            "lookup so the edit declines instead of fabricating")
+        return FreshDataResult("", True, False)
     except Exception as e:  # noqa: BLE001 — fault-isolated by contract
-        logger.debug(f"canvas edit fresh-data lookup skipped: {e}")
-        return ""
+        logger.warning(
+            f"canvas edit fresh-data lookup failed — declining "
+            f"evidence-dependent edit: {e}")
+        return FreshDataResult("", True, False)
 
 
 async def plan_canvas_edit(

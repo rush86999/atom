@@ -80,13 +80,14 @@ async def test_fetch_returns_section_when_planner_fires():
                    query="consolidated price list", reason="file value"))) as planner, \
          patch("core.chat_tool_planner.execute_tool_plan",
                AsyncMock(return_value=PRICE_BLOCK)) as execute:
-        section = await fetch_fresh_data_section(
+        fresh = await fetch_fresh_data_section(
             "add the price from the consolidated price list", [],
             MagicMock(), "user-1",
         )
-    assert section.startswith("FRESH DATA for this edit")
-    assert "$14,145.00" in section
-    assert "GROUNDING RULE" in section
+    assert fresh.needed and fresh.ok
+    assert fresh.section.startswith("FRESH DATA for this edit")
+    assert "$14,145.00" in fresh.section
+    assert "GROUNDING RULE" in fresh.section
     # planner ran with the caller's user id (connected services + memory
     # scoping are per user)
     planner.assert_awaited_once()
@@ -99,24 +100,45 @@ async def test_fetch_empty_when_planner_declines():
     with patch("core.chat_tool_planner.plan_tool_use",
                AsyncMock(return_value=ToolPlan(use_tool=False, reason="style edit"))), \
          patch("core.chat_tool_planner.execute_tool_plan", AsyncMock()) as execute:
-        section = await fetch_fresh_data_section(
+        fresh = await fetch_fresh_data_section(
             "make the heading bold", [], MagicMock(), "user-1")
-    assert section == ""
+    # No live-data need → the edit proceeds without evidence, safely.
+    assert not fresh.needed and fresh.ok and fresh.section == ""
     execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_fetch_failed_lookup_signals_decline():
+    """Live 2026-09-04: the editor 'proceeded without evidence' on a timed-
+    out lookup and fabricated 'In Stock' + a placeholder price on the
+    user's real draft. A data need that went unsatisfied must surface as
+    needed+not-ok so callers DECLINE the edit instead."""
+    with patch("core.chat_tool_planner.plan_tool_use",
+               AsyncMock(return_value=ToolPlan(
+                   use_tool=True, service="zoho_workdrive", intent="read",
+                   query="price list"))), \
+         patch("core.chat_tool_planner.execute_tool_plan",
+               AsyncMock(return_value="")) as execute:
+        fresh = await fetch_fresh_data_section(
+            "add the price from the price list", [], MagicMock(), "user-1")
+    assert fresh.needed and not fresh.ok and fresh.section == ""
+    execute.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_fetch_failure_does_not_raise():
     with patch("core.chat_tool_planner.plan_tool_use",
                AsyncMock(side_effect=RuntimeError("planner down"))):
-        assert await fetch_fresh_data_section(
+        fresh = await fetch_fresh_data_section(
             "add the price from the price list", [], MagicMock(), "user-1",
-        ) == ""
+        )
+    assert fresh.needed and not fresh.ok and fresh.section == ""
 
 
 @pytest.mark.asyncio
 async def test_fetch_bounded_by_timeout(monkeypatch):
-    """Evidence gathering must never cost the edit its own turn."""
+    """Evidence gathering must never cost the edit its own turn — but a
+    timeout is a FAILED lookup (decline), not license to fabricate."""
     monkeypatch.setattr(
         "core.chat_canvas_editor._FRESH_DATA_TIMEOUT_SECONDS", 0.05)
 
@@ -125,9 +147,9 @@ async def test_fetch_bounded_by_timeout(monkeypatch):
         return ToolPlan(use_tool=True, service="memory", query="x")
 
     with patch("core.chat_tool_planner.plan_tool_use", slow_planner):
-        section = await fetch_fresh_data_section(
+        fresh = await fetch_fresh_data_section(
             "add the price", [], MagicMock(), "user-1")
-    assert section == ""
+    assert fresh.needed and not fresh.ok and fresh.section == ""
 
 
 # ── editor prompt rendering ─────────────────────────────────────────────
@@ -163,9 +185,12 @@ async def test_no_fresh_section_by_default():
 
 
 def test_timeout_constant_keeps_edit_turn_responsive():
-    # The orchestrator gives planning 30s; evidence gathering must stay
-    # well under it (planner + tool execution live inside this bound).
-    assert _FRESH_DATA_TIMEOUT_SECONDS <= 15
+    # The orchestrator gives tool execution 45s and canvas planning 30s;
+    # the evidence lookup (planner + repair pass + tool execution) must
+    # stay under the smaller budgets so a failing lookup declines in time.
+    # Lower bound: too tight false-timed-out constantly once the planner
+    # gained its repair pass and the storage query its rewrite.
+    assert 15 <= _FRESH_DATA_TIMEOUT_SECONDS <= 25
 
 
 # ── action planner (send path) — same grounding, all canvases ───────────
