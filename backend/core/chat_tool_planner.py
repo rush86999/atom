@@ -504,6 +504,15 @@ async def plan_tool_use(
     return plan
 
 
+def _current_message_text(context: Optional[Dict[str, Any]]) -> str:
+    """The user's current message, from the hydrated history tail (last
+    user-role entry). Empty when history is unavailable."""
+    for entry in reversed((context or {}).get("history") or []):
+        if isinstance(entry, dict) and entry.get("role") == "user":
+            return _entry_text(entry)
+    return ""
+
+
 def _entry_text(entry: Any) -> str:
     """All string content of a history entry, whatever its shape — session
     history, planner history and hydrated turns don't share one schema."""
@@ -1230,9 +1239,30 @@ async def execute_tool_plan(
         # co-editor's shorter edit path. On failure the draft passes
         # through and the ingested-copy supplements below still carry the
         # answer.
-        if service in _STORAGE_SERVICES and not _product_tokens(query):
-            query = await _rewrite_storage_query(
-                llm_service, query, plan.intent or "search", context)
+        if service in _STORAGE_SERVICES:
+            if not _product_tokens(query):
+                query = await _rewrite_storage_query(
+                    llm_service, query, plan.intent or "search", context)
+            # Precision net AFTER the rewrite: small planner models still
+            # drop the identifier sometimes (live 2026-09-04: the rewrite
+            # returned the draft unchanged with the code sitting in
+            # history). Appending ≤2 context identifier tokens is not a
+            # routing decision — it only adds search terms, so the exact-
+            # copy scan can find the row however the models behave.
+            ctx = context or {}
+            net_hay = " ".join(
+                [_current_message_text(ctx)]
+                + [_entry_text(m) for m in (ctx.get("history") or [])[-8:]]
+                + [_entry_text(ctx.get("canvas") or {})]
+            )
+            extra = [
+                t for t in _product_tokens(net_hay, min_len=6,
+                                           skip_hexlike=True)
+                if t.lower() not in query.lower()
+            ][:2]
+            if extra:
+                logger.info(f"storage query identifier net: {extra!r}")
+                query = f"{query} {' '.join(extra)}".strip()
 
         intent_map = _INTENT_ACTIONS.get(service, _INTENT_ACTIONS["default"])
         action = intent_map.get(plan.intent or "search", "search")
