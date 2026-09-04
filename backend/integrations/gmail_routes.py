@@ -213,9 +213,10 @@ async def list_emails(
             "https://gmail.googleapis.com/gmail/v1/users/me/messages",
             {"maxResults": min(max_results, 100), "q": q},
         )
-        if not data:
+        if data is None:
             # Upstream failure (e.g. Gmail API disabled / 403) — surface as a
-            # gateway error, never as an empty 200 mailbox.
+            # gateway error, never as an empty 200 mailbox. A genuinely empty
+            # inbox returns a 200 with no messages key ({}) and must stay 200.
             raise HTTPException(
                 status_code=502, detail=f"Google Gmail API error ({st})"
             )

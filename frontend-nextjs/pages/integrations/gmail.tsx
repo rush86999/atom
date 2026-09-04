@@ -45,6 +45,9 @@ const GmailIntegrationPage: NextPage = () => {
   // emails arrive asynchronously, and clearing the query restores the inbox.
   const [searchQuery, setSearchQuery] = useState("");
   const [loadError, setLoadError] = useState("");
+  // Calendar loads keep their own error so a failed events request is never
+  // shown as a successful "No calendar events found".
+  const [calLoadError, setCalLoadError] = useState("");
   const [events, setEvents] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -103,6 +106,7 @@ const GmailIntegrationPage: NextPage = () => {
           if (data.error) {
             setLoadError(`Emails: ${data.error}`);
           } else {
+            setLoadError("");
             const list = data.emails || data.data || [];
             setEmails(list);
             setEmailStats({
@@ -118,16 +122,18 @@ const GmailIntegrationPage: NextPage = () => {
         if (eventsRes.ok) {
           const data = await eventsRes.json();
           if (data.error) {
-            setLoadError((prev) => prev || `Calendar: ${data.error}`);
+            setCalLoadError(`Calendar: ${data.error}`);
           } else {
+            setCalLoadError("");
             setEvents(data.events || data.data || []);
           }
         } else {
-          setLoadError((prev) => prev || `Failed to load events (${eventsRes.status})`);
+          setCalLoadError(`Failed to load events (${eventsRes.status})`);
         }
       } catch (error) {
         console.error("Failed to load Gmail data:", error);
         setLoadError("Could not reach the Gmail service");
+        setCalLoadError("Could not reach the Gmail service");
       }
     };
 
@@ -317,7 +323,9 @@ const GmailIntegrationPage: NextPage = () => {
                     ))
                   ) : (
                     <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                      No upcoming events found.
+                      {calLoadError
+                        ? `Couldn't load events — ${calLoadError}`
+                        : "No upcoming events found."}
                     </div>
                   )}
                 </div>
@@ -422,7 +430,9 @@ const GmailIntegrationPage: NextPage = () => {
                 </div>
                 {events.length === 0 ? (
                   <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                    No calendar events found.
+                    {calLoadError
+                      ? `Couldn't load events — ${calLoadError}`
+                      : "No calendar events found."}
                   </div>
                 ) : visibleEvents.length === 0 ? (
                   <div className="text-center text-gray-500 dark:text-gray-400 py-8">
