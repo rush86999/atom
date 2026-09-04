@@ -166,6 +166,11 @@ class DropboxService(IntegrationService):
             data["rev"] = getattr(entry, "rev", None)
             data["is_downloadable"] = getattr(entry, "is_downloadable", True)
             data["content_hash"] = getattr(entry, "content_hash", None)
+            # Update-detection input: the funnel stamps this as the
+            # freshness baseline so source-side edits trigger re-ingest.
+            data["server_modified"] = str(
+                getattr(entry, "server_modified", None) or ""
+            )
         return data
 
     async def list_folder(
@@ -264,7 +269,12 @@ class DropboxService(IntegrationService):
             name = f.get("name", "") or ""
             path = f.get("path") or f"/{name}"
             try:
-                meta = {"folder_path": f.get("folder_path") or ""}
+                meta = {
+                    "folder_path": f.get("folder_path") or "",
+                    # Update-detection baseline (same key WorkDrive/Box/
+                    # OneDrive/GDrive walkers pass; the funnel parses it).
+                    "modified_at": f.get("server_modified") or "",
+                }
                 res = await self.ingest_file_to_memory(path, access_token, extra_metadata=meta)
                 inner = res.get("result") or {}
                 if res.get("success") and inner.get("status") == "ingested":

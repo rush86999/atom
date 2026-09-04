@@ -643,7 +643,7 @@ def _doc_hit_excerpt(doc_id: str, query: str, fallback: str, width: int = 600) -
                 )
                 rows = family.drop(columns=["_ord"])
         if rows.empty:
-            return fallback
+            return fallback, ""
         records = rows.to_dict("records")
         content = "\n".join(str(r.get("text") or "") for r in records)
         if not content.strip():
@@ -1001,6 +1001,21 @@ async def execute_tool_plan(
                     break
 
             if not emails and not store_lines:
+                # A mailbox miss is not the whole story: the question may be
+                # about DOCUMENT content that was misrouted here (live
+                # 2026-09-03: "check consolidated price list file … find the
+                # row" fell back to outlook, Graph 400'd on the model number,
+                # and the verify panel then stripped the row claims as
+                # ungrounded). Full ingested-workspace search instead of a
+                # dead end — the [document: …] source labels keep the model
+                # from presenting those hits as mail.
+                mem_block = await _memory_search_block(user_id, query, context)
+                if mem_block:
+                    return (
+                        f"LIVE TOOL RESULTS (outlook.search_emails, query='{query}'): "
+                        f"no matching messages in the mailbox. "
+                        f"Ingested-workspace matches:\n{mem_block}"
+                    )
                 return _with_grounding(
                     f"LIVE TOOL RESULTS (outlook.search_emails, query='{query}'): "
                     "no matching messages in the mailbox or ingested memory."
@@ -1132,11 +1147,34 @@ async def execute_tool_plan(
                     f"{data.get('note', '')}"
                 )
                 return _with_grounding(block)
-        text = str(data)[:2500]
-        return _with_grounding(
+        header = (
             f"LIVE TOOL RESULTS ({service}.{action}, query='{query}') — "
-            f"use these to answer:\n{text}"
+            f"use these to answer:\n{str(data)[:2500]}"
         )
+        if service in _STORAGE_SERVICES and (
+            (plan.intent or "search") == "search" or action == "read_file"
+        ):
+            # A storage search returns file RECORDS (name/id/size) — metadata
+            # can never answer "what does the file say", yet the model treats
+            # it as the whole truth and replies "I found the file but can't
+            # read its contents" (live 2026-09-04: Consolidated Price List
+            # 2019.xlsx confirmed on WorkDrive while its WG350DSAV row sat
+            # fully extracted in the ingested copy one routing decision away).
+            # Supplement with the ingested-workspace search — the same
+            # second-source pattern the outlook branch uses for mailbox
+            # copies. A successful read_file returned above, so reaching this
+            # with a read intent means the open FAILED (not found / download
+            # / extraction) — same dead-end class, same second source. Files
+            # with no ingested copy still surface as plain metadata hits.
+            mem_block = await _memory_search_block(user_id, query, context)
+            if mem_block:
+                return _with_grounding(
+                    f"{header}\n\nThe results above are METADATA only — file "
+                    f"records, not contents. INGESTED COPY, full-text search "
+                    f"over the workspace's own extracted file contents "
+                    f"(authoritative for what the files SAY):\n{mem_block}"
+                )
+        return _with_grounding(header)
     except Exception as e:
         logger.warning(f"tool execution failed for {service}.{plan.intent}: {e}")
         return None

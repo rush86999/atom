@@ -261,96 +261,44 @@ async def zoho_flow_webhook(
 
 
 # ---------------------------------------------------------------------------
-# Zoho WorkDrive file-change push (real-time ingestion)
-#
-# Configured in WorkDrive → Custom Apps → Webhooks: point the webhook at
-# /api/webhooks/zoho-workdrive?token=<WORKDRIVE_WEBHOOK_SECRET> and select
-# file events (edited/created) on the team folder(s) the agent reads. On any
-# event, the touched files are re-ingested for every connected user — the
-# hash-dedup inside the funnel makes "no real change" cost one download +
-# parse, and a real edit refreshes the store within seconds of the edit
-# instead of waiting for the next sync pass. Pricing and quoting answers are
-# therefore as-fresh as the last edit, not as-fresh as the last hourly sync.
+# Storage change pushes (real-time ingestion) — one generic dispatcher,
+# per-provider payload parsers live in integrations/storage_change_events.py
+# (add a business's storage app = one parser + one spec row; no per-business
+# routes). Auth: shared secret as ?token=... or Bearer; FAILS CLOSED when
+# the per-provider env secret is unset. On an event, touched files re-ingest
+# for the connected account(s) — hash-dedup makes unchanged files cost one
+# download+parse, real edits replace the stored family in ~9min batched
+# (small files: seconds).
 # ---------------------------------------------------------------------------
 
-def _extract_workdrive_file_ids(payload: Any) -> list:
-    """Pull WorkDrive file ids out of a webhook payload without assuming one
-    exact event schema: Zoho custom-app events vary by trigger type. Accepts
-    an explicit {'file_ids': [...]} body, and otherwise scans common id keys
-    (resource_id / file_id / id — top level and one nesting deep) plus
-    falls back to any Zoho-id-shaped string in the payload."""
-    import re as _re
-
-    if not isinstance(payload, dict):
-        return []
-    explicit = payload.get("file_ids") or payload.get("fileIds")
-    if isinstance(explicit, list) and explicit:
-        return [str(x) for x in explicit if x]
-
-    found: list = []
-    zoho_shape = _re.compile(r"^[A-Za-z0-9]{16,64}$")
-
-    def _is_id_key(k: str) -> bool:
-        kl = k.lower()
-        return kl == "id" or kl.endswith("_id") or kl.endswith("id") and len(k) > 2
-
-    def _scan(node: Any, depth: int = 0) -> None:
-        if len(found) >= 10 or depth > 3:
-            return
-        if isinstance(node, dict):
-            for k, v in node.items():
-                if isinstance(v, str) and _is_id_key(k) and zoho_shape.match(v):
-                    if v not in found:
-                        found.append(v)
-                else:
-                    _scan(v, depth + 1)
-        elif isinstance(node, list):
-            for item in node[:20]:
-                _scan(item, depth + 1)
-
-    _scan(payload)
-    return found
+_STORAGE_WEBHOOK_SECRET_ENVS = {
+    "zoho_workdrive": "WORKDRIVE_WEBHOOK_SECRET",
+    "google_drive": "GDRIVE_WEBHOOK_SECRET",
+    "onedrive": "ONEDRIVE_WEBHOOK_SECRET",
+    "dropbox": "DROPBOX_WEBHOOK_SECRET",
+    "box": "BOX_WEBHOOK_SECRET",
+}
 
 
-async def _workdrive_connected_user_ids() -> list:
-    """Users with an active WorkDrive/zoho token — webhook events carry no
-    acting user, so the touched file is refreshed for each connected account
-    (single-tenant deployments: exactly one)."""
-    from core.database import SessionLocal
-    from core.models import IntegrationToken
-
-    db = SessionLocal()
-    try:
-        rows = (
-            db.query(IntegrationToken.user_id)
-            .filter(
-                IntegrationToken.provider.in_(("zoho_workdrive", "zoho")),
-                IntegrationToken.status == "active",
-            )
-            .distinct()
-            .all()
-        )
-        return [r[0] for r in rows if r[0]]
-    finally:
-        db.close()
-
-
-@router.post("/zoho-workdrive")
-async def zoho_workdrive_webhook(
+@router.post("/storage/{provider}")
+async def storage_change_webhook(
+    provider: str,
     request: Request,
     background_tasks: BackgroundTasks,
     token: Optional[str] = None,
     authorization: Optional[str] = Header(None),
 ):
-    """Real-time WorkDrive file-change ingestion (pricing freshness).
+    """Real-time file-change ingestion for any connected storage app.
 
-    Auth: the shared secret as ?token=... (WorkDrive custom apps put the key
-    in the endpoint URL) or as a Bearer header. FAILS CLOSED when
-    WORKDRIVE_WEBHOOK_SECRET is unset. Unknown/unchanged files cost one
-    download + parse (hash-dedup inside the funnel); real edits replace the
-    stored chunk family immediately.
-    """
-    secret = os.getenv("WORKDRIVE_WEBHOOK_SECRET")
+    Auth: the provider's shared secret as ?token=... (WorkDrive custom apps
+    and Box put the key in the endpoint URL) or a Bearer header. Fails
+    closed. Unknown payloads 202 as no-ops — a push must never 500 its
+    vendor."""
+    provider = (provider or "").strip().lower()
+    secret_env = _STORAGE_WEBHOOK_SECRET_ENVS.get(provider)
+    if not secret_env:
+        raise HTTPException(status_code=404, detail=f"Unknown storage provider: {provider}")
+    secret = os.getenv(secret_env)
     supplied = (token or (authorization or "").strip().removeprefix("Bearer ").strip())
     if not secret or not supplied or not hmac.compare_digest(supplied, secret):
         raise HTTPException(status_code=401, detail="Invalid webhook token")
@@ -360,37 +308,35 @@ async def zoho_workdrive_webhook(
     except Exception:
         payload = {}
 
-    file_ids = _extract_workdrive_file_ids(payload)
-    if not file_ids:
+    from integrations.storage_change_events import (
+        parse_storage_event, queue_provider_refresh, STORAGE_PROVIDERS,
+    )
+
+    event = parse_storage_event(provider, payload, dict(request.headers))
+    if not event:
         return JSONResponse(status_code=202, content={
-            "success": True, "received": True, "files_matched": 0,
-            "message": "No recognizable file id in event; nothing to refresh.",
+            "success": True, "received": True,
+            "message": "Event carried no recognizable change; nothing to refresh.",
         })
 
-    user_ids = await _workdrive_connected_user_ids()
-    if not user_ids:
-        return JSONResponse(status_code=202, content={
-            "success": True, "files_matched": len(file_ids), "users": 0,
-            "message": "No connected WorkDrive account; connect the integration first.",
-        })
-
-    async def _refresh():
-        from integrations.zoho_workdrive_service import ZohoWorkDriveService
-
-        svc = ZohoWorkDriveService("default", {})
-        for uid in user_ids:
-            for fid in file_ids:
-                try:
-                    res = await svc.ingest_file_to_memory(uid, fid)
-                    logger.info(
-                        f"workdrive webhook: refreshed {fid} for {uid} -> "
-                        f"{res.get('status') or res.get('error')}"
-                    )
-                except Exception as ing_err:  # noqa: BLE001 — best-effort push
-                    logger.warning(f"workdrive webhook ingest failed ({fid}): {ing_err}")
-
-    background_tasks.add_task(_refresh)
+    background_tasks.add_task(queue_provider_refresh, provider, event)
     return JSONResponse(status_code=202, content={
-        "success": True, "files_matched": len(file_ids),
-        "users": len(user_ids), "message": "Refresh queued.",
+        "success": True, "provider": provider,
+        "action": "resync" if event.get("resync") else f"refresh {len(event.get('file_ids') or [])} file(s)",
+        "message": "Refresh queued.",
     })
+
+
+@router.post("/zoho-workdrive")
+async def zoho_workdrive_webhook(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    token: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
+):
+    """Back-compat alias for /api/webhooks/storage/zoho-workdrive (existing
+    WorkDrive custom-app webhook URLs keep working)."""
+    return await storage_change_webhook(
+        "zoho_workdrive", request, background_tasks,
+        token=token, authorization=authorization,
+    )

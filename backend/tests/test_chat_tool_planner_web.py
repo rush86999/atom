@@ -319,8 +319,9 @@ def test_doc_hit_excerpt_joins_chunk_family(monkeypatch):
 
     monkeypatch.setattr(lancedb, "connect", lambda path: FakeDB())
     out = _doc_hit_excerpt("docX", "full cost formula", "short fallback")
-    assert "fallback" != out and len(out) > 300
-    assert "Full Cost" in out
+    excerpt, ingested_on = out
+    assert "fallback" != excerpt and len(excerpt) > 300
+    assert "Full Cost" in excerpt
     # every joined chunk id sorts in document order (c2 before c10)
     ids = [r["id"] for r in rows]
     assert re.findall(r"::c(\d+)$", "|".join(ids)) is not None

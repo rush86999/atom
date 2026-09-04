@@ -1274,6 +1274,27 @@ class UniversalIntegrationService:
                 service, storage_service, token, params, context
             )
 
+        # Push-refresh actions (webhook events → per-file or bulk re-ingest).
+        # One contract for every storage provider; per-vendor differences are
+        # the signatures below, nothing else.
+        if action in ("full_sync", "resync"):
+            ws_id = context.get("workspace_id") or "default"
+            if service == "zoho_workdrive":
+                return {"status": "success", "data": await storage_service.full_sync(
+                    context.get("user_id") or token or "default", workspace_id=ws_id)}
+            return {"status": "success", "data": await storage_service.full_sync(
+                ws_id, token)}
+        if action in ("ingest_file_to_memory", "ingest_file", "ingest"):
+            fid = params.get("file_id") or params.get("query")
+            if service == "zoho_workdrive":
+                return {"status": "success", "data": await storage_service.ingest_file_to_memory(
+                    context.get("user_id") or token, fid)}
+            if service == "dropbox":
+                return {"status": "success", "data": await storage_service.ingest_file_to_memory(
+                    fid, token)}
+            return {"status": "success", "data": await storage_service.ingest_file_to_memory(
+                token, fid)}
+
         if service == "google_drive":
             if action in ("list", "list_files"):
                 return {"status": "success", "data": await storage_service.list_files(token, params.get("folder_id"))}
