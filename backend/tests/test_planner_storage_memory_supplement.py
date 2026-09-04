@@ -15,6 +15,7 @@ for mailbox copies):
   the evidence set never contained the row).
 """
 from pathlib import Path
+import contextlib
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -270,6 +271,69 @@ class TestStorageQueryRewrite:
                 _plan("zoho_crm", query="acme leads"), "user-1", context=ctx,
                 llm_service=self._llm("SHOULD NOT APPEAR"))
         assert captured["query"] == "acme leads"
+
+
+class TestWorkdriveReadResolution:
+    """_read_storage_file resolves a no-file_id read by running the
+    service's own search. ZohoWorkDriveService.search_files returns a PLAIN
+    LIST of records, but the resolver unwrapped a dict envelope — hits were
+    always [], so every planner-initiated workdrive read returned
+    found:False while the file sat on the drive (live 2026-09-04,
+    'Consolidated Price List': the read leg ran 16s and answered "no file
+    matched"). Both accepted shapes pinned here."""
+
+    def _svc(self):
+        return UniversalIntegrationService(workspace_id="default")
+
+    def _storage_stub(self, search_result):
+        return SimpleNamespace(
+            search_files=AsyncMock(return_value=search_result),
+            download_file=AsyncMock(return_value=b"xlsx-bytes"),
+        )
+
+    def _ingest_and_parse_patches(self, parsed_text):
+        return [
+            patch("core.auto_document_ingestion.DocumentParser.parse_document",
+                  AsyncMock(return_value=parsed_text)),
+            patch("core.auto_document_ingestion.AutoDocumentIngestionService",
+                  SimpleNamespace(process_file_bytes=AsyncMock(
+                      return_value={"status": "ingested"}))),
+        ]
+
+    async def _read(self, storage_stub, query="Consolidated Price List WG350DSAV"):
+        svc = self._svc()
+        with contextlib.ExitStack() as stack:
+            for p in self._ingest_and_parse_patches(
+                    "R17 | WG350DSAV | Bandsaw | 14145"):
+                stack.enter_context(p)
+            return await svc._read_storage_file(
+                "zoho_workdrive", storage_stub, None,
+                {"query": query}, {"user_id": "u1"})
+
+    async def test_list_shaped_search_resolves_the_file(self):
+        stub = self._storage_stub([
+            {"id": "wb-1", "name": "Consolidated Price List 2019.xlsx"},
+        ])
+        result = await self._read(stub)
+        stub.search_files.assert_awaited_once()
+        assert result["data"]["found"] is True
+        assert result["data"]["file_name"] == "Consolidated Price List 2019.xlsx"
+        assert "WG350DSAV" in result["data"]["excerpt"]
+
+    async def test_dict_envelope_still_accepted(self):
+        # Tolerance for a future wrapped return shape.
+        stub = self._storage_stub(
+            {"data": {"files": [{"id": "wb-1", "name": "price.xlsx"}]}})
+        result = await self._read(stub)
+        assert result["data"]["found"] is True
+
+    async def test_best_name_match_wins_over_other_hits(self):
+        stub = self._storage_stub([
+            {"id": "misc", "name": "Meeting Notes.xlsx"},
+            {"id": "wb-1", "name": "Consolidated Price List 2019.xlsx"},
+        ])
+        result = await self._read(stub)
+        assert result["data"]["file_id"] == "wb-1"
 
 
 class TestQueryAnchoredExcerpt:

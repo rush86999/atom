@@ -1417,8 +1417,18 @@ class UniversalIntegrationService:
                 if service == "zoho_workdrive":
                     raw = await storage_service.search_files(
                         user_id or token, query or " ", limit=5)
-                    hits = (raw or {}).get("data", {}).get("files", []) \
-                        if isinstance(raw, dict) else []
+                    # search_files returns a PLAIN LIST of file records (and
+                    # always has — the dict unwrap here matched no real
+                    # shape, so every planner read without an explicit
+                    # file_id resolved zero hits and returned found:False
+                    # while the file sat on the drive; live 2026-09-04
+                    # 'Consolidated Price List' read). Tolerate both shapes
+                    # in case a wrapped envelope appears later.
+                    if isinstance(raw, list):
+                        hits = raw
+                    else:
+                        hits = (raw or {}).get("data", {}).get("files", []) \
+                            if isinstance(raw, dict) else []
                 elif service == "google_drive":
                     raw = await storage_service.search_files(token, query)
                     hits = (raw or {}).get("data", {}).get("files", []) \
