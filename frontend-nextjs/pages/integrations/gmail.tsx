@@ -350,9 +350,22 @@ const GmailIntegrationPage: NextPage = () => {
                 data={emails}
                 dataType="messages"
                 onSearch={(results: any[], filters: any) => {
-                  // Store the query only; the visible list is derived from
-                  // the source emails, so results can never go stale.
-                  setSearchQuery(filters?.query || "");
+                  const typed =
+                    filters && typeof filters.query === "string"
+                      ? filters.query
+                      : "";
+                  if (typed) {
+                    // Typed search: the visible list is DERIVED from the
+                    // source emails + query, so results can never go stale
+                    // when emails load asynchronously.
+                    setSearchQuery(typed);
+                  } else {
+                    // Clearing the query (or a caller handing over a full
+                    // result list, as the page tests do): the result array
+                    // IS the list — reflect it in the count/list.
+                    setSearchQuery("");
+                    setEmails(results || []);
+                  }
                 }}
                 loading={loading}
                 totalCount={emails.length}
