@@ -345,3 +345,132 @@ class TestMCPSchemaExposesThreading:
         assert "thread_id" in send_email["parameters"]
         assert "reply_to_message_id" in send_email["parameters"]
         assert "reply_all" in send_email["parameters"]
+
+
+class TestInternalThreadQuoteGuard:
+    """Threaded replies to an external audience must not carry text that
+    exists only on the thread's internal legs (colleague notes riding a
+    customer conversation)."""
+
+    def _svc(self, anchor_from: str = "jschulz@blumetric.ca",
+             with_sent_mail: bool = False):
+        from integrations.outlook_service import OutlookService
+
+        svc = OutlookService()
+
+        async def fake_graph(user_id, endpoint, *args, **kwargs):
+            if endpoint == "/me":
+                return {"id": "u1", "mail": "rish@brennan.ca"}
+            if endpoint.startswith("/me/messages/") and "$select=conversationId" in endpoint:
+                return {
+                    "conversationId": "conv-9",
+                    "from": {"emailAddress": {"address": anchor_from}},
+                    "toRecipients": [{"emailAddress": {"address": "rish@brennan.ca"}}],
+                    "ccRecipients": [],
+                }
+            if endpoint.startswith("/me/messages?"):
+                messages = [
+                    {"receivedDateTime": "2026-09-02T17:33:17Z",
+                     "from": {"emailAddress": {"address": "vipul@brennan.ca"}},
+                     "body": {"content": "<div>Let's hold the 13k fallback "
+                                         "price internal until Jacob pushes back.</div>"}},
+                    {"receivedDateTime": "2026-09-02T17:08:35Z",
+                     "from": {"emailAddress": {"address": "jschulz@blumetric.ca"}},
+                     "body": {"content": "<div>We had our eyes on a Hydmech "
+                                         "DM10 bandsaw for our shop floor.</div>"}},
+                ]
+                if with_sent_mail:
+                    messages.append({
+                        "receivedDateTime": "2026-09-03T09:00:00Z",
+                        "from": {"emailAddress": {"address": "rish@brennan.ca"}},
+                        "toRecipients": [
+                            {"emailAddress": {"address": "jschulz@blumetric.ca"}}],
+                        "body": {"content": "<div>The Linmac WG-350DSAV is in "
+                                            "stock at our warehouse for immediate "
+                                            "delivery.</div>"},
+                    })
+                return {"value": messages}
+            if "/reply" in endpoint:
+                return {}
+            return None
+
+        svc._make_graph_request = AsyncMock(side_effect=fake_graph)
+        return svc
+
+    @pytest.mark.asyncio
+    async def test_blocks_reply_quoting_internal_only_text(self):
+        svc = self._svc()
+
+        ok = await svc.reply_to_email(
+            "u1", "m-anchor",
+            "Hi Jacob — let's hold the 13k fallback price internal until "
+            "Jacob pushes back. Regards.",
+            to_recipients=["jschulz@blumetric.ca"],
+        )
+
+        assert ok is False
+        detail = svc.last_send_error or {}
+        assert detail.get("policy") == "internal_thread_quote"
+        assert detail.get("quotes")
+        assert not [
+            c for c in svc._make_graph_request.await_args_list
+            if "/reply" in str(c.args[1])
+        ], "blocked reply must never reach the wire"
+
+    @pytest.mark.asyncio
+    async def test_customer_safe_body_sends(self):
+        svc = self._svc()
+
+        ok = await svc.reply_to_email(
+            "u1", "m-anchor",
+            "Hi Jacob — a Hydmech DM10 bandsaw equivalent is available for "
+            "your shop floor. Regards.",
+            to_recipients=["jschulz@blumetric.ca"],
+        )
+
+        assert ok is True
+        assert svc.last_send_error is None
+
+    @pytest.mark.asyncio
+    async def test_own_prior_customer_mail_is_requotable(self):
+        """Our own sent mail addressed to the customer is customer-visible —
+        re-quoting it in a follow-up is normal, not an internal leak."""
+        svc = self._svc(with_sent_mail=True)
+
+        ok = await svc.reply_to_email(
+            "u1", "m-anchor",
+            "Following up: the Linmac WG-350DSAV is in stock at our "
+            "warehouse for immediate delivery. Regards.",
+            to_recipients=["jschulz@blumetric.ca"],
+        )
+
+        assert ok is True
+        assert svc.last_send_error is None
+
+    @pytest.mark.asyncio
+    async def test_internal_audience_reply_not_gated(self):
+        """Replying on an internal leg (colleague sender, no external
+        recipients) may quote internal discussion freely."""
+        svc = self._svc(anchor_from="vipul@brennan.ca")
+
+        ok = await svc.reply_to_email(
+            "u1", "m-anchor",
+            "Noted — holding the 13k fallback price internal until Jacob "
+            "pushes back.",
+        )
+
+        assert ok is True
+        assert svc.last_send_error is None
+
+    @pytest.mark.asyncio
+    async def test_override_sends_with_explicit_decision(self):
+        svc = self._svc()
+
+        ok = await svc.reply_to_email(
+            "u1", "m-anchor",
+            "We can hold the 13k fallback price internal until Jacob pushes back.",
+            to_recipients=["jschulz@blumetric.ca"],
+            override_internal_quote=True,
+        )
+
+        assert ok is True

@@ -799,6 +799,9 @@ class EmailCanvasService:
         tenant_id: str = "default",
         attachment_ids: Optional[List[str]] = None,
         override_grounding: bool = False,
+        # Mixed-thread leak guard override (internal_thread_quote) — a
+        # supervisor's explicit decision, recorded on the send audit row.
+        override_internal_quote: bool = False,
         thread_id: Optional[str] = None,
         reply_all: bool = False,
     ) -> Dict[str, Any]:
@@ -986,6 +989,7 @@ class EmailCanvasService:
                     to_recipients=to_emails or None,
                     cc_recipients=cc_emails or None,
                     subject=(subject or "").strip() or None,
+                    override_internal_quote=override_internal_quote,
                 )
             except Exception as e:
                 logger.error(f"Email canvas thread reply failed: {e}")

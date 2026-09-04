@@ -979,13 +979,27 @@ class UniversalIntegrationService:
                         reply_all=reply_all,
                         token=token,
                     )
+                    if sent:
+                        reply_data = {
+                            "reply_to_message_id": reply_message_id,
+                            "reply_all": reply_all,
+                        }
+                    else:
+                        # Surface the diagnosable reason (internal-quote
+                        # guard, thread not found, transport) so the agent
+                        # can correct the draft instead of retrying blind.
+                        detail = dict(getattr(comm_service, "last_send_error", None) or {})
+                        reply_data = {
+                            "error": detail.get("error", "Outlook reply failed"),
+                            **(
+                                {"policy": detail["policy"], "quotes": detail.get("quotes") or []}
+                                if detail.get("policy")
+                                else {}
+                            ),
+                        }
                     return {
                         "status": "success" if sent else "error",
-                        "data": (
-                            {"reply_to_message_id": reply_message_id, "reply_all": reply_all}
-                            if sent
-                            else {"error": "Outlook reply failed"}
-                        ),
+                        "data": reply_data,
                     }
                 to = params.get("to") or params.get("to_recipients") or params.get("recipients")
                 if isinstance(to, str):

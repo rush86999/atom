@@ -82,6 +82,9 @@ class SendEmailRequest(BaseModel):
     # Grounded-send gate (Phase 4): supervisor override for an enforce-mode
     # block — recorded on the send audit row, never silent.
     override_grounding: bool = False
+    # Mixed-thread leak guard override: send even though the body quotes
+    # internal-only discussion from the thread. Supervisor decision.
+    override_internal_quote: bool = False
     # Threaded reply: the composer's resolve-reply prefills this (Outlook
     # conversationId) so the send lands in the original thread. The visible
     # To/Cc/Subject still apply via the Graph reply message override.
@@ -175,6 +178,7 @@ async def send_email_canvas(
         tenant_id=resolve_tenant_id(current_user),
         attachment_ids=request.attachment_ids,
         override_grounding=request.override_grounding,
+        override_internal_quote=request.override_internal_quote,
         thread_id=request.thread_id,
         reply_all=request.reply_all,
     )

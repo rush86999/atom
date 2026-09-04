@@ -880,14 +880,51 @@ class OutlookService(IntegrationService):
         to_recipients: Optional[List[str]] = None,
         cc_recipients: Optional[List[str]] = None,
         subject: Optional[str] = None,
-        token: Optional[str] = None
+        token: Optional[str] = None,
+        override_internal_quote: bool = False,
     ) -> bool:
         """Reply to an email via Outlook. ``reply_all`` targets /replyAll so
         the whole thread stays on the message instead of only the sender.
         ``to_recipients``/``cc_recipients``/``subject`` ride the reply's
         ``message`` override so a caller that shows editable fields (the
         composer) keeps the user's edits while the reply still lands in
-        the original thread (Graph adds In-Reply-To/References itself)."""
+        the original thread (Graph adds In-Reply-To/References itself).
+
+        Mixed-thread leak guard: when the reply reaches an external
+        recipient, a body quoting text that exists only on the thread's
+        INTERNAL legs is refused (``policy: internal_thread_quote``) —
+        colleague notes riding a customer conversation must not reach the
+        customer. ``override_internal_quote=True`` sends anyway; callers
+        surface it as an explicit human decision. Internal-audience
+        replies are never gated."""
+        self.last_send_error = None
+        if not override_internal_quote:
+            try:
+                flagged, audience_external = await self._internal_thread_quotes(
+                    user_id, message_id, comment,
+                    to_recipients=to_recipients,
+                    cc_recipients=cc_recipients,
+                    token=token,
+                )
+            except Exception as e:
+                logger.warning(f"internal-thread quote check skipped: {e}")
+                flagged, audience_external = [], False
+            if flagged:
+                snippet = flagged[0][:120]
+                self.last_send_error = {
+                    "error": (
+                        "Reply quotes internal-only discussion from this "
+                        f"thread ({len(flagged)} passage(s), e.g. \"{snippet}\"). "
+                        "Remove it, or resend with the internal-quote override."
+                    ),
+                    "policy": "internal_thread_quote",
+                    "quotes": flagged,
+                }
+                logger.error(
+                    f"Outlook reply blocked for {user_id}: internal_thread_quote "
+                    f"({len(flagged)} fragment(s))"
+                )
+                return False
         try:
             reply_data: Dict[str, Any] = {
                 "comment": comment
@@ -913,6 +950,136 @@ class OutlookService(IntegrationService):
         except Exception as e:
             logger.error(f"Error replying to email: {e}")
             return False
+
+    async def _internal_thread_quotes(
+        self,
+        user_id: str,
+        message_id: str,
+        comment: str,
+        to_recipients: Optional[List[str]] = None,
+        cc_recipients: Optional[List[str]] = None,
+        token: Optional[str] = None,
+    ) -> tuple:
+        """(internal-only fragments the reply body quotes, whether the
+        effective audience reaches outside the user's own domain)."""
+        from core.email_policy import find_internal_quotes
+
+        anchor = await self._make_graph_request(
+            user_id,
+            f"/me/messages/{message_id}"
+            "?$select=conversationId,from,toRecipients,ccRecipients",
+            access_token=token,
+        )
+        if not anchor:
+            return [], False
+        conversation_id = anchor.get("conversationId")
+
+        explicit = [
+            str(addr or "").strip()
+            for addr in list(to_recipients or []) + list(cc_recipients or [])
+            if str(addr or "").strip()
+        ]
+        if explicit:
+            audience = explicit
+        else:
+            # No recipient overrides: Graph replies go to the anchor
+            # message's sender (reply) or its full recipient set (replyAll).
+            audience = [self._address_of(anchor.get("from"))] + [
+                self._address_of(r)
+                for r in list(anchor.get("toRecipients") or [])
+                + list(anchor.get("ccRecipients") or [])
+            ]
+        own_domain = None
+        try:
+            profile = await self.get_user_profile(user_id, token=token)
+            for key in ("mail", "userPrincipalName"):
+                own_domain = self._email_domain(str((profile or {}).get(key) or ""))
+                if own_domain:
+                    break
+        except Exception:
+            own_domain = None
+        audience_external = any(
+            self._email_domain(addr) not in (None, own_domain)
+            for addr in audience
+            if addr
+        )
+        if not audience_external or not conversation_id:
+            return [], audience_external
+
+        legs = await self.get_conversation_leg_texts(
+            user_id, conversation_id, token=token
+        )
+        if not legs.get("internal"):
+            return [], audience_external
+        return (
+            find_internal_quotes(
+                comment, legs.get("internal") or [], legs.get("external") or []
+            ),
+            audience_external,
+        )
+
+    @staticmethod
+    def _address_of(entry: Any) -> str:
+        return str(
+            ((entry or {}).get("emailAddress") or {}).get("address") or ""
+        ).strip()
+
+    async def get_conversation_leg_texts(
+        self,
+        user_id: str,
+        conversation_id: str,
+        token: Optional[str] = None,
+    ) -> Dict[str, List[str]]:
+        """Bodies of a conversation split into customer-visible vs internal-
+        only text, capped at the newest 25 messages.
+
+        External senders are customer-visible — and so is our OWN mail
+        addressed to an external recipient (quoting your previous reply to
+        the customer is normal, not a leak). Only own-domain messages with
+        no external recipients are true internal notes."""
+        own_domain = None
+        try:
+            profile = await self.get_user_profile(user_id, token=token)
+            for key in ("mail", "userPrincipalName"):
+                own_domain = self._email_domain(str((profile or {}).get(key) or ""))
+                if own_domain:
+                    break
+        except Exception:
+            own_domain = None
+        if not own_domain:
+            return {"internal": [], "external": []}
+        params = {
+            "$filter": f"conversationId eq '{conversation_id}'",
+            "$top": 25,
+            "$select": "from,toRecipients,ccRecipients,receivedDateTime,body",
+        }
+        result = await self._make_graph_request(
+            user_id, "/me/messages?" + urllib.parse.urlencode(params),
+            access_token=token,
+        )
+        legs: Dict[str, List[str]] = {"internal": [], "external": []}
+        for message in (result or {}).get("value") or []:
+            body = str(((message.get("body") or {}).get("content")) or "")
+            if not body:
+                continue
+            domain = self._sender_domain(message)
+            if not domain:
+                continue
+            recipients = [
+                self._address_of(r)
+                for r in list(message.get("toRecipients") or [])
+                + list(message.get("ccRecipients") or [])
+            ]
+            recipient_external = any(
+                self._email_domain(addr) not in (None, own_domain)
+                for addr in recipients
+                if addr
+            )
+            if domain != own_domain or recipient_external:
+                legs["external"].append(body)
+            else:
+                legs["internal"].append(body)
+        return legs
 
     async def create_draft_email(
         self,

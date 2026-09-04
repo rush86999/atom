@@ -388,3 +388,67 @@ def validate_sender(sender: str) -> bool:
         return True
     except Exception:  # pragma: no cover - defensive
         return False
+
+
+# ---------------------------------------------------------------------------
+# Mixed-thread internal-quote guard
+#
+# Customer threads routinely carry internal legs (colleague notes in the same
+# conversation). A reply that quotes text which exists ONLY on internal legs
+# leaks internal discussion to the customer — the deterministic check: flag
+# body passages that appear verbatim in internal-leg text and in NO external
+# leg. Facts the customer already saw (prices quoted to them, their own
+# questions) live on external legs too, so they never flag.
+
+INTERNAL_QUOTE_MIN_WORDS = 6
+
+
+def _strip_email_markup(value: Any) -> str:
+    """HTML-stripped, whitespace-collapsed, lowercased email text. Tags are
+    stripped BEFORE entity-decoding so escaped text ("&lt;table&gt;") is
+    never mistaken for real markup."""
+    import html as _html
+
+    text = re.sub(r"<[^>]+>", " ", str(value or ""))
+    text = _html.unescape(text)
+    return " ".join(text.split()).lower()
+
+
+def _quote_fragments(value: Any) -> List[str]:
+    """Distinctive normalized fragments of an email body: HTML-stripped,
+    sentence-split, >= INTERNAL_QUOTE_MIN_WORDS words."""
+    fragments: List[str] = []
+    for part in re.split(r"(?<=[.!?])\s+", _strip_email_markup(value)):
+        norm = part.strip(" .;:,!?-\"'()")
+        if len(norm.split()) >= INTERNAL_QUOTE_MIN_WORDS:
+            fragments.append(norm)
+    return fragments
+
+
+def find_internal_quotes(
+    body: str, internal_texts: List[str], external_texts: List[str]
+) -> List[str]:
+    """Body passages quoted from internal-only thread text, never raised.
+
+    Deterministic and verbatim-level (whitespace/case/HTML normalized) so it
+    never guesses: paraphrased leaks are the grounding gate's problem, not
+    this one. Returns at most 5 fragments, shortest first."""
+    norm_body = _strip_email_markup(body)
+    if not norm_body:
+        return []
+
+    external_blob = _strip_email_markup(" ".join(external_texts or []))
+
+    flagged: List[str] = []
+    seen: set = set()
+    for text in internal_texts or []:
+        for fragment in _quote_fragments(text):
+            # Substring match against the whole external blob: the customer's
+            # leg usually wraps shared text with extra words ("Quoting your
+            # request: ..."), which exact fragment equality would miss.
+            if fragment in external_blob or fragment in seen:
+                continue
+            if fragment in norm_body:
+                seen.add(fragment)
+                flagged.append(fragment)
+    return sorted(flagged, key=len)[:5]

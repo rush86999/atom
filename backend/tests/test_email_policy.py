@@ -13,6 +13,7 @@ from core.email_policy import (
     UNTRUSTED_OPEN,
     classify_email_content,
     evaluate_email_action,
+    find_internal_quotes,
     is_external_recipient,
     is_valid_recipient,
     spotlight_email_content,
@@ -311,3 +312,43 @@ class TestRecipientValidation:
     def test_invalid_recipient(self):
         assert is_valid_recipient("not-an-email") is False
         assert is_valid_recipient("") is False
+
+
+class TestInternalQuoteGuard:
+    def test_flags_internal_only_fragment(self):
+        internal = [
+            "<div>Let's hold the 13k fallback price internal until Jacob pushes back.</div>"
+        ]
+        external = ["<div>We had our eyes on a Hydmech DM10 bandsaw.</div>"]
+        body = (
+            "Hi Jacob — let's hold the 13k fallback price internal until "
+            "Jacob pushes back. Regards, Rish"
+        )
+        flagged = find_internal_quotes(body, internal, external)
+        assert flagged
+        assert "13k fallback price" in flagged[0]
+
+    def test_facts_shared_with_external_leg_do_not_flag(self):
+        """A fact the customer already saw lives on the external leg too —
+        repeating it in the reply is normal, not a leak."""
+        internal = ["<div>The WG-350DSAV is $14,145.00 US list and currently in stock.</div>"]
+        external = [
+            "<div>Quoting your request: the WG-350DSAV is $14,145.00 US list "
+            "and currently in stock. Thanks.</div>"
+        ]
+        body = "The WG-350DSAV is $14,145.00 US list and currently in stock. Best, Rish"
+        assert find_internal_quotes(body, internal, external) == []
+
+    def test_short_generic_fragments_ignored(self):
+        internal = ["<div>Sounds good.</div>"]
+        body = "Sounds good. Let me know if anything changes."
+        assert find_internal_quotes(body, internal, []) == []
+
+    def test_html_entities_and_case_normalized(self):
+        internal = ["<div>Do&nbsp;NOT mention the agent drafted this reply.</div>"]
+        body = "Do NOT mention the agent drafted this reply. Regards"
+        flagged = find_internal_quotes(body, internal, [])
+        assert flagged and "agent drafted" in flagged[0]
+
+    def test_empty_body_never_flags(self):
+        assert find_internal_quotes("", ["some internal sentence here"], []) == []
