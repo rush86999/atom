@@ -322,6 +322,40 @@ def _planner_llm_kwargs(llm_service: Any) -> Dict[str, Any]:
     return kwargs
 
 
+async def _structured_with_fallback(
+    llm_service: Any, *, prompt: str, response_model: Any,
+    system_instruction: str,
+) -> Any:
+    """Pinned planner call with one UNPINNED retry.
+
+    The pin collapses the handler's option list to (openrouter,
+    PLANNER_MODEL) — a single attempt with no provider fallback. That
+    client is frequently built from the workspace's BYOK credential, so a
+    key that can't serve the pinned model (out of credits, model gated,
+    revoked) silently returns None and the whole routing leg vanishes.
+    The unpinned retry re-ranks across the tenant's OWN configured
+    providers only (OAuth -> BYOK -> env), so a BYOK workspace still
+    routes within its own keys."""
+    result = await llm_service.generate_structured_response(
+        disable_reasoning=True,
+        prompt=prompt,
+        response_model=response_model,
+        system_instruction=system_instruction,
+        temperature=0.0,
+        **_planner_llm_kwargs(llm_service),
+    )
+    if result is not None:
+        return result
+    logger.info("planner pinned call returned None — retrying unpinned")
+    return await llm_service.generate_structured_response(
+        disable_reasoning=True,
+        prompt=prompt,
+        response_model=response_model,
+        system_instruction=system_instruction,
+        temperature=0.0,
+    )
+
+
 _REPAIR_SYSTEM = """You repair an invalid tool plan for an AI automation
 platform. The previous plan JSON was rejected: {defect}.
 
@@ -349,7 +383,6 @@ async def _repair_plan_via_llm(
     catalog: str,
     history: List[Dict[str, Any]],
     message: str,
-    kwargs: Dict[str, Any],
 ) -> Optional[ToolPlan]:
     """Second structured LLM pass that FIXES routing instead of guessing it
     from surface patterns. Regex repair (service-name matching, file nouns,
@@ -365,13 +398,11 @@ async def _repair_plan_via_llm(
         "Return the corrected plan."
     )
     try:
-        return await llm_service.generate_structured_response(
-            disable_reasoning=True,
+        return await _structured_with_fallback(
+            llm_service,
             prompt=prompt,
             response_model=ToolPlan,
             system_instruction="You return only the requested JSON object.",
-            temperature=0.0,
-            **kwargs,
         )
     except Exception as e:  # noqa: BLE001 — repair is best-effort
         logger.warning(f"tool planner: repair re-plan failed: {e}")
@@ -397,17 +428,11 @@ async def plan_tool_use(
         f"Recent conversation:\n{_history_transcript(history, message)}\n\n"
         "Return the tool plan."
     )
-    from core.llm_service import LLMService
-
-    kwargs = _planner_llm_kwargs(llm_service)
-
-    plan = await llm_service.generate_structured_response(
-        disable_reasoning=True,
+    plan = await _structured_with_fallback(
+        llm_service,
         prompt=prompt,
         response_model=ToolPlan,
         system_instruction="You return only the requested JSON object.",
-        temperature=0.0,
-        **kwargs,
     )
     if plan is None:
         return None
@@ -440,8 +465,7 @@ async def plan_tool_use(
             defect = ("no service was named" if not plan.service
                       else f"service {plan.service!r} is not in the available list")
             repaired = await _repair_plan_via_llm(
-                llm_service, defect, connected, catalog, history, message,
-                kwargs)
+                llm_service, defect, connected, catalog, history, message)
             if (repaired and repaired.use_tool
                     and repaired.service in allowed):
                 logger.info(
@@ -536,13 +560,11 @@ async def _rewrite_storage_query(
     )
     try:
         result = await asyncio.wait_for(
-            llm_service.generate_structured_response(
-                disable_reasoning=True,
+            _structured_with_fallback(
+                llm_service,
                 prompt=prompt,
                 response_model=_StorageQuery,
                 system_instruction="You return only the requested JSON object.",
-                temperature=0.0,
-                **_planner_llm_kwargs(llm_service),
             ),
             timeout=10,
         )
@@ -1200,10 +1222,15 @@ async def execute_tool_plan(
         # the planner's query inherits the current message's wording and
         # drops identifiers that live in earlier turns or the open canvas —
         # a read excerpt then anchors on boilerplate and the row stays
-        # invisible (live 2026-09-04: three consecutive turns). One bounded
-        # structured rewrite; on failure the draft query passes through and
-        # the ingested-copy supplements below still carry the answer.
-        if service in _STORAGE_SERVICES:
+        # invisible (live 2026-09-04: three consecutive turns). The rewrite
+        # fires only when the draft carries no identifier token — a COST
+        # gate, not a routing decision: when it skips, the planner's query
+        # already names the code, so there is nothing for the rewrite to
+        # fix and the storage leg stays race-competitive with the canvas
+        # co-editor's shorter edit path. On failure the draft passes
+        # through and the ingested-copy supplements below still carry the
+        # answer.
+        if service in _STORAGE_SERVICES and not _product_tokens(query):
             query = await _rewrite_storage_query(
                 llm_service, query, plan.intent or "search", context)
 

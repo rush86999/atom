@@ -74,6 +74,40 @@ async def test_both_passes_fail_defaults_to_memory(monkeypatch):
     assert plan.service == "memory"
 
 
+async def test_pinned_planner_failure_retries_unpinned(monkeypatch):
+    """BYOK gap: the pin collapses the handler's options to
+    (openrouter, PLANNER_MODEL) — a single attempt on the workspace's BYOK
+    OpenRouter key. A key that can't serve that model (out of credits,
+    gated, revoked) returns None with NO provider fallback, which used to
+    kill the whole routing leg. The planner must retry unpinned so the
+    handler re-ranks across the tenant's OWN configured providers."""
+    monkeypatch.setattr("core.chat_tool_planner.get_connected_services",
+                        lambda user_id: ["outlook"])
+    monkeypatch.setattr("core.chat_tool_planner._available_platform_services",
+                        lambda: ["memory"])
+
+    class _Handler:
+        clients = {"openrouter": object()}
+
+    calls = []
+
+    async def _gen(**kwargs):
+        calls.append(kwargs.get("provider_model"))
+        if kwargs.get("provider_model"):
+            return None  # pinned BYOK attempt fails
+        return ToolPlan(use_tool=True, service="outlook", intent="search",
+                        query="jschulz blumetric")
+
+    llm = SimpleNamespace(
+        _get_handler=lambda *a, **k: _Handler(),
+        generate_structured_response=_gen,
+    )
+    plan = await plan_tool_use("try again", HISTORY, "user-1", llm)
+    assert plan is not None and plan.service == "outlook"
+    assert calls[0] == ("openrouter", "qwen/qwen3.7-flash")
+    assert calls[1] is None  # unpinned retry
+
+
 async def test_memory_service_always_available(monkeypatch):
     """The memory tool queries the workspace's OWN ingested data — it must
     never be gated on the Tavily web-search key (coupling made it vanish
