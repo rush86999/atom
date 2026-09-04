@@ -209,30 +209,85 @@ async def upsert_document_chunks(
     except Exception as probe_err:  # noqa: BLE001 — probe failures fail OPEN
         logger.debug(f"chunk upsert probe failed for {doc_id}: {probe_err}")
 
-    # Delete the prior family — plus any legacy single row under the base id
-    # (a document that outgrew the single-row layout must not keep both).
-    stale_ids: list = [doc_id]
-    try:
-        stale_ids = [doc_id] + list(
-            await asyncio.to_thread(
-                handler.get_document_ids_by_prefix, table_name, family_prefix
+    # Delete the prior family — ONE predicate delete for the whole chunk
+    # family (plus the legacy single row under the base id). The per-id loop
+    # this replaces cost one table transaction per chunk id: ~3.4k deletes =
+    # 25-90+ min under contention before a re-ingest could add its first row
+    # (live 2026-09-04). Falls back to per-id when the handler lacks the
+    # batch form.
+    if getattr(handler, "delete_documents_by_prefix", None) is not None:
+        try:
+            deleted = await asyncio.to_thread(
+                handler.delete_documents_by_prefix, table_name, family_prefix
             )
-        )
-    except Exception as list_err:  # noqa: BLE001 — fall back to base id only
-        logger.debug(f"chunk family listing failed for {doc_id}: {list_err}")
-    if getattr(handler, "delete_documents_by_id", None) is not None:
-        for rid in stale_ids:
-            try:
+            if deleted:
+                stale_ids = [doc_id]
+            else:
+                stale_ids = None
+        except Exception as del_err:  # noqa: BLE001 — fall back below
+            logger.debug(f"prefix family cleanup failed for {doc_id}: {del_err}")
+            stale_ids = None
+    else:
+        stale_ids = None
+    if stale_ids is None:
+        stale_ids = [doc_id]
+        try:
+            stale_ids = [doc_id] + list(
                 await asyncio.to_thread(
-                    handler.delete_documents_by_id, table_name, rid
+                    handler.get_document_ids_by_prefix, table_name, family_prefix
                 )
-            except Exception as del_err:  # noqa: BLE001 — best-effort cleanup
-                logger.debug(f"chunk family cleanup failed for {rid}: {del_err}")
+            )
+        except Exception as list_err:  # noqa: BLE001 — fall back to base id only
+            logger.debug(f"chunk family listing failed for {doc_id}: {list_err}")
+        if getattr(handler, "delete_documents_by_id", None) is not None:
+            for rid in stale_ids:
+                try:
+                    await asyncio.to_thread(
+                        handler.delete_documents_by_id, table_name, rid
+                    )
+                except Exception as del_err:  # noqa: BLE001 — best-effort cleanup
+                    logger.debug(f"chunk family cleanup failed for {rid}: {del_err}")
 
     base_meta = dict(metadata or {})
     base_meta["source_content_hash"] = content_hash
     base_meta["parent_doc_id"] = doc_id
     total = len(chunks)
+
+    # Batched fast path: ONE table.add transaction for the whole family.
+    # The per-chunk add_document loop above it cost one embed + one Lance
+    # transaction per chunk — 3.4k chunks took 45-90 min under contention
+    # (live 2026-09-04); batched, the same write is minutes. Falls back to
+    # the per-chunk loop when the handler lacks the batch form.
+    batch_add = getattr(handler, "add_documents_batch", None)
+    if batch_add is not None:
+        docs: List[Dict[str, Any]] = []
+        for i, chunk in enumerate(chunks):
+            chunk_meta = dict(base_meta)
+            chunk_meta["chunk_index"] = i
+            chunk_meta["chunk_total"] = total
+            doc: Dict[str, Any] = dict(
+                id=f"{family_prefix}{i}",
+                text=chunk,
+                source=source,
+                metadata=chunk_meta,
+                user_id=user_id,
+            )
+            if workspace_id is not None:
+                doc["workspace_id"] = workspace_id
+            if extra_columns:
+                doc["extra_columns"] = dict(extra_columns)
+            docs.append(doc)
+        try:
+            added = await asyncio.to_thread(batch_add, table_name, docs)
+            if added and added >= len(docs):
+                return "written"
+            logger.warning(
+                f"batch chunk add incomplete for {doc_id} "
+                f"({added}/{len(docs)}) — falling back to per-chunk adds"
+            )
+        except Exception as batch_err:  # noqa: BLE001 — fall back below
+            logger.warning(f"batch chunk add failed for {doc_id}: {batch_err}")
+
     for i, chunk in enumerate(chunks):
         chunk_meta = dict(base_meta)
         chunk_meta["chunk_index"] = i

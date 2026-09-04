@@ -1066,17 +1066,22 @@ class LanceDBHandler:
                 if embedding is None:
                     continue
 
-                # Prepare record
+                # Prepare record — same field contract as add_document
+                # (metadata serialized; extra_columns merged TOP-LEVEL so
+                # appends against the freshness_* schema don't fail).
                 record = {
                     "id": doc_id,
                     "user_id": user_id,
                     "workspace_id": self.workspace_id,
                     "text": text,
                     "source": source,
-                    "metadata": metadata,
+                    "metadata": metadata if isinstance(metadata, str) else json.dumps(metadata),
                     "created_at": datetime.now(timezone.utc).isoformat(),
                     "vector": embedding.tolist() if hasattr(embedding, "tolist") else list(embedding),
                 }
+                extra = doc.get("extra_columns")
+                if isinstance(extra, dict):
+                    record.update(extra)
                 records.append(record)
 
             if not records:
@@ -1351,6 +1356,30 @@ class LanceDBHandler:
             return True
         except Exception as e:
             logger.error(f"Failed to delete document {doc_id} from '{table_name}': {e}")
+            return False
+
+    def delete_documents_by_prefix(self, table_name: str, id_prefix: str) -> bool:
+        """Delete all rows whose id starts with ``id_prefix`` — ONE predicate
+        delete, one transaction.
+
+        The per-id loop this replaces (chunk families: {doc}::c0..c3400) cost
+        a separate table rewrite per id — ~3.4k transactions, observed at
+        25-90+ minutes under concurrent-writer contention before a re-ingest
+        could even start adding rows (live 2026-09-04, Consolidated Price
+        List 2019.xlsx ev4 refresh). """
+        self._ensure_db()
+        if self.db is None:
+            return False
+
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return False
+            safe_prefix = str(id_prefix).replace("\\", "\\\\").replace("'", "''").replace("%", "\\%").replace("_", "\\_")
+            table.delete(f"id LIKE '{safe_prefix}%'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete documents by prefix {id_prefix} from '{table_name}': {e}")
             return False
 
     def list_documents(
