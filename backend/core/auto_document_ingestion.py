@@ -1003,8 +1003,16 @@ class AutoDocumentIngestionService:
         _external_id = str(
             external_id or (extra_metadata or {}).get("external_id") or ""
         ).strip()
+        # Key normalization: connectors name the modified time inconsistently
+        # (WorkDrive's bulk walker passes "modified_at"; uploads/tools pass
+        # "source_modified_at"). This timestamp IS the update-detection
+        # signal — reading only one key meant WorkDrive files never stamped
+        # it, so hybrid-mode refresh probes ("has the source changed since we
+        # ingested?") always answered False and source-side edits were
+        # silently skipped in hybrid/list_only mode.
         source_modified_dt = _parse_source_modified(
             (extra_metadata or {}).get("source_modified_at")
+            or (extra_metadata or {}).get("modified_at")
         )
 
         # Content-mode gate for storage drives: hybrid/list_only keep the
@@ -1201,13 +1209,23 @@ class AutoDocumentIngestionService:
                             external_id=_external_id or f"vector:{_file_doc_id}",
                             content_hash=_content_hash,
                             role=str(_meta.get("role")) if _meta.get("role") else None,
+                            source_modified_at=source_modified_dt,
                         )
                     except Exception as mirror_err:  # noqa: BLE001 — mirror is best-effort
                         logger.warning(f"PG mirror row skipped for {_file_doc_id}: {mirror_err}")
                 else:
+                    # Distinguish "we already have this exact content" from
+                    # "the write FAILED" — both previously surfaced as
+                    # 'unchanged', which told the user (and the agent) the
+                    # file was already stored when the store had actually
+                    # rejected the write.
+                    reason = (
+                        "unchanged" if _upsert_status == "skipped_unchanged"
+                        else f"write_failed ({_upsert_status})"
+                    )
                     return {
                         "status": "skipped",
-                        "reason": "unchanged",
+                        "reason": reason,
                         "file_name": file_name,
                         "chars_ingested": 0,
                         "source": source,
@@ -1548,6 +1566,7 @@ class AutoDocumentIngestionService:
         external_id: str,
         content_hash: str,
         role: Optional[str] = None,
+        source_modified_at: Optional[datetime] = None,
     ) -> None:
         """Upsert the IngestedDocument mirror row for a vector-first ingest.
 
@@ -1587,6 +1606,14 @@ class AutoDocumentIngestionService:
             row.last_verified_at = now
             row.ingested_at = now
             row.freshness_status = "fresh"
+            # Update-detection inputs: freshness gates and hybrid-refresh
+            # probes compare the SOURCE's modified time against these. Left
+            # NULL, a vector-first ingest could never be detected as
+            # out-of-date (the walker's modified_at check had nothing to
+            # compare against).
+            if source_modified_at is not None:
+                row.source_modified_at = source_modified_at
+                row.external_modified_at = source_modified_at
             if role:
                 row.role = role
             session.commit()

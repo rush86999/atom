@@ -15,6 +15,7 @@ extraction hashed identically. These tests pin:
 
 import io
 import os
+import uuid
 from unittest import mock
 
 import pytest
@@ -209,3 +210,55 @@ async def test_upsert_replaces_stale_extractor_row():
     assert status == "written", "stale-extractor hash must not read as unchanged"
     assert handler.deleted == ["ext_test"]
     assert handler.added and handler.added[0]["metadata"]["source_content_hash"].startswith("ev")
+
+
+@pytest.mark.asyncio
+async def test_source_side_update_refreshes_in_hybrid_mode():
+    """UPDATE PATH (live 2026-09-04): a source-side edit of an already-stored
+    file must re-ingest in hybrid mode. WorkDrive's bulk walker passes the
+    modified time under the key 'modified_at'; the funnel only read
+    'source_modified_at', so the stored copy never had a baseline time and
+    every changed file was silently skipped as content_mode_hybrid."""
+    import shutil
+    from pathlib import Path
+
+    ws = "ws-update-detect-test"
+    store = Path(__file__).resolve().parent.parent / "data" / "atom_memory" / ws
+    shutil.rmtree(store, ignore_errors=True)
+    from core.auto_document_ingestion import AutoDocumentIngestionService
+
+    svc = AutoDocumentIngestionService(workspace_id=ws)
+    run_tag = uuid.uuid4().hex[:8]  # unique content: a cached handler over a
+    # re-created workspace must not see the prior run's identical rows
+    common = dict(
+        source="zoho_workdrive", user_id="u-upd",
+        workspace_id=ws, external_id="file-upd-1",
+    )
+    try:
+        r1 = await svc.process_file_bytes(
+            content=f"price list v1 {run_tag}: WG350DSAV 14145".encode(), file_name="prices.txt",
+            **common,
+            extra_metadata={"modified_at": "Sep 1, 2026, 08:00 AM"},  # WorkDrive key
+            explicit=True,
+        )
+        assert r1["status"] == "ingested", r1
+
+        # source-side edit,walker-shaped auto ingest (explicit=False)
+        r2 = await svc.process_file_bytes(
+            content=f"price list v2 {run_tag}: WG350DSAV 15145".encode(), file_name="prices.txt",
+            **common,
+            extra_metadata={"modified_at": "Sep 3, 2026, 10:00 AM"},
+            explicit=False,
+        )
+        assert r2["status"] == "ingested", r2  # was: skipped content_mode_hybrid
+        stored = (
+            svc.memory_handler.get_document_by_id("documents", r1["doc_id"])
+            or svc.memory_handler.get_document_by_id(
+                "documents", f"{r1['doc_id']}::c0")
+        )
+        assert stored and "15145" in stored["text"] and run_tag in stored["text"]
+        # the update-detection baseline is now stamped for FUTURE probes
+        meta = stored.get("metadata") or {}
+        assert meta.get("source_modified_at"), "modified time must be stamped"
+    finally:
+        shutil.rmtree(store, ignore_errors=True)
