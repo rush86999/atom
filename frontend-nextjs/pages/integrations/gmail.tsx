@@ -160,6 +160,9 @@ const GmailIntegrationPage: NextPage = () => {
     ).length,
     completed: events.filter((e) => e.completed).length,
   };
+  // When the events request failed there are no statistics — the cards must
+  // not present unavailable data as successfully loaded zero counts.
+  const calendarUnavailable = !!calLoadError && events.length === 0;
   const calQueryL = calQuery.toLowerCase();
   // Inbox list is derived from source emails + the live query — never a
   // stored result array, so it always reflects the latest loaded emails.
@@ -385,25 +388,25 @@ const GmailIntegrationPage: NextPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-blue-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-blue-600">
-                    {calStats.upcoming}
+                    {calendarUnavailable ? "—" : calStats.upcoming}
                   </div>
                   <div className="text-sm text-blue-800">Upcoming</div>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-green-600">
-                    {calStats.today}
+                    {calendarUnavailable ? "—" : calStats.today}
                   </div>
                   <div className="text-sm text-green-800">Today</div>
                 </div>
                 <div className="bg-purple-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-purple-600">
-                    {calStats.thisWeek}
+                    {calendarUnavailable ? "—" : calStats.thisWeek}
                   </div>
                   <div className="text-sm text-purple-800">This Week</div>
                 </div>
                 <div className="bg-orange-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-orange-600">
-                    {calStats.completed}
+                    {calendarUnavailable ? "—" : calStats.completed}
                   </div>
                   <div className="text-sm text-orange-800">Completed</div>
                 </div>
