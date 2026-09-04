@@ -1413,10 +1413,21 @@ class UniversalIntegrationService:
                 file_name = f"{service}:{file_id}"
 
             # --- extract --------------------------------------------------
-            from core.auto_document_ingestion import DocumentParser
+            from core.auto_document_ingestion import (
+                DocumentParser,
+                READ_EXTRACTION_MAX_CHARS,
+            )
 
             file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
-            text = await DocumentParser.parse_document(content, file_ext, file_name)
+            # Explicit open of a NAMED file: extract with a far larger
+            # ceiling than the ingestion budget. The user asked for THIS
+            # file's contents — a row in its last sheet must be reachable
+            # (live 2026-09-03: the ingestion-budget cut landed before the
+            # LINMAC sheet, so a read limited to that budget could not see
+            # WG350DSAV row 17 either).
+            text = await DocumentParser.parse_document(
+                content, file_ext, file_name, max_chars=READ_EXTRACTION_MAX_CHARS
+            )
             if not text or not text.strip():
                 return {"status": "success", "data": {
                     "found": True, "file_id": file_id, "file_name": file_name,

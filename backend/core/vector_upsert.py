@@ -172,7 +172,13 @@ async def upsert_document_chunks(
 
     family_prefix = f"{doc_id}::c"
 
-    # Hash-skip: c0 carries the FULL-document hash.
+    # Hash-skip: c0 carries the FULL-document hash AND the expected chunk
+    # count. Hash alone is not sufficient: a writer that died mid-family
+    # (crash, deploy, OOM) leaves a TRUNCATED family whose c0 hash still
+    # matches — live 2026-09-03 the Consolidated Price List re-ingest died
+    # at chunk ~52 of ~1700 and every later ingest then said
+    # "skipped_unchanged" off that c0, pinning a 62k-char fragment of a 4M
+    # char workbook. The skip requires the stored family to be complete.
     try:
         c0 = await asyncio.to_thread(
             handler.get_document_by_id, table_name, f"{family_prefix}0"
@@ -183,7 +189,23 @@ async def upsert_document_chunks(
                 isinstance(c0_meta, dict)
                 and c0_meta.get("source_content_hash") == content_hash
             ):
-                return "skipped_unchanged"
+                stored_total = c0_meta.get("chunk_total")
+                expected = len(chunks)
+                family_complete = False
+                if stored_total == expected:
+                    stored_ids = await asyncio.to_thread(
+                        handler.get_document_ids_by_prefix,
+                        table_name,
+                        family_prefix,
+                    )
+                    family_complete = len(stored_ids or []) >= expected
+                if family_complete:
+                    return "skipped_unchanged"
+                logger.info(
+                    f"chunk upsert: {doc_id} hash matches but family is "
+                    f"incomplete/legacy (stored_total={stored_total}, "
+                    f"expected={expected}) — rewriting"
+                )
     except Exception as probe_err:  # noqa: BLE001 — probe failures fail OPEN
         logger.debug(f"chunk upsert probe failed for {doc_id}: {probe_err}")
 

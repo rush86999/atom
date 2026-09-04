@@ -150,13 +150,20 @@ def _hashlib_sha1(value: str) -> str:
 # Extraction budget: the cap on EXTRACTED TEXT per file (not on source
 # records). The old hard caps (5 sheets x 100 rows, 50 PDF pages, 500 docx
 # paragraphs, 1000 CSV rows) silently truncated real business files — live
-# 2026-09-03, Consolidated Price List 2019.xlsx ingested without its machine
-# pricing sheets, so the agent could never find the WG350DSAV row and
-# confabulated the price instead. The write path chunks arbitrarily long
-# text (vector_upsert ::c{i} rows), so extraction may emit everything up to
-# this budget; the budget only bounds memory and embedding cost for
-# pathological files. Env-tunable per deployment.
-DEFAULT_EXTRACTION_MAX_CHARS = 2_000_000
+# 2026-09-03, Consolidated Price List 2019.xlsx (46 sheets, ~2.7M chars)
+# ingested without its machine-pricing sheets, so the agent could never find
+# the WG350DSAV row and confabulated the price instead. The write path
+# chunks arbitrarily long text (vector_upsert ::c{i} rows), so extraction
+# may emit everything up to this budget; the budget only bounds memory and
+# embedding cost for pathological files. Env-tunable per deployment.
+# NOTE: the explicit read path (_read_storage_file) deliberately exceeds
+# this — opening a named file must see all of it.
+DEFAULT_EXTRACTION_MAX_CHARS = 4_000_000
+
+# Safety ceiling for the explicit read path (a named-file open). Still
+# finite so a hostile multi-GB workbook cannot OOM the process, but far
+# above any real spreadsheet/PDF.
+READ_EXTRACTION_MAX_CHARS = 50_000_000
 
 
 def extraction_max_chars() -> int:
@@ -237,13 +244,20 @@ class DocumentParser:
         return cls._docling_processor if cls._docling_processor else None
     
     @staticmethod
-    async def parse_document(file_content: bytes, file_type: str, file_name: str) -> str:
-        """Parse document and extract text content"""
+    async def parse_document(file_content: bytes, file_type: str, file_name: str,
+                             max_chars: Optional[int] = None) -> str:
+        """Parse document and extract text content.
+
+        ``max_chars`` overrides the per-file extraction budget for this call
+        (None = the configured budget). The explicit read path passes a
+        much larger ceiling: when the user opens a NAMED file, the answer
+        must be able to see every sheet/page of it.
+        """
         try:
             # Try docling first for supported formats
             docling = DocumentParser._get_docling_processor()
             docling_formats = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'htm', 'png', 'jpg', 'jpeg', 'tiff']
-            
+
             if docling and file_type in docling_formats:
                 try:
                     result = await docling.process_document(
@@ -259,11 +273,11 @@ class DocumentParser:
                         logger.warning(f"Docling parse failed for {file_name}, using fallback")
                 except Exception as e:
                     logger.warning(f"Docling error for {file_name}: {e}, using fallback")
-            
+
             # Fallback to legacy parsers
             if file_type in ["txt", "md", "toml", "yaml", "yml", "xml", "html", "ini", "cfg", "conf", "log", "sql", "py", "ts", "js", "sh", "bat", "env"]:
                 return file_content.decode("utf-8", errors="ignore")
-            
+
             elif file_type == "json":
                 try:
                     data = json.loads(file_content.decode("utf-8", errors="ignore"))
@@ -273,29 +287,29 @@ class DocumentParser:
                     # returning the broken bytes verbatim pollutes memory
                     # with junk rows.
                     return ""
-            
+
             elif file_type == "csv":
-                return DocumentParser._parse_csv(file_content)
-            
+                return DocumentParser._parse_csv(file_content, max_chars=max_chars)
+
             elif file_type == "pdf":
-                return await DocumentParser._parse_pdf(file_content)
-            
+                return await DocumentParser._parse_pdf(file_content, max_chars=max_chars)
+
             elif file_type in ["doc", "docx"]:
-                return await DocumentParser._parse_docx(file_content)
-            
+                return await DocumentParser._parse_docx(file_content, max_chars=max_chars)
+
             elif file_type in ["xlsx", "xls"]:
-                return await DocumentParser._parse_excel(file_content)
-            
+                return await DocumentParser._parse_excel(file_content, max_chars=max_chars)
+
             else:
                 logger.warning(f"Unsupported file type: {file_type}")
                 return ""
-                
+
         except Exception as e:
             logger.error(f"Failed to parse {file_name}: {e}")
             return ""
     
     @staticmethod
-    def _parse_csv(content: bytes, file_path: str = None, workspace_id: str = "default") -> str:
+    def _parse_csv(content: bytes, file_path: str = None, workspace_id: str = "default", max_chars: Optional[int] = None) -> str:
         """Parse CSV to text - reuses DataIngestionService logic.
         Also extracts implicit formulas from column patterns.
         """
@@ -324,7 +338,7 @@ class DocumentParser:
             import csv
             text = content.decode("utf-8", errors="ignore")
             reader = csv.reader(io.StringIO(text))
-            budget = _ExtractionBudget()
+            budget = _ExtractionBudget(limit=max_chars)
             total_rows = 0
             for row in reader:
                 total_rows += 1
@@ -338,13 +352,13 @@ class DocumentParser:
 
     
     @staticmethod
-    async def _parse_pdf(content: bytes) -> str:
+    async def _parse_pdf(content: bytes, max_chars: Optional[int] = None) -> str:
         """Parse PDF to text - compatible with DocumentLifecycleLearner"""
         try:
             # Use pypdf (PyPDF2 merged into pypdf package)
             import pypdf as PyPDF2
             reader = PyPDF2.PdfReader(io.BytesIO(content))
-            budget = _ExtractionBudget()
+            budget = _ExtractionBudget(limit=max_chars)
             total_pages = len(reader.pages)
             for page in reader.pages:
                 if not budget.add(page.extract_text() or ""):
@@ -359,12 +373,12 @@ class DocumentParser:
             return ""
     
     @staticmethod
-    async def _parse_docx(content: bytes) -> str:
+    async def _parse_docx(content: bytes, max_chars: Optional[int] = None) -> str:
         """Parse DOCX to text - compatible with DocumentLifecycleLearner"""
         try:
             from docx import Document
             doc = Document(io.BytesIO(content))
-            budget = _ExtractionBudget()
+            budget = _ExtractionBudget(limit=max_chars)
             total_units = len(doc.paragraphs) + len(doc.tables)
             consumed = 0
 
@@ -398,7 +412,7 @@ class DocumentParser:
             return ""
     
     @staticmethod
-    async def _parse_excel(content: bytes, file_path: str = None, workspace_id: str = "default") -> str:
+    async def _parse_excel(content: bytes, file_path: str = None, workspace_id: str = "default", max_chars: Optional[int] = None) -> str:
         """Parse Excel to text - compatible with DocumentLifecycleLearner.
         Also extracts formulas and stores them in Atom's formula memory.
         """
@@ -409,7 +423,7 @@ class DocumentParser:
             try:
                 import xlrd
                 wb = xlrd.open_workbook(file_contents=content)
-                budget = _ExtractionBudget()
+                budget = _ExtractionBudget(limit=max_chars)
                 sheets_done = 0
                 for sheet in wb.sheets():
                     if budget.exhausted:
@@ -464,7 +478,7 @@ class DocumentParser:
             # ingested without its machine sheets; only the first five sheets
             # were extracted). Only total extracted chars are bounded.
             xls = pd.ExcelFile(io.BytesIO(content))
-            budget = _ExtractionBudget()
+            budget = _ExtractionBudget(limit=max_chars)
             sheets_done = 0
             for sheet_name in xls.sheet_names:
                 if budget.exhausted:
@@ -490,7 +504,7 @@ class DocumentParser:
             try:
                 from openpyxl import load_workbook
                 wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
-                budget = _ExtractionBudget()
+                budget = _ExtractionBudget(limit=max_chars)
                 sheets_done = 0
                 for sheet_name in wb.sheetnames:
                     if budget.exhausted:
@@ -516,7 +530,7 @@ class DocumentParser:
             # file silently never becomes searchable).
             logger.error(f"Excel parse error: {e}")
             try:
-                fallback_text = DocumentParser._parse_xlsx_raw(content)
+                fallback_text = DocumentParser._parse_xlsx_raw(content, max_chars=max_chars)
                 if fallback_text and fallback_text.strip():
                     logger.info(
                         f"Raw-XML fallback extracted {len(fallback_text)} chars "
@@ -528,7 +542,7 @@ class DocumentParser:
             return ""
 
     @staticmethod
-    def _parse_xlsx_raw(content: bytes, max_sheets: Optional[int] = None, max_rows: Optional[int] = None) -> str:
+    def _parse_xlsx_raw(content: bytes, max_sheets: Optional[int] = None, max_rows: Optional[int] = None, max_chars: Optional[int] = None) -> str:
         """Extract cell text from an xlsx zip with stdlib XML parsing only.
 
         Engine-agnostic last resort for workbooks openpyxl/pandas reject:
@@ -594,7 +608,7 @@ class DocumentParser:
             except Exception as name_err:  # noqa: BLE001 — names are best-effort
                 logger.debug(f"workbook sheet-name read failed: {name_err}")
 
-            budget = _ExtractionBudget()
+            budget = _ExtractionBudget(limit=max_chars)
             sheets = sorted(n for n in zf.namelist() if n.startswith("xl/worksheets/") and n.endswith(".xml"))
             sheets_done = 0
             for sheet_path in sheets:
