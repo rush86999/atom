@@ -614,10 +614,14 @@ def _best_content_excerpt(content: str, query: str, width: int = 500) -> str:
     return "\n".join(parts)
 
 
-def _doc_hit_excerpt(doc_id: str, query: str, fallback: str, width: int = 600) -> str:
+def _doc_hit_excerpt(doc_id: str, query: str, fallback: str, width: int = 600) -> tuple:
     """Query-anchored excerpt from the FULL stored text of a file-ingest row
-    (documents table). Falls back to the short preview for rows that are not
-    LanceDB file ingests (PG-bridged records, conversations)."""
+    (documents table), with the ingestion date for freshness stamping.
+    Falls back to the short preview for rows that are not LanceDB file
+    ingests (PG-bridged records, conversations). Returns (excerpt, ingested_date).
+    Pricing/values can change at the source — the date is what lets the
+    agent (and the user) see how fresh a quoted figure is."""
+    ingested_date = ""
     try:
         import lancedb
 
@@ -640,13 +644,20 @@ def _doc_hit_excerpt(doc_id: str, query: str, fallback: str, width: int = 600) -
                 rows = family.drop(columns=["_ord"])
         if rows.empty:
             return fallback
-        content = "\n".join(str(r.get("text") or "") for r in rows.to_dict("records"))
+        records = rows.to_dict("records")
+        content = "\n".join(str(r.get("text") or "") for r in records)
         if not content.strip():
-            return fallback
-        return _best_content_excerpt(content, query, width)
+            return fallback, ingested_date
+        try:
+            import json as _json
+            md = _json.loads(records[0].get("metadata") or "{}")
+            ingested_date = str(md.get("ingested_at") or "")[:10]
+        except Exception:  # noqa: BLE001 — date is best-effort
+            ingested_date = ""
+        return _best_content_excerpt(content, query, width), ingested_date
     except Exception as e:  # noqa: BLE001 — fault-isolated by contract
         logger.debug(f"doc excerpt unavailable for {doc_id}: {e}")
-        return fallback
+        return fallback, ingested_date
 
 
 async def _memory_search_block(
@@ -680,9 +691,10 @@ async def _memory_search_block(
             # Full-content, query-anchored excerpt: the ~200-char preview
             # only ever showed a document's head, hiding pricing tabs and
             # formulas that live mid-file in single-row ingests.
-            body = _doc_hit_excerpt(
+            body, ingested_on = _doc_hit_excerpt(
                 hid, excerpt_corpus, fallback_preview
-            ).replace("\n", " | ")
+            )
+            body = body.replace("\n", " | ")
             source = str(hit.get("source") or hit.get("title") or "record")
             # Per-hit provenance: documents/files vs mailbox records vs
             # knowledge nodes. The model previously read these lines as
@@ -697,8 +709,11 @@ async def _memory_search_block(
                 "communication": "email/chat record",
                 "conversation": "email/chat record",
             }.get(source.lower(), source.lower() or "record")
+            fresh = f" — ingested {ingested_on}" if (
+                ingested_on and source_kind.startswith("document")
+            ) else ""
             lines.append(
-                f"- [{source_kind}: {source}] {title}"
+                f"- [{source_kind}: {source}{fresh}] {title}"
                 + (f" | From: {sender}" if sender else "")
                 + f" | {body}"
             )
@@ -725,7 +740,12 @@ async def _memory_search_block(
             "(searchable); [email/chat record]* lines are received messages; "
             "[knowledge-node]* lines are extracted entities. Prior assistant "
             "replies are NEVER in this evidence — a fact that appears only in "
-            "the conversation is not something you 'found in a file'."
+            "the conversation is not something you 'found in a file'. "
+            "FRESHNESS: [document: … — ingested YYYY-MM-DD] shows when the copy "
+            "was taken. For prices, quotes, or stock that drive an answer, cite "
+            "the figure WITH its ingested date; if the customer decision hinges "
+            "on it being current, say the source file should be re-opened live "
+            "to confirm."
         )
     except Exception as e:
         logger.warning(f"memory tool execution failed: {e}")
