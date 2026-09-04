@@ -79,8 +79,26 @@ def _anchor_sqlite_url(url: str) -> str:
 
 def get_database_url():
     """Get database URL with production safety checks"""
+    import sys
+
     env = os.getenv("ENVIRONMENT", "development")
     database_url = os.getenv("DATABASE_URL")
+
+    # INCIDENT GUARD (2026-09-04): a pytest run without TESTING=1 pointed at
+    # the live dev DB and wiped it. Whenever pytest is the importing process,
+    # force the isolated test database regardless of DATABASE_URL — tests can
+    # only opt back into a real DB by explicitly setting TESTING=0.
+    pytest_running = (
+        os.getenv("PYTEST_CURRENT_TEST") is not None
+        or os.getenv("PYTEST_VERSION") is not None
+        or "pytest" in sys.modules
+    )
+    if pytest_running and os.getenv("TESTING") != "0":
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        db_path = os.path.join(base_dir, "test_integration.db")
+        database_url = f"sqlite:///{db_path}"
+        logger.warning("🧪 pytest detected: forcing isolated test DB (%s)", db_path)
+        return database_url
 
     if os.getenv("TESTING") == "1":
         # Force SQLite for integration tests to prevent connection to production Postgres

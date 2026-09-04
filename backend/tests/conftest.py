@@ -6,8 +6,16 @@ This file is loaded before any test modules and sets up necessary fixtures
 and configuration for the entire test suite.
 """
 
-import sys
+# MUST run before any core import below: forces every test to the isolated
+# test database. A test run against data/atom.db wiped live data on
+# 2026-09-04 (see AGENT_COORDINATION.md INCIDENT 2026-09-04) — this line is
+# the tripwire so a bare `pytest` can never touch the real DB again.
 import os
+
+os.environ["TESTING"] = "1"
+os.environ.setdefault("DATABASE_URL", "sqlite:///./test_integration.db")
+
+import sys
 import uuid
 import pytest
 import ast
