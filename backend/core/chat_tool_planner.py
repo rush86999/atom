@@ -463,11 +463,12 @@ def _service_named_in_message(
     """The connected integration the user's own words name, if any. Matches
     service names with separators relaxed ("zoho inventory" matches
     zoho_inventory); longest name wins when several appear. Falls back to
-    FILE-NOUN matching: "check the price list file / workbook / spreadsheet"
-    names a document, and documents live in whichever storage integration is
-    connected (deterministic preference order, most-specific first). A
-    deterministic repair for the planner's null-service flake — NOT an intent
-    gate: it never fires when the planner named a valid service itself."""
+    FILE-NOUN matching: "check the inventory workbook / client spreadsheet /
+    catalog file" names a document, and documents live in whichever storage
+    integration is connected (deterministic preference order, most-specific
+    first). A deterministic repair for the planner's null-service flake —
+    NOT an intent gate: it never fires when the planner named a valid
+    service itself."""
     msg = f" {message.lower().replace('-', ' ').replace('_', ' ')} "
     best, best_len = None, 0
     for svc in connected:
@@ -480,8 +481,9 @@ def _service_named_in_message(
     # mean is a DOCUMENT" without naming the vendor — route to wherever this
     # user's documents live instead of whatever service was used recently.
     _FILE_NOUNS = (
-        "workbook", "spreadsheet", "xlsx", "worksheet", "price list file",
-        "file", "document", "docx", "pdf",
+        "workbook", "spreadsheet", "xlsx", "worksheet",
+        "file", "document", "docx", "pdf", "catalog", "invoice", "contract",
+        "deck", "presentation", "proposal",
     )
     if any(noun in msg for noun in _FILE_NOUNS):
         for storage in ("zoho_workdrive", "google_drive", "onedrive",
@@ -571,34 +573,61 @@ def _search_ingested_by_address(user_id, address, limit=4):
 _PRODUCT_TOKEN_RE = re.compile(
     r"\b(?=[A-Za-z-]*\d)(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9][A-Za-z0-9-]{4,}\b"
 )
+_HEX_COLOR_RE = re.compile(r"^[0-9A-Fa-f]{6}$")
+
+
+def _product_tokens(text: str, min_len: int = 5, skip_hexlike: bool = False,
+                    limit: int = 3) -> List[str]:
+    """Identifier candidates for exact-copy lookups: tokens that MIX letters
+    with digits — the one shape every industry's catalog codes share (model
+    numbers 'WG350DSAV', electronics parts 'LM358', chemical catalog
+    'S318500', apparel SKUs 'NK-AQ0818', invoice refs 'INV-2024-118') and
+    that prose, years, prices and quantities never do. Pure-digit tokens are
+    excluded by the same logic. ``skip_hexlike`` drops 6-hex-digit tokens
+    (canvas HTML style attributes like #1F3864 are layout noise; a genuine
+    hex-shaped code from user-typed text still passes). Order-preserving
+    dedupe, capped at ``limit``."""
+    out: List[str] = []
+    for m in _PRODUCT_TOKEN_RE.finditer(text or ""):
+        tok = m.group(0)
+        if len(tok) < min_len or tok in out:
+            continue
+        if skip_hexlike and _HEX_COLOR_RE.match(tok):
+            continue
+        out.append(tok)
+        if len(out) >= limit:
+            break
+    return out
 
 
 def _search_ingested_by_exact_token(user_id, query, skip_ids=None, limit=3):
-    """Deterministic ingested-copy lookup for rare PRODUCT tokens in the
-    query — model numbers / SKUs ("WG350DSAV", "ALU-400": mixed letters and
-    digits). Vector search and lexical analyzers both mangle these: the row
-    carrying the model sits mid-file among numeric columns and never cracks
+    """Deterministic ingested-copy lookup for identifier tokens in the
+    query (model numbers, SKUs, part/catalog codes — _product_tokens for the
+    shape). Vector search and lexical analyzers both mangle these: the row
+    carrying the code sits mid-file among numeric columns and never cracks
     the top-8 (live 2026-09-04: 'Consolidated Price List WG350DSAV' returned
     the workbook's head chunks while the row sat in chunk c2213 of 3,797).
     A containment scan finds it exactly — the same repair pattern addresses
-    get from _search_ingested_by_address. Fault-isolated; [] on anything."""
+    get from _search_ingested_by_address. Diverse by document: at most one
+    excerpt per source document, so a code appearing in several files shows
+    each file rather than three chunks of one. Fault-isolated; [] on
+    anything."""
     out: List[str] = []
     seen_rows: List[str] = []
+    seen_docs: set = set()
     try:
-        tokens = list(dict.fromkeys(
-            m.group(0) for m in _PRODUCT_TOKEN_RE.finditer(query or "")
-        ))[:3]
-        if not tokens:
-            return out
         import json as _json
         import lancedb
 
+        tokens = _product_tokens(query or "", min_len=5)
+        if not tokens:
+            return out
         base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
         lance = (lancedb.connect(str(base / "default"))
                  .open_table("documents").to_lance())
         for tok in tokens:
-            # The same model is written both ways — canvas prose hyphenates
-            # ("WG-350DSAV") while the workbook cell stores the bare code
+            # The same code is written both ways — prose hyphenates
+            # ("WG-350DSAV") while the stored cell carries the bare form
             # ("WG350DSAV"); scan both spellings or the identifying row is
             # missed in favor of lookalike records.
             variants = [tok]
@@ -611,13 +640,15 @@ def _search_ingested_by_exact_token(user_id, query, skip_ids=None, limit=3):
                     filter=f"text LIKE '%{safe}%'",
                     columns=["id", "text", "metadata", "source"],
                 )
-                for row in tbl.to_pylist()[:limit]:
-                    if skip_ids and str(row.get("id") or "") in skip_ids:
+                for row in tbl.to_pylist():
+                    rid = str(row.get("id") or "")
+                    if skip_ids and rid in skip_ids:
                         continue
-                    key = str(row.get("id") or "")
-                    if key in seen_rows:
+                    if rid in seen_rows:
                         continue
-                    seen_rows.append(key)
+                    doc = rid.split("::")[0]
+                    if doc and doc in seen_docs:
+                        continue
                     try:
                         md = _json.loads(row.get("metadata") or "{}")
                     except Exception:  # noqa: BLE001 — metadata is best-effort
@@ -636,6 +667,11 @@ def _search_ingested_by_exact_token(user_id, query, skip_ids=None, limit=3):
                         f"- [document: {name}{fresh}] EXACT MATCH for '{tok}': "
                         f"…{excerpt}…"
                     )
+                    seen_rows.append(rid)
+                    if doc:
+                        seen_docs.add(doc)
+                    if len(out) >= limit:
+                        return out
     except Exception as e:  # noqa: BLE001 — fault-isolated by contract
         logger.debug(f"ingested exact-token search skipped: {e}")
     return out
@@ -1153,26 +1189,41 @@ async def execute_tool_plan(
                 plan.intent = "read"
 
         # CONTEXT TOKEN ENRICHMENT — storage legs. The fallback queries
-        # inherit the current message's wording ("check the price list file
-        # again and find the row") and drop the model number that only
-        # exists in the conversation/canvas — the read excerpt then anchors
-        # on header boilerplate and the row stays invisible (live
-        # 2026-09-04: three consecutive turns). The mixed-alphanumeric
-        # token (WG350DSAV, ALU-400) is the identifying key; scan the
-        # hydrated context for it deterministically instead of hoping the
-        # planner LLM includes it. One token is enough — history is scanned
-        # before canvas styling, and short tokens (DM10) don't qualify.
+        # inherit the current message's wording ("check the catalog file
+        # again and find the row") and drop the identifier that only exists
+        # in the conversation/canvas — the read excerpt then anchors on
+        # header boilerplate and the row stays invisible (live 2026-09-04:
+        # three consecutive turns). Scan the hydrated context for identifier
+        # tokens deterministically instead of hoping the planner LLM
+        # includes them. Intent text (message + history) is scanned first
+        # and wins; canvas markup is scanned second with hex-style tokens
+        # excluded (canvas styling is layout noise, not catalog codes). At
+        # most two tokens join the query — enough to identify, few enough
+        # to keep server-side storage search selective.
         if service in _STORAGE_SERVICES:
-            hay = (
-                query + " " + _current_message_text(context) + " "
-                + " ".join(_entry_text(m) for m in ((context or {}).get("history") or [])[-8:])
-                + " " + _entry_text((context or {}).get("canvas") or {})
+            ctx = context or {}
+            intent_hay = " ".join(
+                [query, _current_message_text(ctx)]
+                + [_entry_text(m) for m in (ctx.get("history") or [])[-8:]]
             )
-            for tok in _PRODUCT_TOKEN_RE.findall(hay):
-                if len(tok) >= 6 and tok.lower() not in query.lower():
-                    logger.info(f"tool query enriched with context token {tok!r}")
-                    query = f"{query} {tok}".strip()
-                    break
+            extra = [
+                t for t in _product_tokens(intent_hay, min_len=6)
+                if t.lower() not in query.lower()
+            ]
+            if len(extra) < 2:
+                canvas_hay = _entry_text(ctx.get("canvas") or {})
+                taken = {t.lower() for t in extra} | {
+                    w.lower() for w in query.split()
+                }
+                extra += [
+                    t for t in _product_tokens(canvas_hay, min_len=6,
+                                               skip_hexlike=True)
+                    if t.lower() not in taken
+                ]
+            extra = extra[:2]
+            if extra:
+                logger.info(f"tool query enriched with context tokens {extra!r}")
+                query = f"{query} {' '.join(extra)}".strip()
 
         intent_map = _INTENT_ACTIONS.get(service, _INTENT_ACTIONS["default"])
         action = intent_map.get(plan.intent or "search", "search")
