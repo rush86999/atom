@@ -1245,8 +1245,35 @@ class AutoDocumentIngestionService:
             "doc_id": _file_doc_id,
         }
 
+    async def ingested_external_ids(self, source: str, external_ids: List[str]) -> List[str]:
+        """Which of these source-native ids already have documents in memory?
+
+        Mirrors the write identity (doc_id = ``ext_sha1(source:external_id)``,
+        see process_file_bytes), probing both the single-doc and the chunked
+        (``{doc_id}::c0``) layouts. Point lookups run in one worker thread —
+        the drive panels call this per folder listing to hydrate "already
+        ingested" badges from durable state instead of session-only React
+        state.
+        """
+        if not external_ids or not self.memory_handler:
+            return []
+
+        def _probe_all() -> List[str]:
+            found: List[str] = []
+            for ext in external_ids:
+                probe = f"ext_{_hashlib_sha1(f'{source}:{ext}')[:24]}"
+                try:
+                    if (self.memory_handler.get_document_by_id("documents", probe)
+                            or self.memory_handler.get_document_by_id("documents", f"{probe}::c0")):
+                        found.append(ext)
+                except Exception:  # noqa: BLE001 — a single bad probe must not kill the batch
+                    continue
+            return found
+
+        return await asyncio.to_thread(_probe_all)
+
     async def sync_integration(
-        self, 
+        self,
         integration_id: str,
         force: bool = False
     ) -> Dict[str, Any]:
