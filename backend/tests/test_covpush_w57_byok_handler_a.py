@@ -177,10 +177,26 @@ class TestProviderServing:
 class TestFallbackOrder:
     def test_order_with_primary(self):
         h = make_handler(clients={"deepseek": 1, "openai": 2, "ollama": 3, "custom": 4})
-        order = h._get_provider_fallback_order("openai")
+        # The order path drops a local runtime that isn't answering (live
+        # localhost:11434 probe). Dev machines run ollama, CI runners don't —
+        # pin the probe so the ordering assertion is environment-independent.
+        with patch.object(bh.BYOKHandler, "_ollama_runtime_state",
+                          return_value=("up", set())):
+            order = h._get_provider_fallback_order("openai")
         assert order[0] == "openai"
         assert order.index("deepseek") < order.index("ollama")
         assert "custom" in order  # remaining providers appended
+
+    def test_order_excludes_ollama_when_runtime_down(self):
+        """CI reality: nothing listens on localhost:11434. A non-answering
+        local runtime must stay out of the fallback chain — mid-request
+        fallback to a dead ollama only adds its connection timeout."""
+        h = make_handler(clients={"deepseek": 1, "openai": 2, "ollama": 3})
+        with patch.object(bh.BYOKHandler, "_ollama_runtime_state",
+                          return_value=("down", None)):
+            order = h._get_provider_fallback_order("deepseek")
+        assert "ollama" not in order
+        assert order[0] == "deepseek"
 
     def test_empty_clients(self):
         h = make_handler(clients={})
