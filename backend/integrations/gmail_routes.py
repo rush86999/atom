@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -117,6 +117,15 @@ async def send_gmail_message(
 # page silently showed 0). These hit the Gmail + Calendar APIs with the
 # user-scoped unified Google token (same IntegrationToken family the Drive
 # service resolves).
+#
+# Why not integrations/gmail_service.py? That layer is synchronous
+# (google-api-python-client) with sequential per-message fetches — the exact
+# pattern that made this endpoint take tens of seconds — and it swallows
+# upstream errors (returns partial/[] lists as success). These endpoints must
+# stay async (concurrent metadata fetches) and must never mask a failed upstream
+# call as an empty mailbox, so they call the REST API directly over httpx.
+# Consolidation candidate: fold this into the service layer as async methods
+# if/when the sync GmailService is retired.
 
 
 async def _resolve_google_token(user_id: str) -> Optional[str]:
@@ -188,6 +197,51 @@ def _email_from_payload(full: Dict[str, Any]) -> Dict[str, Any]:
         "important": "IMPORTANT" in labels,
         "starred": "STARRED" in labels,
     }
+
+
+def _parse_dt(value: Any) -> Optional[datetime]:
+    """Parse a Google event time (dateTime or all-day date) into a
+    tz-aware datetime. All-day dates start at 00:00Z; naive values are
+    assumed UTC so comparisons across timezones are instant-correct."""
+    if not value:
+        return None
+    try:
+        text = value + "T00:00:00+00:00" if "T" not in value else value
+        dt = datetime.fromisoformat(text)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+
+def _event_start_dt(it: Dict[str, Any]) -> Optional[datetime]:
+    return _parse_dt(
+        (it.get("start") or {}).get("dateTime") or (it.get("start") or {}).get("date")
+    )
+
+
+def _event_end_dt(it: Dict[str, Any]) -> Optional[datetime]:
+    """Parse an event's end into a tz-aware datetime. All-day ends are
+    exclusive next-day dates, so an all-day event finishing today has
+    end.date == tomorrow."""
+    return _parse_dt(
+        (it.get("end") or {}).get("dateTime") or (it.get("end") or {}).get("date")
+    )
+
+
+def _finished_events(
+    past_items: List[Dict[str, Any]], now_dt: datetime
+) -> List[Dict[str, Any]]:
+    """Events that are fully over. A meeting that started before now but ends
+    after now matches BOTH window queries (upcoming because its end is after
+    now; past because its start is before now) — it is still running, so it
+    must NOT land in the completed bucket (nothing double-counted/mislabelled)."""
+    return [
+        it
+        for it in past_items
+        if (end_dt := _event_end_dt(it)) is not None and end_dt <= now_dt
+    ]
 
 
 @router.get("/emails")
@@ -264,8 +318,6 @@ async def list_events(
         # empty calendar (proxy/page check response.ok).
         raise HTTPException(status_code=400, detail="Google account not connected")
 
-    from datetime import timedelta, timezone
-
     now = datetime.now(timezone.utc)
     _url = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 
@@ -335,40 +387,12 @@ async def list_events(
             status_code=502, detail=f"Google Calendar API error ({failed})"
         )
 
-    def _parse_dt(value: Any):
-        """Parse a Google event time (dateTime or all-day date) into a
-        tz-aware datetime. All-day dates start at 00:00Z; naive values are
-        assumed UTC so comparisons across timezones are instant-correct."""
-        if not value:
-            return None
-        try:
-            text = value + "T00:00:00+00:00" if "T" not in value else value
-            dt = datetime.fromisoformat(text)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt
-        except Exception:
-            return None
-
-    def _event_start_dt(it: Dict[str, Any]):
-        return _parse_dt((it.get("start") or {}).get("dateTime") or (it.get("start") or {}).get("date"))
-
-    def _event_end_dt(it: Dict[str, Any]):
-        """Parse an event's end into a tz-aware datetime. All-day ends are
-        exclusive next-day dates, so an all-day event finishing today has
-        end.date == tomorrow."""
-        return _parse_dt((it.get("end") or {}).get("dateTime") or (it.get("end") or {}).get("date"))
-
     # Meetings that started before now but end after now match BOTH buckets
     # (upcoming because their end is after now; past because their start is
     # before now). An active meeting is not completed — exclude it from the
     # completed bucket so nothing is double-counted or mislabelled.
     now_dt = datetime.now(timezone.utc)
-    finished = [
-        it
-        for it in past_items
-        if (end_dt := _event_end_dt(it)) is not None and end_dt <= now_dt
-    ]
+    finished = _finished_events(past_items, now_dt)
 
     def _to_event(it: Dict[str, Any], completed: bool) -> Dict[str, Any]:
         start = it.get("start") or {}
