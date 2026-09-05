@@ -31,6 +31,22 @@ if [ -f "$DB_PATH" ]; then
     if sqlite3 "$DB_PATH" ".backup '$SNAP'" 2>/dev/null && gzip -f "$SNAP" 2>/dev/null; then
         ls -t "$BACKUP_DIR"/atom-pre-restart-*.db.gz 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null
         echo "==> DB snapshot: $SNAP.gz"
+
+        # Off-machine copy: the portable drive keeps every snapshot (no
+        # 5-cap pruning) so backups survive internal-disk failure. A missing
+        # drive is a warning, never a restart failure.
+        EXT_BACKUP_DIR="/Volumes/Seagate Portable Drive/atom-backups"
+        if [ -d "/Volumes/Seagate Portable Drive" ]; then
+            mkdir -p "$EXT_BACKUP_DIR"
+            if cp "$SNAP.gz" "$EXT_BACKUP_DIR/" 2>/dev/null; then
+                ls -t "$EXT_BACKUP_DIR"/atom-*.db.gz 2>/dev/null | tail -n +31 | xargs rm -f 2>/dev/null
+                echo "==> Copied to external drive: $EXT_BACKUP_DIR/"
+            else
+                echo "!! WARNING: external backup copy failed (continuing)"
+            fi
+        else
+            echo "!! WARNING: portable drive not mounted — snapshot kept locally only"
+        fi
     else
         rm -f "$SNAP"
         echo "!! WARNING: DB snapshot failed (continuing) — is sqlite3 installed?"
