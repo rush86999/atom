@@ -187,6 +187,25 @@ from core.llm_credential_service import LLMCredentialService
 
 logger = logging.getLogger(__name__)
 
+
+async def _to_thread_safe(fn, *args, **kwargs):
+    """await fn(*args, **kwargs) in the default executor — asyncio.to_thread,
+    but an escaped StopIteration becomes a normal RuntimeError.
+
+    StopIteration set on the executor's concurrent future is fatal: asyncio's
+    future-chaining callback calls set_exception(StopIteration), which is
+    forbidden, so the callback dies and the awaiting coroutine NEVER resumes —
+    the caller hangs forever (2026-09-05 CI: backend-tests timed out at 6h
+    after a MagicMock side_effect list ran out inside the worker thread).
+    """
+    try:
+        return await asyncio.to_thread(fn, *args, **kwargs)
+    except StopIteration as e:
+        raise RuntimeError(
+            f"{getattr(fn, '__qualname__', fn)} raised StopIteration "
+            f"(exhausted iterator?) — converted to keep the awaiting coroutine alive"
+        ) from e
+
 # --- P4 prompt-taint gate (shadow by default) -------------------------------
 # The prompt IS the exfil payload on the LLM path: the full text leaves for a
 # third-party processor. When the head of the outbound prompt classifies as
@@ -2719,7 +2738,7 @@ class BYOKHandler:
                     # round trip — one in-flight extraction/chat turn stalled
                     # EVERY concurrent request (observed: ingestion-status
                     # hung 60s while GraphRAG extraction awaited openrouter).
-                    response = await asyncio.to_thread(
+                    response = await _to_thread_safe(
                         client.chat.completions.create,
                         model=model,
                         messages=messages,
@@ -2892,7 +2911,7 @@ class BYOKHandler:
                                 f"retrying with {fallback_model}"
                             )
                             try:
-                                response = await asyncio.to_thread(
+                                response = await _to_thread_safe(
                                     client.chat.completions.create,
                                     model=fallback_model,
                                     messages=messages,
@@ -2975,7 +2994,7 @@ class BYOKHandler:
                                     f"patch={heal_result.rule} keys={heal_result.patched_keys}"
                                 )
                                 try:
-                                    response = await asyncio.to_thread(
+                                    response = await _to_thread_safe(
                                         client.chat.completions.create,
                                         **heal_result.patched_kwargs
                                     )
@@ -3038,7 +3057,7 @@ class BYOKHandler:
                         paid_model = _opencode_paid_fallback_model(model)
                         if paid_model and paid_model != model:
                             try:
-                                response = await asyncio.to_thread(
+                                response = await _to_thread_safe(
                                     client.chat.completions.create,
                                     model=paid_model,
                                     messages=messages,
@@ -4050,7 +4069,7 @@ class BYOKHandler:
                         # to_thread: instructor here wraps the SYNC client — a
                         # bare call blocked the loop for the whole structured
                         # round trip (same starvation as generate_response).
-                        result = await asyncio.to_thread(
+                        result = await _to_thread_safe(
                             instructor_client.chat.completions.create, **_create_kwargs
                         )
                     except Exception as _reasoning_reject:
@@ -4060,7 +4079,7 @@ class BYOKHandler:
                         # the extra_body rather than failing the stage.
                         if "reasoning" in str(_reasoning_reject).lower() and _create_kwargs.get("extra_body"):
                             _create_kwargs.pop("extra_body", None)
-                            result = await asyncio.to_thread(
+                            result = await _to_thread_safe(
                                 instructor_client.chat.completions.create, **_create_kwargs
                             )
                         else:
@@ -4075,7 +4094,7 @@ class BYOKHandler:
                             f"soft-SC logprobs request failed for {provider_id}/{model} "
                             f"({_soft_exc}); retrying once without logprobs"
                         )
-                        result = await asyncio.to_thread(
+                        result = await _to_thread_safe(
                             instructor_client.chat.completions.create, **_create_kwargs
                         )
                     self._capture_echoed_model(result)  # reads _raw_response.model
@@ -4630,7 +4649,7 @@ class BYOKHandler:
                 }
             ]
 
-            response = await asyncio.to_thread(
+            response = await _to_thread_safe(
                 client.chat.completions.create,
                 model=model,
                 messages=messages,

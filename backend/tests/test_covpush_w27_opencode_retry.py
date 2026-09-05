@@ -105,16 +105,44 @@ class TestFreeToPaidRetry:
         assert calls[1].kwargs["model"] == "minimax-m2.7"
 
     def test_free_model_balance_error_paid_also_fails(self, handler):
+        """Free model hits the balance error, the paid fallback fails too, and
+        the R83 free-tier walk exhausts — the handler gives up with the
+        standard couldn't-generate text.
+
+        The side_effect is a scripted FUNCTION, not a finite list: an
+        exhausted MagicMock side_effect list raises StopIteration inside the
+        to_thread worker, which crashes asyncio's future-chaining callback
+        (set_exception forbids StopIteration) and hangs the awaiting coroutine
+        forever — the 6h CI backend-tests timeout on 2026-09-05. This chain
+        makes MORE calls than a two-entry list once the free-tier walk exists.
+        """
         client = handler.clients["opencode-go"]
-        client.chat.completions.create.side_effect = [
-            Exception(CREDITS_ERROR),
-            Exception("paid model 500"),
-        ]
+        script = [Exception(CREDITS_ERROR), Exception("paid model 500")]
+        state = {"n": 0}
+
+        def _fail_scripted(*a, **kw):
+            n = state["n"]
+            state["n"] += 1
+            if n < len(script):
+                raise script[n]
+            raise Exception(f"free-tier fallback attempt {n} also failed")
+
+        client.chat.completions.create.side_effect = _fail_scripted
         result = asyncio.run(handler.generate_response(
             prompt="test",
             system_instruction="You are helpful",
         ))
         assert "couldn't generate" in result.lower()
+        models = [
+            c.kwargs.get("model")
+            for c in client.chat.completions.create.call_args_list
+        ]
+        # Balance error on the free model → one paid retry (same request),
+        # then the R83 free-tier walk — never a self-retry of the paid model.
+        assert models[0] == "deepseek-v4-flash-free"
+        assert models[1] == "deepseek-v4-flash"
+        assert len(models) > 2
+        assert all(m != "deepseek-v4-flash" for m in models[2:])
 
     def test_free_model_non_balance_error_no_paid_retry(self, handler):
         client = handler.clients["opencode-go"]
@@ -170,3 +198,31 @@ class TestFreeToPaidRetry:
         assert result == "free tier answer"
         calls = client.chat.completions.create.call_args_list
         assert calls[1].kwargs["model"].endswith("-free")
+
+
+class TestToThreadSafe:
+    """The 2026-09-05 CI hang guard: StopIteration escaping into the executor
+    future must surface as a normal error, never freeze the awaiting caller."""
+
+    def test_stop_iteration_becomes_runtime_error(self):
+        from core.llm.byok_handler import _to_thread_safe
+
+        def _exhausted():
+            raise StopIteration
+
+        async def _run():
+            return await _to_thread_safe(_exhausted)
+
+        with pytest.raises(RuntimeError, match="StopIteration"):
+            asyncio.run(_run())
+
+    def test_passthrough_result_and_exception(self):
+        from core.llm.byok_handler import _to_thread_safe
+
+        assert asyncio.run(_to_thread_safe(lambda: "ok")) == "ok"
+
+        def _boom():
+            raise ValueError("real error")
+
+        with pytest.raises(ValueError, match="real error"):
+            asyncio.run(_to_thread_safe(_boom))
