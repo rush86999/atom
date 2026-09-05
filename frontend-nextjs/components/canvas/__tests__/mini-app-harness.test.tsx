@@ -65,12 +65,31 @@ describe("MiniAppHarness", () => {
   });
 
   it("disables run/publish/install until scaffolded", async () => {
+    rpcMock.call.mockResolvedValue({ success: true, apps: [] });
     renderHarness();
     expand();
     // Dev-Run / Publish / Install require an app_id.
     expect((screen.getByText("Dev-Run (dry)").closest("button") as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByText("Publish").closest("button") as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByText("Install").closest("button") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("reconnects to the draft app after a reload (blueprint match via mini_app_list)", async () => {
+    rpcMock.call.mockImplementation(async (action: string) => {
+      if (action === "mini_app_list") {
+        return {
+          success: true,
+          apps: [{ id: "app-reload99", name: "Draft", blueprint_canvas_id: "canvas-1" }],
+        };
+      }
+      return { success: true };
+    });
+    renderHarness();
+    expand();
+    await waitFor(() => {
+      expect(screen.getByText("app-relo")).toBeInTheDocument(); // badge restored
+      expect((screen.getByText("Dev-Run (dry)").closest("button") as HTMLButtonElement).disabled).toBe(false);
+    });
   });
 
   it("scaffolds a draft app and shows the app badge + notice", async () => {
@@ -194,6 +213,35 @@ describe("MiniAppHarness", () => {
     );
   });
 
+  it("builds on any base canvas type: inherits the host canvas kind, passes spec.canvas_type", async () => {
+    rpcMock.call.mockResolvedValue({ success: true, app_id: "app-inv", canvas_id: "bp-inv", logic_source: "" });
+    // Mounted on an existing sheets canvas → base type pre-filled.
+    renderHarness({ canvasType: "sheets" });
+    expand();
+    const typeInput = screen.getByPlaceholderText(/crm · accounting/);
+    expect(typeInput).toHaveValue("sheets");
+    // The user re-targets the app family — any slug is allowed (crm, inventory…).
+    fireEvent.change(typeInput, { target: { value: "inventory" } });
+    fireEvent.click(screen.getByText("Scaffold"));
+    await waitFor(() => {
+      expect(rpcMock.call).toHaveBeenCalledWith(
+        "mini_app_scaffold",
+        expect.objectContaining({ spec: { canvas_type: "inventory" } })
+      );
+      expect(screen.getByText(/\(on inventory\)/)).toBeInTheDocument();
+    });
+  });
+
+  it("sends no canvas_type when the base type is the native mini_app", async () => {
+    rpcMock.call.mockResolvedValue({ success: true, app_id: "app-plain", canvas_id: "bp-plain" });
+    renderHarness();
+    expand();
+    fireEvent.click(screen.getByText("Scaffold"));
+    await waitFor(() =>
+      expect(rpcMock.call).toHaveBeenCalledWith("mini_app_scaffold", expect.objectContaining({ spec: {} }))
+    );
+  });
+
   it("defaults the app name to Untitled Mini-App", async () => {
     rpcMock.call.mockResolvedValue({ success: true, app_id: "app-0", canvas_id: "bp-0" });
     renderHarness();
@@ -266,6 +314,30 @@ describe("MiniAppHarness", () => {
       )
     );
     expect(screen.getByText(/Logic saved/)).toBeInTheDocument();
+  });
+
+  it("saves with the agentId prop (R89 governance requires an AUTONOMOUS agent id)", async () => {
+    apiClientMock.put.mockResolvedValue({ data: { success: true } });
+    renderHarness({ agentId: "agent-autonomous-1" });
+    expand();
+    await waitFor(() =>
+      expect((screen.getByText("Save Logic").closest("button") as HTMLButtonElement).disabled).toBe(false)
+    );
+    fireEvent.click(screen.getByText("Save Logic"));
+    await waitFor(() =>
+      expect(apiClientMock.put).toHaveBeenCalledWith(
+        "/api/canvas/canvas-1/logic",
+        expect.objectContaining({ agent_id: "agent-autonomous-1" })
+      )
+    );
+  });
+
+  it("shows journey guidance when expanded (agent-run path + Firecracker gate)", async () => {
+    renderHarness();
+    expect(screen.queryByText(/give it to your agent/i)).not.toBeInTheDocument();
+    expand();
+    expect(screen.getByText(/give it to your agent/i)).toBeInTheDocument();
+    expect(screen.getByText(/Firecracker microVM/)).toBeInTheDocument();
   });
 
   it("dev-runs the blueprint: saves latest source, renders stdout/exit code/state/ops", async () => {

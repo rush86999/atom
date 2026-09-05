@@ -238,6 +238,42 @@ class CanvasTypeRegistry:
         """Get all registered canvas types."""
         return self._types.copy()
 
+    def register_type(self, canvas_type: str, metadata: Optional["CanvasTypeMetadata"] = None) -> bool:
+        """Register a canvas type; returns True if it was added, False if known.
+
+        Generalization path for app families beyond the seeded enum (e.g. a
+        mini-app scaffolded on base type "crm" or "inventory"): unknown
+        well-formed slugs get a generic default — full component freedom,
+        student maturity floor, standard layouts — so governance and
+        metadata lookups stay consistent instead of each caller hardcoding a
+        type list. Idempotent: known types are left untouched.
+        """
+        if canvas_type in self._types:
+            return False
+        if metadata is None:
+            display = canvas_type.replace("_", " ").replace("-", " ").strip().title()
+            metadata = CanvasTypeMetadata(
+                canvas_type=canvas_type,
+                display_name=f"{display} Canvas" if display else canvas_type,
+                description=(
+                    f"App-family canvas type '{canvas_type}' (auto-registered on first use "
+                    "as a mini-app base type)."
+                ),
+                components=["line_chart", "bar_chart", "pie_chart", "markdown", "form", "status_panel"],
+                layouts=["single_column", "basic_grid", "split_view"],
+                min_maturity=MaturityLevel.STUDENT,
+                permissions={
+                    MaturityLevel.STUDENT: ["view", "create"],
+                    MaturityLevel.INTERN: ["view", "create", "update"],
+                    MaturityLevel.SUPERVISED: ["view", "create", "update", "delete"],
+                    MaturityLevel.AUTONOMOUS: ["view", "create", "update", "delete", "share"],
+                },
+                examples=[],
+            )
+        self._types[canvas_type] = metadata
+        logger.info("Canvas type '%s' auto-registered (generic defaults)", canvas_type)
+        return True
+
     def validate_canvas_type(self, canvas_type: str) -> bool:
         """
         Validate if a canvas type is registered.

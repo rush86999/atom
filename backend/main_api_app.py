@@ -415,6 +415,16 @@ async def lifespan(app: FastAPI):
     logger.info("ATOM Platform Starting (Hybrid Mode)")
     logger.info("=" * 60)
 
+    # Wipe detector (incident 2026-09-04): a stray script emptied the dev DB
+    # and the app re-seeded a blank world without complaint. Best-effort,
+    # never blocks startup — see core/db_safety.py.
+    try:
+        from core.db_safety import check_wipe_at_startup
+
+        check_wipe_at_startup()
+    except Exception as e:
+        logger.debug(f"startup db wipe check skipped: {e}")
+
     # 0. Initialize Database
     try:
         logger.info("Initializing database tables...")
@@ -568,6 +578,23 @@ async def lifespan(app: FastAPI):
             await intelligence_worker.start()
         except Exception:
             pass
+
+        # 4b. Fact-watch poller — proactive re-checking of live facts an
+        # agent grounded an artifact on (stock in a quoted email, deal
+        # stage, invoice status). Providers self-register from the
+        # integrations side; the poll interval is env-tunable and 0
+        # disables the loop entirely.
+        try:
+            from core.fact_watch import get_fact_watch_service
+            import integrations.fact_watch_providers  # noqa: F401 — registers checkers/extractors
+
+            _poll_interval = int(
+                os.getenv("FACT_WATCH_POLL_INTERVAL_SECONDS", "300"))
+            await get_fact_watch_service().start(
+                interval_seconds=_poll_interval)
+        except Exception as fw_err:
+            logger.warning(f"fact watch poller failed to start: {fw_err}")
+
         # 5. Crash Recovery — reconcile executions orphaned in RUNNING by a
         # process crash. Previously this slot imported core.startup_tasks
         # (run_startup_maintenance), a module that did not exist, so the

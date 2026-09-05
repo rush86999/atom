@@ -45,6 +45,8 @@ interface CanvasMessage {
     reasoning?: string;
     executionId?: string;
     agentId?: string;
+    /** Company playbooks that guided this reply's canvas edit (P3 transparency). */
+    matchedPlaybooks?: { id: string; name: string }[];
 }
 
 export default function CanvasDetailPage() {
@@ -252,6 +254,9 @@ export default function CanvasDetailPage() {
         chatEndRef.current?.scrollIntoView({ behavior });
     }, [messages, isAgentResponding, sideTab]);
     const [trainingCtx, setTrainingCtx] = useState<CanvasTrainingContext | null>(null);
+    // Playbook drafts awaiting review (Playbook Journey P1) — badges the
+    // Training tab so corrections that drafted rules are visible from Chat.
+    const [playbookDraftCount, setPlaybookDraftCount] = useState(0);
 
     // The canvas's hires (explicit attachments) — step 2 of the journey.
     // A hire must be attached before data can be loaded (the Load data bar
@@ -602,6 +607,9 @@ export default function CanvasDetailPage() {
                 // Process" drawer always has the turn's thinking.
                 const restReasoningStep = reasoningTextToStep(data.reasoning);
                 const streamId = `stream_${data.session_id}`;
+                // P3 transparency: company playbooks that guided this edit
+                // (chat_routes maps the orchestrator's `data` to `metadata`).
+                const matchedPlaybooks = data.metadata?.canvas_edit?.matched_playbooks;
                 setMessages(prev => {
                     const streamed = prev.find(m => m.id === streamId);
                     if (streamed) {
@@ -615,6 +623,7 @@ export default function CanvasDetailPage() {
                             reasoningTrace: m.reasoningTrace?.length
                                 ? m.reasoningTrace
                                 : (restReasoningStep ? [restReasoningStep] : m.reasoningTrace),
+                            ...(matchedPlaybooks ? { matchedPlaybooks } : {}),
                         } : m));
                     }
                     return [...prev, {
@@ -627,6 +636,7 @@ export default function CanvasDetailPage() {
                         provider: data.provider ?? null,
                         reasoning: data.reasoning || undefined,
                         ...(restReasoningStep ? { reasoningTrace: [restReasoningStep] } : {}),
+                        ...(matchedPlaybooks ? { matchedPlaybooks } : {}),
                     }];
                 });
                 // The WS canvas:update broadcast is the primary live carrier,
@@ -998,7 +1008,28 @@ export default function CanvasDetailPage() {
                             )}
                         </div>
                         {canvasData && (
-                            <MiniAppHarness canvasId={canvasId as string} lastMessage={lastMessage} />
+                            <MiniAppHarness
+                                canvasId={canvasId as string}
+                                lastMessage={lastMessage}
+                                // Logic saves go through PUT /canvas/{id}/logic,
+                                // whose R89 governance gate requires an
+                                // AUTONOMOUS agent — without an id every
+                                // Save/Dev-Run 403s ("No agent provided",
+                                // observed live 2026-09-04). Prefer an
+                                // attached hire that qualifies; fall back to
+                                // the deep-linked agent like AutonomyPanel.
+                                agentId={
+                                    canvasAgents.find(
+                                        (a) => (a.maturity || "").toLowerCase() === "autonomous"
+                                    )?.agent_id ||
+                                    (router.query.agent_id as string) ||
+                                    undefined
+                                }
+                                // Default base type for new apps: the kind of
+                                // canvas the harness is mounted on, so a
+                                // sheets/email/… canvas extends its own kind.
+                                canvasType={canvasData?.canvas_type}
+                            />
                         )}
                     </div>
 
@@ -1035,6 +1066,15 @@ export default function CanvasDetailPage() {
                                     data-testid="canvas-side-tab-training"
                                 >
                                     <GraduationCap className="h-3.5 w-3.5" /> Training
+                                    {playbookDraftCount > 0 && (
+                                        <span
+                                            className="text-[9px] px-1 rounded-full bg-amber-500 text-white"
+                                            data-testid="training-draft-badge"
+                                            title={`${playbookDraftCount} playbook draft(s) awaiting review`}
+                                        >
+                                            {playbookDraftCount}
+                                        </span>
+                                    )}
                                 </button>
                                 <button
                                     role="tab"
@@ -1070,7 +1110,9 @@ export default function CanvasDetailPage() {
                                 key={`training-${attachNonce}`}
                                 canvasId={canvasId as string}
                                 agentIdHint={(router.query.agent_id as string) || undefined}
+                                canvasType={canvasData?.canvas_type}
                                 onContextLoaded={setTrainingCtx}
+                                onPlaybookDraftsChange={setPlaybookDraftCount}
                                 onAddAgent={() => setAttachOpen(true)}
                             />
                         ) : sideTab === "journey" ? (
@@ -1146,10 +1188,25 @@ export default function CanvasDetailPage() {
                                         />
                                     )}
                                     {msg.type === "assistant" && (
-                                        <ChatFeedbackControls
-                                            selected={msg.feedback ?? null}
-                                            onFeedback={(type, comment) => handleFeedback(msg, type, comment)}
-                                        />
+                                        <>
+                                            {!!msg.matchedPlaybooks?.length && (
+                                                <div className="flex flex-wrap gap-1 mt-1" data-testid="matched-playbooks">
+                                                    {msg.matchedPlaybooks.map(pb => (
+                                                        <span
+                                                            key={pb.id}
+                                                            className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
+                                                            title="An approved company playbook guided this reply"
+                                                        >
+                                                            📖 {pb.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <ChatFeedbackControls
+                                                selected={msg.feedback ?? null}
+                                                onFeedback={(type, comment) => handleFeedback(msg, type, comment)}
+                                            />
+                                        </>
                                     )}
                                 </div>
                             ))}

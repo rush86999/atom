@@ -28,6 +28,7 @@ import {
   ChevronUp,
   Code2,
   Radio,
+  Sparkles,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { rpc } from "@/lib/rpc-client";
@@ -36,6 +37,9 @@ interface MiniAppHarnessProps {
   canvasId: string;
   lastMessage?: any; // WS stream from the page's useWebSocket
   agentId?: string;
+  // The canvas type this panel is mounted on — the default base type for new
+  // apps, so authoring from inside a sheets/email/… canvas builds ON it.
+  canvasType?: string;
 }
 
 interface LogicRunResult {
@@ -62,7 +66,7 @@ interface DevRunResult extends LogicRunResult {
   state_changed?: boolean;
 }
 
-export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnessProps) {
+export function MiniAppHarness({ canvasId, lastMessage, agentId, canvasType }: MiniAppHarnessProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [source, setSource] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -84,6 +88,11 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
   const [appName, setAppName] = useState<string>("");
   const [declaredScopes, setDeclaredScopes] = useState<string>("canvas_render");
   const [dependencies, setDependencies] = useState<string>("");
+  // Base canvas kind the app builds ON — any slug (crm, accounting, inventory,
+  // sheets, …); defaults to the host canvas's type so authoring from inside an
+  // existing typed canvas extends it. The backend accepts any well-formed
+  // slug and self-registers unknown kinds.
+  const [baseType, setBaseType] = useState<string>(canvasType || "mini_app");
 
   // Live instance state previewed from the WS mini_app_state broadcast.
   const [liveState, setLiveState] = useState<{ version: number; data: Record<string, unknown> } | null>(null);
@@ -125,6 +134,27 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
     }
   }, [lastMessage, canvasId, installedCanvasId]);
 
+  // Reconnect after a page reload: appId lives in component state, so a
+  // refresh orphaned the draft — Dev-Run/Publish/Install stayed disabled
+  // until a fresh scaffold. Match the host canvas against the user's apps'
+  // blueprint canvases and restore the authoring target.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve(rpc.call("mini_app_list", {}))
+      .then((res: any) => {
+        if (cancelled || !res?.apps?.length) return;
+        const mine = res.apps.find((a: any) => a.blueprint_canvas_id === canvasId);
+        if (mine?.id) {
+          setAppId(mine.id);
+          setBlueprintCanvasId(mine.blueprint_canvas_id);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [canvasId]);
+
   const scopesList = useMemo(
     () => declaredScopes.split(",").map((s) => s.trim()).filter(Boolean),
     [declaredScopes]
@@ -138,11 +168,13 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
     setScaffolding(true);
     setError(null);
     setNotice(null);
+    const normalizedType = baseType.trim().toLowerCase();
     try {
       const res = (await rpc.call("mini_app_scaffold", {
         name: appName.trim() || "Untitled Mini-App",
         declared_scopes: scopesList,
         dependencies: depsList,
+        spec: normalizedType && normalizedType !== "mini_app" ? { canvas_type: normalizedType } : {},
       })) as MiniAppScaffoldResult;
       if (!res.success) {
         setError(res.error ?? "Scaffold failed");
@@ -152,7 +184,8 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
       setBlueprintCanvasId(res.canvas_id ?? null);
       if (res.logic_source) setSource(res.logic_source);
       setNotice(
-        `Draft app "${appName.trim() || "Untitled Mini-App"}" created (${res.app_id}). ` +
+        `Draft app "${appName.trim() || "Untitled Mini-App"}"` +
+          `${normalizedType && normalizedType !== "mini_app" ? ` (on ${normalizedType})` : ""} created (${res.app_id}). ` +
           `Source canvas: ${res.canvas_id}. Edit logic, then Dev-Run → Publish → Install.`
       );
     } catch (e) {
@@ -290,8 +323,24 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
 
       {!collapsed && (
         <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-3 min-h-0">
+          {/* Journey guidance: the panel is discoverable but the loop and its
+              gates (chat-first authoring, Firecracker-only execution) aren't
+              obvious from the button row alone. */}
+          <div className="px-2 py-1.5 text-[11px] text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/40 rounded flex gap-1.5">
+            <Sparkles className="h-3 w-3 shrink-0 mt-0.5 text-indigo-400" />
+            <span>
+              Easiest path: give it to your agent to code — run your hire (Agent
+              Workspace → Run) with e.g. &ldquo;scaffold a mini-app that tracks
+              expenses&rdquo; — and it drives scaffold → code → dev-run → test →
+              publish → install, while this panel shows the live state. Or author
+              manually below. Executions run in a Firecracker microVM: on hosts
+              without one, dev-run fails closed (operator setup:
+              docs/deployment/FIRECRACKER_HOST_SETUP.md).
+            </span>
+          </div>
+
           {/* Manifest editor */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <label className="flex flex-col gap-1 text-[10px] text-zinc-500">
               App name
               <input
@@ -300,6 +349,21 @@ export function MiniAppHarness({ canvasId, lastMessage, agentId }: MiniAppHarnes
                 placeholder="Expense Tracker"
                 className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 bg-transparent"
               />
+            </label>
+            <label className="flex flex-col gap-1 text-[10px] text-zinc-500">
+              Base canvas type (any kind)
+              <input
+                value={baseType}
+                onChange={(e) => setBaseType(e.target.value)}
+                list="miniapp-base-types"
+                placeholder="crm · accounting · sheets …"
+                className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 bg-transparent"
+              />
+              <datalist id="miniapp-base-types">
+                {["mini_app", "sheets", "docs", "email", "generic", "coding", "terminal", "orchestration"].map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
             </label>
             <label className="flex flex-col gap-1 text-[10px] text-zinc-500">
               Declared scopes (comma-sep)

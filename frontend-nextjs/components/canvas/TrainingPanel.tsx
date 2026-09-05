@@ -20,6 +20,7 @@ import {
   teachAgent,
   updateTrainingGuidance,
 } from "@/lib/maturity-api";
+import { PlaybookSection } from "./PlaybookSection";
 
 // Session statuses the supervisor can still work (and complete). Mirrors
 // _ACTIVE_SESSION_STATUSES on the backend.
@@ -51,7 +52,10 @@ function formatPointDate(iso: string): string {
  * trains the agent ON the canvas they are co-editing:
  *
  * - agent maturity card + career progress (episodes to next tier)
- * - teach a lesson (the learning channel, +confidence)
+ * - teach a lesson (the learning channel, +confidence), optionally ALSO as
+ *   a playbook draft (Playbook Journey P2 — structured steps awaiting
+ *   approval in the Playbooks section below)
+ * - playbooks: correction/taught drafts queue for one-click approval (P1)
  * - active training session: lesson editor, live evidence, suggested tasks
  *   (delivered over the training chat so the supervised pass is recorded as
  *   an episode), and the evidence-gated score & complete form
@@ -64,12 +68,18 @@ function formatPointDate(iso: string): string {
 export function TrainingPanel({
   canvasId,
   agentIdHint,
+  canvasType,
   onContextLoaded,
+  onPlaybookDraftsChange,
   onAddAgent,
 }: {
   canvasId: string;
   agentIdHint?: string;
+  /** The open canvas's type — the teach-as-playbook trigger chip (P2). */
+  canvasType?: string;
   onContextLoaded?: (ctx: CanvasTrainingContext) => void;
+  /** Draft-playbook count for the Training tab badge (P1). */
+  onPlaybookDraftsChange?: (count: number) => void;
   /** Canvas journey step 2: CTA to attach a hire when none resolves. */
   onAddAgent?: () => void;
 }) {
@@ -85,6 +95,8 @@ export function TrainingPanel({
   const [lesson, setLesson] = useState("");
   const [topic, setTopic] = useState("");
   const [teachBusy, setTeachBusy] = useState(false);
+  // P2: ALSO capture the lesson as a structured playbook draft.
+  const [asPlaybook, setAsPlaybook] = useState(false);
 
   // Lesson plan editor (objective + one-task-per-line)
   const [lessonDraft, setLessonDraft] = useState<{ objective: string; tasks: string }>({ objective: "", tasks: "" });
@@ -181,17 +193,24 @@ export function TrainingPanel({
     try {
       // canvasId rides along so the lesson stores WHAT it was taught on —
       // retrieval later shows the agent the canvas context, not just the rule.
-      const result = await teachAgent(agent.id, lesson.trim(), topic.trim() || undefined, canvasId);
+      const result = await teachAgent(agent.id, lesson.trim(), topic.trim() || undefined, canvasId, {
+        asPlaybook,
+        playbookCanvasType: asPlaybook ? canvasType : undefined,
+      });
       const status = String((result as Record<string, unknown>).status ?? "ok");
+      const draftedPlaybook = Boolean((result as Record<string, unknown>).playbook_id);
       setNotice(
         status === "ok"
-          ? `Lesson recorded — ${agent.name}'s confidence grew.`
+          ? draftedPlaybook
+            ? `Lesson recorded — playbook draft created below for approval.`
+            : `Lesson recorded — ${agent.name}'s confidence grew.`
           : status === "skipped"
             ? `${agent.name} is not a STUDENT — lessons apply to students (training confers maturity, learning alone never does).`
             : "Lesson recorded."
       );
       setLesson("");
       setTopic("");
+      setAsPlaybook(false);
       // The journal below should show the point just taught — refresh.
       if (status === "ok") await load();
     } catch (e) {
@@ -593,6 +612,22 @@ export function TrainingPanel({
                 {teachBusy ? "Teaching…" : "Teach"}
               </Button>
             </div>
+            <label
+              className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+              data-testid="teach-as-playbook-toggle"
+            >
+              <input
+                type="checkbox"
+                checked={asPlaybook}
+                onChange={(e) => setAsPlaybook(e.target.checked)}
+                className="h-3 w-3"
+                aria-label="Save as playbook draft"
+              />
+              Save as playbook — the steps become a draft rule for review below
+              {asPlaybook && canvasType && (
+                <span className="px-1 rounded bg-muted" data-testid="teach-as-playbook-canvas-type">{canvasType}</span>
+              )}
+            </label>
             <p className="text-[10px] text-muted-foreground">Learning grows confidence, but only training + graduation confer maturity.</p>
           </div>
 
@@ -648,6 +683,13 @@ export function TrainingPanel({
               )}
             </div>
           )}
+
+          {/* Playbooks — the review queue (Playbook Journey P1): correction
+              and taught drafts wait here for one-click approval. */}
+          <PlaybookSection
+            isSupervisor={isSupervisor}
+            onDraftsCountChange={onPlaybookDraftsChange}
+          />
 
           {/* Graduation (supervisor) */}
           {isSupervisor && (

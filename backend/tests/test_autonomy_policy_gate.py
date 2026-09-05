@@ -221,3 +221,97 @@ def test_gate_topics_have_governance_metadata():
         assert meta["min_maturity"] in ("student", "intern", "supervised", "autonomous")
         assert meta["trust_domain"]
         assert 0.0 < float(meta.get("trust_threshold", ap.AUTONOMY_TRUST_THRESHOLD)) <= 1.0
+
+
+# ───────────── auto_until_corrected: the earned-autonomy cycle ─────────────
+
+
+def test_set_mode_accepts_until_corrected(fresh_db):
+    with fresh_db() as db:
+        assert ap.set_mode(db, "u-1", "send_email", "auto_until_corrected") is True
+        assert ap.get_effective_mode(db, "u-1", "send_email") == "auto_until_corrected"
+        assert ap.set_mode(db, "u-1", "send_email", "sometimes") is False
+
+
+def test_topic_for_action_maps_proposal_types():
+    assert ap.topic_for_action("send_email") == "send_email"
+    assert ap.topic_for_action("update_contact") == "crm_write"
+    assert ap.topic_for_action("update_canvas") == "canvas_edit"
+    assert ap.topic_for_action("pdf_canvas_edit") == "pdf_canvas"
+    assert ap.topic_for_action("unknown_thing") is None
+    assert ap.topic_for_action(None) is None
+
+
+def test_until_corrected_executes_when_cycle_never_earned(fresh_db):
+    """No capability_maturities entry for the topic → the career tier decides,
+    exactly as under auto_if_mature (legacy agents unaffected)."""
+    with fresh_db() as db:
+        _agent(db, "hire-1", verified=0, total=0)
+        ap.set_mode(db, "u-1", "canvas_edit", "auto_until_corrected")
+        with patch(
+            "core.service_factory.ServiceFactory.get_governance_service",
+            return_value=_gov(allowed=True, agent_status="supervised", required="intern"),
+        ):
+            gate = ap.gate_for_topic(db, "u-1", "canvas_edit", "hire-1")
+    assert gate["outcome"] == ap.OUTCOME_EXECUTE
+    assert gate["cycle"]["tier"] is None
+
+
+def test_correction_reset_proposes_until_reearned(fresh_db):
+    """The full cycle: a human correction drops the capability tier to
+    student → propose; verified work re-graduates it (5 → intern, the
+    canvas_edit bar) → executes again."""
+    with fresh_db() as db:
+        _agent(db, "hire-1", verified=0, total=0)
+        ap.set_mode(db, "u-1", "canvas_edit", "auto_until_corrected")
+
+        assert ap.reset_autonomy_cycle(db, "hire-1", "canvas_edit",
+                                       reason="user correction") is True
+        with patch(
+            "core.service_factory.ServiceFactory.get_governance_service",
+            return_value=_gov(allowed=True, agent_status="supervised", required="intern"),
+        ):
+            gate = ap.gate_for_topic(db, "u-1", "canvas_edit", "hire-1")
+        assert gate["outcome"] == ap.OUTCOME_PROPOSE
+        assert gate["cycle"]["reset"] is True
+        assert gate["cycle"]["tier"] == "student"
+        assert "correction" in gate["reason"].lower()
+
+        # Re-earn: 5 VERIFIED successes graduate the capability to intern,
+        # the canvas_edit bar — autonomy restored without a tier bump.
+        from core.capability_graduation_service import CapabilityGraduationService
+
+        grad = CapabilityGraduationService(db)
+        for _ in range(5):
+            grad.record_usage("hire-1", "canvas_edit", success=True,
+                              verified="verified")
+        with patch(
+            "core.service_factory.ServiceFactory.get_governance_service",
+            return_value=_gov(allowed=True, agent_status="supervised", required="intern"),
+        ):
+            gate = ap.gate_for_topic(db, "u-1", "canvas_edit", "hire-1")
+        assert gate["outcome"] == ap.OUTCOME_EXECUTE
+        assert gate["cycle"]["tier"] == "intern"
+        assert gate["cycle"]["reset"] is False
+
+
+def test_other_modes_ignore_cycle_entry(fresh_db):
+    """A stale reset entry must not gate hires under the older modes."""
+    with fresh_db() as db:
+        _agent(db, "hire-1", verified=0, total=0)
+        ap.reset_autonomy_cycle(db, "hire-1", "canvas_edit")
+        ap.set_mode(db, "u-1", "canvas_edit", ap.MODE_AUTO_IF_MATURE)
+        with patch(
+            "core.service_factory.ServiceFactory.get_governance_service",
+            return_value=_gov(allowed=True, agent_status="supervised", required="intern"),
+        ):
+            gate = ap.gate_for_topic(db, "u-1", "canvas_edit", "hire-1")
+    assert gate["outcome"] == ap.OUTCOME_EXECUTE
+    assert gate["cycle"] is None
+
+
+def test_cycle_unknown_hire_failopen(fresh_db):
+    with fresh_db() as db:
+        cycle = ap.autonomy_cycle(db, "ghost-agent", "canvas_edit")
+    assert cycle["ok"] is True
+    assert cycle["tier"] is None

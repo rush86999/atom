@@ -434,6 +434,23 @@ async def teach_agent(
     # Best-effort capture of the canvas the lesson was taught on (right
     # panel) — None when the canvas is missing; never blocks the teach.
     canvas_context = build_canvas_context(db, req.canvas_id)
+
+    def _capture_playbook_draft():
+        """Playbook Journey P2: turn the lesson into a structured playbook
+        draft (source=taught). Fault-isolated — a capture failure never
+        fails the teach; returns the row id or None."""
+        try:
+            from core.playbook_service import PlaybookService
+
+            row = PlaybookService(db, tenant_id=tenant_id, workspace_id=workspace_id).create_from_teach(
+                req.lesson, agent_id=str(current_user.id),
+                trigger_canvas_type=req.playbook_canvas_type,
+            )
+            return row.id
+        except Exception as pb_err:
+            logger.debug(f"teach playbook capture skipped: {pb_err}")
+            return None
+
     result = learning.learn_from_teacher(
         student_agent_id=agent_id,
         teacher_agent_id=req.acting_agent_id or "human_supervisor",
@@ -464,11 +481,18 @@ async def teach_agent(
                 canvas_context=canvas_context,
             )
             if journaled:
+                # Playbook Journey P2: the as_playbook capture rides ANY path
+                # where the lesson actually landed — standing-guidance lessons
+                # (the path most mature hires take) draft playbooks too, or
+                # the UI toggle would silently do nothing for them.
+                playbook_id = _capture_playbook_draft() if req.as_playbook else None
                 return router.success_response(
                     data={"status": "ok", "mode": "standing_guidance",
-                          "agent_status": agent.status},
+                          "agent_status": agent.status,
+                          **({"playbook_id": playbook_id} if playbook_id else {})},
                     message=(f"Lesson recorded as standing guidance for {agent.name} "
-                             f"({agent.status.upper()}) — it applies to all their work"),
+                             f"({agent.status.upper()}) — it applies to all their work")
+                            + (" (playbook draft created — approve it in Playbooks)" if playbook_id else ""),
                 )
         return router.success_response(
             data={"status": "skipped", "reason": result.get("reason"),
@@ -493,18 +517,7 @@ async def teach_agent(
     # the lesson ALSO becomes a playbook draft (process steps + question
     # templates) awaiting supervisor approval. Fault-isolated: a playbook
     # capture failure never fails the teach itself.
-    playbook_id = None
-    if req.as_playbook:
-        try:
-            from core.playbook_service import PlaybookService
-
-            row = PlaybookService(db, tenant_id=tenant_id, workspace_id=workspace_id).create_from_teach(
-                req.lesson, agent_id=str(current_user.id),
-                trigger_canvas_type=req.playbook_canvas_type,
-            )
-            playbook_id = row.id
-        except Exception as pb_err:
-            logger.debug(f"teach playbook capture skipped: {pb_err}")
+    playbook_id = _capture_playbook_draft() if req.as_playbook else None
 
     return router.success_response(
         data={**result, **({"playbook_id": playbook_id} if playbook_id else {})},

@@ -18,6 +18,25 @@ BACKEND_DIR="$(cd "$(dirname "$0")/../backend" && pwd)"
 LOG_FILE="${LOG_FILE:-$BACKEND_DIR/logs/uvicorn_8001_restart.log}"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-90}"
 
+# Snapshot the dev DB BEFORE touching the server (incident 2026-09-04: a
+# stray script emptied backend/data/atom.db and no fresh backup existed).
+# WAL-safe via the sqlite3 backup command, then gzipped — this box is
+# disk-constrained (sqlite text compresses ~4x). Keeps the last 5.
+DB_PATH="$BACKEND_DIR/data/atom.db"
+if [ -f "$DB_PATH" ]; then
+    BACKUP_DIR="$BACKEND_DIR/data/backups"
+    mkdir -p "$BACKUP_DIR"
+    TS=$(date +%Y%m%d-%H%M%S)
+    SNAP="$BACKUP_DIR/atom-pre-restart-$TS.db"
+    if sqlite3 "$DB_PATH" ".backup '$SNAP'" 2>/dev/null && gzip -f "$SNAP" 2>/dev/null; then
+        ls -t "$BACKUP_DIR"/atom-pre-restart-*.db.gz 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null
+        echo "==> DB snapshot: $SNAP.gz"
+    else
+        rm -f "$SNAP"
+        echo "!! WARNING: DB snapshot failed (continuing) — is sqlite3 installed?"
+    fi
+fi
+
 echo "==> Stopping existing backend instance(s) on port $PORT"
 pkill -f "uvicorn main_api_app:app" 2>/dev/null
 sleep 2

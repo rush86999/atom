@@ -65,15 +65,15 @@ class ProposalService:
         if not agent:
             raise ValueError(f"Agent {intern_agent_id} not found")
 
+        # Proposal creation is the LEARNING tiers' channel: STUDENT and
+        # INTERN hires propose, a human approves/corrects/rejects, and the
+        # outcome feeds training (episodes + corrections below). Originally
+        # the Bug 8 fix hard-blocked every non-INTERN status; per the
+        # supervisor directive ("a student can be asked to propose and edit
+        # for teaching") STUDENT now proposes too — the block remains for
+        # operational tiers (SUPERVISED/AUTONOMOUS execute directly) and
+        # non-operational statuses, still fail-closed.
         if str(agent.status).lower() not in ("student", "intern"):
-            # Proposal creation is the LEARNING tiers' channel: STUDENT and
-            # INTERN hires propose, a human approves/corrects/rejects, and the
-            # outcome feeds training (episodes + corrections below). Originally
-            # the Bug 8 fix hard-blocked every non-INTERN status; per the
-            # supervisor directive ("a student can be asked to propose and edit
-            # for teaching") STUDENT now proposes too — the block remains for
-            # operational tiers (SUPERVISED/AUTONOMOUS execute directly) and
-            # non-operational statuses, still fail-closed.
             raise PermissionError(
                 f"Agent {intern_agent_id} is not an INTERN agent eligible to propose "
                 f"(status: {agent.status}). Proposal creation is limited to the "
@@ -346,6 +346,25 @@ Please review and approve or reject this proposal.
             reason=reason,
             context=f"Rejection of proposal {proposal.id}"
         )
+
+        # A rejected proposal is a human correction: under
+        # auto_until_corrected topics it resets the hire's EARNED autonomy
+        # for that action's topic (propose again until re-earned).
+        try:
+            from core.autonomy_policy import reset_autonomy_cycle, topic_for_action
+
+            action_type = (
+                proposal.proposed_action.get("action_type")
+                if isinstance(proposal.proposed_action, dict) else None
+            )
+            cycle_topic = topic_for_action(action_type)
+            if cycle_topic:
+                reset_autonomy_cycle(
+                    self.db, proposal.agent_id, cycle_topic,
+                    reason=f"proposal rejected: {(reason or '')[:80]}",
+                )
+        except Exception as cycle_err:
+            logger.debug(f"autonomy cycle reset skipped: {cycle_err}")
 
         logger.info(
             f"Rejected proposal {proposal_id} by user {user_id}. Reason: {reason}"

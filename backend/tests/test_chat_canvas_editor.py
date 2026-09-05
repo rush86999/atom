@@ -126,6 +126,27 @@ async def test_editor_prompt_demands_preservation_and_excludes_sends():
 
 
 @pytest.mark.asyncio
+async def test_editor_prompt_excludes_teaching_points_and_pure_lookups():
+    """Teaching points / norms ("this will be the norm", "use different
+    keywords when you search") and pure research turns ("web search X")
+    must not read as edit requests: live 2026-09-04 on canvas ff2dc9ee both
+    "wg-350 or other simpler different formatted searches ... might help"
+    and "can you web search hydmech technical details?" applied unasked
+    edits to the supervisor's email draft. The mixed case ("update cc to
+    ... this will be the norm") must still edit — the prompt pins the
+    explicit-edit-only reading."""
+    llm = MagicMock()
+    llm._get_handler.return_value.clients = {}
+    llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(wants_edit=False))
+    await plan_canvas_edit("this will be the norm", [], _canvas(), llm)
+    prompt = llm.generate_structured_response.call_args.kwargs["prompt"]
+    assert "TEACHING POINTS" in prompt              # norms are wants_edit=false
+    assert "do not change my writing" in prompt     # named as guidance, not edits
+    assert "change NOW" in prompt                   # mixed message = explicit edit only
+    assert "web search" in prompt                   # lookups answer in chat
+
+
+@pytest.mark.asyncio
 async def test_plan_prompt_carries_sender_identity_and_bans_cc_guessing():
     """Sender identity rides into the prompt as resolved data. Without it,
     "i added my signature, adjust" made the editor GUESS the sender's name

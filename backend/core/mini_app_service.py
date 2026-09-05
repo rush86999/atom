@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import textwrap
 import uuid
 from dataclasses import replace
@@ -48,7 +49,35 @@ _MINIAPP_STATE_MARKER = "__MINIAPP_STATE__:"
 # Default max bytes per injected asset object (manifest storage config).
 DEFAULT_ASSET_INJECTION_CAP = 5 * 1024 * 1024  # 5 MiB
 
+# Valid storage backends for the manifest storage config.
 _VALID_STORAGE_BACKENDS = {"local", "cloud", "auto"}
+
+# Base canvas types a mini-app can build on (manifest["canvas_type"]).
+# "mini_app" is the native default; ANY other app family is buildable — the
+# type is a free slug ("crm", "accounting", "inventory", "sheets", …) that
+# becomes the blueprint/instance Canvas.canvas_type, so the typed view
+# applies. Unknown slugs self-register in canvas_type_registry with generic
+# defaults (no hardcoded domain list).
+NATIVE_BASE_CANVAS_TYPE = "mini_app"
+_BASE_CANVAS_TYPE_RE = re.compile(r"[a-z][a-z0-9_-]{0,49}")
+
+
+def _validate_base_canvas_type(canvas_type: str) -> str:
+    """Normalize + validate a base canvas type; register unknown kinds.
+
+    Raises ``ValueError`` when the slug is malformed — the string is the
+    contract, so any app kind is expressible without backend changes.
+    """
+    normalized = (canvas_type or "").strip().lower()
+    if not _BASE_CANVAS_TYPE_RE.fullmatch(normalized):
+        raise ValueError(
+            "Base canvas type must be a slug matching [a-z][a-z0-9_-]{0,49} "
+            f"(e.g. 'crm', 'accounting', 'inventory', 'sheets'); got {canvas_type!r}"
+        )
+    from core.canvas_type_registry import canvas_type_registry
+
+    canvas_type_registry.register_type(normalized)
+    return normalized
 
 # Host pre-fetched data-source types (read bridge). Extensible: a new entry
 # only needs an injector in _inject_data_sources + a validate_manifest entry.
@@ -96,6 +125,11 @@ def validate_manifest(manifest: Any) -> None:
     deps = manifest.get("dependencies", [])
     if not isinstance(deps, list) or not all(isinstance(d, str) for d in deps):
         raise ValueError("manifest.dependencies must be a list of strings")
+
+    if manifest.get("canvas_type") is not None:
+        if not isinstance(manifest.get("canvas_type"), str):
+            raise ValueError("manifest.canvas_type must be a string")
+        _validate_base_canvas_type(manifest["canvas_type"])
 
     base_image = manifest.get("base_image", "python:3.11-slim")
     if base_image not in _base_image_allowlist():
@@ -368,12 +402,16 @@ def scaffold(
 ) -> Tuple[Any, str]:
     """Create a source canvas + starter logic + draft MiniApp. Returns (app, canvas_id)."""
     from core.canvas_logic_service import CanvasLogicService
-    from core.models import Canvas, CanvasLogic, MiniApp
+    from core.models import Canvas, CanvasAudit, CanvasLogic, MiniApp
 
     tenant_id = getattr(viewer, "tenant_id", None) or "default"
     workspace_id = getattr(viewer, "workspace_id", None)
     base_image = spec.get("base_image", "python:3.11-slim")
     description = spec.get("description")
+    # The base canvas type is the View the app builds ON: the blueprint (and
+    # every installed instance) renders with that type's view. Default keeps
+    # the native mini_app type.
+    canvas_type = _validate_base_canvas_type(str(spec.get("canvas_type") or NATIVE_BASE_CANVAS_TYPE))
 
     canvas_id = str(uuid.uuid4())
     app_id = str(uuid.uuid4())
@@ -384,7 +422,7 @@ def scaffold(
         created_by=str(viewer.id),
         name=name,
         description=description,
-        canvas_type="mini_app",
+        canvas_type=canvas_type,
         content={"blocks": []},
         style={},
         is_collaborative=True,
@@ -408,7 +446,22 @@ def scaffold(
         created_by=str(viewer.id),
     )
 
+    # First audit row. read_canvas (GET /api/canvas/{id}, the canvas page's
+    # load path) serves FROM the audit trail — without a row a freshly
+    # scaffolded blueprint 404s on open ("Canvas not found"). The row also
+    # stamps the base canvas type so the page renders the typed view.
+    db.add(CanvasAudit(
+        canvas_id=canvas_id,
+        tenant_id=tenant_id,
+        action_type="mini_app_scaffold",
+        user_id=str(viewer.id),
+        canvas_type=canvas_type,
+        details_json={"app_id": app_id, "title": name, "content": {"blocks": []}},
+    ))
+    db.flush()
+
     manifest = _build_starter_manifest(name, declared_scopes, dependencies, base_image)
+    manifest["canvas_type"] = canvas_type
     validate_manifest(manifest)
 
     app = MiniApp(
@@ -490,6 +543,16 @@ def _llm_scaffold(name: str, spec: Dict[str, Any]) -> Optional[str]:
 # ===========================================================================
 # Publish — snapshot the blueprint (copy-on-install)
 # ===========================================================================
+def _bump_patch_version(version: str) -> str:
+    """Semver patch bump ("1.0.0" → "1.0.1"); unparsable strings get ".1"."""
+    parts = str(version or "1.0.0").split(".")
+    try:
+        parts[-1] = str(int(parts[-1]) + 1)
+        return ".".join(parts)
+    except ValueError:
+        return f"{version}.1"
+
+
 def publish(app: Any, db: Session, public: bool = False) -> Dict[str, Any]:
     """Scan deps + verify rootfs, snapshot source canvas into the blueprint.
 
@@ -571,6 +634,13 @@ def publish(app: Any, db: Session, public: bool = False) -> Dict[str, Any]:
     if isinstance(cleaned.get("initial_state"), dict):
         cleaned["initial_state"] = strip_credentials(cleaned["initial_state"])
     app.manifest = cleaned
+    # Updates ship as new versions: the FIRST publish keeps the scaffold
+    # version (1.0.0); every re-publish bumps the patch so the
+    # MiniAppInstallation.installed_version comparison can signal
+    # update-available. Without the bump a re-published app is invisible to
+    # every installed instance forever (installed_version never differs).
+    if app.status == "published":
+        app.version = _bump_patch_version(app.version)
     app.status = "published"
     # Gap C: optionally activate public/share. Publishing publicly mints a
     # share_token for the by-token install path. is_approved stays False until
@@ -619,6 +689,10 @@ def install(app: Any, viewer: Any, db: Session) -> str:
         instance_workspace = app.workspace_id if str(viewer.id) == str(app.created_by) else None
 
     new_id = str(uuid.uuid4())
+    # Instances render as the app's base canvas type (manifest["canvas_type"],
+    # e.g. "sheets" for an inventory tracker); apps authored before typed
+    # scaffolding have no manifest entry and keep the native "mini_app" type.
+    instance_canvas_type = (app.manifest or {}).get("canvas_type") or NATIVE_BASE_CANVAS_TYPE
     canvas = Canvas(
         id=new_id,
         tenant_id=instance_tenant,
@@ -626,7 +700,7 @@ def install(app: Any, viewer: Any, db: Session) -> str:
         created_by=str(viewer.id),
         name=app.name,
         description=app.description,
-        canvas_type="mini_app",
+        canvas_type=instance_canvas_type,
         content=blueprint.get("content"),
         style=blueprint.get("style"),
         is_collaborative=True,
@@ -676,7 +750,10 @@ def install(app: Any, viewer: Any, db: Session) -> str:
         tenant_id=instance_tenant,
         action_type="mini_app_install",
         user_id=str(viewer.id),
-        canvas_type="mini_app",
+        # The audit row IS what read_canvas serves to the canvas page — stamp
+        # the instance's real type so a typed app (inventory, crm, …) renders
+        # as that type on first open, not the native mini_app fallback.
+        canvas_type=instance_canvas_type,
         details_json={"app_id": app.id},
     ))
 
@@ -1325,8 +1402,17 @@ async def run_stateful(
         # Keep runtime failures generic in the response — the raised message
         # can carry env var names/values and FS paths (e.g. Firecracker
         # provisioning details) that must not reach the agent/API surface.
+        # The pointer stays actionable without secrets: mini_app_status
+        # surfaces the sanitized reason + the operator setup doc.
         logger.error("MiniApp run_stateful runtime error for %s: %s", canvas_id, e)
-        return {"success": False, "error": "Mini-app runtime unavailable"}
+        return {
+            "success": False,
+            "error": (
+                "Mini-app runtime unavailable on this host. Probe "
+                "mini_app_status for the reason; host setup: "
+                "docs/deployment/FIRECRACKER_HOST_SETUP.md"
+            ),
+        }
     except Exception as e:  # noqa: BLE001
         logger.error("MiniApp run_stateful failed for %s: %s", canvas_id, e)
         return {"success": False, "error": "Mini-app run failed"}
@@ -1651,15 +1737,19 @@ def record_logic_snapshot(
     actor_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Append a versioned checkpoint of the app logic to the audit trail."""
-    from core.models import CanvasAudit
+    from core.models import Canvas, CanvasAudit
 
+    # Stamp the canvas's real type — the audit trail is what read_canvas
+    # serves, so a typed blueprint must not read back as native mini_app.
+    canvas_row = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+    canvas_type = canvas_row.canvas_type if canvas_row is not None else NATIVE_BASE_CANVAS_TYPE
     version = _logic_version_number(db, canvas_id)
     db.add(CanvasAudit(
         canvas_id=canvas_id,
         tenant_id=tenant_id,
         action_type="mini_app_logic",
         user_id=actor_id,
-        canvas_type="mini_app",
+        canvas_type=canvas_type,
         details_json={"app_id": app_id, "version": version, "source": source},
     ))
     db.commit()

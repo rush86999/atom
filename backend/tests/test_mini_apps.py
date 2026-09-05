@@ -222,6 +222,41 @@ class TestScaffold:
         import ast
         ast.parse(logic.source)  # starter logic passes the syntax gate
 
+    def test_scaffold_base_canvas_type_any_kind(self, db_session):
+        """Any app family is buildable: spec.canvas_type becomes the blueprint's
+        type + the manifest record — known types, unknown slugs, malformed."""
+        from core.mini_app_service import scaffold, _validate_base_canvas_type
+        from core.canvas_type_registry import canvas_type_registry
+        viewer = type("U", (), {"id": "u1", "tenant_id": "t1", "workspace_id": "w1"})()
+
+        for kind in ("crm", "accounting", "inventory", "sheets"):
+            app, canvas_id = scaffold({"canvas_type": kind}, f"app-{kind}", ["canvas_render"], [], viewer, db_session)
+            canvas = db_session.query(Canvas).filter(Canvas.id == canvas_id).first()
+            assert canvas.canvas_type == kind, kind
+            assert app.manifest["canvas_type"] == kind, kind
+            # Unknown slugs self-register with generic defaults; known are kept.
+            assert canvas_type_registry.validate_canvas_type(kind), kind
+            # The scaffold audit row carries the type — read_canvas (the page
+            # load path) serves FROM the audit trail.
+            audit = (
+                db_session.query(CanvasAudit).filter(CanvasAudit.canvas_id == canvas_id).first()
+            )
+            assert audit is not None and audit.canvas_type == kind, kind
+
+        # Validation details: slug normalization and malformed rejection.
+        assert _validate_base_canvas_type("  CRM ") == "crm"
+        import pytest
+        with pytest.raises(ValueError, match="slug"):
+            _validate_base_canvas_type("Not A Slug!")
+
+    def test_scaffold_default_type_is_mini_app(self, db_session):
+        from core.mini_app_service import scaffold
+        viewer = type("U", (), {"id": "u1", "tenant_id": "t1", "workspace_id": "w1"})()
+        app, canvas_id = scaffold({}, "plain", ["canvas_render"], [], viewer, db_session)
+        canvas = db_session.query(Canvas).filter(Canvas.id == canvas_id).first()
+        assert canvas.canvas_type == "mini_app"
+        assert app.manifest["canvas_type"] == "mini_app"
+
 
 # ---------------------------------------------------------------------------
 # publish / install
@@ -271,6 +306,37 @@ class TestPublishInstall:
         assert len(audits) == 1
         logic = db_session.query(CanvasLogic).filter(CanvasLogic.canvas_id == new_id).first()
         assert logic is not None
+
+    def test_install_instance_inherits_base_canvas_type(self, db_session, app_fixture):
+        """The instance renders as the app's base kind — e.g. an inventory
+        tracker scaffolded on "inventory" installs as an inventory canvas.
+        Apps without a manifest canvas_type keep the native mini_app type."""
+        from core.mini_app_service import install
+        app, _ = app_fixture
+        app.status = "published"
+        new_manifest = dict(app.manifest)
+        new_manifest["canvas_type"] = "inventory"
+        new_manifest["blueprint"] = {"content": {"hello": 1}, "style": {}, "logic_source": "state = state"}
+        app.manifest = new_manifest
+        db_session.commit()
+        viewer = type("U", (), {"id": "viewer1"})()
+        typed_id = install(app, viewer, db_session)
+        typed = db_session.query(Canvas).filter(Canvas.id == typed_id).first()
+        assert typed.canvas_type == "inventory"
+        install_audit = (
+            db_session.query(CanvasAudit)
+            .filter(CanvasAudit.canvas_id == typed_id, CanvasAudit.action_type == "mini_app_install")
+            .first()
+        )
+        assert install_audit is not None and install_audit.canvas_type == "inventory"
+
+        app2_manifest = dict(app.manifest)
+        app2_manifest.pop("canvas_type")
+        app.manifest = app2_manifest
+        db_session.commit()
+        legacy_id = install(app, viewer, db_session)
+        legacy = db_session.query(Canvas).filter(Canvas.id == legacy_id).first()
+        assert legacy.canvas_type == "mini_app"
 
 
 # ---------------------------------------------------------------------------

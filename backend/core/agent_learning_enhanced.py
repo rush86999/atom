@@ -479,6 +479,23 @@ class AgentLearningEnhanced:
                 agent.confidence_score = max(0.0, (agent.confidence_score or 0.5) - 0.05)
                 logger.info(f"Penalty for correction: Agent {agent_id} confidence -> {agent.confidence_score:.2f}")
 
+                # Autonomy cycle (auto_until_corrected topics): a human
+                # correction RESETS the hire's earned autonomy for the
+                # corrected action's topic — the hire proposes again until
+                # verified work re-graduates the capability tier (5/20/50).
+                try:
+                    from core.autonomy_policy import (
+                        reset_autonomy_cycle,
+                        topic_for_action,
+                    )
+
+                    cycle_topic = topic_for_action(corrected_action.get("action_type"))
+                    if cycle_topic:
+                        reset_autonomy_cycle(self.db, agent_id, cycle_topic,
+                                             reason="user correction")
+                except Exception as cycle_err:
+                    logger.debug(f"autonomy cycle reset skipped: {cycle_err}")
+
             self.db.commit()
 
             # Real-time learning surface: corrections are the most visible

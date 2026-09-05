@@ -79,7 +79,16 @@ CI).
 ### User journey — creating a new mini-app
 
 **Path A — agent-driven (primary; "all coding is agent driven").** The user
-asks an agent (chat/workflow) to build a mini-app; the agent drives the loop:
+asks an agent (chat/workflow) to build a mini-app; the agent drives the loop.
+**Chat can drive it directly** (Sep 2026): `core/chat_mini_app_authoring.py`
+hooks the chat flow before the canvas-edit leg — "build a mini-app inventory
+tracker" scaffolds, LLM-authors the logic (syntax-gated), dry-runs, and
+reports; "publish it" / "install it" ship it (follow-ups work while the
+conversation is about the app; it never auto-publishes). Any app family is
+buildable: `spec.canvas_type` accepts any well-formed slug (crm, accounting,
+inventory, sheets, …) — the blueprint and every installed instance carry it
+so the canvas renders with that type's view; unknown kinds self-register in
+`canvas_type_registry` with generic defaults.
 
 1. **Ask** — user: "create a counter mini-app" (or describes the app + deps).
 2. **Probe (optional)** — agent calls `mini_app_status` to learn its

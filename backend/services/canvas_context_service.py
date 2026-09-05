@@ -375,27 +375,67 @@ class CanvasContextService:
 
                 logger.info(f"[LEARNING] Recorded user correction for agent {agent_id}")
 
+                # Autonomy cycle (auto_until_corrected): an on-canvas
+                # correction resets the hire's earned canvas_edit autonomy —
+                # edits propose again until verified work re-graduates it.
+                try:
+                    from core.autonomy_policy import reset_autonomy_cycle
+
+                    reset_autonomy_cycle(self.db, agent_id, "canvas_edit",
+                                         reason="canvas correction")
+                except Exception as cycle_err:
+                    logger.debug(f"autonomy cycle reset skipped: {cycle_err}")
+
                 # Training circuit: the correction is also a PERMANENT
                 # work-time lesson ("human_correction" observations are
                 # injected into every chat turn / canvas edit plan / task
                 # run — and survive graduation), not just an RLHF row.
                 # Student-only by the learning design; best-effort — the
                 # feedback record above is the contract.
+                #
+                # The lesson is DISTILLED (before→after diff ⇒ one
+                # imperative rule) so "fix it here and I'll learn" lands
+                # without a send: a raw JSON dump taught nothing at work
+                # time and read as junk in the Training panel (live
+                # 2026-09-04). Distillation runs in the background (an LLM
+                # call must not sit inside the PUT); with no running loop
+                # (scripts) the legacy raw gist is journaled inline.
                 try:
-                    from core.student_learning_service import StudentLearningService
+                    import asyncio
 
-                    gist = corrected_action if isinstance(corrected_action, str) else json.dumps(corrected_action, default=str)
-                    StudentLearningService(self.db).learn_from_observation(
-                        agent_id,
-                        "human_correction",
-                        f"Supervisor corrected my work — follow the corrected "
-                        f"version's content and style: {gist[:400]}",
-                        details={
-                            "canvas_id": canvas_id,
-                            "context": (context_info or "")[:200],
-                        },
+                    from core.student_learning_service import (
+                        StudentLearningService,
+                        distill_and_journal_correction,
+                        raw_correction_gist,
                     )
-                    logger.info(f"[LEARNING] Correction journaled as work-time lesson for {agent_id}")
+
+                    loop = None
+                    try:
+                        loop = asyncio.get_running_loop()
+                    except RuntimeError:
+                        loop = None
+                    if loop is not None:
+                        loop.create_task(distill_and_journal_correction(
+                            agent_id,
+                            original_action.get("content") if isinstance(original_action, dict) else original_action,
+                            corrected_action.get("content") if isinstance(corrected_action, dict) else corrected_action,
+                            canvas_id=canvas_id,
+                            canvas_type=context.canvas_type,
+                        ))
+                        logger.info(
+                            f"[LEARNING] correction distillation scheduled for agent {agent_id}"
+                        )
+                    else:
+                        StudentLearningService(self.db).learn_from_observation(
+                            agent_id,
+                            "human_correction",
+                            raw_correction_gist(corrected_action),
+                            details={
+                                "canvas_id": canvas_id,
+                                "context": (context_info or "")[:200],
+                            },
+                        )
+                        logger.info(f"[LEARNING] Correction journaled as work-time lesson for {agent_id}")
                 except Exception as journal_err:
                     logger.debug(f"correction journal skipped: {journal_err}")
 

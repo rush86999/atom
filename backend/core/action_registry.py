@@ -1122,7 +1122,14 @@ _MINI_APP_SCAFFOLD_SCHEMA = {
     "type": "object",
     "properties": {
         "name": {"type": "string", "description": "Mini-app name"},
-        "spec": {"type": "object", "description": "Optional spec (description, base_image, ...)"},
+        "spec": {
+            "type": "object",
+            "description": (
+                "Optional spec. canvas_type: base canvas kind to build ON — any slug "
+                "(e.g. 'crm', 'accounting', 'inventory', 'sheets'); the blueprint and every "
+                "installed instance render as that type. Also: description, base_image, version."
+            ),
+        },
         "declared_scopes": {
             "type": "array",
             "items": {"type": "string"},

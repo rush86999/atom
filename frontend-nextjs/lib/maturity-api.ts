@@ -284,12 +284,21 @@ export async function teachAgent(
   agentId: string,
   lesson: string,
   topic?: string,
-  canvasId?: string
-): Promise<{ status: string; [key: string]: unknown }> {
+  canvasId?: string,
+  opts?: { asPlaybook?: boolean; playbookCanvasType?: string }
+): Promise<{ status: string; playbook_id?: string | null; [key: string]: unknown }> {
   const res = await fetchJson(`/api/agents/${agentId}/teach`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lesson, topic, canvas_id: canvasId }),
+    body: JSON.stringify({
+      lesson,
+      topic,
+      canvas_id: canvasId,
+      // Playbook Journey P2: opt-in structured capture — the lesson ALSO
+      // becomes a playbook draft in the Training tab's review queue.
+      ...(opts?.asPlaybook ? { as_playbook: true } : {}),
+      ...(opts?.playbookCanvasType ? { playbook_canvas_type: opts.playbookCanvasType } : {}),
+    }),
   });
   if (!res.ok) throw new Error(`Teach failed (${res.status})`);
   return res.json();

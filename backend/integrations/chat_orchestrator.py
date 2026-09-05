@@ -743,6 +743,35 @@ class ChatOrchestrator:
                         sticky_hint = (_p, _m)
             except Exception:
                 pass
+
+            # Mini-app authoring leg ("build me a mini-app inventory tracker",
+            # "publish it", "install it"): runs BEFORE the canvas-edit leg so a
+            # ship request on a mini-app canvas isn't mangled into a content
+            # edit. The module's keyword gate makes this a no-op (and free)
+            # for turns that never say "mini app"; anything else it can't
+            # handle returns None and the normal legs proceed. Fault-isolated:
+            # never raises into the chat flow.
+            _mini_app_response = None
+            try:
+                from core.chat_mini_app_authoring import try_handle as _mini_app_try_handle
+                _mini_app_response = await _mini_app_try_handle(
+                    message, session.get("history", []) or history, user_id,
+                    self.llm_service, canvas=_canvas_ctx, session_id=session_id,
+                )
+            except Exception as mini_app_err:
+                logger.debug(f"mini-app authoring leg skipped: {mini_app_err}")
+            if _mini_app_response:
+                self._update_session(
+                    session, message, _mini_app_response,
+                    {"primary_intent": "mini_app_authoring", "confidence": 0.9},
+                )
+                await self._emit_agent_status(
+                    session_id, _trace_agent_id, _execution_id, "success"
+                )
+                self._finish_chat_execution(_execution_id, "success", _mini_app_response.get("message", ""))
+                if _tool_plan_task is not None and not _tool_plan_task.done():
+                    _tool_plan_task.cancel()
+                return _mini_app_response
             _turn_t0 = time.monotonic()
             try:
                 if _canvas_ctx:
@@ -2409,9 +2438,27 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # path answers the lookup): applying a data-dependent edit without
         # its evidence fabricated values on the user's real draft (live
         # 2026-09-04: 'In Stock' + placeholder price invented on timeout).
+        # step_recorder: the co-editor lane used to run real provider calls
+        # with NOTHING recorded in the reasoning-step trail — the applied
+        # "In Stock" edit's search existed only in gatekeeper logs. Recorded
+        # through the same trail the chat lane writes so the audit and the
+        # training payloads see the lookup, its query AND its result.
+        _step_counter = {"n": 0}
+
+        async def _record_fresh_data_step(step_type: str,
+                                          action: Dict[str, Any],
+                                          observation: str) -> None:
+            _step_counter["n"] += 1
+            await self._record_chat_step(
+                session_id, agent_id, execution_id,
+                step_number=_step_counter["n"],
+                step_type=step_type, action=action, observation=observation)
+
         from core.chat_canvas_editor import fetch_fresh_data_section
         fresh = await fetch_fresh_data_section(
             message, history, self.llm_service, user_id,
+            canvas_id=canvas.get("canvas_id"),
+            step_recorder=_record_fresh_data_step,
         )
         if fresh.needed and not fresh.ok:
             logger.info(
@@ -2475,6 +2522,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             return None
         if plan is None or not plan.wants_edit:
             return None
+        # P3 transparency: WHICH company playbooks guided this edit — the
+        # chat response carries them (chat_routes maps `data`→`metadata`)
+        # so the co-editor transcript can show "Following playbook: X".
+        matched_playbooks = [
+            {"id": pb.get("id"), "name": pb.get("name")}
+            for pb in (playbooks or [])[:2]
+            if isinstance(pb, dict) and pb.get("id")
+        ]
 
         # Maturity gate — canvas edits are INTERN+ (governance action
         # "update_canvas"). A hire that isn't mature enough is NOT refused:
@@ -2503,8 +2558,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         if agent_id:
             try:
                 from core.autonomy_policy import (
-                    MODE_AUTO_IF_MATURE,
+                    MODE_AUTO_UNTIL_CORRECTED,
+                    autonomy_cycle,
                     get_effective_mode,
+                    mode_allows_autonomy,
                     trust_check,
                 )
                 from core.database import get_db_session
@@ -2520,22 +2577,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # human_always forces proposal semantics even for a
                     # mature hire, and (flag-on) unproven trust demotes the
                     # edit to a proposal — the same gate_for_topic outcome
-                    # the Autonomy tab displays.
+                    # the Autonomy tab displays. auto_until_corrected also
+                    # allows execution, but its correction cycle is checked
+                    # explicitly here (this path predates gate_for_topic).
                     mode = get_effective_mode(db, user_id, "canvas_edit")
-                    hitl_policy = mode != MODE_AUTO_IF_MATURE
+                    hitl_policy = not mode_allows_autonomy(mode)
                     trust_ok = trust_check(db, agent_id, "canvas_edit")["ok"]
+                    cycle_ok = True
+                    if mode == MODE_AUTO_UNTIL_CORRECTED:
+                        cycle_ok = autonomy_cycle(
+                            db, agent_id, "canvas_edit")["ok"]
                 learning_mode = (
                     not check.get("allowed", True)
                     or hitl_policy
                     or not trust_ok
+                    or not cycle_ok
                 )
                 await self._record_chat_step(
                     session_id, agent_id, execution_id, 2, "thought",
                     {"tool": "canvas_governance", "params": {"action": "update_canvas"}},
                     f"gate: {'PROPOSAL' if learning_mode else 'allowed'}"
                     f" (maturity={'fail' if not check.get('allowed', True) else 'ok'},"
-                    f" policy={'human_always' if hitl_policy else 'auto_if_mature'},"
-                    f" trust={'fail' if not trust_ok else 'ok'})"
+                    f" policy={mode},"
+                    f" trust={'fail' if not trust_ok else 'ok'},"
+                    f" cycle={'reset' if not cycle_ok else 'ok'})"
                     f" — {str(check.get('reason', ''))[:120]}",
                 )
             except Exception as gov_err:
@@ -2576,6 +2641,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "canvas_id": canvas.get("canvas_id"),
                         "updated": False,
                         "no_change": True,
+                        **({"matched_playbooks": matched_playbooks}
+                           if matched_playbooks else {}),
                     }
                 },
                 "suggested_actions": [],
@@ -2689,6 +2756,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "canvas_id": canvas.get("canvas_id"),
                     "updated": True,
                     **({"learning_mode": True} if learning_mode else {}),
+                    **({"matched_playbooks": matched_playbooks}
+                       if matched_playbooks else {}),
                 }
             },
             "suggested_actions": [],
@@ -2761,7 +2830,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         from core.autonomy_policy import (
             MODE_AUTO_IF_MATURE,
+            MODE_HUMAN_ALWAYS,
+            MODE_AUTO_UNTIL_CORRECTED,
+            autonomy_cycle,
             get_effective_mode,
+            mode_allows_autonomy,
             trust_check,
         )
         from core.database import get_db_session
@@ -2770,11 +2843,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         mode = MODE_AUTO_IF_MATURE
         governance_allows = True
         trust_allows = True
+        cycle_allows = True
         policy_decision = None
         try:
             with get_db_session() as db:
                 mode = get_effective_mode(db, user_id, "send_email")
-                if agent_id and mode == MODE_AUTO_IF_MATURE:
+                if agent_id and mode_allows_autonomy(mode):
                     from core.service_factory import ServiceFactory
 
                     governance = ServiceFactory.get_governance_service(db)
@@ -2786,6 +2860,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # when policy + maturity would allow the send. Neutral-pass
                     # while the trust flag is off — legacy behavior unchanged.
                     trust_allows = trust_check(db, agent_id, "send_email")["ok"]
+                    # Correction cycle (auto_until_corrected): a human
+                    # correction reset the hire's EARNED send autonomy —
+                    # propose until verified work re-graduates it.
+                    if mode == MODE_AUTO_UNTIL_CORRECTED:
+                        cycle_allows = autonomy_cycle(
+                            db, agent_id, "send_email")["ok"]
 
                 # The email policy's APPROVE (e.g. external recipient on the
                 # egress allowlist) ALWAYS requires a human — for agent-initiated
@@ -2818,12 +2898,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.warning(f"canvas action gates skipped: {e}")
 
         # Gate outcomes → direct execution ONLY when policy allows autonomy
-        # AND the hire is mature enough AND trust clears the bar AND the
-        # email policy doesn't demand a human. Everything else proposes (HITL).
+        # AND the hire is mature enough AND trust clears the bar AND no
+        # correction reset the cycle (until_corrected) AND the email policy
+        # doesn't demand a human. Everything else proposes (HITL).
         needs_approval = (
-            (mode != MODE_AUTO_IF_MATURE)
+            (not mode_allows_autonomy(mode))
             or not governance_allows
             or not trust_allows
+            or not cycle_allows
             or (agent_id is not None and policy_decision is not None
                 and policy_decision.get("decision") == EMAIL_APPROVE)
         )
@@ -2863,7 +2945,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         reply = (
             (plan.reply or "Ready to send that email.").strip()
             + f"\n\n🔐 This needs your approval first"
-            + (" (you've set email sends to always require a human)" if mode != MODE_AUTO_IF_MATURE
+            + (" (you've set email sends to always require a human)" if mode == MODE_HUMAN_ALWAYS
+               else " (a correction reset this hire's send autonomy — it re-earns it through verified work)" if not cycle_allows
                else " (the hire isn't mature enough to send autonomously yet)"
                if not governance_allows
                else " (the hire's verified trust hasn't earned autonomous sends yet)")

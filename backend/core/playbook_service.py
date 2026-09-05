@@ -220,10 +220,14 @@ class PlaybookService:
 
     def draft_from_pattern(self, pattern_text: str,
                            trigger_canvas_type: Optional[str] = None,
-                           origin_id: Optional[str] = None) -> Optional[Any]:
+                           origin_id: Optional[str] = None,
+                           steps: Optional[List[str]] = None,
+                           description: Optional[str] = None) -> Optional[Any]:
         """Idempotent: the pattern's fingerprint dedups — a recurring
         pattern bumps the existing draft's version instead of stacking
-        duplicate rows."""
+        duplicate rows. ``steps``/``description`` let callers draft real
+        review content (the rule the corrections imply); defaults keep the
+        legacy pattern-text-is-the-draft behavior."""
         from core.models import Playbook
 
         fp = self._pattern_fingerprint(pattern_text)
@@ -236,10 +240,11 @@ class PlaybookService:
         name = (pattern_text or "Recurring correction pattern")[:80].strip()
         return self.create(
             name=name,
-            description="Auto-drafted from recurring supervisor corrections "
-                        "(sleep-time). Review, edit, then approve.",
+            description=description or (
+                "Auto-drafted from recurring supervisor corrections "
+                "(sleep-time). Review, edit, then approve."),
             trigger_canvas_type=trigger_canvas_type,
-            steps=[pattern_text[:500]] if pattern_text else [],
+            steps=steps if steps is not None else ([pattern_text[:500]] if pattern_text else []),
             source="learned",
             approval_state="draft",
             fingerprint=fp,
@@ -278,6 +283,9 @@ class PlaybookService:
         scored.sort(key=lambda t: (-t[0], t[1].name))
         return [
             {
+                # id rides along so the co-editor result can surface
+                # matched_playbooks the UI can deep-link (Playbook Journey P3)
+                "id": row.id,
                 "name": row.name,
                 "description": row.description or "",
                 "steps": row.steps or [],
@@ -285,3 +293,32 @@ class PlaybookService:
             }
             for _score, row in scored[:limit]
         ]
+
+    # ── draft editing (Playbook Journey P1: "Edit steps first") ──
+    def update(self, playbook_id: str, *, name: Optional[str] = None,
+               description: Optional[str] = None,
+               trigger_canvas_type: Optional[str] = ...,
+               trigger_keywords: Optional[List[str]] = None,
+               steps: Optional[List[str]] = None,
+               template_questions: Optional[List[str]] = None) -> Optional[Any]:
+        """Supervisor edits a DRAFT before approving it. Approved playbooks
+        are versioned objects — editing those goes through retire + re-draft,
+        so this returns None for them (the route maps it to 409)."""
+        row = self.get(playbook_id)
+        if row is None or row.approval_state != "draft":
+            return None
+        if name is not None:
+            row.name = name
+        if description is not None:
+            row.description = description
+        if trigger_canvas_type is not ...:
+            row.trigger_canvas_type = trigger_canvas_type
+        if trigger_keywords is not None:
+            row.trigger_keywords = trigger_keywords
+        if steps is not None:
+            row.steps = steps
+        if template_questions is not None:
+            row.template_questions = template_questions
+        self.db.commit()
+        self.db.refresh(row)
+        return row

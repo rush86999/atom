@@ -45,7 +45,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -287,40 +287,238 @@ def _maybe_auto_promote_panel(db) -> Dict[str, Any]:
     return {"promoted": True, "stats": stats}
 
 
+# ---------------------------------------------------------------------------
+# Step 4b: playbook evidence latch (Playbook Journey P5, default OFF)
+# ---------------------------------------------------------------------------
+
+_AUTO_APPROVE_RUNS = 3
+
+
+async def _auto_approve_playbooks(db) -> Dict[str, Any]:
+    """ATOM_PLAYBOOKS_AUTO_APPROVE (default off): a `learned` draft whose
+    ORIGIN incident evals pass ``_AUTO_APPROVE_RUNS`` consecutive nightly
+    replays is promoted without a human click (approved_by=auto_latch) —
+    but only where AUTONOMY already allows no-human-gating, the same
+    contract the runtime applies to the hires' own actions
+    (core.autonomy_policy.tenant_gate_for_topic): the draft's trigger
+    canvas type maps to topics, and every topic must be auto-if-mature
+    with ALL active hires clearing the maturity×trust bar. An email-surface
+    rule, or one whose crew still proposes, stays human-gated — the streak
+    freezes (not resets) until autonomy allows no-human-gating again.
+    taught/authored drafts never latch: their approval was always the
+    supervisor's own act. The flag is the owner's switch for all of this
+    (docs/architecture/PLAYBOOK_USER_JOURNEY.md §6)."""
+    summary: Dict[str, Any] = {"latched": 0, "replayed": 0, "autonomy_blocked": 0}
+    try:
+        from core.models import Playbook
+        from core.autonomy_policy import (
+            OUTCOME_EXECUTE,
+            topics_for_canvas,
+            tenant_gate_for_topic,
+        )
+        from core.playbook_service import playbook_mode
+        from core.runtime_settings import resolve_setting
+
+        res = resolve_setting("ATOM_PLAYBOOKS_AUTO_APPROVE", db=db)
+        if not res.value:
+            summary["reason"] = f"latch_off ({res.source})"
+            return summary
+        if playbook_mode() == "off":
+            summary["reason"] = "playbooks_off"
+            return summary
+
+        from core.incident_eval_runner import run_evals
+
+        drafts = (db.query(Playbook)
+                  .filter(Playbook.approval_state == "draft")
+                  .filter(Playbook.source == "learned")
+                  .limit(5).all())
+        for row in drafts:
+            eval_ids = [oid for oid in (row.origin_ids or [])
+                        if isinstance(oid, str)]
+            if not eval_ids:
+                continue  # no replayable evidence — never latches
+
+            # Autonomy gate FIRST: no point burning replays (or accruing a
+            # streak) for a rule the maturity contract would still gate.
+            blocks = [
+                tgate["reason"]
+                for topic in topics_for_canvas(row.trigger_canvas_type)
+                for tgate in (tenant_gate_for_topic(db, topic, row.tenant_id),)
+                if tgate["outcome"] != OUTCOME_EXECUTE
+            ]
+            if blocks:
+                summary["autonomy_blocked"] += 1
+                prev = (row.last_eval_result or {}).get("auto_latch") or {}
+                stored = dict(row.last_eval_result or {})
+                stored["auto_latch"] = {
+                    "passes": prev.get("passes") or 0,
+                    "threshold": _AUTO_APPROVE_RUNS,
+                    "blocked": blocks[0],
+                }
+                row.last_eval_result = stored
+                continue
+
+            gate = await run_evals(db, tenant_id=row.tenant_id or "default",
+                                   eval_ids=eval_ids, llm_service=_default_llm())
+            summary["replayed"] += 1
+            clean = gate.get("ran", 0) > 0 and gate.get("failed", 0) == 0
+            prev = (row.last_eval_result or {}).get("auto_latch") or {}
+            streak = (prev.get("passes") or 0) + 1 if clean else 0
+            stored = dict(row.last_eval_result or {})
+            stored["auto_latch"] = {
+                "passes": streak,
+                "threshold": _AUTO_APPROVE_RUNS,
+                "last_replay": {k: gate.get(k) for k in
+                                ("ran", "passed", "failed", "skipped")},
+            }
+            row.last_eval_result = stored
+            if streak >= _AUTO_APPROVE_RUNS:
+                row.approval_state = "approved"
+                row.approved_by = "auto_latch:evidence"
+                summary["latched"] += 1
+                logger.info(
+                    "playbook evidence latch: '%s' approved after %d clean "
+                    "origin-eval replays (ATOM_PLAYBOOKS_AUTO_APPROVE, crew "
+                    "autonomy gate clear)",
+                    row.name, streak,
+                )
+        db.commit()
+    except Exception as e:
+        logger.debug("playbook auto-approve step failed: %s", e)
+    return summary
+
+
+def _correction_rule(row) -> tuple:
+    """(short name, rule sentence) a supervisor can actually review, from the
+    recurring correction's expected property. Live 2026-09-04: the draft used
+    to be named after the fingerprint text ("[identity] recurring correction
+    on 4c1986b1…") — zero value to the teacher reviewing the queue."""
+    ep = row.expected_property or {}
+    kind = str(ep.get("kind") or "").strip()
+    value = str(ep.get("value") or "").strip()
+    if kind == "excludes" and value:
+        rule = (f'Never include \u201c{value}\u201d in drafts of this kind '
+                f"— the supervisor removed it in recurring corrections.")
+        return f'Never include "{value}"', rule
+    if kind == "includes" and value:
+        rule = f'Include \u201c{value}\u201d in drafts of this kind before they go out.'
+        return f'Include "{value}"', rule
+    if kind == "no_unverified":
+        return ("No unverified claims",
+                "Never state unverified facts as established — mark them as "
+                "being confirmed instead.")
+    if kind == "changed":
+        return ("Match corrected wording",
+                "Match the supervisor's corrected wording — do not regenerate "
+                "the draft from memory.")
+    return ("Apply corrected wording",
+            f"Apply the supervisor's corrected wording ({row.taxonomy}).")
+
+
+def _canvas_title(db, canvas_id) -> Optional[str]:
+    """Human canvas name for the review card (the UUID fragment taught the
+    reviewer nothing). Fault-isolated: None on any lookup failure."""
+    if not canvas_id:
+        return None
+    try:
+        from core.models import Canvas
+
+        row = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+        if row is None:
+            return None
+        return (row.name or "").strip() or None
+    except Exception:
+        return None
+
+
 def _draft_playbooks(db) -> Dict[str, Any]:
     """Plan Phase 3: recurring corrections (IncidentEval.occurrences >= 3)
     become draft playbooks (source=learned, approval_state=draft) for
     supervisor review. draft_from_pattern is idempotent per fingerprint —
     reruns bump the existing draft instead of stacking rows. Cap per cycle
     keeps the Training panel's review queue human-sized. Fault-isolated by
-    the cycle."""
-    summary: Dict[str, Any] = {"drafted": 0, "bumped": 0}
+    the cycle.
+
+    Review-queue value + version hygiene (live 2026-09-04): drafts carry the
+    RULE the corrections imply and the real occurrence count, and identical
+    re-runs no longer bump the version — a 6h cycle re-seeing the same
+    pattern had inflated one draft to v211, which the panel then rendered as
+    "seen 211×". Legacy fingerprint-text drafts are retired in the sweep."""
+    summary: Dict[str, Any] = {"drafted": 0, "updated": 0, "unchanged": 0,
+                               "retired_legacy": 0}
     try:
-        from core.models import IncidentEval
+        from core.models import IncidentEval, Playbook
         from core.playbook_service import PlaybookService, playbook_mode
 
         if playbook_mode() == "off":
             return summary
+
+        # Retire the legacy fingerprint-text drafts ("… recurring correction
+        # on <uuid>…") — unreadable in the review queue; retirement keeps
+        # the trail and drops them from "needs review".
+        legacy = (db.query(Playbook)
+                  .filter(Playbook.source == "learned")
+                  .filter(Playbook.approval_state == "draft")
+                  .filter(Playbook.name.like("%recurring correction on %"))
+                  .all())
+        for row in legacy:
+            row.approval_state = "retired"
+            summary["retired_legacy"] += 1
+        if summary["retired_legacy"]:
+            db.commit()
 
         recurring = (db.query(IncidentEval)
                      .filter(IncidentEval.occurrences >= 3)
                      .order_by(IncidentEval.occurrences.desc())
                      .limit(20).all())
         for row in recurring:
-            name = f"[{row.taxonomy}] recurring correction on {row.canvas_id[:8]}…"
+            rule_name, rule = _correction_rule(row)
+            name = f"[{row.taxonomy}] {rule_name}"[:80]
+            title = _canvas_title(db, row.canvas_id)
+            where = f" on \u201c{title}\u201d" if title else ""
+            description = (f"From {row.occurrences} recurring supervisor "
+                           f"corrections{where}. Review, edit, then approve.")
+            steps = [rule]
             svc = PlaybookService(db, tenant_id=row.tenant_id)
             existing = svc.find_by_pattern(name)
+            if existing is None:
+                # The rule text changed since the last cycle (different
+                # fingerprint): find this incident's earlier draft via its
+                # origin link and refresh it in place instead of orphaning
+                # a stale card in the review queue.
+                for cand in (db.query(Playbook)
+                             .filter(Playbook.source == "learned")
+                             .filter(Playbook.approval_state == "draft")
+                             .all()):
+                    if row.id in (cand.origin_ids or []):
+                        existing = cand
+                        break
+            if existing is not None:
+                # Content-version semantics: refresh ONLY when the rule text
+                # actually changed; identical re-runs leave the version alone.
+                if ((existing.steps or []) != steps
+                        or (existing.description or "") != description
+                        or (existing.name or "") != name):
+                    existing.name = name
+                    existing.steps = steps
+                    existing.description = description
+                    existing.version = (existing.version or 1) + 1
+                    db.commit()
+                    summary["updated"] += 1
+                else:
+                    summary["unchanged"] += 1
+                continue
             drafted = svc.draft_from_pattern(
                 name,
                 trigger_canvas_type=row.canvas_type,
                 origin_id=row.id,
+                steps=steps,
+                description=description,
             )
             if drafted is None:
                 continue
-            if existing is not None:
-                summary["bumped"] += 1
-            else:
-                summary["drafted"] += 1
+            summary["drafted"] += 1
             if summary["drafted"] >= 3:
                 break
     except Exception as e:
@@ -435,6 +633,10 @@ async def run_maintenance_cycle(db) -> Dict[str, Any]:
     except Exception as e:
         logger.debug("playbook draft step failed: %s", e)
     try:
+        summary["playbook_auto_approved"] = await _auto_approve_playbooks(db)
+    except Exception as e:
+        logger.debug("playbook auto-approve step failed: %s", e)
+    try:
         summary["patterns"] = await _maintain_knowledge_patterns(db)
     except Exception as e:
         logger.debug("knowledge pattern step failed: %s", e)
@@ -442,6 +644,18 @@ async def run_maintenance_cycle(db) -> Dict[str, Any]:
         summary["import_validation"] = await _validate_pending_imports(db)
     except Exception as e:
         logger.debug("import validation step failed: %s", e)
+    try:
+        from core.db_safety import maintenance_db_safety_step
+
+        summary["db_safety"] = maintenance_db_safety_step()
+    except Exception as e:
+        logger.debug("db safety step failed: %s", e)
+    try:
+        from core.db_safety import lance_version_cleanup_step
+
+        summary["lance_cleanup"] = lance_version_cleanup_step()
+    except Exception as e:
+        logger.debug("lance cleanup step failed: %s", e)
     return summary
 
 

@@ -516,20 +516,37 @@ class ZohoInventoryService(IntegrationService):
             logger.error(f"Failed to fetch Zoho Inventory items: {e}")
             return []
 
-    async def check_stock(self, item_id: str, token: Optional[str] = None, organization_id: Optional[str] = None) -> Dict[str, Any]:
-        """Check current stock levels for an item"""
-        try:
-            active_token = token or self.access_token
-            active_org = organization_id or self.organization_id
+    async def check_stock(self, item_id: str, token: Optional[str] = None,
+                          organization_id: Optional[str] = None,
+                          user_id: Optional[str] = None) -> Dict[str, Any]:
+        """Check current stock levels for one item by id.
 
+        Same resolution chain as search_items (per-user token, DC-correct
+        base URL, org resolution) — this method predated it and still used
+        the legacy ``self.base_url`` host + bare tenant token lookup, which
+        401s for data-center-issued tokens (live 2026-09-03) and found no
+        token for agent turns (token rows are user-keyed). Never raises:
+        returns {"error": ...} so pollers can skip a bad tick."""
+        try:
+            active_token = (
+                token
+                or self.access_token
+                or os.getenv("ZOHO_INVENTORY_ACCESS_TOKEN")
+                or await self._get_active_token(self.tenant_id, user_id=user_id)
+            )
             if not active_token:
-                 raise HTTPException(status_code=401, detail="Not authenticated")
+                return {"error": "no access token"}
+            active_org = organization_id or await self._resolve_organization(
+                token=active_token, base_url=await self._inventory_base(),
+            )
             if not active_org:
-                 raise HTTPException(status_code=400, detail="Organization ID required")
+                return {"error": "no organization id"}
 
             params = {"organization_id": active_org}
             headers = {"Authorization": f"Zoho-oauthtoken {active_token}"}
-            response = await self.client.get(f"{self.base_url}/items/{item_id}", headers=headers, params=params)
+            response = await self.client.get(
+                f"{await self._inventory_base()}/items/{item_id}",
+                headers=headers, params=params)
             response.raise_for_status()
             item = response.json().get("item", {})
             return {
@@ -538,8 +555,6 @@ class ZohoInventoryService(IntegrationService):
                 "stock_on_hand": item.get("stock_on_hand", 0),
                 "available_stock": item.get("available_stock", 0)
             }
-        except HTTPException:
-            raise
         except Exception as e:
             logger.error(f"Failed to check stock for {item_id}: {e}")
             return {"error": "Failed to check stock"}

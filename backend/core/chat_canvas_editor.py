@@ -26,7 +26,7 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, NamedTuple, Optional, Tuple
 
 from pydantic import BaseModel
 
@@ -161,6 +161,20 @@ the authority, NOT your memory of earlier drafts:
   from the content itself — the canvas holds only the artifact.
 - Send/dispatch requests ("send it", "email it to Mark", "try sending
   again") are NOT edits: wants_edit=false — a separate step owns actions.
+- TEACHING POINTS and standing guidance are NOT edits either: a message
+  that states a norm, preference, or instruction for how you should work
+  GOING FORWARD ("this will be the norm", "always cc the same people",
+  "use different keywords when you search zoho",
+  "do not change my writing unless I say so") teaches future behavior —
+  it does not ask you to change THIS canvas now, so wants_edit=false and
+  the canvas stays untouched. Edit only what the message explicitly asks
+  to change NOW: "update cc to vipul and chandrakant. this will be the
+  norm" applies the explicit cc edit; the trailing norm is guidance,
+  never a license to restyle the draft to match it.
+- Lookup/research requests ("web search X", "check zoho inventory",
+  "what row holds the price?") are answered in chat: do NOT fold the
+  findings into the canvas unless the message asks for that ("add it to
+  the draft", "include that info").
 - Questions, discussion, or requests about other things ("what do you
   think", "search my email") are wants_edit=false too.
 - EMAIL canvases support real HTML tables (Outlook-style): when the user
@@ -727,6 +741,8 @@ async def fetch_fresh_data_section(
     history: List[Dict[str, Any]],
     llm_service: Any,
     user_id: Optional[str],
+    canvas_id: Optional[str] = None,
+    step_recorder: Optional[Callable[[str, Dict[str, Any], str], Awaitable[None]]] = None,
 ) -> FreshDataResult:
     """LIVE evidence for edit requests that hinge on data the editor cannot
     see — a price "from the consolidated price list", specs from a drive
@@ -738,6 +754,12 @@ async def fetch_fresh_data_section(
     must not fire extra ones (its callers' replan ladders and tests count
     those calls).
 
+    ``step_recorder`` (async (step_type, action, observation)) records the
+    live lookup into the same reasoning-step trail the chat lane writes —
+    the co-editor lane previously ran real provider calls with NO recorded
+    evidence, making the audit trail unverifiable (live 2026-09-04: an
+    applied "In Stock" edit whose search existed only in gatekeeper logs).
+
     Live 2026-09-03: with no evidence in the prompt, the editor typed
     $14,500.00 into an email draft as "the price from the consolidated
     price list" (the workbook said $14,145.00) and then "confirmed" the
@@ -747,6 +769,16 @@ async def fetch_fresh_data_section(
     must be DECLINED by the caller, never applied on guesses."""
     if not message or llm_service is None:
         return FreshDataResult("", False, True)
+
+    async def _record(step_type: str, action: Dict[str, Any],
+                      observation: str) -> None:
+        if step_recorder is None:
+            return
+        try:
+            await step_recorder(step_type, action, observation)
+        except Exception as rec_err:  # noqa: BLE001 — recording never blocks
+            logger.debug(f"fresh-data step recording skipped: {rec_err}")
+
     try:
         from core.chat_tool_planner import execute_tool_plan, plan_tool_use
 
@@ -754,13 +786,37 @@ async def fetch_fresh_data_section(
             plan = await plan_tool_use(message, history, user_id, llm_service)
             if not plan or not plan.use_tool:
                 return False, ""
+            await _record(
+                "tool_planner",
+                {"tool": plan.service,
+                 "params": {"intent": plan.intent, "query": plan.query,
+                            "source": "canvas_edit_fresh_data"}},
+                f"canvas edit needs live data; planning "
+                f"{plan.service}.{plan.intent} query={plan.query!r}")
             block = await execute_tool_plan(
                 plan,
                 user_id,
                 context={"history": history},
             )
+            observation = (block or "lookup returned nothing usable")[:2000]
+            await _record(
+                "observation",
+                {"tool": plan.service,
+                 "params": {"intent": plan.intent, "query": plan.query,
+                            "source": "canvas_edit_fresh_data"}},
+                observation)
             if not block:
                 return True, ""
+            # Arm fact watches: when the evidence carries watchable facts
+            # (zoho_inventory items, ...), a background poller re-checks
+            # them and alerts if the grounded fact changes.
+            try:
+                from core.fact_watch import get_fact_watch_service
+                await get_fact_watch_service().register_from_trace(
+                    {"service": plan.service, "block": block},
+                    canvas_id=canvas_id, user_id=user_id)
+            except Exception as watch_err:  # noqa: BLE001
+                logger.debug(f"fact watch registration skipped: {watch_err}")
             return True, (
                 "FRESH DATA for this edit (live tool results, fetched just "
                 f"now):\n{block}\n\n"
@@ -775,11 +831,19 @@ async def fetch_fresh_data_section(
         logger.info(
             "canvas edit fresh-data lookup timed out — reporting failed "
             "lookup so the edit declines instead of fabricating")
+        await _record(
+            "observation",
+            {"tool": "fresh_data", "params": {"source": "canvas_edit_fresh_data"}},
+            "live evidence lookup timed out — data-dependent edit must decline")
         return FreshDataResult("", True, False)
     except Exception as e:  # noqa: BLE001 — fault-isolated by contract
         logger.warning(
             f"canvas edit fresh-data lookup failed — declining "
             f"evidence-dependent edit: {e}")
+        await _record(
+            "observation",
+            {"tool": "fresh_data", "params": {"source": "canvas_edit_fresh_data"}},
+            f"live evidence lookup failed: {str(e)[:500]}")
         return FreshDataResult("", True, False)
 
 
