@@ -77,6 +77,21 @@ def _anchor_sqlite_url(url: str) -> str:
     return f"{scheme}:///{anchored}{query}"
 
 
+def _targets_live_dev_db(url: str) -> bool:
+    """True when a SQLite URL resolves to a LIVE dev database file —
+    ``backend/dev.db`` (this module's development fallback) or
+    ``backend/data/atom.db`` (the application data store). The 2026-09-04
+    incident wiped the latter from a stray test run."""
+    if not url or not url.startswith("sqlite"):
+        return False
+    path = _anchor_sqlite_url(url).partition(":///")[2].split("?", 1)[0]
+    dev_paths = (
+        os.path.join(_DATABASE_BACKEND_DIR, "dev.db"),
+        os.path.join(_DATABASE_BACKEND_DIR, "data", "atom.db"),
+    )
+    return os.path.normpath(path) in (os.path.normpath(p) for p in dev_paths)
+
+
 def get_database_url():
     """Get database URL with production safety checks"""
     import sys
@@ -86,15 +101,28 @@ def get_database_url():
 
     # INCIDENT GUARD (2026-09-04): a pytest run without TESTING=1 pointed at
     # the live dev DB and wiped it. Whenever pytest is the importing process,
-    # force the isolated test database regardless of DATABASE_URL — tests can
-    # only opt back into a real DB by explicitly setting TESTING=0.
+    # keep pytest OFF the live dev databases: unset DATABASE_URL or one that
+    # resolves to backend/dev.db / backend/data/atom.db is forced onto the
+    # isolated test database. An explicit NON-dev DATABASE_URL is honored —
+    # the e2e journey (ci.yml) points pytest at /tmp/atom_e2e.db, the very
+    # file the booted backend server uses; forcing the isolated DB here made
+    # the journey fixtures write to a fresh table-less copy
+    # ("no such table: users", CI 2026-09-05). TESTING=0 still opts a pytest
+    # process back into whatever DATABASE_URL says, guard off.
     pytest_running = (
         os.getenv("PYTEST_CURRENT_TEST") is not None
         or os.getenv("PYTEST_VERSION") is not None
         or "pytest" in sys.modules
     )
     if pytest_running and os.getenv("TESTING") != "0":
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if database_url and not _targets_live_dev_db(database_url):
+            database_url = _anchor_sqlite_url(_clean_postgresql_url(database_url))
+            logger.warning(
+                "🧪 pytest detected: honoring explicit non-dev test DB (%s)",
+                database_url,
+            )
+            return database_url
+        base_dir = _DATABASE_BACKEND_DIR
         db_path = os.path.join(base_dir, "test_integration.db")
         database_url = f"sqlite:///{db_path}"
         logger.warning("🧪 pytest detected: forcing isolated test DB (%s)", db_path)
