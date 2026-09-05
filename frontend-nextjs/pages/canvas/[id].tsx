@@ -7,7 +7,7 @@ import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, ArrowLeft, RefreshCw, History, Trash2, GraduationCap, MessageSquare, ShieldCheck } from "lucide-react";
+import { Send, ArrowLeft, RefreshCw, History, Trash2, GraduationCap, MessageSquare, ShieldCheck, Bot } from "lucide-react";
 import { CanvasPanel } from "@/components/canvas/CanvasPanel";
 import { CanvasVersionHistory } from "@/components/canvas/CanvasVersionHistory";
 import { isCanvasContentFrame } from "@/lib/canvasFrame";
@@ -15,6 +15,9 @@ import { MiniAppHarness } from "@/components/canvas/MiniAppHarness";
 import { TrainingPanel } from "@/components/canvas/TrainingPanel";
 import { JourneyPanel } from "@/components/canvas/JourneyPanel";
 import { AutonomyPanel } from "@/components/canvas/AutonomyPanel";
+import { AgentAttachModal } from "@/components/canvas/AgentAttachModal";
+import { CanvasDataSection } from "@/components/canvas/CanvasDataSection";
+import { listCanvasAgents, type CanvasAgent } from "@/lib/canvas-api";
 import { ChatFeedbackControls, ChatFeedbackType } from "@/components/canvas/ChatFeedbackControls";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { ReasoningChain, type ReasoningStep } from "@/components/Agents/ReasoningChain";
@@ -250,6 +253,38 @@ export default function CanvasDetailPage() {
     }, [messages, isAgentResponding, sideTab]);
     const [trainingCtx, setTrainingCtx] = useState<CanvasTrainingContext | null>(null);
 
+    // The canvas's hires (explicit attachments) — step 2 of the journey.
+    // A hire must be attached before data can be loaded (the Load data bar
+    // and the backend 409 gate both enforce it), and its identity feeds the
+    // co-editor chat, the training panel, and the hire badge.
+    const [canvasAgents, setCanvasAgents] = useState<CanvasAgent[]>([]);
+    const [agentsLoaded, setAgentsLoaded] = useState(false);
+    const [attachOpen, setAttachOpen] = useState(false);
+    // Bumped after an attach so the training-context effect re-resolves
+    // (the explicit attachment is now its first resolution candidate).
+    const [attachNonce, setAttachNonce] = useState(0);
+
+    const loadCanvasAgents = useCallback(async () => {
+        if (!canvasId) return;
+        try {
+            const agents = await listCanvasAgents(canvasId as string);
+            setCanvasAgents(agents || []);
+        } catch {
+            setCanvasAgents([]);
+        } finally {
+            setAgentsLoaded(true);
+        }
+    }, [canvasId]);
+
+    useEffect(() => {
+        void loadCanvasAgents();
+    }, [loadCanvasAgents]);
+
+    const handleAgentAttached = useCallback((_agent: CanvasAgent) => {
+        void loadCanvasAgents();
+        setAttachNonce(n => n + 1);
+    }, [loadCanvasAgents]);
+
     // The canvas's hire must be known on the CHAT tab too, not just when the
     // training panel is opened — the co-editor chat runs as this agent
     // (persona, tier behavior, learning mode when not yet mature). The panel
@@ -270,7 +305,7 @@ export default function CanvasDetailPage() {
             }
         })();
         return () => { cancelled = true; };
-    }, [canvasId, router.query.agent_id]);
+    }, [canvasId, router.query.agent_id, attachNonce]);
 
     // Register canvas state for AI accessibility
     const canvasState = canvasData ? {
@@ -838,6 +873,22 @@ export default function CanvasDetailPage() {
                                 {canvasData.canvas_type}
                             </span>
                         )}
+                        {/* No explicit attachment yet? Offer the attach
+                            action right in the header — data loading stays
+                            gated until the hire is attached (even when a
+                            hire is resolvable from chat provenance). */}
+                        {agentsLoaded && canvasAgents.length === 0 && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => setAttachOpen(true)}
+                                data-testid="add-agent-button"
+                            >
+                                <Bot className="h-3.5 w-3.5 mr-1" />
+                                {trainingCtx?.agent ? "Attach agent" : "Add agent"}
+                            </Button>
+                        )}
                         {/* The hire attached to this canvas: name · category
                             (sales, …) · maturity tier · confidence — visible
                             to the end user without opening the training tab. */}
@@ -897,6 +948,37 @@ export default function CanvasDetailPage() {
                 <div className="flex-1 flex overflow-hidden">
                     {/* Canvas panel (left/center, takes most space) + mini-app harness (bottom) */}
                     <div className="flex-1 flex flex-col overflow-hidden">
+                        {/* Step 3 of the journey: load data — refused until a
+                            hire is attached (the section disables itself; the
+                            backend 409s regardless). */}
+                        {canvasData && (
+                            <CanvasDataSection
+                                canvasId={canvasId as string}
+                                hireAttached={canvasAgents.length > 0}
+                            />
+                        )}
+                        {/* Step 2 nudge: a canvas with no resolvable hire
+                            gets the journey CTA instead of a dead end. */}
+                        {canvasData && agentsLoaded && canvasAgents.length === 0 && !trainingCtx?.agent && (
+                            <div
+                                className="mx-3 mt-3 mb-1 rounded-lg border border-dashed p-4 text-center"
+                                data-testid="canvas-no-agent-banner"
+                            >
+                                <Bot className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                                <p className="text-sm font-medium mb-1">This canvas has no agent yet</p>
+                                <p className="text-xs text-muted-foreground mb-3">
+                                    Add an agent to collaborate in chat, load data, and train it on this canvas.
+                                </p>
+                                <Button
+                                    size="sm"
+                                    onClick={() => setAttachOpen(true)}
+                                    data-testid="banner-add-agent-button"
+                                >
+                                    <Bot className="h-4 w-4 mr-1" />
+                                    Add an agent
+                                </Button>
+                            </div>
+                        )}
                         <div className="flex-1 overflow-hidden">
                             {loading ? (
                                 <div className="flex items-center justify-center h-full">
@@ -985,9 +1067,11 @@ export default function CanvasDetailPage() {
 
                         {sideTab === "training" ? (
                             <TrainingPanel
+                                key={`training-${attachNonce}`}
                                 canvasId={canvasId as string}
                                 agentIdHint={(router.query.agent_id as string) || undefined}
                                 onContextLoaded={setTrainingCtx}
+                                onAddAgent={() => setAttachOpen(true)}
                             />
                         ) : sideTab === "journey" ? (
                             <JourneyPanel canvasId={canvasId as string} />
@@ -1164,6 +1248,14 @@ export default function CanvasDetailPage() {
                         />
                     </div>
                 )}
+
+                {/* Step 2 of the journey: attach a hire (picker + guided create) */}
+                <AgentAttachModal
+                    canvasId={canvasId as string}
+                    open={attachOpen}
+                    onOpenChange={setAttachOpen}
+                    onAttached={handleAgentAttached}
+                />
             </div>
         </>
     );

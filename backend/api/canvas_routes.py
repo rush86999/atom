@@ -4,7 +4,8 @@ Consolidates state management, context tracking, recording, and summarization.
 """
 
 import logging
-from fastapi import APIRouter, Body, Depends, WebSocket, WebSocketDisconnect, HTTPException, Query
+import os
+from fastapi import APIRouter, Body, Depends, File, WebSocket, WebSocketDisconnect, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
@@ -164,8 +165,356 @@ async def get_recording(
 
 
 # ============================================================================
-# Canvas CRUD — Read, Update, Delete (Create happens via agent tools)
+# Canvas CRUD — Create (blank), Read, Update, Delete
+#
+# Create used to happen only via agent tools; the gallery's "New blank
+# canvas" journey (create → attach a hire → load data) needs a direct
+# human path. The canvas is deliberately created WITHOUT an agent: the
+# attach step below is what unlocks data loading (see the gate in
+# POST /{canvas_id}/data/upload).
 # ============================================================================
+
+class CreateBlankCanvasRequest(BaseModel):
+    title: Optional[str] = Field(None, description="Display title; defaults to 'Untitled canvas'")
+    description: Optional[str] = Field(None, description="Optional canvas description")
+    canvas_type: str = Field(
+        "document",
+        description="Canvas app type (document, markdown, code, sheet, status_panel, ...)",
+    )
+
+
+# Same app vocabulary the chat to-canvas path accepts, minus "email" (an
+# email canvas without a draft body is not a starting state) and the
+# office_* kinds (they need a real materialized file to bind).
+BLANK_CANVAS_TYPES = {
+    "document", "markdown", "code", "sheet", "status_panel",
+    "form", "line_chart", "bar_chart", "pie_chart", "terminal",
+    "orchestration",
+}
+
+
+@router.post("")
+async def create_blank_canvas(
+    request: CreateBlankCanvasRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create an empty canvas owned by the current user.
+
+    Row conventions mirror the chat to-canvas creation: ``status`` active,
+    content in BOTH the Canvas row and the CanvasAudit trail (readers treat
+    the audit trail as the source of truth), and a "create" audit row.
+    """
+    import uuid
+
+    from core.models import Canvas, CanvasAudit
+    from core.personal_scope import resolve_tenant_id
+
+    canvas_type = (request.canvas_type or "document").strip().lower()
+    if canvas_type not in BLANK_CANVAS_TYPES:
+        raise router.error_response(
+            error_code="UNSUPPORTED_CANVAS_TYPE",
+            message=f"Unsupported canvas_type: {request.canvas_type}",
+            status_code=400,
+        )
+
+    tenant_id = resolve_tenant_id(current_user)
+    canvas_id = str(uuid.uuid4())
+    title = (request.title or "").strip() or "Untitled canvas"
+    content: Any = {"content": ""}
+
+    db.add(Canvas(
+        id=canvas_id,
+        tenant_id=tenant_id,
+        workspace_id=(
+            current_user.workspaces[0].id
+            if getattr(current_user, "workspaces", None) else "default"
+        ),
+        created_by=str(current_user.id),
+        name=title,
+        description=request.description,
+        canvas_type=canvas_type,
+        content=content,
+        status="active",
+        last_edited_by=str(current_user.id),
+        last_edited_at=datetime.now(timezone.utc),
+    ))
+    db.add(CanvasAudit(
+        canvas_id=canvas_id,
+        tenant_id=tenant_id,
+        canvas_type=canvas_type,
+        action_type="create",
+        user_id=str(current_user.id),
+        details_json={"source": "blank_canvas", "title": title, "content": content},
+    ))
+    db.commit()
+    return {"success": True, "canvas_id": canvas_id, "url": f"/canvas/{canvas_id}"}
+
+
+# ============================================================================
+# Agent attachment — the canvas's hires
+#
+# A canvas works through its hire: the explicit AgentCanvasPresence rows
+# written here are the authoritative "who is attached", the gate for data
+# loading, and the first resolution candidate for the training panel.
+# ============================================================================
+
+class AttachCanvasAgentRequest(BaseModel):
+    agent_id: str = Field(..., description="AgentRegistry id of the hire to attach")
+    role: str = Field("collaborator", description="Presence role (collaborator, reviewer, approver)")
+
+
+def _get_owned_canvas(db: Session, canvas_id: str, current_user: User):
+    """Ownership-guarded Canvas row (404 without an existence leak)."""
+    from core.models import Canvas
+    from tools.canvas_crud_tool import _verify_canvas_owner
+
+    if not _verify_canvas_owner(db, canvas_id, str(current_user.id)):
+        raise router.not_found_error("Canvas", canvas_id)
+    canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+    if canvas is None:
+        raise router.not_found_error("Canvas", canvas_id)
+    return canvas
+
+
+@router.get("/{canvas_id}/agents")
+async def list_canvas_agents(
+    canvas_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The hires currently attached to this canvas (newest first)."""
+    from core.agent_coordination import active_canvas_agents
+
+    _get_owned_canvas(db, canvas_id, current_user)
+    return {"success": True, "canvas_id": canvas_id, "agents": active_canvas_agents(db, canvas_id)}
+
+
+@router.post("/{canvas_id}/agents")
+async def attach_canvas_agent(
+    canvas_id: str,
+    request: AttachCanvasAgentRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Attach a hire to this canvas (idempotent).
+
+    Writes AgentCanvasPresence (with the coordination service's WS join
+    broadcast), stamps CanvasContext.agent_id so training-context resolution
+    and the correction loop see the hire, and appends an audit row.
+    """
+    from core.models import AgentRegistry
+    from core.personal_scope import resolve_tenant_id
+    from core.service_factory import ServiceFactory
+    from core.agent_coordination import MultiAgentCanvasService, active_canvas_agents
+
+    canvas = _get_owned_canvas(db, canvas_id, current_user)
+    tenant_id = resolve_tenant_id(current_user)
+
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == request.agent_id).first()
+    if agent is None or (agent.tenant_id or "default") not in (tenant_id, canvas.tenant_id or "default"):
+        raise router.not_found_error("Agent", request.agent_id)
+
+    try:
+        join_result = await MultiAgentCanvasService(db).add_agent_to_canvas(
+            agent_id=request.agent_id,
+            canvas_id=canvas_id,
+            tenant_id=canvas.tenant_id or tenant_id,
+            role=request.role,
+        )
+    except ValueError as exc:
+        raise router.error_response(
+            error_code="AGENT_ATTACH_FAILED", message=str(exc), status_code=400,
+        )
+
+    # get_or_create only sets agent_id at CREATION (the chat-binding has the
+    # same stamp) — a canvas bound before it had a hire would keep None forever.
+    try:
+        context_service = ServiceFactory.get_canvas_context_service(
+            db, tenant_id=tenant_id
+        )
+        context = context_service.get_or_create_context(
+            canvas_id=canvas_id,
+            canvas_type=canvas.canvas_type or "generic",
+            user_id=str(current_user.id),
+            agent_id=request.agent_id,
+        )
+        if context.agent_id != request.agent_id:
+            context.agent_id = request.agent_id
+            db.commit()
+    except Exception as stamp_err:
+        logger.warning(f"canvas context agent stamp skipped: {stamp_err}")
+
+    db.add(_agent_attachment_audit(
+        canvas_id, canvas.tenant_id or tenant_id, str(current_user.id),
+        canvas.canvas_type, "agent_attached", request.agent_id,
+    ))
+    db.commit()
+
+    return {
+        "success": True,
+        "canvas_id": canvas_id,
+        "agent_id": request.agent_id,
+        "join_status": join_result.get("status"),
+        "agents": active_canvas_agents(db, canvas_id),
+    }
+
+
+def _agent_attachment_audit(
+    canvas_id: str,
+    tenant_id: str,
+    user_id: str,
+    canvas_type: Optional[str],
+    action_type: str,
+    agent_id: str,
+):
+    from core.models import CanvasAudit
+
+    return CanvasAudit(
+        canvas_id=canvas_id,
+        tenant_id=tenant_id,
+        canvas_type=canvas_type,
+        action_type=action_type,
+        user_id=user_id,
+        agent_id=agent_id,
+        details_json={"agent_id": agent_id, "source": "canvas_agent_attach"},
+    )
+
+
+@router.delete("/{canvas_id}/agents/{agent_id}")
+async def detach_canvas_agent(
+    canvas_id: str,
+    agent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Detach a hire from this canvas (presence becomes "left"; audit row)."""
+    from core.personal_scope import resolve_tenant_id
+    from core.agent_coordination import MultiAgentCanvasService, active_canvas_agents
+
+    canvas = _get_owned_canvas(db, canvas_id, current_user)
+    result = await MultiAgentCanvasService(db).remove_agent_from_canvas(
+        agent_id=agent_id,
+        canvas_id=canvas_id,
+        tenant_id=canvas.tenant_id or resolve_tenant_id(current_user),
+    )
+    if result.get("status") == "not_present":
+        raise router.not_found_error("Attached agent", agent_id)
+
+    db.add(_agent_attachment_audit(
+        canvas_id, canvas.tenant_id or "default", str(current_user.id),
+        canvas.canvas_type, "agent_detached", agent_id,
+    ))
+    db.commit()
+    return {
+        "success": True,
+        "canvas_id": canvas_id,
+        "agent_id": agent_id,
+        "agents": active_canvas_agents(db, canvas_id),
+    }
+
+
+# ============================================================================
+# Canvas data loading — gated on the attached hire
+#
+# A canvas loads data ONLY through its hire: every canvas-scoped load path
+# refuses with 409 NO_AGENT_ON_CANVAS until a hire is attached (same gate in
+# the UI). Ingested content lands in the workspace memory role-tagged to the
+# hire's category, so its recall surfaces it first.
+# ============================================================================
+
+# Same upload guardrails as /api/document-ingestion/upload — one standard,
+# not a second opinion per surface.
+CANVAS_UPLOAD_ALLOWED_EXTENSIONS = {
+    "txt", "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt",
+    "csv", "json", "md", "html", "htm", "rtf", "odt", "png", "jpg",
+    "jpeg", "gif", "bmp", "tiff", "mp3", "wav", "mp4", "avi", "mov",
+}
+
+
+@router.post("/{canvas_id}/data/upload")
+async def upload_canvas_data(
+    canvas_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Load a file into the canvas's world: parse + ingest into workspace
+    memory, role-tagged to the attached hire.
+
+    409 NO_AGENT_ON_CANVAS when no hire is attached — attach an agent first
+    (POST /{canvas_id}/agents). The audit row makes every load visible on
+    the canvas's journey timeline.
+    """
+    from core.agent_coordination import active_canvas_agents, canvas_load_role
+
+    from core.models import CanvasAudit
+
+    canvas = _get_owned_canvas(db, canvas_id, current_user)
+
+    agents = active_canvas_agents(db, canvas_id)
+    if not agents:
+        raise router.error_response(
+            error_code="NO_AGENT_ON_CANVAS",
+            message="This canvas has no agent attached — add an agent before loading data.",
+            status_code=409,
+        )
+    role = canvas_load_role(db, canvas_id)
+    hire_id = agents[0]["agent_id"]
+
+    max_bytes = int(os.getenv("MAX_UPLOAD_BYTES", "52428800"))
+    content = await file.read()
+    if len(content) > max_bytes:
+        raise router.validation_error(
+            field="file",
+            message=f"File exceeds maximum size of {max_bytes // (1024 * 1024)} MiB",
+        )
+    file_name = file.filename or "upload"
+    file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
+    if file_ext not in CANVAS_UPLOAD_ALLOWED_EXTENSIONS:
+        raise router.validation_error(
+            field="file",
+            message=f"File type '{file_ext or 'unknown'}' is not supported",
+        )
+
+    from core.auto_document_ingestion import AutoDocumentIngestionService
+
+    result = await AutoDocumentIngestionService().process_file_bytes(
+        content,
+        file_name=file_name,
+        source="canvas_upload",
+        user_id=str(current_user.id),
+        role=role,
+        extra_metadata={"canvas_id": canvas_id, "agent_id": hire_id},
+    )
+    ingested = result.get("status") == "ingested"
+
+    db.add(CanvasAudit(
+        canvas_id=canvas_id,
+        tenant_id=canvas.tenant_id or "default",
+        canvas_type=canvas.canvas_type,
+        action_type="data_loaded",
+        user_id=str(current_user.id),
+        agent_id=hire_id,
+        details_json={
+            "file_name": file_name,
+            "source": "canvas_upload",
+            "role": role,
+            "ingested": ingested,
+            "doc_id": result.get("doc_id"),
+        },
+    ))
+    db.commit()
+
+    return {
+        "success": True,
+        "canvas_id": canvas_id,
+        "agent_id": hire_id,
+        "role": role,
+        "file_name": file_name,
+        "ingestion": result,
+    }
+
 
 @router.get("/{canvas_id}")
 async def read_canvas_content(

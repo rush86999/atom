@@ -74,6 +74,25 @@ export default function CanvasIndexPage() {
         }
     }, [router]);
 
+    // Blank canvas creation (create → attach an agent → load data — the
+    // canvas page walks the rest of the journey).
+    const [creatingBlank, setCreatingBlank] = useState(false);
+    const createBlank = useCallback(async () => {
+        setCreatingBlank(true);
+        try {
+            const { createBlankCanvas } = await import("@/lib/canvas-api");
+            const res = await createBlankCanvas();
+            if (res?.canvas_id) {
+                void router.push(res.url || `/canvas/${res.canvas_id}`);
+            }
+        } catch (e: any) {
+            const msg = e?.response?.data?.error?.message || e?.message || "Canvas creation failed";
+            alert(`Couldn't create the canvas: ${msg}`);
+        } finally {
+            setCreatingBlank(false);
+        }
+    }, [router]);
+
 
     // Debounce the search box so typing doesn't fire a request per keystroke.
     useEffect(() => {
@@ -213,6 +232,16 @@ export default function CanvasIndexPage() {
                     <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => void createBlank()}
+                        disabled={creatingBlank}
+                        data-testid="new-blank-canvas-button"
+                    >
+                        {creatingBlank ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                        New canvas
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => pdfInputRef.current?.click()}
                         disabled={pdfUploading}
                         data-testid="upload-pdf-button"
@@ -281,9 +310,19 @@ export default function CanvasIndexPage() {
                                 <>
                                     <Plus className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
                                     <p className="text-muted-foreground mb-1">No canvases yet.</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Ask an agent to create one from chat, or canvases created in chat will appear here.
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Start a blank canvas, or canvases created in chat will appear here.
                                     </p>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => void createBlank()}
+                                        disabled={creatingBlank}
+                                        data-testid="new-blank-canvas-empty-state"
+                                    >
+                                        {creatingBlank ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                        New canvas
+                                    </Button>
                                 </>
                             )}
                         </CardContent>

@@ -519,11 +519,14 @@ class OneDriveService(IntegrationService):
         access_token: str,
         file_id: str,
         extra_metadata: Optional[Dict[str, Any]] = None,
+        role: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Download a file and process it through the ingestion pipeline.
 
         Every file type is attempted; the parser chain decides what is
         extractable and skips gracefully otherwise.
+        role: optional AI-employee role tag (canvas-scoped loads pass the
+        attached hire's category) for role-aware recall.
         """
         token = self._resolve_token(access_token)
         if not token:
@@ -549,6 +552,7 @@ class OneDriveService(IntegrationService):
                 user_id=self.tenant_id,
                 extra_metadata=extra_metadata,
                 external_id=file_id,
+                role=role,
             )
             return {"success": True, "result": result}
         except Exception as e:
@@ -611,7 +615,8 @@ class OneDriveService(IntegrationService):
             return {"success": False, "error": "OneDrive cache sync failed"}
 
     async def _ingest_walked_files(
-        self, access_token: str, files: List[Dict[str, Any]], modified_field: str
+        self, access_token: str, files: List[Dict[str, Any]], modified_field: str,
+        role: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Ingest walked files into memory with folder-path context.
 
@@ -628,7 +633,9 @@ class OneDriveService(IntegrationService):
                     "folder_path": f.get("path") or "",
                     "modified_at": f.get(modified_field) or "",
                 }
-                res = await self.ingest_file_to_memory(access_token, f.get("id"), extra_metadata=meta)
+                res = await self.ingest_file_to_memory(
+                    access_token, f.get("id"), extra_metadata=meta, role=role
+                )
                 inner = res.get("result") or {}
                 if res.get("success") and inner.get("status") == "ingested":
                     ingested += 1
@@ -650,14 +657,17 @@ class OneDriveService(IntegrationService):
         access_token: str,
         folder_id: str,
         folder_name: Optional[str] = None,
+        role: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Recursively ingest one folder subtree into Atom memory.
 
         User-selected folder ingestion ("Ingest folders") — the same
         walk + parse pipeline as full_sync, scoped to the chosen folder.
+        role: optional AI-employee role tag (canvas-scoped loads pass the
+        attached hire's category) for role-aware recall.
         """
         files = await self.walk_files(access_token, folder_id=folder_id or None)
-        tally = await self._ingest_walked_files(access_token, files, "lastModifiedDateTime")
+        tally = await self._ingest_walked_files(access_token, files, "lastModifiedDateTime", role=role)
         return {
             "success": True,
             "folder_id": folder_id,

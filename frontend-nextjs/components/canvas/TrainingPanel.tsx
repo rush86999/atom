@@ -65,10 +65,13 @@ export function TrainingPanel({
   canvasId,
   agentIdHint,
   onContextLoaded,
+  onAddAgent,
 }: {
   canvasId: string;
   agentIdHint?: string;
   onContextLoaded?: (ctx: CanvasTrainingContext) => void;
+  /** Canvas journey step 2: CTA to attach a hire when none resolves. */
+  onAddAgent?: () => void;
 }) {
   const [ctx, setCtx] = useState<CanvasTrainingContext | null>(null);
   const [loading, setLoading] = useState(true);
@@ -363,7 +366,12 @@ export function TrainingPanel({
       {!loading && !agent && (
         <div className="text-xs text-muted-foreground text-center py-6" data-testid="training-no-agent">
           <p className="mb-1">🧑‍🏫 No agent linked to this canvas</p>
-          <p>Open a canvas from an agent chat, or a training-session canvas, to train the agent here.</p>
+          <p className="mb-2">Attach an agent to train it here — a canvas works through its hire.</p>
+          {onAddAgent && (
+            <Button size="sm" variant="outline" onClick={onAddAgent} data-testid="training-add-agent-cta">
+              Add agent
+            </Button>
+          )}
         </div>
       )}
 

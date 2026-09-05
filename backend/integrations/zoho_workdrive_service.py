@@ -900,12 +900,15 @@ class ZohoWorkDriveService(IntegrationService):
         file_id: str,
         extra_metadata: Optional[Dict[str, Any]] = None,
         explicit: bool = True,
+        role: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Download a file and process it through the ingestion pipeline.
 
         explicit=True (default) for user/agent-initiated pulls — never
         content-mode-gated. Bulk walkers pass explicit=False so the
         integration's content mode (hybrid/list_only) is honored.
+        role: optional AI-employee role tag (canvas-scoped loads pass the
+        attached hire's category) for role-aware recall.
         """
         token = await self.get_access_token(user_id)
         if not token:
@@ -934,6 +937,7 @@ class ZohoWorkDriveService(IntegrationService):
                 extra_metadata=extra_metadata,
                 external_id=file_id,
                 explicit=explicit,
+                role=role,
             )
 
             if result.get("status") != "ingested":
@@ -954,7 +958,8 @@ class ZohoWorkDriveService(IntegrationService):
                                  workspace_id: Optional[str] = None,
                                  recursive: bool = True,
                                  file_extensions: Tuple[str, ...] = PARSEABLE_EXTS,
-                                 max_files: int = 500) -> Dict[str, Any]:
+                                 max_files: int = 500,
+                                 role: Optional[str] = None) -> Dict[str, Any]:
         """Recursively ingest all parseable files in a folder tree.
 
         Args:
@@ -964,6 +969,8 @@ class ZohoWorkDriveService(IntegrationService):
             recursive: If True, traverse subfolders
             file_extensions: Tuple of extensions to ingest
             max_files: Maximum files to ingest (safety cap)
+            role: Optional AI-employee role tag (canvas-scoped loads pass the
+                attached hire's category) for role-aware recall
 
         Returns:
             {success, ingested, errors, files_processed}
@@ -999,7 +1006,7 @@ class ZohoWorkDriveService(IntegrationService):
                     continue
 
                 try:
-                    res = await self.ingest_file_to_memory(user_id, f.get("id"))
+                    res = await self.ingest_file_to_memory(user_id, f.get("id"), role=role)
                     processed += 1
                     if res.get("success"):
                         ingested += 1
