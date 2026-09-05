@@ -12,6 +12,7 @@ const ZohoPage: React.FC = () => (
       appName="Zoho"
       description="One consent connects the Zoho suite — pick any app below for its detail page"
       category="suite"
+      backHref="/integrations"
       coveredServices={["Zoho CRM", "Zoho Books", "Zoho Inventory", "Zoho WorkDrive", "Zoho Projects", "Zoho Mail"]}
       apps={[
         { name: "Zoho CRM", href: "/integrations/zoho-crm" },
