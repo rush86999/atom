@@ -18,8 +18,11 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
+from core import ingest_jobs
 from core.auth import get_current_user
+from core.database import get_db
 from core.ingestion_feedback import record_ingestion_feedback
 from core.models import User
 from integrations.onedrive_service import OneDriveService
@@ -27,6 +30,13 @@ from integrations.onedrive_service import OneDriveService
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/onedrive", tags=["onedrive-journey"])
+
+# Shared ingest-job read routes (recent-jobs list, status, ingested-ids) —
+# the POST ingest endpoints below start jobs in the shared registry instead
+# of running the pipeline synchronously (a folder subtree takes minutes; the
+# Next dev proxy aborts sync requests at 30s and the UI saw phantom 500s).
+ingest_jobs.register_ingest_job_routes(router, "onedrive")
+ingest_jobs.register_ingested_ids_route(router, source="onedrive")
 
 # Separate bare router for the auth pair the panel calls.
 auth_router = APIRouter(prefix="/api/auth/onedrive", tags=["onedrive-journey"])
@@ -37,6 +47,10 @@ _service = OneDriveService()
 class IngestDocumentRequest(BaseModel):
     file_id: str = Field(..., description="Graph drive item id")
     metadata: Optional[Dict[str, Any]] = None
+    canvas_id: Optional[str] = Field(
+        None,
+        description="Load into this canvas's world (gated: the canvas must have an attached agent; content is role-tagged to its hire)",
+    )
 
 
 class FolderRef(BaseModel):
@@ -48,6 +62,41 @@ class IngestFoldersRequest(BaseModel):
     folders: List[FolderRef] = Field(
         ..., min_length=1, description="Folders to ingest — each subtree is walked recursively"
     )
+    canvas_id: Optional[str] = Field(
+        None,
+        description="Load into this canvas's world (gated: the canvas must have an attached agent; content is role-tagged to its hire)",
+    )
+
+
+def _canvas_load_role_or_409(
+    db: Session, canvas_id: Optional[str], current_user: User
+) -> Optional[str]:
+    """Gate for canvas-scoped loads (a canvas loads data only through its
+    hire): canvas absent → None (plain user-scoped ingest, unchanged);
+    canvas present → ownership check + hire requirement, returning the
+    hire's role tag. 409 NO_AGENT_ON_CANVAS when no hire is attached."""
+    if not canvas_id:
+        return None
+    from core.agent_coordination import canvas_load_role
+    from tools.canvas_crud_tool import _verify_canvas_owner
+
+    if not _verify_canvas_owner(db, canvas_id, str(current_user.id)):
+        raise HTTPException(status_code=404, detail=f"Canvas {canvas_id} not found")
+    role = canvas_load_role(db, canvas_id)
+    if not role:
+        # Same structured body BaseAPIRouter.error_response produces, so the
+        # UI handles one error shape across every gate.
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "success": False,
+                "error": {
+                    "code": "NO_AGENT_ON_CANVAS",
+                    "message": "This canvas has no agent attached — add an agent before loading data.",
+                },
+            },
+        )
+    return role
 
 
 def _normalize_item(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -111,73 +160,116 @@ async def list_files(
 async def ingest_document(
     body: IngestDocumentRequest,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Ingest a single OneDrive file into Atom memory (all file types attempted)."""
+    """Start a background job ingesting a single OneDrive file into Atom
+    memory (all file types attempted). Returns {job_id} immediately — poll
+    GET /ingest/jobs/{job_id}; a repeat call while the job runs coalesces.
+    body.canvas_id: load into a canvas's world — 409 NO_AGENT_ON_CANVAS
+    unless the canvas has an attached hire."""
     token = await _service.get_access_token(str(current_user.id))
     if not token:
         return {"success": False, "error": "not_connected"}
 
+    role = _canvas_load_role_or_409(db, body.canvas_id, current_user)
+
+    existing = ingest_jobs.find_running("onedrive", str(current_user.id), "file", [body.file_id])
+    if existing:
+        return ingest_jobs.started_payload(existing, coalesced=True, file_id=body.file_id)
+
     extra_meta = {k: v for k, v in (body.metadata or {}).items() if k in ("name", "mime_type", "web_url")}
-    result = await _service.ingest_file_to_memory(
-        token, body.file_id, extra_metadata=extra_meta or None
+    if body.canvas_id:
+        extra_meta["canvas_id"] = body.canvas_id
+    job = ingest_jobs.create_job(
+        "onedrive", str(current_user.id), "file", [body.file_id],
+        extra={"file_id": body.file_id},
     )
-    record_ingestion_feedback(
-        current_user, "onedrive", 1 if result.get("success") else 0,
-        bool(result.get("success")),
-    )
-    return result
+
+    async def _run():
+        role_kwargs = {"role": role} if role else {}
+        result = await _service.ingest_file_to_memory(
+            token, body.file_id, extra_metadata=extra_meta or None, **role_kwargs
+        )
+        record_ingestion_feedback(
+            current_user, "onedrive", 1 if result.get("success") else 0,
+            bool(result.get("success")),
+        )
+        return result
+
+    ingest_jobs.start_job(job, _run)
+    return ingest_jobs.started_payload(job, file_id=body.file_id)
 
 
 @router.post("/ingest-folders")
 async def ingest_folders(
     body: IngestFoldersRequest,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Ingest multiple folders at once — every selected folder's subtree is
-    walked and ingested (same pipeline as /sync, scoped per folder).
-
-    Folders are processed sequentially and isolated: one bad folder id or
-    inaccessible subtree never aborts the rest.
+    """Start a background job ingesting multiple folders — every selected
+    folder's subtree is walked and ingested (same pipeline as /sync, scoped
+    per folder). Returns {job_id} immediately; poll GET /ingest/jobs/{job_id}.
+    A repeat call for the same folder set while the job runs coalesces.
+    body.canvas_id: load into a canvas's world — 409 NO_AGENT_ON_CANVAS
+    unless the canvas has an attached hire (content is role-tagged to it).
     """
     token = await _service.get_access_token(str(current_user.id))
     if not token:
         return {"success": False, "error": "not_connected"}
 
-    results: List[Dict[str, Any]] = []
-    total_ingested = 0
-    for folder in body.folders:
-        try:
-            res = await _service.ingest_folder_to_memory(
-                token, folder.id, folder_name=folder.name
-            )
-        except Exception as e:
-            logger.error(
-                f"OneDrive folder ingestion failed for {folder.name or folder.id}: {e}"
-            )
-            res = {
-                "success": False,
-                "folder_id": folder.id,
-                "folder_name": folder.name,
-                "error": str(e),
-            }
-        if res.get("success"):
-            total_ingested += res.get("files_ingested", 0) or 0
-        results.append(res)
+    role = _canvas_load_role_or_409(db, body.canvas_id, current_user)
 
-    # Per-app feedback: the user just ingested from THIS integration, so its
-    # card's "Records ingested / Last ingested" must reflect it.
-    record_ingestion_feedback(
-        current_user, "onedrive", total_ingested,
-        any(r.get("success") for r in results),
+    folder_ids = [f.id for f in body.folders]
+    existing = ingest_jobs.find_running("onedrive", str(current_user.id), "folder", folder_ids)
+    if existing:
+        return ingest_jobs.started_payload(existing, coalesced=True, folder_ids=folder_ids)
+
+    job = ingest_jobs.create_job(
+        "onedrive", str(current_user.id), "folder", folder_ids,
+        extra={"folder_ids": folder_ids},
     )
 
-    return {
-        "success": any(r.get("success") for r in results),
-        "folders_requested": len(body.folders),
-        "folders_succeeded": sum(1 for r in results if r.get("success")),
-        "files_ingested": total_ingested,
-        "results": results,
-    }
+    async def _run():
+        results: List[Dict[str, Any]] = []
+        total_ingested = 0
+        # Plain user-scoped ingest keeps the OLD call shape byte-for-byte —
+        # canvas-scoped loads are the only callers that add role.
+        role_kwargs = {"role": role} if role else {}
+        for folder in body.folders:
+            try:
+                res = await _service.ingest_folder_to_memory(
+                    token, folder.id, folder_name=folder.name, **role_kwargs
+                )
+            except Exception as e:
+                logger.error(
+                    f"OneDrive folder ingestion failed for {folder.name or folder.id}: {e}"
+                )
+                res = {
+                    "success": False,
+                    "folder_id": folder.id,
+                    "folder_name": folder.name,
+                    "error": str(e),
+                }
+            if res.get("success"):
+                total_ingested += res.get("files_ingested", 0) or 0
+            results.append(res)
+
+        # Per-app feedback: the user just ingested from THIS integration, so
+        # its card's "Records ingested / Last ingested" must reflect it.
+        record_ingestion_feedback(
+            current_user, "onedrive", total_ingested,
+            any(r.get("success") for r in results),
+        )
+        return {
+            "success": any(r.get("success") for r in results),
+            "folders_requested": len(body.folders),
+            "folders_succeeded": sum(1 for r in results if r.get("success")),
+            "files_ingested": total_ingested,
+            "results": results,
+        }
+
+    ingest_jobs.start_job(job, _run)
+    return ingest_jobs.started_payload(job, folder_ids=folder_ids)
 
 
 @router.post("/sync")

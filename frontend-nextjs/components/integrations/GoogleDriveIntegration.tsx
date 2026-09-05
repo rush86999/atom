@@ -14,6 +14,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { authFetch } from "@/lib/auth-headers";
 import { notifyIngestionUpdated } from "@/lib/ingestion-events";
+import { runIngestJob, fetchRecentJobs, type IngestJob } from "@/lib/ingest-jobs";
+import IngestionJobsStrip from "@/components/integrations/IngestionJobsStrip";
 import {
   ChevronRight,
   ArrowRight,
@@ -75,7 +77,43 @@ const GoogleDriveIntegration: React.FC = () => {
   const [ingestingFolders, setIngestingFolders] = useState(false);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [recentJobs, setRecentJobs] = useState<IngestJob[]>([]);
+  const [ingestedIds, setIngestedIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  // Ingest jobs live server-side and outlive this page — surface running /
+  // recent ones so an ingest started before this page load is visible.
+  useEffect(() => {
+    refreshRecentJobs();
+    const timer = setInterval(refreshRecentJobs, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const refreshRecentJobs = async () => {
+    setRecentJobs(await fetchRecentJobs(authFetch, "/api/gdrive"));
+  };
+
+  // Durable badge source of truth: which listed files are already in ATOM
+  // memory (POST /ingested-ids probes the document store).
+  const hydrateIngestedIds = async (listed: GoogleDriveFile[]) => {
+    const fileIds = (listed || []).filter((f) => !f.isFolder).map((f) => f.id);
+    if (fileIds.length === 0) return;
+    try {
+      const response = await authFetch("/api/gdrive/ingested-ids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_ids: fileIds }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const ingested: string[] = data?.data?.ingested ?? data?.ingested ?? [];
+      if (ingested.length > 0) {
+        setIngestedIds((prev) => new Set([...prev, ...ingested]));
+      }
+    } catch {
+      // badges are best-effort
+    }
+  };
 
   // Fetch connection status
   const fetchConnectionStatus = async () => {
@@ -126,6 +164,7 @@ const GoogleDriveIntegration: React.FC = () => {
           // The listing changed (navigation/refresh) — selections refer to
           // rows that may no longer be on screen.
           setSelectedFolderIds(new Set());
+          hydrateIngestedIds(data.files || []);
         }
 
         setNextPageToken(data.nextPageToken);
@@ -225,25 +264,28 @@ const GoogleDriveIntegration: React.FC = () => {
   const handleIngestFile = async (file: GoogleDriveFile) => {
     try {
       setIngestingId(file.id);
-      const response = await authFetch('/api/ingest-gdrive-document', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Backend JOB (a big file parses for minutes — the sync request died
+      // at the proxy timeout with a phantom 500). Start + poll via the
+      // shared lib.
+      const data = await runIngestJob(
+        authFetch,
+        '/api/ingest-gdrive-document',
+        '/api/gdrive',
+        {
           file_id: file.id,
           metadata: {
             name: file.name,
             mimeType: file.mimeType,
             webViewLink: file.webViewLink,
           },
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok && data.success !== false) {
+        },
+        'file ingest'
+      );
+      if (data.success !== false) {
+        setIngestedIds((prev) => new Set(prev).add(file.id));
         // Immediate per-app feedback: the page's ingestion card refreshes.
         notifyIngestionUpdated("google_drive");
+        refreshRecentJobs();
         toast({
           title: 'File Ingested',
           description: `${file.name} has been added to search index`,
@@ -270,20 +312,17 @@ const GoogleDriveIntegration: React.FC = () => {
 
     try {
       setIngestingFolders(true);
-      const response = await authFetch('/api/gdrive/ingest-folders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          folders: folders.map(f => ({ id: f.id, name: f.name })),
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok && data.success !== false) {
+      const data = await runIngestJob(
+        authFetch,
+        '/api/gdrive/ingest-folders',
+        '/api/gdrive',
+        { folders: folders.map(f => ({ id: f.id, name: f.name })) },
+        'folder ingest'
+      );
+      if (data.success !== false) {
         const succeeded = data.folders_succeeded ?? folders.length;
         notifyIngestionUpdated("google_drive");
+        refreshRecentJobs();
         toast({
           title: 'Folder Ingestion Complete',
           description:
@@ -516,6 +555,9 @@ const GoogleDriveIntegration: React.FC = () => {
                   )}
                 </div>
               )}
+
+              {/* Running / recent ingest jobs — server-side state, visible after navigating away and back mid-ingest. */}
+              <IngestionJobsStrip jobs={recentJobs} />
               <div className="border rounded-md">
                 <Table>
                   <TableHeader>

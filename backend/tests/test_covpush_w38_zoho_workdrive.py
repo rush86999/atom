@@ -4,6 +4,7 @@ The router (auth'd via router-level Depends) delegates to
 ZohoWorkDriveService: teams / files-list / ingest / health. Service calls are
 mocked — no network.
 """
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -99,20 +100,45 @@ class TestListFiles:
 
 
 class TestIngest:
-    def test_ingest_success(self, client):
+    @staticmethod
+    def _await_ingest_job(client, job_id, timeout=5.0):
+        # Ingest runs as a background task; poll the job-status endpoint
+        # until it leaves "running" (mocked service calls resolve fast).
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            resp = client.get(f"/api/zoho-workdrive/ingest/jobs/{job_id}")
+            assert resp.status_code == 200
+            job = resp.json()["data"]
+            if job["status"] != "running":
+                return job
+            time.sleep(0.02)
+        raise AssertionError(f"ingest job {job_id} never finished")
+
+    def test_ingest_starts_background_job_and_completes(self, client):
         with patch("api.zoho_workdrive_routes.zoho_service.ingest_file_to_memory",
                    new=AsyncMock(return_value={"success": True, "doc_id": "d1"})):
             resp = client.post("/api/zoho-workdrive/ingest", json={
                 "user_id": "u1", "file_id": "f1"})
         assert resp.status_code == 200
-        assert resp.json()["doc_id"] == "d1"
+        started = resp.json()["data"]
+        assert started["status"] == "started"
+        assert started["file_id"] == "f1"
+        job = self._await_ingest_job(client, started["job_id"])
+        assert job["status"] == "completed"
+        assert job["result"]["doc_id"] == "d1"
 
-    def test_ingest_error_500(self, client):
+    def test_ingest_service_error_becomes_failed_job(self, client):
+        # A failure used to surface as a synchronous 500 while the client was
+        # still waiting (proxy timeout at 30s made it worse); now it lands in
+        # the job record and the poller reports it.
         with patch("api.zoho_workdrive_routes.zoho_service.ingest_file_to_memory",
                    new=AsyncMock(side_effect=RuntimeError("boom"))):
             resp = client.post("/api/zoho-workdrive/ingest", json={
                 "user_id": "u1", "file_id": "f1"})
-        assert resp.status_code == 500
+        assert resp.status_code == 200
+        job = self._await_ingest_job(client, resp.json()["data"]["job_id"])
+        assert job["status"] == "failed"
+        assert "boom" in job["error"]
 
     def test_ingest_validation_422(self, client):
         resp = client.post("/api/zoho-workdrive/ingest", json={})

@@ -14,6 +14,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { authFetch } from "@/lib/auth-headers";
 import { notifyIngestionUpdated } from "@/lib/ingestion-events";
+import { runIngestJob, fetchRecentJobs, type IngestJob } from "@/lib/ingest-jobs";
+import IngestionJobsStrip from "@/components/integrations/IngestionJobsStrip";
 import {
   ChevronRight,
   ExternalLink,
@@ -74,7 +76,43 @@ const OneDriveIntegration: React.FC = () => {
     undefined,
   );
   const [error, setError] = useState<string | null>(null);
+  const [recentJobs, setRecentJobs] = useState<IngestJob[]>([]);
+  const [ingestedIds, setIngestedIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  // Ingest jobs live server-side and outlive this page — surface running /
+  // recent ones so an ingest started before this page load is visible.
+  useEffect(() => {
+    refreshRecentJobs();
+    const timer = setInterval(refreshRecentJobs, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const refreshRecentJobs = async () => {
+    setRecentJobs(await fetchRecentJobs(authFetch, "/api/onedrive"));
+  };
+
+  // Durable badge source of truth: which listed files are already in ATOM
+  // memory (POST /ingested-ids probes the document store).
+  const hydrateIngestedIds = async (listed: OneDriveFile[]) => {
+    const fileIds = (listed || []).filter((f) => !f.is_folder).map((f) => f.id);
+    if (fileIds.length === 0) return;
+    try {
+      const response = await authFetch("/api/onedrive/ingested-ids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_ids: fileIds }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const ingested: string[] = data?.data?.ingested ?? data?.ingested ?? [];
+      if (ingested.length > 0) {
+        setIngestedIds((prev) => new Set([...prev, ...ingested]));
+      }
+    } catch {
+      // badges are best-effort
+    }
+  };
 
   const fetchConnectionStatus = async () => {
     try {
@@ -129,6 +167,7 @@ const OneDriveIntegration: React.FC = () => {
           // The listing changed (navigation/refresh) — selections refer to
           // rows that may no longer be on screen.
           setSelectedFolderIds(new Set());
+          hydrateIngestedIds(data.files || []);
         }
 
         setNextPageToken(data.next_page_token);
@@ -223,24 +262,27 @@ const OneDriveIntegration: React.FC = () => {
   const handleIngestFile = async (file: OneDriveFile) => {
     try {
       setIngestingId(file.id);
-      const response = await authFetch("/api/onedrive/ingest-document", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      // Backend JOB (a big file parses for minutes — the sync request died
+      // at the proxy timeout with a phantom 500). Start + poll via the
+      // shared lib.
+      const data = await runIngestJob(
+        authFetch,
+        "/api/onedrive/ingest-document",
+        "/api/onedrive",
+        {
           file_id: file.id,
           metadata: {
             name: file.name,
             mime_type: file.mime_type,
             web_url: file.web_url,
           },
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok && data.success !== false) {
+        },
+        "file ingest"
+      );
+      if (data.success !== false) {
+        setIngestedIds((prev) => new Set(prev).add(file.id));
         notifyIngestionUpdated("onedrive");
+        refreshRecentJobs();
         toast({
           title: "File Ingested",
           description: `${file.name} has been added to search index`,
@@ -260,7 +302,8 @@ const OneDriveIntegration: React.FC = () => {
   };
 
   // Multi-folder ingestion: every selected folder's subtree is walked and
-  // ingested in one backend call (folders are isolated server-side).
+  // ingested in one backend JOB (folders are isolated server-side); the
+  // client polls the job to completion.
   const handleIngestSelectedFolders = async () => {
     const folders = files.filter(
       (f) => f.is_folder && selectedFolderIds.has(f.id),
@@ -269,20 +312,17 @@ const OneDriveIntegration: React.FC = () => {
 
     try {
       setIngestingFolders(true);
-      const response = await authFetch("/api/onedrive/ingest-folders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          folders: folders.map((f) => ({ id: f.id, name: f.name })),
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok && data.success !== false) {
+      const data = await runIngestJob(
+        authFetch,
+        "/api/onedrive/ingest-folders",
+        "/api/onedrive",
+        { folders: folders.map((f) => ({ id: f.id, name: f.name })) },
+        "folder ingest"
+      );
+      if (data.success !== false) {
         const succeeded = data.folders_succeeded ?? folders.length;
         notifyIngestionUpdated("onedrive");
+        refreshRecentJobs();
         toast({
           title: "Folder Ingestion Complete",
           description:
@@ -503,6 +543,9 @@ const OneDriveIntegration: React.FC = () => {
                   )}
                 </div>
               )}
+              {/* Running / recent ingest jobs — server-side state, visible
+                  after navigating away and back mid-ingest. */}
+              <IngestionJobsStrip jobs={recentJobs} />
               <div className="border rounded-md">
                 <Table>
                   <TableHeader>
@@ -589,7 +632,7 @@ const OneDriveIntegration: React.FC = () => {
                                 {ingestingId === file.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                                 ) : (
-                                  <Download className="h-4 w-4" />
+                                  <Download className={`h-4 w-4 ${ingestedIds.has(file.id) ? "text-green-600" : ""}`} />
                                 )}
                               </Button>
                             )}

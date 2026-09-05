@@ -16,6 +16,7 @@ Covers:
   422.
 """
 import asyncio
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -52,6 +53,31 @@ def _folder_tally(folder_id, name, ingested):
     }
 
 
+@pytest.fixture(autouse=True)
+def _clear_ingest_job_registry():
+    # Ingest jobs live in a module-global registry (core.ingest_jobs) —
+    # clear it around each test so running jobs never coalesce across tests.
+    from core import ingest_jobs
+
+    ingest_jobs.registry.clear()
+    yield
+    ingest_jobs.registry.clear()
+
+
+def _await_ingest_job(client, base, job_id, timeout=5.0):
+    # Ingest runs as a background task; poll the job-status endpoint until it
+    # leaves "running" (mocked service calls resolve fast).
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        status = client.get(f"{base}/ingest/jobs/{job_id}")
+        assert status.status_code == 200
+        job = status.json()["data"]
+        if job["status"] != "running":
+            return job
+        time.sleep(0.02)
+    raise AssertionError(f"ingest job {job_id} never finished")
+
+
 # ---------------------------------------------------------------- Google Drive
 
 
@@ -84,7 +110,11 @@ class TestGdriveIngestFolders:
                 json={"folders": [{"id": "fldA", "name": "A"}, {"id": "fldB"}]},
             )
         assert resp.status_code == 200
-        body = resp.json()
+        started = resp.json()["data"]
+        assert started["status"] == "started"
+        job = _await_ingest_job(gdrive_client, "/api/gdrive", started["job_id"])
+        assert job["status"] == "completed"
+        body = job["result"]
         assert body["success"] is True
         assert body["folders_requested"] == 2
         assert body["folders_succeeded"] == 2
@@ -112,7 +142,8 @@ class TestGdriveIngestFolders:
                 "/api/gdrive/ingest-folders",
                 json={"folders": [{"id": "fldA"}, {"id": "fldB", "name": "B"}]},
             )
-        body = resp.json()
+        job = _await_ingest_job(gdrive_client, "/api/gdrive", resp.json()["data"]["job_id"])
+        body = job["result"]
         assert body["success"] is True
         assert body["folders_succeeded"] == 1
         assert body["files_ingested"] == 1
@@ -165,7 +196,8 @@ class TestOnedriveIngestFolders:
                 json={"folders": [{"id": "f1", "name": "Docs"}]},
             )
         assert resp.status_code == 200
-        body = resp.json()
+        job = _await_ingest_job(onedrive_client, "/api/onedrive", resp.json()["data"]["job_id"])
+        body = job["result"]
         assert body["success"] is True
         assert body["files_ingested"] == 4
         mock_ingest.assert_awaited_once_with("tok", "f1", folder_name="Docs")
@@ -289,7 +321,8 @@ class TestPerAppFeedbackRecording:
                 "/api/onedrive/ingest-folders",
                 json={"folders": [{"id": "f1"}, {"id": "f2"}]},
             )
-        body = resp.json()
+        job = _await_ingest_job(onedrive_client, "/api/onedrive", resp.json()["data"]["job_id"])
+        body = job["result"]
         assert body["folders_succeeded"] == 1
         assert "404" in body["results"][0]["error"]
 
@@ -383,6 +416,20 @@ def zoho_client(user):
 
 
 class TestZohoIngestFolderBatch:
+    @staticmethod
+    def _await_zoho_job(client, job_id, timeout=5.0):
+        # Ingest runs as a background task; poll the job-status endpoint
+        # until it leaves "running" (mocked service calls resolve fast).
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            status = client.get(f"/api/zoho-workdrive/ingest-folder/jobs/{job_id}")
+            assert status.status_code == 200
+            job = status.json()["data"]
+            if job["status"] != "running":
+                return job
+            time.sleep(0.02)
+        raise AssertionError(f"ingest job {job_id} never finished")
+
     def test_batch_folder_ids_aggregates(self, zoho_client):
         tree = AsyncMock(
             side_effect=[
@@ -396,7 +443,9 @@ class TestZohoIngestFolderBatch:
                 json={"folder_ids": ["fA", "fB"], "recursive": True},
             )
         assert resp.status_code == 200
-        body = resp.json()
+        job = self._await_zoho_job(zoho_client, resp.json()["data"]["job_id"])
+        assert job["status"] == "completed"
+        body = job["result"]
         assert body["success"] is True
         assert body["folders_requested"] == 2
         assert body["folders_succeeded"] == 2
@@ -421,7 +470,8 @@ class TestZohoIngestFolderBatch:
                 "/api/zoho-workdrive/ingest-folder",
                 json={"folder_ids": ["fA", "fB"]},
             )
-        body = resp.json()
+        job = self._await_zoho_job(zoho_client, resp.json()["data"]["job_id"])
+        body = job["result"]
         assert body["success"] is True
         assert body["folders_succeeded"] == 1
         assert body["results"][0]["success"] is False
@@ -438,11 +488,13 @@ class TestZohoIngestFolderBatch:
                 "/api/zoho-workdrive/ingest-folder", json={"folder_id": "solo"}
             )
         assert resp.status_code == 200
-        body = resp.json()
-        # legacy shape: the tree result itself, not the batch envelope
-        assert body["folder_id"] == "solo"
-        assert body["files_ingested"] == 7
-        assert "results" not in body
+        job = self._await_zoho_job(zoho_client, resp.json()["data"]["job_id"])
+        result = job["result"]
+        # legacy shape preserved in the job result: the tree result itself,
+        # not the batch envelope
+        assert result["folder_id"] == "solo"
+        assert result["files_ingested"] == 7
+        assert "results" not in result
         tree.assert_awaited_once()
 
     def test_missing_ids_422(self, zoho_client):

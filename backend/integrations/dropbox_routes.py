@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from integrations.auth_handler_dropbox import dropbox_auth_handler
 from integrations.dropbox_service import dropbox_service
+from core import ingest_jobs
 from core.auth import get_current_user
 from core.ingestion_feedback import record_ingestion_feedback
 from core.models import User
@@ -20,6 +21,11 @@ logger = logging.getLogger(__name__)
 
 # Initialize router
 router = APIRouter(prefix="/api/dropbox", tags=["dropbox"])
+
+# Shared ingest-job read routes — /files/sync below starts a job in the
+# shared registry instead of walking the whole tree synchronously (the walk
+# takes minutes; the Next dev proxy aborts sync requests at 30s).
+ingest_jobs.register_ingest_job_routes(router, "dropbox")
 
 
 # Pydantic models for request/response
@@ -262,13 +268,22 @@ async def download_file(
         )
 
 
-@router.post("/files/sync", summary="Full ingestion sync of the entire Dropbox tree")
+@router.post("/files/sync", summary="Full ingestion sync of the entire Dropbox tree (background job)")
 async def full_sync(
     current_user: User = Depends(get_current_user)
 ):
-    """Walk every subfolder (cursor pagination followed) and ingest every file
-    type into Atom memory with folder-path context. Requires authentication."""
-    try:
+    """Start a background job that walks every Dropbox subfolder (cursor
+    pagination followed) and ingests every file type into Atom memory with
+    folder-path context. Returns {job_id} immediately — poll
+    GET /files/sync status via /ingest/jobs/{job_id}. A repeat call while
+    the job runs coalesces."""
+    existing = ingest_jobs.find_running("dropbox", str(current_user.id), "sync", ["full-tree"])
+    if existing:
+        return ingest_jobs.started_payload(existing, coalesced=True)
+
+    job = ingest_jobs.create_job("dropbox", str(current_user.id), "sync", ["full-tree"])
+
+    async def _run():
         token = await dropbox_auth_handler.ensure_valid_token()
         result = await dropbox_service.full_sync(
             workspace_id=str(current_user.id), access_token=token
@@ -279,11 +294,9 @@ async def full_sync(
             bool(isinstance(result, dict) and result.get("success")),
         )
         return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error running Dropbox full sync: {e}")
-        raise HTTPException(status_code=500, detail="Internal error")
+
+    ingest_jobs.start_job(job, _run)
+    return ingest_jobs.started_payload(job)
 
 
 @router.post("/files/search", summary="Search files")

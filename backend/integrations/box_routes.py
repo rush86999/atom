@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from core import ingest_jobs
 from core.auth import get_current_user
 from core.ingestion_feedback import record_ingestion_feedback
 from core.models import User
@@ -18,6 +19,11 @@ from .box_service import box_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/box", tags=["box"])
+
+# Shared ingest-job read routes — /sync below starts a job in the shared
+# registry instead of walking the whole Box tree synchronously (the walk
+# takes minutes; the Next dev proxy aborts sync requests at 30s).
+ingest_jobs.register_ingest_job_routes(router, "box")
 
 
 # Pydantic models
@@ -126,26 +132,31 @@ async def search_files(
 
 @router.post("/sync")
 async def full_sync(current_user: User = Depends(get_current_user)):
-    """Full ingestion sync: walk every Box subfolder (paginated) and ingest
-    every file type into Atom memory with folder-path context. The Box token
-    is resolved server-side from the stored OAuth connection."""
-    try:
+    """Start a background job that walks every Box subfolder (paginated) and
+    ingests every file type into Atom memory with folder-path context.
+    Returns {job_id} immediately — poll GET /ingest/jobs/{job_id}. A repeat
+    call while the job runs coalesces. The Box token is resolved server-side
+    from the stored OAuth connection; "not connected" surfaces as a failed
+    job rather than a synchronous error."""
+    existing = ingest_jobs.find_running("box", str(current_user.id), "sync", ["full-tree"])
+    if existing:
+        return ingest_jobs.started_payload(existing, coalesced=True)
+
+    job = ingest_jobs.create_job("box", str(current_user.id), "sync", ["full-tree"])
+
+    async def _run():
         result = await box_service.full_sync(
             workspace_id=str(current_user.id), access_token=None
         )
-        if not result.get("success") and "No Box access token" in str(result.get("error")):
-            raise HTTPException(status_code=400, detail="Box not connected")
         record_ingestion_feedback(
             current_user, "box",
             int((result or {}).get("files_ingested") or 0),
             bool(result.get("success")),
         )
         return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to run Box full sync: {e}")
-        raise HTTPException(status_code=500, detail="Internal error")
+
+    ingest_jobs.start_job(job, _run)
+    return ingest_jobs.started_payload(job)
 
 
 @router.get("/status")
