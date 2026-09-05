@@ -65,14 +65,18 @@ class WorkflowScheduler:
             settings = get_automation_settings().get_settings()
             pipeline_config = settings.get("pipelines", {})
 
-            from integrations.atom_finance_memory_pipeline import finance_pipeline
+            # NOTE: integrations/atom_finance_memory_pipeline was removed
+            # (commit 6561cf5b8 — broken syntax + missing stripe_service dep,
+            # never worked). Its dangling import here silently killed
+            # rescheduling of the sales/projects pipelines too, because the
+            # ImportError aborted this whole method. Re-add only if the
+            # module is ever revived with working deps.
             from integrations.atom_projects_memory_pipeline import projects_pipeline
             from integrations.atom_sales_memory_pipeline import sales_pipeline
-            
+
             pipelines = {
                 'sales': sales_pipeline,
                 'projects': projects_pipeline,
-                'finance': finance_pipeline
             }
 
             for name, pipeline in pipelines.items():
@@ -86,7 +90,7 @@ class WorkflowScheduler:
                     logger.info(f"Setting {name} pipeline to REAL-TIME (1m interval)")
                 else:
                     # Scheduled mode uses cron
-                    cron_expr = config.get("cron", "*/30 * * * *" if name != 'finance' else "0 * * * *")
+                    cron_expr = config.get("cron", "*/30 * * * *")
                     trigger = CronTrigger.from_crontab(cron_expr)
                     logger.info(f"Setting {name} pipeline to SCHEDULED ({cron_expr})")
 
@@ -155,7 +159,27 @@ class WorkflowScheduler:
                 execution_id = await engine.start_workflow(workflow_def, input_data or {})
                 logger.info(f"Scheduled execution {execution_id} started")
             else:
-                logger.error(f"Scheduled workflow {workflow_id} not found")
+                # Self-heal (2026-09-05): the definition is gone (deleted
+                # workflow/template) — remove every scheduled job still
+                # pointing at it. Without this, a dead ID kept erroring on
+                # every fire forever (8 such IDs in the live jobstore).
+                try:
+                    dead = [
+                        job.id
+                        for job in workflow_scheduler.scheduler.get_jobs()
+                        if getattr(job, "args", None) and job.args[0] == workflow_id
+                    ]
+                    for dead_id in dead:
+                        workflow_scheduler.scheduler.remove_job(dead_id)
+                    logger.warning(
+                        "Scheduled workflow %s not found — removed %d dead schedule(s): %s",
+                        workflow_id, len(dead), dead,
+                    )
+                except Exception as cleanup_err:
+                    logger.error(
+                        "Scheduled workflow %s not found (dead-schedule cleanup failed: %s)",
+                        workflow_id, cleanup_err,
+                    )
 
         except Exception as e:
             logger.error(f"Error executing scheduled workflow {workflow_id}: {e}")

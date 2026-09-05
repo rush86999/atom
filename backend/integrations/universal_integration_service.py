@@ -428,8 +428,12 @@ class UniversalIntegrationService:
                 return result
                 
         except Exception as e:
-            logger.error(f"Universal Integration Execution Failed ({service}.{action}): {e}")
-            circuit_breaker.record_failure(service, e)
+            # exc_info: anonymous salesforce/jira/asana list calls recur with
+            # no traceback — this names the calling code the moment it fires.
+            logger.error(f"Universal Integration Execution Failed ({service}.{action}): {e}", exc_info=True)
+            # await: record_failure is async — un-awaited since forever, so
+            # the breaker never recorded failures and never opened.
+            await circuit_breaker.record_failure(service, e)
             
             # Record spend even on crash if it was a real attempt
             cost = get_action_cost(service, action)

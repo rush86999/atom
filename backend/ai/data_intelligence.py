@@ -174,7 +174,9 @@ class DataIntelligenceEngine:
             return []
             
         except Exception as e:
-            logger.warning(f"Error fetching data from {platform.value}: {e}")
+            # exc_info: 2026-09-05 — anonymous salesforce/jira/asana list calls
+            # keep firing (user_id required); traceback names the caller.
+            logger.warning(f"Error fetching data from {platform.value}: {e}", exc_info=True)
             return []
 
     def _get_default_entity(self, platform: PlatformType) -> str:

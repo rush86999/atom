@@ -56,6 +56,13 @@ class ProjectsMemoryPipeline:
             jira = get_jira_service()
             
             # Check connection
+            # get_jira_service() returns None when Jira is not configured for
+            # this workspace — skip instead of crashing the ingest cycle
+            # (live 2026-09-05: 'NoneType' object has no attribute
+            # 'test_connection' on every pipeline run).
+            if jira is None:
+                logger.warning("Skipping Jira ingestion: Jira service not configured")
+                return
             if not jira.test_connection().get("authenticated"):
                  logger.warning("Skipping Jira ingestion: Not Authenticated")
                  return
