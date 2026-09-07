@@ -114,12 +114,22 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
                 # token set, then digit-densest (data row beats brand-title
                 # line), then earliest.
                 sheet_start = min(len(text) - 1, m.start() + 1)
+                # Same-named adjacent markers (real exports carry duplicate/
+                # whitespace-variant sheet tabs) are ONE body: clipping at
+                # the twin marker would strand the rows between/after it.
                 next_m = next(
-                    (s for s in sheet_hits if s.start() > m.start()), None)
+                    (s for s in sheet_hits if s.start() > m.start()
+                     and _re.sub(r"[^a-z0-9]+", "", s.group(1).lower())
+                     != sheet_name),
+                    None,
+                )
                 sheet_end = next_m.start() if next_m else len(text)
                 lines = []
-                for line_m in _re.finditer(r"[^\n]+\n", text[m.end():sheet_end]):
+                for line_m in _re.finditer(
+                        r"[^\n]+\n?", text[m.end():sheet_end]):
                     line_raw = line_m.group(0)
+                    if _re.match(r"\s*(?:===|---) Sheet:", line_raw):
+                        continue  # structural marker, never an anchor
                     toks = frozenset(
                         t for t in uniq if t in line_raw.lower())
                     if toks:
@@ -130,9 +140,9 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
                         ))
                 best_line = None
                 if lines:
-                    # The token that IDENTIFIED the sheet keys the row
-                    # search — "the region this token names". Global counts
-                    # would misfire on small workbooks where header
+                    # Primary key: the token that IDENTIFIED the sheet —
+                    # "the region this token names". Global counts misfire
+                    # as the primary key on small workbooks where header
                     # boilerplate ("price") is nominally rarer than the
                     # brand (live-shape repro: one-sheet book, price=1 <
                     # linmac=2 → anchored the header line, row lost).
@@ -146,6 +156,26 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
                         # query, but only one holds the price.
                         best_line, _, _ = max(
                             keyed,
+                            key=lambda item: (
+                                len(item[1]),
+                                -sum(counts[t] for t in item[1]),
+                                item[2],
+                                -item[0],
+                            ),
+                        )
+                    else:
+                        # The identifier can live only on the sheet's title
+                        # line (query "invoices sheet … brightwater" against
+                        # an AR-aging export whose rows never say
+                        # "invoices"): score every content line by token
+                        # identity. Keying on a single "rarest" token does
+                        # NOT work here — header words ("Salary") tie with
+                        # names ("Okafor") at count 1 and the header wins
+                        # the coin flip, anchoring the head; whole-line hits
+                        # ("Jane Okafor" = 2) beat header words (= 1) for
+                        # free.
+                        best_line, _, _ = max(
+                            lines,
                             key=lambda item: (
                                 len(item[1]),
                                 -sum(counts[t] for t in item[1]),
