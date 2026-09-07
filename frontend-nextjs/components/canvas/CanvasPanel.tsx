@@ -84,7 +84,15 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
     const hasSignoff = (body: string, sig: string | null): boolean => {
         if (!body) return false;
         if (sig && body.includes(sig)) return true;
-        return /(?:best regards|warm regards|kind regards|regards|sincerely|thank you|thanks|cheers|respectfully)\s*,?\s*(?:\n|<br|<div|$)/im.test(body.slice(-400));
+        // Styled signatures (a bordered <div> with padded <p> blocks) wrap a
+        // short sign-off in a lot of HTML — "Regards,<br><strong>Rish…"
+        // sat ~550 raw-HTML chars from the end, outside this raw window, so
+        // the integration default got appended AGAIN below it (two stacked
+        // signatures, observed live 2026-09-06). Tag-strip first and match
+        // on the trailing TEXT, where styled and plain sign-offs look alike.
+        const text = body.replace(/<[^>]+>/g, "\n").replace(/&nbsp;/gi, " ");
+        const tail = text.slice(-600);
+        return /(?:best regards|warm regards|kind regards|regards|sincerely|thank you|thanks|cheers|respectfully)\s*,?\s*(?:\n|$)/im.test(tail);
     };
 
     // A draft's own trailing plain sign-off ("Best regards,\nRish …") —

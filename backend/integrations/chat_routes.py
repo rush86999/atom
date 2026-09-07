@@ -1501,11 +1501,19 @@ async def chat_draft_to_canvas(
         from core.chat_draft_classifier import extract_email_draft
 
         canvas_type = "email"
-        canvas_content = extract_email_draft(content) or {
-            "to": "",
-            "subject": title,
-            "body": content,
-        }
+        # coerce → normalize_email_content → markdown-table styling: the
+        # draft must open styled on the first try (the composer and the
+        # recipient's mail client render raw `|---|` tables as literal
+        # pipes — the "fix the table styling" ask this used to need a
+        # whole extra agent turn for).
+        canvas_content = coerce_email_canvas(
+            "email",
+            extract_email_draft(content) or {
+                "to": "",
+                "subject": title,
+                "body": content,
+            },
+        )[1]
     elif requested_type in ("office_word", "office_excel", "office_pptx"):
         # Office apps need a REAL generated file. Run the same materializer
         # the auto path uses, with the kind the user picked (word→doc,
@@ -1563,7 +1571,13 @@ async def chat_draft_to_canvas(
 
             default_sig = await EmailCanvasService(db).get_signature(str(current_user.id))
             canvas_content["body"] = strip_agent_signoff(
-                canvas_content.get("body") or "", default_sig.get("signature")
+                canvas_content.get("body") or "",
+                # The styled variant counts: a user whose signature exists
+                # ONLY as signature_html (the normal mined case) used to
+                # read as "no default" here — the agent's plain sign-off
+                # stayed in the draft AND the composer appended the styled
+                # one, two signatures on the first try.
+                default_sig.get("signature_html") or default_sig.get("signature"),
             )
         except Exception as sig_err:
             logger.debug(f"default signature resolution skipped: {sig_err}")
