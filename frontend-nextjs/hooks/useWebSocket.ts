@@ -28,6 +28,8 @@ interface UseWebSocketOptions {
     reconnectDelay?: number;
 }
 
+export type WebSocketMessageHandler = (message: WebSocketMessage) => void;
+
 // Close codes that should NOT trigger a reconnect — they are terminal and
 // retrying would either loop on an immutable failure (auth) or violate a
 // policy decision. Auth (4001) recovery is handled by the session-driven
@@ -51,6 +53,23 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
     const [streamingContent, setStreamingContent] = useState<Map<string, string>>(new Map());
     const wsRef = useRef<WebSocket | null>(null);
+
+    // Per-message listener registry. `lastMessage` is a SINGLE state slot:
+    // under a fast frame burst (chat_token streams deliver hundreds of
+    // frames in seconds) React coalesces the setLastMessage calls and the
+    // consumer's [lastMessage] effect only ever sees the newest frame —
+    // every frame landing between two render commits is silently dropped
+    // (observed live 2026-09-06: a streamed canvas-chat reply rendered with
+    // whole chunks missing — the "garbled" bubble — while the DB copy was
+    // clean). Handlers registered here are invoked synchronously for EVERY
+    // message, in arrival order, so streaming consumers lose nothing.
+    const messageHandlersRef = useRef<Set<WebSocketMessageHandler>>(new Set());
+    const onMessage = useCallback((handler: WebSocketMessageHandler) => {
+        messageHandlersRef.current.add(handler);
+        return () => {
+            messageHandlersRef.current.delete(handler);
+        };
+    }, []);
 
     // Reconnect bookkeeping. These are REFS (not state) so the setTimeout
     // callback reads live values — avoiding the stale-closure bug seen in
@@ -162,6 +181,15 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
                 }
 
                 setLastMessage(message);
+                // Listener delivery — see the registry comment above. A handler
+                // must never break the others (or the state update) — isolate it.
+                messageHandlersRef.current.forEach(handler => {
+                    try {
+                        handler(message);
+                    } catch {
+                        // a faulty consumer must not kill the socket loop
+                    }
+                });
             } catch (e) {
                 // Silent catch
             }
@@ -246,6 +274,9 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         streamingContent,
         subscribe,
         unsubscribe,
+        // Register a handler that sees EVERY message (no coalescing drops).
+        // Returns an unsubscribe function — ideal from a useEffect cleanup.
+        onMessage,
         // Exposed so consumers can drive a "reconnecting…" indicator. No
         // existing consumer reads it; it's additive.
         reconnectAttempts: reconnectAttemptsRef.current,

@@ -230,7 +230,7 @@ export default function CanvasDetailPage() {
     }, [restoredFeedback]);
 
     // WebSocket — page-agnostic, auto-subscribes to user:{userId}
-    const { lastMessage, isConnected } = useWebSocket({});
+    const { lastMessage, isConnected, onMessage } = useWebSocket({});
 
     // Training panel state: the sidebar hosts the co-editor chat and the
     // agent training panel (approve, teach, score, graduate) side by side.
@@ -377,10 +377,18 @@ export default function CanvasDetailPage() {
     const chatSessionIdRef = useRef<string | null>(null);
     useEffect(() => { chatSessionIdRef.current = chatSessionId; }, [chatSessionId]);
 
-    // Listen for live canvas updates via WebSocket
-    useEffect(() => {
-        if (!lastMessage) return;
-        const msg = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
+    // Listen for live canvas updates via WebSocket.
+    // DELIVERY: this handler registers through the socket's onMessage
+    // listener instead of reading the `lastMessage` state slot. The slot
+    // coalesces under a fast frame burst — a streamed reply emits hundreds
+    // of chat_token frames and every frame landing between two render
+    // commits was silently dropped before the effect ran, rendering the
+    // reply with whole chunks missing (the "garbled" bubble, observed live
+    // 2026-09-06 on this page while the stored reply was clean). The
+    // listener fires for EVERY frame, in arrival order.
+    const handleWsMessage = useCallback((raw: any) => {
+        if (!raw) return;
+        const msg = typeof raw === "string" ? JSON.parse(raw) : raw;
 
         // Reasoning steps for the co-editor chat — the SAME events the main
         // chat's workspace panel consumes. The orchestrator records these on
@@ -435,7 +443,7 @@ export default function CanvasDetailPage() {
             // First-message race: tokens arrive BEFORE the POST response
             // sets chatSessionId (the server creates the session id). Only
             // filter once the panel knows its session.
-            if (msg.type === "chat_token" && chatSessionId && data.session_id !== chatSessionId) return;
+            if (msg.type === "chat_token" && chatSessionIdRef.current && data.session_id !== chatSessionIdRef.current) return;
             setMessages(prev => {
                 const streamId = `stream_${data.session_id}`;
                 const existing = prev.find(m => m.id === streamId);
@@ -503,7 +511,9 @@ export default function CanvasDetailPage() {
                 setCanvasData(null);
             }
         }
-    }, [lastMessage, canvasId]);
+    }, [canvasId]);
+
+    useEffect(() => onMessage(handleWsMessage), [onMessage, handleWsMessage]);
 
     // Toggle the version-history slide-out. Fetching + restore live in the
     // shared CanvasVersionHistory component (the chat-page host uses it too).
@@ -721,7 +731,21 @@ export default function CanvasDetailPage() {
                 }
             }
             if (lateReply) {
-                setMessages(prev => [...prev, lateReply!]);
+                setMessages(prev => {
+                    // The timed-out turn's stream bubble can still be on
+                    // screen (the turn outlived the request and chat_token_done
+                    // was missed with the socket). Retire it — renamed like the
+                    // new-turn retire in the WS handler — so the authoritative
+                    // late reply doesn't sit under a permanently "streaming"
+                    // partial bubble (observed live 2026-09-06: the garbled
+                    // partial stream stayed above the clean late reply).
+                    const retired = sid
+                        ? prev.map(m => (m.id === `stream_${sid}`
+                            ? { ...m, id: `a_${m.timestamp.getTime()}_${Math.random().toString(36).slice(2, 7)}`, streaming: false }
+                            : m))
+                        : prev;
+                    return [...retired, lateReply!];
+                });
                 setChatSessionId(prev => prev || sid!);
             } else {
                 setMessages(prev => [...prev, {
