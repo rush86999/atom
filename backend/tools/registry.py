@@ -992,6 +992,11 @@ class ToolRegistry:
         except Exception as e:
             logger.warning(f"Could not register data analysis tools: {e}")
         try:
+            from tools.dataset_tool import register_dataset_tools
+            register_dataset_tools(self)
+        except Exception as e:
+            logger.warning(f"Could not register dataset catalog tools: {e}")
+        try:
             from tools.predictive_tools import register_predictive_tools
             register_predictive_tools(self)
         except Exception as e:

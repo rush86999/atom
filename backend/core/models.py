@@ -2752,6 +2752,58 @@ class IngestedDocument(Base):
     # to the right employee's memory.
     role = Column(String(64), nullable=True, index=True)
 
+class DatasetEntry(Base):
+    """Catalog of SQL-queryable datasets materialized from tabular sources.
+
+    Phase 1 producer: core/sheet_dataset_service.py materializes every sheet
+    of an ingested .xlsx/.xls/.csv into a Parquet file (source_kind='file'),
+    so agents answer exact-value questions with SQL (query_data/DuckDB)
+    instead of text-excerpt windows. Phase 2 producer (designed, not built):
+    finance-app entity syncers (source_kind='finance_app') land invoices/
+    payments/items/customers in the same catalog.
+
+    Freshness contract: a row is ONE version of ONE source entity, keyed on
+    the source content hash — a changed source produces a NEW row (and the
+    old one is marked superseded), never an in-place overwrite. A stale copy
+    can therefore never masquerade as current; the cloud source stays the
+    durable store of record (AGENTS.md: stale caches shadowing durable state).
+    """
+    __tablename__ = "dataset_entries"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, nullable=True, index=True)  # derived-data catalog; no FK by design
+    tenant_id = Column(String, nullable=True, index=True)
+    created_by = Column(String, nullable=True, index=True)  # user_id whose ingest produced this version
+
+    # 'file' (sheet_dataset_service) | 'finance_app' (Phase 2 entity syncers)
+    source_kind = Column(String, nullable=False, default="file", server_default="file")
+    source = Column(String, nullable=False)  # integration label: zoho_workdrive, google_drive, upload, ...
+    external_id = Column(String, nullable=False, index=True)  # source-native file id (or content address when absent)
+    file_name = Column(String, nullable=True)  # original source file name (display + search)
+
+    content_hash = Column(String, nullable=False)  # sha1 of source bytes — the version key
+    entity_name = Column(String, nullable=False)  # sheet name within the file (Phase 2: entity, e.g. 'invoices')
+    dataset_name = Column(String, nullable=False, index=True)  # SQL-facing name agents reference
+
+    parquet_path = Column(String, nullable=False)  # absolute, under backend/data/sheet_datasets/
+    row_count = Column(Integer, default=0)
+    column_count = Column(Integer, default=0)
+    columns_json = Column(JSON, default=list)
+
+    source_modified_at = Column(DateTime(timezone=True), nullable=True)
+    ingested_at = Column(DateTime(timezone=True), server_default=func.now())
+    status = Column(String, nullable=False, default="active", server_default="active")  # active|superseded
+    superseded_by = Column(String, nullable=True)  # id of the newer version, mirrors IngestedDocument
+
+    __table_args__ = (
+        UniqueConstraint(
+            "source_kind", "source", "external_id", "content_hash", "entity_name",
+            name="uq_dataset_entries_version",
+        ),
+        Index("ix_dataset_entries_file_lookup", "source", "external_id", "status"),
+    )
+
+
 class KnowledgeDocument(Base):
     """General-purpose document for RAG/knowledge base - persisted to DB"""
     __tablename__ = "knowledge_documents"

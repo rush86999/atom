@@ -641,6 +641,17 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"Failed to start hybrid ingestion sync loop: {e}")
 
+            # App-record datasets (core/app_dataset_sync): connected apps'
+            # invoices/items/charges land as SQL-queryable datasets in the
+            # same catalog the sheet datasets use. Own loop — app records
+            # must not flow into the record-ingestion pipeline.
+            try:
+                from core.app_dataset_sync import start_app_dataset_sync_loop
+
+                start_app_dataset_sync_loop()
+            except Exception as e:
+                logger.error(f"Failed to start app dataset sync loop: {e}")
+
         # 6b. Org Ingestion Hub member pull loop (Phase 3) — pulls signed delta
         # bundles from the designated hub on an interval and applies them via
         # the Phase 2 import path. Opt-in: ATOM_ORG_HUB_URL + ATOM_ORG_HUB_API_KEY

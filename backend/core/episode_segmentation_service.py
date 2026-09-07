@@ -802,17 +802,14 @@ class EpisodeSegmentationService:
         """
         Best-effort schema evolution: add `outcome` and `agent_id` columns
         to an existing episodes table that predates the outcome-prefilter.
-        LanceDB supports add_columns via the arrow Table API.
+
+        Delegates to LanceDBHandler.ensure_columns — the direct
+        table.add_columns({"agent_id": "string"}) form used here before was
+        silently broken on the installed lancedb (its dict values are SQL
+        expressions, not type names — "Column string does not exist").
         """
         try:
-            table = self.lancedb.get_table(table_name)
-            if table is None:
-                return
-            existing = {f.name for f in table.schema}
-            if "outcome" not in existing:
-                table.add_columns({"outcome": "string"})
-            if "agent_id" not in existing:
-                table.add_columns({"agent_id": "string"})
+            self.lancedb.ensure_columns(table_name, {"outcome": "''", "agent_id": "''"})
         except Exception as e:
             logger.debug(f"_ensure_episode_columns skipped: {e}")
 

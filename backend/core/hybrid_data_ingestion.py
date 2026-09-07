@@ -1709,6 +1709,19 @@ class HybridDataIngestionService:
                                 _SKIP_EXTS = (".pst", ".ost", ".zip", ".exe", ".dmg", ".mp4", ".mov", ".7z", ".rar", ".iso", ".img", ".sql", ".bak")
                                 _MAX_CONTENT_BYTES = 8 * 1024 * 1024
                                 _content_budget = 25  # max downloads per sync
+                                # Sheet datasets (live 2026-09-07): spreadsheets
+                                # get their OWN download lane — bigger size cap
+                                # (the 13MB flagship price list exceeded the doc
+                                # cap and was never armed) and their own budget
+                                # so they never cannibalize PDF/DOCX downloads.
+                                # Materialization is row-capped server-side.
+                                _SHEET_EXTS = (".xlsx", ".xlsm", ".xls", ".csv")
+                                _SHEET_MAX_BYTES = 64 * 1024 * 1024
+                                try:
+                                    _sheet_budget = max(0, int(os.getenv(
+                                        "ATOM_SHEET_DATASET_BACKFILL_PER_SYNC", "10")))
+                                except ValueError:
+                                    _sheet_budget = 10
                                 try:
                                     from core.auto_document_ingestion import AutoDocumentIngestionService
                                     _doc_ingestor = AutoDocumentIngestionService(workspace_id=self.workspace_id)
@@ -1799,11 +1812,23 @@ class HybridDataIngestionService:
                                             "folder_id": fid,
                                         })
                                         _wd_appended += 1
+                                        # Sheet files ride their own lane: bigger
+                                        # size cap, separate budget — their
+                                        # dataset materialization happens inside
+                                        # process_file_bytes regardless of this
+                                        # doc-content extraction.
+                                        _is_sheet = ext in _SHEET_EXTS
+                                        _sheet_ok = _is_sheet and _sheet_budget > 0
+                                        _doc_ok = (
+                                            ext in (".pdf", ".docx", ".csv", ".txt", ".md", ".pptx")
+                                            and _content_budget > 0
+                                        )
+                                        _size_cap = _SHEET_MAX_BYTES if _is_sheet else _MAX_CONTENT_BYTES
                                         if (
                                             _doc_ingestor
-                                            and ext in (".pdf", ".docx", ".xlsx", ".csv", ".txt", ".md", ".pptx")
-                                            and (f.get("size") or 0) <= _MAX_CONTENT_BYTES
-                                            and _content_budget > 0
+                                            and (ext in (".pdf", ".docx", ".xlsx", ".csv", ".txt", ".md", ".pptx") or _sheet_ok)
+                                            and (f.get("size") or 0) <= _size_cap
+                                            and (_doc_ok or _sheet_ok)
                                         ):
                                             try:
                                                 _bytes = await zoho_workdrive_service.download_file(wd_user, f.get("id"))
@@ -1818,7 +1843,10 @@ class HybridDataIngestionService:
                                                         external_id=f"zoho_workdrive:{f.get('id')}",
                                                         extra_metadata={"folder_id": fid, "source_modified_at": f.get("modified_at")},
                                                     )
-                                                    _content_budget -= 1
+                                                    if _sheet_ok:
+                                                        _sheet_budget -= 1
+                                                    else:
+                                                        _content_budget -= 1
                                             except Exception as c_err:
                                                 logger.debug(f"WorkDrive content extraction skipped for {f.get('name')}: {c_err}")
                         except Exception as wd_err:
@@ -1970,6 +1998,11 @@ class HybridDataIngestionService:
                                 source="onedrive",
                                 workspace_id=self.workspace_id,
                                 role=role,
+                                # Source-native id: dataset catalog rows get
+                                # file identity, so the read fast path can
+                                # find them by file id (not just content).
+                                external_id=file_id,
+                                extra_metadata={"source_modified_at": item.get("lastModifiedDateTime")},
                             )
                     except Exception as content_err:
                         logger.debug(f"OneDrive content ingestion skipped for {name}: {content_err}")
@@ -2056,6 +2089,8 @@ class HybridDataIngestionService:
                                 source="google_drive",
                                 workspace_id=self.workspace_id,
                                 role=role,
+                                external_id=file_id,
+                                extra_metadata={"source_modified_at": item.get("modifiedTime")},
                             )
                     except Exception as content_err:
                         logger.debug(f"Google Drive content ingestion skipped for {name}: {content_err}")

@@ -219,6 +219,12 @@ async def test_source_side_update_refreshes_in_hybrid_mode():
     modified time under the key 'modified_at'; the funnel only read
     'source_modified_at', so the stored copy never had a baseline time and
     every changed file was silently skipped as content_mode_hybrid."""
+    # REAL LanceDB write ⇒ needs the local embedding engine. fastembed is
+    # not installable on Python ≥3.14 (its onnxruntime dep ships no 3.14
+    # wheels) — the dev pytest interpreter may be 3.14 while the server
+    # runs 3.11, where this test passes. Skip cleanly rather than fail red
+    # on an interpreter that cannot run a local embedder at all.
+    pytest.importorskip("fastembed", reason="needs fastembed (local embedding engine)")
     import shutil
     from pathlib import Path
 

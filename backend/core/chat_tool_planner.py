@@ -179,6 +179,11 @@ _SERVICE_DESCRIPTIONS = {
     # The first tool that queries the business's own ingested data directly;
     # available to every agent, no OAuth.
     "memory": "ingested workspace memory — search ALL emails, chats, documents and records the business has received or stored (emails by person/company/address, quotes, threads, file contents)",
+    # SQL-queryable dataset catalog: every ingested spreadsheet materialized
+    # into per-sheet tables (core/sheet_dataset_service). Answers WHERE a
+    # value lives and returns the exact rows — the user should never have to
+    # name the file.
+    "datasets": "dataset catalog — for a specific value, code, model or part number: searches EVERY ingested spreadsheet and returns the exact rows plus the file and sheet they live in",
 }
 
 # Web tools that ship with the platform (key-gated, no user OAuth needed).
@@ -212,7 +217,36 @@ def _with_grounding(block: Optional[str]) -> Optional[str]:
 # Available unconditionally — memory searches the workspace's OWN ingested
 # data (no external key, no OAuth). Coupling it to the Tavily key gate made
 # it vanish wherever web search wasn't configured.
+# `datasets` is also gated only by runtime state (feature enabled + catalog
+# non-empty), checked in _available_platform_services below.
 _ALWAYS_AVAILABLE_SERVICES = ("memory",)
+
+
+def _datasets_service_available() -> bool:
+    """Cheap 60s-cached gate: datasets show up in the planner catalog only
+    when the feature is on AND at least one dataset exists."""
+    global _datasets_avail_cache  # noqa: PLW0603
+    import time
+
+    now = time.monotonic()
+    cached = _datasets_avail_cache
+    if cached and now - cached[0] < 60:
+        return cached[1]
+    available = False
+    try:
+        from core.sheet_dataset_service import (
+            catalog_has_entries_sync,
+            sheet_datasets_enabled,
+        )
+
+        available = bool(sheet_datasets_enabled() and catalog_has_entries_sync())
+    except Exception:  # noqa: BLE001 — planner must never fail on this
+        available = False
+    _datasets_avail_cache = (now, available)
+    return available
+
+
+_datasets_avail_cache: Optional[tuple] = None
 
 
 def _available_platform_services() -> List[str]:
@@ -226,6 +260,8 @@ def _available_platform_services() -> List[str]:
         if s not in _ALWAYS_AVAILABLE_SERVICES and os.getenv("TAVILY_API_KEY")
     ]
     services.extend(_ALWAYS_AVAILABLE_SERVICES)
+    if "datasets" not in services and _datasets_service_available():
+        services.append("datasets")
     return services
 
 _PLANNER_SYSTEM = """You are the tool planner for an AI automation platform.
@@ -261,6 +297,13 @@ Rules:
   own the what-for ("check X for the price"), this message adds the where;
   planning search again just re-lists the file name the user already named.
   Never plan sends, writes, or deletes.
+- VALUE LOOKUPS WITHOUT A NAMED SOURCE ("what's the price of WG-350DSAV?",
+  "find invoice 123", "look up policy 7.2"): plan service "datasets",
+  intent "search", query = the exact code/value ALONE. The dataset catalog
+  searches every ingested spreadsheet and returns the file, sheet and
+  exact rows — the user should never have to say where a value lives.
+  Stock/quantity questions still go to the inventory app; when the user
+  DOES name a document, keep using the file-storage read.
 - The query MUST carry every identifying code — model, SKU, part, order or
   invoice number — EXACTLY as written anywhere in the conversation or open
   canvas, even when the user's latest message doesn't repeat it ("check the
@@ -1152,6 +1195,69 @@ def _doc_hit_excerpt(doc_id: str, query: str, fallback: str, width: int = 600,
 async def _memory_search_block(
     user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
 ) -> Optional[str]:
+    """Memory leg entry point: dataset-catalog evidence (when the query
+    carries an identifying code) PREPENDED to the hybrid memory search — so
+    the exact rows surface no matter which leg the planner picks (it
+    nondeterministically chooses memory/read/inventory for value questions).
+    None when neither matched."""
+    ds_block = await _datasets_evidence(user_id, query, context)
+    mem_block = await _memory_hybrid_block(user_id, query, context)
+    if ds_block and mem_block:
+        return f"{ds_block}\n\n{mem_block}"
+    return ds_block or mem_block
+
+
+async def _datasets_evidence(
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+) -> Optional[str]:
+    """Positive-only dataset evidence for a code-bearing query: exact rows
+    from the catalog, ungrounded (the caller's block carries the grounding
+    rule). None when the query has no identifying code or the catalog has no
+    match — memory then answers alone."""
+    try:
+        from core.sheet_dataset_service import (
+            candidate_probe_tokens,
+            render_dataset_answer,
+            search_all_datasets_sync,
+            sheet_datasets_enabled,
+        )
+    except ImportError:
+        return None
+    if not sheet_datasets_enabled():
+        return None
+    history_texts = [
+        str(h.get("message") or "")[:500]
+        for h in ((context or {}).get("history") or [])
+        if isinstance(h, dict) and h.get("message")
+    ][-6:]
+    probe_query = query
+    try:
+        extra = _context_identifier_net(context or {}, query)
+        if extra:
+            probe_query = f"{query} {' '.join(extra)}"
+    except Exception:  # noqa: BLE001 — enrichment is best-effort
+        pass
+    if not candidate_probe_tokens([probe_query] + history_texts):
+        return None
+    result = await asyncio.to_thread(
+        search_all_datasets_sync, probe_query, user_id,
+        (context or {}).get("workspace_id"), 2, 200, history_texts,
+    )
+    hits = (result or {}).get("hits") or []
+    if not hits:
+        return None  # augmentation is positive-only; memory answers alone
+    lines = [
+        f"DATASET CATALOG MATCH — every ingested spreadsheet searched for "
+        f"'{result['token']}' ({result['files_searched']} files):"
+    ]
+    for hit in hits:
+        lines.append(render_dataset_answer(hit))
+    return "\n".join(lines)
+
+
+async def _memory_hybrid_block(
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+) -> Optional[str]:
     """Hybrid search over the ingested workspace (documents, mailbox copies,
     records) formatted as a LIVE TOOL RESULTS block. The `memory` service leg
     of execute_tool_plan, factored out so other legs can fall back to it when
@@ -1255,6 +1361,69 @@ async def _memory_search_block(
     except Exception as e:
         logger.warning(f"memory tool execution failed: {e}")
         return None
+
+
+async def _datasets_search_block(
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+) -> Optional[str]:
+    """Cross-file content probe over the dataset catalog, formatted as a LIVE
+    TOOL RESULTS block. The `datasets` service leg of execute_tool_plan: lets
+    the agent locate a value WITHOUT the user naming a file. Identifying
+    (digit-bearing) tokens are probed across every ingested spreadsheet;
+    a probe miss is returned as real negative evidence so the reply model
+    says "not in any ingested sheet" and pivots to live sources instead of
+    confabulating. Queries without an identifying token delegate to memory."""
+    try:
+        from core.sheet_dataset_service import (
+            candidate_probe_tokens,
+            render_dataset_answer,
+            search_all_datasets_sync,
+            sheet_datasets_enabled,
+        )
+    except ImportError:
+        return None
+    if not sheet_datasets_enabled():
+        return None
+
+    # Candidate identifiers come from the query AND the surrounding turns —
+    # a 'try again' or pronoun-heavy turn may not carry the code itself.
+    history_texts = [
+        str(h.get("message") or "")[:500]
+        for h in ((context or {}).get("history") or [])
+        if isinstance(h, dict) and h.get("message")
+    ][-6:]
+    if not candidate_probe_tokens([query] + history_texts):
+        # No identifying code — sheet-level SQL adds nothing over memory.
+        return await _memory_search_block(user_id, query, context)
+
+    result = await asyncio.to_thread(
+        search_all_datasets_sync, query, user_id,
+        (context or {}).get("workspace_id"), 2, 200, history_texts,
+    )
+    files_searched = result.get("files_searched", 0) if result else 0
+    hits = (result or {}).get("hits") or []
+    if hits:
+        lines = [
+            f"LIVE TOOL RESULTS (datasets.search, query='{query}') — every "
+            f"ingested spreadsheet searched for '{result['token']}' "
+            f"({files_searched} files). Exact rows, with file and sheet:"
+        ]
+        for hit in hits:
+            lines.append(render_dataset_answer(hit))
+        return _with_grounding(
+            "\n".join(lines)
+            + "\nThese rows come from the query-verified dataset copy; R# = "
+            "spreadsheet row numbers. Cite only these values for exact figures."
+        )
+    tried = ", ".join(f"'{t}'" for t in ((result or {}).get("tokens_tried") or []))
+    return _with_grounding(
+        f"LIVE TOOL RESULTS (datasets.search, query='{query}'): every ingested "
+        f"spreadsheet was searched ({files_searched} files) and the value(s) "
+        f"{tried} appear in NONE of them. "
+        "Say that plainly — do not estimate or fill the gap — and consider "
+        "live sources (inventory/accounting apps) or asking the user where "
+        "else it might live."
+    )
 
 
 async def _comm_per_term_retry(
@@ -1470,6 +1639,19 @@ async def execute_tool_plan(
             "nothing in the ingested workspace matched."
         )
 
+    # Datasets: cross-file content probe over the SQL-queryable catalog —
+    # the planner's answer to value questions the user asks WITHOUT naming
+    # a source ("what's the price of X?"). Always returns a block: either
+    # exact rows (file + sheet + R# cited) or honest negative evidence.
+    if service == "datasets":
+        block = await _datasets_search_block(user_id, query, context)
+        if block:
+            return block
+        return _with_grounding(
+            f"LIVE TOOL RESULTS (datasets.search, query='{query}'): "
+            "no dataset catalog available."
+        )
+
     # Outlook: dedicated service with per-user token handling. Graph $search
     # OR-ranks multi-word queries, so a rare surname gets buried under common
     # words ("Mark" → "Pavement Markings") — search each term separately and
@@ -1664,6 +1846,16 @@ async def execute_tool_plan(
                     "workspace_id": "default",
                     "tenant_id": tenant_id,
                     "agent_id": (context or {}).get("agent_id"),
+                    # The read leg's dataset fast path probes the conversation's
+                    # own identifier codes ('WG-350DSAV' sat in earlier turns)
+                    # — harness-side, where the reply model's no-tool-calling
+                    # contract is never violated.
+                    "history_texts": [
+                        str(h.get("message") or "")[:500]
+                        for h in ((context or {}).get("history") or [])
+                        if isinstance(h, dict) and h.get("message")
+                    ][-6:],
+                    "llm_service": llm_service,
                 },
             )
         data = result.get("data") if isinstance(result, dict) else None
