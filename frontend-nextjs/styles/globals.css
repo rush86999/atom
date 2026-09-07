@@ -101,3 +101,32 @@
     @apply bg-card/50 backdrop-blur-sm border-border/50;
   }
 }
+/* Email-surface dark legibility (2026-09-07, owner request: the RTE paper
+   and canvas email view follow the app theme). Imported Outlook HTML
+   hardcodes near-black text and white chip backgrounds
+   (color:rgb(0,0,0), color:#44546A, background-color:rgb(255,255,255));
+   on a dark paper that text is invisible and the chips glare.
+   DISPLAY-ONLY normalization — the stored and sent HTML keeps its inline
+   styles, so recipients on white email clients see the authored email
+   unchanged. Scoped to .rte-surface (editor paper + canvas email view). */
+.dark .rte-surface [style*="color:rgb(0,0,0)"],
+.dark .rte-surface [style*="color:rgb(0, 0, 0)"],
+.dark .rte-surface [style*="color:black"],
+.dark .rte-surface [style*="color: black"],
+.dark .rte-surface [style*="color:#000"],
+.dark .rte-surface [style*="color:#44546A"],
+.dark .rte-surface [style*="color:#44546a"],
+.dark .rte-surface [style*="color:rgb(68,84,106)"],
+.dark .rte-surface [style*="color:rgb(68, 84, 106)"] {
+  color: #e2e8f0 !important;
+}
+.dark .rte-surface [style*="background-color:rgb(255,255,255)"],
+.dark .rte-surface [style*="background-color:rgb(255, 255, 255)"],
+.dark .rte-surface [style*="background-color:#FFFFFF"],
+.dark .rte-surface [style*="background-color:#ffffff"],
+.dark .rte-surface [style*="background-color: white"],
+.dark .rte-surface [style*="background-color:white"],
+.dark .rte-surface [style*="background:#FFFFFF"],
+.dark .rte-surface [style*="background:#ffffff"] {
+  background-color: transparent !important;
+}

@@ -177,3 +177,19 @@ describe("cell shading", () => {
     expect(emitted.toLowerCase()).toContain("background-color");
   });
 });
+
+describe("RichTextEditor theme contract", () => {
+  it("renders a theme-aware paper (light default, dark-mode surface + legibility hook)", () => {
+    render(<RichTextEditor value="<p>hi</p>" onChange={() => {}} testIdPrefix="theme" />);
+    const editor = screen.getByTestId("theme-editor");
+    // Light mode unchanged: white paper, dark ink.
+    expect(editor.className).toContain("bg-white");
+    expect(editor.className).toContain("text-zinc-900");
+    // Dark mode: dark paper, light ink — and the rte-surface hook that the
+    // globals.css dark-legibility rules scope to (Outlook black text and
+    // white chips render legibly in the editor; stored HTML keeps them).
+    expect(editor.className).toContain("dark:bg-[#0F172A]");
+    expect(editor.className).toContain("dark:text-zinc-200");
+    expect(editor.className).toContain("rte-surface");
+  });
+});

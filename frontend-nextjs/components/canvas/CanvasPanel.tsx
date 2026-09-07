@@ -1049,7 +1049,7 @@ function CanvasContent({
                 const htmlContent = renderMarkdownSafe(content);
                 return (
                     <div className="p-8 prose dark:prose-invert max-w-none text-sm leading-relaxed overflow-auto h-full custom-scrollbar bg-zinc-50/10 dark:bg-white/[0.02]">
-                        <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+                        <div className="rte-surface" dangerouslySetInnerHTML={{ __html: htmlContent }} />
                     </div>
                 );
             }

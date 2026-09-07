@@ -17,13 +17,16 @@
  * Enter inserts <br> (email-style), matching the line-aware plain-text →
  * HTML conversion in integrations/outlook_service._body_to_html.
  *
- * The editable surface is ALWAYS white ("paper"), never theme-aware: mail
- * clients render on white, and drafted HTML legitimately carries hardcoded
- * colors (Outlook-imported signatures use color:rgb(0,0,0), #44546A and
- * white chip backgrounds). On a transparent dark-mode surface that text
- * rendered invisible (observed live 2026-09-07: "Regards," black-on-dark).
- * Gmail/Outlook compose does the same — dark chrome, white paper — and it
- * keeps WYSIWYG honest: what you see is what the recipient gets.
+ * The editable surface follows the APP THEME (dark paper in dark mode) —
+ * owner request, 2026-09-07, superseding the earlier always-white rule.
+ * Hardcoded-color content (Outlook-imported signatures carry
+ * color:rgb(0,0,0), #44546A and white chip backgrounds — on a transparent
+ * dark surface that text rendered invisible, observed live 2026-09-07:
+ * "Regards," black-on-dark) is display-normalized in dark mode by scoped
+ * CSS in globals.css: near-black text renders light, white chips render
+ * transparent. That normalization is DISPLAY-ONLY — the stored and sent
+ * HTML keeps its inline styles, so recipients on white email clients see
+ * exactly the authored email, and dark-mode clients render it better too.
  */
 
 import React, { useEffect, useRef } from "react";
@@ -471,7 +474,7 @@ export default function RichTextEditor({
         onInput={emit}
         onBlur={emit}
         style={{ minHeight, fontFamily: baseFontFamily, fontSize: baseFontSize }}
-        className="w-full overflow-y-auto bg-white border border-zinc-200 dark:border-white/10 rounded p-2 text-zinc-900 focus:ring-0 outline-none [&_a]:underline [&_a]:text-indigo-600"
+        className="w-full overflow-y-auto rte-surface bg-white border border-zinc-200 dark:border-white/10 dark:bg-[#0F172A] rounded p-2 text-zinc-900 dark:text-zinc-200 focus:ring-0 outline-none [&_a]:underline [&_a]:text-indigo-600 dark:[&_a]:text-indigo-400"
       />
     </div>
   );
