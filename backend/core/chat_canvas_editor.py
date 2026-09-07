@@ -716,8 +716,16 @@ def _versions_section(
 # the editor fabricate values on the user's real draft (live 2026-09-04:
 # 'In Stock' delivery + placeholder price invented when the lookup timed
 # out). 20s: the lookup now includes the planner's repair pass and the
-# storage query rewrite, so 12s false-timed-out constantly.
-_FRESH_DATA_TIMEOUT_SECONDS = 20
+# storage query rewrite, so 12s false-timed-out constantly. 25s (the top of
+# the orchestrator-compatible band, 2026-09-06): the lookup also covers a
+# storage READ — planner + rewrite + download + parse. The live case was
+# Consolidated Price List 2019.xlsx (13MB, ~10s parse alone), and the read
+# timed out twice, so the data-dependent edit declined and the price the
+# user asked to fill in was never filled. Repeat reads of the same bytes
+# now hit the parse-result cache (DocumentParser.parse_document_cached),
+# so only the first cold read needs the extra seconds; a lookup that still
+# overruns declines the edit unchanged — never fabricates.
+_FRESH_DATA_TIMEOUT_SECONDS = 25
 
 
 class FreshDataResult(NamedTuple):

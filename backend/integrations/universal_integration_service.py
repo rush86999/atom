@@ -45,15 +45,65 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
     (live 2026-09-04: 'wg350dsav' at offset 2.4M of a 4.1M-char workbook
     never surfaced). When the rarest token is itself frequent (>50 hits,
     i.e. not identifying), fall back to distinct-token coverage scoring.
+
+    SHEET ANCHOR before that: our Excel parsers emit per-sheet markers
+    (``=== Sheet: NAME ===`` / ``--- Sheet: NAME ---``). When a query token
+    names a SHEET, anchor at that sheet's start and read forward — the
+    rarest-token path cannot express "the region this token NAMES" because
+    the token's first occurrences are the workbook index at the file head
+    and brand-name rows in unrelated sheets (live 2026-09-06: "check
+    Consolidated Price List 2019 for the Linmac bandsaw price" anchored on
+    the index's LINMAC line ~3k chars in; the WG350DSAV row sat at 58% of a
+    3.4M-char text — the agent saw sheet headers and reported the row
+    unreadable). Hyphenated model tokens also try their compacted form
+    ("wg-350dsav" → "wg350dsav" as the workbook spells it).
     """
     text = text or ""
     import re as _re
 
     tokens = [t for t in _re.split(r"[^a-z0-9]+", (query or "").lower()) if len(t) > 2]
+    # Compacted variants: workbooks write codes without the separator the
+    # user typed ("WG-350DSAV" lives in the sheet as "WG350DSAV").
+    for _raw in list(tokens):
+        _compact = _raw.replace("-", "").replace("_", "")
+        if _compact != _raw and len(_compact) >= 6 and _compact not in tokens:
+            tokens.append(_compact)
     lower = text.lower()
     uniq = set(tokens)
     if not uniq:
         return text[:excerpt_chars]
+
+    # Sheet-name anchor: query token names a sheet in the parsed body.
+    sheet_hits = list(_re.finditer(
+        r"\n(?:===|---) Sheet: ([^\n=]+?)(?:===|---)\n", text))
+    if sheet_hits:
+        compact = {t.replace("-", "").replace("_", ""): t for t in uniq}
+        for m in sheet_hits:
+            sheet_name = _re.sub(r"[^a-z0-9]+", "", m.group(1).lower())
+            matched_token = next(
+                (tok for compacted, tok in compact.items()
+                 if len(compacted) >= 4 and len(sheet_name) >= 3
+                 and (compacted in sheet_name or sheet_name in compacted)),
+                None,
+            )
+            if matched_token:
+                start = min(len(text) - 1, m.start() + 1)
+                end = min(len(text), start + excerpt_chars)
+                suffix = " …" if end < len(text) else ""
+                return (
+                    f"[excerpt from the '{m.group(1).strip()}' sheet] "
+                    f"{text[start:end]}{suffix}"
+                )
+
+    # Rare-token/coverage anchors search the sheet BODIES, not the workbook
+    # index head — a sheet NAME's first occurrences are index lines whose
+    # windows carry headers but no rows.
+    index_m = _re.search(r"^WORKBOOK INDEX:", text, flags=_re.MULTILINE)
+    body_start = 0
+    if index_m:
+        body_m = _re.search(r"\n(?:===|---) Sheet: ", text[index_m.end():])
+        if body_m:
+            body_start = index_m.end() + body_m.start() + 1
     counts = {t: lower.count(t) for t in uniq}
     # Anchor only on tokens PRESENT in the text: an enriched context token
     # may name a different product entirely (count 0) — anchoring on it
@@ -63,7 +113,9 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
     if present:
         anchor = min(present, key=lambda t: (present[t], -len(t)))
         if present[anchor] <= 50:
-            idx = lower.find(anchor)
+            idx = lower.find(anchor, body_start)
+            if idx < 0:
+                idx = lower.find(anchor)
             start = max(0, idx - half)
             end = min(len(text), idx + half)
             prefix = "… " if start > 0 else ""
@@ -71,7 +123,7 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
             return f"{prefix}{text[start:end]}{suffix}"
     best_pos, best_hits = 0, -1
     for tok in sorted(uniq, key=len, reverse=True):
-        start = 0
+        start = body_start
         finds = 0
         while finds < 2000:  # cap: boilerplate tokens can occur thousands of times
             idx = lower.find(tok, start)
@@ -86,7 +138,12 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
             start = idx + len(tok)
             if best_hits >= len(uniq):
                 break
-    if best_hits <= 0:
+    if best_hits <= 0 or (index_m and best_hits < len(uniq)):
+        # Workbook texts: every-token-co-occurrence or the index. "price",
+        # "list" and year numbers occur in nearly every sheet of a price
+        # book, so a partial-coverage window is boilerplate coincidence from
+        # a random sheet — the index head is the useful fallback: the model
+        # sees the sheet list and can re-read with a sheet or model token.
         return text[:excerpt_chars]
     start = max(0, best_pos - half)
     end = min(len(text), best_pos + half)
@@ -1496,12 +1553,40 @@ class UniversalIntegrationService:
                     "message": f"Found the file in {service} but the download failed.",
                 }}
             if not file_name:
-                file_name = f"{service}:{file_id}"
+                # Explicit file_id reads may carry no name (the planner's
+                # read params hold only the id). Derive it: the ingested
+                # copy's record first, then magic bytes — an empty name
+                # yields an empty extension and the extractor refuses the
+                # file ("Unsupported file type") even though the download
+                # succeeded (live 2026-09-06: read-by-id on the price list).
+                try:
+                    from core.database import get_db_session
+                    from core.models import IngestedDocument
+
+                    with get_db_session() as _db:
+                        _row = (
+                            _db.query(IngestedDocument)
+                            .filter(IngestedDocument.external_id == str(file_id))
+                            .first()
+                        )
+                        if _row is not None:
+                            file_name = _row.file_name
+                except Exception as name_err:  # noqa: BLE001 — sniffing is the fallback
+                    logger.debug(f"ingested-name lookup skipped for {file_id}: {name_err}")
+            if not file_name:
+                if content[:4] == b"%PDF":
+                    file_name = f"{service}:{file_id}.pdf"
+                elif content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+                    file_name = f"{service}:{file_id}.xls"
+                elif content[:4] == b"PK\x03\x04":
+                    file_name = f"{service}:{file_id}.xlsx"
+                else:
+                    file_name = f"{service}:{file_id}"
 
             # --- extract --------------------------------------------------
             from core.auto_document_ingestion import (
-                DocumentParser,
                 READ_EXTRACTION_MAX_CHARS,
+                parse_document_cached,
             )
 
             file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
@@ -1510,8 +1595,10 @@ class UniversalIntegrationService:
             # file's contents — a row in its last sheet must be reachable
             # (live 2026-09-03: the ingestion-budget cut landed before the
             # LINMAC sheet, so a read limited to that budget could not see
-            # WG350DSAV row 17 either).
-            text = await DocumentParser.parse_document(
+            # WG350DSAV row 17 either). Cached on the content hash: the
+            # same file is re-opened on every follow-up question about it,
+            # and a 13MB workbook costs ~10s per parse.
+            text = await parse_document_cached(
                 content, file_ext, file_name, max_chars=READ_EXTRACTION_MAX_CHARS
             )
             if not text or not text.strip():

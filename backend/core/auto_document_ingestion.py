@@ -5,7 +5,9 @@ Supports: Excel, PDF, DOC/DOCX, TXT, CSV, Markdown files
 """
 
 import asyncio
+from collections import OrderedDict
 from dataclasses import dataclass, field
+import hashlib
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 import io
@@ -192,6 +194,60 @@ DEFAULT_EXTRACTION_MAX_CHARS = 4_000_000
 # finite so a hostile multi-GB workbook cannot OOM the process, but far
 # above any real spreadsheet/PDF.
 READ_EXTRACTION_MAX_CHARS = 50_000_000
+
+
+class _ParseResultCache:
+    """Tiny content-hash LRU for parse_document results (see the docstring
+    there). 4 entries — a 50M-char ceiling means worst case ~200MB of text;
+    real entries are far smaller. Dict + insertion-order eviction under the
+    async single-loop model (no cross-thread access)."""
+
+    _MAX = 4
+
+    def __init__(self) -> None:
+        self._entries: "OrderedDict[tuple, str]" = OrderedDict()
+
+    def get(self, key: tuple) -> Optional[str]:
+        text = self._entries.get(key)
+        if text is not None:
+            self._entries.move_to_end(key)
+        return text
+
+    def put(self, key: tuple, text: str) -> None:
+        self._entries[key] = text
+        self._entries.move_to_end(key)
+        while len(self._entries) > self._MAX:
+            self._entries.popitem(last=False)
+
+
+_PARSE_CACHE = _ParseResultCache()
+
+
+async def parse_document_cached(file_content: bytes, file_type: str, file_name: str,
+                                max_chars: Optional[int] = None) -> str:
+    """``parse_document`` with a content-hash LRU — for the INTERACTIVE read
+    path, which re-parses the SAME file on every question about it ("check
+    the price list" → "fill in the price" → "it's in WorkDrive" …). A large
+    workbook costs ~10s of parse plus formula extraction EACH time, and the
+    canvas editor's fresh-data budget times out on the second question
+    (live 2026-09-06: Consolidated Price List 2019.xlsx, 13MB, parsed 4× in
+    one evening for the same draft). Bounded LRU — a few multi-MB texts, not
+    unbounded growth. Deliberately NOT applied inside parse_document: the
+    ingestion path dedupes by content hash downstream, and tests rely on
+    parse_document re-running per call."""
+    cache_key = None
+    if file_content:
+        cache_key = (hashlib.sha1(file_content).hexdigest(), file_type, max_chars)
+        cached = _PARSE_CACHE.get(cache_key)
+        if cached is not None:
+            logger.debug(f"parse cache hit for {file_name}")
+            return cached
+    text = await DocumentParser.parse_document(
+        file_content, file_type, file_name, max_chars=max_chars
+    )
+    if cache_key and text:
+        _PARSE_CACHE.put(cache_key, text)
+    return text
 
 
 def extraction_max_chars() -> int:

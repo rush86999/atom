@@ -160,9 +160,25 @@ class ZohoAdapter:
                 }
                 response = await client.post(token_url, data=data)
                 response.raise_for_status()
-                
+
                 token_data = response.json()
-                self._access_token = token_data.get("access_token")
+                # Zoho answers HTTP 200 with an error body for refused
+                # grants ({"error": "invalid_client"} on a client-id
+                # mismatch, "invalid_code" on a revoked refresh token).
+                # Treating that as success used to persist access_token=None
+                # with a fresh +3600s expiry — the row then LOOKED fresh for
+                # an hour while every API call 401'd (live 2026-09-06: the
+                # WorkDrive reads died this way and the agent could not open
+                # the user's file). No access_token in the payload ⇒ the
+                # grant is broken: return False and leave the previous row
+                # untouched so the reconnect signal stays accurate.
+                if not token_data.get("access_token"):
+                    logger.error(
+                        f"Zoho token refresh refused by provider "
+                        f"(error={token_data.get('error')!r}) — the grant "
+                        f"needs a reconnect or correct client credentials")
+                    return False
+                self._access_token = token_data["access_token"]
                 expires_in = token_data.get("expires_in", 3600)
                 self._token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
                 

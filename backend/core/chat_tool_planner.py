@@ -256,6 +256,10 @@ Rules:
   figure or section OUT OF a named document ("open the catalog and find the
   ABC-1234 row" → read; "what files do I have about X" → search — search
   returns only file names/metadata and can never answer what a file SAYS).
+  A message that only says WHERE the file lives ("it's an excel file in
+  WorkDrive") after a content request is still a READ — the earlier turns
+  own the what-for ("check X for the price"), this message adds the where;
+  planning search again just re-lists the file name the user already named.
   Never plan sends, writes, or deletes.
 - The query MUST carry every identifying code — model, SKU, part, order or
   invoice number — EXACTLY as written anywhere in the conversation or open

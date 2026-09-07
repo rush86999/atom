@@ -211,7 +211,13 @@ class ZohoWorkDriveService(IntegrationService):
             return None
 
     async def _refresh(self, refresh_token: Optional[str]) -> Optional[Dict[str, Any]]:
-        """Exchange a refresh token for a fresh access token (Zoho OAuth2)."""
+        """Exchange a refresh token for a fresh access token (Zoho OAuth2).
+
+        Zoho answers HTTP 200 with an error body for refused grants
+        ({"error": "invalid_client"} / "invalid_code"). Returning that dict
+        as if it were tokens made callers either KeyError (handled as "no
+        token") or — worse — treat the row as freshly refreshed. None means
+        broken grant; the previous stored row stays untouched."""
         if not refresh_token:
             return None
         try:
@@ -225,7 +231,14 @@ class ZohoWorkDriveService(IntegrationService):
                 f"{self.accounts_url}/token", data=data
             )
             response.raise_for_status()
-            return response.json()
+            payload = response.json()
+            if not payload.get("access_token"):
+                logger.error(
+                    f"Failed to refresh Zoho WorkDrive token: provider "
+                    f"refused the grant (error={payload.get('error')!r}) — "
+                    f"needs reconnect or correct client credentials")
+                return None
+            return payload
         except Exception as e:
             logger.error(f"Failed to refresh Zoho WorkDrive token: {e}")
             return None
