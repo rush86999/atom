@@ -16,6 +16,14 @@
  *
  * Enter inserts <br> (email-style), matching the line-aware plain-text →
  * HTML conversion in integrations/outlook_service._body_to_html.
+ *
+ * The editable surface is ALWAYS white ("paper"), never theme-aware: mail
+ * clients render on white, and drafted HTML legitimately carries hardcoded
+ * colors (Outlook-imported signatures use color:rgb(0,0,0), #44546A and
+ * white chip backgrounds). On a transparent dark-mode surface that text
+ * rendered invisible (observed live 2026-09-07: "Regards," black-on-dark).
+ * Gmail/Outlook compose does the same — dark chrome, white paper — and it
+ * keeps WYSIWYG honest: what you see is what the recipient gets.
  */
 
 import React, { useEffect, useRef } from "react";
@@ -463,7 +471,7 @@ export default function RichTextEditor({
         onInput={emit}
         onBlur={emit}
         style={{ minHeight, fontFamily: baseFontFamily, fontSize: baseFontSize }}
-        className="w-full overflow-y-auto bg-transparent border border-zinc-200 dark:border-white/10 rounded p-2 text-zinc-900 dark:text-zinc-100 focus:ring-0 outline-none [&_a]:underline [&_a]:text-indigo-500 dark:[&_a]:text-indigo-300"
+        className="w-full overflow-y-auto bg-white border border-zinc-200 dark:border-white/10 rounded p-2 text-zinc-900 focus:ring-0 outline-none [&_a]:underline [&_a]:text-indigo-600"
       />
     </div>
   );
