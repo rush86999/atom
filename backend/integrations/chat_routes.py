@@ -1,14 +1,16 @@
 """
 Chat Routes - API endpoints for the ATOM chat interface
 """
+import asyncio
 import logging
 import re
 import os
+import json
 from datetime import datetime, timezone
 
 # Add parent directory to path to import from backend
 import sys
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -280,6 +282,10 @@ class ChatMessageRequest(BaseModel):
     message: str = Field(..., description="Chat message from user")
     user_id: str = Field(..., description="User ID for context")
     session_id: Optional[str] = Field(None, description="Conversation session ID")
+    images: Optional[List[str]] = Field(
+        None,
+        description="User-submitted images (data URLs, max 2 × 6MB) — routed to vision-capable models",
+    )
     context: Optional[Dict[str, Any]] = Field(None, description="Additional context data")
     agent_id: Optional[str] = Field(None, description="Explicit agent selection — session-linked agent chats record graduation episodes")
 
@@ -298,6 +304,7 @@ class ChatMessageResponse(BaseModel):
     memory_context: Optional[str] = Field(None, description="Auto-retrieved memory context injected before this answer (memory transparency)")
     model: Optional[str] = Field(None, description="Which model produced the response")
     provider: Optional[str] = Field(None, description="Which provider served the response")
+    reasoning: Optional[str] = Field(None, description="The model's chain-of-thought for this reply — rendered by the Reasoning Process drawer and captured with feedback for training")
     error_code: Optional[str] = Field(None, description="Structured error code (e.g. no_llm_provider, budget_exceeded)")
     recovery_url: Optional[str] = Field(None, description="Recovery URL for structured errors")
 
@@ -502,16 +509,27 @@ async def get_chat_history(
                     )
                     .all()
                 )
-                history = [
-                    {
+                history = []
+                for row in rows:
+                    _meta: Dict[str, Any] = {}
+                    if row.metadata_json:
+                        try:
+                            _meta = json.loads(row.metadata_json)
+                        except Exception:
+                            _meta = {}
+                    _entry: Dict[str, Any] = {
                         "id": row.id,
                         "role": row.role,
                         "message": row.content if row.role == "user" else None,
                         "response": {"message": row.content} if row.role == "assistant" else None,
                         "timestamp": row.created_at.isoformat() if row.created_at else None,
                     }
-                    for row in rows
-                ]
+                    # Surface the persisted chain-of-thought so reloading a
+                    # session re-renders the "Reasoning Process" drawer (the
+                    # trace route only covers agent-tool steps, not CoT).
+                    if row.role == "assistant" and _meta.get("reasoning"):
+                        _entry["reasoning"] = _meta["reasoning"]
+                    history.append(_entry)
                 if history:
                     logger.info(
                         f"Loaded {len(history)} messages from DB for session {session_id}"
@@ -858,6 +876,7 @@ class ChatFeedbackRequest(BaseModel):
     model: Optional[str] = Field(None, description="Which model produced the response")
     provider: Optional[str] = Field(None, description="Which provider served the response")
     session_id: Optional[str] = Field(None, description="Conversation session ID")
+    reasoning: Optional[str] = Field(None, description="The agent's chain-of-thought for the rated reply, when the client has it — captured on the ExchangeExample for feedback training (falls back to the persisted message metadata)")
 
 
 @router.patch("/sessions/{session_id}")
@@ -1035,12 +1054,24 @@ async def send_chat_message(
                 )
         _ctx_tokens = set_chat_context(session_id, getattr(request, "agent_id", None))
         try:
+            # Chat vision: user-submitted images ride to the LLM as
+            # image_payload (vision-capable model routing inside the handler).
+            _images = None
+            for _img in (request.images or [])[:2]:
+                if (
+                    isinstance(_img, str)
+                    and _img.startswith("data:image/")
+                    and len(_img) <= 8_000_000  # ~6MB binary per image
+                ):
+                    _images = (_images or []) + [_img]
+
             response = await chat_orchestrator.process_chat_message(
                 user_id=active_user_id,
                 message=request.message,
                 session_id=session_id,
                 context=context_with_agent,
                 routing_overrides=routing_overrides or None,
+                images=_images,
             )
         finally:
             reset_chat_context(_ctx_tokens)
@@ -1156,6 +1187,7 @@ async def send_chat_message(
             memory_context=response.get("memory_context"),
             model=response.get("model"),
             provider=response.get("provider"),
+            reasoning=response.get("reasoning"),
         )
 
     except Exception as e:
@@ -1242,6 +1274,7 @@ async def submit_chat_feedback(
             model=request.model,
             provider=request.provider,
             user_id=str(current_user.id) if current_user else None,
+            reasoning=request.reasoning,
         )
     except Exception as e:
         logger.warning(f"exchange example capture failed (non-fatal): {e}")
@@ -1335,7 +1368,7 @@ async def get_routing_stats(
         return {"enabled": enabled, "ema_enabled": ema_enabled, "stats": {"error": str(e)}}
 
 
-async def _office_draft(content: str, kind: str, title: str) -> Optional[tuple]:
+def _office_draft(content: str, kind: str, title: str) -> Optional[tuple]:
     """Materialize an office draft (excel table / slide outline / document)
     as a real file under ATOM_OFFICE_DIR and return the typed canvas
     payload ``(canvas_type, content, title)``; None when the kind has no
@@ -1468,11 +1501,19 @@ async def chat_draft_to_canvas(
         from core.chat_draft_classifier import extract_email_draft
 
         canvas_type = "email"
-        canvas_content = extract_email_draft(content) or {
-            "to": "",
-            "subject": title,
-            "body": content,
-        }
+        # coerce → normalize_email_content → markdown-table styling: the
+        # draft must open styled on the first try (the composer and the
+        # recipient's mail client render raw `|---|` tables as literal
+        # pipes — the "fix the table styling" ask this used to need a
+        # whole extra agent turn for).
+        canvas_content = coerce_email_canvas(
+            "email",
+            extract_email_draft(content) or {
+                "to": "",
+                "subject": title,
+                "body": content,
+            },
+        )[1]
     elif requested_type in ("office_word", "office_excel", "office_pptx"):
         # Office apps need a REAL generated file. Run the same materializer
         # the auto path uses, with the kind the user picked (word→doc,
@@ -1481,7 +1522,7 @@ async def chat_draft_to_canvas(
         # office component.
         office_kind = {"office_word": "doc", "office_excel": "table",
                        "office_pptx": "slides"}[requested_type]
-        office = await _office_draft(content, office_kind, title)
+        office = await asyncio.to_thread(_office_draft, content, office_kind, title)
         if office:
             canvas_type, canvas_content, title = office
         else:
@@ -1504,7 +1545,7 @@ async def chat_draft_to_canvas(
     # markdown document path — the draft must still open. (Skipped when the
     # owner forced a type — their choice outranks the classifier.)
     if selected and requested_type == "auto" and canvas_type == "document":
-        office = await _office_draft(content, selected["kind"], title)
+        office = await asyncio.to_thread(_office_draft, content, selected["kind"], title)
         if office:
             canvas_type, canvas_content, title = office
         elif selected["kind"] == "code":
@@ -1530,7 +1571,13 @@ async def chat_draft_to_canvas(
 
             default_sig = await EmailCanvasService(db).get_signature(str(current_user.id))
             canvas_content["body"] = strip_agent_signoff(
-                canvas_content.get("body") or "", default_sig.get("signature")
+                canvas_content.get("body") or "",
+                # The styled variant counts: a user whose signature exists
+                # ONLY as signature_html (the normal mined case) used to
+                # read as "no default" here — the agent's plain sign-off
+                # stayed in the draft AND the composer appended the styled
+                # one, two signatures on the first try.
+                default_sig.get("signature_html") or default_sig.get("signature"),
             )
         except Exception as sig_err:
             logger.debug(f"default signature resolution skipped: {sig_err}")

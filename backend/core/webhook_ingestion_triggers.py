@@ -13,6 +13,7 @@ Key features:
 - Queue monitoring and stuck job cleanup
 """
 
+import asyncio
 import json
 import os
 import uuid
@@ -455,6 +456,39 @@ class WebhookIngestionQueue:
             logger.warning(f"Failed to dequeue job: {e}")
             return None
 
+    async def run_worker_loop(self, poll_interval_seconds: float = 5.0) -> None:
+        """Drain enqueued webhook ingestion jobs until cancelled.
+
+        Production counterpart to enqueue's synchronous fallback: with Redis
+        configured, enqueue_ingestion_job only LPUSHes to the queue — before
+        this loop nothing consumed it, so pushed records (e.g. zoho_books
+        webhook deliveries) sat in Redis forever while the no-Redis path
+        processed inline. RPOP is atomic, so multiple app replicas can run
+        this concurrently without double-processing a job. A job whose
+        processing raises is dropped after logging — same semantics as the
+        synchronous fallback; there is intentionally no retry/dead-letter.
+        """
+        if not self.redis_client:
+            logger.info(
+                "Webhook ingestion worker not started - Redis unavailable "
+                "(enqueues process synchronously instead)"
+            )
+            return
+
+        logger.info("Webhook ingestion queue worker started")
+        while True:
+            try:
+                job = await self.dequeue_job()
+                if job:
+                    await self.process_webhook_job(job)
+                    continue  # drain the backlog without waiting
+                await asyncio.sleep(poll_interval_seconds)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # noqa: BLE001 — one bad job must not kill the worker
+                logger.error(f"Webhook ingestion worker iteration failed: {e}")
+                await asyncio.sleep(poll_interval_seconds)
+
     def _estimate_webhook_acu(self, integration_id: str, payload_size: int) -> float:
         """
         Estimate ACU consumption for webhook job.
@@ -476,6 +510,7 @@ class WebhookIngestionQueue:
             "zoho_crm": 1.1,
             "zoho_desk": 1.1,
             "zoho_books": 1.0,
+            "zoho_inventory": 1.0,
             "gmail": 0.8,
             "notion": 1.0,
             "asana": 1.1,

@@ -27,6 +27,17 @@ Full version: `AGENTS.md`. The short form:
 3. **Research established practice for architectural decisions.** Web-search how mature harnesses solve it and cite findings in the commit; prefer patterns with production adoption over bespoke cleverness.
 4. **Leave a trail.** Commits explain root cause + evidence + verified-how, scoped to your files only; update the coordination doc; flag behavior changes affecting other callers.
 
+
+---
+
+## Operational Invariants (2026-09-02 incidents — full doc: `docs/architecture/MEMORY_STORE_AND_OPERATIONS.md`)
+
+1. **One memory store, anchored to `backend/data/atom_memory`.** Never `lancedb.connect()` a CWD-relative path; route through `LanceDBHandler._resolve_local_db_path`. Startup auto-adopts legacy root stores (`core/memory_store_bootstrap`) — idempotent, never overwrites.
+2. **The API server does NOT run `--reload`.** After editing backend code run `scripts/restart_backend.sh`. Testing against a stale server produces false bug reports (cost a day in 2026-09-02).
+3. **Graph `$search` KQL rejects `@` and `.`** and does not match sender addresses/nicknames — all mailbox search goes through `sanitize_graph_kql` and supplements with the ingested mailbox store. Swallowed tool errors must be recorded (`tool_errors` metadata), never dropped.
+4. **Identity/knowledge is per-install DATA, never names in code** — sender identity, team, dealer/vendor roles come from users + installation profile (`core/outbound_identity.py`).
+5. **Evolution harness**: tool errors → real-time AlphaEvolver/Memento candidates (pending, supervisor-approved in Agent Studio → Auto-Dev Fixes). Verifier truncation and shadow/enforce flips follow the eval-gate convention.
+
 ---
 
 ## Architecture
@@ -37,7 +48,7 @@ Full version: `AGENTS.md`. The short form:
 - Precedence for credentials/config: local store (file/env) wins in practice; DB sync targets exist for parity only. **BYOK keys specifically** (`api/byok_routes.py`): `data/byok_keys.json` is the single source of truth; the `tenant_settings` DB mirror is write/read-gated behind `ATOM_BYOK_DB_SYNC` (default OFF). Deleting a key must clean all stores (file rows tenant-scoped + global, DB row) — the DELETE endpoint does this unconditionally as hygiene.
 - When a bug involves tenant plumbing, the fix should preserve parity semantics but optimize for the single-operator case.
 
-**Storage**: Personal Edition = embedded LanceDB (`./data/lancedb`, `./data/atom_memory`) + SQLite default; Redis/Valkey optional (WS pub-sub only). SaaS flips `LANCEDB_CLOUD_ENABLED=true` (S3/R2).
+**Storage**: Personal Edition = embedded LanceDB (`backend/data/lancedb`, `backend/data/atom_memory` — anchored to `backend/`, never CWD-relative) + SQLite default; Redis/Valkey optional (WS pub-sub only). SaaS flips `LANCEDB_CLOUD_ENABLED=true` (S3/R2).
 
 **Governance flow**: `User Request → AgentContextResolver → GovernanceCache → AgentGovernanceService → Agent Execution → Response`
 

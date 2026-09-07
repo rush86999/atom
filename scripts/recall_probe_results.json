@@ -1,0 +1,428 @@
+{
+ "minimax/minimax-m3": {
+  "recall": {
+   "pass": true,
+   "facts": [
+    true,
+    true
+   ],
+   "usage": {
+    "prompt_tokens": 228,
+    "completion_tokens": 145,
+    "total_tokens": 373,
+    "cost": 0.00021624,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 109,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00021624,
+     "upstream_inference_prompt_cost": 4.224e-05,
+     "upstream_inference_completions_cost": 0.000174
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 101,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": "You provided the following information earlier:\n\n- **Invoice number:** INV-20948\n- **Account manager:** Mark Kellam (at WFS Ltd)\n\nIs there anything else you'd like to know or discuss?"
+  },
+  "followup": {
+   "pass": true,
+   "facts": [
+    true,
+    false
+   ],
+   "usage": {
+    "prompt_tokens": 270,
+    "completion_tokens": 45,
+    "total_tokens": 315,
+    "cost": 0.0001053,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0001053,
+     "upstream_inference_prompt_cost": 6.21e-05,
+     "upstream_inference_completions_cost": 4.32e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 39,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": "The reminder was about invoice **INV-20948**."
+  }
+ },
+ "qwen/qwen3.7-flash": {
+  "recall": {
+   "pass": false,
+   "facts": [
+    false,
+    false
+   ],
+   "usage": {
+    "prompt_tokens": 135,
+    "completion_tokens": 200,
+    "total_tokens": 335,
+    "cost": 3.005e-05,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 3.005e-05,
+     "upstream_inference_prompt_cost": 4.05e-06,
+     "upstream_inference_completions_cost": 2.6e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 200,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": ""
+  },
+  "followup": {
+   "pass": false,
+   "facts": [
+    false,
+    false
+   ],
+   "usage": {
+    "prompt_tokens": 122,
+    "completion_tokens": 200,
+    "total_tokens": 322,
+    "cost": 2.966e-05,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 2.966e-05,
+     "upstream_inference_prompt_cost": 3.66e-06,
+     "upstream_inference_completions_cost": 2.6e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 200,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": ""
+  }
+ },
+ "google/gemini-3-flash-preview": {
+  "recall": {
+   "pass": true,
+   "facts": [
+    true,
+    true
+   ],
+   "usage": {
+    "prompt_tokens": 109,
+    "completion_tokens": 38,
+    "total_tokens": 147,
+    "cost": 0.0001685,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0001685,
+     "upstream_inference_prompt_cost": 5.45e-05,
+     "upstream_inference_completions_cost": 0.000114
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": "You provided invoice number **INV-20948**, and your account manager is **Mark Kellam**. \n\nHow can I help you with your account at Blumetric today?"
+  },
+  "followup": {
+   "pass": true,
+   "facts": [
+    true,
+    false
+   ],
+   "usage": {
+    "prompt_tokens": 96,
+    "completion_tokens": 15,
+    "total_tokens": 111,
+    "cost": 9.3e-05,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 9.3e-05,
+     "upstream_inference_prompt_cost": 4.8e-05,
+     "upstream_inference_completions_cost": 4.5e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": "The reminder was for invoice number **INV-20948**."
+  }
+ },
+ "openai/gpt-5-mini": {
+  "recall": {
+   "pass": true,
+   "facts": [
+    true,
+    true
+   ],
+   "usage": {
+    "prompt_tokens": 119,
+    "completion_tokens": 124,
+    "total_tokens": 243,
+    "cost": 0.00027775,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00027775,
+     "upstream_inference_prompt_cost": 2.975e-05,
+     "upstream_inference_completions_cost": 0.000248
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 64,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": "You gave invoice number INV-20948, and your account manager is Mark Kellam at WFS Ltd."
+  },
+  "followup": {
+   "pass": true,
+   "facts": [
+    true,
+    false
+   ],
+   "usage": {
+    "prompt_tokens": 109,
+    "completion_tokens": 130,
+    "total_tokens": 239,
+    "cost": 0.00028725,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.00028725,
+     "upstream_inference_prompt_cost": 2.725e-05,
+     "upstream_inference_completions_cost": 0.00026
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 64,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": "It was invoice INV-20948."
+  }
+ },
+ "z-ai/glm-5.3-flash": {
+  "recall": {
+   "pass": false,
+   "facts": [
+    false,
+    false
+   ],
+   "usage": {
+    "prompt_tokens": 121,
+    "completion_tokens": 200,
+    "total_tokens": 321,
+    "cost": 5.9075e-05,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 5.9075e-05,
+     "upstream_inference_prompt_cost": 9.075e-06,
+     "upstream_inference_completions_cost": 5e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 197,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": ""
+  },
+  "followup": {
+   "pass": true,
+   "facts": [
+    true,
+    true
+   ],
+   "usage": {
+    "prompt_tokens": 108,
+    "completion_tokens": 74,
+    "total_tokens": 182,
+    "cost": 2.66e-05,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 2.66e-05,
+     "upstream_inference_prompt_cost": 8.1e-06,
+     "upstream_inference_completions_cost": 1.85e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 48,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": "The reminder was for invoice **INV-20948** (WFS Ltd, with account manager Mark Kellam)."
+  }
+ },
+ "qwen/qwen3.8-flash": {
+  "recall": {
+   "pass": true,
+   "facts": [
+    true,
+    true
+   ],
+   "usage": {
+    "prompt_tokens": 177,
+    "completion_tokens": 102,
+    "total_tokens": 279,
+    "cost": 7.449e-05,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 7.449e-05,
+     "upstream_inference_prompt_cost": 2.655e-05,
+     "upstream_inference_completions_cost": 4.794e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 58,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": "You gave me invoice number **INV-20948**, and your account manager is **Mark Kellam** at **WFS Ltd**.\n\nAnything else you'd like to go over?"
+  },
+  "followup": {
+   "pass": false,
+   "facts": [
+    false,
+    false
+   ],
+   "usage": {},
+   "reply": "<error: HTTPStatusError: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429>"
+  }
+ },
+ "deepseek/deepseek-v4-flash-0731": {
+  "recall": {
+   "pass": false,
+   "facts": [
+    false,
+    false
+   ],
+   "usage": {
+    "prompt_tokens": 188,
+    "completion_tokens": 200,
+    "total_tokens": 388,
+    "cost": 0.0001029,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 0.0001029,
+     "upstream_inference_prompt_cost": 3.29e-05,
+     "upstream_inference_completions_cost": 7e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 193,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": ""
+  },
+  "followup": {
+   "pass": true,
+   "facts": [
+    true,
+    true
+   ],
+   "usage": {
+    "prompt_tokens": 176,
+    "completion_tokens": 180,
+    "total_tokens": 356,
+    "cost": 4.296e-05,
+    "is_byok": false,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "cache_write_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "cost_details": {
+     "upstream_inference_cost": 4.296e-05,
+     "upstream_inference_prompt_cost": 1.056e-05,
+     "upstream_inference_completions_cost": 3.24e-05
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 153,
+     "image_tokens": 0,
+     "audio_tokens": 0
+    }
+   },
+   "reply": "That reminder was for invoice **INV-20948** from WFS Ltd (account manager: Mark Kellam)."
+  }
+ }
+}

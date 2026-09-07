@@ -75,6 +75,37 @@ def rerank_enabled() -> bool:
     return os.getenv(RERANK_FLAG, "true").lower() in ("1", "true", "yes", "on")
 
 
+_MAILBOX_TOOL_SERVICES = (
+    "outlook", "gmail", "slack", "teams", "discord", "telegram",
+    "whatsapp", "zoho_mail",
+)
+
+
+def _mailbox_tool_hint(user_id: Optional[str]) -> str:
+    """Instruction fragment naming the user's ACTUAL connected mailbox/chat
+    tool(s). The header used to hardcode 'the outlook tool' — for a
+    gmail/slack-only user that names a tool they don't have, and the reply
+    model then reported a missing capability or reached for a nonexistent
+    tool (same hallucination class as the 2026-09-06 chat lookup)."""
+    try:
+        from core.chat_tool_planner import get_connected_services
+
+        connected = [
+            s for s in get_connected_services(user_id) if s in _MAILBOX_TOOL_SERVICES
+        ]
+        if connected:
+            return (
+                "query the live mailbox/chat directly with your "
+                f"{', '.join(connected[:3])} search tool before answering"
+            )
+    except Exception:
+        pass
+    return (
+        "query the live mailbox/chat directly with your mailbox search tool "
+        "before answering"
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Legs
 # --------------------------------------------------------------------------- #
@@ -964,7 +995,13 @@ async def assemble_memory_context(
             blocks.append("RELATED INTEGRATION RECORDS (CRM/shop/files ingested):\n" + integration_block)
         episodes_block = _bounded_lines(episode_lines or [], EPISODES_CHAR_CAP)
         if episodes_block:
-            blocks.append("RELEVANT PAST EPISODES (prior agent work):\n" + episodes_block)
+            blocks.append(
+                "RELEVANT PAST EPISODES (prior agent work — your own earlier "
+                "statements and actions, NOT verified source documents; they "
+                "may contain mistakes that were later corrected. Never cite "
+                "an episode as the source for a specific fact — find the "
+                "underlying email/document/record first):\n" + episodes_block
+            )
         facts_block = _bounded_lines(fact_lines or [], FACTS_CHAR_CAP)
         if facts_block:
             blocks.append("DURABLE FACTS (previously learned):\n" + facts_block)
@@ -996,7 +1033,9 @@ async def assemble_memory_context(
             "from this conversation; may be incomplete or stale. When the user "
             "refers to something said in this conversation, the transcript "
             "always takes precedence over these snippets. Verify before acting "
-            "on specifics):\n\n"
+            "on specifics. If the user asks about an email or message that is "
+            f"NOT in these snippets, do not conclude it doesn't exist — "
+            f"{_mailbox_tool_hint(user_id)}):\n\n"
         )
         body = "\n\n".join(blocks)
         # The header rides inside the budget: trimming only the body and

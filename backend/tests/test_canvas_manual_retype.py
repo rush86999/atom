@@ -175,3 +175,50 @@ class TestManualRetype:
         read = await read_canvas("user-A", "canvas-retype-5")
         assert read["canvas_type"] == "email"
         assert read["content"] == payload
+
+
+class TestPinnedUpdateMergesContent:
+    """Sept 6 incident: for a type-pinned canvas the update path resolved the
+    type but SKIPPED the content merge — every co-editor PUT on a
+    chat-created (pinned) email canvas wrote a no-op audit row with empty
+    content, silently shadowing newer content on recency. Content merges are
+    orthogonal to type resolution: a pinned update must land the new body."""
+
+    @pytest.mark.asyncio
+    async def test_pinned_update_with_explicit_type_merges_content(self, db):
+        from tools.canvas_crud_tool import read_canvas, update_canvas_content
+
+        _seed_canvas(db, "canvas-pinned-merge-1", canvas_type="email",
+                     content={"to": "a@b.c", "subject": "s", "body": "old body"},
+                     details_extra={"type_pinned": True})
+
+        styled = {"to": "a@b.c", "cc": "", "subject": "s",
+                  "body": '<table style="border:1px solid #8A8A8A"><tr>'
+                          '<th style="background-color:#1F497D">H</th></tr></table>'}
+        result = await update_canvas_content(
+            "user-A", "canvas-pinned-merge-1", styled, "email",
+        )
+        assert result["success"] is True
+
+        read = await read_canvas("user-A", "canvas-pinned-merge-1")
+        assert read["content"]["body"] == styled["body"], (
+            "Pinned canvas dropped the caller's content — merge was skipped"
+        )
+
+    @pytest.mark.asyncio
+    async def test_pinned_update_default_type_merges_content(self, db):
+        from tools.canvas_crud_tool import read_canvas, update_canvas_content
+
+        _seed_canvas(db, "canvas-pinned-merge-2", canvas_type="email",
+                     content={"to": "a@b.c", "subject": "s", "body": "old body"},
+                     details_extra={"type_pinned": True})
+
+        result = await update_canvas_content(
+            "user-A", "canvas-pinned-merge-2", {"to": "a@b.c", "subject": "s",
+                                                "body": "new body"}, "generic",
+        )
+        assert result["success"] is True
+        assert result["canvas_type"] == "email", "pin must keep the type"
+
+        read = await read_canvas("user-A", "canvas-pinned-merge-2")
+        assert read["content"]["body"] == "new body"

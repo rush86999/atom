@@ -417,3 +417,58 @@ class TestRedactWithLlmValidation:
             result = await redact_with_llm_validation("plain")
         assert result.has_secrets is False
         assert result.redacted_text == "plain"
+
+
+# ── credit-card guard: business numbers must survive redaction ──────────
+
+
+class TestCreditCardGuard:
+    """Regression (2026-09-03): the bare 16-digit pattern matched the digit
+    tails of spreadsheet floats (1.0444000000000001 → 0444000000000001) and
+    the ingested Consolidated Price List 2019.xlsx came back with prices
+    mangled into 1.[REDACTED_CREDIT_CARD]. Decimal-context lookarounds plus
+    Luhn validation keep business numbers intact while real cards still
+    redact."""
+
+    def setup_method(self):
+        self.redactor = SecretsRedactor()
+
+    def test_float_tail_not_redacted(self):
+        text = "Full Cost 1.0444000000000001 [=B4*B5*B6*B7]"
+        result = self.redactor.redact(text)
+        assert "1.0444000000000001" in result.redacted_text
+        assert "CREDIT_CARD" not in str(result.redactions)
+
+    def test_price_with_formula_not_redacted(self):
+        text = "Inbound | 1.5587 [=D5*B6] | Handling | 1.0444 [=D6*B7]"
+        result = self.redactor.redact(text)
+        assert result.has_secrets is False
+        assert "1.5587" in result.redacted_text and "1.0444" in result.redacted_text
+
+    def test_luhn_valid_card_redacted(self):
+        result = self.redactor.redact("Card: 4111111111111111")
+        assert "4111111111111111" not in result.redacted_text
+        assert result.has_secrets
+
+    def test_spaced_luhn_valid_card_redacted(self):
+        result = self.redactor.redact("Card: 4111 1111 1111 1111")
+        assert "4111 1111 1111 1111" not in result.redacted_text
+
+    def test_dashed_luhn_valid_card_redacted(self):
+        result = self.redactor.redact("Card: 4111-1111-1111-1111")
+        assert "4111-1111-1111-1111" not in result.redacted_text
+
+    def test_luhn_invalid_digit_run_not_redacted(self):
+        # 16 digits, fails Luhn: an order/serial number, not a card.
+        text = "Serial 1234567812345678"
+        result = self.redactor.redact(text)
+        assert "1234567812345678" in result.redacted_text
+
+    def test_long_float_tail_not_redacted(self):
+        """17+ fractional digits let the 16-digit run start at the SECOND
+        fractional digit (preceded by a digit) — live-observed in the price
+        book (0.5[REDACTED_CREDIT_CARD] x8). Must stay intact too."""
+        text = "Margin 0.51234567890123456 [=SUM(C63-L63)/L63]"
+        result = self.redactor.redact(text)
+        assert "0.51234567890123456" in result.redacted_text
+        assert "CREDIT_CARD" not in str(result.redactions)

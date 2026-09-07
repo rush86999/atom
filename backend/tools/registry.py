@@ -423,8 +423,168 @@ class ToolRegistry:
         # email attachments (governed by the email_attachment autonomy topic;
         # sending WITH attachments stays on the send_email circuit).
         self._register_email_attachment_tools()
+        # PDF canvas tools: reads are STUDENT; draft mutations (page ops,
+        # merge, submit-review) are INTERN under the pdf_canvas autonomy
+        # topic; APPROVE and attach-to-email are SUPERVISED — review and
+        # approval follow agent maturity (gated hires propose instead).
+        self._register_pdf_canvas_tools()
 
         logger.info(f"Tool registry initialized with {len(self._tools)} tools")
+
+    def _register_pdf_canvas_tools(self):
+        """Register PDF canvas tools with maturity metadata.
+
+        Maturity ladder (mirrors blast radius): reads 1/STUDENT, draft
+        mutations 2/INTERN (same tier as update_canvas — reversible, and the
+        pdf_canvas autonomy topic can still force proposals), lifecycle
+        approval + email handoff 3/SUPERVISED (an INTERN that reaches them
+        proposes; a human confirms).
+        """
+
+        pdf_canvas_tools = [
+            ("pdf_canvas_get_state", 1, "STUDENT",
+             "Read a PDF canvas's state (filename, page count, lifecycle, versions)", True),
+            ("pdf_canvas_read_text", 1, "STUDENT",
+             "Read a PDF canvas's per-page extracted TEXT — never raw bytes", True),
+            ("pdf_canvas_list_versions", 1, "STUDENT",
+             "List a PDF canvas's version history (hash, action, author, time)", True),
+            ("pdf_canvas_get_form_fields", 1, "STUDENT",
+             "List a PDF canvas's AcroForm fields (name, type, current value)", True),
+            ("pdf_canvas_apply_page_ops", 2, "INTERN",
+             "Commit a page map (reorder/delete/rotate) to a PDF canvas as a new version", False),
+            ("pdf_canvas_merge_canvas", 2, "INTERN",
+             "Append every page of another PDF canvas onto this one", False),
+            ("pdf_canvas_submit_for_review", 2, "INTERN",
+             "Move a PDF canvas from drafting to in_review (requests approval)", False),
+            ("pdf_canvas_set_form_fields", 2, "INTERN",
+             "Fill AcroForm field values (fields stay interactive until flattened)", False),
+            ("pdf_canvas_flatten", 2, "INTERN",
+             "Burn form values into the content and strip the interactive layer", False),
+            ("pdf_canvas_annotate", 2, "INTERN",
+             "Add real PDF annotations (note/freetext/rect)", False),
+            ("pdf_canvas_generate_from_data", 2, "INTERN",
+             "Generate a NEW PDF canvas from business data (quote/invoice/letter template)", False),
+            ("pdf_canvas_approve", 3, "SUPERVISED",
+             "Approve a PDF canvas — content becomes immutable until reopened", False),
+            ("pdf_canvas_attach_to_email", 3, "SUPERVISED",
+             "Stage the current version onto an email draft (flatten option; send stays on the email HITL circuit)", False),
+            ("pdf_canvas_redact", 3, "SUPERVISED",
+             "TRUE redaction: permanently remove exact text (content-stream removal + verification)", False),
+            ("pdf_canvas_stamp_signature", 3, "SUPERVISED",
+             "Stamp the internal signature (text + attribution) on a page", False),
+            ("pdf_canvas_archive_to_onedrive", 3, "SUPERVISED",
+             "Archive the current version to the owner's OneDrive", False),
+            ("pdf_canvas_send_to_docusign", 3, "SUPERVISED",
+             "Send the current version out for external signing via the DocuSign envelope API", False),
+        ]
+
+        for name, complexity, maturity, description, cacheable in pdf_canvas_tools:
+            try:
+                func = self._get_function("tools.pdf_canvas_tool", name)
+                if not func:
+                    continue
+                params: Dict[str, Any] = {
+                    "user_id": {"type": "str", "description": "Owning user id"},
+                    "canvas_id": {"type": "str", "description": "PDF canvas id"},
+                    "agent_id": {"type": "str", "optional": True, "description": "Agent id for audit + maturity gate"},
+                }
+                if name == "pdf_canvas_read_text":
+                    params = {
+                        "user_id": {"type": "str", "description": "Owning user id"},
+                        "canvas_id": {"type": "str", "description": "PDF canvas id"},
+                        "max_chars": {"type": "int", "optional": True, "description": "Cap on returned text (default 8000)"},
+                    }
+                elif name == "pdf_canvas_apply_page_ops":
+                    params.update({
+                        "pages": {"type": "List[Dict]", "description": "Page map: [{src_index, rotation 0|90|180|270}] — order/omission/absolute rotation"},
+                        "base_hash": {"type": "str", "optional": True, "description": "Version hash the map was computed against (conflict guard)"},
+                        "reasoning": {"type": "str", "optional": True, "description": "Why — shown to the human on a proposal"},
+                    })
+                elif name == "pdf_canvas_merge_canvas":
+                    params.update({
+                        "from_canvas_id": {"type": "str", "description": "Source PDF canvas id (same owner)"},
+                        "reasoning": {"type": "str", "optional": True, "description": "Why — shown to the human on a proposal"},
+                    })
+                elif name == "pdf_canvas_set_form_fields":
+                    params.update({
+                        "values": {"type": "Dict", "description": "{field_name: value} — unknown names are refused"},
+                        "base_hash": {"type": "str", "optional": True, "description": "Version hash the fields were read against"},
+                        "reasoning": {"type": "str", "optional": True, "description": "Why — shown to the human on a proposal"},
+                    })
+                elif name == "pdf_canvas_annotate":
+                    params.update({
+                        "items": {"type": "List[Dict]", "description": "[{page, kind: note|freetext|rect, rect: [x0,y0,x1,y1], text?}]"},
+                        "reasoning": {"type": "str", "optional": True, "description": "Why — shown to the human on a proposal"},
+                    })
+                elif name == "pdf_canvas_redact":
+                    params.update({
+                        "items": {"type": "List[Dict]", "description": "[{page, text}] — exact text to remove permanently"},
+                        "reasoning": {"type": "str", "optional": True, "description": "Why — shown to the human on a proposal"},
+                    })
+                elif name == "pdf_canvas_stamp_signature":
+                    params = {
+                        "user_id": {"type": "str", "description": "Owning user id"},
+                        "canvas_id": {"type": "str", "description": "PDF canvas id"},
+                        "signature_lines": {"type": "List[str]", "description": "Signer's signature text lines"},
+                        "page": {"type": "int", "optional": True, "description": "0-based page index (default 0)"},
+                        "rect": {"type": "List[float]", "optional": True, "description": "[x0,y0,x1,y1] PDF coordinates"},
+                        "label": {"type": "str", "optional": True, "description": "Attribution line (date/name)"},
+                        "reasoning": {"type": "str", "optional": True, "description": "Why — shown to the human on a proposal"},
+                        "agent_id": {"type": "str", "optional": True, "description": "Agent id for audit + maturity gate"},
+                    }
+                elif name == "pdf_canvas_generate_from_data":
+                    params = {
+                        "user_id": {"type": "str", "description": "Owning user id"},
+                        "template": {"type": "str", "description": "quote | invoice | letter"},
+                        "doc": {"type": "Dict", "description": "{company, customer, items: [{description, amount}], body}"},
+                        "title": {"type": "str", "optional": True, "description": "Canvas/PDF title"},
+                        "reasoning": {"type": "str", "optional": True, "description": "Why — shown to the human on a proposal"},
+                        "agent_id": {"type": "str", "optional": True, "description": "Agent id for audit + maturity gate"},
+                    }
+                elif name == "pdf_canvas_archive_to_onedrive":
+                    params.update({
+                        "folder_path": {"type": "str", "optional": True, "description": "OneDrive folder (root when empty)"},
+                        "reasoning": {"type": "str", "optional": True, "description": "Why — shown to the human on a proposal"},
+                    })
+                elif name == "pdf_canvas_send_to_docusign":
+                    params.update({
+                        "signer_email": {"type": "str", "description": "External signer's email"},
+                        "signer_name": {"type": "str", "description": "External signer's name"},
+                        "reasoning": {"type": "str", "optional": True, "description": "Why — shown to the human on a proposal"},
+                    })
+                elif name in ("pdf_canvas_submit_for_review", "pdf_canvas_approve", "pdf_canvas_flatten"):
+                    params = {
+                        "user_id": {"type": "str", "description": "Owning user id"},
+                        "canvas_id": {"type": "str", "description": "PDF canvas id"},
+                        "reasoning": {"type": "str", "optional": True, "description": "Why — shown to the human on a proposal"},
+                        "agent_id": {"type": "str", "optional": True, "description": "Agent id for audit + maturity gate"},
+                    }
+                elif name == "pdf_canvas_attach_to_email":
+                    params.update({
+                        "email_canvas_id": {"type": "str", "optional": True, "description": "Target email canvas (omit to create a fresh draft)"},
+                        "flatten": {"type": "bool", "optional": True, "description": "Stage a flattened copy (form values burned in) without mutating the canvas"},
+                        "reasoning": {"type": "str", "optional": True, "description": "Why — shown to the human on a proposal"},
+                    })
+
+                self.register(
+                    name=name,
+                    function=func,
+                    version="1.0.0",
+                    description=description,
+                    category="canvas",
+                    complexity=complexity,
+                    maturity_required=maturity,
+                    dependencies=[],
+                    parameters=params,
+                    examples=[{
+                        "description": description,
+                        "code": f"await {name}(user_id='user-1', canvas_id='canvas-1')",
+                    }],
+                    author="Atom Team",
+                    tags=["canvas", "pdf", "document"],
+                )
+            except Exception as e:
+                logger.warning(f"Failed to register pdf canvas tool {name}: {e}")
 
     def _register_canvas_tools(self):
         """Register canvas presentation tools with metadata."""

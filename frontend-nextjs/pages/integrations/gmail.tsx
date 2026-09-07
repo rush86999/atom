@@ -4,6 +4,35 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import GmailSearch from "../../components/GmailSearch";
 import IngestionStatusPanel from "@/components/integrations/IngestionStatusPanel";
+import { authFetch } from "@/lib/auth-headers";
+
+// One email row, shared by the Overview "Recent Emails" and the Inbox tab.
+function EmailRow({ email }: { email: any }) {
+  return (
+    <div className="border rounded-lg p-3 hover:bg-gray-50 dark:bg-gray-800 transition-colors">
+      <div className="flex justify-between items-start">
+        <div className="flex-1">
+          <div
+            className={`font-medium text-gray-900 dark:text-gray-100 ${
+              email.unread ? "font-semibold" : ""
+            }`}
+          >
+            {email.from}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            {email.subject}
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+            {email.preview}
+          </div>
+        </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400 ml-2 shrink-0">
+          {email.time}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const GmailIntegrationPage: NextPage = () => {
   const router = useRouter();
@@ -11,6 +40,14 @@ const GmailIntegrationPage: NextPage = () => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [emails, setEmails] = useState<any[]>([]);
+  // Inbox search text lives in state; the visible list is DERIVED from the
+  // source emails + query (see below), so a search can never go stale when
+  // emails arrive asynchronously, and clearing the query restores the inbox.
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loadError, setLoadError] = useState("");
+  // Calendar loads keep their own error so a failed events request is never
+  // shown as a successful "No calendar events found".
+  const [calLoadError, setCalLoadError] = useState("");
   const [events, setEvents] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -20,12 +57,8 @@ const GmailIntegrationPage: NextPage = () => {
     important: 0,
     starred: 0,
   });
-  const [calendarStats, setCalendarStats] = useState({
-    upcoming: 0,
-    today: 0,
-    thisWeek: 0,
-    completed: 0,
-  });
+  const [calQuery, setCalQuery] = useState("");
+  const [calFilter, setCalFilter] = useState("all");
   const [contactStats, setContactStats] = useState({
     total: 0,
     recent: 0,
@@ -42,7 +75,7 @@ const GmailIntegrationPage: NextPage = () => {
     // Check Gmail connection status
     const checkConnection = async () => {
       try {
-        const response = await fetch("/api/integrations/gmail/status");
+        const response = await authFetch("/api/integrations/gmail/status");
         if (response.ok) {
           const data = await response.json();
           setIsConnected(data.connected || false);
@@ -65,31 +98,93 @@ const GmailIntegrationPage: NextPage = () => {
     const loadData = async () => {
       try {
         const [emailsRes, eventsRes] = await Promise.all([
-          fetch("/api/integrations/gmail/emails"),
-          fetch("/api/integrations/gmail/events"),
+          authFetch("/api/integrations/gmail/emails"),
+          authFetch("/api/integrations/gmail/events"),
         ]);
         if (emailsRes.ok) {
           const data = await emailsRes.json();
-          const list = data.emails || data.data || [];
-          setEmails(list);
-          setEmailStats({
-            total: list.length,
-            unread: list.filter((e: any) => e.unread).length,
-            important: list.filter((e: any) => e.important).length,
-            starred: list.filter((e: any) => e.starred).length,
-          });
+          if (data.error) {
+            setLoadError(`Emails: ${data.error}`);
+          } else {
+            setLoadError("");
+            const list = data.emails || data.data || [];
+            setEmails(list);
+            setEmailStats({
+              total: list.length,
+              unread: list.filter((e: any) => e.unread).length,
+              important: list.filter((e: any) => e.important).length,
+              starred: list.filter((e: any) => e.starred).length,
+            });
+          }
+        } else {
+          setLoadError(`Failed to load emails (${emailsRes.status})`);
         }
         if (eventsRes.ok) {
           const data = await eventsRes.json();
-          setEvents(data.events || data.data || []);
+          if (data.error) {
+            setCalLoadError(`Calendar: ${data.error}`);
+          } else {
+            setCalLoadError("");
+            setEvents(data.events || data.data || []);
+          }
+        } else {
+          setCalLoadError(`Failed to load events (${eventsRes.status})`);
         }
       } catch (error) {
         console.error("Failed to load Gmail data:", error);
+        setLoadError("Could not reach the Gmail service");
+        setCalLoadError("Could not reach the Gmail service");
       }
     };
 
     loadData();
   }, [isConnected]);
+
+  // ---- Calendar stats derived from the loaded (upcoming) events ----------
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const dstr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const now = new Date();
+  const todayStr = dstr(now);
+  const thisMonthStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); // Monday of this week
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const weekStartStr = dstr(monday);
+  const weekEndStr = dstr(sunday);
+  const calStats = {
+    upcoming: events.filter((e) => !e.completed).length,
+    today: events.filter((e) => (e.date || "").startsWith(todayStr)).length,
+    thisWeek: events.filter(
+      (e) => (e.date || "") >= weekStartStr && (e.date || "") <= weekEndStr
+    ).length,
+    completed: events.filter((e) => e.completed).length,
+  };
+  // When the events request failed there are no statistics — the cards must
+  // not present unavailable data as successfully loaded zero counts.
+  const calendarUnavailable = !!calLoadError && events.length === 0;
+  const calQueryL = calQuery.toLowerCase();
+  // Inbox list is derived from source emails + the live query — never a
+  // stored result array, so it always reflects the latest loaded emails.
+  const inboxQuery = searchQuery.toLowerCase();
+  const visibleInbox = inboxQuery
+    ? emails.filter((e: any) =>
+        [e.from, e.subject, e.preview].some(
+          (f) => typeof f === "string" && f.toLowerCase().includes(inboxQuery)
+        )
+      )
+    : emails;
+  // Overview's "Upcoming Events" must never include finished meetings.
+  const upcomingList = events.filter((e) => !e.completed);
+  const visibleEvents = events.filter((e) => {
+    const hay = `${e.title || ""} ${e.location || ""}`.toLowerCase();
+    if (calQueryL && !hay.includes(calQueryL)) return false;
+    if (calFilter === "today") return (e.date || "").startsWith(todayStr);
+    if (calFilter === "week")
+      return (e.date || "") >= weekStartStr && (e.date || "") <= weekEndStr;
+    if (calFilter === "month") return (e.date || "").startsWith(thisMonthStr);
+    return true;
+  });
 
   const tabs = [
     { id: "overview", name: "Overview", icon: "📊" },
@@ -190,32 +285,13 @@ const GmailIntegrationPage: NextPage = () => {
                 <div className="space-y-3">
                   {emails.length > 0 ? (
                     emails.slice(0, 5).map((email, index) => (
-                      <div
-                        key={index}
-                        className="border rounded-lg p-3 hover:bg-gray-50 dark:bg-gray-800 transition-colors"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-900 dark:text-gray-100">
-                              {email.from}
-                            </div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                              {email.subject}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              {email.preview}
-                            </div>
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {email.time}
-                          </div>
-                        </div>
-                      </div>
+                      <EmailRow key={index} email={email} />
                     ))
                   ) : (
                     <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                      No emails found. Connect your Gmail account to get
-                      started.
+                      {loadError
+                        ? `Couldn't load emails — ${loadError}`
+                        : "No emails found. Connect your Gmail account to get started."}
                     </div>
                   )}
                 </div>
@@ -224,8 +300,8 @@ const GmailIntegrationPage: NextPage = () => {
               <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
                 <h3 className="text-lg font-semibold mb-4">Upcoming Events</h3>
                 <div className="space-y-3">
-                  {events.length > 0 ? (
-                    events.slice(0, 5).map((event, index) => (
+                  {upcomingList.length > 0 ? (
+                    upcomingList.slice(0, 5).map((event, index) => (
                       <div
                         key={index}
                         className="border rounded-lg p-3 hover:bg-gray-50 dark:bg-gray-800 transition-colors"
@@ -250,7 +326,9 @@ const GmailIntegrationPage: NextPage = () => {
                     ))
                   ) : (
                     <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                      No upcoming events found.
+                      {calLoadError
+                        ? `Couldn't load events — ${calLoadError}`
+                        : "No upcoming events found."}
                     </div>
                   )}
                 </div>
@@ -271,12 +349,43 @@ const GmailIntegrationPage: NextPage = () => {
               <GmailSearch
                 data={emails}
                 dataType="messages"
-                onSearch={(results: any[], filters: any, sort: any) => {
-                  setEmails(results);
+                onSearch={(results: any[], filters: any) => {
+                  const typed =
+                    filters && typeof filters.query === "string"
+                      ? filters.query
+                      : "";
+                  if (typed) {
+                    // Typed search: the visible list is DERIVED from the
+                    // source emails + query, so results can never go stale
+                    // when emails load asynchronously.
+                    setSearchQuery(typed);
+                  } else {
+                    // Clearing the query (or a caller handing over a full
+                    // result list, as the page tests do): the result array
+                    // IS the list — reflect it in the count/list.
+                    setSearchQuery("");
+                    setEmails(results || []);
+                  }
                 }}
                 loading={loading}
                 totalCount={emails.length}
+                resultCount={visibleInbox.length}
               />
+              <div className="mt-3 space-y-2 max-h-[28rem] overflow-y-auto">
+                {visibleInbox.length > 0 ? (
+                  visibleInbox.map((email, index) => (
+                    <EmailRow key={index} email={email} />
+                  ))
+                ) : (
+                  <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    {emails.length === 0
+                      ? loadError
+                        ? `Couldn't load emails — ${loadError}`
+                        : "No emails found. Connect your Gmail account to get started."
+                      : "No emails match your search."}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );
@@ -292,25 +401,25 @@ const GmailIntegrationPage: NextPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-blue-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-blue-600">
-                    {calendarStats.upcoming}
+                    {calendarUnavailable ? "—" : calStats.upcoming}
                   </div>
                   <div className="text-sm text-blue-800">Upcoming</div>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-green-600">
-                    {calendarStats.today}
+                    {calendarUnavailable ? "—" : calStats.today}
                   </div>
                   <div className="text-sm text-green-800">Today</div>
                 </div>
                 <div className="bg-purple-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-purple-600">
-                    {calendarStats.thisWeek}
+                    {calendarUnavailable ? "—" : calStats.thisWeek}
                   </div>
                   <div className="text-sm text-purple-800">This Week</div>
                 </div>
                 <div className="bg-orange-50 rounded-lg p-4 text-center">
                   <div className="text-2xl font-bold text-orange-600">
-                    {calendarStats.completed}
+                    {calendarUnavailable ? "—" : calStats.completed}
                   </div>
                   <div className="text-sm text-orange-800">Completed</div>
                 </div>
@@ -320,22 +429,65 @@ const GmailIntegrationPage: NextPage = () => {
                   <input
                     type="text"
                     placeholder="Search events..."
+                    value={calQuery}
+                    onChange={(e) => setCalQuery(e.target.value)}
                     className="flex-1 px-3 py-2 border rounded-lg"
                   />
-                  <select className="px-3 py-2 border rounded-lg">
-                    <option>All Events</option>
-                    <option>Today</option>
-                    <option>This Week</option>
-                    <option>This Month</option>
+                  <select
+                    className="px-3 py-2 border rounded-lg"
+                    value={calFilter}
+                    onChange={(e) => setCalFilter(e.target.value)}
+                  >
+                    <option value="all">All Events</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
                   </select>
-                  <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
-                    Create Event
-                  </button>
                 </div>
-                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                  Calendar integration coming soon. Connect your account to
-                  enable calendar management.
-                </div>
+                {events.length === 0 ? (
+                  <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    {calLoadError
+                      ? `Couldn't load events — ${calLoadError}`
+                      : "No calendar events found."}
+                  </div>
+                ) : visibleEvents.length === 0 ? (
+                  <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    No events match your filters.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[24rem] overflow-y-auto">
+                    {visibleEvents.map((event, index) => (
+                      <div
+                        key={index}
+                        className={`border rounded-lg p-3 hover:bg-gray-50 dark:bg-gray-800 transition-colors ${
+                          event.completed ? "opacity-60" : ""
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900 dark:text-gray-100">
+                              {event.title}
+                              {event.completed && (
+                                <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">
+                                  (completed)
+                                </span>
+                              )}
+                            </div>
+                            {event.location && (
+                              <div className="text-sm text-gray-600 dark:text-gray-400">
+                                {event.location}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 ml-2 shrink-0 text-right">
+                            <div>{event.date}</div>
+                            <div>{event.time}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

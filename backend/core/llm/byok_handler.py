@@ -187,6 +187,34 @@ from core.llm_credential_service import LLMCredentialService
 
 logger = logging.getLogger(__name__)
 
+
+def _stop_iteration_safe(fn, *args, **kwargs):
+    """Worker-thread shim for _to_thread_safe — the StopIteration must be
+    converted INSIDE the worker: once it lands on the executor's concurrent
+    future, asyncio's chaining callback dies and the awaiter hangs (py<=3.12)."""
+    try:
+        return fn(*args, **kwargs)
+    except StopIteration as e:
+        raise RuntimeError(
+            f"{getattr(fn, '__qualname__', fn)} raised StopIteration "
+            f"(exhausted iterator?) — converted to keep the awaiting coroutine alive"
+        ) from e
+
+
+async def _to_thread_safe(fn, *args, **kwargs):
+    """await fn(*args, **kwargs) in the default executor — asyncio.to_thread,
+    but an escaped StopIteration becomes a normal RuntimeError.
+
+    StopIteration set on the executor's concurrent future is fatal on Python
+    <=3.12: asyncio's future-chaining callback calls
+    set_exception(StopIteration), which is forbidden, so the callback dies and
+    the awaiting coroutine NEVER resumes — the caller hangs forever
+    (2026-09-05 CI: backend-tests timed out at 6h after a MagicMock
+    side_effect list ran out inside the worker thread. A first fix converted
+    around the await, which local Python 3.14 converts internally and so
+    passed vacuously — CI's 3.11 hung and the new 300s seatbelt caught it)."""
+    return await asyncio.to_thread(_stop_iteration_safe, fn, *args, **kwargs)
+
 # --- P4 prompt-taint gate (shadow by default) -------------------------------
 # The prompt IS the exfil payload on the LLM path: the full text leaves for a
 # third-party processor. When the head of the outbound prompt classifies as
@@ -390,10 +418,14 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.ADVANCED: "xiaomi/mimo-v2.5-pro",
     },
     "ollama": {
-        QueryComplexity.SIMPLE: "llama3:8b",
-        QueryComplexity.MODERATE: "llama3:8b",
-        QueryComplexity.COMPLEX: "mistral:7b",
-        QueryComplexity.ADVANCED: "mixtral:8x7b",
+        # One local model, actually pulled (`ollama list` is the source of
+        # truth — routing to catalog names that aren't pulled 404s every
+        # request). llama3.1 (not llama3): the structured-generation path
+        # uses tools, which plain llama3 does not support in Ollama.
+        QueryComplexity.SIMPLE: "llama3.1:8b",
+        QueryComplexity.MODERATE: "llama3.1:8b",
+        QueryComplexity.COMPLEX: "llama3.1:8b",
+        QueryComplexity.ADVANCED: "llama3.1:8b",
     },
     "glm": {  # Zhipu AI GLM family — OpenAI-compatible API
         QueryComplexity.SIMPLE: "glm-4.5",
@@ -717,6 +749,12 @@ class BYOKHandler:
         # response and key feedback correctly (instead of the "auto" input).
         self._last_used_model: Optional[str] = None
         self._last_used_provider: Optional[str] = None
+        # Chain-of-thought from the last completed call (delta.reasoning /
+        # reasoning_content / thinking fields, provider-dependent). Like the
+        # model/provider stash above: generate_response returns only text, so
+        # callers read this to persist + display WHAT the model was thinking
+        # (reasoning drawers, feedback training). Cleared per call.
+        self._last_reasoning: Optional[str] = None
         # routing_result_id stashed by _rerank_with_learning when it computed
         # per-decision prompt features, so the outcome hook can recover them
         # (train/serve consistency). None when re-ranking didn't fire.
@@ -787,6 +825,12 @@ class BYOKHandler:
         """
         # All available providers that have clients initialized
         available_providers = list(self.clients.keys())
+
+        # Same availability rule as ranking: a local runtime that isn't
+        # answering stays out of the fallback chain — mid-request fallback
+        # to a dead ollama just adds its connection timeout to the failure.
+        if "ollama" in available_providers and self._ollama_runtime_state()[0] != "up":
+            available_providers = [p for p in available_providers if p != "ollama"]
 
         if not available_providers:
             return []
@@ -869,16 +913,33 @@ class BYOKHandler:
         if not required_capability:
             return True  # No capability requirement
 
+        # BYOK composite ids ("openrouter/openai/gpt-4o") — the catalog may
+        # key the base name; try progressively stripped variants so a
+        # vision/tools model behind a router prefix isn't misclassified.
+        def _name_variants(mid: str):
+            yield mid
+            base = mid
+            while "/" in base:
+                base = base.split("/", 1)[1]
+                yield base
+
         # Fast path: use the pre-built index (no DB round-trip).
         if capability_index is not None:
             capabilities = capability_index.get(model_id)
             if capabilities is None:
+                for variant in _name_variants(model_id):
+                    if variant in capability_index:
+                        return required_capability in capability_index[variant]
                 return True  # Unknown model — pass through
             return required_capability in capabilities
 
         try:
             with get_db_session() as db:
-                model = db.query(ModelCatalog).filter_by(model_id=model_id).first()
+                model = None
+                for variant in _name_variants(model_id):
+                    model = db.query(ModelCatalog).filter_by(model_id=variant).first()
+                    if model:
+                        break
                 if not model:
                     return True  # Unknown models pass through
                 capabilities = model.capabilities or ["chat"]
@@ -969,6 +1030,38 @@ class BYOKHandler:
         except Exception:
             pass
 
+    @staticmethod
+    def _reasoning_from_message(message: Any) -> str:
+        """Extract chain-of-thought from a completion message across the
+        provider-specific field names: DeepSeek ``reasoning_content``,
+        OpenRouter ``reasoning``, vLLM/SGLang ``reasoning_content``, some
+        clients ``thinking`` — with extras nested in ``model_extra`` when the
+        SDK version predates the field. Returns '' when absent.
+        """
+        if message is None:
+            return ""
+        for attr in ("reasoning_content", "reasoning", "thinking_content", "thinking"):
+            val = getattr(message, attr, None)
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+        extra = getattr(message, "model_extra", None)
+        if isinstance(extra, dict):
+            for key in ("reasoning_content", "reasoning", "thinking_content", "thinking"):
+                val = extra.get(key)
+                if isinstance(val, str) and val.strip():
+                    return val.strip()
+        return ""
+
+    def _stash_last_reasoning(self, response: Any) -> None:
+        """Stash the chain-of-thought of the last non-streaming completion
+        onto ``self._last_reasoning`` (same stash pattern as
+        _last_used_model). Best-effort: never raises."""
+        try:
+            msg = response.choices[0].message
+            self._last_reasoning = self._reasoning_from_message(msg) or None
+        except Exception:
+            self._last_reasoning = None
+
     def _model_supports_tools(self, model_id: str) -> bool:
         """
         Check if model supports tool calling using pricing cache (not hardcoded lists).
@@ -1003,7 +1096,20 @@ class BYOKHandler:
             True if model supports vision, False otherwise
         """
         capabilities = self.pricing_fetcher.get_model_capabilities(model_id)
-        return capabilities.get("supports_vision", False)
+        if capabilities.get("supports_vision", False):
+            return True
+        # BYOK composite ids ("openrouter/openai/gpt-4o"): the pricing cache
+        # may key the base name — retry stripped variants before concluding
+        # a model is text-only (a false negative demotes perfectly good
+        # BYOK vision models during vision routing).
+        base = model_id or ""
+        while "/" in base:
+            base = base.split("/", 1)[1]
+            if self.pricing_fetcher.get_model_capabilities(base).get(
+                "supports_vision", False
+            ):
+                return True
+        return False
 
     def _model_supports_reasoning(self, model_id: str) -> bool:
         """
@@ -1017,6 +1123,51 @@ class BYOKHandler:
         """
         capabilities = self.pricing_fetcher.get_model_capabilities(model_id)
         return capabilities.get("supports_reasoning", False)
+
+    # Availability probe caching. A DOWN runtime must neither stall routing
+    # (probes are cached, and localhost connection-refused is instant anyway)
+    # nor gate-keep recovery — the down state is re-checked every minute, so
+    # a restarted Ollama rejoins the pool without a restart of the backend.
+    _OLLAMA_PROBE_TTL_UP = 300
+    _OLLAMA_PROBE_TTL_DOWN = 60
+
+    def _ollama_runtime_state(self):
+        """("up", pulled_model_names) when the local Ollama runtime answers
+        /api/tags, else ("down", None). Cached per state so routing never
+        probes per call. Base names are included alongside tagged ones, so a
+        catalog 'llama3.1' matches a pulled 'llama3.1:8b'."""
+        cache = getattr(self, "_ollama_probe_cache", None)
+        now = time.time()
+        if cache:
+            checked_at, state, pulled = cache
+            ttl = (
+                self._OLLAMA_PROBE_TTL_UP
+                if state == "up"
+                else self._OLLAMA_PROBE_TTL_DOWN
+            )
+            if now - checked_at < ttl:
+                return state, pulled
+        base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1").rstrip("/")
+        if base.endswith("/v1"):
+            base = base[: -len("/v1")]
+        try:
+            import httpx
+
+            resp = httpx.get(f"{base}/api/tags", timeout=(1.0, 2.0))
+            resp.raise_for_status()
+            names = {
+                m.get("name")
+                for m in resp.json().get("models", [])
+                if m.get("name")
+            }
+        except Exception:
+            self._ollama_probe_cache = (now, "down", None)
+            return "down", None
+        expanded = set(names)
+        for n in names:
+            expanded.add(n.split(":", 1)[0])
+        self._ollama_probe_cache = (now, "up", expanded)
+        return "up", expanded
 
     def _initialize_clients(self) -> None:
         """Initialize clients for all available providers"""
@@ -1059,6 +1210,11 @@ class BYOKHandler:
             # tested model catalog. Custom rates/limits (RPM/TPM/context) are
             # enforced at routing time via core.llm.provider_rate_limits.
             "opencode-go": {"base_url": os.getenv("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")},
+            # "opencode" is a first-class catalog id now (API Keys page) —
+            # same gateway, so it needs the same base_url or a UI-stored key
+            # under that id would build a client pointed at the OpenAI
+            # default and every call would 404/401 there.
+            "opencode": {"base_url": os.getenv("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")},
         }
 
         # Separate sync and async clients
@@ -1714,7 +1870,25 @@ class BYOKHandler:
                     QueryComplexity.SIMPLE: 85,
                     QueryComplexity.MODERATE: 80,
                     QueryComplexity.COMPLEX: 88,
-                    QueryComplexity.ADVANCED: 94
+                    # ADVANCED was 94 (frontier-only): the only vetted models
+                    # clearing it were qwen3-max ($2.34/M blended) and
+                    # deepseek-v4-pro — so every "advanced"-classified request
+                    # paid flagship prices. Recalibrated to 90 (Sept 6): the
+                    # 2026 flash tier now benchmarks at last-gen-flagship
+                    # level (gemini-3-flash beats o3/GPT-5 on a medical
+                    # accuracy battery, PMC12894337; gpt-5-mini = 99.3% of
+                    # gpt-5 quality at 4.2x lower cost, Wolfia), and BOTH
+                    # passed the same Aug-30 transcript-recall probe that set
+                    # the SIMPLE floor (scripts/bpc_recall_probe_sept2026.py;
+                    # glm-5.3-flash / qwen3.8-flash / v4-flash-0731 failed it
+                    # and stay below 85). 90 keeps the line at "frontier-class
+                    # or measured-equivalent" — minimax-m3 (89, no external
+                    # frontier-class evidence) still tops out at COMPLEX.
+                    # Result: advanced -> gpt-5-mini ($1.13/M blended,
+                    # recall ✓) instead of qwen3-max ($2.34/M); deepseek BYOK
+                    # advanced -> deepseek-reasoner (91, $0.35/M, recall ✓
+                    # probed Sept 6) instead of deepseek-v4-pro ($2.64/M).
+                    QueryComplexity.ADVANCED: 90
                 }
                 min_quality = MIN_QUALITY_BY_COMPLEXITY.get(complexity, 0)
             
@@ -1773,11 +1947,38 @@ class BYOKHandler:
 
             for model_id, pricing in fetcher.pricing_cache.items():
                 litellm_provider = pricing.get("litellm_provider", "").lower()
-                
-                # Check if we have a client for this provider
-                active_provider = next((p for p in available_providers if p in model_id.lower() or p == litellm_provider), None)
+
+                # Check if we have a client for this provider. Exact catalog
+                # match wins: OpenRouter-hosted IDs often CONTAIN another
+                # client's name ("deepseek/deepseek-v4-flash-0731" contains
+                # "deepseek"), and the old substring-first match handed those
+                # to the wrong client — api.deepseek.com 400s prefixed IDs
+                # ("supported names are deepseek-v4-pro, deepseek-v4-flash,
+                # …", verified Sept 6), so every such request paid a failed
+                # call before escalating. Substring stays as the fallback for
+                # models the catalog can't attribute (local providers).
+                active_provider = next(
+                    (p for p in available_providers if p == litellm_provider), None
+                )
+                if not active_provider:
+                    active_provider = next(
+                        (p for p in available_providers if p in model_id.lower()), None
+                    )
                 if not active_provider:
                     continue
+
+                # Ollama routes ONLY when the local runtime is available —
+                # free local models rank well on value, so an unreachable
+                # runtime sitting in the pool made every request pay its
+                # connection-failure tax before failing over. Availability
+                # is probed (cached) and even when up, only models ACTUALLY
+                # pulled can serve: catalog names that aren't pulled 404.
+                if active_provider == "ollama":
+                    ollama_state, pulled = self._ollama_runtime_state()
+                    if ollama_state != "up":
+                        continue
+                    if model_id.split("/", 1)[-1] not in pulled:
+                        continue
 
                 if active_provider == "openrouter":
                     # OpenRouter hosts 480+ models; only a vetted allowlist
@@ -1991,7 +2192,19 @@ class BYOKHandler:
                 return is_managed_service and provider_id not in own_keys
 
             def is_model_approved(model_id: str, allowed_list: any) -> bool:
-                if (requires_tools or requires_structured) and not self._model_supports_tools(model_id):
+                # The local runtime is the authority for its own models: the
+                # remote catalog carries no capability data for pulled names,
+                # and its conservative default hid working local models
+                # (llama3.1:8b serves tools even though the cache is silent).
+                # Availability + pulled-model gating happens at candidate
+                # time; a local model that genuinely lacks tools surfaces a
+                # normal call error like any other provider mismatch.
+                is_local = model_id.lower().startswith("ollama/")
+                if (
+                    (requires_tools or requires_structured)
+                    and not is_local
+                    and not self._model_supports_tools(model_id)
+                ):
                     return False
 
                 if allowed_list == "*" or "*" in allowed_list:
@@ -2227,6 +2440,10 @@ class BYOKHandler:
         except Exception:
             pass
 
+        # Same staleness rule for the chain-of-thought stash: a call that
+        # produces no reasoning must not inherit the previous call's.
+        self._last_reasoning = None
+
         # Phase 72: Trial Restriction Check
         if self._is_trial_restricted():
             logger.warning(f"AI Blocked: Trial expired for workspace {self.workspace_id}")
@@ -2360,13 +2577,22 @@ class BYOKHandler:
                 len(str(m.get("content") or ""))
                 for m in (messages or []) if isinstance(m, dict)
             )
+            # BYOK images count toward context: a typical image costs
+            # ~85-1105 tokens depending on detail (OpenAI accounting) —
+            # reserve the high case so window checks don't under-count.
+            _image_tokens = 1106 if requires_vision else 0
             options = await self.get_ranked_providers(
                 complexity, task_type, prefer_cost, tenant_plan, is_managed,
                 requires_tools=requires_tools, requires_structured=False,
                 turn_index=turn_index,
                 cognitive_tier=forced_tier_enum,
                 max_quality=max_quality_override,
-                estimated_tokens=max(1000, _est_input_chars // 4),
+                estimated_tokens=max(1000, _est_input_chars // 4) + _image_tokens,
+                # Vision turns rank ONLY vision-capable candidates up front —
+                # the old flow ranked vision-blind and either fell back to a
+                # lossy image-description pass or hard-pinned GPT-4o, which a
+                # BYOK user without an OpenAI key cannot call.
+                required_capability=("vision" if requires_vision else None),
             )
 
             # --- LKGP (Last-Known-Good-Path) sticky boost ---
@@ -2558,7 +2784,7 @@ class BYOKHandler:
                     # round trip — one in-flight extraction/chat turn stalled
                     # EVERY concurrent request (observed: ingestion-status
                     # hung 60s while GraphRAG extraction awaited openrouter).
-                    response = await asyncio.to_thread(
+                    response = await _to_thread_safe(
                         client.chat.completions.create,
                         model=model,
                         messages=messages,
@@ -2566,6 +2792,7 @@ class BYOKHandler:
                         max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                     )
                     self._capture_echoed_model(response)
+                    self._stash_last_reasoning(response)
 
                     result = response.choices[0].message.content
                     finish_reason = getattr(response.choices[0], "finish_reason", None)
@@ -2730,7 +2957,7 @@ class BYOKHandler:
                                 f"retrying with {fallback_model}"
                             )
                             try:
-                                response = await asyncio.to_thread(
+                                response = await _to_thread_safe(
                                     client.chat.completions.create,
                                     model=fallback_model,
                                     messages=messages,
@@ -2738,6 +2965,7 @@ class BYOKHandler:
                                     max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                                 )
                                 self._capture_echoed_model(response)
+                                self._stash_last_reasoning(response)
                                 result = response.choices[0].message.content
                                 if _visible_content_missing(result):
                                     raise _EmptyCompletionError(
@@ -2812,11 +3040,12 @@ class BYOKHandler:
                                     f"patch={heal_result.rule} keys={heal_result.patched_keys}"
                                 )
                                 try:
-                                    response = await asyncio.to_thread(
+                                    response = await _to_thread_safe(
                                         client.chat.completions.create,
                                         **heal_result.patched_kwargs
                                     )
                                     self._capture_echoed_model(response)
+                                    self._stash_last_reasoning(response)
                                     result = response.choices[0].message.content
                                     if _visible_content_missing(result):
                                         raise _EmptyCompletionError(
@@ -2874,7 +3103,7 @@ class BYOKHandler:
                         paid_model = _opencode_paid_fallback_model(model)
                         if paid_model and paid_model != model:
                             try:
-                                response = await asyncio.to_thread(
+                                response = await _to_thread_safe(
                                     client.chat.completions.create,
                                     model=paid_model,
                                     messages=messages,
@@ -2882,6 +3111,7 @@ class BYOKHandler:
                                     max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                                 )
                                 self._capture_echoed_model(response)
+                                self._stash_last_reasoning(response)
                                 result = response.choices[0].message.content
                                 if _visible_content_missing(result):
                                     raise _EmptyCompletionError(
@@ -3885,7 +4115,7 @@ class BYOKHandler:
                         # to_thread: instructor here wraps the SYNC client — a
                         # bare call blocked the loop for the whole structured
                         # round trip (same starvation as generate_response).
-                        result = await asyncio.to_thread(
+                        result = await _to_thread_safe(
                             instructor_client.chat.completions.create, **_create_kwargs
                         )
                     except Exception as _reasoning_reject:
@@ -3895,7 +4125,7 @@ class BYOKHandler:
                         # the extra_body rather than failing the stage.
                         if "reasoning" in str(_reasoning_reject).lower() and _create_kwargs.get("extra_body"):
                             _create_kwargs.pop("extra_body", None)
-                            result = await asyncio.to_thread(
+                            result = await _to_thread_safe(
                                 instructor_client.chat.completions.create, **_create_kwargs
                             )
                         else:
@@ -3910,7 +4140,7 @@ class BYOKHandler:
                             f"soft-SC logprobs request failed for {provider_id}/{model} "
                             f"({_soft_exc}); retrying once without logprobs"
                         )
-                        result = await asyncio.to_thread(
+                        result = await _to_thread_safe(
                             instructor_client.chat.completions.create, **_create_kwargs
                         )
                     self._capture_echoed_model(result)  # reads _raw_response.model
@@ -4465,7 +4695,7 @@ class BYOKHandler:
                 }
             ]
 
-            response = await asyncio.to_thread(
+            response = await _to_thread_safe(
                 client.chat.completions.create,
                 model=model,
                 messages=messages,
@@ -4490,6 +4720,7 @@ class BYOKHandler:
         db = None,
         task_type: Optional[str] = "chat",
         extra_kwargs: Optional[Dict[str, Any]] = None,
+        reasoning_sink: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream LLM responses token-by-token with optional governance tracking.
@@ -4507,6 +4738,12 @@ class BYOKHandler:
             extra_kwargs: Extra kwargs forwarded to the provider stream call
                 (e.g. ``stop``/``top_p`` — previously silently dropped, so the
                 gateway's streaming requests could not honor stop sequences).
+            reasoning_sink: Optional dict. When provided, chain-of-thought
+                deltas (``delta.reasoning`` / ``reasoning_content`` /
+                ``thinking`` — provider-dependent) are APPENDED to
+                ``reasoning_sink["deltas"]`` instead of being dropped. Existing
+                callers that don't pass it are unaffected: the yield contract
+                (visible content tokens only) is unchanged.
 
         Yields:
             Individual tokens as they arrive from the LLM
@@ -4625,6 +4862,15 @@ class BYOKHandler:
                     if chunk.choices:
                         choice = chunk.choices[0]
                         delta = choice.delta
+                        # Chain-of-thought deltas ride a separate field
+                        # (provider-dependent name) and were previously
+                        # dropped on the floor. Capture into the caller's
+                        # sink when one is provided; the visible-content
+                        # yield contract is untouched.
+                        if reasoning_sink is not None:
+                            _rdelta = self._reasoning_from_message(delta)
+                            if _rdelta:
+                                reasoning_sink.setdefault("deltas", []).append(_rdelta)
                         if hasattr(delta, 'content') and delta.content:
                             token_count += 1
                             if _stream_content_chars < _STREAM_CONTENT_CAP:

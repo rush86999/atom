@@ -137,6 +137,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 - [Best Practices](guides/END_USERS/BEST_PRACTICES.md)
 - [Integration Setup](guides/END_USERS/INTEGRATION_SETUP.md)
 - [Workflow Creation](guides/END_USERS/WORKFLOW_CREATION.md)
+- [File Updates & Pricing Accuracy](guides/END_USERS/FILE_UPDATES_AND_PRICING.md) - How agents stay current with your files, and how to get accurate, dated prices
 
 ### Developers
 
@@ -163,6 +164,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 - [Security Configuration](guides/ADMINISTRATORS/SECURITY_CONFIG.md)
 - [System Setup](guides/ADMINISTRATORS/SYSTEM_SETUP.md)
 - [User Management](guides/ADMINISTRATORS/USER_MANAGEMENT.md)
+- [File Update Pipeline](guides/ADMINISTRATORS/FILE_UPDATE_PIPELINE.md) - Real-time file updates: webhook setup per storage app, sync cadence, freshness guarantees, troubleshooting
 
 ### Enterprise
 

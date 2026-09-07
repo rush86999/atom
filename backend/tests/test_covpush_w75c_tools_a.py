@@ -631,8 +631,11 @@ class TestDeleteCanvas:
         assert res["success"] is False
 
     async def test_already_deleted(self):
+        # Delete is IDEMPOTENT by contract (live fix 2026-09-01: the gallery's
+        # delete raced the refetch window and a non-idempotent 400 surfaced as
+        # an AxiosError overlay) — an already-deleted canvas succeeds.
         res = await self._run(self._audit(action_type="delete"))
-        assert res["success"] is False and "already" in res["error"]
+        assert res["success"] is True and res.get("already_deleted") is True
 
     async def test_success(self):
         res = await self._run(self._audit())

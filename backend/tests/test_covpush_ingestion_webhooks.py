@@ -695,6 +695,19 @@ class TestZohoWebhook:
         kwargs = dispatch.call_args.kwargs
         assert kwargs["integration_id"] == "zoho_crm"
 
+    def test_zoho_inventory_dispatches(self, db):
+        # Inventory items/sales orders have no other push path — the hourly
+        # hybrid poll is their only fallback — so the webhook route must
+        # accept zoho_inventory like the rest of the suite.
+        with _discovery(), _dispatch() as dispatch:
+            resp = make_client(db).post(
+                "/webhooks/zoho/zoho_inventory",
+                json={"organization_id": "O1", "module": "salesorder"},
+            )
+        assert resp.status_code == 200
+        dispatch.assert_awaited_once()
+        assert dispatch.call_args.kwargs["integration_id"] == "zoho_inventory"
+
     def test_invalid_json_fallback_empty(self, db):
         with _discovery():
             resp = make_client(db).post("/webhooks/zoho/zoho_crm", content=b"not json")

@@ -19,6 +19,7 @@ from core.hybrid_data_ingestion import (
     IntegrationUsageStats,
     SyncConfiguration,
     SyncMode,
+    _ZOHO_PER_MODULE_SYNC_LIMIT,
     get_hybrid_ingestion_service,
     record_integration_call,
 )
@@ -68,8 +69,12 @@ class TestUsageTracking:
 
     def test_auto_enable_at_threshold(self):
         svc = make_service()
+        # Auto-sync defaults ON — the usage threshold only re-enables after
+        # an explicit opt-out.
+        svc.record_integration_usage("hubspot", "HubSpot")
+        svc.disable_auto_sync("hubspot")
         with patch.object(svc, "enable_auto_sync", new=MagicMock()) as enable:
-            for i in range(svc.AUTO_SYNC_USAGE_THRESHOLD):
+            for i in range(svc.AUTO_SYNC_USAGE_THRESHOLD - 1):
                 svc.record_integration_usage("hubspot", "HubSpot")
         enable.assert_called_once_with("hubspot")
 
@@ -639,13 +644,17 @@ class TestModuleFunctions:
 
     def test_record_integration_call(self):
         from core import hybrid_data_ingestion as hdi
-        hdi._ingestion_service = None
         service = MagicMock()
         service.workspace_id = "default"
-        hdi._ingestion_service = service
-        record_integration_call("slack", "Slack", success=False, user_id="u1")
+        # The getter resolves per-workspace instances from the map; the
+        # module-global singleton is back-compat read-only.
+        key = ("default", "default")
+        hdi._ingestion_services[key] = service
+        try:
+            record_integration_call("slack", "Slack", success=False, user_id="u1")
+        finally:
+            hdi._ingestion_services.pop(key, None)
         service.record_integration_usage.assert_called_once_with("slack", "Slack", False, "u1")
-        hdi._ingestion_service = None
 
 
 # ---------------------------------------------------------------------------
@@ -702,6 +711,11 @@ class TestZohoMultiAppFetcher:
         adapter.get_items = AsyncMock(return_value=[{"id": "it1"}])
         adapter.get_sales_orders = AsyncMock(return_value=[{"id": "so1"}])
         adapter.get_tasks = AsyncMock(return_value=[{"id": "t1"}])
+        # Org discovery (Books/Inventory gating) and the per-module error
+        # flag read by the suite fetcher.
+        adapter.get_organizations = AsyncMock(return_value=[])
+        adapter.get_portals = AsyncMock(return_value=[])
+        adapter.last_error = None
         return adapter
 
     def _token(self, **meta):
@@ -724,7 +738,12 @@ class TestZohoMultiAppFetcher:
                               "inventory_items", "inventory_sales_orders",
                               "projects_tasks"]))
         assert len(records) == 6
-        adapter.get_invoices.assert_called_once_with(organization_id="org1", limit=100)
+        # Books/Invoice modules page up to the per-module sync bound now,
+        # not a fixed first-page 100; the incremental cursor rides along
+        # (None when the workspace has no cursor yet).
+        adapter.get_invoices.assert_called_once_with(
+            organization_id="org1", limit=_ZOHO_PER_MODULE_SYNC_LIMIT,
+            modified_since=None)
         adapter.get_tasks.assert_called_once()
 
     async def test_no_org_id_skips_books(self):

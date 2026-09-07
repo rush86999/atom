@@ -80,16 +80,20 @@ def cfg(integration_id="zoho", entity_types=None, max_records=1000, **kw):
 # ============================================================================
 
 def test_hybrid_record_usage_and_auto_enable_threshold(ing):
+    # Auto-sync defaults ON; the usage threshold only governs RE-enabling
+    # after an explicit opt-out.
     ing.AUTO_SYNC_USAGE_THRESHOLD = 3
-    for i in range(2):
-        ing.record_integration_usage("zoho", "Zoho", success=True, user_id="u1")
+    ing.record_integration_usage("zoho", "Zoho", success=True, user_id="u1")
+    ing.disable_auto_sync("zoho")
+    ing.record_integration_usage("zoho", "Zoho", success=True, user_id="u1")
+    # total_calls 2 < threshold 3 -> stays opted out
     assert not ing.usage_stats["zoho"].auto_sync_enabled
     ing.record_integration_usage("zoho", "Zoho", success=False)
     # threshold reached -> auto-enabled with default config
     assert ing.usage_stats["zoho"].auto_sync_enabled is True
-    assert ing.sync_configs["zoho"].entity_types == [
-        "crm_leads", "crm_deals", "books_invoices", "projects_tasks",
-        "inventory_items", "inventory_sales_orders"]
+    from core.hybrid_data_ingestion import DEFAULT_SYNC_CONFIGS
+    assert ing.sync_configs["zoho"].entity_types == \
+        DEFAULT_SYNC_CONFIGS["zoho"].entity_types
     st = ing.usage_stats["zoho"]
     assert st.total_calls == 3 and st.successful_calls == 2
 
@@ -105,13 +109,15 @@ def test_hybrid_enable_auto_sync_custom_and_basic(ing):
 
 def test_hybrid_disable_auto_sync_cancels_task(ing):
     ing.enable_auto_sync("zoho")
-    task = asyncio.ensure_future(asyncio.sleep(10))
+    # A MagicMock task keeps this a sync test — ensure_future needs a
+    # running loop, which sync pytest tests don't have (py3.10+).
+    task = MagicMock()
     ing._sync_tasks["zoho"] = task
     ing.disable_auto_sync("zoho")
     assert ing.usage_stats["zoho"].auto_sync_enabled is False
     assert "zoho" not in ing._sync_tasks
+    task.cancel.assert_called_once()
     ing.disable_auto_sync("unknown")  # no-op branch
-    task.cancel()
 
 
 def test_hybrid_check_auto_enable_no_stats(ing):
@@ -278,10 +284,10 @@ def test_hybrid_record_to_text():
 async def test_hybrid_fetch_dispatch(ing, monkeypatch):
     called = []
 
-    async def one(c):  # direct fetchers take only config
+    async def one(c, role=None):  # direct fetchers take config + role
         return [{"id": "1", "type": "t", "name": "Long enough record name"}]
 
-    async def uni(integration_id, config, discovery_mode=False):
+    async def uni(integration_id, config, discovery_mode=False, role=None):
         called.append(integration_id)
         return [{"id": "1", "type": "t", "name": "Long enough record name"}]
 
@@ -1154,12 +1160,12 @@ async def test_wm_recover_archived_session(wsvc):
 
 
 async def test_wm_hard_delete_archived_sessions(wsvc):
-    old = DT - timedelta(days=60)
+    now = datetime.now(timezone.utc)
     past_retention = _msg(metadata_json={
-        "_archived": True, "_retention_until": (DT - timedelta(days=1)).isoformat()})
-    by_created = _msg(metadata_json={"_archived": True}, created_at=old)
+        "_archived": True, "_retention_until": (now - timedelta(days=1)).isoformat()})
+    by_created = _msg(metadata_json={"_archived": True}, created_at=now - timedelta(days=60))
     future = _msg(metadata_json={
-        "_archived": True, "_retention_until": (DT + timedelta(days=5)).isoformat()})
+        "_archived": True, "_retention_until": (now + timedelta(days=5)).isoformat()})
     with patch("core.agent_world_model.SessionLocal") as sl:
         db = sl.return_value
         db.query.return_value.filter.return_value.all.return_value = [past_retention, by_created, future]

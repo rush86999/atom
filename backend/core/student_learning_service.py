@@ -21,11 +21,13 @@ human corrections) back in front of the agent in every chat turn, canvas
 edit plan, and task execution — the point of teaching.
 """
 
+import json
 import logging
 import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.models import AgentRegistry, AgentStatus
@@ -54,6 +56,11 @@ WORK_TIME_LESSON_LIMIT = 5
 _LESSON_TEXT_CHARS = 320
 _LESSON_BLOCK_CHARS = 1600
 
+# A lesson taught from a canvas (TrainingPanel on /canvas/{id}) carries the
+# canvas it was taught on — name, app, and a bounded content digest — so at
+# retrieval the agent knows WHAT the lesson is about, not just the rule.
+_CANVAS_DIGEST_CHARS = 400
+
 # Log entries that carry standing guidance (vs. one-time event observations).
 _PERMANENT_OBSERVATIONS = {"human_correction", "user_style"}
 
@@ -73,6 +80,55 @@ def _is_permanent_lesson(entry: Dict[str, Any]) -> bool:
 
 def _lesson_text(entry: Dict[str, Any]) -> str:
     return str(entry.get("lesson") or entry.get("summary") or "").strip()
+
+
+def _canvas_digest(content: Any) -> str:
+    """Bounded plain-text digest of canvas content at teach time. The digest
+    is recall context ("what the canvas looked like when I was taught this"),
+    not an editable artifact — so lossy flattening is fine."""
+    parts: List[str] = []
+    if isinstance(content, str):
+        parts.append(re.sub(r"<[^>]+>", " ", content))
+    elif isinstance(content, dict):
+        for value in content.values():
+            if isinstance(value, str):
+                parts.append(re.sub(r"<[^>]+>", " ", value))
+            elif value is not None:
+                parts.append(json.dumps(value, default=str, ensure_ascii=False))
+    elif content is not None:
+        parts.append(json.dumps(content, default=str, ensure_ascii=False))
+    text = " ".join(p.strip() for p in parts if p and p.strip())
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) > _CANVAS_DIGEST_CHARS:
+        text = text[:_CANVAS_DIGEST_CHARS] + "…"
+    return text
+
+
+def build_canvas_context(db: Session, canvas_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Snapshot the named canvas (name, app, bounded content digest) for a
+    lesson entry — what the teacher was looking at when they taught it.
+    Fault-isolated: returns None when the canvas is missing or anything
+    fails; a teach must never break on context capture."""
+    if not canvas_id:
+        return None
+    try:
+        from core.canvas_app_schema import get_app_spec, normalize_app_type
+        from core.models import Canvas
+
+        canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+        if canvas is None:
+            return None
+        canvas_type = normalize_app_type(canvas.canvas_type)
+        return {
+            "canvas_id": str(canvas.id),
+            "name": str(canvas.name or "")[:120],
+            "canvas_type": canvas_type,
+            "label": get_app_spec(canvas.canvas_type).label,
+            "digest": _canvas_digest(canvas.content),
+        }
+    except Exception as e:
+        logger.debug(f"canvas context capture skipped for {canvas_id}: {e}")
+        return None
 
 
 def get_agent_lessons(
@@ -115,9 +171,16 @@ def get_agent_lessons(
             if t not in {"the", "and", "for", "with", "this", "that", "please", "can", "you", "your"}
         }
         def _score(entry: Dict[str, Any]) -> int:
+            # The canvas a lesson was taught on is part of the lesson's
+            # subject: "the invoice sheet" should surface the lesson taught
+            # on that canvas even if the rule text never says "invoice".
+            canvas = entry.get("canvas") if isinstance(entry.get("canvas"), dict) else {}
             haystack = " ".join((
                 str(entry.get("topic") or ""),
                 _lesson_text(entry),
+                str(canvas.get("name") or ""),
+                str(canvas.get("label") or ""),
+                str(canvas.get("digest") or ""),
             )).lower()
             return sum(1 for t in q_tokens if t in haystack)
         # Relevance first, recency as the tie-break (reverse() above made
@@ -137,6 +200,7 @@ def journal_standing_lesson(
     topic: Optional[str] = None,
     teacher_agent_id: Optional[str] = None,
     details: Optional[Dict[str, Any]] = None,
+    canvas_context: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """Append a permanent lesson DIRECTLY to an agent's registry lesson log —
     status-independent, so a taught rule reaches SUPERVISED and graduated
@@ -177,6 +241,8 @@ def journal_standing_lesson(
                 "details": dict(details or {}),
                 "learned_at": datetime.now(timezone.utc).isoformat(),
             }
+        if canvas_context:
+            entry["canvas"] = canvas_context
 
         from sqlalchemy.orm.attributes import flag_modified
 
@@ -274,6 +340,12 @@ def format_lessons_block(lessons: List[Dict[str, Any]]) -> str:
         if len(text) > _LESSON_TEXT_CHARS:
             text = text[:_LESSON_TEXT_CHARS] + "…"
         line = f"{i}. [{topic}] {text}"
+        # The canvas the lesson was taught on — the agent should know what
+        # the lesson's subject looks like without being able to ask.
+        canvas = entry.get("canvas") if isinstance(entry.get("canvas"), dict) else {}
+        if canvas.get("name"):
+            label = str(canvas.get("label") or canvas.get("canvas_type") or "").strip()
+            line += f" — taught on canvas \"{canvas['name']}\"" + (f" ({label})" if label else "")
         if used + len(line) + 1 > _LESSON_BLOCK_CHARS:
             break
         lines.append(line)
@@ -306,8 +378,11 @@ class StudentLearningService:
         teacher_agent_id: str,
         lesson: str,
         topic: Optional[str] = None,
+        canvas_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Record a teacher-delivered lesson (fast path)."""
+        """Record a teacher-delivered lesson (fast path). ``canvas_context``
+        (see build_canvas_context) pins the lesson to the canvas it was
+        taught on so retrieval can recall the subject, not just the rule."""
         student = self._get_student(student_agent_id)
         if student is None:
             return {"status": "error", "reason": "student_not_found"}
@@ -319,6 +394,8 @@ class StudentLearningService:
             "lesson": lesson[:2000],
             "learned_at": datetime.now(timezone.utc).isoformat(),
         }
+        if canvas_context:
+            entry["canvas"] = canvas_context
         result = self._apply_learning(student, entry, boost=_TEACHER_BOOST)
 
         # Pedagogy circuit: a taught lesson is a POSITIVE exposure for its
@@ -593,3 +670,159 @@ async def auto_observe(
             session.close()
     except Exception as e:
         logger.debug(f"Auto-observation skipped (non-fatal): {e}")
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Correction distillation: supervisor fixes the draft ON the canvas → the
+# hire learns a REAL rule immediately, no send required (live 2026-09-04:
+# the hire only visibly advanced when an email was sent+approved, because
+# canvas corrections journaled a raw JSON dump as the "lesson" — unreadable
+# at work time and in the Training panel, so the promised "fix it here and
+# I'll learn" never landed until the send circuit fired).
+# ─────────────────────────────────────────────────────────────────────────
+
+_FALLBACK_CORRECTION_PREFIX = (
+    "Supervisor corrected my work — follow the corrected "
+    "version's content and style:"
+)
+
+
+class CorrectionLesson(BaseModel):
+    """Structured output of the correction-distillation call."""
+    teachable: bool = True
+    lesson: str = ""
+
+
+def _correction_llm():
+    """Best-effort shared LLM accessor (same contract as the eval runner
+    and exchange_memory_maintenance): None when no provider is configured,
+    so the caller falls back to journaling the raw diff instead."""
+    try:
+        from core.incident_eval_runner import _default_llm_service
+
+        return _default_llm_service()
+    except Exception:
+        return None
+
+
+def raw_correction_gist(corrected_action: Any) -> str:
+    """The legacy fallback lesson text — the corrected payload serialized.
+    Kept byte-compatible with the pre-distillation journal so the no-LLM
+    path behaves exactly as before."""
+    gist = corrected_action if isinstance(corrected_action, str) else json.dumps(corrected_action, default=str)
+    return f"{_FALLBACK_CORRECTION_PREFIX} {gist[:400]}"
+
+
+async def distill_and_journal_correction(
+    agent_id: str,
+    original_content: Any,
+    corrected_content: Any,
+    canvas_id: Optional[str] = None,
+    canvas_type: Optional[str] = None,
+    canvas_title: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Distill a supervisor's canvas correction into ONE imperative rule and
+    journal it as a permanent ``human_correction`` lesson — fire-and-forget
+    from the correction-recording path (own DB session, like auto_observe).
+
+    The distilled lesson is what the hire actually uses: get_agent_lessons
+    feeds it into every canvas edit plan and the Training panel shows it as
+    a teaching point. When no LLM is reachable the legacy raw-diff gist is
+    journaled instead, so learning is never LOST — only less readable. A
+    diff the LLM judges UNTEACHABLE (pure formatting, no-op) journals
+    nothing: junk lessons crowd out real ones in the bounded work-time
+    lesson list.
+    """
+    try:
+        outcome, lesson_text = "fallback", None
+        llm = _correction_llm()
+        if llm is not None:
+            try:
+                outcome, lesson_text = await _distill_with_llm(
+                    llm, original_content, corrected_content,
+                    canvas_type, canvas_title,
+                )
+            except Exception as distill_err:
+                # A dead/timed-out distill call must not lose the lesson:
+                # degrade to the raw gist (same as no provider at all).
+                logger.debug(f"correction distill call failed: {distill_err}")
+                outcome, lesson_text = "unavailable", None
+        if outcome == "unteachable":
+            logger.info("correction distillation: diff judged unteachable — not journaled")
+            return {"status": "not_teachable"}
+        if outcome != "distilled" or not lesson_text:
+            outcome, lesson_text = "fallback", raw_correction_gist(corrected_content)
+
+        from core.database import SessionLocal
+
+        session = SessionLocal()
+        try:
+            result = StudentLearningService(session).learn_from_observation(
+                agent_id,
+                "human_correction",
+                lesson_text,
+                details={
+                    "canvas_id": canvas_id,
+                    "canvas_type": canvas_type,
+                    "distilled": outcome == "distilled",
+                },
+            )
+        finally:
+            session.close()
+        logger.info(
+            f"[LEARNING] correction lesson ({outcome}) journaled for {agent_id}"
+        )
+        return {"status": outcome, "journal": result, "lesson": lesson_text}
+    except Exception as e:
+        logger.debug(f"correction distillation skipped: {e}")
+        return {"status": "error", "reason": str(e)}
+
+
+async def _distill_with_llm(
+    llm: Any,
+    original_content: Any,
+    corrected_content: Any,
+    canvas_type: Optional[str],
+    canvas_title: Optional[str],
+) -> tuple:
+    """One cheap structured call: BEFORE → AFTER diff ⇒ one imperative rule.
+    Returns (outcome, lesson_text): ("distilled", rule) when the diff taught
+    something, ("unteachable", None) when BEFORE and AFTER mean the same
+    thing, ("unavailable", None) when the LLM returned nothing usable."""
+    def _brief(value: Any, limit: int = 1500) -> str:
+        text = value if isinstance(value, str) else json.dumps(value, default=str)
+        return text[:limit]
+
+    prompt = (
+        "A supervisor just corrected a draft an AI assistant produced. "
+        "Distill WHAT CHANGED into ONE short, imperative lesson the "
+        "assistant must follow from now on. Judge only the difference "
+        "between BEFORE and AFTER — do not invent rules about parts that "
+        "are identical. Good lessons name the concrete rule: \"Always CC "
+        "vipul@ and chandrakant@ on customer quote emails\", \"Use the "
+        "exact list price, never a rounded figure\". Most corrections ARE "
+        "teachable; return teachable=false ONLY when AFTER means the same "
+        "thing as BEFORE (pure formatting, reordering, or a no-op).\n\n"
+        f"Canvas type: {canvas_type or 'generic'}"
+        + (f" ({canvas_title})" if canvas_title else "") + "\n\n"
+        f"BEFORE (assistant's draft):\n{_brief(original_content)}\n\n"
+        f"AFTER (supervisor's correction):\n{_brief(corrected_content)}\n\n"
+        "Return the lesson (one sentence, at most 200 characters, "
+        "imperative voice, from the assistant's perspective: \"Always …\", "
+        "\"Never …\")."
+    )
+    plan = await llm.generate_structured_response(
+        prompt=prompt,
+        response_model=CorrectionLesson,
+        system_instruction="You return only the requested JSON object.",
+        temperature=0.0,
+    )
+    if plan is None:
+        return "unavailable", None
+    if not getattr(plan, "teachable", True):
+        return "unteachable", None
+    lesson = (getattr(plan, "lesson", "") or "").strip()
+    if not lesson:
+        return "unavailable", None
+    return "distilled", lesson
+

@@ -47,6 +47,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
         setIsVoiceModeOpen,
         activeAttachments,
         setActiveAttachments,
+        pendingImages,
+        setPendingImages,
         isUploading,
         streamingContent,
         currentStreamId,
@@ -202,7 +204,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
             const data = await createCanvasFromMessage(lastAssistant.content, draftCandidates);
             openCanvasFromData(data, lastAssistant.id);
         } catch {
-            // backend may still be processing; the canvas is created server-side
+            // Same contract as openMessageInCanvas: failures are surfaced,
+            // never swallowed.
+            toast({
+                title: "Couldn't open the canvas",
+                description: "The backend didn't respond in time — it may be busy. Please try again in a moment.",
+                variant: "destructive",
+            });
         } finally {
             setOpeningCanvas(false);
         }
@@ -222,7 +230,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
             );
             openCanvasFromData(data, message.id);
         } catch {
-            // backend may still be processing; the canvas is created server-side
+            // Never silent: an empty catch turned a backend outage into a
+            // button that "does nothing" (2026-09-06 — to-canvas timed out
+            // while the backend's event loop was saturated and the user had
+            // no idea why). Say what happened.
+            toast({
+                title: "Couldn't open the canvas",
+                description: "The backend didn't respond in time — it may be busy. Please try again in a moment.",
+                variant: "destructive",
+            });
         } finally {
             setOpeningCanvas(false);
         }
@@ -350,11 +366,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
                 setInput={setInput}
                 isProcessing={isProcessing}
                 isUploading={isUploading}
+                pendingImages={pendingImages}
+                setPendingImages={setPendingImages}
                 activeAttachments={activeAttachments}
                 setActiveAttachments={setActiveAttachments}
                 // useChatInterface's handleSend resolves to a success boolean that
                 // ChatInput ignores; adapt to ChatInput's Promise<void> prop type.
-                handleSend={handleSend as unknown as (overrideText?: string) => Promise<void>}
+                handleSend={handleSend as unknown as (overrideText?: string, images?: string[]) => Promise<void>}
                 handleStop={handleStop}
                 setIsVoiceModeOpen={setIsVoiceModeOpen}
                 uploadFile={uploadFile}

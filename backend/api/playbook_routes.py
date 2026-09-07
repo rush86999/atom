@@ -7,16 +7,38 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.models import User as UserModel, UserRole
 from core.personal_scope import resolve_tenant_id
 
 router = BaseAPIRouter(prefix="/api/playbooks", tags=["playbooks"])
+
+# Draft promotion/retirement changes what EVERY agent in the tenant is
+# advised by — supervisor-grade only (same gate as the other supervision
+# surfaces: agent_maturity/audit/episode/supervision routes). Listing stays
+# any-signed-in-user: employees may see the queue; only supervisors act.
+_SUPERVISOR_ROLES = [
+    UserRole.TEAM_LEAD.value,
+    UserRole.WORKSPACE_ADMIN.value,
+    UserRole.SUPER_ADMIN.value,
+]
+
+
+def _require_supervisor(db: Session, current_user: User) -> None:
+    user = db.query(UserModel).filter(UserModel.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role not in _SUPERVISOR_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required role: TEAM_LEAD or ADMIN",
+        )
 
 
 class PlaybookCreate(BaseModel):
@@ -104,6 +126,7 @@ async def approve_playbook(
     from core.playbook_service import PlaybookService
 
     svc = PlaybookService(db, tenant_id=resolve_tenant_id(current_user))
+    _require_supervisor(db, current_user)
     result = await svc.approve(playbook_id, actor=str(current_user.id))
     if result is None:
         raise router.not_found_error("Playbook", playbook_id)
@@ -137,7 +160,53 @@ async def retire_playbook(
     from core.playbook_service import PlaybookService
 
     svc = PlaybookService(db, tenant_id=resolve_tenant_id(current_user))
+    _require_supervisor(db, current_user)
     row = svc.set_state(playbook_id, "retired", actor=str(current_user.id))
     if row is None:
         raise router.not_found_error("Playbook", playbook_id)
+    return {"success": True, "id": row.id, "approval_state": row.approval_state}
+
+
+class PlaybookUpdate(BaseModel):
+    """Draft edits before approval (Playbook Journey P1 — "Edit steps
+    first"). Approved playbooks are versioned objects; editing those goes
+    through retire + re-draft, not in-place mutation."""
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    trigger_canvas_type: Optional[str] = None
+    trigger_keywords: Optional[List[str]] = None
+    steps: Optional[List[str]] = None
+    template_questions: Optional[List[str]] = None
+
+
+@router.put("/{playbook_id}")
+async def update_playbook(
+    playbook_id: str,
+    payload: PlaybookUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from core.playbook_service import PlaybookService
+
+    svc = PlaybookService(db, tenant_id=resolve_tenant_id(current_user))
+    _require_supervisor(db, current_user)
+    row = svc.update(
+        playbook_id,
+        name=payload.name,
+        description=payload.description,
+        trigger_canvas_type=payload.trigger_canvas_type,
+        trigger_keywords=payload.trigger_keywords,
+        steps=payload.steps,
+        template_questions=payload.template_questions,
+    )
+    if row is None:
+        existing = svc.get(playbook_id)
+        if existing is None:
+            raise router.not_found_error("Playbook", playbook_id)
+        raise HTTPException(
+            status_code=409,
+            detail={"success": False,
+                    "error": "Only DRAFT playbooks can be edited in place — "
+                             "retire the approved playbook and re-draft instead"},
+        )
     return {"success": True, "id": row.id, "approval_state": row.approval_state}

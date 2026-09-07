@@ -415,6 +415,29 @@ async def lifespan(app: FastAPI):
     logger.info("ATOM Platform Starting (Hybrid Mode)")
     logger.info("=" * 60)
 
+    # Wedge forensics: `kill -USR1 <pid>` dumps every thread's Python stack
+    # into the log. When the event loop saturates, a C-level `sample` shows
+    # only interpreter frames — this names the exact coroutine/lock. Cheap,
+    # permanent, never fires on its own.
+    try:
+        import faulthandler
+        import signal as _signal
+
+        faulthandler.register(_signal.SIGUSR1, file=sys.stderr, all_threads=True)
+        logger.info("faulthandler: SIGUSR1 dumps thread stacks to stderr")
+    except Exception as fh_err:
+        logger.debug(f"faulthandler SIGUSR1 registration skipped: {fh_err}")
+
+    # Wipe detector (incident 2026-09-04): a stray script emptied the dev DB
+    # and the app re-seeded a blank world without complaint. Best-effort,
+    # never blocks startup — see core/db_safety.py.
+    try:
+        from core.db_safety import check_wipe_at_startup
+
+        check_wipe_at_startup()
+    except Exception as e:
+        logger.debug(f"startup db wipe check skipped: {e}")
+
     # 0. Initialize Database
     try:
         logger.info("Initializing database tables...")
@@ -441,8 +464,27 @@ async def lifespan(app: FastAPI):
                 or os.getenv("PYTEST_CURRENT_TEST") is not None
             )
             if os.getenv("ENVIRONMENT") != "production" and not is_test_mode:
+                # Register late-imported model modules FIRST — create_all
+                # only covers Base subclasses that have been imported, and
+                # the auto-dev tables (skill_candidates, tool_mutations)
+                # used to be missing on fresh installs until long after.
+                from core.auto_dev import models as _autodev_models  # noqa: F401
+
                 Base.metadata.create_all(bind=engine)
                 logger.info("✓ Database tables initialized")
+
+                # Memory-store reconciliation BEFORE any worker touches
+                # LanceDB: adopt legacy CWD-relative stores (repo-root
+                # data/atom_memory) into the anchored backend store —
+                # idempotent, never overwrites an anchored store that
+                # already has tables.
+                from core.memory_store_bootstrap import reconcile_memory_store
+
+                _store_recon = reconcile_memory_store()
+                if _store_recon.get("migrated"):
+                    logger.warning(
+                        f"✓ Memory store reconciled from legacy location: "
+                        f"{[m['workspace'] for m in _store_recon['migrated']]}")
             elif is_test_mode:
                 logger.info("⊘ Skipping table creation in test mode (fixture managed)")
             else:
@@ -549,6 +591,23 @@ async def lifespan(app: FastAPI):
             await intelligence_worker.start()
         except Exception:
             pass
+
+        # 4b. Fact-watch poller — proactive re-checking of live facts an
+        # agent grounded an artifact on (stock in a quoted email, deal
+        # stage, invoice status). Providers self-register from the
+        # integrations side; the poll interval is env-tunable and 0
+        # disables the loop entirely.
+        try:
+            from core.fact_watch import get_fact_watch_service
+            import integrations.fact_watch_providers  # noqa: F401 — registers checkers/extractors
+
+            _poll_interval = int(
+                os.getenv("FACT_WATCH_POLL_INTERVAL_SECONDS", "300"))
+            await get_fact_watch_service().start(
+                interval_seconds=_poll_interval)
+        except Exception as fw_err:
+            logger.warning(f"fact watch poller failed to start: {fw_err}")
+
         # 5. Crash Recovery — reconcile executions orphaned in RUNNING by a
         # process crash. Previously this slot imported core.startup_tasks
         # (run_startup_maintenance), a module that did not exist, so the
@@ -570,14 +629,15 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to run execution recovery sweep: {e}")
 
         # 6. Start Hybrid Ingestion scheduled sync loop (pull integrations into memory)
-        # Opt-in via env (default off) to avoid surprising existing deployments.
-        if os.getenv("ENABLE_INGESTION_SYNC", "false").lower() == "true":
+        # Auto-sync is on by default (integrations should stay fresh without a
+        # manual toggle). Disable explicitly with ENABLE_INGESTION_SYNC=false.
+        if os.getenv("ENABLE_INGESTION_SYNC", "true").lower() == "true":
             try:
                 from core.hybrid_data_ingestion import get_hybrid_ingestion_service
 
                 ingestion_service = get_hybrid_ingestion_service()
                 _spawn_background_task(ingestion_service.run_scheduled_syncs())
-                logger.info("✓ Hybrid ingestion scheduled-sync loop started (ENABLE_INGESTION_SYNC=true)")
+                logger.info("✓ Hybrid ingestion scheduled-sync loop started")
             except Exception as e:
                 logger.error(f"Failed to start hybrid ingestion sync loop: {e}")
 
@@ -620,9 +680,35 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 logger.error(f"Failed to start org hub pull loop: {e}")
 
+        # 6c. Webhook ingestion queue worker. With Redis configured,
+        # enqueue_ingestion_job only LPUSHes to ingestion:webhook:jobs and
+        # nothing consumed the queue — pushed records (e.g. zoho_books
+        # deliveries) sat in Redis forever while the no-Redis path processed
+        # inline. This loop RPOPs each job through the same pipeline.
+        try:
+            from core.webhook_ingestion_triggers import WebhookIngestionQueue
+
+            _spawn_background_task(WebhookIngestionQueue().run_worker_loop())
+            logger.info("✓ Webhook ingestion queue worker started")
+        except Exception as e:
+            logger.error(f"Failed to start webhook ingestion queue worker: {e}")
+
         # Outlook: the scripted automation loop is REMOVED — the governed
         # email agent (core.email_agent) handles inbox work through MCP gates
         # instead, triggered by the Outlook webhook (ingestion_webhooks).
+
+        # Integration token reconciliation (all providers): tokens pointing
+        # at users that no longer exist (world wipe/re-seed) would keep
+        # pollers running against dead owners and stamp ingested data no
+        # scoped search can see. Deactivates orphans, reports stale-expired.
+        try:
+            from core.integration_startup_reconciliation import (
+                reconcile_integration_tokens,
+            )
+
+            reconcile_integration_tokens()
+        except Exception as e:
+            logger.error(f"Integration token reconciliation failed: {e}")
 
         # Start Outlook Memory Poller (recover after restart when Outlook is
         # already connected). Reads tokens from IntegrationToken; skips when no
@@ -728,6 +814,19 @@ async def lifespan(app: FastAPI):
             queue_worker = QueueProcessingWorker(interval_seconds=60)
             _spawn_background_task(queue_worker.run())
             logger.info("✓ Queue Processing Worker running")
+
+            # 8c. Proactive Zoho token refresh — keeps the suite grant's
+            # access token fresh ahead of expiry so a connect that isn't
+            # followed by a data sync never degrades into 401s on the
+            # record modules (CRM/Books/Inventory).
+            try:
+                from workers.token_refresh_worker import TokenRefreshWorker
+
+                token_refresh_worker = TokenRefreshWorker(interval_seconds=300)
+                _spawn_background_task(token_refresh_worker.run())
+                logger.info("✓ Token Refresh Worker running")
+            except Exception as e:
+                logger.warning(f"Token Refresh Worker skipped: {e}")
 
             # 8b. Telegram long-polling worker — NAT-friendly IM for the
             # Personal Edition: no public URL, tunnel, or domain required.
@@ -933,6 +1032,20 @@ async def lifespan(app: FastAPI):
 
         except Exception as e:
             logger.error(f"Failed to start Supervision System or Webhook Renewal workers: {e}")
+
+    # 10b. Auto-Dev ReflectionEngine — the listener that turns emitted
+    # task-fail events into Memento skill / AlphaEvolver tool-mutation
+    # candidates. The engine and the event emission both existed, but
+    # nothing ever CONSTRUCTED the listener, so failures were emitted into
+    # the void and the evolution harness was inert. Idempotent; sessionless
+    # listener mode (fresh DB session per event).
+    try:
+        from core.auto_dev.reflection_engine import register_global
+
+        register_global()
+        logger.info("✓ Auto-Dev ReflectionEngine registered on event bus")
+    except Exception as e:
+        logger.error(f"Failed to register Auto-Dev ReflectionEngine: {e}")
 
     # 10. Webhook Processing Worker — module does not exist (never created).
     # The old try/except silently swallowed the ImportError on every startup,
@@ -2585,6 +2698,17 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Failed to load evolution routes: {e}")
 
+    # Auto-Dev review — supervisor surface for pending Memento skill
+    # candidates / AlphaEvolver tool mutations and the tool-error patterns
+    # that produced them (evolution harness journey, 2026-09-02).
+    try:
+        from api.autodev_review_routes import router as autodev_review_router
+
+        app.include_router(autodev_review_router, tags=["Auto-Dev Review"])
+        logger.info("✓ Auto-Dev Review Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Failed to load auto-dev review routes: {e}")
+
     # Canvas Skill Integration
     try:
         from api.canvas_skill_routes import router as canvas_skill_router
@@ -3433,6 +3557,14 @@ try:
         logger.info("✓ Canvas Email Routes Loaded (/api/canvas/email)")
     except (ImportError, TypeError) as e:
         logger.warning(f"Canvas email routes not found: {e}")
+
+    try:
+        from api.canvas_pdf_routes import router as canvas_pdf_router
+
+        app.include_router(canvas_pdf_router)
+        logger.info("✓ Canvas PDF Routes Loaded (/api/canvas/pdf)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Canvas pdf routes not found: {e}")
 
     try:
         from api.installation_profile_routes import router as installation_profile_router

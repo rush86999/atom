@@ -28,7 +28,10 @@ class DocumentLifecycleLearner:
     """
 
     def __init__(self, ai_service: Any = None, db_session: Any = None):
-        self.extractor = KnowledgeExtractor(ai_service)
+        # Keyword-only: ai_service was positionally bound to
+        # KnowledgeExtractor.__init__(workspace_id=...) — same bind-error bug
+        # as knowledge_ingestion (RealAIWorkflowService into a SQL param).
+        self.extractor = KnowledgeExtractor()
         self.biz_intel = BusinessEventIntelligence(db_session)
 
     async def learn_from_file(self, file_path: str, workspace_id: str):

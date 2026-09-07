@@ -160,7 +160,22 @@ class TelegramPollingWorker:
             )
 
             pipeline = get_ingestion_pipeline("default")
-            await pipeline.ingest_message("telegram", message)
+            # Stable id: raw Telegram messages carry only `message_id`, and
+            # the normalizer's fallback mints a fresh timestamp id per call —
+            # every re-delivered update (restart re-poll re-delivers pending
+            # updates for up to 24h because the polling offset is in-memory)
+            # became a NEW duplicate row. Key on chat + Telegram message id
+            # so the poller's seen-id dedup (store-reconciled) applies.
+            message = dict(message)
+            message["id"] = (
+                f"tg_{message.get('chat', {}).get('id', 'unknown')}"
+                f"_{message.get('message_id', 'unknown')}"
+            )
+            if pipeline.is_message_known("telegram", message["id"]):
+                return
+            success = await pipeline.ingest_message("telegram", message)
+            if success:
+                pipeline.mark_message_ingested("telegram", message["id"])
         except Exception as e:
             logger.debug(f"TelegramPollingWorker: comm-store ingest skipped: {e}")
 

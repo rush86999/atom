@@ -648,6 +648,35 @@ class BYOKManager:
                 supports_structured_output=True,
                 supports_tools=True,
             ),
+            # OpenCode Zen gateway — routed by the BYOK handler as
+            # "opencode-go" (alias "opencode"); catalog entry added so the
+            # API Keys page can view/store the key (same key serves both).
+            AIProviderConfig(
+                id="opencode",
+                name="OpenCode",
+                description="OpenCode Zen gateway — tested open coding models (DeepSeek, Kimi) via one API key.",
+                api_key_env_var="OPENCODE_API_KEY",
+                base_url="https://opencode.ai/zen/v1",
+                supported_tasks=["code", "general", "chat", "reasoning"],
+                cost_per_token=0.0,
+                model="deepseek-v4-flash",
+                reasoning_level=3,
+                supports_structured_output=True,
+                supports_tools=True,
+            ),
+            AIProviderConfig(
+                id="opencode-go",
+                name="OpenCode Go",
+                description="OpenCode Go subscription — flat-rate access to the Zen model catalog (~90% cheaper than direct APIs).",
+                api_key_env_var="OPENCODE_API_KEY",
+                base_url="https://opencode.ai/zen/v1",
+                supported_tasks=["code", "general", "chat", "reasoning"],
+                cost_per_token=0.0,
+                model="deepseek-v4-flash",
+                reasoning_level=3,
+                supports_structured_output=True,
+                supports_tools=True,
+            ),
         ]
         
         for provider in defaults:

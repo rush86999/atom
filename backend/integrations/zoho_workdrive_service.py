@@ -24,16 +24,20 @@ class ZohoWorkDriveService(IntegrationService):
     """
 
     PAGE_SIZE = 50
-    MAX_LIST_ITEMS = 10000
+    MAX_LIST_ITEMS = int(os.getenv("WORKDRIVE_MAX_LIST_ITEMS", "100000"))
     MAX_WALK_DEPTH = 25
     # Pacing/backoff for the Zoho REST API (see _zoho_get). ~3 req/s keeps a
     # full-tree walk under Zoho's per-DC throttle instead of 429ing it.
     _MIN_API_INTERVAL_SECONDS = 0.35
     _MAX_429_RETRIES = 4
     # Global caps for client-triggered recursive traversal — bound request
-    # latency and upstream API calls on large drives.
-    MAX_RECURSIVE_ITEMS = 2000
-    MAX_TREE_NODES = 1000
+    # latency and upstream API calls on large drives. 2026-09-05: 2000
+    # truncated real ingestion (4 team folders, 2000+ files — docs past the
+    # cap were never discovered). Defaults now target TB-scale drives
+    # (1M items ≈ 20k API pages ≈ 2-3h of paced walking); override via env
+    # (e.g. WORKDRIVE_MAX_RECURSIVE_ITEMS=5000000) without code changes.
+    MAX_RECURSIVE_ITEMS = int(os.getenv("WORKDRIVE_MAX_RECURSIVE_ITEMS", "1000000"))
+    MAX_TREE_NODES = int(os.getenv("WORKDRIVE_MAX_TREE_NODES", "100000"))
 
     def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
         if config is None:
@@ -207,7 +211,13 @@ class ZohoWorkDriveService(IntegrationService):
             return None
 
     async def _refresh(self, refresh_token: Optional[str]) -> Optional[Dict[str, Any]]:
-        """Exchange a refresh token for a fresh access token (Zoho OAuth2)."""
+        """Exchange a refresh token for a fresh access token (Zoho OAuth2).
+
+        Zoho answers HTTP 200 with an error body for refused grants
+        ({"error": "invalid_client"} / "invalid_code"). Returning that dict
+        as if it were tokens made callers either KeyError (handled as "no
+        token") or — worse — treat the row as freshly refreshed. None means
+        broken grant; the previous stored row stays untouched."""
         if not refresh_token:
             return None
         try:
@@ -221,7 +231,14 @@ class ZohoWorkDriveService(IntegrationService):
                 f"{self.accounts_url}/token", data=data
             )
             response.raise_for_status()
-            return response.json()
+            payload = response.json()
+            if not payload.get("access_token"):
+                logger.error(
+                    f"Failed to refresh Zoho WorkDrive token: provider "
+                    f"refused the grant (error={payload.get('error')!r}) — "
+                    f"needs reconnect or correct client credentials")
+                return None
+            return payload
         except Exception as e:
             logger.error(f"Failed to refresh Zoho WorkDrive token: {e}")
             return None
@@ -500,21 +517,41 @@ class ZohoWorkDriveService(IntegrationService):
 
 
             files = []
+            # Cursor pagination (page[next]) returns up to 1000 items/request
+            # vs 50 for page[offset] — 20x fewer API calls on large drives
+            # (docs: first request page[next]=0, then follow links.cursor.next
+            # until has_next=false). Some endpoint variants (teamfolders/
+            # workspaces) don't honor it — fall back to offset pagination.
+            use_cursor = True
+            cursor_token = "0"
             offset = 0
             while True:
-                response = await self._zoho_get(
-                    target_url,
-                    headers=headers,
-                    params={"page[limit]": self.PAGE_SIZE, "page[offset]": offset},
-                )
+                if use_cursor:
+                    response = await self._zoho_get(
+                        target_url,
+                        headers=headers,
+                        params={"page[next]": cursor_token, "sort": "-last_modified"},
+                    )
+                    if response.status_code in (400, 404, 405):
+                        use_cursor = False  # endpoint variant — offset fallback
+                        continue
+                else:
+                    response = await self._zoho_get(
+                        target_url,
+                        headers=headers,
+                        params={"page[limit]": self.PAGE_SIZE, "page[offset]": offset},
+                    )
 
                 # If /files/{parent_id}/files returns 404/400, try /workspaces/{parent_id}/files as fallback
                 if response.status_code in (400, 404) and parent_id != "root":
                     ws_fallback_url = f"{self.base_url}/workspaces/{parent_id}/files"
+                    fb_params = (
+                        {"page[next]": cursor_token, "sort": "-last_modified"}
+                        if use_cursor
+                        else {"page[limit]": self.PAGE_SIZE, "page[offset]": offset}
+                    )
                     fallback_res = await self._zoho_get(
-                        ws_fallback_url,
-                        headers=headers,
-                        params={"page[limit]": self.PAGE_SIZE, "page[offset]": offset},
+                        ws_fallback_url, headers=headers, params=fb_params,
                     )
                     if fallback_res.status_code == 200:
                         response = fallback_res
@@ -549,9 +586,23 @@ class ZohoWorkDriveService(IntegrationService):
                         "modified_at": attrs.get("modified_time_in_iso8601") or attrs.get("modified_time")
                     })
 
-                if len(page_items) < self.PAGE_SIZE or len(files) >= self.MAX_LIST_ITEMS:
+                if use_cursor:
+                    cursor = (data.get("links") or {}).get("cursor") or {}
+                    if not cursor.get("has_next") or not cursor.get("next"):
+                        break
+                    from urllib.parse import urlparse, parse_qs
+                    qs = parse_qs(urlparse(cursor["next"]).query)
+                    next_token = (qs.get("page[next]") or [None])[0]
+                    if not next_token:
+                        break
+                    cursor_token = next_token
+                else:
+                    if len(page_items) < self.PAGE_SIZE or len(files) >= self.MAX_LIST_ITEMS:
+                        break
+                    offset += self.PAGE_SIZE
+
+                if len(files) >= self.MAX_LIST_ITEMS:
                     break
-                offset += self.PAGE_SIZE
 
             # Recursive traversal if requested. Subfolders are always regular
             # folders (even inside team folders / workspaces), so recurse with
@@ -572,7 +623,15 @@ class ZohoWorkDriveService(IntegrationService):
                         subfiles = await self.list_files(
                             user_id, parent_id=f["id"], recursive=True
                         )
+                        prev = len(all_files)
                         all_files.extend(subfiles)
+                        # Progress heartbeat: TB-scale walks run for hours at
+                        # the paced ~3 req/s — surface them in the log.
+                        if len(all_files) // 10000 > prev // 10000:
+                            logger.info(
+                                "WorkDrive recursive walk progress: %s items discovered",
+                                len(all_files),
+                            )
                 return all_files
 
             return files
@@ -580,6 +639,101 @@ class ZohoWorkDriveService(IntegrationService):
             logger.error(f"Failed to list Zoho WorkDrive files: {e}")
             return []
 
+    async def search_files(self, user_or_token: Optional[str],
+                           query: Optional[str] = None,
+                           limit: int = 20) -> List[Dict[str, Any]]:
+        """Search WorkDrive for files/folders by name or content.
+
+        GET /teams/{team_id}/records?search[all]=… is WorkDrive's server-side
+        search across each team the user belongs to; ``search[all]`` matches
+        file/folder NAMES *and* document content (verified live 2026-09-03:
+        "WG350DSAV" surfaced Consolidated Price List 2019.xlsx, whose body
+        carries the model string — a filename-only search missed it). The
+        generic GET /search endpoint answers 405 Invalid Method on every DC
+        tried, and the earlier state of this service had NO search method at
+        all while UniversalIntegrationService dispatched searches to it — so
+        every planner/registry search raised AttributeError and surfaced as
+        "returned nothing usable" (live 2026-09-03: "consolidated price list
+        2019" — the workbook sat on the drive while the agent answered it had
+        no such file).
+
+        ``user_or_token`` accepts a user id (tokens resolve per user via
+        ConnectionService/IntegrationToken, like every other method here) or
+        a raw Zoho access token ("1000.<id>.<secret>", >40 chars). Search is
+        team-scoped, so the teams of the RESOLVED user are searched; a raw
+        token with no user row behind it finds no teams and returns [].
+
+        Fault-isolated like list_files: any failure returns [] so callers
+        fall back to ingested-workspace memory search instead of erroring.
+        """
+        if not query or not str(query).strip():
+            return []
+        raw = str(user_or_token or "")
+        if raw.startswith("1000.") and len(raw) > 40:
+            token = raw
+        else:
+            token = await self.get_access_token(raw)
+        if not token:
+            return []
+
+        try:
+            headers = {
+                "Authorization": f"Zoho-oauthtoken {token}",
+                "Accept": "application/vnd.api+json",
+            }
+            # Bound the fan-out: each team costs one paced search request.
+            teams = (await self.get_teams(raw))[:5]
+            want = max(1, int(limit))
+            seen_ids = set()
+            files: List[Dict[str, Any]] = []
+            for team in teams:
+                if len(files) >= want:
+                    break
+                team_id = team.get("id")
+                if not team_id:
+                    continue
+                try:
+                    response = await self._zoho_get(
+                        f"{self.base_url}/teams/{team_id}/records",
+                        headers=headers,
+                        params={
+                            "search[all]": str(query),
+                            "page[limit]": self.PAGE_SIZE,
+                        },
+                    )
+                    response.raise_for_status()
+                    page_items = response.json().get("data", [])
+                except Exception as team_err:  # noqa: BLE001 — one team's
+                    # failure must not sink the other teams' hits
+                    logger.warning(
+                        f"WorkDrive team search failed ({team_id}): {team_err}")
+                    continue
+                for item in page_items:
+                    item_id = str(item.get("id") or "")
+                    if item_id and item_id in seen_ids:
+                        continue
+                    seen_ids.add(item_id)
+                    attrs = item.get("attributes", {})
+                    name = attrs.get("name") or attrs.get("display_name", "Untitled")
+                    storage_info = attrs.get("storage_info", {})
+                    try:
+                        size = int(storage_info.get("size_in_bytes") or attrs.get("size") or 0)
+                    except (ValueError, TypeError):
+                        size = 0
+                    files.append({
+                        "id": item.get("id"),
+                        "name": name,
+                        "type": "folder" if (attrs.get("is_folder") or attrs.get("type") in ("folder", "folders")) else "file",
+                        "extension": attrs.get("extn") or attrs.get("extension"),
+                        "size": size,
+                        "modified_at": attrs.get("modified_time_in_iso8601") or attrs.get("modified_time"),
+                    })
+                    if len(files) >= want:
+                        break
+            return files
+        except Exception as e:
+            logger.error(f"Failed to search Zoho WorkDrive: {e}")
+            return []
 
     async def get_folder_tree(self, user_id: str,
                                workspace_id: Optional[str] = None,
@@ -804,8 +958,17 @@ class ZohoWorkDriveService(IntegrationService):
         user_id: str,
         file_id: str,
         extra_metadata: Optional[Dict[str, Any]] = None,
+        explicit: bool = True,
+        role: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Download a file and process it through the ingestion pipeline"""
+        """Download a file and process it through the ingestion pipeline.
+
+        explicit=True (default) for user/agent-initiated pulls — never
+        content-mode-gated. Bulk walkers pass explicit=False so the
+        integration's content mode (hybrid/list_only) is honored.
+        role: optional AI-employee role tag (canvas-scoped loads pass the
+        attached hire's category) for role-aware recall.
+        """
         token = await self.get_access_token(user_id)
         if not token:
             return {"success": False, "error": "No Zoho WorkDrive access token. Connect the integration first."}
@@ -832,14 +995,16 @@ class ZohoWorkDriveService(IntegrationService):
                 user_id=user_id,
                 extra_metadata=extra_metadata,
                 external_id=file_id,
+                explicit=explicit,
+                role=role,
             )
 
-            if result.get("status") != "ingested":
-                # Don't mask skipped/errored parses as success — the UI must
-                # tell the user nothing was stored (e.g. unsupported format).
-                reason = result.get("reason") or result.get("status") or "unknown"
-                logger.warning(f"Ingest skipped for {file_name}: {reason}")
-                return {"success": False, "error": f"File not ingested ({reason})"}
+            # Shared semantics (core.auto_document_ingestion): a byte-identical
+            # re-ingest is a success no-op ("unchanged"), real skips stay
+            # failures — otherwise every re-ingest click showed the panel
+            # "File ingest failed".
+            from core.auto_document_ingestion import interpret_ingest_result
+            return {**interpret_ingest_result(result), "result": result}
 
             return {"success": True, "result": result}
         except Exception as e:
@@ -852,7 +1017,8 @@ class ZohoWorkDriveService(IntegrationService):
                                  workspace_id: Optional[str] = None,
                                  recursive: bool = True,
                                  file_extensions: Tuple[str, ...] = PARSEABLE_EXTS,
-                                 max_files: int = 500) -> Dict[str, Any]:
+                                 max_files: int = 500,
+                                 role: Optional[str] = None) -> Dict[str, Any]:
         """Recursively ingest all parseable files in a folder tree.
 
         Args:
@@ -862,6 +1028,8 @@ class ZohoWorkDriveService(IntegrationService):
             recursive: If True, traverse subfolders
             file_extensions: Tuple of extensions to ingest
             max_files: Maximum files to ingest (safety cap)
+            role: Optional AI-employee role tag (canvas-scoped loads pass the
+                attached hire's category) for role-aware recall
 
         Returns:
             {success, ingested, errors, files_processed}
@@ -897,7 +1065,7 @@ class ZohoWorkDriveService(IntegrationService):
                     continue
 
                 try:
-                    res = await self.ingest_file_to_memory(user_id, f.get("id"))
+                    res = await self.ingest_file_to_memory(user_id, f.get("id"), role=role)
                     processed += 1
                     if res.get("success"):
                         ingested += 1
@@ -975,7 +1143,8 @@ class ZohoWorkDriveService(IntegrationService):
                          workspace_id: Optional[str] = None,
                          team_id: Optional[str] = None,
                          folder_id: Optional[str] = None,
-                         recursive: bool = True) -> Dict[str, Any]:
+                         recursive: bool = True,
+                         content_mode: Optional[str] = None) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Zoho WorkDrive.
 
         Pipeline 1: Ingest every file (all types, all subfolders, private
@@ -986,6 +1155,12 @@ class ZohoWorkDriveService(IntegrationService):
         captured.
         Pipeline 2: Refresh the Postgres metrics cache.
 
+        content_mode: "full" ingests every file's content. "hybrid" (storage-
+        drive default) and "list_only" keep the file/folder INDEX fresh but
+        skip automatic content ingestion — content lands only via explicit
+        user selection (Ingest button) or agent pull. None = look up the
+        stored setting.
+
         Args:
             user_id: User ID
             workspace_id: Explicit workspace ID (personal or team workspace)
@@ -993,6 +1168,16 @@ class ZohoWorkDriveService(IntegrationService):
             folder_id: Specific folder ID to sync (with recursive traversal)
             recursive: If True, recursively traverse subfolders
         """
+        if content_mode is None:
+            try:
+                from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+                content_mode = get_hybrid_ingestion_service().get_content_mode(
+                    "zoho_workdrive"
+                )
+            except Exception:
+                content_mode = "hybrid"
+        content_mode = (content_mode or "hybrid").lower()
+
         # One walk at a time per user: concurrent walks double the API
         # pressure and 429 each other into uselessness.
         if user_id in self._full_sync_running:
@@ -1002,6 +1187,7 @@ class ZohoWorkDriveService(IntegrationService):
             return await self._full_sync_inner(
                 user_id, workspace_id=workspace_id, team_id=team_id,
                 folder_id=folder_id, recursive=recursive,
+                content_mode=content_mode,
             )
         finally:
             self._full_sync_running.discard(user_id)
@@ -1010,13 +1196,14 @@ class ZohoWorkDriveService(IntegrationService):
                                workspace_id: Optional[str] = None,
                                team_id: Optional[str] = None,
                                folder_id: Optional[str] = None,
-                               recursive: bool = True) -> Dict[str, Any]:
+                               recursive: bool = True,
+                               content_mode: str = "hybrid") -> Dict[str, Any]:
         ws_id = workspace_id or user_id
 
-        
+
         # Use folder_id as root if provided, otherwise "root"
         root_folder = folder_id or "root"
-        
+
         # List files with new parameters
         # Scoped sync honors the requested workspace/team/folder scope; an
         # unscoped full sync walks the private workspace AND all team folders
@@ -1033,29 +1220,44 @@ class ZohoWorkDriveService(IntegrationService):
         ingested = 0
         skipped: list[str] = []
         errors: list[str] = []
-        try:
-            for f in files:
-                name = f.get("name", "") or ""
-                try:
-                    meta = {
-                        "folder_path": f.get("path") or "",
-                        "workdrive_root": f.get("root") or "",
-                        "modified_at": f.get("modified_at") or "",
-                    }
-                    res = await self.ingest_file_to_memory(user_id, f.get("id"), extra_metadata=meta)
-                    inner = res.get("result") or {}
-                    if res.get("success") and inner.get("status") == "ingested":
-                        ingested += 1
-                    elif res.get("error"):
-                        errors.append(f"{name}: {res['error']}")
-                    else:
-                        skipped.append(f"{name} ({inner.get('reason') or 'no_text'})")
-                except Exception as file_err:
-                    logger.warning(f"Ingest failed for {name}: {file_err}")
-                    errors.append(f"{name}: ingest failed")
-        except Exception as e:
-            logger.error(f"Zoho WorkDrive memory ingestion failed: {e}")
-            errors.append("memory ingestion failed")
+
+        if content_mode in ("hybrid", "list_only"):
+            # Index-only pass: the walk above refreshed the file/folder index
+            # and metrics. Content ingestion happens on demand (user Ingest
+            # button / agent pull) — never in bulk, per the content mode.
+            skipped.append(
+                f"content mode '{content_mode}': {len(files)} files indexed, not ingested"
+            )
+            logger.info(
+                f"WorkDrive sync in '{content_mode}' mode: indexed {len(files)} "
+                f"files for {user_id} without content ingestion"
+            )
+        else:
+            try:
+                for f in files:
+                    name = f.get("name", "") or ""
+                    try:
+                        meta = {
+                            "folder_path": f.get("path") or "",
+                            "workdrive_root": f.get("root") or "",
+                            "modified_at": f.get("modified_at") or "",
+                        }
+                        res = await self.ingest_file_to_memory(
+                            user_id, f.get("id"), extra_metadata=meta, explicit=False
+                        )
+                        inner = res.get("result") or {}
+                        if res.get("success") and inner.get("status") == "ingested":
+                            ingested += 1
+                        elif res.get("error"):
+                            errors.append(f"{name}: {res['error']}")
+                        else:
+                            skipped.append(f"{name} ({inner.get('reason') or 'no_text'})")
+                    except Exception as file_err:
+                        logger.warning(f"Ingest failed for {name}: {file_err}")
+                        errors.append(f"{name}: ingest failed")
+            except Exception as e:
+                logger.error(f"Zoho WorkDrive memory ingestion failed: {e}")
+                errors.append("memory ingestion failed")
 
         cache_result = await self.sync_to_postgres_cache(user_id)
         return {
@@ -1080,6 +1282,7 @@ class ZohoWorkDriveService(IntegrationService):
         return {
             "operations": [
                 {"id": "list_files", "name": "List Files"},
+                {"id": "search_files", "name": "Search Files"},
                 {"id": "walk_files", "name": "Walk All Files (Recursive)"},
                 {"id": "download_file", "name": "Download File"},
                 {"id": "ingest_file_to_memory", "name": "Ingest File to Memory"},
@@ -1110,6 +1313,7 @@ class ZohoWorkDriveService(IntegrationService):
         """Execute a Zoho WorkDrive operation."""
         operations = {
             "list_files": self.list_files,
+            "search_files": self.search_files,
             "walk_files": self.walk_files,
             "download_file": self.download_file,
             "ingest_file_to_memory": self.ingest_file_to_memory,

@@ -137,6 +137,10 @@ def _resolve_exchange_pair(
             "agent_id": assistant_row.agent_id,
             "conversation_id": assistant_row.conversation_id,
             "tenant_id": assistant_row.tenant_id or "default",
+            # The model's chain-of-thought persisted at reply time
+            # (ChatMessage.metadata_json.reasoning) — feedback training
+            # judges WHAT the agent was thinking, not just what it said.
+            "reasoning": (str(meta.get("reasoning"))[:20000] if meta.get("reasoning") else None),
         }
 
     if message_id:
@@ -204,6 +208,16 @@ def _write_vector(row: ExchangeExample) -> bool:
                 "conversation_id": row.conversation_id,
                 "agent_id": row.agent_id,
                 "example_id": row.id,
+            },
+            # Top-level columns: retrieval prefilters on them natively. The
+            # label filter used to exist ONLY inside the metadata JSON while
+            # the search queried a top-level `label` column that no row ever
+            # had — every retrieval leg errored with "No field named label"
+            # (live 2026-09-03, every turn). add_document migrates the
+            # columns in on first write; the search no longer requires them.
+            extra_columns={
+                "label": row.label or "",
+                "conversation_id": row.conversation_id or "",
             },
             user_id=row.user_id or "exchange_example",
             workspace_id=row.workspace_id or "default",
@@ -329,12 +343,18 @@ async def capture_exchange(
     model: Optional[str] = None,
     provider: Optional[str] = None,
     user_id: Optional[str] = None,
+    reasoning: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Persist the rated exchange pair + fire the teaching circuit.
 
     Called from POST /api/chat/feedback BEFORE the learning-router branch so
     capture happens regardless of router state (the router branch is
     unchanged). Never raises into the caller's flow.
+
+    ``reasoning`` (the model's chain-of-thought for the rated reply) is
+    taken from the request when the client sends it, else recovered from the
+    assistant ChatMessage's persisted metadata — one of the two is always
+    available for turns served by the reasoning-capture path.
     """
     mode = exchange_memory_mode()
     if mode == "off":
@@ -373,6 +393,11 @@ async def capture_exchange(
             comment=(comment or "").strip() or None,
             model=model,
             provider=provider,
+            reasoning=(
+                (reasoning or "").strip()[:20000]
+                or pair.get("reasoning")
+                or None
+            ),
         )
         # Workspace scoping must match chat-time retrieval: the assembler
         # retrieves from resolve_user_workspace(user_id) (chat_orchestrator)
@@ -481,22 +506,17 @@ def search_similar_examples(
         from core.lancedb_handler import LanceDBHandler
 
         handler = LanceDBHandler(workspace_id=workspace_id or "default")
-        safe_ws = str(workspace_id or "default").replace("'", "''")
-        clauses = [f"label == '{label}'", f"workspace_id == '{safe_ws}'"]
-        if exclude_conversation_id:
-            safe_conv = str(exclude_conversation_id).replace("'", "''")
-            # NULL conversation_id rows can't be attributed to the current
-            # conversation — keep them.
-            clauses.append(
-                f"(conversation_id != '{safe_conv}' OR conversation_id IS NULL)"
-            )
+        # Vector filter stays schema-minimal (workspace_id only): older
+        # exchange_examples tables have no top-level `label`/`conversation_id`
+        # columns, and a missing-column filter error killed the whole memory
+        # leg on every turn (live 2026-09-03). Label and conversation
+        # exclusion are applied after SQL hydration — the SQL row is the
+        # source of truth for both.
         hits = handler.search(
             table_name=_VECTOR_TABLE,
             query=query[:500],
-            limit=max(limit * 3, 6),  # over-fetch: the band filters some out
-            filter_str=" AND ".join(clauses),
+            limit=max(limit * 6, 18),  # over-fetch: SQL-side label/exclusion filters
         ) or []
-        hits = filter_examples_by_band(hits, label)[:limit]
         if not hits:
             return []
 
@@ -506,7 +526,8 @@ def search_similar_examples(
         db = SessionLocal()
         try:
             rows = db.query(ExchangeExample).filter(
-                ExchangeExample.id.in_(ids)
+                ExchangeExample.id.in_(ids),
+                ExchangeExample.label == label,
             ).all()
             by_id = {r.id: r for r in rows}
         finally:
@@ -514,9 +535,13 @@ def search_similar_examples(
 
         out: List[Dict[str, Any]] = []
         for h in hits:
+            if len(out) >= limit:
+                break
             r = by_id.get(str(h.get("id")))
             if r is None:
-                continue  # SQL row gone — vector is stale; skip, don't render
+                continue  # SQL row gone or label mismatch — vector is stale; skip
+            if exclude_conversation_id and r.conversation_id == exclude_conversation_id:
+                continue  # same-conversation rejection: the answer being redone
             out.append({
                 "id": r.id,
                 "query": r.user_query,
@@ -527,7 +552,10 @@ def search_similar_examples(
                 "created_at": r.created_at,
                 "score": h.get("score"),
             })
-        return out
+        # Semi-hard similarity band (positives high, negatives mid) — applied
+        # post-hydration now that label filtering happens on the SQL side.
+        out = filter_examples_by_band(out, label)
+        return out[:limit]
     except Exception as e:
         logger.debug("exchange example retrieval failed: %s", e)
         return []

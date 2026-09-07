@@ -8,6 +8,8 @@ these tests opt back in against a temp SQLite DB).
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import asyncio
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -142,3 +144,56 @@ class TestDegradesGracefully:
         svc = make_service()
         svc._persist_integration("slack")  # must not raise
         monkeypatch.setattr(hdi, "SessionLocal", real_session)
+
+
+class TestSyncDurationMeasurement:
+    """Measured wall-clock sync durations ground the "first ingestion takes
+    ~X" guidance — a real average on this workspace beats the static
+    per-integration estimate."""
+
+    def test_incremental_mean_over_samples(self):
+        from core.hybrid_data_ingestion import IntegrationUsageStats
+
+        stats = IntegrationUsageStats(
+            integration_id="zoho", integration_name="Zoho"
+        )
+        assert stats.avg_sync_duration_seconds is None
+        stats.record_sync_duration(10.0)
+        assert stats.avg_sync_duration_seconds == 10.0
+        stats.record_sync_duration(30.0)
+        assert stats.avg_sync_duration_seconds == 20.0
+        assert stats.sync_duration_samples == 2
+        assert stats.last_sync_duration_seconds == 30.0
+
+    async def test_sync_duration_measured_and_persisted(self, temp_db):
+        svc = make_service()
+        svc.enable_auto_sync("slack")
+
+        async def fake_fetch(integration_id, config, discovery_mode=False, role=None):
+            await asyncio.sleep(0.01)
+            return [{"id": "1", "type": "message", "text": "hello world"}]
+
+        with patch.object(svc, "_fetch_integration_data", new=fake_fetch):
+            await svc.sync_integration_data("slack", force=True)
+
+        stats = svc.usage_stats["slack"]
+        assert stats.last_sync_duration_seconds is not None
+        assert stats.last_sync_duration_seconds >= 0.01
+        assert stats.sync_duration_samples == 1
+        row = temp_db.query(IngestionSettings).filter_by(integration_id="slack").one()
+        assert row.usage_stats_json["sync_duration_samples"] == 1
+        assert (
+            row.usage_stats_json["last_sync_duration_seconds"]
+            == stats.last_sync_duration_seconds
+        )
+
+    def test_duration_survives_restart(self, temp_db):
+        svc = make_service()
+        svc.record_integration_usage("hubspot", "HubSpot")
+        svc.usage_stats["hubspot"].record_sync_duration(240.0)
+        svc._persist_integration("hubspot")
+
+        svc2 = make_service()
+        restored = svc2.usage_stats["hubspot"]
+        assert restored.avg_sync_duration_seconds == 240.0
+        assert restored.sync_duration_samples == 1

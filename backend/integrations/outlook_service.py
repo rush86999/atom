@@ -20,6 +20,43 @@ GRAPH_API_BASE = os.getenv(
     "MICROSOFT_GRAPH_BASE_URL", "https://graph.microsoft.com/v1.0"
 ).rstrip("/")
 
+# Characters Graph's $search KQL rejects in free-text terms with a 400
+# ("Syntax error: character '@' is not valid at position 7 in
+# 'jschulz@blumetric.ca'"; live-verified 2026-09-02: '.' is rejected too —
+# 'jschulz blumetric.ca' → "character '.' is not valid at position 17").
+# Email addresses — usually the rarest, most selective term a mailbox
+# search has — always carry '@' and a dot. Kept: word characters,
+# whitespace and apostrophes (O'Brien).
+_KQL_ILLEGAL = re.compile(r"[^\w\s'\"]")
+
+
+def sanitize_graph_kql(query: str) -> str:
+    """Make a free-text query safe for Graph $search KQL.
+
+    'jschulz@blumetric.ca' → 'jschulz blumetric ca' — each fragment is
+    tokenized against the body ('Email : jschulz@blumetric.ca'), so the
+    lead email still matches. Tokens mixing letters and digits (model
+    numbers, SKUs: 'WG350DSAV') are wrapped in double quotes — Graph's KQL
+    parser rejects them bare ("Syntax error: character '3' is not valid at
+    position 2 in 'WG350DSAV'", live 2026-09-03) but accepts them as quoted
+    phrases. A query that is already legal comes back unchanged, so callers
+    can cheaply up-front-sanitize every term.
+    """
+    if not query:
+        return query
+
+    def _quote_mixed_alnum(match: "re.Match") -> str:
+        token = match.group(0)
+        inner = token.strip('"')
+        if inner != token:
+            return token  # already quoted — leave it alone
+        if re.search(r"[A-Za-z]", inner) and re.search(r"\d", inner):
+            return f'"{inner}"'
+        return token
+
+    cleaned = _KQL_ILLEGAL.sub(" ", query).strip()
+    return re.sub(r"\S+", _quote_mixed_alnum, cleaned)
+
 
 @dataclass
 class OutlookUser:
@@ -402,8 +439,12 @@ class OutlookService(IntegrationService):
             }
 
             if query:
+                # OData string literals escape a single quote by doubling it —
+                # a raw query like "O'Brien bandsaw" would otherwise terminate
+                # the literal early and 400 the whole filter.
+                _safe = str(query).replace("'", "''")
                 params["$filter"] = (
-                    f"contains(subject, '{query}') or contains(body/content, '{query}')"
+                    f"contains(subject, '{_safe}') or contains(body/content, '{_safe}')"
                 )
 
             if include_attachments:
@@ -457,7 +498,8 @@ class OutlookService(IntegrationService):
             return []
 
     _HTML_TAG_RE = re.compile(
-        r"<\s*/?\s*(p|br|div|span|ul|ol|li|h[1-6]|hr|table|a|b|i|strong|em|u|font)\b",
+        r"<\s*/?\s*(p|br|div|span|ul|ol|li|h[1-6]|hr|table|thead|tbody|tr|td|th|"
+        r"a|b|i|strong|em|u|font)\b",
         re.IGNORECASE,
     )
 
@@ -476,6 +518,12 @@ class OutlookService(IntegrationService):
         import html as _html
 
         text = str(body or "")
+        # Multi-line HTML (agent-drafted tables pretty-print one tag per
+        # line) must be re-joined at tag boundaries BEFORE the line-aware
+        # pass — <br> fragments between <table>/<tr>/<td> elements break the
+        # table out of its own structure at render (same incident class as
+        # the composer's toDisplayHtml, observed live 2026-09-03).
+        text = re.sub(r">\s*\n\s*<", "><", text)
         lines = text.splitlines()
         if not any(OutlookService._HTML_TAG_RE.search(ln) for ln in lines):
             escaped = _html.escape(text)
@@ -746,17 +794,31 @@ class OutlookService(IntegrationService):
         self,
         user_id: str,
         conversation_id: str,
-        token: Optional[str] = None
+        token: Optional[str] = None,
+        prefer_external_sender: bool = True,
     ) -> Optional[str]:
-        """Resolve an Outlook conversationId to the id of its most recent
-        message. Graph /reply needs a message id, but ingested/searched
-        threads surface a conversationId — this is the bridge."""
+        """Resolve an Outlook conversationId to the id of the message a
+        reply should anchor to. Graph /reply needs a message id, but
+        ingested/searched threads surface a conversationId — this is the
+        bridge.
+
+        The anchor prefers the newest message from OUTSIDE the user's own
+        domain: customer threads routinely carry internal legs (colleague
+        notes in the same conversation), and rooting the reply's
+        In-Reply-To/References in an internal message is the classic
+        mixed-thread mistake (observed live 2026-09-04 — a customer reply
+        anchored on an internal colleague's note). Internal-only threads
+        fall back to the newest message overall.
+
+        The newest-message sort happens client-side: Graph rejects a
+        conversationId $filter combined with $orderby (400 InefficientFilter,
+        observed live 2026-09-04 — it failed for EVERY conversation, making
+        every threaded reply send fail with "thread not found")."""
         try:
             params = {
                 "$filter": f"conversationId eq '{conversation_id}'",
-                "$orderby": "receivedDateTime desc",
-                "$top": 1,
-                "$select": "id,conversationId",
+                "$top": 50,
+                "$select": "id,conversationId,receivedDateTime,from",
             }
             endpoint = (
                 "/me/messages?" + urllib.parse.urlencode(params)
@@ -765,10 +827,49 @@ class OutlookService(IntegrationService):
                 user_id, endpoint, access_token=token
             )
             value = (result or {}).get("value") or []
-            return value[0].get("id") if value else None
+            if not value:
+                return None
+            if prefer_external_sender:
+                own_domain = None
+                try:
+                    profile = await self.get_user_profile(user_id, token=token)
+                    for key in ("mail", "userPrincipalName"):
+                        own_domain = self._email_domain(
+                            str((profile or {}).get(key) or "")
+                        )
+                        if own_domain:
+                            break
+                except Exception:
+                    own_domain = None
+                if own_domain:
+                    external = [
+                        m for m in value
+                        if self._sender_domain(m) not in (None, own_domain)
+                    ]
+                    if external:
+                        value = external
+            # receivedDateTime is ISO-8601 UTC, so lexicographic order is
+            # chronological order.
+            value.sort(
+                key=lambda m: str(m.get("receivedDateTime") or ""), reverse=True
+            )
+            return value[0].get("id")
         except Exception as e:
             logger.error(f"Error resolving conversation {conversation_id}: {e}")
             return None
+
+    @staticmethod
+    def _email_domain(addr: str) -> Optional[str]:
+        if not addr or "@" not in addr:
+            return None
+        return addr.strip().rpartition("@")[2].lower() or None
+
+    @classmethod
+    def _sender_domain(cls, message: Dict[str, Any]) -> Optional[str]:
+        addr = str(
+            (((message or {}).get("from") or {}).get("emailAddress") or {}).get("address") or ""
+        )
+        return cls._email_domain(addr)
 
     async def reply_to_email(
         self,
@@ -779,18 +880,55 @@ class OutlookService(IntegrationService):
         to_recipients: Optional[List[str]] = None,
         cc_recipients: Optional[List[str]] = None,
         subject: Optional[str] = None,
-        token: Optional[str] = None
+        token: Optional[str] = None,
+        override_internal_quote: bool = False,
     ) -> bool:
         """Reply to an email via Outlook. ``reply_all`` targets /replyAll so
         the whole thread stays on the message instead of only the sender.
         ``to_recipients``/``cc_recipients``/``subject`` ride the reply's
         ``message`` override so a caller that shows editable fields (the
         composer) keeps the user's edits while the reply still lands in
-        the original thread (Graph adds In-Reply-To/References itself)."""
+        the original thread (Graph adds In-Reply-To/References itself).
+
+        Mixed-thread leak guard: when the reply reaches an external
+        recipient, a body quoting text that exists only on the thread's
+        INTERNAL legs is refused (``policy: internal_thread_quote``) —
+        colleague notes riding a customer conversation must not reach the
+        customer. ``override_internal_quote=True`` sends anyway; callers
+        surface it as an explicit human decision. Internal-audience
+        replies are never gated."""
+        self.last_send_error = None
+        if not override_internal_quote:
+            try:
+                flagged, audience_external = await self._internal_thread_quotes(
+                    user_id, message_id, comment,
+                    to_recipients=to_recipients,
+                    cc_recipients=cc_recipients,
+                    token=token,
+                )
+            except Exception as e:
+                logger.warning(f"internal-thread quote check skipped: {e}")
+                flagged, audience_external = [], False
+            if flagged:
+                first = flagged[0]
+                snippet = str(first.get("text", ""))[:120]
+                tier = first.get("match", "verbatim")
+                self.last_send_error = {
+                    "error": (
+                        "Reply quotes internal-only discussion from this "
+                        f"thread ({len(flagged)} passage(s), e.g. \"{snippet}\" "
+                        f"[{tier}]). Remove it, or resend with the internal-quote "
+                        "override."
+                    ),
+                    "policy": "internal_thread_quote",
+                    "quotes": flagged,
+                }
+                logger.error(
+                    f"Outlook reply blocked for {user_id}: internal_thread_quote "
+                    f"({len(flagged)} fragment(s))"
+                )
+                return False
         try:
-            reply_data: Dict[str, Any] = {
-                "comment": comment
-            }
             overrides: Dict[str, Any] = {}
             if to_recipients:
                 overrides["toRecipients"] = [
@@ -802,6 +940,23 @@ class OutlookService(IntegrationService):
                 ]
             if subject:
                 overrides["subject"] = subject
+
+            # HTML replies: /reply's `comment` param is plain text — styled
+            # bodies (signature HTML, tables, links) arrive as literal tags
+            # in Outlook. Route tag-bearing comments through createReply →
+            # PATCH the draft's HTML body → send; plain comments keep the
+            # one-shot path. Falls back to the legacy path on any step
+            # failure so styling never costs the send itself.
+            if self._HTML_TAG_RE.search(str(comment or "")):
+                sent = await self._send_html_reply(
+                    user_id, message_id, comment, overrides,
+                    reply_all=reply_all, access_token=token,
+                )
+                if sent is not None:
+                    return sent
+            reply_data: Dict[str, Any] = {
+                "comment": comment
+            }
             if overrides:
                 reply_data["message"] = overrides
             action = "replyAll" if reply_all else "reply"
@@ -812,6 +967,207 @@ class OutlookService(IntegrationService):
         except Exception as e:
             logger.error(f"Error replying to email: {e}")
             return False
+
+    async def _send_html_reply(
+        self,
+        user_id: str,
+        message_id: str,
+        comment: str,
+        overrides: Dict[str, Any],
+        reply_all: bool = False,
+        access_token: Optional[str] = None,
+    ) -> Optional[bool]:
+        """createReply → PATCH the draft's HTML body (+ recipient/subject
+        overrides) → send. Returns None to signal "fall back to the legacy
+        comment path" when any step fails; True/False when the reply was
+        (not) sent via this route."""
+        try:
+            action = "replyAll" if reply_all else "reply"
+            draft = await self._make_graph_request(
+                user_id, f"/me/messages/{message_id}/{action}", "POST",
+                {}, access_token=access_token,
+            )
+            draft_id = (draft or {}).get("id")
+            if not draft_id:
+                return None
+            patch: Dict[str, Any] = {
+                "body": {"contentType": "HTML",
+                         "content": self._body_to_html(comment)},
+            }
+            if overrides:
+                patch.update(overrides)
+            patched = await self._make_graph_request(
+                user_id, f"/me/messages/{draft_id}", "PATCH",
+                patch, access_token=access_token,
+            )
+            if patched is None:
+                return None
+            sent = await self._make_graph_request(
+                user_id, f"/me/messages/{draft_id}/send", "POST",
+                {}, access_token=access_token,
+            )
+            return sent is not None
+        except Exception as e:
+            logger.warning(f"HTML reply route failed for {user_id}: {e} — falling back")
+            return None
+
+    async def _thread_embed(self, texts: List[str]) -> List[List[float]]:
+        """Embedder for the leak guard's semantic tier, cached process-wide —
+        the fastembed model loads once, not per send."""
+        svc = getattr(OutlookService, "_cached_embedding_service", None)
+        if svc is None:
+            from core.embedding_service import EmbeddingService
+
+            svc = EmbeddingService()
+            OutlookService._cached_embedding_service = svc
+        return await svc.generate_embeddings_batch(texts)
+
+    async def _internal_thread_quotes(
+        self,
+        user_id: str,
+        message_id: str,
+        comment: str,
+        to_recipients: Optional[List[str]] = None,
+        cc_recipients: Optional[List[str]] = None,
+        token: Optional[str] = None,
+    ) -> tuple:
+        """(internal-only fragments the reply body quotes, whether the
+        effective audience reaches outside the user's own domain)."""
+        from core.email_policy import find_internal_quotes
+
+        anchor = await self._make_graph_request(
+            user_id,
+            f"/me/messages/{message_id}"
+            "?$select=conversationId,from,toRecipients,ccRecipients",
+            access_token=token,
+        )
+        if not anchor:
+            return [], False
+        conversation_id = anchor.get("conversationId")
+
+        explicit = [
+            str(addr or "").strip()
+            for addr in list(to_recipients or []) + list(cc_recipients or [])
+            if str(addr or "").strip()
+        ]
+        if explicit:
+            audience = explicit
+        else:
+            # No recipient overrides: Graph replies go to the anchor
+            # message's sender (reply) or its full recipient set (replyAll).
+            audience = [self._address_of(anchor.get("from"))] + [
+                self._address_of(r)
+                for r in list(anchor.get("toRecipients") or [])
+                + list(anchor.get("ccRecipients") or [])
+            ]
+        own_domain = None
+        try:
+            profile = await self.get_user_profile(user_id, token=token)
+            for key in ("mail", "userPrincipalName"):
+                own_domain = self._email_domain(str((profile or {}).get(key) or ""))
+                if own_domain:
+                    break
+        except Exception:
+            own_domain = None
+        audience_external = any(
+            self._email_domain(addr) not in (None, own_domain)
+            for addr in audience
+            if addr
+        )
+        if not audience_external or not conversation_id:
+            return [], audience_external
+
+        legs = await self.get_conversation_leg_texts(
+            user_id, conversation_id, token=token
+        )
+        if not legs.get("internal"):
+            return [], audience_external
+        return (
+            await find_internal_quotes(
+                comment, legs.get("internal") or [], legs.get("external") or [],
+                embed_fn=self._thread_embed,
+            ),
+            audience_external,
+        )
+
+    @staticmethod
+    def _address_of(entry: Any) -> str:
+        return str(
+            ((entry or {}).get("emailAddress") or {}).get("address") or ""
+        ).strip()
+
+    async def get_conversation_leg_texts(
+        self,
+        user_id: str,
+        conversation_id: str,
+        token: Optional[str] = None,
+    ) -> Dict[str, List[str]]:
+        """Bodies of a conversation split into customer-visible vs internal-
+        only text. Pagination follows @odata.nextLink so long threads are
+        fully covered (hard cap 200 messages — a guard, not an archive).
+
+        External senders are customer-visible — and so is our OWN mail
+        addressed to an external recipient (quoting your previous reply to
+        the customer is normal, not a leak). Only own-domain messages with
+        no external recipients are true internal notes."""
+        own_domain = None
+        try:
+            profile = await self.get_user_profile(user_id, token=token)
+            for key in ("mail", "userPrincipalName"):
+                own_domain = self._email_domain(str((profile or {}).get(key) or ""))
+                if own_domain:
+                    break
+        except Exception:
+            own_domain = None
+        if not own_domain:
+            return {"internal": [], "external": []}
+        params = {
+            "$filter": f"conversationId eq '{conversation_id}'",
+            "$top": 50,
+            "$select": "from,toRecipients,ccRecipients,receivedDateTime,body",
+        }
+        url = "/me/messages?" + urllib.parse.urlencode(params)
+        messages: List[Dict[str, Any]] = []
+        for _page in range(4):
+            result = await self._make_graph_request(user_id, url, access_token=token)
+            messages.extend((result or {}).get("value") or [])
+            next_link = str((result or {}).get("@odata.nextLink") or "")
+            if not next_link:
+                break
+            # nextLink is absolute; the client wants base-relative endpoints.
+            if next_link.startswith(self.base_url):
+                url = next_link[len(self.base_url):]
+            else:
+                parts = urllib.parse.urlsplit(next_link)
+                path = parts.path
+                for prefix in ("/v1.0", "/beta"):
+                    if path.startswith(prefix):
+                        path = path[len(prefix):]
+                        break
+                url = path + ("?" + parts.query if parts.query else "")
+        legs: Dict[str, List[str]] = {"internal": [], "external": []}
+        for message in (result or {}).get("value") or []:
+            body = str(((message.get("body") or {}).get("content")) or "")
+            if not body:
+                continue
+            domain = self._sender_domain(message)
+            if not domain:
+                continue
+            recipients = [
+                self._address_of(r)
+                for r in list(message.get("toRecipients") or [])
+                + list(message.get("ccRecipients") or [])
+            ]
+            recipient_external = any(
+                self._email_domain(addr) not in (None, own_domain)
+                for addr in recipients
+                if addr
+            )
+            if domain != own_domain or recipient_external:
+                legs["external"].append(body)
+            else:
+                legs["internal"].append(body)
+        return legs
 
     async def create_draft_email(
         self,
@@ -1304,6 +1660,11 @@ class OutlookService(IntegrationService):
         passes it through as raw KQL (space-separated terms) — what the chat
         path wants for "find this email … Name : Mark, Kellam", where the
         phrase form would never match the body's punctuation.
+
+        When Graph rejects the query with a 400 (its KQL syntax errors on
+        characters like ``@`` — live 2026-09-02: "jschulz@blumetric.ca" was
+        the only term that could match the lead email, and the 400 silently
+        emptied the search), the query is retried once in sanitized form.
         """
         try:
             # Graph rejects $orderby combined with $search on /me/messages —
@@ -1316,6 +1677,14 @@ class OutlookService(IntegrationService):
             endpoint = f"/me/messages?{query_string}"
 
             result = await self._make_graph_request(user_id, endpoint, access_token=token)
+            if result is None:
+                sanitized = sanitize_graph_kql(query)
+                if sanitized and sanitized != query:
+                    params["$search"] = f'"{sanitized}"' if quote else sanitized
+                    endpoint = f"/me/messages?{urllib.parse.urlencode(params)}"
+                    result = await self._make_graph_request(
+                        user_id, endpoint, access_token=token
+                    )
 
             if result and "value" in result:
                 emails = []

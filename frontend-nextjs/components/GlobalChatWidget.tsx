@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MessageSquare, X, Minimize2, Maximize2, Trash2, AlertCircle } from "lucide-react";
 import { ChatInput } from "./GlobalChat/ChatInput";
-import { ChatMessage, ChatMessageData, ChatAction, ReasoningStep } from "./GlobalChat/ChatMessage";
+import { ChatMessage, ChatMessageData, ChatAction, ReasoningStep, reasoningTextToStep } from "./GlobalChat/ChatMessage";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { useWebSocket } from "../hooks/useWebSocket";
@@ -27,6 +27,9 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const [sessionId, setSessionId] = useState<string>("");
     const [pendingApproval, setPendingApproval] = useState<{ action_id: string; tool: string; reason: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    // WS reasoning steps that arrive before this turn's assistant message
+    // exists (see the agent_step_update handler).
+    const _pendingStepsRef = useRef<ReasoningStep[]>([]);
     const { toast } = useToast();
     const router = useRouter();
     const { isConnected, lastMessage, subscribe } = useWebSocket();
@@ -141,6 +144,10 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                         reasoningTrace: [...(lastMsg.reasoningTrace || []), step]
                     }];
                 }
+                // Reply not appended yet — buffer the step for the REST
+                // response instead of dropping it (these ARE the reasoning
+                // the "Reasoning Process" drawer renders).
+                _pendingStepsRef.current = [..._pendingStepsRef.current, step];
                 return prev;
             });
         }
@@ -173,13 +180,19 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                 if (data && data.messages) {
                     const validMessages = (data.messages || []).filter((msg: any) => msg.content?.trim());
                     if (validMessages.length > 0) {
-                        const chatMessages: ChatMessageData[] = validMessages.map((msg: any) => ({
-                            id: msg.id || `msg_${Date.now()}_${Math.random()}`,
-                            type: msg.role === 'user' ? 'user' : 'assistant',
-                            content: msg.content || '',
-                            timestamp: new Date(msg.timestamp || Date.now()),
-                            actions: [] as ChatAction[],
-                        }));
+                        const chatMessages: ChatMessageData[] = validMessages.map((msg: any) => {
+                            const historyReasoningStep = msg.role === 'assistant'
+                                ? reasoningTextToStep(msg.reasoning) : null;
+                            return {
+                                id: msg.id || `msg_${Date.now()}_${Math.random()}`,
+                                type: msg.role === 'user' ? 'user' : 'assistant',
+                                content: msg.content || '',
+                                timestamp: new Date(msg.timestamp || Date.now()),
+                                actions: [] as ChatAction[],
+                                reasoning: msg.reasoning || undefined,
+                                ...(historyReasoningStep ? { reasoningTrace: [historyReasoningStep] } : {}),
+                            };
+                        });
                         setMessages(chatMessages);
                         return;
                     }
@@ -212,6 +225,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
 
         setMessages(prev => [...prev, userMessage]);
         setIsLoading(true);
+        _pendingStepsRef.current = [];
 
         try {
             const res = await authFetch("/api/chat/message", {
@@ -241,6 +255,18 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
             if (res && res.ok) {
                 const data = await res.json().catch((): null => null);
                 if (data && data.success) {
+                    // Attach this turn's buffered WS steps; fall back to the
+                    // REST payload's chain-of-thought when the WS steps
+                    // didn't carry it (stale socket).
+                    const bufferedSteps = _pendingStepsRef.current;
+                    _pendingStepsRef.current = [];
+                    const restReasoningStep = reasoningTextToStep(data.reasoning);
+                    const reasoningTrace: ReasoningStep[] = [
+                        ...bufferedSteps,
+                        ...(restReasoningStep && !bufferedSteps.some(
+                            (s) => (s.thought || "").trim() === (data.reasoning || "").trim()
+                        ) ? [restReasoningStep] : []),
+                    ];
                     const assistantMessage: ChatMessageData = {
                         id: `assistant_${Date.now()}`,
                         type: "assistant",
@@ -249,6 +275,8 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                         actions: data.suggested_actions?.map((action: string) => ({ label: action, type: 'view_template' as const })) || [],
                         model: data.model,
                         provider: data.provider,
+                        reasoning: data.reasoning || undefined,
+                        ...(reasoningTrace.length ? { reasoningTrace } : {}),
                     };
                     setMessages(prev => [...prev, assistantMessage]);
                     // The turn may have co-edited the open canvas; converge it
@@ -374,6 +402,12 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                 model: ratedMessage?.model,
                 provider: ratedMessage?.provider,
                 session_id: sessionId,
+                // The thinking behind the rated reply — training signal
+                // (backend also falls back to persisted message metadata).
+                reasoning: ratedMessage?.reasoning
+                    || (ratedMessage?.reasoningTrace || [])
+                        .map(s => s.thought || "").filter(Boolean).join("\n\n")
+                    || undefined,
             });
             // Fire the toast AFTER the POST resolves so the user isn't told
             // "thanks" if the feedback actually failed.

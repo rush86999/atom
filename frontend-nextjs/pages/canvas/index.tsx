@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Layout as LayoutIcon, FileText, Mail, Table, Code, Terminal, Plus, Search, X, Trash2, RotateCcw } from "lucide-react";
+import { Layout as LayoutIcon, FileText, FilePlus, Loader2, Mail, Table, Code, Terminal, Plus, Search, X, Trash2, RotateCcw } from "lucide-react";
+import { useRouter } from "next/router";
 
 interface CanvasSummary {
     canvas_id: string;
@@ -31,6 +32,7 @@ const CANVAS_TYPE_ICONS: Record<string, React.ReactNode> = {
     terminal: <Terminal className="h-5 w-5" />,
     orchestration: <LayoutIcon className="h-5 w-5" />,
     generic: <FileText className="h-5 w-5" />,
+    pdf: <FileText className="h-5 w-5" />,
 };
 
 // Never surface a raw UUID: prefer the server's derived title, then an
@@ -38,6 +40,7 @@ const CANVAS_TYPE_ICONS: Record<string, React.ReactNode> = {
 const displayTitle = (c: CanvasSummary) => c.display_title || c.title || c.canvas_id;
 
 export default function CanvasIndexPage() {
+    const router = useRouter();
     const [canvases, setCanvases] = useState<CanvasSummary[]>([]);
     const [allCanvases, setAllCanvases] = useState<CanvasSummary[]>([]);
     const [total, setTotal] = useState<number | null>(null);
@@ -51,6 +54,44 @@ export default function CanvasIndexPage() {
     // row in the audit trail, never a hard delete).
     const [showDeleted, setShowDeleted] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
+
+    // PDF canvas creation (upload → navigate to the new canvas).
+    const pdfInputRef = useRef<HTMLInputElement>(null);
+    const [pdfUploading, setPdfUploading] = useState(false);
+    const uploadPdf = useCallback(async (file: File) => {
+        setPdfUploading(true);
+        try {
+            const { createPdfFromUpload } = await import("@/lib/pdf-canvas-api");
+            const res = await createPdfFromUpload(file);
+            if (res?.canvas_id) {
+                void router.push(`/canvas/${res.canvas_id}`);
+            }
+        } catch (e: any) {
+            const msg = e?.response?.data?.error?.message || e?.message || "Upload failed";
+            alert(`PDF upload failed: ${msg}`);
+        } finally {
+            setPdfUploading(false);
+        }
+    }, [router]);
+
+    // Blank canvas creation (create → attach an agent → load data — the
+    // canvas page walks the rest of the journey).
+    const [creatingBlank, setCreatingBlank] = useState(false);
+    const createBlank = useCallback(async () => {
+        setCreatingBlank(true);
+        try {
+            const { createBlankCanvas } = await import("@/lib/canvas-api");
+            const res = await createBlankCanvas();
+            if (res?.canvas_id) {
+                void router.push(res.url || `/canvas/${res.canvas_id}`);
+            }
+        } catch (e: any) {
+            const msg = e?.response?.data?.error?.message || e?.message || "Canvas creation failed";
+            alert(`Couldn't create the canvas: ${msg}`);
+        } finally {
+            setCreatingBlank(false);
+        }
+    }, [router]);
 
 
     // Debounce the search box so typing doesn't fire a request per keystroke.
@@ -174,6 +215,40 @@ export default function CanvasIndexPage() {
 
                 {/* Type filter */}
                 <div className="flex gap-2 mb-6 flex-wrap items-center">
+                    {/* PDF canvases start from a real uploaded file (the
+                        draft-classifier path can't produce one yet), so the
+                        upload button lives beside the filters on the gallery. */}
+                    <input
+                        ref={pdfInputRef}
+                        type="file"
+                        accept="application/pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) void uploadPdf(f);
+                            e.target.value = "";
+                        }}
+                    />
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void createBlank()}
+                        disabled={creatingBlank}
+                        data-testid="new-blank-canvas-button"
+                    >
+                        {creatingBlank ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                        New canvas
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => pdfInputRef.current?.click()}
+                        disabled={pdfUploading}
+                        data-testid="upload-pdf-button"
+                    >
+                        {pdfUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FilePlus className="h-4 w-4" />}
+                        Upload PDF
+                    </Button>
                     <Button
                         variant={showDeleted ? "default" : "outline"}
                         size="sm"
@@ -235,9 +310,19 @@ export default function CanvasIndexPage() {
                                 <>
                                     <Plus className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
                                     <p className="text-muted-foreground mb-1">No canvases yet.</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Ask an agent to create one from chat, or canvases created in chat will appear here.
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Start a blank canvas, or canvases created in chat will appear here.
                                     </p>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => void createBlank()}
+                                        disabled={creatingBlank}
+                                        data-testid="new-blank-canvas-empty-state"
+                                    >
+                                        {creatingBlank ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                        New canvas
+                                    </Button>
                                 </>
                             )}
                         </CardContent>

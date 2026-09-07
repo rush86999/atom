@@ -92,26 +92,28 @@ class CommunicationIntelligenceService:
         """
         Pulls data from other systems (CRM, eCommerce) based on extracted entities.
         """
-        db = self.db_session or get_db_session()
+        # get_db_session() is a context manager, not a Session — it must be
+        # entered before .query(), and closed via the with-block, not .close().
+        if self.db_session:
+            return self._cross_system_rows(self.db_session, knowledge)
+        with get_db_session() as db:
+            return self._cross_system_rows(db, knowledge)
+
+    def _cross_system_rows(self, db, knowledge: Dict[str, Any]) -> Dict[str, Any]:
         context = {}
-        try:
-            for entity in knowledge.get("entities", []):
-                e_type = entity.get("type")
-                props = entity.get("properties", {})
-                
-                if e_type == "Deal" and props.get("external_id"):
-                    deal = db.query(Deal).filter(Deal.external_id == props["external_id"]).first()
-                    if deal:
-                        context[f"deal_{deal.id}"] = {"name": deal.name, "value": deal.value, "stage": deal.stage}
-                
-                if e_type == "Person" and props.get("email"):
-                    cust = db.query(EcommerceCustomer).filter(EcommerceCustomer.email == props["email"]).first()
-                    if cust:
-                        context[f"customer_{cust.id}"] = {"risk_score": cust.risk_score, "mrr": getattr(cust, 'mrr', 0)}
-        finally:
-            if not self.db_session:
-                db.close()
-            
+        for entity in knowledge.get("entities", []):
+            e_type = entity.get("type")
+            props = entity.get("properties", {})
+
+            if e_type == "Deal" and props.get("external_id"):
+                deal = db.query(Deal).filter(Deal.external_id == props["external_id"]).first()
+                if deal:
+                    context[f"deal_{deal.id}"] = {"name": deal.name, "value": deal.value, "stage": deal.stage}
+
+            if e_type == "Person" and props.get("email"):
+                cust = db.query(EcommerceCustomer).filter(EcommerceCustomer.email == props["email"]).first()
+                if cust:
+                    context[f"customer_{cust.id}"] = {"risk_score": cust.risk_score, "mrr": getattr(cust, 'mrr', 0)}
         return context
 
     async def _generate_response_suggestion(self, original_content: str, context: Dict[str, Any], user_id: str, strategy_prompt: str = "") -> str:

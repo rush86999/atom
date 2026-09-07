@@ -74,10 +74,16 @@ class ZohoBooksService(IntegrationService):
         except Exception as exc:
             return {"success": False, "error": "Zoho Books operation failed"}
 
-    async def _get_active_token(self, tenant_id: Optional[str] = None) -> Optional[str]:
-        """Get a valid access token for the tenant, refreshing if necessary"""
+    async def _get_active_token(self, tenant_id: Optional[str] = None, user_id: Optional[str] = None) -> Optional[str]:
+        """Get a valid access token, refreshing if necessary.
+
+        Resolution order mirrors zoho_inventory_service: the acting USER's
+        IntegrationToken row first (the unified OAuth flow keys rows by
+        user_id — a tenant-scoped lookup with tenant 'default' misses them),
+        then the tenant row for system contexts. No cross-user fallback.
+        """
         tid = tenant_id or getattr(self, "session_id", None) or self.tenant_id
-        if not tid:
+        if not tid and not user_id:
             return self.access_token or os.getenv("ZOHO_BOOKS_ACCESS_TOKEN")
 
         from core.database import SessionLocal
@@ -86,10 +92,25 @@ class ZohoBooksService(IntegrationService):
 
         db = SessionLocal()
         try:
-            token_record = db.query(IntegrationToken).filter(
-                IntegrationToken.tenant_id == tid,
-                IntegrationToken.provider == "zoho_books"
-            ).first()
+            token_record = None
+            if user_id:
+                for provider in ("zoho_books", "zoho"):
+                    token_record = (
+                        db.query(IntegrationToken)
+                        .filter(
+                            IntegrationToken.user_id == user_id,
+                            IntegrationToken.provider == provider,
+                            IntegrationToken.status == "active",
+                        )
+                        .first()
+                    )
+                    if token_record:
+                        break
+            if token_record is None:
+                token_record = db.query(IntegrationToken).filter(
+                    IntegrationToken.tenant_id == tid,
+                    IntegrationToken.provider == "zoho_books"
+                ).first()
 
             if not token_record:
                 return None
@@ -104,12 +125,14 @@ class ZohoBooksService(IntegrationService):
                     from core.privsec.token_encryption import decrypt_token, encrypt_token, stamp_credential_metadata
                     refresh_plain = decrypt_token(token_record.refresh_token, allow_plaintext=True) if token_record.refresh_token else None
                     new_tokens = await self.refresh_token(refresh_plain)
-                    if new_tokens:
-                        token_record.access_token = encrypt_token(new_tokens["access_token"])
+                    new_access = (new_tokens or {}).get("access_token")
+                    if new_access:
+                        token_record.access_token = encrypt_token(new_access)
                         token_record.expires_at = datetime.now(timezone.utc) + timedelta(seconds=new_tokens.get("expires_in", 3600))
                         stamp_credential_metadata(token_record)
                         db.commit()
-                        return token_record.access_token
+                        # Decrypt before returning — the row stores ciphertext.
+                        return decrypt_token(token_record.access_token, allow_plaintext=True)
                 return None
 
             from core.privsec.token_encryption import decrypt_token

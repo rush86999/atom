@@ -41,6 +41,7 @@ import {
     MessageSquare,
 } from "lucide-react";
 import { apiClient } from "@/lib/api";
+import { AutoDevReviewPanel } from "./AutoDevReviewPanel";
 import { useWebSocket } from "../../hooks/useWebSocket";
 
 // --- Types ---
@@ -397,6 +398,10 @@ const AgentStudio: React.FC = () => {
                     </Card>
                 ))}
             </div>
+
+            {/* Auto-Dev review: pending fix proposals + recent tool errors
+                (evolution harness supervisor surface) */}
+            <AutoDevReviewPanel agentId={selectedAgent?.id ?? null} />
 
             {/* Create/Edit Modal */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>

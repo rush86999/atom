@@ -8,12 +8,14 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 import base64
+import hashlib as _hashlib
 import html as _html_mod
 import json
 import logging
 import os
 import re as _re_mod
-from typing import Any, Dict, List, Optional, Union
+import threading
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import httpx
 
 try:
@@ -42,8 +44,66 @@ from .ingestion_models import RecordType
 
 logger = logging.getLogger(__name__)
 
+# Extraction firehose bound (Sep 6, 2026): the poller spawns one
+# knowledge-extraction task PER ingested message (plus one communication-
+# intelligence task), and the post-reconnect re-walk ran hundreds
+# concurrently — the loop drowned in sync LanceDB/SQLite work and every
+# endpoint stalled. A small cap keeps the backlog draining while the app
+# stays responsive; steady-state mail rates are far below it.
+KG_EXTRACT_CONCURRENCY = max(1, int(os.getenv("ATOM_KG_EXTRACT_CONCURRENCY", "3")))
+_extraction_semaphores: Dict[int, asyncio.Semaphore] = {}
+_extraction_semaphores_lock = threading.Lock()
+
+
+def _extraction_age_blocked(timestamp: Any) -> bool:
+    """True when a message is older than the auto-extraction age budget
+    (ATOM_KG_EXTRACT_MAX_AGE_DAYS, default 30; 0 disables the gate).
+    Backfilled old mail stays indexed and searchable but does not auto-fire
+    the per-message LLM extraction pipelines. Unparseable timestamps never
+    gate (extract as before)."""
+    try:
+        max_age_days = max(0, int(os.getenv("ATOM_KG_EXTRACT_MAX_AGE_DAYS", "30")))
+    except ValueError:
+        max_age_days = 30
+    if not max_age_days:
+        return False
+    try:
+        msg_dt = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+        if msg_dt.tzinfo is None:
+            msg_dt = msg_dt.replace(tzinfo=timezone.utc)
+        age_days = (datetime.now(timezone.utc) - msg_dt).total_seconds() / 86400
+        return age_days > max_age_days
+    except (ValueError, TypeError):
+        return False
+
+
+async def _bounded_extraction(coro: Any) -> Any:
+    """Run one extraction coroutine under the per-event-loop concurrency cap."""
+    loop_id = id(asyncio.get_running_loop())
+    with _extraction_semaphores_lock:
+        sem = _extraction_semaphores.get(loop_id)
+        if sem is None:
+            sem = asyncio.Semaphore(KG_EXTRACT_CONCURRENCY)
+            _extraction_semaphores[loop_id] = sem
+    async with sem:
+        return await coro
+
+
+
 _HTML_TAG_RE = _re_mod.compile(r"<(script|style)[^>]*>.*?</\1>|<[^>]+>", _re_mod.DOTALL | _re_mod.IGNORECASE)
 _HTML_WS_RE = _re_mod.compile(r"[ \t]*\n[ \t\n]*")
+
+# Shared styling-preservation mechanism (core/communication_styling.py):
+# link recovery + capped raw-markup storage for EVERY communication app.
+# Module-level aliases keep the historical names importable from here.
+from core.communication_styling import (  # noqa: E402
+    MAX_RAW_CHARS as _MAX_INGEST_HTML_CHARS,
+    apply_styling_preservation as _apply_styling_preservation,
+    extract_raw_markup as _extract_raw_markup,
+    html_to_text as _shared_html_to_text,
+    preserve_links as _preserve_links_general,
+    preserve_links_in_html as _preserve_links_in_html,
+)
 
 
 def _format_graph_timestamp(dt: datetime) -> str:
@@ -61,17 +121,136 @@ def _format_graph_timestamp(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _html_to_text(html_body: str) -> str:
-    """Graph email bodies arrive as HTML; strip tags so FTS/vector search
-    indexes readable text instead of markup. Never raises."""
-    if not html_body:
-        return ""
-    try:
-        text = _HTML_TAG_RE.sub("\n", html_body)
+def _extract_tables_from_html(html_body: str):
+    """Replace <table> elements with markdown and collect structured data.
+
+    Live gap (2026-09-02): Outlook emails carry quote/spec tables as HTML,
+    but plain tag-stripping flattened cells into indistinguishable lines —
+    agents could not recognize a table in ingested data or rebuild one in
+    the email canvas.
+
+    Returns (html_with_markdown_tables, tables) where tables is
+    [{"markdown": str, "rows": [[cell, ...]], "n_rows": int, "n_cols": int}].
+    Single-column/single-row tables (Outlook signature LAYOUT tables) and
+    mostly-empty tables are skipped. bs4 when available; a self-contained
+    scanner otherwise. Never raises."""
+    tables: List[Dict] = []
+    if not html_body or "<table" not in html_body.lower():
+        return html_body, tables
+
+    def _cell_text(raw: str) -> str:
+        text = _HTML_TAG_RE.sub(" ", _preserve_links_in_html(raw))
         text = _html_mod.unescape(text)
-        return _HTML_WS_RE.sub("\n", text).strip()
+        text = _HTML_WS_RE.sub(" ", text).strip()
+        return text.replace("|", "\\|")[:200]
+
+    def _table_data(table_html: str):
+        rows: List[List[str]] = []
+        # Row/cell splitting works on well-formed email tables (Outlook
+        # generates regular markup); a missing </tr> still yields cells.
+        for row_m in _re_mod.finditer(r"<tr[^>]*>(.*?)</tr>", table_html, _re_mod.IGNORECASE | _re_mod.DOTALL):
+            cells = [
+                _cell_text(c)
+                for c in _re_mod.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row_m.group(1), _re_mod.IGNORECASE | _re_mod.DOTALL)
+            ]
+            cells = [c for c in cells if c]
+            if cells:
+                rows.append(cells)
+        rows = rows[:30]
+        if not rows:
+            return None
+        n_cols = max(len(r) for r in rows)
+        if n_cols < 2:
+            return None  # single-column => signature/layout table, not data
+
+        def _row_md(cells: List[str]) -> str:
+            padded = cells + [""] * (n_cols - len(cells))
+            return "| " + " | ".join(padded) + " |"
+
+        md_lines = [_row_md(r) for r in rows]
+        if len(rows) > 1:
+            md_lines.insert(1, "|" + "---|" * n_cols)
+        markdown = "\n".join(md_lines)
+        return {"markdown": markdown, "rows": rows, "n_rows": len(rows), "n_cols": n_cols}
+
+    # bs4 gives reliable nesting/attribute handling; the scanner fallback
+    # covers environments without it (tracking outermost tables only).
+    try:
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(html_body, "html.parser")
+        for table in soup.find_all("table"):
+            if table.find_parent("table"):
+                continue  # nested: the outer table's extraction covers it
+            data = _table_data(str(table))
+            if data:
+                tables.append(data)
+                table.replace_with(data["markdown"])
+        return str(soup), tables
+    except ImportError:
+        pass
     except Exception:
-        return html_body
+        return html_body, tables
+
+    # Regex scanner fallback (no bs4)
+    result = []
+    pos = 0
+    lower = html_body.lower()
+    idx = lower.find("<table")
+    while idx != -1:
+        depth = 0
+        i = idx
+        while i < len(html_body):
+            nxt_open = lower.find("<table", i + 1)
+            nxt_close = lower.find("</table>", i + 1)
+            if nxt_close == -1:
+                i = len(html_body)
+                break
+            if nxt_open != -1 and nxt_open < nxt_close:
+                depth += 1
+                i = nxt_open
+            else:
+                if depth == 0:
+                    end = nxt_close + len("</table>")
+                    break
+                depth -= 1
+                i = nxt_close
+        else:
+            end = len(html_body)
+        table_html = html_body[idx:end]
+        data = _table_data(table_html)
+        if data:
+            tables.append(data)
+            result.append(html_body[pos:idx])
+            result.append("\n" + data["markdown"] + "\n")
+            pos = end
+        nxt = lower.find("<table", end if end > idx else idx + 1)
+        if nxt == -1:
+            break
+        result.append(html_body[pos:nxt])
+        pos = nxt
+        idx = nxt
+    result.append(html_body[pos:])
+    return "".join(result), tables
+
+
+def _html_to_text(html_body: str) -> str:
+    """Tag-stripping text conversion with links preserved — delegated to the
+    shared styling module. Never raises."""
+    return _shared_html_to_text(html_body)
+
+
+def _html_to_text_with_tables(html_body: str):
+    """Table-aware variant: data tables become markdown (readable text for
+    FTS/vectors AND an unambiguous table shape for agents), structured rows
+    ride in metadata. Never raises."""
+    if not html_body or "<table" not in html_body.lower():
+        return _html_to_text(html_body), []
+    try:
+        replaced, tables = _extract_tables_from_html(html_body)
+        return _html_to_text(replaced), tables
+    except Exception:
+        return _html_to_text(html_body), []
 
 
 # Attachments: text-like formats get a real text layer extracted from
@@ -277,7 +456,19 @@ class LanceDBMemoryManager:
             ),
         )
         self.db_path = Path(base_path) / self.workspace_id
-        self.db_path.mkdir(parents=True, exist_ok=True)
+        try:
+            self.db_path.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            # Pause, don't crash: the store base is a symlink to the
+            # portable drive — while the drive is disconnected the symlink
+            # dangles and mkdir fails. Construction must still succeed
+            # (module-level singletons import at boot; tests import at
+            # collection); db stays None and initialize() retries lazily
+            # after the drive returns. Observed Sep 5-6, 2026.
+            logger.warning(
+                f"Memory store path unavailable ({e}) — deferring LanceDB "
+                f"init until {self.db_path} is reachable"
+            )
         self.db = None
         self.connections_table = None
         self.metadata_table = None
@@ -287,6 +478,10 @@ class LanceDBMemoryManager:
         # ingestion_metadata to 413MB once).
         self._metadata_pending: Dict[str, int] = {}
         self._metadata_last_flush = datetime.now()
+        # Serializes row-level store surgery (the duplicate-row heal) against
+        # in-process table maintenance — compaction rewriting fragments
+        # mid-heal would remap the _rowids the heal is about to delete.
+        self._store_surgery_lock = threading.Lock()
         
     def initialize(self):
         """Initialize LanceDB connection and tables"""
@@ -326,6 +521,10 @@ class LanceDBMemoryManager:
 
             self._create_connections_table()
             self._create_metadata_table()
+            # Converge existing stores to fresh-install state: drop rows the
+            # store gate now refuses (id twins, re-stamped content twins).
+            # Once per store, marker-guarded; no-op scan on fresh installs.
+            self._heal_duplicate_rows()
             logger.info("LanceDB memory manager initialized successfully")
             return True
         except Exception as e:
@@ -441,9 +640,264 @@ class LanceDBMemoryManager:
             self.metadata_table = self.db.open_table("ingestion_metadata")
             logger.info("Opened existing ingestion_metadata table")
     
+    def _stored_row_blocked(self, app_type: str, message_id: str, owner: str) -> bool:
+        """Durable point lookup: does a row for this id already exist whose
+        owner stamp would make it visible to ``owner`` (same owner or
+        unstamped)? Mirrors _dedup_messages semantics, but against the
+        shared store instead of the per-process seen-id map.
+
+        Why: the seen-id map is process-local, yet multiple uvicorn
+        processes share this LanceDB table. On Sep 5, 2026 a second
+        manually-started server instance double-polled the same mailbox,
+        each instance's state saves reverting the other's cursors, and one
+        message was re-ingested 25x. The store is the only cross-process
+        authority. Fails OPEN (False) — poll-level dedup still applies —
+        so a LanceDB query hiccup can't drop mail."""
+        if not message_id or self.connections_table is None:
+            return False
+        try:
+            safe_id = message_id.replace("'", "''")
+            safe_app = str(app_type or "").replace("'", "''")
+            arrow = (
+                self.connections_table.search()
+                .where(f"app_type = '{safe_app}' AND id = '{safe_id}'", prefilter=True)
+                .limit(1)
+                .to_arrow()
+            )
+            if len(arrow) == 0:
+                return False
+            md = arrow.column("metadata").to_pylist()[0]
+            return self._stored_owner_visible_to(md, str(owner or ""))
+        except Exception as e:
+            logger.debug(f"Store-level dedup lookup skipped for {message_id}: {e}")
+            return False
+
+    @staticmethod
+    def _stored_owner_visible_to(metadata_json: Any, owner: str) -> bool:
+        """Same visibility contract as _dedup_messages and the id guard:
+        an unstamped row is visible to every owner; a row stamped for
+        ``owner`` matches; a DIFFERENT owner's row never blocks."""
+        stored_owner = ""
+        if metadata_json:
+            try:
+                md_dict = json.loads(metadata_json) if isinstance(metadata_json, str) else metadata_json
+                stored_owner = str((md_dict or {}).get("user_id") or "")
+            except (ValueError, TypeError):
+                stored_owner = ""
+        return stored_owner in ("", str(owner or ""))
+
+    def _stored_content_blocked(
+        self, app_type: str, owner: str, sender: str, recipient: str,
+        subject: str, content: str, timestamp: str,
+    ) -> bool:
+        """Content-identity leg of the store gate, next to the id guard.
+
+        Some fetch paths stamp a FRESH id on an already-stored message
+        (provider id variants across poll/webhook/manual re-fetch). The id
+        guard can't see those; the (sender, recipient, subject, body,
+        business-timestamp) tuple can — a message genuinely re-sent later
+        carries a new timestamp and still ingests (live 2026-09-06: the
+        Sep 4 quote existed under two Graph ids, 24min apart). Only rows
+        visible to ``owner`` block, same contract as the id guard. Fails
+        open — a duplicate re-risks a row, never loses mail."""
+        try:
+            if self.connections_table is None:
+                return False
+            if not content or not timestamp:
+                return False
+            safe = lambda s: str(s or "").replace("'", "''")
+            arrow = (
+                self.connections_table.search()
+                .where(
+                    f"app_type = '{safe(app_type)}' AND sender = '{safe(sender)}' "
+                    f'AND "timestamp" = \'{safe(timestamp)}\'',
+                    prefilter=True,
+                )
+                .limit(50)
+                .to_arrow()
+            )
+            if len(arrow) == 0:
+                return False
+            want = {
+                "sender": str(sender or ""),
+                "recipient": str(recipient or ""),
+                "subject": str(subject or ""),
+                "body": _hashlib.sha256(str(content).encode("utf-8", "replace")).hexdigest(),
+            }
+            rows = arrow.to_pylist()
+            for row in rows:
+                if str(row.get("recipient") or "") != want["recipient"]:
+                    continue
+                if str(row.get("subject") or "") != want["subject"]:
+                    continue
+                body = _hashlib.sha256(
+                    str(row.get("content") or "").encode("utf-8", "replace")
+                ).hexdigest()
+                if body != want["body"]:
+                    continue
+                if self._stored_owner_visible_to(row.get("metadata"), owner):
+                    return True
+            return False
+        except Exception as e:
+            logger.debug(f"Content-identity dedup lookup skipped: {e}")
+            return False
+
+    _HEAL_MARKER = "__store_heal_comms_dedup_v1"
+
+    def _heal_duplicate_rows(self) -> None:
+        """One-shot startup reconciliation: drop rows the store gate would
+        now refuse, so an existing install converges to the state a fresh
+        one starts in — id twins from the multi-process double-poll (Sep 5:
+        one message 25x) and identical bodies re-stamped under a new id.
+        Group keys mirror the gate exactly ((app_type, id) and
+        (app_type, sender, recipient, subject, body-hash, timestamp)), each
+        scoped to one owner stamp, since a DIFFERENT owner's row is a
+        legitimate copy, not a duplicate. Runs once per store — the marker
+        row lives in ingestion_metadata — so fresh installs pay one empty
+        scan. Fault-isolated: on failure the store keeps its duplicates and
+        the next startup retries."""
+        if self.connections_table is None or self.metadata_table is None:
+            return
+        try:
+            marker = (
+                self.metadata_table.search()
+                .where(f"app_type = '{self._HEAL_MARKER}'", prefilter=True)
+                .limit(1)
+                .to_arrow()
+            )
+            if len(marker) > 0:
+                return
+        except Exception as marker_err:
+            logger.warning(
+                f"duplicate-row heal marker lookup failed ({marker_err}) — "
+                f"skipping heal this startup"
+            )
+            return
+
+        with self._store_surgery_lock:
+            try:
+                total = self.connections_table.count_rows()
+                if total == 0:
+                    self._write_heal_marker(removed=0, id_dups=0, content_dups=0, scanned=0)
+                    return
+                rows = (
+                    self.connections_table.search()
+                    .with_row_id(True)
+                    .limit(total)
+                    .to_arrow()
+                    .to_pylist()
+                )
+
+                def _owner_stamp(row: Dict[str, Any]) -> str:
+                    try:
+                        md = row.get("metadata")
+                        md = json.loads(md) if isinstance(md, str) else md
+                        return str((md or {}).get("user_id") or "")
+                    except (ValueError, TypeError):
+                        return ""
+
+                def _body_hash(row: Dict[str, Any]) -> str:
+                    return _hashlib.sha256(
+                        str(row.get("content") or "").encode("utf-8", "replace")
+                    ).hexdigest()
+
+                keep: Dict[Tuple, int] = {}
+                redundant: List[int] = []
+                id_dups = content_dups = 0
+                for row in rows:
+                    rid = row.get("_rowid")
+                    stamp = _owner_stamp(row)
+                    id_key = ("id", str(row.get("app_type") or ""), str(row.get("id") or ""), stamp)
+                    if id_key in keep:
+                        redundant.append((rid, "id"))
+                        id_dups += 1
+                        continue
+                    keep[id_key] = rid
+                    content_key = (
+                        "content", str(row.get("app_type") or ""),
+                        str(row.get("sender") or ""), str(row.get("recipient") or ""),
+                        str(row.get("subject") or ""), _body_hash(row),
+                        str(row.get("timestamp") or ""), stamp,
+                    )
+                    if content_key in keep:
+                        redundant.append((rid, "content"))
+                        content_dups += 1
+                        continue
+                    keep[content_key] = rid
+
+                if redundant:
+                    # Delete promptly after the scan: compaction between the
+                    # two would remap _rowids. The store keeps 7 days of
+                    # versions (maintenance cleanup_old_versions), so any
+                    # mistake here is time-travel recoverable.
+                    for i in range(0, len(redundant), 500):
+                        batch = redundant[i:i + 500]
+                        predicate = "_rowid IN (" + ",".join(str(r[0]) for r in batch) + ")"
+                        self.connections_table.delete(predicate)
+                    logger.warning(
+                        f"Duplicate-row heal: removed {len(redundant)} redundant rows "
+                        f"from atom_communications ({id_dups} id twins, "
+                        f"{content_dups} re-stamped content twins) of {total} scanned"
+                    )
+                self._write_heal_marker(
+                    removed=len(redundant), id_dups=id_dups,
+                    content_dups=content_dups, scanned=total,
+                )
+            except Exception as heal_err:
+                logger.error(f"Duplicate-row heal failed (will retry next startup): {heal_err}")
+
+    def _write_heal_marker(self, removed: int, id_dups: int, content_dups: int, scanned: int) -> None:
+        try:
+            self.metadata_table.add([{
+                "app_type": self._HEAL_MARKER,
+                "last_ingested": datetime.now(),
+                "total_messages": int(removed),
+                "config": json.dumps({
+                    "id_duplicates_removed": id_dups,
+                    "content_duplicates_removed": content_dups,
+                    "rows_scanned": scanned,
+                }),
+                "status": "done",
+            }])
+        except Exception as marker_err:
+            # Without the marker the heal re-runs next startup — harmless
+            # (a healed store scans clean) but noisy.
+            logger.warning(f"Could not persist duplicate-row heal marker: {marker_err}")
+
     def ingest_communication(self, data: CommunicationData) -> bool:
         """Ingest single communication into LanceDB"""
         try:
+            # Cross-process idempotency: the poller's seen-id map can't see
+            # another process's marks, but the store can. A row stamped for
+            # a DIFFERENT owner still ingests (ownership-scoped search keeps
+            # those invisible, same contract as _dedup_messages).
+            owner = ""
+            if isinstance(data.metadata, dict):
+                owner = str(data.metadata.get("user_id") or "")
+            if self._stored_row_blocked(data.app_type, data.id, owner):
+                logger.info(
+                    f"Skipped duplicate communication {data.id} — row already "
+                    f"present in store (cross-process guard)"
+                )
+                return True
+            if self._stored_content_blocked(
+                data.app_type, owner, data.sender, data.recipient,
+                data.subject, data.content, data.timestamp,
+            ):
+                logger.info(
+                    f"Skipped communication {data.id} — identical content "
+                    f"already stored under a different id (content-identity guard)"
+                )
+                return True
+
+            # Styling preservation net (ALL apps): producers that bypass the
+            # per-app normalizers (projects/sales pipelines, API/webhook
+            # ingests) get the same treatment here — idempotent for content
+            # a normalizer already processed.
+            data.content, data.metadata = _apply_styling_preservation(
+                data.content, data.metadata
+            )
+
             # Convert to record
             record = {
                 "id": data.id,
@@ -482,7 +936,26 @@ class LanceDBMemoryManager:
             # For simplicity, we currently map generic records to the communications table
             # but with different metadata and record type markers.
             # In a more advanced version, we might use separate tables.
-            
+
+            # Same cross-process id gate as ingest_communication — webhook
+            # redelivery and re-polled records were reaching the table via
+            # this path with the guard only covering communications.
+            owner = ""
+            if isinstance(record_data.metadata, dict):
+                owner = str(record_data.metadata.get("user_id") or "")
+            if self._stored_row_blocked(record_data.app_type, record_data.id, owner):
+                logger.info(
+                    f"Skipped duplicate generic record {record_data.id} — row "
+                    f"already present in store (cross-process guard)"
+                )
+                return True
+
+            # Styling preservation net — same contract as
+            # ingest_communication, for the unified-record path.
+            record_data.content, record_data.metadata = _apply_styling_preservation(
+                record_data.content, record_data.metadata
+            )
+
             # Map AtomRecordData to a format compatible with atom_communications table
             record = {
                 "id": record_data.id,
@@ -520,38 +993,14 @@ class LanceDBMemoryManager:
             return False
     
     def ingest_batch(self, data_list: List[CommunicationData]) -> bool:
-        """Ingest batch of communications"""
+        """Ingest batch of communications. Delegates item-by-item to
+        ingest_communication so every row passes the same cross-process
+        guards — a bulk .add() here used to bypass them entirely."""
         try:
-            records = []
-            for data in data_list:
-                record = {
-                    "id": data.id,
-                    "app_type": data.app_type,
-                    "timestamp": data.timestamp,
-                    "direction": data.direction,
-                    "sender": data.sender,
-                    "recipient": data.recipient,
-                    "subject": data.subject,
-                    "content": data.content,
-                    "attachments": json.dumps(data.attachments),
-                    "metadata": json.dumps(data.metadata),
-                    "status": data.status,
-                    "priority": data.priority,
-                    "tags": data.tags,
-                    "vector": data.vector_embedding or [0.0] * 768,
-                    "search_vector": data.vector_embedding or [0.0] * self.embedding_dim
-                }
-                records.append(record)
-            
-            # Add batch to database
-            self.connections_table.add(records)
-            
-            # Update metadata
-            self._update_metadata(data_list[0].app_type, len(data_list))
-            
-            logger.info(f"Ingested batch of {len(data_list)} communications")
+            ingested = sum(1 for data in data_list if self.ingest_communication(data))
+            logger.info(f"Ingested batch of {ingested}/{len(data_list)} communications")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error ingesting batch: {str(e)}")
             return False
@@ -626,10 +1075,64 @@ class LanceDBMemoryManager:
                 search_builder = search_builder.where(f"direction = '{safe_direction}'")
             
             results = search_builder.to_pandas()
+            records = results.to_dict('records')
 
-            return _filter_communication_records_by_owner(
-                results.to_dict('records'), owner_user_id
-            )
+            # FTS merge: the vector+FTS fusion under-ranks exact-token hits
+            # for rare tokens (live 2026-09-02: 'jschulz' — an address
+            # local-part — matched the thread via pure FTS but the fused
+            # ranking buried it under semantic noise). ADDRESS-like tokens
+            # get a dedicated FTS query prepended (a person's address is the
+            # strongest "find their email" signal there is); remaining FTS
+            # rows follow, deduped by id.
+            try:
+                fts_rows = (
+                    self.connections_table.search(query[:500], query_type="fts")
+                    .limit(limit)
+                    .to_pandas()
+                    .to_dict('records')
+                )
+                _addresses = _re_mod.findall(r"[\w.+-]+@[\w.-]+", query)
+                _addr_tokens = _addresses + [
+                    t.split("@")[0] for t in _addresses
+                    if len(t.split("@")[0]) >= 5
+                ]
+                seen_ids = set()
+                prioritized: List[Dict] = []
+                for tok in _addr_tokens[:2]:
+                    try:
+                        for r in (
+                            self.connections_table.search(tok, query_type="fts")
+                            .limit(limit)
+                            .to_pandas()
+                            .to_dict('records')
+                        ):
+                            rid = str(r.get("id"))
+                            if rid not in seen_ids:
+                                seen_ids.add(rid)
+                                prioritized.append(r)
+                    except Exception:
+                        continue
+                fts_ids = {str(r.get("id")) for r in fts_rows + prioritized}
+                records = (
+                    prioritized[:limit]
+                    + [r for r in fts_rows if str(r.get("id")) not in seen_ids][:limit]
+                    + [
+                        r for r in records
+                        if str(r.get("id")) not in fts_ids
+                    ][:limit]
+                )
+            except Exception as fts_merge_err:
+                logger.debug(f"FTS merge skipped: {fts_merge_err}")
+
+            records = [
+                r for r in records
+                if not (
+                    str(r.get("sender") or "") == "system"
+                    and _re_mod.match(r"Message \d+ in conversation", str(r.get("content") or ""))
+                )
+            ]
+
+            return _filter_communication_records_by_owner(records, owner_user_id)
 
         except Exception as hybrid_err:
             # Dim mismatch (query embedder vs stored vectors) or any other
@@ -829,6 +1332,28 @@ def parse_message_timestamp(message_data: Dict[str, Any]) -> datetime:
     return datetime.now()
 
 
+def _message_owner_stamp(message_data: Dict[str, Any]) -> str:
+    """The owner a message record is/would be stamped with ("" = unstamped).
+
+    Mirrors what the normalizer stores in metadata.user_id — the poller
+    stamps the mailbox owner there so ownership-scoped search can enforce
+    the per-account boundary."""
+    md = message_data.get("metadata")
+    if isinstance(md, dict):
+        return str(md.get("user_id") or "")
+    return ""
+
+
+def _extract_email_values(*fields: Any) -> List[str]:
+    """All email addresses present in the given (possibly comma-joined)
+    sender/recipient fields."""
+    values: List[str] = []
+    for field in fields:
+        if field:
+            values.extend(_re_mod.findall(r"[\w.+-]+@[\w.-]+", str(field)))
+    return values
+
+
 class CommunicationIngestionPipeline:
     """Main ingestion pipeline for all communication apps"""
     
@@ -840,11 +1365,21 @@ class CommunicationIngestionPipeline:
         self.app_configs = {}  # Store app-specific configurations
         self.webhook_enabled = {}  # Track which apps have webhooks enabled
 
-        # Poll dedup state: persisted cursors + known message ids. The
-        # cursor used to be memory-only, so every restart re-fetched the
-        # newest page and re-added it — one table on this dev machine grew
-        # to 21k duplicate rows / 20GB of Lance version manifests (Aug 2026).
-        self._seen_message_ids: set = set()
+        # Poll dedup state: persisted cursors + known message ids, tracked
+        # PER APP as id -> owner ("" = unstamped row, visible to every
+        # owner). The cursor used to be memory-only, so every restart
+        # re-fetched the newest page and re-added it — one table on this dev
+        # machine grew to 21k duplicate rows / 20GB of Lance version
+        # manifests (Aug 2026). Owner attribution matters: rows stamped with
+        # a user_id that no longer exists (the 2026-09-04 live-DB wipe left
+        # the Lance store full of dead-owner stamps) must NOT shadow
+        # re-ingestion for the live owner — the agent's search is
+        # ownership-scoped, so dead-stamped rows are invisible and only a
+        # fresh ingest under the live stamp makes mail findable again.
+        self._seen_message_ids: Dict[str, Dict[str, str]] = {}
+        # The map is mutated from the event loop (poller) and from worker
+        # threads (maintenance-loop reconciliation) — serialize access.
+        self._seen_state_lock = threading.RLock()
         self._seen_ids_loaded = False
         self._fetch_state_path = (
             Path(str(getattr(memory_manager, "db_path", "./data/atom_memory")))
@@ -870,7 +1405,7 @@ class CommunicationIngestionPipeline:
             logger.warning("Webhook handlers not available, real-time ingestion disabled")
 
     def _load_fetch_state(self) -> None:
-        """Restore fetch cursors + seen message ids across restarts."""
+        """Restore fetch cursors + per-app, per-owner seen message ids."""
         try:
             if self._fetch_state_path.exists():
                 data = json.loads(self._fetch_state_path.read_text() or "{}")
@@ -879,22 +1414,48 @@ class CommunicationIngestionPipeline:
                         self.fetch_timestamps[key] = datetime.fromisoformat(ts)
                     except Exception:
                         continue
-                self._seen_message_ids = set(data.get("seen_message_ids") or [])
+                by_owner = data.get("seen_message_ids_by_owner") or {}
+                self._seen_message_ids = {
+                    str(app): {
+                        str(i): str(owner)
+                        for owner, ids in per_app.items()
+                        if isinstance(ids, list)
+                        for i in ids
+                    }
+                    for app, per_app in by_owner.items()
+                    if isinstance(per_app, dict)
+                }
+                if data.get("seen_message_ids") or data.get("seen_message_ids_by_app"):
+                    # Legacy formats (flat list / per-app without owner
+                    # attribution): ids can't be attributed to an owner, so
+                    # they are discarded — the boot reconciliation re-seeds
+                    # from the durable store, which is authoritative.
+                    logger.info(
+                        "Ignored legacy seen-id list in poll fetch state; "
+                        "store reconciliation re-seeds it"
+                    )
                 logger.info(
                     f"Restored poll fetch state: {len(self.fetch_timestamps)} cursors, "
-                    f"{len(self._seen_message_ids)} known message ids"
+                    f"{sum(len(m) for m in self._seen_message_ids.values())} known "
+                    f"message ids across {len(self._seen_message_ids)} app(s)"
                 )
         except Exception as e:
             logger.warning(f"Could not restore poll fetch state: {e}")
 
     def _save_fetch_state(self) -> None:
-        """Persist fetch cursors + a bounded seen-id set (atomic write)."""
+        """Persist fetch cursors + bounded per-owner seen-id map (atomic write)."""
         try:
+            by_owner: Dict[str, Dict[str, List[str]]] = {}
+            for app, id_owner in self._seen_message_ids.items():
+                for message_id, owner in id_owner.items():
+                    per = by_owner.setdefault(app, {}).setdefault(owner, [])
+                    if len(per) < 20000:
+                        per.append(message_id)
             payload = {
                 "fetch_timestamps": {
                     k: v.isoformat() for k, v in self.fetch_timestamps.items()
                 },
-                "seen_message_ids": list(self._seen_message_ids)[-20000:],
+                "seen_message_ids_by_owner": by_owner,
             }
             tmp = self._fetch_state_path.with_suffix(".tmp")
             tmp.write_text(json.dumps(payload))
@@ -902,26 +1463,300 @@ class CommunicationIngestionPipeline:
         except Exception as e:
             logger.debug(f"Could not persist poll fetch state: {e}")
 
+    # Ghost ids below this threshold are dropped without clearing cursors —
+    # re-fetching a handful of messages is cheaper than re-walking a window.
+    SEEN_GHOST_CURSOR_CLEAR_THRESHOLD = 50
+
+    def _plan_owner_restamps(
+        self,
+        dead_owner_evidence: Dict[str, Dict[str, int]],
+        live_users: Dict[str, str],
+    ) -> Dict[str, str]:
+        """Map orphaned owner stamps to live users, for automatic re-stamp.
+
+        Single-tenant, MULTI-USER app: after a DB wipe/re-seed the memory
+        store keeps stamps of users that no longer exist (new accounts get
+        new ids). Attribution signal is the mailbox address itself — a
+        mailbox owner's email appears in every one of their rows (as sender
+        or recipient), so the most frequent address in an orphaned owner's
+        rows identifies whose mailbox it was; a live user re-created with
+        the same email inherits the rows. Users with a new email address are
+        NOT auto-attributed — their fresh token triggers a full 90-day
+        re-walk under their own stamp instead (owner-aware dedup means
+        orphaned rows never shadow it).
+
+        Returns {dead_owner: live_user_id}; owners left out are logged by
+        the caller."""
+        email_to_users: Dict[str, List[str]] = {}
+        for user_id, email in live_users.items():
+            if email:
+                email_to_users.setdefault(str(email).lower(), []).append(
+                    str(user_id)
+                )
+        restamp: Dict[str, str] = {}
+        for owner, evidence in dead_owner_evidence.items():
+            if not evidence:
+                logger.error(
+                    "Orphaned owner stamp %s has no address evidence to "
+                    "attribute it with — rows stay hidden from scoped "
+                    "search; the affected user's next full re-walk will "
+                    "re-ingest them under their own stamp",
+                    owner[:8],
+                )
+                continue
+            top_email = max(evidence.items(), key=lambda kv: kv[1])[0]
+            matches = email_to_users.get(top_email.lower(), [])
+            if len(matches) == 1:
+                restamp[owner] = matches[0]
+            else:
+                logger.error(
+                    "Orphaned owner stamp %s (mailbox %s) matches %d live "
+                    "users — not auto-attributing; reconnect/re-walk will "
+                    "re-ingest under the correct stamp",
+                    owner[:8],
+                    top_email,
+                    len(matches),
+                )
+        return restamp
+
+    def _apply_owner_restamp(
+        self, table: Any, restamp_map: Dict[str, str]
+    ) -> int:
+        """Re-stamp rows whose metadata.user_id is a dead user to the live
+        owner mapped for it (delete + add; Lance has no in-place update).
+        Callers must run this before the seen map is re-seeded so ownership
+        attribution is correct. Returns the number of rows re-stamped."""
+        if pa is None:
+            logger.error("pyarrow unavailable — cannot auto re-stamp orphaned owner rows")
+            return 0
+        full = table.to_arrow()
+        ids = full.column("id").to_pylist()
+        mds = full.column("metadata").to_pylist()
+
+        new_md, affected = [], []
+        for i, md in enumerate(mds):
+            changed = False
+            if md:
+                try:
+                    parsed = json.loads(md) if isinstance(md, (str, bytes)) else md
+                    if isinstance(parsed, dict):
+                        target = restamp_map.get(str(parsed.get("user_id") or ""))
+                        if target:
+                            parsed["user_id"] = target
+                            md = json.dumps(parsed)
+                            changed = True
+                except Exception:
+                    pass
+            new_md.append(md)
+            if changed:
+                affected.append(str(ids[i]))
+        if not affected:
+            return 0
+        idx = full.schema.get_field_index("metadata")
+        repaired = full.set_column(
+            idx, full.schema.field(idx), pa.array(new_md, type=full.schema.field(idx).type)
+        )
+        affected_set = set(affected)
+        subset = repaired.filter(
+            pa.array([str(v) in affected_set for v in ids])
+        )
+        for start in range(0, len(affected), 80):
+            chunk = affected[start : start + 80]
+            predicate = (
+                "id IN ("
+                + ",".join("'" + x.replace("'", "") + "'" for x in chunk)
+                + ")"
+            )
+            table.delete(predicate)
+        table.add(subset)
+        return len(affected)
+
+    def _clear_cursors_for_app(self, app_type: str) -> int:
+        """Drop every fetch cursor belonging to one app: the exact
+        ``last_fetch_<app>`` key plus per-owner / continuation keys such as
+        ``last_fetch_outlook_<owner>`` and ``last_fetch_outlook_resume_<owner>``.
+        Returns the number of keys removed."""
+        prefix = f"last_fetch_{app_type}"
+        doomed = [
+            k for k in self.fetch_timestamps
+            if k == prefix or k.startswith(prefix + "_")
+        ]
+        for k in doomed:
+            self.fetch_timestamps.pop(k, None)
+        return len(doomed)
+
+    def _reconcile_seen_ids_with_store(self) -> Dict[str, int]:
+        """Self-heal the poll dedup map against the durable store (all apps).
+
+        The seen-id map is a CACHE of what's in the store, never an
+        authority. The state file can outlive its rows (table rebuild after
+        the Aug 2026 21k-duplicate-row cleanup, the root-vs-backend
+        memory-store fork, a wiped workspace) — trusting those ghost ids
+        permanently blocked re-ingestion of ~5,900 fetched-but-unstored
+        outlook emails (Sep 2026: 'only 50 emails ingested', the agent could
+        not find threads that existed in the mailbox).
+
+        Reconciliation: the per-app id->owner map is REPLACED with the ids
+        actually in the store (owner read from metadata.user_id, "" when
+        unstamped); the difference is reported per app as ghosts. When an
+        app's ghost count crosses SEEN_GHOST_CURSOR_CLEAR_THRESHOLD, that
+        app's cursors are cleared so only ITS window is re-walked — other
+        apps' cursors are untouched. Re-seeding from store ids keeps the
+        re-walk duplication-free.
+
+        Runs at poller boot (_ensure_seen_ids_loaded) and periodically from
+        the maintenance loop, so a store rebuilt even mid-process heals on
+        the next cycle. Hold _seen_state_lock across the scan+apply so a
+        concurrent poller add can't be dropped by a stale snapshot.
+        """
+        if self.memory_manager.db is None:
+            self.memory_manager.initialize()
+        table = self.memory_manager.connections_table
+        if table is None:
+            return {}
+        # Projection pushdown: materialize ONLY the small columns. The
+        # naive table.to_arrow() pulled content + 384-dim vectors for every
+        # row — on the external drive that scanned a 5.7GB table per
+        # reconcile and blocked the event loop (Sep 6, 2026: ingestion-
+        # status and /api/health stalled >60s while the post-reconnect
+        # backlog drained).
+        rows = (
+            table.search()
+            .select(["id", "app_type", "metadata", "sender", "recipient"])
+            .limit(None)
+            .to_arrow()
+            .to_pylist()
+        )
+        store_by_app: Dict[str, Dict[str, str]] = {}
+        # Mailbox-address evidence per owner: an owner's own address appears
+        # in every one of their rows (sender or recipient) — the attribution
+        # signal for re-stamping orphaned owners after a world wipe/re-seed.
+        owner_email_evidence: Dict[str, Dict[str, int]] = {}
+        for r in rows:
+            if not r.get("id"):
+                continue
+            app = str(r.get("app_type") or "")
+            owner = ""
+            md = r.get("metadata")
+            if md:
+                try:
+                    parsed = json.loads(md) if isinstance(md, (str, bytes)) else md
+                    owner = str((parsed or {}).get("user_id") or "")
+                except Exception:
+                    owner = ""
+            store_by_app.setdefault(app, {})[str(r["id"])] = owner
+            if owner:
+                evidence = owner_email_evidence.setdefault(owner, {})
+                for email in _extract_email_values(r.get("sender"), r.get("recipient")):
+                    evidence[email] = evidence.get(email, 0) + 1
+
+        # Owner-stamp repair: stamps belonging to users that no longer exist
+        # (world wipe/re-seed with a surviving memory store) are invisible to
+        # ownership-scoped search. Attribute them to the re-created account
+        # by mailbox-address evidence and re-stamp BEFORE the seen map is
+        # re-seeded so attribution is correct. Unattributable owners stay
+        # orphaned (never shadowing anything) and the affected user's own
+        # re-walk re-ingests the mail under their stamp.
+        try:
+            from core.database import SessionLocal
+            from core.models import User
+
+            session = SessionLocal()
+            try:
+                live_users = {
+                    str(r[0]): (r[1] or "")
+                    for r in session.query(User.id, User.email).all()
+                }
+            finally:
+                session.close()
+            stamped_owners = {
+                o for id_owner in store_by_app.values() for o in id_owner.values() if o
+            }
+            dead_owners = {
+                o for o in stamped_owners if o and o not in live_users
+            }
+            restamp_map: Dict[str, str] = {}
+            if dead_owners:
+                restamp_map = self._plan_owner_restamps(
+                    {o: owner_email_evidence.get(o, {}) for o in dead_owners},
+                    live_users,
+                )
+            if restamp_map:
+                repaired = self._apply_owner_restamp(table, restamp_map)
+                if repaired:
+                    logger.warning(
+                        "Re-stamped %d communication row(s) from orphaned "
+                        "owner(s) to their re-created accounts %s — "
+                        "previously hidden history is now visible to scoped "
+                        "search",
+                        repaired,
+                        {
+                            o[:8] + "->" + u[:8]
+                            for o, u in restamp_map.items()
+                        },
+                    )
+                    for id_owner in store_by_app.values():
+                        for message_id, owner in id_owner.items():
+                            if owner in restamp_map:
+                                id_owner[message_id] = restamp_map[owner]
+        except Exception as e:
+            logger.debug(f"Owner-stamp reconciliation skipped: {e}")
+
+        report: Dict[str, int] = {}
+        with self._seen_state_lock:
+            for app in set(self._seen_message_ids) | set(store_by_app):
+                store_map = store_by_app.get(app, {})
+                old_map = self._seen_message_ids.get(app, {})
+                ghosts = len(set(old_map) - set(store_map))
+                # Replace (not just intersect): the store is authoritative,
+                # so ids the state file is missing are seeded back too —
+                # a stored row must never be re-ingested by a window walk.
+                self._seen_message_ids[app] = dict(store_map)
+                if ghosts:
+                    report[app] = ghosts
+                    logger.warning(
+                        f"Dropped {ghosts} seen-id ghosts for {app} with no "
+                        "store row (state outlived its rows) — those messages "
+                        "are eligible for re-ingestion"
+                    )
+                    if ghosts >= self.SEEN_GHOST_CURSOR_CLEAR_THRESHOLD:
+                        cleared = self._clear_cursors_for_app(app)
+                        logger.warning(
+                            f"Mass seen-id loss for {app} ({ghosts} ghosts); "
+                            f"cleared {cleared} poll cursor(s) — its window "
+                            "will be re-walked and the lost range re-ingested"
+                        )
+        return report
+
     def _ensure_seen_ids_loaded(self) -> None:
-        """One-time seed of the dedup set from what's already in the store, so
-        a fresh state file (or a wiped cursor) can't re-add existing rows."""
+        """One-time boot reconciliation of the dedup set with the store, so
+        a fresh state file, a wiped table, or a store fork can neither
+        re-add existing rows nor permanently hide fetched mail. The
+        maintenance loop repeats this reconciliation periodically.
+
+        Runs in a DAEMON THREAD: the scan touches the store synchronously
+        and callers sit on the event loop (poll dedup, webhook guard). On a
+        drive-hosted store mid-backlog that scan waits on the write stream
+        — blocking the loop here stalled ingestion-status and /api/health
+        for minutes (Sep 6, 2026). Until the scan lands, the poll runs on
+        the persisted seen map + the store-level dedup guard, so no
+        duplicate can slip through."""
         if self._seen_ids_loaded:
             return
         self._seen_ids_loaded = True
-        try:
-            if self.memory_manager.db is None:
-                self.memory_manager.initialize()
-            table = self.memory_manager.connections_table
-            if table is not None:
-                ids = table.to_arrow().select(["id"]).to_pylist()
-                self._seen_message_ids.update(
-                    str(r["id"]) for r in ids if r.get("id")
-                )
-                logger.info(
-                    f"Loaded {len(self._seen_message_ids)} known message ids for poll dedup"
-                )
-        except Exception as e:
-            logger.debug(f"seen-id seeding skipped: {e}")
+
+        def _reconcile_bg():
+            try:
+                report = self._reconcile_seen_ids_with_store()
+                if report:
+                    logger.info(f"Seen-id reconciliation report: {report}")
+                    self._save_fetch_state()
+            except Exception as e:
+                logger.debug(f"seen-id reconciliation skipped: {e}")
+
+        threading.Thread(
+            target=_reconcile_bg, daemon=True, name="seen-id-reconcile"
+        ).start()
 
     def _ensure_maintenance_loop(self):
         """Start the periodic LanceDB maintenance task (idempotent)."""
@@ -940,6 +1775,30 @@ class CommunicationIngestionPipeline:
                 await asyncio.to_thread(self.memory_manager._maintain_tables)
             except Exception as e:
                 logger.warning(f"LanceDB maintenance pass failed: {e}")
+            # Periodic self-heal: the seen-id cache is re-reconciled with the
+            # durable store after every maintenance pass (the pass that
+            # historically preceded table data loss), so a rebuild or store
+            # fork mid-process heals without waiting for a restart. Runs for
+            # every polled app; only apps with ghost ids get their windows
+            # re-walked. Owner-stamp repair (orphaned stamps after a world
+            # wipe/re-seed) rides on the same reconciliation.
+            try:
+                report = await asyncio.to_thread(self._reconcile_seen_ids_with_store)
+                if report:
+                    logger.info(f"Seen-id reconciliation report: {report}")
+                    self._save_fetch_state()
+            except Exception as e:
+                logger.warning(f"Seen-id reconciliation failed: {e}")
+            # Periodic token rectification: tokens orphaned by a wipe/re-seed
+            # are deactivated and stale-expired ones reported for reconnect.
+            try:
+                from core.integration_startup_reconciliation import (
+                    reconcile_integration_tokens,
+                )
+
+                await asyncio.to_thread(reconcile_integration_tokens)
+            except Exception as e:
+                logger.warning(f"Token reconciliation failed: {e}")
             await asyncio.sleep(interval_hours * 3600)
 
     def configure_app(self, app_type: CommunicationAppType, config: IngestionConfig):
@@ -1118,11 +1977,31 @@ class CommunicationIngestionPipeline:
                 logger.debug(f"Webhook ingestion disabled for {app_type}, skipping")
                 return
 
+            # Redelivery guard: webhook providers retry deliveries (Slack
+            # re-posts on any non-200 within 3s, Graph re-notifies on
+            # subscription churn), and the poll loop can't dedup these —
+            # webhook ids never passed through _fetch_new_messages. Key on
+            # the same id the normalizer stores; messages without a stable
+            # id (the normalizer would mint a fresh timestamp id) can't be
+            # deduped here and are left to the caller to make idempotent.
+            message_id = str(message_data.get("id") or "")
+            if message_id and self.is_message_known(
+                app_type, message_id, owner=_message_owner_stamp(message_data)
+            ):
+                logger.debug(f"Webhook message {message_id} already ingested ({app_type})")
+                return
+
             # Ingest the message
             logger.info(f"Processing webhook message from {app_type}")
             success = await self.ingest_message(app_type, message_data)
 
             if success:
+                # Mark only after the store write succeeded (mark-after-
+                # success contract — see _ingest_and_mark).
+                if message_id:
+                    self.mark_message_ingested(
+                        app_type, message_id, owner=_message_owner_stamp(message_data)
+                    )
                 logger.info(f"Successfully ingested webhook message from {app_type}")
             else:
                 logger.error(f"Failed to ingest webhook message from {app_type}")
@@ -1189,29 +2068,52 @@ class CommunicationIngestionPipeline:
                 # Trigger Knowledge Extraction asynchronously if enabled and content exists
                 from core.automation_settings import get_automation_settings
                 settings = get_automation_settings()
-                
-                if settings.is_automations_enabled() and settings.is_extraction_enabled() and comm_data.content and len(comm_data.content.strip()) > 20:
+
+                # Backfill budget: a poll after restart can ingest hundreds of
+                # never-seen OLD messages at once (cursor rollback / widened
+                # window). Each one fires TWO LLM extraction pipelines; on
+                # 2026-09-06 a 179-message backfill saturated the event loop
+                # for 30+ minutes (every endpoint starved — the chat
+                # "open in canvas" button timed out silently) and burned
+                # thousands of routed-LLM calls re-deriving January threads.
+                # Messages older than the budget are indexed and searchable,
+                # but do not auto-fire LLM extraction.
+                extraction_blocked = _extraction_age_blocked(comm_data.timestamp)
+                if extraction_blocked:
+                    logger.info(
+                        f"Knowledge extraction skipped for {comm_data.id} "
+                        f"(older than ATOM_KG_EXTRACT_MAX_AGE_DAYS budget — "
+                        f"backfill indexed without LLM extraction)"
+                    )
+
+                if (settings.is_automations_enabled() and settings.is_extraction_enabled()
+                        and not extraction_blocked
+                        and comm_data.content and len(comm_data.content.strip()) > 20):
                     try:
                         # 1. Standard Knowledge Extraction
                         knowledge_manager = get_knowledge_ingestion()
                         # Use a background task if loop exists
                         try:
                             if loop.is_running():
-                                loop.create_task(knowledge_manager.process_document(
-                                    text=comm_data.content,
-                                    doc_id=comm_data.id,
-                                    source=f"integration:{app_type}",
-                                    user_id=comm_data.metadata.get("user_id", "default_user")
+                                loop.create_task(_bounded_extraction(
+                                    knowledge_manager.process_document(
+                                        text=comm_data.content,
+                                        doc_id=comm_data.id,
+                                        source=f"integration:{app_type}",
+                                        user_id=comm_data.metadata.get("user_id", "default_user")
+                                    )
                                 ))
-                                
+
                                 # 2. Advanced Communication Intelligence (Intent + Responses)
                                 from core.communication_intelligence import (
                                     CommunicationIntelligenceService,
                                 )
                                 intel_service = CommunicationIntelligenceService()
-                                loop.create_task(intel_service.analyze_and_route(
-                                    comm_data=asdict(comm_data),
-                                    user_id=comm_data.metadata.get("user_id", "default_user")
+                                loop.create_task(_bounded_extraction(
+                                    intel_service.analyze_and_route(
+                                        comm_data=asdict(comm_data),
+                                        user_id=comm_data.metadata.get("user_id", "default_user")
+                                    )
                                 ))
                         except RuntimeError:
                             # Not in an async context with a running loop
@@ -1258,18 +2160,29 @@ class CommunicationIngestionPipeline:
 
         while True:
             try:
+                # Watermark rollback point: if we fetch messages but can't
+                # STORE them (external memory store offline, transient lance
+                # errors), the fetch already promoted the cursors — without
+                # a rollback that mail is stranded below the new watermark
+                # (marked never, re-fetched never). Restoring the pre-fetch
+                # cursors re-walks the window next poll; mark-after-success
+                # seen-ids + the store-level dedup guard make that re-walk
+                # idempotent (Sep 5, 2026 external-drive disconnect).
+                cursor_backup = dict(self.fetch_timestamps)
+
                 # Fetch new messages from the app's API
                 new_messages = await self._fetch_new_messages(app_type)
 
                 if new_messages:
                     logger.info(f"Fetched {len(new_messages)} new messages from {app_type}")
-
-                    # Ingest each message
-                    for message in new_messages:
-                        try:
-                            await self.ingest_message(app_type, message)
-                        except Exception as e:
-                            logger.error(f"Failed to ingest message from {app_type}: {e}")
+                    failed = await self._ingest_and_mark(app_type, new_messages)
+                    if failed:
+                        restored = self._rollback_cursors_for_app(app_type, cursor_backup)
+                        logger.warning(
+                            f"{failed}/{len(new_messages)} {app_type} messages not "
+                            f"stored — rolled back {restored} fetch cursor(s); "
+                            f"window will be re-walked next poll"
+                        )
 
                 # Land accumulated stats once per cycle (not per message)
                 await asyncio.to_thread(self.memory_manager._flush_metadata)
@@ -1280,6 +2193,117 @@ class CommunicationIngestionPipeline:
             except Exception as e:
                 logger.error(f"Error in real-time ingestion for {app_type}: {str(e)}")
                 await asyncio.sleep(60)  # Wait longer on error
+
+    def _rollback_cursors_for_app(self, app_type: str, backup: Dict[str, Any]) -> int:
+        """Restore this app's fetch cursors (incl. per-owner and resume
+        keys) to their pre-poll values from ``backup``. Returns how many
+        keys were restored."""
+        prefix = f"last_fetch_{app_type}"
+        restored = 0
+        for key, value in backup.items():
+            if key.startswith(prefix):
+                self.fetch_timestamps[key] = value
+                restored += 1
+        if restored:
+            self._save_fetch_state()
+        return restored
+
+    def is_message_known(self, app_type: str, message_id: str, owner: str = "") -> bool:
+        """True if a message id is already recorded for this app.
+
+        The seen-id cache is reconciled against the durable store at boot and
+        periodically (see _reconcile_seen_ids_with_store), so a known id
+        means the row exists (or existed at the last reconciliation).
+        Ingestion paths that BYPASS the poll loop — webhook handlers, the
+        telegram polling worker — use this plus mark_message_ingested to get
+        the same mark-after-success dedup the poller has; without it,
+        provider redelivery (Slack retries on non-200, Graph subscription
+        redelivery, Telegram re-poll after restart) duplicated rows.
+        """
+        if not message_id:
+            return False
+        self._ensure_seen_ids_loaded()
+        with self._seen_state_lock:
+            id_owner = self._seen_message_ids.get(app_type, {}).get(message_id)
+        # An unstamped stored row ("") is visible to every owner; a row
+        # stamped for a DIFFERENT owner is not (ownership-scoped search), so
+        # it must not block this owner's ingest.
+        return id_owner is not None and id_owner in ("", owner)
+
+    def mark_message_ingested(
+        self, app_type: str, message_id: str, owner: str = ""
+    ) -> None:
+        """Record a message id as ingested (call only after a successful
+        store write — a pre-marked id that never landed in the store is
+        exactly the ghost-id data-loss mode this pipeline healed from)."""
+        if not message_id:
+            return
+        with self._seen_state_lock:
+            self._seen_message_ids.setdefault(app_type, {})[message_id] = str(owner or "")
+
+    async def _ingest_and_mark(self, app_type: str, messages: List[Dict[str, Any]]) -> int:
+        """Ingest fetched messages and record their ids as seen ONLY on
+        success. An id that joins the seen set before its row exists (the
+        old fetch-time marking) permanently blocks the message from
+        re-ingestion — ~5,900 outlook emails were lost that way before the
+        store reconciliation existed; marking after success keeps a failed
+        write on the retry path instead.
+
+        Returns the FAILURE count so the poll loop can roll the fetch
+        cursors back when messages didn't land (external store offline) —
+        otherwise that mail sits below the promoted watermark, marked
+        never and re-fetched never."""
+        ingested = 0
+        for message in messages:
+            try:
+                success = await self.ingest_message(app_type, message)
+            except Exception as e:
+                logger.error(f"Failed to ingest message from {app_type}: {e}")
+                success = False
+            if success:
+                ingested += 1
+                message_id = str(message.get("id") or "")
+                if message_id:
+                    with self._seen_state_lock:
+                        self._seen_message_ids.setdefault(app_type, {})[message_id] = (
+                            _message_owner_stamp(message)
+                        )
+            else:
+                logger.warning(
+                    f"Ingest failed for {app_type} message "
+                    f"{message.get('id')} — will retry next poll"
+                )
+        if ingested < len(messages):
+            logger.warning(
+                f"Ingested {ingested}/{len(messages)} fetched "
+                f"{app_type} messages; remainder will be retried"
+            )
+        self._save_fetch_state()
+        return len(messages) - ingested
+
+    def _dedup_messages(
+        self, app_type: str, messages: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Re-fetch guard: drop messages already ingested under the SAME
+        owner's stamp (or as unstamped rows, which ownership-scoped search
+        shows to every owner). A row stamped for a DIFFERENT owner never
+        blocks an ingest — search is ownership-scoped, so dead-owner rows
+        are invisible and the live owner needs its own copy."""
+        self._ensure_seen_ids_loaded()
+        fresh: List[Dict[str, Any]] = []
+        with self._seen_state_lock:
+            known_for_app = self._seen_message_ids.setdefault(app_type, {})
+            for message in messages:
+                message_id = str(message.get("id") or "")
+                if not message_id:
+                    fresh.append(message)
+                    continue
+                stamp = _message_owner_stamp(message)
+                id_owner = known_for_app.get(message_id)
+                if id_owner is not None and id_owner in ("", stamp):
+                    continue
+                fresh.append(message)
+        return fresh
 
     async def _fetch_new_messages(self, app_type: str) -> List[Dict[str, Any]]:
         """
@@ -1319,15 +2343,13 @@ class CommunicationIngestionPipeline:
             # Re-fetch guard: drop messages already ingested. A cold cursor
             # (fresh state file, wiped table, or clock overlap) used to mean
             # the newest page was re-added in full on every restart.
-            self._ensure_seen_ids_loaded()
-            fresh: List[Dict[str, Any]] = []
-            for message in messages:
-                message_id = str(message.get("id") or "")
-                if message_id and message_id in self._seen_message_ids:
-                    continue
-                if message_id:
-                    self._seen_message_ids.add(message_id)
-                fresh.append(message)
+            #
+            # IDs are NOT marked seen here — only after a successful ingest
+            # (see _ingest_and_mark). Marking at fetch time permanently
+            # lost any message whose ingest failed or was dropped: the id was
+            # in the seen set, the row never was, and no later poll would
+            # retry it (~5,900 emails lost that way before Sep 2026).
+            fresh = self._dedup_messages(app_type, messages)
             if len(fresh) < len(messages):
                 logger.info(
                     f"Skipped {len(messages) - len(fresh)} already-ingested "
@@ -3016,8 +4038,17 @@ class CommunicationIngestionPipeline:
                 or message_data.get("content")
                 or ""
             )
+            _email_tables: List[Dict] = []
+            raw_html: Optional[str] = None
             if str(message_data.get("content_type", "")).lower() == "html":
-                content = _html_to_text(content)
+                # Style preservation (shared mechanism): the tag-stripped
+                # text below is what search indexes, but signatures/table
+                # styling/links live only in the original markup. Keep a
+                # size-capped raw HTML copy in metadata so agents can
+                # reproduce the exact formatting.
+                _, raw_html = _extract_raw_markup(content, message_data,
+                                                  message_data.get("content_type"))
+                content, _email_tables = _html_to_text_with_tables(content)
             # Secrets redaction: email bodies are attacker-controlled text that
             # agents recall later. Reuse the document-path redactor so stored
             # content never carries live credentials. Best-effort — a redactor
@@ -3052,6 +4083,13 @@ class CommunicationIngestionPipeline:
                 "thread_id": message_data.get("thread_id"),
                 "email_metadata": _inner_meta,
             }
+            if _email_tables:
+                # Structured table data (markdown + rows) — agents recognize
+                # the table in ingested data and can rebuild it as a real
+                # HTML table in the email canvas (editor-taught).
+                _email_meta["tables"] = _email_tables[:5]
+            if raw_html:
+                _email_meta["html_body"] = raw_html
             if _inner_meta.get("user_id"):
                 _email_meta["user_id"] = _inner_meta["user_id"]
             return {
@@ -3072,6 +4110,46 @@ class CommunicationIngestionPipeline:
         
         # Generic normalization for other apps
         else:
+            # Styling preservation for EVERY communication app (Slack, Teams,
+            # Telegram, Discord, Google Chat, SMS, …): recover platform link
+            # syntax into markdown links and keep style-bearing raw markup
+            # (HTML bodies, rich payloads) size-capped in metadata. Plain
+            # text passes through untouched — never-raise.
+            _raw_content = (
+                message_data.get("content")
+                or message_data.get("text")
+                or message_data.get("body")
+                or ""
+            )
+            _content_type = message_data.get("content_type")
+            _meta_key, _raw_markup = _extract_raw_markup(
+                _raw_content, message_data, _content_type)
+            if _raw_markup and _meta_key == "html_body":
+                # Rich variant present: derive the stored text from the
+                # markup so links survive (Teams emits html_content alongside
+                # a link-stripped plain text field).
+                _generic_content = _shared_html_to_text(_raw_markup)
+            else:
+                _generic_content = _preserve_links_general(
+                    _raw_content if isinstance(_raw_content, str) else str(_raw_content)
+                )
+
+            _generic_meta = message_data.get("metadata", {})
+            if _raw_markup:
+                if isinstance(_generic_meta, dict):
+                    _generic_meta = {**_generic_meta, _meta_key: _raw_markup}
+                else:
+                    # Some producers hand metadata over JSON-encoded; unwrap,
+                    # attach, re-encode — never raise, never lose the rest.
+                    try:
+                        import json as _json
+                        _parsed = _json.loads(_generic_meta) if isinstance(_generic_meta, str) else {}
+                        if isinstance(_parsed, dict):
+                            _parsed[_meta_key] = _raw_markup
+                            _generic_meta = _json.dumps(_parsed)
+                    except Exception:
+                        pass
+
             return {
                 "id": message_data.get("id", f"{app_type}_{datetime.now().isoformat()}"),
                 "app_type": app_type,
@@ -3084,14 +4162,9 @@ class CommunicationIngestionPipeline:
                 # "text", email-ish sources use "body", others "content".
                 # Without this, Telegram messages were stored with EMPTY
                 # content (and meaningless embeddings).
-                "content": (
-                    message_data.get("content")
-                    or message_data.get("text")
-                    or message_data.get("body")
-                    or ""
-                ),
+                "content": _generic_content,
                 "attachments": message_data.get("attachments", []),
-                "metadata": message_data.get("metadata", {}),
+                "metadata": _generic_meta,
                 "status": message_data.get("status", "active"),
                 "priority": message_data.get("priority", "normal"),
                 "tags": message_data.get("tags", [])
@@ -3172,9 +4245,24 @@ def get_memory_manager(workspace_id: Optional[str] = None) -> LanceDBMemoryManag
 memory_manager = get_memory_manager()
 
 def get_ingestion_pipeline(workspace_id: Optional[str] = None) -> CommunicationIngestionPipeline:
-    """Get workspace-aware ingestion pipeline"""
-    mgr = get_memory_manager(workspace_id)
-    return CommunicationIngestionPipeline(mgr)
+    """Get workspace-aware ingestion pipeline.
+
+    One instance per workspace, process-wide. The pipeline carries poller
+    state (fetch cursors, seen-id set, a running poller task) — a fresh
+    instance per call meant two pollers could run against the same
+    poll_fetch_state.json, each re-saving its own snapshot and reverting the
+    other's cursor progress (Sep 2026: the seen-id-ghost heal kept being
+    undone by the second instance's stale cursors).
+    """
+    ws_id = workspace_id or "default"
+    existing = _pipeline_instances.get(ws_id)
+    if existing is None:
+        existing = CommunicationIngestionPipeline(get_memory_manager(ws_id))
+        _pipeline_instances[ws_id] = existing
+    return existing
+
+
+_pipeline_instances: Dict[str, CommunicationIngestionPipeline] = {}
 
 ingestion_pipeline = get_ingestion_pipeline()
 

@@ -7,7 +7,7 @@ import { useRouter } from "next/router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, ArrowLeft, RefreshCw, History, Trash2, GraduationCap, MessageSquare, ShieldCheck } from "lucide-react";
+import { Send, ArrowLeft, RefreshCw, History, Trash2, GraduationCap, MessageSquare, ShieldCheck, Bot } from "lucide-react";
 import { CanvasPanel } from "@/components/canvas/CanvasPanel";
 import { CanvasVersionHistory } from "@/components/canvas/CanvasVersionHistory";
 import { isCanvasContentFrame } from "@/lib/canvasFrame";
@@ -15,9 +15,13 @@ import { MiniAppHarness } from "@/components/canvas/MiniAppHarness";
 import { TrainingPanel } from "@/components/canvas/TrainingPanel";
 import { JourneyPanel } from "@/components/canvas/JourneyPanel";
 import { AutonomyPanel } from "@/components/canvas/AutonomyPanel";
+import { AgentAttachModal } from "@/components/canvas/AgentAttachModal";
+import { CanvasDataSection } from "@/components/canvas/CanvasDataSection";
+import { listCanvasAgents, type CanvasAgent } from "@/lib/canvas-api";
 import { ChatFeedbackControls, ChatFeedbackType } from "@/components/canvas/ChatFeedbackControls";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { ReasoningChain, type ReasoningStep } from "@/components/Agents/ReasoningChain";
+import { reasoningTextToStep } from "@/components/GlobalChat/ChatMessage";
 import { fetchSessionTrace, submitStepFeedback } from "@/lib/agent-trace-api";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import { getCurrentUserId } from "@/lib/identity";
@@ -37,8 +41,12 @@ interface CanvasMessage {
     // Reasoning steps for THIS reply (live-captured from agent_step_update)
     // + the identifiers step-level training feedback needs.
     reasoningTrace?: ReasoningStep[];
+    /** The model's chain-of-thought for this reply (training + drawer). */
+    reasoning?: string;
     executionId?: string;
     agentId?: string;
+    /** Company playbooks that guided this reply's canvas edit (P3 transparency). */
+    matchedPlaybooks?: { id: string; name: string }[];
 }
 
 export default function CanvasDetailPage() {
@@ -222,7 +230,7 @@ export default function CanvasDetailPage() {
     }, [restoredFeedback]);
 
     // WebSocket — page-agnostic, auto-subscribes to user:{userId}
-    const { lastMessage, isConnected } = useWebSocket({});
+    const { lastMessage, isConnected, onMessage } = useWebSocket({});
 
     // Training panel state: the sidebar hosts the co-editor chat and the
     // agent training panel (approve, teach, score, graduate) side by side.
@@ -246,6 +254,41 @@ export default function CanvasDetailPage() {
         chatEndRef.current?.scrollIntoView({ behavior });
     }, [messages, isAgentResponding, sideTab]);
     const [trainingCtx, setTrainingCtx] = useState<CanvasTrainingContext | null>(null);
+    // Playbook drafts awaiting review (Playbook Journey P1) — badges the
+    // Training tab so corrections that drafted rules are visible from Chat.
+    const [playbookDraftCount, setPlaybookDraftCount] = useState(0);
+
+    // The canvas's hires (explicit attachments) — step 2 of the journey.
+    // A hire must be attached before data can be loaded (the Load data bar
+    // and the backend 409 gate both enforce it), and its identity feeds the
+    // co-editor chat, the training panel, and the hire badge.
+    const [canvasAgents, setCanvasAgents] = useState<CanvasAgent[]>([]);
+    const [agentsLoaded, setAgentsLoaded] = useState(false);
+    const [attachOpen, setAttachOpen] = useState(false);
+    // Bumped after an attach so the training-context effect re-resolves
+    // (the explicit attachment is now its first resolution candidate).
+    const [attachNonce, setAttachNonce] = useState(0);
+
+    const loadCanvasAgents = useCallback(async () => {
+        if (!canvasId) return;
+        try {
+            const agents = await listCanvasAgents(canvasId as string);
+            setCanvasAgents(agents || []);
+        } catch {
+            setCanvasAgents([]);
+        } finally {
+            setAgentsLoaded(true);
+        }
+    }, [canvasId]);
+
+    useEffect(() => {
+        void loadCanvasAgents();
+    }, [loadCanvasAgents]);
+
+    const handleAgentAttached = useCallback((_agent: CanvasAgent) => {
+        void loadCanvasAgents();
+        setAttachNonce(n => n + 1);
+    }, [loadCanvasAgents]);
 
     // The canvas's hire must be known on the CHAT tab too, not just when the
     // training panel is opened — the co-editor chat runs as this agent
@@ -267,7 +310,7 @@ export default function CanvasDetailPage() {
             }
         })();
         return () => { cancelled = true; };
-    }, [canvasId, router.query.agent_id]);
+    }, [canvasId, router.query.agent_id, attachNonce]);
 
     // Register canvas state for AI accessibility
     const canvasState = canvasData ? {
@@ -334,10 +377,18 @@ export default function CanvasDetailPage() {
     const chatSessionIdRef = useRef<string | null>(null);
     useEffect(() => { chatSessionIdRef.current = chatSessionId; }, [chatSessionId]);
 
-    // Listen for live canvas updates via WebSocket
-    useEffect(() => {
-        if (!lastMessage) return;
-        const msg = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
+    // Listen for live canvas updates via WebSocket.
+    // DELIVERY: this handler registers through the socket's onMessage
+    // listener instead of reading the `lastMessage` state slot. The slot
+    // coalesces under a fast frame burst — a streamed reply emits hundreds
+    // of chat_token frames and every frame landing between two render
+    // commits was silently dropped before the effect ran, rendering the
+    // reply with whole chunks missing (the "garbled" bubble, observed live
+    // 2026-09-06 on this page while the stored reply was clean). The
+    // listener fires for EVERY frame, in arrival order.
+    const handleWsMessage = useCallback((raw: any) => {
+        if (!raw) return;
+        const msg = typeof raw === "string" ? JSON.parse(raw) : raw;
 
         // Reasoning steps for the co-editor chat — the SAME events the main
         // chat's workspace panel consumes. The orchestrator records these on
@@ -392,7 +443,7 @@ export default function CanvasDetailPage() {
             // First-message race: tokens arrive BEFORE the POST response
             // sets chatSessionId (the server creates the session id). Only
             // filter once the panel knows its session.
-            if (msg.type === "chat_token" && chatSessionId && data.session_id !== chatSessionId) return;
+            if (msg.type === "chat_token" && chatSessionIdRef.current && data.session_id !== chatSessionIdRef.current) return;
             setMessages(prev => {
                 const streamId = `stream_${data.session_id}`;
                 const existing = prev.find(m => m.id === streamId);
@@ -460,7 +511,9 @@ export default function CanvasDetailPage() {
                 setCanvasData(null);
             }
         }
-    }, [lastMessage, canvasId]);
+    }, [canvasId]);
+
+    useEffect(() => onMessage(handleWsMessage), [onMessage, handleWsMessage]);
 
     // Toggle the version-history slide-out. Fetching + restore live in the
     // shared CanvasVersionHistory component (the chat-page host uses it too).
@@ -558,8 +611,15 @@ export default function CanvasDetailPage() {
                 // The authoritative reply either FINALIZES the streamed
                 // bubble (same session) or appends a fresh assistant message
                 // (no-stream fallback) — never both, which duplicated every
-                // streamed reply (observed live 2026-09-01).
+                // streamed reply (observed live 2026-09-01). Both branches
+                // fall back to the response's chain-of-thought when the WS
+                // steps didn't carry it (stale socket) so the "Reasoning
+                // Process" drawer always has the turn's thinking.
+                const restReasoningStep = reasoningTextToStep(data.reasoning);
                 const streamId = `stream_${data.session_id}`;
+                // P3 transparency: company playbooks that guided this edit
+                // (chat_routes maps the orchestrator's `data` to `metadata`).
+                const matchedPlaybooks = data.metadata?.canvas_edit?.matched_playbooks;
                 setMessages(prev => {
                     const streamed = prev.find(m => m.id === streamId);
                     if (streamed) {
@@ -569,6 +629,11 @@ export default function CanvasDetailPage() {
                             streaming: false,
                             model: data.model ?? m.model ?? null,
                             provider: data.provider ?? m.provider ?? null,
+                            reasoning: data.reasoning ?? m.reasoning ?? undefined,
+                            reasoningTrace: m.reasoningTrace?.length
+                                ? m.reasoningTrace
+                                : (restReasoningStep ? [restReasoningStep] : m.reasoningTrace),
+                            ...(matchedPlaybooks ? { matchedPlaybooks } : {}),
                         } : m));
                     }
                     return [...prev, {
@@ -579,6 +644,9 @@ export default function CanvasDetailPage() {
                         // Attribution for the message-level feedback call.
                         model: data.model ?? null,
                         provider: data.provider ?? null,
+                        reasoning: data.reasoning || undefined,
+                        ...(restReasoningStep ? { reasoningTrace: [restReasoningStep] } : {}),
+                        ...(matchedPlaybooks ? { matchedPlaybooks } : {}),
                     }];
                 });
                 // The WS canvas:update broadcast is the primary live carrier,
@@ -663,7 +731,21 @@ export default function CanvasDetailPage() {
                 }
             }
             if (lateReply) {
-                setMessages(prev => [...prev, lateReply!]);
+                setMessages(prev => {
+                    // The timed-out turn's stream bubble can still be on
+                    // screen (the turn outlived the request and chat_token_done
+                    // was missed with the socket). Retire it — renamed like the
+                    // new-turn retire in the WS handler — so the authoritative
+                    // late reply doesn't sit under a permanently "streaming"
+                    // partial bubble (observed live 2026-09-06: the garbled
+                    // partial stream stayed above the clean late reply).
+                    const retired = sid
+                        ? prev.map(m => (m.id === `stream_${sid}`
+                            ? { ...m, id: `a_${m.timestamp.getTime()}_${Math.random().toString(36).slice(2, 7)}`, streaming: false }
+                            : m))
+                        : prev;
+                    return [...retired, lateReply!];
+                });
                 setChatSessionId(prev => prev || sid!);
             } else {
                 setMessages(prev => [...prev, {
@@ -715,6 +797,9 @@ export default function CanvasDetailPage() {
                         input_summary: msg.content.slice(0, 200),
                         canvas_id: canvasId,
                         source: "canvas_chat",
+                        // The turn's chain-of-thought — the governance
+                        // feedback's original_output is what training judges.
+                        thought: msg.reasoning,
                     },
                     feedbackType: type,
                     comment,
@@ -729,6 +814,7 @@ export default function CanvasDetailPage() {
                     model: msg.model ?? undefined,
                     provider: msg.provider ?? undefined,
                     session_id: chatSessionId ?? undefined,
+                    reasoning: msg.reasoning || undefined,
                 });
             } catch {
                 // router-learning feedback is best-effort by design
@@ -821,6 +907,22 @@ export default function CanvasDetailPage() {
                                 {canvasData.canvas_type}
                             </span>
                         )}
+                        {/* No explicit attachment yet? Offer the attach
+                            action right in the header — data loading stays
+                            gated until the hire is attached (even when a
+                            hire is resolvable from chat provenance). */}
+                        {agentsLoaded && canvasAgents.length === 0 && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => setAttachOpen(true)}
+                                data-testid="add-agent-button"
+                            >
+                                <Bot className="h-3.5 w-3.5 mr-1" />
+                                {trainingCtx?.agent ? "Attach agent" : "Add agent"}
+                            </Button>
+                        )}
                         {/* The hire attached to this canvas: name · category
                             (sales, …) · maturity tier · confidence — visible
                             to the end user without opening the training tab. */}
@@ -880,6 +982,37 @@ export default function CanvasDetailPage() {
                 <div className="flex-1 flex overflow-hidden">
                     {/* Canvas panel (left/center, takes most space) + mini-app harness (bottom) */}
                     <div className="flex-1 flex flex-col overflow-hidden">
+                        {/* Step 3 of the journey: load data — refused until a
+                            hire is attached (the section disables itself; the
+                            backend 409s regardless). */}
+                        {canvasData && (
+                            <CanvasDataSection
+                                canvasId={canvasId as string}
+                                hireAttached={canvasAgents.length > 0}
+                            />
+                        )}
+                        {/* Step 2 nudge: a canvas with no resolvable hire
+                            gets the journey CTA instead of a dead end. */}
+                        {canvasData && agentsLoaded && canvasAgents.length === 0 && !trainingCtx?.agent && (
+                            <div
+                                className="mx-3 mt-3 mb-1 rounded-lg border border-dashed p-4 text-center"
+                                data-testid="canvas-no-agent-banner"
+                            >
+                                <Bot className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                                <p className="text-sm font-medium mb-1">This canvas has no agent yet</p>
+                                <p className="text-xs text-muted-foreground mb-3">
+                                    Add an agent to collaborate in chat, load data, and train it on this canvas.
+                                </p>
+                                <Button
+                                    size="sm"
+                                    onClick={() => setAttachOpen(true)}
+                                    data-testid="banner-add-agent-button"
+                                >
+                                    <Bot className="h-4 w-4 mr-1" />
+                                    Add an agent
+                                </Button>
+                            </div>
+                        )}
                         <div className="flex-1 overflow-hidden">
                             {loading ? (
                                 <div className="flex items-center justify-center h-full">
@@ -899,7 +1032,28 @@ export default function CanvasDetailPage() {
                             )}
                         </div>
                         {canvasData && (
-                            <MiniAppHarness canvasId={canvasId as string} lastMessage={lastMessage} />
+                            <MiniAppHarness
+                                canvasId={canvasId as string}
+                                lastMessage={lastMessage}
+                                // Logic saves go through PUT /canvas/{id}/logic,
+                                // whose R89 governance gate requires an
+                                // AUTONOMOUS agent — without an id every
+                                // Save/Dev-Run 403s ("No agent provided",
+                                // observed live 2026-09-04). Prefer an
+                                // attached hire that qualifies; fall back to
+                                // the deep-linked agent like AutonomyPanel.
+                                agentId={
+                                    canvasAgents.find(
+                                        (a) => (a.maturity || "").toLowerCase() === "autonomous"
+                                    )?.agent_id ||
+                                    (router.query.agent_id as string) ||
+                                    undefined
+                                }
+                                // Default base type for new apps: the kind of
+                                // canvas the harness is mounted on, so a
+                                // sheets/email/… canvas extends its own kind.
+                                canvasType={canvasData?.canvas_type}
+                            />
                         )}
                     </div>
 
@@ -936,6 +1090,15 @@ export default function CanvasDetailPage() {
                                     data-testid="canvas-side-tab-training"
                                 >
                                     <GraduationCap className="h-3.5 w-3.5" /> Training
+                                    {playbookDraftCount > 0 && (
+                                        <span
+                                            className="text-[9px] px-1 rounded-full bg-amber-500 text-white"
+                                            data-testid="training-draft-badge"
+                                            title={`${playbookDraftCount} playbook draft(s) awaiting review`}
+                                        >
+                                            {playbookDraftCount}
+                                        </span>
+                                    )}
                                 </button>
                                 <button
                                     role="tab"
@@ -968,9 +1131,13 @@ export default function CanvasDetailPage() {
 
                         {sideTab === "training" ? (
                             <TrainingPanel
+                                key={`training-${attachNonce}`}
                                 canvasId={canvasId as string}
                                 agentIdHint={(router.query.agent_id as string) || undefined}
+                                canvasType={canvasData?.canvas_type}
                                 onContextLoaded={setTrainingCtx}
+                                onPlaybookDraftsChange={setPlaybookDraftCount}
+                                onAddAgent={() => setAttachOpen(true)}
                             />
                         ) : sideTab === "journey" ? (
                             <JourneyPanel canvasId={canvasId as string} />
@@ -1045,10 +1212,25 @@ export default function CanvasDetailPage() {
                                         />
                                     )}
                                     {msg.type === "assistant" && (
-                                        <ChatFeedbackControls
-                                            selected={msg.feedback ?? null}
-                                            onFeedback={(type, comment) => handleFeedback(msg, type, comment)}
-                                        />
+                                        <>
+                                            {!!msg.matchedPlaybooks?.length && (
+                                                <div className="flex flex-wrap gap-1 mt-1" data-testid="matched-playbooks">
+                                                    {msg.matchedPlaybooks.map(pb => (
+                                                        <span
+                                                            key={pb.id}
+                                                            className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
+                                                            title="An approved company playbook guided this reply"
+                                                        >
+                                                            📖 {pb.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <ChatFeedbackControls
+                                                selected={msg.feedback ?? null}
+                                                onFeedback={(type, comment) => handleFeedback(msg, type, comment)}
+                                            />
+                                        </>
                                     )}
                                 </div>
                             ))}
@@ -1147,6 +1329,14 @@ export default function CanvasDetailPage() {
                         />
                     </div>
                 )}
+
+                {/* Step 2 of the journey: attach a hire (picker + guided create) */}
+                <AgentAttachModal
+                    canvasId={canvasId as string}
+                    open={attachOpen}
+                    onOpenChange={setAttachOpen}
+                    onAttached={handleAgentAttached}
+                />
             </div>
         </>
     );

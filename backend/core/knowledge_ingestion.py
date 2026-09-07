@@ -68,7 +68,12 @@ class KnowledgeIngestionManager:
         self.workspace_id = workspace_id
         self.handler = get_lancedb_handler(workspace_id)
         self.ai_service = RealAIWorkflowService()
-        self.extractor = KnowledgeExtractor(self.ai_service)
+        # Keyword arg: KnowledgeExtractor.__init__(workspace_id, tenant_id) —
+        # the old positional call bound RealAIWorkflowService as workspace_id,
+        # which surfaced as "Failed to fetch tenant plan: Error binding
+        # parameter 1: type 'RealAIWorkflowService' is not supported" on
+        # EVERY extraction (byok_handler's Workspace lookup).
+        self.extractor = KnowledgeExtractor(workspace_id=self.workspace_id)
         # Initialize GraphRAG engine
         try:
             from core.graphrag_engine import graphrag_engine
@@ -97,32 +102,44 @@ class KnowledgeIngestionManager:
         # top-level `name` and resolves edges through that same map.
         entities, relationships = _normalize_extractor_output(entities, relationships)
 
-        success_count = 0
-        for rel in relationships:
-            from_id = rel.get("from")
-            to_id = rel.get("to")
-            rel_type = rel.get("type")
-            props = rel.get("properties", {})
-            
-            description = f"{from_id} {rel_type} {to_id}"
-            if props:
-                description += f" ({str(props)})"
-            
-            success = handler.add_knowledge_edge(
-                from_id=from_id,
-                to_id=to_id,
-                rel_type=rel_type,
-                description=description,
-                metadata={
-                    "doc_id": doc_id,
-                    "source": source,
-                    "properties": props,
-                    "workspace_id": ws_id # Label for within-DB context
-                },
-                user_id=user_id
-            )
-            if success:
-                success_count += 1
+        # SYNC-OFF-LOOP: each add_knowledge_edge is a synchronous LanceDB
+        # write (plus a sync embed attempt) — run per-relationship on this
+        # loop task, they serialized the ENTIRE event loop during the
+        # post-reconnect backlog (Sep 6, 2026: every endpoint stalled; the
+        # lancedb_handler "embed_text (sync) called from the event-loop
+        # thread" warnings fired per edge). One worker thread writes the
+        # whole edge batch; on a drive-hosted store those writes are slow,
+        # but the loop keeps serving.
+        def _write_edges() -> int:
+            written = 0
+            for rel in relationships:
+                from_id = rel.get("from")
+                to_id = rel.get("to")
+                rel_type = rel.get("type")
+                props = rel.get("properties", {})
+
+                description = f"{from_id} {rel_type} {to_id}"
+                if props:
+                    description += f" ({str(props)})"
+
+                success = handler.add_knowledge_edge(
+                    from_id=from_id,
+                    to_id=to_id,
+                    rel_type=rel_type,
+                    description=description,
+                    metadata={
+                        "doc_id": doc_id,
+                        "source": source,
+                        "properties": props,
+                        "workspace_id": ws_id # Label for within-DB context
+                    },
+                    user_id=user_id
+                )
+                if success:
+                    written += 1
+            return written
+
+        success_count = await asyncio.to_thread(_write_edges)
         
         # 3. Also ingest into GraphRAG for hierarchical queries using structured data
         graphrag_stats = {"entities": 0, "relationships": 0}

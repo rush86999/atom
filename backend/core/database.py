@@ -77,10 +77,56 @@ def _anchor_sqlite_url(url: str) -> str:
     return f"{scheme}:///{anchored}{query}"
 
 
+def _targets_live_dev_db(url: str) -> bool:
+    """True when a SQLite URL resolves to a LIVE dev database file —
+    ``backend/dev.db`` (this module's development fallback) or
+    ``backend/data/atom.db`` (the application data store). The 2026-09-04
+    incident wiped the latter from a stray test run."""
+    if not url or not url.startswith("sqlite"):
+        return False
+    path = _anchor_sqlite_url(url).partition(":///")[2].split("?", 1)[0]
+    dev_paths = (
+        os.path.join(_DATABASE_BACKEND_DIR, "dev.db"),
+        os.path.join(_DATABASE_BACKEND_DIR, "data", "atom.db"),
+    )
+    return os.path.normpath(path) in (os.path.normpath(p) for p in dev_paths)
+
+
 def get_database_url():
     """Get database URL with production safety checks"""
+    import sys
+
     env = os.getenv("ENVIRONMENT", "development")
     database_url = os.getenv("DATABASE_URL")
+
+    # INCIDENT GUARD (2026-09-04): a pytest run without TESTING=1 pointed at
+    # the live dev DB and wiped it. Whenever pytest is the importing process,
+    # keep pytest OFF the live dev databases: unset DATABASE_URL or one that
+    # resolves to backend/dev.db / backend/data/atom.db is forced onto the
+    # isolated test database. An explicit NON-dev DATABASE_URL is honored —
+    # the e2e journey (ci.yml) points pytest at /tmp/atom_e2e.db, the very
+    # file the booted backend server uses; forcing the isolated DB here made
+    # the journey fixtures write to a fresh table-less copy
+    # ("no such table: users", CI 2026-09-05). TESTING=0 still opts a pytest
+    # process back into whatever DATABASE_URL says, guard off.
+    pytest_running = (
+        os.getenv("PYTEST_CURRENT_TEST") is not None
+        or os.getenv("PYTEST_VERSION") is not None
+        or "pytest" in sys.modules
+    )
+    if pytest_running and os.getenv("TESTING") != "0":
+        if database_url and not _targets_live_dev_db(database_url):
+            database_url = _anchor_sqlite_url(_clean_postgresql_url(database_url))
+            logger.warning(
+                "🧪 pytest detected: honoring explicit non-dev test DB (%s)",
+                database_url,
+            )
+            return database_url
+        base_dir = _DATABASE_BACKEND_DIR
+        db_path = os.path.join(base_dir, "test_integration.db")
+        database_url = f"sqlite:///{db_path}"
+        logger.warning("🧪 pytest detected: forcing isolated test DB (%s)", db_path)
+        return database_url
 
     if os.getenv("TESTING") == "1":
         # Force SQLite for integration tests to prevent connection to production Postgres
@@ -209,6 +255,32 @@ if poolclass is not None and not isinstance(poolclass, str):
     engine_kwargs["poolclass"] = poolclass
 
 engine = create_engine(DATABASE_URL, **engine_kwargs)
+
+# SQLite durability/concurrency pragmas on EVERY connection (per-connection
+# settings must be re-applied per checkout). Evidence (Sep 6, 2026): the
+# ingestion re-walk wrote knowledge edges continuously while the DB sat in
+# the default journal mode — every writer took an exclusive lock and EVERY
+# reader endpoint blocked behind it ("app is just really slow in loading
+# anything"; sampled the live process: the event-loop thread itself parked
+# on a lock). WAL lets readers proceed while one writer works; NORMAL sync
+# is the recommended pairing (durable across app crashes, only vulnerable
+# to OS power loss); busy_timeout replaces spurious "database is locked".
+if "sqlite" in DATABASE_URL and ":memory:" not in DATABASE_URL:
+    from sqlalchemy import event as _sa_event
+
+    @_sa_event.listens_for(engine, "connect")
+    def _sqlite_pragmas(dbapi_connection, _record):
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            # busy_timeout: connect_args may already request a longer grace
+            # (timeout=20 → 20s). Never LOWER an existing setting.
+            current_ms = cursor.execute("PRAGMA busy_timeout").fetchone()[0]
+            if current_ms < 5000:
+                cursor.execute("PRAGMA busy_timeout=5000")
+        finally:
+            cursor.close()
 
 # Create session with production settings
 SessionLocal = sessionmaker(

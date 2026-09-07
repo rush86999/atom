@@ -237,7 +237,9 @@ class TestGetActiveToken:
              patch("core.privsec.token_encryption.encrypt_token", return_value="enc-newtok"), \
              patch("core.privsec.token_encryption.stamp_credential_metadata") as stamp:
             token = await svc._get_active_token("tid1")
-        assert token == "enc-newtok"
+        # Caller gets a usable bearer token — the ciphertext stored on the
+        # row is decrypted before returning (same fix as zoho_inventory).
+        assert token == "refresh-plain"
         assert db.commits == 1
         assert record.access_token == "enc-newtok"
         stamp.assert_called_once_with(record)
@@ -285,7 +287,7 @@ class TestGetActiveToken:
              patch("core.privsec.token_encryption.encrypt_token", return_value="enc-new"), \
              patch("core.privsec.token_encryption.stamp_credential_metadata"):
             token = await svc._get_active_token("tid1")
-        assert token == "enc-new"
+        assert token == "rp"  # decrypted, not the stored ciphertext
 
     async def test_db_exception_returns_none(self):
         svc = _svc()

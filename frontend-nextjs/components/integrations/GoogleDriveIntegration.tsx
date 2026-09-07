@@ -9,9 +9,13 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { authFetch } from "@/lib/auth-headers";
+import { notifyIngestionUpdated } from "@/lib/ingestion-events";
+import { runIngestJob, fetchRecentJobs, type IngestJob } from "@/lib/ingest-jobs";
+import IngestionJobsStrip from "@/components/integrations/IngestionJobsStrip";
 import {
   ChevronRight,
   ArrowRight,
@@ -69,9 +73,47 @@ const GoogleDriveIntegration: React.FC = () => {
   ]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [ingestingId, setIngestingId] = useState<string | null>(null);
+  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
+  const [ingestingFolders, setIngestingFolders] = useState(false);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [recentJobs, setRecentJobs] = useState<IngestJob[]>([]);
+  const [ingestedIds, setIngestedIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  // Ingest jobs live server-side and outlive this page — surface running /
+  // recent ones so an ingest started before this page load is visible.
+  useEffect(() => {
+    refreshRecentJobs();
+    const timer = setInterval(refreshRecentJobs, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const refreshRecentJobs = async () => {
+    setRecentJobs(await fetchRecentJobs(authFetch, "/api/gdrive"));
+  };
+
+  // Durable badge source of truth: which listed files are already in ATOM
+  // memory (POST /ingested-ids probes the document store).
+  const hydrateIngestedIds = async (listed: GoogleDriveFile[]) => {
+    const fileIds = (listed || []).filter((f) => !f.isFolder).map((f) => f.id);
+    if (fileIds.length === 0) return;
+    try {
+      const response = await authFetch("/api/gdrive/ingested-ids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_ids: fileIds }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const ingested: string[] = data?.data?.ingested ?? data?.ingested ?? [];
+      if (ingested.length > 0) {
+        setIngestedIds((prev) => new Set([...prev, ...ingested]));
+      }
+    } catch {
+      // badges are best-effort
+    }
+  };
 
   // Fetch connection status
   const fetchConnectionStatus = async () => {
@@ -119,6 +161,10 @@ const GoogleDriveIntegration: React.FC = () => {
           setFiles(prev => [...prev, ...(data.files || [])]);
         } else {
           setFiles(data.files || []);
+          // The listing changed (navigation/refresh) — selections refer to
+          // rows that may no longer be on screen.
+          setSelectedFolderIds(new Set());
+          hydrateIngestedIds(data.files || []);
         }
 
         setNextPageToken(data.nextPageToken);
@@ -218,26 +264,33 @@ const GoogleDriveIntegration: React.FC = () => {
   const handleIngestFile = async (file: GoogleDriveFile) => {
     try {
       setIngestingId(file.id);
-      const response = await authFetch('/api/ingest-gdrive-document', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Backend JOB (a big file parses for minutes — the sync request died
+      // at the proxy timeout with a phantom 500). Start + poll via the
+      // shared lib.
+      const data = await runIngestJob(
+        authFetch,
+        '/api/ingest-gdrive-document',
+        '/api/gdrive',
+        {
           file_id: file.id,
           metadata: {
             name: file.name,
             mimeType: file.mimeType,
             webViewLink: file.webViewLink,
           },
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok && data.success !== false) {
+        },
+        'file ingest'
+      );
+      if (data.success !== false) {
+        setIngestedIds((prev) => new Set(prev).add(file.id));
+        // Immediate per-app feedback: the page's ingestion card refreshes.
+        notifyIngestionUpdated("google_drive");
+        refreshRecentJobs();
         toast({
-          title: 'File Ingested',
-          description: `${file.name} has been added to search index`,
+          title: data.unchanged ? 'Already in Memory' : 'File Ingested',
+          description: data.unchanged
+            ? `${file.name} was already in the search index — content unchanged, nothing re-ingested.`
+            : `${file.name} has been added to search index`,
         });
       } else {
         throw new Error(data.error || 'Failed to ingest file');
@@ -251,6 +304,70 @@ const GoogleDriveIntegration: React.FC = () => {
     } finally {
       setIngestingId(null);
     }
+  };
+
+  // Multi-folder ingestion: every selected folder's subtree is walked and
+  // ingested in one backend call (folders are isolated server-side).
+  const handleIngestSelectedFolders = async () => {
+    const folders = files.filter(f => f.isFolder && selectedFolderIds.has(f.id));
+    if (folders.length === 0) return;
+
+    try {
+      setIngestingFolders(true);
+      const data = await runIngestJob(
+        authFetch,
+        '/api/gdrive/ingest-folders',
+        '/api/gdrive',
+        { folders: folders.map(f => ({ id: f.id, name: f.name })) },
+        'folder ingest'
+      );
+      if (data.success !== false) {
+        const succeeded = data.folders_succeeded ?? folders.length;
+        notifyIngestionUpdated("google_drive");
+        refreshRecentJobs();
+        toast({
+          title: 'Folder Ingestion Complete',
+          description:
+            `Ingested ${data.files_ingested ?? 0} file(s) from ${succeeded} of ${folders.length} folder(s) into ATOM memory.` +
+            ((data.files_ingested ?? 0) === 0 ? ' No parseable files found.' : ''),
+        });
+        setSelectedFolderIds(new Set());
+      } else {
+        throw new Error(data.error || 'Failed to ingest folders');
+      }
+    } catch (err) {
+      toast({
+        title: 'Folder Ingestion Error',
+        description: err instanceof Error ? err.message : 'Failed to ingest folders',
+        variant: 'destructive',
+      });
+    } finally {
+      setIngestingFolders(false);
+    }
+  };
+
+  const toggleFolderSelection = (folderId: string, checked: boolean) => {
+    setSelectedFolderIds(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(folderId);
+      } else {
+        next.delete(folderId);
+      }
+      return next;
+    });
+  };
+
+  const listedFolders = files.filter(f => f.isFolder);
+  const allListedFoldersSelected =
+    listedFolders.length > 0 && listedFolders.every(f => selectedFolderIds.has(f.id));
+
+  const toggleAllListedFolders = (checked: boolean) => {
+    setSelectedFolderIds(prev => {
+      const next = new Set(prev);
+      listedFolders.forEach(f => (checked ? next.add(f.id) : next.delete(f.id)));
+      return next;
+    });
   };
 
   // Format file size
@@ -404,10 +521,58 @@ const GoogleDriveIntegration: React.FC = () => {
             </div>
           ) : (
             <>
+              {/* Multi-folder selection bar */}
+              {listedFolders.length > 0 && (
+                <div className="flex items-center gap-3">
+                  {selectedFolderIds.size > 0 ? (
+                    <>
+                      <Button
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={handleIngestSelectedFolders}
+                        disabled={ingestingFolders}
+                      >
+                        {ingestingFolders ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="mr-2 h-4 w-4" />
+                        )}
+                        {ingestingFolders
+                          ? 'Ingesting…'
+                          : `Ingest ${selectedFolderIds.size} folder${selectedFolderIds.size === 1 ? '' : 's'}`}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSelectedFolderIds(new Set())}
+                        disabled={ingestingFolders}
+                      >
+                        Clear selection
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Tick folders to ingest several at once (each folder is ingested with all its subfolders).
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Running / recent ingest jobs — server-side state, visible after navigating away and back mid-ingest. */}
+              <IngestionJobsStrip jobs={recentJobs} />
               <div className="border rounded-md">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        {listedFolders.length > 0 && (
+                          <Checkbox
+                            aria-label="Select all folders"
+                            checked={allListedFoldersSelected}
+                            onCheckedChange={(checked) => toggleAllListedFolders(checked === true)}
+                          />
+                        )}
+                      </TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Modified</TableHead>
@@ -422,6 +587,17 @@ const GoogleDriveIntegration: React.FC = () => {
                         className={file.isFolder ? 'cursor-pointer hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-800' : ''}
                         onClick={() => file.isFolder && handleFileClick(file)}
                       >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {file.isFolder && (
+                            <Checkbox
+                              aria-label={`Select folder ${file.name}`}
+                              checked={selectedFolderIds.has(file.id)}
+                              onCheckedChange={(checked) =>
+                                toggleFolderSelection(file.id, checked === true)
+                              }
+                            />
+                          )}
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             {getFileIcon(file)}

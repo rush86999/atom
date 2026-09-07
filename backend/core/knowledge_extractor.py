@@ -2,13 +2,32 @@ import asyncio
 from datetime import datetime
 import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 from core.database import get_db_session
 from core.models import EntityTypeDefinition
 from core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
+
+# Background extraction (communication/document ingestion) runs at machine
+# volume — 800+ calls in 6h with no user in the loop (observed 2026-09-05) —
+# so it pins a flash-class model instead of trusting BPC's value ranking,
+# which routed bulk extraction to frontier models (qwen3-max / mimo-v2.5-pro,
+# ~26-30x flash per-token pricing) for ~400-char supplier emails. Same pin +
+# unpinned-retry convention as chat_tool_planner / chat_canvas_editor.
+KG_EXTRACTION_MODEL = os.getenv("ATOM_KG_EXTRACTION_MODEL", "qwen/qwen3.7-flash")
+
+
+class ExtractionResult(BaseModel):
+    """Schema-free extraction contract: property bags stay open so the
+    ontology-driven prompt (and custom entity types) flow through unchanged."""
+
+    entities: List[Dict[str, Any]] = Field(default_factory=list)
+    relationships: List[Dict[str, Any]] = Field(default_factory=list)
 
 class KnowledgeExtractor:
     """
@@ -123,6 +142,47 @@ class KnowledgeExtractor:
         **Important:** Deduplicate entities. If "John" and "John Doe" refer to the same person, use a single ID. Prefer the most specific entity type from the schema (e.g. Invoice over Transaction). Do NOT invent relationship types outside the list above.
         """
 
+    def _extraction_llm_kwargs(self) -> Dict[str, Any]:
+        """Pin (provider, model) exactly like the planner: generate_structured_
+        response forwards provider_model into the handler, collapsing the
+        option list to one reachable (provider, model). Unpinned "auto"
+        routing sends bulk extraction to frontier models by value score."""
+        kwargs: Dict[str, Any] = {}
+        try:
+            if "openrouter" in self.llm_service._get_handler().clients:
+                kwargs["provider_model"] = ("openrouter", KG_EXTRACTION_MODEL)
+        except Exception:
+            pass
+        return kwargs
+
+    async def _extract_via_llm(self, system_prompt: str, text: str, workspace_id: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Pinned extraction call with one UNPINNED retry (planner pattern).
+
+        The pin is a single attempt with no provider fallback; if it returns
+        None (key can't serve the pinned model — out of credits, gated,
+        revoked), the unpinned retry re-ranks across the workspace's own
+        configured providers so extraction still lands. Both failing returns
+        None so the caller keeps its empty-knowledge contract."""
+        llm_kwargs = self._extraction_llm_kwargs()
+        call = dict(
+            prompt=f"Text to analyze:\n{text[:10000]}",
+            response_model=ExtractionResult,
+            system_instruction=system_prompt,
+            temperature=0.1,
+            disable_reasoning=True,
+        )
+        result = await self.llm_service.generate_structured_response(
+            workspace_id=workspace_id, **call, **llm_kwargs
+        )
+        if result is None and "provider_model" in llm_kwargs:
+            logger.info("pinned extraction call returned None — retrying unpinned")
+            result = await self.llm_service.generate_structured_response(
+                workspace_id=workspace_id, **call
+            )
+        if result is None:
+            return None
+        return result.model_dump()
+
     async def extract_knowledge(self, text: str, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None, source: str = "unknown") -> Dict[str, Any]:
         """
         Processes text to extract a structured knowledge graph.
@@ -206,35 +266,12 @@ class KnowledgeExtractor:
                 if redaction_result.has_secrets:
                     logger.warning(f"Redacted {len(redaction_result.redactions)} secrets before LLM extraction")
                     safe_text = redaction_result.redacted_text
-            
-            # Use centralized LLMService
-            response = await self.llm_service.generate_completion(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Text to analyze:\n{safe_text[:10000]}"}
-                ],
-                temperature=0.1,
-                workspace_id=wid
-            )
-            
-            if response and response.get("content"):
-                content = response.get("content", "{}")
-                # Attempt to find JSON in the content if the LLM was chatty
-                try:
-                    # Clean up markdown code blocks if present
-                    if "```json" in content:
-                        content = content.split("```json")[1].split("```")[0].strip()
-                    elif "```" in content:
-                        content = content.split("```")[1].split("```")[0].strip()
-                    
-                    extracted_data = json.loads(content)
-                    return extracted_data
-                except json.JSONDecodeError:
-                    logger.error(f"Failed to parse extracted knowledge JSON: {content}")
-                    return {"entities": [], "relationships": []}
-            
-            return {"entities": [], "relationships": []}
-            
+
+            extracted_data = await self._extract_via_llm(system_prompt, safe_text, wid)
+            if extracted_data is None:
+                return {"entities": [], "relationships": []}
+            return extracted_data
+
         except Exception as e:
             logger.error(f"Knowledge extraction failed: {e}")
             return {"entities": [], "relationships": []}

@@ -197,9 +197,24 @@ def _fetcher_with_openrouter_models(extra=None):
     return fetcher
 
 
+def _vet_fake_models(monkeypatch):
+    """Vet the fake IDs into MODEL_QUALITY_SCORES at 90.
+
+    The openrouter candidate gate (exact table membership) and the SIMPLE
+    recall floor (85, Aug 30) postdate these tests: unvetted fake IDs fell
+    out of ranking entirely and every gating test degraded to the fail-open
+    minimax fallback. 90 clears the floor so the telemetry behavior under
+    test is what decides the outcome. Reverted automatically per-test.
+    """
+    from core.benchmarks import MODEL_QUALITY_SCORES as _MQS
+    monkeypatch.setitem(_MQS, "alpha/model-good", 90)
+    monkeypatch.setitem(_MQS, "beta/model-bad", 90)
+
+
 class TestBpcEndpointGating:
     def test_uptime_below_floor_excludes_candidate(self, byok_handler, clean_env, monkeypatch):
         from core.llm.openrouter_endpoints import EndpointHealth
+        _vet_fake_models(monkeypatch)
         _seed_monitor(monkeypatch, {
             "alpha/model-good": EndpointHealth("alpha/model-good", "A", 99.9, 500, 45, 0),
             "beta/model-bad": EndpointHealth("beta/model-bad", "B", 40.0, 500, 45, 0),
@@ -215,15 +230,17 @@ class TestBpcEndpointGating:
 
     def test_latency_degraded_ranks_lower(self, byok_handler, clean_env, monkeypatch):
         from core.llm.openrouter_endpoints import EndpointHealth
+        _vet_fake_models(monkeypatch)
         _seed_monitor(monkeypatch, {
             "alpha/model-good": EndpointHealth("alpha/model-good", "A", 99.9, 400, 45, 0),
             "beta/model-bad": EndpointHealth("beta/model-bad", "B", 99.9, 90000, 45, 0),
         })
         byok_handler.clients = {"openrouter": Mock()}
         # Identical quality/cost — only the measured-latency penalty differs.
+        # Score 90 clears the SIMPLE recall floor (85).
         with patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync",
                    return_value=_fetcher_with_openrouter_models()), \
-             patch("core.llm.byok_handler.get_quality_score", return_value=80):
+             patch("core.llm.byok_handler.get_quality_score", return_value=90):
             ranked = byok_handler.get_ranked_providers(
                 QueryComplexity.SIMPLE, is_managed_service=False)
         assert [m for _, m in ranked][0] == "alpha/model-good"
@@ -231,6 +248,7 @@ class TestBpcEndpointGating:
     def test_flag_off_restores_prior_behavior(self, byok_handler, monkeypatch):
         from core.llm.openrouter_endpoints import EndpointHealth
         monkeypatch.setenv("ATOM_OPENROUTER_ENDPOINT_TELEMETRY_ENABLED", "false")
+        _vet_fake_models(monkeypatch)
         _seed_monitor(monkeypatch, {
             "beta/model-bad": EndpointHealth("beta/model-bad", "B", 1.0, 999999, 1, 2),
         })
@@ -262,6 +280,7 @@ class TestBpcEndpointGating:
         assert ("deepseek", "deepseek-chat") in ranked
 
     def test_unknown_health_is_pass_through(self, byok_handler, clean_env, monkeypatch):
+        _vet_fake_models(monkeypatch)
         _seed_monitor(monkeypatch, {})
         byok_handler.clients = {"openrouter": Mock()}
         with patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync",

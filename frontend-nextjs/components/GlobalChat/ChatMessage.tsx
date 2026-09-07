@@ -4,6 +4,7 @@ import { ReasoningChain } from "@/components/Agents/ReasoningChain";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AGENT_CHAT } from "@/src/lib/testIds";
 import {
@@ -45,6 +46,9 @@ export interface ChatMessageData {
     type: "user" | "assistant" | "system" | "error";
     content: string;
     timestamp: Date | string;
+    /** User-submitted images (data URLs) — rendered on the user bubble and
+     * routed to vision-capable models for the turn. */
+    images?: string[];
     workflowData?: {
         workflowId?: string;
         workflowName?: string;
@@ -54,6 +58,10 @@ export interface ChatMessageData {
     };
     actions?: ChatAction[];
     reasoningTrace?: ReasoningStep[];
+    /** The model's chain-of-thought for this reply ("what the agent was
+     * thinking") — rendered as the reasoning drawer and included in feedback
+     * payloads so training captures the thinking, not just the answer. */
+    reasoning?: string;
     model?: string;
     provider?: string;
     /** The auto-retrieved memory context injected before this answer
@@ -70,6 +78,21 @@ export interface ReasoningStep {
     timestamp?: Date | string;
     status?: string;
     [key: string]: any;
+}
+
+/** Wrap a raw chain-of-thought string as a thought step so every surface
+ * renders it through the same ReasoningChain drawer (WS steps and REST
+ * fallback converge on one shape). Returns null for empty input. */
+export function reasoningTextToStep(text?: string | null): ReasoningStep | null {
+    const t = (text || "").trim();
+    if (!t) return null;
+    return {
+        step: 1,
+        type: "thought",
+        thought: t,
+        content: t,
+        timestamp: new Date().toISOString(),
+    };
 }
 
 interface ChatMessageProps {
@@ -153,6 +176,19 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, 
                     data-testid={isUser ? undefined : AGENT_CHAT.RESPONSE}
                 >
                     <CardContent className="p-3 text-sm whitespace-pre-wrap">
+                        {message.images && message.images.length > 0 && (
+                            <div className="flex gap-2 flex-wrap mb-2">
+                                {message.images.map((img, i) => (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        key={i}
+                                        src={img}
+                                        alt={`submitted image ${i + 1}`}
+                                        className="max-h-40 rounded-md border border-white/20 object-cover"
+                                    />
+                                ))}
+                            </div>
+                        )}
                         {message.content}
 
                         {message.workflowData && (
@@ -277,8 +313,8 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, 
                                 <div className="text-[10px] text-muted-foreground italic px-1 line-clamp-2 select-none">
                                     "{message.content}"
                                 </div>
-                                <textarea
-                                    className="w-full text-xs p-2 border rounded focus:ring-1 focus:ring-primary outline-none min-h-[60px]"
+                                <Textarea
+                                    className="text-xs p-2 min-h-[60px]"
                                     placeholder="What was wrong or how can I improve?"
                                     value={comment}
                                     onChange={(e) => setComment(e.target.value)}

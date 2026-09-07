@@ -24,8 +24,16 @@ import DOMPurify from "dompurify";
 const ALLOWED_TAGS = [
   "b", "i", "em", "strong", "u", "s", "br", "hr", "a", "span",
   "div", "p", "font", "ul", "ol", "li",
+  // Tables (Outlook-style email tables — quotes, specs, comparisons)
+  "table", "thead", "tbody", "tr", "td", "th",
 ];
-const ALLOWED_ATTR = ["href", "style", "color", "target", "rel", "title", "size", "face"];
+const ALLOWED_ATTR = [
+  "href", "style", "color", "target", "rel", "title", "size", "face",
+  // Table geometry (Outlook composes with border/cellpadding attrs +
+  // inline styles; colspan/rowspan for merged header cells)
+  "border", "cellpadding", "cellspacing", "width", "align",
+  "colspan", "rowspan", "valign",
+];
 
 export function sanitizeEmailHtml(dirty: string | undefined | null): string {
   if (!dirty) return "";
@@ -51,6 +59,44 @@ const COLORS: Array<{ label: string; value: string }> = [
   { label: "A", value: "#868e96" }, // gray
 ];
 
+// Cell shading (Outlook-style): applied as inline background-color on the
+// enclosing <td>/<th>. Inline style survives the sanitizer (style attr is
+// allowed) and both the display and send sinks.
+const SHADING_OPTIONS: Array<{ label: string; value: string }> = [
+  { label: "No fill", value: "none" },
+  { label: "Navy", value: "#1F3864" },
+  { label: "Light blue", value: "#DBE5F1" },
+  { label: "Light gray", value: "#D9D9D9" },
+  { label: "Light amber", value: "#FFF2CC" },
+  { label: "Light green", value: "#E2EFDA" },
+  { label: "Light red", value: "#F2DCDB" },
+  { label: "White", value: "#FFFFFF" },
+];
+
+// Walk from the caret's node up to the enclosing table cell. Text nodes and
+// inline elements (<strong>, <a>…) live INSIDE the cell, so the answer for
+// "which cell did the user click" is the nearest td/th ancestor.
+export function closestTableCell(node: Node | null): HTMLTableCellElement | null {
+  let cur: Node | null = node;
+  while (cur) {
+    const name = (cur as Element).tagName?.toLowerCase?.();
+    if (name === "td" || name === "th") return cur as HTMLTableCellElement;
+    cur = cur.parentNode;
+  }
+  return null;
+}
+
+// Shade the table cell containing `node` ("" / "none" clears the fill).
+// Returns false when the caret is not inside a table cell — callers decide
+// on a sensible fallback (the toolbar falls back to inline highlight).
+export function applyCellShading(node: Node | null, color: string): boolean {
+  const cell = closestTableCell(node);
+  if (!cell) return false;
+  if (color && color !== "none") cell.style.backgroundColor = color;
+  else cell.style.removeProperty("background-color");
+  return true;
+}
+
 const FONTS = [
   { label: "Aptos", value: "Aptos, Calibri, Arial, sans-serif" },
   { label: "Calibri", value: "Calibri, Arial, sans-serif" },
@@ -69,9 +115,15 @@ export const DEFAULT_EMAIL_FONT = "Aptos, 'Segoe UI', Calibri, Arial, sans-serif
 // (newline-separated) MUST be converted for display — newlines are
 // invisible in contentEditable HTML, which read as "all formatting lost".
 function toDisplayHtml(raw: string): string {
-  const text = String(raw ?? "");
+  // Multi-line HTML (agent-drafted tables pretty-print one tag per line)
+  // must be re-joined at tag boundaries BEFORE the per-line pass: a lone
+  // <table>/<tr>/<td> fragment sanitizes outside a table context and is
+  // destroyed (empty <table></table>, hoisted cell text, escaped </tr> —
+  // observed live 2026-09-03: a well-formed quote table flattened into a
+  // bare line list, then persisted by the composer's save).
+  const text = String(raw ?? "").replace(/>\s*\n\s*</g, "><");
   const lines = text.split("\n");
-  const tagRe = /<\s*(p|br|div|span|ul|ol|li|h[1-6]|hr|table|a|b|i|strong|em|u|font)\b/i;
+  const tagRe = /<\s*(p|br|div|span|ul|ol|li|h[1-6]|hr|table|thead|tbody|tr|td|th|a|b|i|strong|em|u|font)\b/i;
   if (!lines.some((ln) => tagRe.test(ln))) {
     const escaped = text
       .replace(/&/g, "&amp;")
@@ -212,6 +264,48 @@ export default function RichTextEditor({
     exec("createLink", url);
   };
 
+  // Shade the table cell the caret is in; outside a table, fall back to an
+  // inline text highlight so the control still does something useful.
+  const applyShading = (color: string) => {
+    const node = window.getSelection()?.anchorNode ?? null;
+    if (applyCellShading(node, color)) {
+      ref.current?.focus();
+      emit();
+    } else if (color && color !== "none") {
+      exec("hiliteColor", color);
+    }
+  };
+
+  const insertTable = () => {
+    const spec = window.prompt("Table rows,columns (e.g. 3,3)", "3,3");
+    if (!spec) return;
+    const parts = spec.split(/[,xX*\s]+/);
+    const rows = Math.max(1, Math.min(20, parseInt(parts[0], 10) || 0));
+    const cols = Math.max(1, Math.min(20, parseInt(parts[1], 10) || 0));
+    if (!rows || !cols) return;
+    // Outlook-style bordered table: inline cell borders survive email
+    // clients where bare <table border> renders inconsistently.
+    const cell =
+      '<td style="border: 1pt solid rgb(191, 191, 191); padding: 4pt 6pt;">&nbsp;</td>';
+    const row = `<tr>${cell.repeat(cols)}</tr>`;
+    const html =
+      '<table style="border-collapse: collapse;" border="1" cellspacing="0" cellpadding="0">' +
+      `<tbody>${row.repeat(rows)}</tbody></table><br>`;
+    ref.current?.focus();
+    const before = ref.current?.innerHTML ?? "";
+    try {
+      document.execCommand("insertHTML", false, html);
+    } catch {
+      // jsdom / unsupported — the append fallback below still applies
+    }
+    // insertHTML is unimplemented in some environments (jsdom) or no-ops
+    // with no caret selection — detect the no-op and append at the end.
+    if (ref.current && ref.current.innerHTML === before) {
+      ref.current.innerHTML = before + html;
+    }
+    emit();
+  };
+
   const toolbarBtn =
     "h-6 min-w-6 px-1.5 rounded border border-zinc-200 dark:border-white/10 " +
     "hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-200 " +
@@ -296,6 +390,33 @@ export default function RichTextEditor({
         >
           🔗
         </button>
+        <button
+          type="button"
+          title="Table"
+          aria-label="Insert table"
+          data-testid={`${testIdPrefix}-table-btn`}
+          className={toolbarBtn}
+          onClick={insertTable}
+        >
+          ▦
+        </button>
+        <select
+          title="Cell shading"
+          aria-label="Cell shading"
+          data-testid={`${testIdPrefix}-shading`}
+          value=""
+          className={selectCls}
+          onChange={(e) => {
+            const v = e.target.value;
+            e.target.value = "";
+            if (v) applyShading(v);
+          }}
+        >
+          <option value="">Shading</option>
+          {SHADING_OPTIONS.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
         <button type="button" title="Bulleted list" aria-label="Bulleted list" className={toolbarBtn} onClick={() => exec("insertUnorderedList")}>
           •≡
         </button>

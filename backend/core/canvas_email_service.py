@@ -22,9 +22,10 @@ logger = logging.getLogger(__name__)
 # durable address book remains the primary source.
 _CORRESPONDENT_CACHE: Dict[str, tuple] = {}
 
-# Per-user integration-signature cache: (fetched_at, signature|None). The
-# mailbox is the source (sent mail carries the integration's default
-# signature) and shouldn't be rescanned per composer mount.
+# Per-user integration-signature cache: (fetched_at, signature_text|None,
+# signature_html|None). The mailbox is the source (sent mail carries the
+# integration's default signature) and shouldn't be rescanned per composer
+# mount.
 _SIGNATURE_CACHE: Dict[str, tuple] = {}
 
 
@@ -39,6 +40,14 @@ def _audit_now():
     service stamps client-side microsecond time.
     """
     return datetime.now(timezone.utc)
+
+
+def _html_ws_norm(text: str) -> str:
+    """Collapse the whitespace a tag-strip leaves behind into readable
+    lines (shared by the styled-signature miners)."""
+    return "\n".join(
+        ln.strip() for ln in (text or "").replace("&nbsp;", " ").splitlines() if ln.strip()
+    )
 
 
 class EmailMessage:
@@ -799,6 +808,9 @@ class EmailCanvasService:
         tenant_id: str = "default",
         attachment_ids: Optional[List[str]] = None,
         override_grounding: bool = False,
+        # Mixed-thread leak guard override (internal_thread_quote) — a
+        # supervisor's explicit decision, recorded on the send audit row.
+        override_internal_quote: bool = False,
         thread_id: Optional[str] = None,
         reply_all: bool = False,
     ) -> Dict[str, Any]:
@@ -870,11 +882,23 @@ class EmailCanvasService:
             try:
                 from core.user_preference_service import UserPreferenceService
 
-                stored = UserPreferenceService(self.db).get_preference(
-                    user_id, "default", self.SIGNATURE_KEY
-                )
-                applied_signature = stored.strip() if isinstance(stored, str) else ""
+                _prefs = UserPreferenceService(self.db)
+                # Prefer the STYLED signature (raw HTML mined from the user's
+                # sent mail): sends declare contentType HTML and _body_to_html
+                # passes tag-bearing lines through verbatim, so the user's
+                # exact default signature — fonts, layout tables, links —
+                # ships with agent sends (observed Sept 6: the text-only
+                # signature lost the entire style).
+                applied_signature = str(
+                    _prefs.get_preference(user_id, "default", self.SIGNATURE_HTML_KEY) or ""
+                ).strip() or str(
+                    _prefs.get_preference(user_id, "default", self.SIGNATURE_KEY) or ""
+                ).strip()
                 if applied_signature and applied_signature not in (body or ""):
+                    # Multi-line HTML must re-join at tag boundaries before
+                    # the line-aware conversion (same rule _body_to_html
+                    # applies to the body).
+                    applied_signature = re.sub(r">\s*\n\s*<", "><", applied_signature)
                     signoff = self._extract_signoff(body)
                     if signoff and signoff in body:
                         # swap the agent's plain sign-off for the user's
@@ -986,6 +1010,7 @@ class EmailCanvasService:
                     to_recipients=to_emails or None,
                     cc_recipients=cc_emails or None,
                     subject=(subject or "").strip() or None,
+                    override_internal_quote=override_internal_quote,
                 )
             except Exception as e:
                 logger.error(f"Email canvas thread reply failed: {e}")
@@ -1264,15 +1289,42 @@ class EmailCanvasService:
             key=ts,
             reverse=True,
         )
+        own_domains = {
+            addr.rpartition("@")[2] for addr in own_addresses if "@" in addr
+        }
+
+        def sender_of(m: Dict[str, Any]) -> str:
+            return addr_of(m.get("from_field")).lower()
+
+        def is_external(m: Dict[str, Any]) -> bool:
+            sender = sender_of(m)
+            return (
+                bool(sender) and "@" in sender
+                and sender not in own_addresses
+                and sender.rpartition("@")[2] not in own_domains
+            )
+
+        def thread_reply(m: Dict[str, Any]) -> Dict[str, Any]:
+            name = str(((m.get("from_field") or {}).get("emailAddress") or {}).get("name") or "").strip()
+            sender = sender_of(m)
+            to = f"{name} <{sender}>" if name else sender
+            # conversationId rides along so the composer's send can be
+            # a true threaded reply instead of a fresh standalone mail.
+            return {"success": True, "to": to, "cc": "", "source": "thread",
+                    "thread_id": str(m.get("conversation_id") or "") or None}
+
+        # Customer threads carry internal legs (colleague notes in the same
+        # conversation). Prefilling To from the newest non-self sender can
+        # therefore aim a customer reply at an internal colleague — prefer
+        # the newest message from OUTSIDE the user's own domain, and only
+        # fall back to any non-self sender for internal-only threads.
         for m in candidates:
-            sender = addr_of(m.get("from_field")).lower()
+            if is_external(m):
+                return thread_reply(m)
+        for m in candidates:
+            sender = sender_of(m)
             if sender and sender not in own_addresses:
-                name = str(((m.get("from_field") or {}).get("emailAddress") or {}).get("name") or "").strip()
-                to = f"{name} <{sender}>" if name else sender
-                # conversationId rides along so the composer's send can be
-                # a true threaded reply instead of a fresh standalone mail.
-                return {"success": True, "to": to, "cc": "", "source": "thread",
-                        "thread_id": str(m.get("conversation_id") or "") or None}
+                return thread_reply(m)
         for m in candidates:
             sender = addr_of(m.get("from_field")).lower()
             if sender and sender in own_addresses:
@@ -1431,6 +1483,9 @@ class EmailCanvasService:
         return addr
 
     SIGNATURE_KEY = "email_signature"
+    SIGNATURE_HTML_KEY = "email_signature_html"
+    # Raw styled-signature cap: real Outlook signatures run 2-8 KB of HTML.
+    _SIGNOFF_HTML_MAX_CHARS = 8_000
     # Closing phrases that introduce a sign-off block in a sent email.
     _CLOSING_PHRASE = re.compile(
         r"\b(best regards|warm regards|kind regards|regards|sincerely|"
@@ -1452,23 +1507,44 @@ class EmailCanvasService:
            API does not expose the client-side signature directly, but the
            integration stamps it on every sent message — so it is recovered
            from the sign-off block of the most recent sent email (cached;
-           the mailbox shouldn't be scanned per composer mount). The
-           integration value is NOT persisted: saving it (set_signature)
-           is a deliberate act.
+           the mailbox shouldn't be scanned per composer mount).
+
+        The MINED signature carries the user's real styling (fonts, layout
+        tables, links) and is persisted under ``email_signature_html`` so
+        composer inserts and agent sends stay styled everywhere (user
+        request, Sept 2026 — the old contract left it unpersisted, so the
+        style was lost the moment the preference stayed empty). The stored-
+        override branch is unchanged: saving via set_signature remains a
+        deliberate act, and the TEXT variant stays display-only.
         """
         from core.user_preference_service import UserPreferenceService
 
-        stored = UserPreferenceService(self.db).get_preference(user_id, workspace_id, self.SIGNATURE_KEY)
-        if isinstance(stored, str) and stored.strip():
-            return {"success": True, "signature": stored.strip(), "source": "stored"}
+        _prefs = UserPreferenceService(self.db)
+        stored = _prefs.get_preference(user_id, workspace_id, self.SIGNATURE_KEY)
+        stored_html = _prefs.get_preference(user_id, workspace_id, self.SIGNATURE_HTML_KEY)
+        if (isinstance(stored, str) and stored.strip()) or (
+            isinstance(stored_html, str) and stored_html.strip()
+        ):
+            return {
+                "success": True,
+                "signature": (stored or "").strip() or None,
+                "signature_html": (stored_html or "").strip() or None,
+                "source": "stored",
+            }
 
         cached = _SIGNATURE_CACHE.get(user_id)
         if cached and _time.time() - cached[0] < 3600:
-            return {"success": True, "signature": cached[1], "source": "integration"} if cached[1] else (
-                {"success": True, "signature": None, "source": None}
-            )
+            if cached[1] or cached[2]:
+                return {
+                    "success": True,
+                    "signature": cached[1],
+                    "signature_html": cached[2],
+                    "source": "integration",
+                }
+            return {"success": True, "signature": None, "source": None}
 
         mined = None
+        mined_html = None
         try:
             from integrations.outlook_service import OutlookService
 
@@ -1481,15 +1557,45 @@ class EmailCanvasService:
             except Exception:
                 pass
             for m in await svc.get_user_emails(user_id, folder="sent", max_results=25) or []:
-                mined = self._extract_signoff(m.get("body"), owner_names=owner_names)
+                body_obj = m.get("body")
+                # Styling lives in the original markup: mine the signature
+                # from the RAW HTML first (styled block — fonts, layout
+                # tables, links), falling back to the text variant. Observed
+                # Sept 6: the text-mined signature lost the entire style and
+                # agents could not reproduce the user's default signature.
+                if isinstance(body_obj, dict) and str(
+                    body_obj.get("contentType") or ""
+                ).lower() == "html":
+                    mined_html = self._extract_signoff_html(
+                        str(body_obj.get("content") or ""), owner_names=owner_names
+                    )
+                    if mined_html:
+                        mined = self._signoff_html_text(mined_html)
+                        break
+                mined = self._extract_signoff(body_obj, owner_names=owner_names)
                 if mined:
                     break
         except Exception as e:
             logger.warning(f"Signature mining unavailable for {user_id}: {e}")
 
-        _SIGNATURE_CACHE[user_id] = (_time.time(), mined)
-        if mined:
-            return {"success": True, "signature": mined, "source": "integration"}
+        _SIGNATURE_CACHE[user_id] = (_time.time(), mined, mined_html)
+        if mined or mined_html:
+            # Persist the styled variant (best-effort — a preference-store
+            # failure must never block the composer): agent sends and every
+            # composer mount then carry the user's real signature style
+            # without another mailbox scan.
+            try:
+                _prefs.set_preference(
+                    user_id, workspace_id, self.SIGNATURE_HTML_KEY, mined_html
+                )
+            except Exception as pref_err:
+                logger.debug(f"signature_html persist skipped: {pref_err}")
+            return {
+                "success": True,
+                "signature": mined,
+                "signature_html": mined_html,
+                "source": "integration",
+            }
         return {"success": True, "signature": None, "source": None}
 
     def set_signature(self, user_id: str, signature: str, workspace_id: str = "default") -> Dict[str, Any]:
@@ -1502,6 +1608,71 @@ class EmailCanvasService:
         )
         _SIGNATURE_CACHE.pop(user_id, None)
         return {"success": True, "signature": value if value else None, "source": "stored"}
+
+    def _extract_signoff_html(self, html_body: Any, owner_names: Optional[set] = None) -> Optional[str]:
+        """The styled sign-off block as RAW HTML: same closing-phrase and
+        forwarded-history rules as :meth:`_extract_signoff`, but the returned
+        slice keeps the original markup — fonts, layout tables, colors,
+        links — so the agent's sends can carry the user's EXACT default
+        signature styling instead of a tag-stripped shadow of it. Returns
+        None when no clear sign-off exists — never guess garbage."""
+        if isinstance(html_body, dict):
+            raw = str(html_body.get("content") or "")
+        else:
+            raw = str(html_body or "")
+        if not raw or "<" not in raw:
+            return None
+
+        # Split into block chunks that each END at a block boundary so
+        # concatenating a slice reproduces well-formed-enough HTML.
+        try:
+            chunks = re.split(
+                r"(?i)(?=<br\s*/?>|</p>|</div>|</tr>|</table>|</h[1-6]>|</li>)", raw
+            )
+        except Exception:
+            return None
+        if len(chunks) <= 1:
+            return None
+
+        chunk_texts = [
+            _html_ws_norm(re.sub(r"<[^>]+>", "\n", chunk)) for chunk in chunks
+        ]
+        for i in range(len(chunks) - 1, -1, -1):
+            m = self._CLOSING_PHRASE.search(chunk_texts[i])
+            if not m:
+                continue
+            remainder = chunk_texts[i][m.end():].strip().rstrip(",")
+            if len(remainder) > 40:
+                continue
+            # The sign-off block ENDS at forwarded-history headers: quoted
+            # history below a reply carries OTHER people's sign-offs, so the
+            # tail is truncated at the first forward marker (not rejected —
+            # the marker sits AFTER the real signature in normal replies).
+            tail_idx = [i]
+            for j in range(i + 1, len(chunks)):
+                if self._FORWARD_MARKER.match(chunk_texts[j] or ""):
+                    break
+                tail_idx.append(j)
+            tail_texts = [chunk_texts[k] for k in tail_idx]
+            line_count = len([ln for ln in tail_texts if ln.strip()])
+            if not 1 <= line_count <= 16:
+                continue
+            if owner_names:
+                words = set(re.findall(r"[a-z']+", "\n".join(tail_texts).lower()))
+                if not (owner_names & words):
+                    continue
+            block = "".join(chunks[k] for k in tail_idx).strip()
+            if not block:
+                continue
+            if len(block) > self._SIGNOFF_HTML_MAX_CHARS:
+                block = block[: self._SIGNOFF_HTML_MAX_CHARS]
+            return block
+        return None
+
+    def _signoff_html_text(self, html_block: str) -> str:
+        """Plain-text shadow of a styled sign-off block (composer display,
+        drafting prompts)."""
+        return _html_ws_norm(re.sub(r"<[^>]+>", "\n", html_block or ""))
 
     def _extract_signoff(self, body: Any, owner_names: Optional[set] = None) -> Optional[str]:
         """The sender's own sign-off block: from the last credible closing

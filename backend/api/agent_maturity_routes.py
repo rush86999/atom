@@ -537,10 +537,19 @@ async def get_canvas_training_context(
                 linked = candidate
                 break
 
-    # Agent identity — canvas provenance (audit rows) after the client hint;
-    # the training-canvas content and the linked session carry it too.
+    # Agent identity — an explicit human attach (POST /canvas/{id}/agents)
+    # outranks every heuristic: the supervisor put THIS hire on THIS canvas.
+    # Then the client hint, then canvas provenance (audit rows); the
+    # training-canvas content and the linked session carry it too.
+    from core.agent_coordination import active_canvas_agents
+
     agent: Optional[AgentRegistry] = None
-    candidate_agent_ids = [agent_id] + [row.agent_id for row in audit_rows if row.agent_id]
+    attached_ids = [a["agent_id"] for a in active_canvas_agents(db, canvas_id)]
+    candidate_agent_ids = (
+        attached_ids
+        + [agent_id]
+        + [row.agent_id for row in audit_rows if row.agent_id]
+    )
     if content.get("type") == "training_session":
         student = content.get("student") if isinstance(content.get("student"), dict) else {}
         if student.get("id"):
@@ -643,6 +652,16 @@ async def get_canvas_training_context(
             if not isinstance(entry, dict):
                 continue
             source = str(entry.get("source") or "teacher")
+            # The canvas the lesson was taught on (right panel passes
+            # canvas_id) — the panel journal shows what each point referenced.
+            canvas = entry.get("canvas") if isinstance(entry.get("canvas"), dict) else None
+            canvas_payload = (
+                {"canvas_id": canvas.get("canvas_id"),
+                 "name": str(canvas.get("name") or ""),
+                 "canvas_type": str(canvas.get("canvas_type") or ""),
+                 "label": str(canvas.get("label") or "")}
+                if canvas else None
+            )
             if source == "observation":
                 points.append(
                     {
@@ -650,6 +669,7 @@ async def get_canvas_training_context(
                         "topic": str(entry.get("observation_type") or "general"),
                         "text": str(entry.get("summary") or ""),
                         "learned_at": entry.get("learned_at"),
+                        "canvas": canvas_payload,
                     }
                 )
             else:
@@ -660,6 +680,7 @@ async def get_canvas_training_context(
                         "text": str(entry.get("lesson") or ""),
                         "learned_at": entry.get("learned_at"),
                         "teacher_agent_id": entry.get("teacher_agent_id"),
+                        "canvas": canvas_payload,
                     }
                 )
         points.sort(key=lambda p: p.get("learned_at") or "", reverse=True)

@@ -1,0 +1,349 @@
+{
+  "version": "1.1",
+  "description": "BPC tier benchmark battery (Sept 2026). 20 ORIGINAL tasks across the four BPC complexity tiers, each with a deterministic checker. Verification styles follow suites that ship ground truth: exact/numeric answer keys (LiveBench, AIME, GSM8K, MMLU-Pro), unit tests (HumanEval/MBPP/SWE-bench fail-to-pass), JSON schema/AST argument checks (BFCL, structured output), verifiable output constraints (IFEval), and tool-plan state checks (tau-bench lite). Items are original to avoid contamination; rotate before re-running calibration.",
+  "tiers": {
+    "simple": "quick business chat: fact recall, classification, short constrained summaries",
+    "moderate": "structured extraction, multi-step arithmetic, tool-argument selection",
+    "complex": "code generation/repair against tests, data reasoning, constraint scheduling",
+    "advanced": "olympiad-style exact answers, expert MCQ, design under verifiable constraints, security review"
+  },
+  "tasks": [
+    {
+      "id": "S1-recall-facts",
+      "tier": "simple",
+      "style": "transcript recall (LiveBench memory-style, exact key)",
+      "max_tokens": 400,
+      "prompt": "Transcript:\nCustomer: Hi, I'm Dana Reyes from Northwind Logistics. My account rep is Priya Shah and my PO number is PO-77142.\nAtom: Thanks Dana! Noted: account rep Priya Shah, PO-77142.\nCustomer: Also our delivery window is Tuesday 9-11am.\nAtom: Got it \u2014 Tuesday 9-11am delivery window.\n\nQuestion: What is the PO number and who is the account rep?",
+      "checker": {
+        "type": "all_strings",
+        "strings": [
+          "PO-77142",
+          "Priya Shah"
+        ]
+      }
+    },
+    {
+      "id": "S2-intent-classify",
+      "tier": "simple",
+      "style": "classification (MMLU-style exact key)",
+      "max_tokens": 300,
+      "prompt": "Classify each message as BILLING, SUPPORT, or SALES. Reply with exactly five lines: <number>. <label>\n1. My card was charged twice for the September invoice.\n2. Can you add five more seats to our workspace plan?\n3. The dashboard shows an error when I export CSV.\n4. Do you offer a discount for annual billing?\n5. I need help resetting my two-factor device.",
+      "checker": {
+        "type": "sequence",
+        "expect": [
+          "BILLING",
+          "SALES",
+          "SUPPORT",
+          "SALES",
+          "SUPPORT"
+        ]
+      }
+    },
+    {
+      "id": "S3-word-limit",
+      "tier": "simple",
+      "style": "verifiable output constraint (IFEval)",
+      "max_tokens": 300,
+      "prompt": "Summarize this in AT MOST 25 words. Do not exceed the limit.\n\nQ3 review: revenue grew 12% driven by the logistics vertical; churn held flat at 2.1%; the new onboarding flow cut support tickets by a third; hiring closed four of six open roles; Q4 focus is the enterprise pipeline and the mobile redesign.",
+      "checker": {
+        "type": "max_words",
+        "limit": 25,
+        "must_include_any": [
+          [
+            "revenue"
+          ],
+          [
+            "churn"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "S4-tax-math",
+      "tier": "simple",
+      "style": "arithmetic exact key (GSM8K-lite)",
+      "max_tokens": 400,
+      "prompt": "An invoice lists $420.00 in services and $85.00 in expenses. A 8% tax applies only to the services line. What is the total amount due? Reply with just the number in the form 123.45.",
+      "checker": {
+        "type": "numeric",
+        "value": 538.6,
+        "tolerance": 0.01
+      }
+    },
+    {
+      "id": "S5-date-extract",
+      "tier": "simple",
+      "style": "entity extraction (exact set)",
+      "max_tokens": 300,
+      "prompt": "List every date mentioned in this note, formatted as YYYY-MM-DD, one per line, no other text.\n\nKickoff is on March 3, 2026. The design review follows on 2026-03-10, and legal wants the contract countersigned by 3/24/2026. Nothing else is scheduled in Q1.",
+      "checker": {
+        "type": "string_set",
+        "strings": [
+          "2026-03-03",
+          "2026-03-10",
+          "2026-03-24"
+        ]
+      }
+    },
+    {
+      "id": "M1-email-json",
+      "tier": "moderate",
+      "style": "structured extraction to schema (BFCL/structured-output)",
+      "max_tokens": 500,
+      "prompt": "Extract structured data from this email as a single JSON object with EXACTLY these keys: sender (string, email), due_date (string, YYYY-MM-DD), amount (number), action (one of \"pay\", \"dispute\", \"forward\"). No other keys, no commentary.\n\nFrom: accounts@meridian-supply.com\nSubject: Invoice INV-2044 overdue\n\nHi team,\nInvoice INV-2044 for $3,180.50 issued Feb 12, 2026 is now 30 days overdue. Please remit payment by April 15, 2026 to avoid suspension of your account.\n\nRegards,\nMeridian Supply AR",
+      "checker": {
+        "type": "json_fields",
+        "fields": {
+          "sender": "accounts@meridian-supply.com",
+          "due_date": "2026-04-15",
+          "amount": 3180.5,
+          "action": "pay"
+        }
+      }
+    },
+    {
+      "id": "M2-threestep-math",
+      "tier": "moderate",
+      "style": "multi-step word problem (GSM8K)",
+      "max_tokens": 700,
+      "prompt": "A warehouse ships 1,240 orders in January. February volume is 25% higher than January. March volume drops 20% versus February. What is the total number of orders shipped across the three months? Reply with just the integer.",
+      "checker": {
+        "type": "numeric",
+        "value": 4030,
+        "tolerance": 0.5
+      }
+    },
+    {
+      "id": "M3-record-merge",
+      "tier": "moderate",
+      "style": "deterministic transformation with precedence rules",
+      "max_tokens": 600,
+      "prompt": "Merge these two CRM records. Rules: prefer the CRM value for email and phone; prefer the newer form for address (the one marked 2026); combine tags in alphabetical order into a single comma-separated string. Reply with ONLY a JSON object with keys: email, phone, address, tags.\n\nCRM record: email=jane@acme.com, phone=+1-555-0100, address=12 Oak St, tags=[vip, west]\nForm (2026): email=jane.doe@acme.com, phone=+1-555-0199, address=48 Birch Ave (street line only), tags=[beta, vip]",
+      "checker": {
+        "type": "json_fields",
+        "fields": {
+          "email": "jane@acme.com",
+          "phone": "+1-555-0100",
+          "address": "48 Birch Ave",
+          "tags": "beta, vip"
+        },
+        "normalize_commas": true
+      }
+    },
+    {
+      "id": "M4-tool-args",
+      "tier": "moderate",
+      "style": "tool selection + argument correctness (BFCL AST-lite)",
+      "max_tokens": 500,
+      "prompt": "You have these tools:\n- search_orders(customer_email: str, status: str = \"any\", limit: int = 10)\n- refund_order(order_id: str, amount: float, reason: str)\n- escalate_ticket(ticket_id: str, priority: str)\n\nTask: find up to 5 delivered orders for customer mia@rltech.ca.\nReply with ONLY a JSON object: {\"tool\": <name>, \"args\": {<param>: <value> ...}}",
+      "checker": {
+        "type": "json_fields",
+        "fields": {
+          "tool": "search_orders",
+          "args.customer_email": "mia@rltech.ca",
+          "args.limit": 5,
+          "args.status": "delivered"
+        }
+      }
+    },
+    {
+      "id": "M5-conditional-policy",
+      "tier": "moderate",
+      "style": "policy application (tau-bench-lite state check)",
+      "max_tokens": 500,
+      "prompt": "Policy: refunds are allowed within 30 days of delivery for non-perishable items; perishable items can only be refunded if undelivered; outside the 30-day window a refund is always DENIED; for non-perishable items over $500 inside the window, return MANAGER instead of APPROVED.\n\nOrder A: $430 headphones, delivered 10 days ago.\nOrder B: $95 fresh produce basket, delivered 2 days ago.\nOrder C: $620 monitor, delivered 45 days ago.\n\nFor each order reply exactly: <letter>: <APPROVED|DENIED|MANAGER> \u2014 one per line, nothing else.",
+      "checker": {
+        "type": "sequence",
+        "expect": [
+          "A: APPROVED",
+          "B: DENIED",
+          "C: DENIED"
+        ]
+      }
+    },
+    {
+      "id": "C1-code-groupby",
+      "tier": "complex",
+      "style": "code generation against tests (HumanEval/MBPP)",
+      "max_tokens": 1200,
+      "prompt": "Write a Python function:\n\ndef group_transactions(transactions):\n    \"\"\"transactions: list of dicts with keys 'account' (str), 'amount' (float), 'pending' (bool).\n    Return a dict mapping each account to its summed amount, IGNORING pending transactions.\n    Round each account total to 2 decimals. Accounts with no non-pending transactions are omitted.\"\"\"\n\nProvide only a python code block. It must satisfy:\n- group_transactions([]) == {}\n- pending-only accounts omitted\n- rounding: [{'account':'a','amount':0.1,'pending':False},{'account':'a','amount':0.2,'pending':False}] -> {'a': 0.3}",
+      "checker": {
+        "type": "code_asserts",
+        "setup": "from sol import group_transactions",
+        "asserts": [
+          "group_transactions([]) == {}",
+          "group_transactions([{'account':'a','amount':5.0,'pending':False}]) == {'a': 5.0}",
+          "group_transactions([{'account':'a','amount':5.0,'pending':True}]) == {}",
+          "group_transactions([{'account':'a','amount':0.1,'pending':False},{'account':'a','amount':0.2,'pending':False}]) == {'a': 0.3}",
+          "group_transactions([{'account':'a','amount':1.0,'pending':False},{'account':'b','amount':2.5,'pending':False},{'account':'a','amount':1.5,'pending':False}]) == {'a': 2.5, 'b': 2.5}"
+        ]
+      }
+    },
+    {
+      "id": "C2-code-fix",
+      "tier": "complex",
+      "style": "bug repair against tests (SWE-bench fail-to-pass lite)",
+      "max_tokens": 1200,
+      "prompt": "This function is supposed to return the top n most frequent words (case-insensitive, ties broken alphabetically), but it fails the tests. Rewrite it correctly in a single python code block.\n\ndef top_words(text, n):\n    words = text.lower().split()\n    counts = {}\n    for w in words:\n        counts[w] = counts.get(w, 0) + 1\n    return sorted(counts, key=counts.get, reverse=True)[:n]\n\nIt must satisfy:\n- top_words('b a b c a b', 2) == ['b', 'a']\n- top_words('Beta alpha BETA alpha', 2) == ['alpha', 'beta']\n- top_words('x', 3) == ['x']",
+      "checker": {
+        "type": "code_asserts",
+        "setup": "from sol import top_words",
+        "asserts": [
+          "top_words('b a b c a b', 2) == ['b', 'a']",
+          "top_words('Beta alpha BETA alpha', 2) == ['alpha', 'beta']",
+          "top_words('x', 3) == ['x']",
+          "top_words('z y z y x', 2) == ['y', 'z']"
+        ]
+      }
+    },
+    {
+      "id": "C3-yoy-analysis",
+      "tier": "complex",
+      "style": "data reasoning with numeric key",
+      "max_tokens": 900,
+      "prompt": "Quarterly revenue (USD k):\nNorth: 2025-Q1 210, 2025-Q2 240, 2026-Q1 252, 2026-Q2 300\nSouth: 2025-Q1 180, 2025-Q2 175, 2026-Q1 207, 2026-Q2 190\n\nCompute: (1) North's YoY growth for Q2 in percent (2026-Q2 vs 2025-Q2, rounded to 1 decimal); (2) which region had higher H1 2026 total, North or South. Reply exactly:\nQ2_YOY: <number>\nH1_2026: <North|South>",
+      "checker": {
+        "type": "labeled_numerics",
+        "labels": {
+          "Q2_YOY": 25.0,
+          "H1_2026": "North"
+        },
+        "tolerance": 0.05
+      }
+    },
+    {
+      "id": "C4-constraint-schedule",
+      "tier": "complex",
+      "style": "constraint satisfaction (exact key)",
+      "max_tokens": 900,
+      "prompt": "Schedule three meetings Mon-Fri between 9:00 and 17:00. Constraints: Alice is busy Mon and Tue all day; Bob is busy Wed before 12:00; the three meetings must be in different days; the client meeting must be the LAST meeting of the week; each meeting is 1 hour.\nPeople: Alice, Bob, Client.\nReply exactly:\nAlice: <Day> <HH:MM>\nBob: <Day> <HH:MM>\nClient: <Day> <HH:MM>",
+      "checker": {
+        "type": "schedule_constraint",
+        "busy": {
+          "Alice": [
+            "Monday",
+            "Tuesday"
+          ],
+          "Bob": [
+            "Wednesday-before-12"
+          ]
+        },
+        "required": {
+          "Client": "Friday"
+        }
+      }
+    },
+    {
+      "id": "C5-json-flatten",
+      "tier": "complex",
+      "style": "nested transform with exact output",
+      "max_tokens": 900,
+      "prompt": "Flatten this JSON into CSV rows with header \"region,city,sales\". Escape rule: none needed here; sort rows by region then city. Reply with ONLY the CSV.\n\n{\"regions\": [{\"name\": \"West\", \"cities\": [{\"city\": \"Calgary\", \"sales\": 42}, {\"city\": \"Banff\", \"sales\": 9}]}, {\"name\": \"East\", \"cities\": [{\"city\": \"Halifax\", \"sales\": 17}]}]}",
+      "checker": {
+        "type": "exact_text",
+        "value": "region,city,sales\nEast,Halifax,17\nWest,Banff,9\nWest,Calgary,42"
+      }
+    },
+    {
+      "id": "A1-olympiad-integer",
+      "tier": "advanced",
+      "style": "competition math, integer answer (AIME-style)",
+      "max_tokens": 2500,
+      "prompt": "Find the number of positive integers n <= 1000 such that n is divisible by 6 AND n^2 + n is divisible by 35. Reply with just the integer.",
+      "checker": {
+        "type": "numeric",
+        "value": 18,
+        "tolerance": 0.5
+      }
+    },
+    {
+      "id": "A2-expert-mcq",
+      "tier": "advanced",
+      "style": "expert reasoning MCQ (GPQA-style answer key)",
+      "max_tokens": 1500,
+      "prompt": "A logistics firm runs an S3-style object store. Objects are immutable; each PUT creates a new version. Versioning is ON for the 'contracts' bucket and OFF for 'reports'. A lifecycle rule deletes noncurrent versions after 7 days on 'contracts', and another rule expires objects after 90 days on 'reports'. A compliance officer needs a guarantee that any contract object EVER successfully written is still retrievable today. Which single change is SUFFICIENT?\nA. Suspend versioning on 'contracts' and rely on the 90-day expiry\nB. Remove the noncurrent-version deletion rule on 'contracts'\nC. Enable versioning on 'reports' and remove its 90-day expiry\nD. Add object lock in governance mode with 0-day retention on 'reports'\nReply with just the letter.",
+      "checker": {
+        "type": "sequence",
+        "expect": [
+          "B"
+        ]
+      }
+    },
+    {
+      "id": "A3-design-constraints",
+      "tier": "advanced",
+      "style": "design under verifiable constraints (IFEval-structured)",
+      "max_tokens": 1800,
+      "prompt": "Design a multi-tenant job scheduler. Your answer MUST satisfy ALL of these, each as its own bullet starting with the tag:\n[ISOLATION] name the mechanism separating tenants' queues\n[RETRY] give an exact retry policy with numbers (attempts and backoff)\n[POISON] define what happens to a job that failed all attempts\n[SCALE] state an exact autoscaling trigger (metric and threshold)\n[AUDIT] name what is logged per job execution\nKeep the whole answer under 150 words.",
+      "checker": {
+        "type": "constraint_set",
+        "constraints": [
+          {
+            "tag": "[ISOLATION]",
+            "min_len": 20
+          },
+          {
+            "tag": "[RETRY]",
+            "min_len": 20,
+            "requires_digit": true
+          },
+          {
+            "tag": "[POISON]",
+            "min_len": 20
+          },
+          {
+            "tag": "[SCALE]",
+            "min_len": 20,
+            "requires_digit": true
+          },
+          {
+            "tag": "[AUDIT]",
+            "min_len": 20
+          }
+        ],
+        "max_words": 150
+      }
+    },
+    {
+      "id": "A4-security-review",
+      "tier": "advanced",
+      "style": "vulnerability spot-check (set match)",
+      "max_tokens": 1500,
+      "prompt": "This Python endpoint has several distinct security vulnerabilities. List each distinct one on its own line as NUMBER. CATEGORY where category is one of: INJECTION, AUTHZ, SECRET, XSS, SSRF, CRYPTO, LOGGING.\n\n```python\n@app.get('/invoice')\ndef get_invoice(request):\n    inv_id = request.args['id']\n    row = db.execute(f\"SELECT * FROM invoices WHERE id = {inv_id}\").fetchone()\n    if not row: return 'not found'\n    if request.args['admin'] == '1':\n        details = render(row)  # HTML page\n    api_key = 'sk-live-9f83ac1d'\n    audit.log(f'lookup by {request.args.get(\"user\")} key={api_key}')\n    resp = fetch(f'{request.args[\"callback\"]}?data={row}')\n    return details\n```",
+      "checker": {
+        "type": "set_match_min",
+        "min": 4,
+        "categories_any_of": [
+          [
+            "INJECTION"
+          ],
+          [
+            "AUTHZ"
+          ],
+          [
+            "SECRET",
+            "LOGGING"
+          ],
+          [
+            "XSS"
+          ],
+          [
+            "SSRF"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "A5-sharding-math",
+      "tier": "advanced",
+      "style": "capacity math + constraint mix",
+      "max_tokens": 2000,
+      "prompt": "A Postgres cluster holds 4.8 TB and grows 240 GB/month. A shard can hold at most 900 GB and must have 20% free headroom at all times; headroom is checked at the WORST case after 12 months of growth. What is the minimum number of shards required today so that the 20% headroom constraint still holds after 12 months? Reply with just the integer.",
+      "checker": {
+        "type": "numeric",
+        "value": 11,
+        "tolerance": 0.5
+      }
+    }
+  ]
+}

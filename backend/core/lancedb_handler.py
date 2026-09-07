@@ -240,6 +240,26 @@ class LanceDBHandler:
             # Handle local path creation
             if not self.db_path.startswith("s3://"):
                 self.db_path = os.path.abspath(self.db_path)
+                # Dangling-symlink probe (2026-09-05): the memory store may
+                # live on the portable drive via symlink — if the drive is
+                # unplugged, os.makedirs below fails with a cryptic ENOENT.
+                # Fail with recovery instructions instead; db stays None so
+                # the next call retries automatically once the drive is back.
+                _probe = self.db_path
+                while _probe != os.path.dirname(_probe):
+                    if os.path.islink(_probe) and not os.path.exists(_probe):
+                        logger.error(
+                            "LanceDB store %s is a DANGLING SYMLINK — external "
+                            "drive not mounted. Memory features are disabled "
+                            "until the drive is reconnected (then retry "
+                            "automatically). Run scripts/drive_status.sh to "
+                            "diagnose; data is NOT lost (it lives on the "
+                            "drive).", _probe,
+                        )
+                        raise FileNotFoundError(
+                            f"External memory store not mounted: {_probe}"
+                        )
+                    _probe = os.path.dirname(_probe)
                 os.makedirs(self.db_path, exist_ok=True)
 
             # Connect to database with storage options (required for R2/S3 endpoints)
@@ -409,6 +429,19 @@ class LanceDBHandler:
                             pa.field("from_id", pa.string()),
                             pa.field("to_id", pa.string()),
                             pa.field("type", pa.string()),
+                        ]
+                    )
+
+                # Freshness columns are top-level and filterable (the search
+                # freshness filter reads them natively). New documents tables
+                # get them from day one; existing tables are migrated in
+                # add_document when an extra column is missing.
+                if table_name == "documents":
+                    fields.extend(
+                        [
+                            pa.field("freshness_status", pa.string()),
+                            pa.field("source_modified_at", pa.string()),
+                            pa.field("source_url", pa.string()),
                         ]
                     )
 
@@ -680,6 +713,17 @@ class LanceDBHandler:
             logger.error(f"Failed to drop table '{table_name}': {e}")
             return False
 
+    def _table_vector_size(self, table) -> Union[int, None]:
+        """Fixed size of the table's 'vector' column, or None when the schema
+        carries no fixed-size vector (or the table can't be introspected)."""
+        try:
+            for f in table.schema:
+                if f.name == "vector" and hasattr(f.type, "list_size"):
+                    return f.type.list_size
+        except Exception:
+            pass
+        return None
+
     def embed_text(self, text: str) -> Union[Any, None]:
         """
         Embed text using unified LLMService.
@@ -758,15 +802,32 @@ class LanceDBHandler:
 
             # Generate embedding of the relationship description
             embedding = self.embed_text(description)
+            vector_size = self._table_vector_size(table)
+            if vector_size is None:
+                vector_size = self.vector_columns.get("vector_fastembed", 384) \
+                    if "fastembed" in str(self.embedding_provider).lower() else 1536
             if embedding is None:
-                # Fallback to zero vector if embedding fails (though not ideal)
-                vector_size = 1536 if self.embedding_provider == "openai" else 1536
-                if NUMPY_AVAILABLE:
-                    import numpy as np
-
-                    embedding = np.zeros(vector_size)
-                else:
-                    embedding = [0.0] * vector_size
+                # Embedding failed (dead embedder / event-loop sync call).
+                # The zero-vector fallback MUST match the table's fixed-size
+                # vector column — a hardcoded 1536 against a 384-dim table
+                # failed the FixedSizeList cast and silently dropped the edge.
+                logger.warning(
+                    f"add_knowledge_edge: embed failed, writing {vector_size}-dim "
+                    "zero vector (edge unsearchable until re-embedded)"
+                )
+                embedding = [0.0] * vector_size
+            elif hasattr(embedding, "__len__") and len(embedding) != vector_size:
+                # A SUCCESSFUL embed with the wrong dimension fails the same
+                # cast at table.add() (LanceError Arrow: "ListType can only
+                # be casted to FixedSizeListType…" — live 2026-09-03, edges
+                # dropped on every write while the embedder/table dims
+                # disagreed). Align to the table; the edge stays writable.
+                logger.warning(
+                    f"add_knowledge_edge: embed dim {len(embedding)} != table "
+                    f"dim {vector_size} — resizing (edge unsearchable until "
+                    "re-embedded at the table's dim)"
+                )
+                embedding = (list(embedding) + [0.0] * vector_size)[:vector_size]
 
             # Create unique edge ID
             edge_id = f"{from_id}_{rel_type}_{to_id}"
@@ -916,6 +977,27 @@ class LanceDBHandler:
                     # vector column from a Python list of floats.
                     table = self.create_table(table_name)
                 if table is not None:
+                    # Tables created before a top-level column existed (e.g.
+                    # freshness_* on pre-feature documents tables) reject the
+                    # write with "Field ... not found in target schema" —
+                    # migrate them instead of losing the row.
+                    if extra_columns:
+                        missing = [
+                            k
+                            for k in extra_columns
+                            if not self._has_column(table, k)
+                        ]
+                        if missing:
+                            try:
+                                table.add_columns({k: "''" for k in missing})
+                                logger.info(
+                                    f"Added missing column(s) {missing} to '{table_name}'"
+                                )
+                            except Exception as col_err:
+                                logger.warning(
+                                    f"Could not migrate columns {missing} on "
+                                    f"'{table_name}': {col_err}"
+                                )
                     table.add([record])
                 else:
                     return False
@@ -1004,17 +1086,22 @@ class LanceDBHandler:
                 if embedding is None:
                     continue
 
-                # Prepare record
+                # Prepare record — same field contract as add_document
+                # (metadata serialized; extra_columns merged TOP-LEVEL so
+                # appends against the freshness_* schema don't fail).
                 record = {
                     "id": doc_id,
                     "user_id": user_id,
                     "workspace_id": self.workspace_id,
                     "text": text,
                     "source": source,
-                    "metadata": metadata,
+                    "metadata": metadata if isinstance(metadata, str) else json.dumps(metadata),
                     "created_at": datetime.now(timezone.utc).isoformat(),
                     "vector": embedding.tolist() if hasattr(embedding, "tolist") else list(embedding),
                 }
+                extra = doc.get("extra_columns")
+                if isinstance(extra, dict):
+                    record.update(extra)
                 records.append(record)
 
             if not records:
@@ -1247,6 +1334,26 @@ class LanceDBHandler:
             logger.error(f"Failed to get document {doc_id}: {e}")
             return None
 
+    def get_document_ids_by_prefix(self, table_name: str, prefix: str) -> list[str]:
+        """All row ids whose id starts with ``prefix``.
+
+        Chunk families ({doc_id}::c0, ::c1, …) need family-wide deletes on
+        re-ingest; id equality alone can't find them. Small tables — full
+        scan is fine (documents ≈ thousands of rows).
+        """
+        self._ensure_db()
+        if self.db is None:
+            return []
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return []
+            ids = table.to_arrow().column("id").to_pylist()
+            return [str(i) for i in ids if str(i).startswith(prefix)]
+        except Exception as e:
+            logger.error(f"Failed to list ids by prefix in '{table_name}': {e}")
+            return []
+
     def delete_documents_by_id(self, table_name: str, doc_id: str) -> bool:
         """Delete ALL rows whose id equals ``doc_id`` from a table.
 
@@ -1269,6 +1376,30 @@ class LanceDBHandler:
             return True
         except Exception as e:
             logger.error(f"Failed to delete document {doc_id} from '{table_name}': {e}")
+            return False
+
+    def delete_documents_by_prefix(self, table_name: str, id_prefix: str) -> bool:
+        """Delete all rows whose id starts with ``id_prefix`` — ONE predicate
+        delete, one transaction.
+
+        The per-id loop this replaces (chunk families: {doc}::c0..c3400) cost
+        a separate table rewrite per id — ~3.4k transactions, observed at
+        25-90+ minutes under concurrent-writer contention before a re-ingest
+        could even start adding rows (live 2026-09-04, Consolidated Price
+        List 2019.xlsx ev4 refresh). """
+        self._ensure_db()
+        if self.db is None:
+            return False
+
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return False
+            safe_prefix = str(id_prefix).replace("\\", "\\\\").replace("'", "''").replace("%", "\\%").replace("_", "\\_")
+            table.delete(f"id LIKE '{safe_prefix}%'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete documents by prefix {id_prefix} from '{table_name}': {e}")
             return False
 
     def list_documents(

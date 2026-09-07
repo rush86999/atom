@@ -9,7 +9,8 @@
  * (action="email_attachments") broadcast the backend emits on every mutation.
  */
 import React, { useRef, useState } from "react";
-import { FileText, Paperclip, Plus, Trash2, Download, Brain, Loader2 } from "lucide-react";
+import { useRouter } from "next/router";
+import { FileText, Paperclip, Plus, Trash2, Download, Brain, Loader2, FileOutput } from "lucide-react";
 
 export interface EmailAttachmentRecord {
     attachment_id: string;
@@ -40,11 +41,33 @@ function formatSize(bytes?: number): string {
 
 export function EmailAttachmentStrip({ canvasId, attachments, readOnly = false }: EmailAttachmentStripProps) {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const router = useRouter();
     const [uploading, setUploading] = useState(false);
     const [ingesting, setIngesting] = useState<string | null>(null);
+    const [openingCanvas, setOpeningCanvas] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     if (!attachments.length && readOnly) return null;
+
+    const isPdf = (att: EmailAttachmentRecord) =>
+        (att.content_type || "").includes("pdf") ||
+        (att.filename || "").toLowerCase().endsWith(".pdf");
+
+    // Inbound loop closure: turn a PDF attachment into an editable PDF canvas
+    // (received attachments stream through from the mailbox server-side).
+    const openAsPdfCanvas = async (att: EmailAttachmentRecord) => {
+        if (!canvasId) return;
+        setOpeningCanvas(att.attachment_id);
+        setError(null);
+        try {
+            const { createPdfFromEmailAttachment } = await import("@/lib/pdf-canvas-api");
+            const res = await createPdfFromEmailAttachment(canvasId, att.attachment_id);
+            if (res?.canvas_id) router.push(`/canvas/${res.canvas_id}`);
+        } catch (e: any) {
+            setError(e?.response?.data?.error?.message || e?.message || "Could not open as PDF canvas");
+            setOpeningCanvas(null);
+        }
+    };
 
     const upload = async (files: FileList | null) => {
         if (!files?.length || !canvasId) return;
@@ -148,6 +171,21 @@ export function EmailAttachmentStrip({ canvasId, attachments, readOnly = false }
                             >
                                 <Download className="h-3 w-3" />
                             </button>
+                            {isPdf(att) && (
+                                <button
+                                    onClick={() => openAsPdfCanvas(att)}
+                                    title="Open as PDF canvas"
+                                    disabled={openingCanvas === att.attachment_id}
+                                    data-testid={`attachment-open-pdf-${att.attachment_id}`}
+                                    className="p-0.5 rounded-full hover:bg-zinc-200 dark:hover:bg-white/10 text-sky-500 disabled:opacity-50"
+                                >
+                                    {openingCanvas === att.attachment_id ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                        <FileOutput className="h-3 w-3" />
+                                    )}
+                                </button>
+                            )}
                             {!readOnly && (
                                 <button
                                     onClick={() => ingest(att.attachment_id)}

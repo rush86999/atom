@@ -1,0 +1,1848 @@
+{
+ "battery_version": "1.0",
+ "summary": {
+  "z-ai/glm-5.3-flash": {
+   "simple": {
+    "pass": 4,
+    "graded": 4,
+    "acc": 1.0
+   },
+   "moderate": {
+    "pass": 3,
+    "graded": 5,
+    "acc": 0.6
+   },
+   "complex": {
+    "pass": 4,
+    "graded": 5,
+    "acc": 0.8
+   },
+   "advanced": {
+    "pass": 5,
+    "graded": 5,
+    "acc": 1.0
+   }
+  },
+  "deepseek/deepseek-v4-flash-0731": {
+   "simple": {
+    "pass": 5,
+    "graded": 5,
+    "acc": 1.0
+   },
+   "moderate": {
+    "pass": 3,
+    "graded": 4,
+    "acc": 0.75
+   },
+   "complex": {
+    "pass": 3,
+    "graded": 4,
+    "acc": 0.75
+   },
+   "advanced": {
+    "pass": 4,
+    "graded": 4,
+    "acc": 1.0
+   }
+  },
+  "qwen/qwen3.8-flash": {
+   "simple": {
+    "pass": 4,
+    "graded": 4,
+    "acc": 1.0
+   },
+   "moderate": {
+    "pass": 3,
+    "graded": 5,
+    "acc": 0.6
+   },
+   "complex": {
+    "pass": 4,
+    "graded": 5,
+    "acc": 0.8
+   },
+   "advanced": {
+    "pass": 4,
+    "graded": 4,
+    "acc": 1.0
+   }
+  },
+  "openai/gpt-5-mini": {
+   "simple": {
+    "pass": 4,
+    "graded": 4,
+    "acc": 1.0
+   },
+   "moderate": {
+    "pass": 3,
+    "graded": 4,
+    "acc": 0.75
+   },
+   "complex": {
+    "pass": 4,
+    "graded": 5,
+    "acc": 0.8
+   },
+   "advanced": {
+    "pass": 5,
+    "graded": 5,
+    "acc": 1.0
+   }
+  },
+  "google/gemini-3-flash-preview": {
+   "simple": {
+    "pass": 5,
+    "graded": 5,
+    "acc": 1.0
+   },
+   "moderate": {
+    "pass": 3,
+    "graded": 5,
+    "acc": 0.6
+   },
+   "complex": {
+    "pass": 4,
+    "graded": 5,
+    "acc": 0.8
+   },
+   "advanced": {
+    "pass": 4,
+    "graded": 5,
+    "acc": 0.8
+   }
+  },
+  "minimax/minimax-m3": {
+   "simple": {
+    "pass": 4,
+    "graded": 4,
+    "acc": 1.0
+   },
+   "moderate": {
+    "pass": 3,
+    "graded": 5,
+    "acc": 0.6
+   },
+   "complex": {
+    "pass": 4,
+    "graded": 4,
+    "acc": 1.0
+   },
+   "advanced": {
+    "pass": 5,
+    "graded": 5,
+    "acc": 1.0
+   }
+  },
+  "moonshotai/kimi-k2.5": {
+   "simple": {
+    "pass": 5,
+    "graded": 5,
+    "acc": 1.0
+   },
+   "moderate": {
+    "pass": 3,
+    "graded": 4,
+    "acc": 0.75
+   },
+   "complex": {
+    "pass": 4,
+    "graded": 5,
+    "acc": 0.8
+   },
+   "advanced": {
+    "pass": 4,
+    "graded": 4,
+    "acc": 1.0
+   }
+  },
+  "qwen/qwen3-max": {
+   "simple": {
+    "pass": 5,
+    "graded": 5,
+    "acc": 1.0
+   },
+   "moderate": {
+    "pass": 3,
+    "graded": 5,
+    "acc": 0.6
+   },
+   "complex": {
+    "pass": 4,
+    "graded": 5,
+    "acc": 0.8
+   },
+   "advanced": {
+    "pass": 3,
+    "graded": 5,
+    "acc": 0.6
+   }
+  },
+  "qwen/qwen3.7-flash": {
+   "simple": {
+    "pass": 2,
+    "graded": 2,
+    "acc": 1.0
+   },
+   "moderate": {
+    "pass": 1,
+    "graded": 1,
+    "acc": 1.0
+   },
+   "complex": {
+    "pass": 0,
+    "graded": 0,
+    "acc": null
+   },
+   "advanced": {
+    "pass": 2,
+    "graded": 2,
+    "acc": 1.0
+   }
+  }
+ },
+ "results": [
+  {
+   "model": "z-ai/glm-5.3-flash",
+   "tasks": {
+    "S1-recall-facts": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": [
+      "PO-77142",
+      "Priya Shah"
+     ],
+     "reply": "PO number: PO-77142; Account rep: Priya Shah."
+    },
+    "S2-intent-classify": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "BILLING": true,
+      "SALES": true,
+      "SUPPORT": true
+     },
+     "reply": "1. BILLING\n2. SALES\n3. SUPPORT\n4. SALES\n5. SUPPORT"
+    },
+    "S3-word-limit": {
+     "tier": "simple",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "S4-tax-math": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 538.6,
+      "got": 538.6
+     },
+     "reply": "538.60"
+    },
+    "S5-date-extract": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "missing": []
+     },
+     "reply": "2026-03-03\n2026-03-10\n2026-03-24"
+    },
+    "M1-email-json": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "```json\n{\n  \"sender\": \"accounts@meridian-supply.com\",\n  \"due_date\": \"2026-04-15\",\n  \"amount\": 3180.50,\n  \"action\": \"pay\"\n}\n```"
+    },
+    "M2-threestep-math": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 4030,
+      "got": 4030.0
+     },
+     "reply": "4030"
+    },
+    "M3-record-merge": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "tags": {
+       "want": "beta, vip",
+       "got": "beta, vip, west"
+      }
+     },
+     "reply": "{\"email\": \"jane@acme.com\", \"phone\": \"+1-555-0100\", \"address\": \"48 Birch Ave\", \"tags\": \"beta, vip, west\"}"
+    },
+    "M4-tool-args": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"tool\": \"search_orders\", \"args\": {\"customer_email\": \"mia@rltech.ca\", \"status\": \"delivered\", \"limit\": 5}}"
+    },
+    "M5-conditional-policy": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "A: APPROVED": true,
+      "B: DENIED": true,
+      "C: DENIED": false
+     },
+     "reply": "A: APPROVED\nB: DENIED\nC: MANAGER"
+    },
+    "C1-code-groupby": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef group_transactions(transactions):\n    \"\"\"transactions: list of dicts with keys 'account' (str), 'amount' (float), 'pending' (bool).\n    Return a dict mapping each account to its summed amount, IGNORING pending transactions.\n    Round each account total to 2 decimals. Accounts with no non-pending transactions are omitted.\"\"\"\n    totals = {}\n    for t in transactions:\n        if t['pending']:\n            continue\n        account = t['account']\n        totals[account] = totals.get(acc"
+    },
+    "C2-code-fix": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "The bug is in the sort: `reverse=True` only orders by frequency descending, leaving ties in insertion order rather than alphabetical order. Sorting by the compound key `(-count, word)` fixes both requirements in one pass.\n\n```python\ndef top_words(text, n):\n    words = text.lower().split()\n    counts = {}\n    for w in words:\n        counts[w] = counts.get(w, 0) + 1\n    return sorted(counts, key=lambda w: (-counts[w], w))[:n]\n```\n\n- `top_words('b a b c a b', 2)` \u2192 `['b', 'a']` \u2713\n- `top_words('Beta"
+    },
+    "C3-yoy-analysis": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "Q2_YOY: 25.0\nH1_2026: North"
+    },
+    "C4-constraint-schedule": {
+     "tier": "complex",
+     "verdict": "FAIL",
+     "detail": {
+      "Alice": {
+       "want": "Wednesday",
+       "got": "Wed 09:00"
+      },
+      "Bob": {
+       "want": "Thursday",
+       "got": "Thu 09:00"
+      },
+      "Client": {
+       "want": "Friday",
+       "got": "Fri 09:00"
+      }
+     },
+     "reply": "Alice: Wed 09:00\nBob: Thu 09:00\nClient: Fri 09:00"
+    },
+    "C5-json-flatten": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {
+      "expected_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ],
+      "got_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ]
+     },
+     "reply": "region,city,sales\nEast,Halifax,17\nWest,Banff,9\nWest,Calgary,42"
+    },
+    "A1-olympiad-integer": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 18,
+      "got": 18.0
+     },
+     "reply": "18"
+    },
+    "A2-expert-mcq": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "B": true
+     },
+     "reply": "B"
+    },
+    "A3-design-constraints": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "violations": []
+     },
+     "reply": "- **[ISOLATION]** Per-tenant Redis Streams \u2014 one queue per tenant, each capped at 10 concurrent jobs, so no tenant can starve others.\n\n- **[RETRY]** Maximum 3 attempts with exponential backoff: 30s \u2192 2m \u2192 10m, plus \u00b120% jitter. Retries trigger only on transient errors (timeouts, 5xx).\n\n- **[POISON]** After the third failed attempt, the job moves to a tenant-scoped dead-letter queue, is marked `failed`, and the tenant is notified via webhook. Retained 30 days for manual replay.\n\n- **[SCALE]** Add"
+    },
+    "A4-security-review": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "groups_hit": 5,
+      "min": 4,
+      "cats": [
+       "AUTHZ",
+       "INJECTION",
+       "LOGGING",
+       "SECRET",
+       "SSRF",
+       "XSS"
+      ]
+     },
+     "reply": "1. INJECTION \u2014 SQL injection: user-controlled `id` is interpolated directly into the query via f-string.\n2. AUTHZ \u2014 Broken authorization: admin access is granted based on the client-supplied `admin=1` query parameter.\n3. SECRET \u2014 Hardcoded live API key (`sk-live-9f83ac1d`) stored in source code.\n4. LOGGING \u2014 Sensitive data exposure in logs: the API key (and unsanitized user input) is written to the audit log.\n5. SSRF \u2014 Server-Side Request Forgery: the server fetches a user-controlled `callback` "
+    },
+    "A5-sharding-math": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 11,
+      "got": 11.0
+     },
+     "reply": "11"
+    }
+   }
+  },
+  {
+   "model": "deepseek/deepseek-v4-flash-0731",
+   "tasks": {
+    "S1-recall-facts": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": [
+      "PO-77142",
+      "Priya Shah"
+     ],
+     "reply": "PO number: PO-77142  \nAccount rep: Priya Shah"
+    },
+    "S2-intent-classify": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "BILLING": true,
+      "SALES": true,
+      "SUPPORT": true
+     },
+     "reply": "1. BILLING\n2. SALES\n3. SUPPORT\n4. SALES\n5. SUPPORT"
+    },
+    "S3-word-limit": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "words": 23,
+      "limit": 25
+     },
+     "reply": "Q3: revenue up 12% via logistics, churn flat 2.1%, onboarding tickets cut by third, 4/6 roles filled. Q4 focus: enterprise pipeline, mobile redesign."
+    },
+    "S4-tax-math": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 538.6,
+      "got": 538.6
+     },
+     "reply": "538.60"
+    },
+    "S5-date-extract": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "missing": []
+     },
+     "reply": "2026-03-03\n2026-03-10\n2026-03-24"
+    },
+    "M1-email-json": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"sender\": \"accounts@meridian-supply.com\", \"due_date\": \"2026-04-15\", \"amount\": 3180.5, \"action\": \"pay\"}"
+    },
+    "M2-threestep-math": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 4030,
+      "got": 4030.0
+     },
+     "reply": "4030"
+    },
+    "M3-record-merge": {
+     "tier": "moderate",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "M4-tool-args": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"tool\":\"search_orders\",\"args\":{\"customer_email\":\"mia@rltech.ca\",\"status\":\"delivered\",\"limit\":5}}"
+    },
+    "M5-conditional-policy": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "A: APPROVED": true,
+      "B: DENIED": true,
+      "C: DENIED": false
+     },
+     "reply": "A: APPROVED\nB: DENIED\nC: MANAGER"
+    },
+    "C1-code-groupby": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef group_transactions(transactions):\n    totals = {}\n    for tx in transactions:\n        if tx['pending']:\n            continue\n        account = tx['account']\n        amount = tx['amount']\n        totals[account] = round(totals.get(account, 0.0) + amount, 2)\n    return totals\n```"
+    },
+    "C2-code-fix": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\nimport re\nfrom collections import Counter\n\ndef top_words(text, n):\n    # Extract words: lowercase, keep only alphanumeric sequences\n    words = re.findall(r'[a-z0-9]+', text.lower())\n    # Count frequencies\n    counts = Counter(words)\n    # Sort by (-count, word) for descending frequency, alphabetical tie-break\n    sorted_words = sorted(counts.items(), key=lambda x: (-x[1], x[0]))\n    # Return top n words (or all if fewer)\n    return [word for word, _ in sorted_words[:n]]\n```"
+    },
+    "C3-yoy-analysis": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "Q2_YOY: 25.0\nH1_2026: North"
+    },
+    "C4-constraint-schedule": {
+     "tier": "complex",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "C5-json-flatten": {
+     "tier": "complex",
+     "verdict": "FAIL",
+     "detail": {
+      "expected_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ],
+      "got_lines": [
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ]
+     },
+     "reply": "East,Halifax,17\nWest,Banff,9\nWest,Calgary,42"
+    },
+    "A1-olympiad-integer": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 18,
+      "got": 18.0
+     },
+     "reply": "18"
+    },
+    "A2-expert-mcq": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "B": true
+     },
+     "reply": "B"
+    },
+    "A3-design-constraints": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "violations": []
+     },
+     "reply": "[ISOLATION] Per-tenant queue namespaces with isolated message groups and tenant ID routing.\n\n[RETRY] 3 attempts with exponential backoff: 1s, 4s, 16s.\n\n[POISON] After max attempts, job moves to a dead-letter queue with error reason and original payload.\n\n[SCALE] Autoscale workers when average queue depth exceeds 100 for 1 minute.\n\n[AUDIT] Log job ID, tenant, status, timestamps, retry count, and error message per execution."
+    },
+    "A4-security-review": {
+     "tier": "advanced",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "A5-sharding-math": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 11,
+      "got": 11.0
+     },
+     "reply": "11"
+    }
+   }
+  },
+  {
+   "model": "qwen/qwen3.8-flash",
+   "tasks": {
+    "S1-recall-facts": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": [
+      "PO-77142",
+      "Priya Shah"
+     ],
+     "reply": "PO number: PO-77142  \nAccount rep: Priya Shah"
+    },
+    "S2-intent-classify": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "BILLING": true,
+      "SALES": true,
+      "SUPPORT": true
+     },
+     "reply": "1. BILLING\n2. SALES\n3. SUPPORT\n4. SALES\n5. SUPPORT"
+    },
+    "S3-word-limit": {
+     "tier": "simple",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "S4-tax-math": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 538.6,
+      "got": 538.6
+     },
+     "reply": "538.60"
+    },
+    "S5-date-extract": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "missing": []
+     },
+     "reply": "2026-03-03\n2026-03-10\n2026-03-24"
+    },
+    "M1-email-json": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\n  \"sender\": \"accounts@meridian-supply.com\",\n  \"due_date\": \"2026-04-15\",\n  \"amount\": 3180.50,\n  \"action\": \"pay\"\n}"
+    },
+    "M2-threestep-math": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 4030,
+      "got": 4030.0
+     },
+     "reply": "4030"
+    },
+    "M3-record-merge": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "tags": {
+       "want": "beta, vip",
+       "got": "beta, vip, west"
+      }
+     },
+     "reply": "{\n  \"email\": \"jane@acme.com\",\n  \"phone\": \"+1-555-0100\",\n  \"address\": \"48 Birch Ave\",\n  \"tags\": \"beta, vip, west\"\n}"
+    },
+    "M4-tool-args": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"tool\": \"search_orders\", \"args\": {\"customer_email\": \"mia@rltech.ca\", \"status\": \"delivered\", \"limit\": 5}}"
+    },
+    "M5-conditional-policy": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "A: APPROVED": true,
+      "B: DENIED": true,
+      "C: DENIED": false
+     },
+     "reply": "A: APPROVED\nB: DENIED\nC: MANAGER"
+    },
+    "C1-code-groupby": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef group_transactions(transactions):\n    totals = {}\n    for transaction in transactions:\n        if not transaction[\"pending\"]:\n            account = transaction[\"account\"]\n            totals[account] = totals.get(account, 0.0) + transaction[\"amount\"]\n    return {account: round(total, 2) for account, total in totals.items()}\n```"
+    },
+    "C2-code-fix": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef top_words(text, n):\n    if n <= 0:\n        return []\n\n    words = text.lower().split()\n    counts = {}\n    for w in words:\n        counts[w] = counts.get(w, 0) + 1\n\n    return sorted(counts, key=lambda w: (-counts[w], w))[:n]\n```"
+    },
+    "C3-yoy-analysis": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "Q2_YOY: 25.0\nH1_2026: North"
+    },
+    "C4-constraint-schedule": {
+     "tier": "complex",
+     "verdict": "FAIL",
+     "detail": {
+      "Alice": {
+       "want": "Wednesday",
+       "got": "Wed 09:00"
+      },
+      "Bob": {
+       "want": "Thursday",
+       "got": "Thu 09:00"
+      },
+      "Client": {
+       "want": "Friday",
+       "got": "Fri 16:00"
+      }
+     },
+     "reply": "Alice: Wed 09:00\nBob: Thu 09:00\nClient: Fri 16:00"
+    },
+    "C5-json-flatten": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {
+      "expected_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ],
+      "got_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ]
+     },
+     "reply": "region,city,sales\nEast,Halifax,17\nWest,Banff,9\nWest,Calgary,42"
+    },
+    "A1-olympiad-integer": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 18,
+      "got": 18.0
+     },
+     "reply": "18"
+    },
+    "A2-expert-mcq": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "B": true
+     },
+     "reply": "B"
+    },
+    "A3-design-constraints": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "violations": []
+     },
+     "reply": "[ISOLATION] Use per-tenant durable queues keyed by tenant ID, with IAM policies and namespace isolation preventing cross-tenant reads/writes.\n\n[RETRY] Retry each job for 3 total attempts: attempt 1 immediate, attempt 2 after 30s, attempt 3 after 5m, with 10% jitter.\n\n[POISON] After 3 failed attempts, move the job to a tenant-scoped dead-letter queue, mark it failed, alert tenant admins, and retain it for 30 days.\n\n[SCALE] Autoscale tenant workers when tenant queue depth exceeds 100 pending jobs "
+    },
+    "A4-security-review": {
+     "tier": "advanced",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "A5-sharding-math": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 11,
+      "got": 11.0
+     },
+     "reply": "11"
+    }
+   }
+  },
+  {
+   "model": "openai/gpt-5-mini",
+   "tasks": {
+    "S1-recall-facts": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": [
+      "PO-77142",
+      "Priya Shah"
+     ],
+     "reply": "PO number: PO-77142\nAccount rep: Priya Shah"
+    },
+    "S2-intent-classify": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "BILLING": true,
+      "SALES": true,
+      "SUPPORT": true
+     },
+     "reply": "1. BILLING\n2. SALES\n3. SUPPORT\n4. SALES\n5. SUPPORT"
+    },
+    "S3-word-limit": {
+     "tier": "simple",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "S4-tax-math": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 538.6,
+      "got": 538.6
+     },
+     "reply": "538.60"
+    },
+    "S5-date-extract": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "missing": []
+     },
+     "reply": "2026-03-03\n2026-03-10\n2026-03-24"
+    },
+    "M1-email-json": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"sender\":\"accounts@meridian-supply.com\",\"due_date\":\"2026-04-15\",\"amount\":3180.5,\"action\":\"pay\"}"
+    },
+    "M2-threestep-math": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 4030,
+      "got": 4030.0
+     },
+     "reply": "4030"
+    },
+    "M3-record-merge": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "tags": {
+       "want": "beta, vip",
+       "got": "beta, vip, west"
+      }
+     },
+     "reply": "{\"email\":\"jane@acme.com\",\"phone\":\"+1-555-0100\",\"address\":\"48 Birch Ave\",\"tags\":\"beta, vip, west\"}"
+    },
+    "M4-tool-args": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"tool\": \"search_orders\", \"args\": {\"customer_email\": \"mia@rltech.ca\", \"status\": \"delivered\", \"limit\": 5}}"
+    },
+    "M5-conditional-policy": {
+     "tier": "moderate",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "C1-code-groupby": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef group_transactions(transactions):\n    \"\"\"transactions: list of dicts with keys 'account' (str), 'amount' (float), 'pending' (bool).\n    Return a dict mapping each account to its summed amount, IGNORING pending transactions.\n    Round each account total to 2 decimals. Accounts with no non-pending transactions are omitted.\"\"\"\n    totals = {}\n    for tx in transactions:\n        if not tx.get('pending', False):\n            acct = tx.get('account')\n            if acct is None:\n         "
+    },
+    "C2-code-fix": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef top_words(text, n):\n    words = text.lower().split()\n    counts = {}\n    for w in words:\n        counts[w] = counts.get(w, 0) + 1\n    sorted_words = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))\n    return [w for w, _ in sorted_words][:n]\n```"
+    },
+    "C3-yoy-analysis": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "Q2_YOY: 25.0\nH1_2026: North"
+    },
+    "C4-constraint-schedule": {
+     "tier": "complex",
+     "verdict": "FAIL",
+     "detail": {
+      "Alice": {
+       "want": "Wednesday",
+       "got": "Wed 11:"
+      },
+      "Bob": "missing",
+      "Client": "missing"
+     },
+     "reply": "Alice: Wed 11:"
+    },
+    "C5-json-flatten": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {
+      "expected_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ],
+      "got_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ]
+     },
+     "reply": "region,city,sales\nEast,Halifax,17\nWest,Banff,9\nWest,Calgary,42"
+    },
+    "A1-olympiad-integer": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 18,
+      "got": 18.0
+     },
+     "reply": "18"
+    },
+    "A2-expert-mcq": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "B": true
+     },
+     "reply": "B"
+    },
+    "A3-design-constraints": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "violations": []
+     },
+     "reply": "- [ISOLATION] Per-tenant dedicated queue instance (namespace-level queue) with RBAC and resource quotas.\n- [RETRY] Max attempts 4 (1 initial + 3 retries); exponential backoff starting 1s, multiplier 2 \u2192 delays: 1s, 2s, 4s; max delay cap 30s.\n- [POISON] After retries exhausted move job to per-tenant dead-letter queue (DLQ), mark status=POISON, emit audit event and notify tenant owner.\n- [SCALE] Autoscale workers: if pending_jobs_per_worker > 50 averaged over 60s, add 2 workers; scale down: remove"
+    },
+    "A4-security-review": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "groups_hit": 5,
+      "min": 4,
+      "cats": [
+       "AUTHZ",
+       "INJECTION",
+       "LOGGING",
+       "SECRET",
+       "SSRF",
+       "XSS"
+      ]
+     },
+     "reply": "1. INJECTION\n2. AUTHZ\n3. XSS\n4. SECRET\n5. LOGGING\n6. SSRF"
+    },
+    "A5-sharding-math": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 11,
+      "got": 11.0
+     },
+     "reply": "11"
+    }
+   }
+  },
+  {
+   "model": "google/gemini-3-flash-preview",
+   "tasks": {
+    "S1-recall-facts": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": [
+      "PO-77142",
+      "Priya Shah"
+     ],
+     "reply": "**PO Number:** PO-77142\n**Account Rep:** Priya Shah"
+    },
+    "S2-intent-classify": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "BILLING": true,
+      "SALES": true,
+      "SUPPORT": true
+     },
+     "reply": "1. BILLING\n2. SALES\n3. SUPPORT\n4. SALES\n5. SUPPORT"
+    },
+    "S3-word-limit": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "words": 24,
+      "limit": 25
+     },
+     "reply": "Q3 revenue rose 12% via logistics. Churn was 2.1%. Support tickets dropped 33%. Four roles filled. Q4 focuses on enterprise sales and mobile redesign."
+    },
+    "S4-tax-math": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 538.6,
+      "got": 538.6
+     },
+     "reply": "538.60"
+    },
+    "S5-date-extract": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "missing": []
+     },
+     "reply": "2026-03-03\n2026-03-10\n2026-03-24"
+    },
+    "M1-email-json": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\n  \"sender\": \"accounts@meridian-supply.com\",\n  \"due_date\": \"2026-04-15\",\n  \"amount\": 3180.50,\n  \"action\": \"pay\"\n}"
+    },
+    "M2-threestep-math": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 4030,
+      "got": 4030.0
+     },
+     "reply": "4,030"
+    },
+    "M3-record-merge": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "tags": {
+       "want": "beta, vip",
+       "got": "beta, vip, west"
+      }
+     },
+     "reply": "{\n  \"email\": \"jane@acme.com\",\n  \"phone\": \"+1-555-0100\",\n  \"address\": \"48 Birch Ave\",\n  \"tags\": \"beta, vip, west\"\n}"
+    },
+    "M4-tool-args": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"tool\": \"search_orders\", \"args\": {\"customer_email\": \"mia@rltech.ca\", \"status\": \"delivered\", \"limit\": 5}}"
+    },
+    "M5-conditional-policy": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "A: APPROVED": true,
+      "B: DENIED": true,
+      "C: DENIED": false
+     },
+     "reply": "A: APPROVED\nB: DENIED\nC: MANAGER"
+    },
+    "C1-code-groupby": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef group_transactions(transactions):\n    totals = {}\n    for tx in transactions:\n        if not tx.get('pending', False):\n            account = tx['account']\n            totals[account] = totals.get(account, 0.0) + tx['amount']\n    \n    return {acc: round(amt, 2) for acc, amt in totals.items()}\n```"
+    },
+    "C2-code-fix": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "**Analysis**\nThe original function fails because Python's `sorted()` is stable, but the key `counts.get` does not account for alphabetical tie-breaking when `reverse=True` is applied. To fix this, the sorting key must be a tuple: the frequency (negated for descending order) and the word itself (for ascending alphabetical order).\n\n**Solution**\n```python\ndef top_words(text, n):\n    words = text.lower().split()\n    if not words:\n        return []\n    \n    counts = {}\n    for w in words:\n        cou"
+    },
+    "C3-yoy-analysis": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "Q2_YOY: 25.0\nH1_2026: North"
+    },
+    "C4-constraint-schedule": {
+     "tier": "complex",
+     "verdict": "FAIL",
+     "detail": {
+      "Alice": {
+       "want": "Wednesday",
+       "got": "Wednesday 12:00"
+      },
+      "Bob": {
+       "want": "Thursday",
+       "got": "Thursday 09:00"
+      },
+      "Client": {
+       "want": "Friday",
+       "got": "Friday 09:00"
+      }
+     },
+     "reply": "Alice: Wednesday 12:00\nBob: Thursday 09:00\nClient: Friday 09:00"
+    },
+    "C5-json-flatten": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {
+      "expected_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ],
+      "got_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ]
+     },
+     "reply": "region,city,sales\nEast,Halifax,17\nWest,Banff,9\nWest,Calgary,42"
+    },
+    "A1-olympiad-integer": {
+     "tier": "advanced",
+     "verdict": "FAIL",
+     "detail": {
+      "expected": 18,
+      "got": 14.0
+     },
+     "reply": "14"
+    },
+    "A2-expert-mcq": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "B": true
+     },
+     "reply": "B"
+    },
+    "A3-design-constraints": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "violations": []
+     },
+     "reply": "Here is the design for the multi-tenant job scheduler:\n\n* [ISOLATION] Virtual host partitioning within RabbitMQ, assigning each tenant a dedicated exchange and set of routing keys to prevent cross-tenant data leakage.\n* [RETRY] Exponential backoff policy: 5 maximum attempts with an initial delay of 30 seconds and a multiplier of 2.0.\n* [POISON] Jobs exceeding all retry attempts are moved to a Dead Letter Exchange (DLX) for manual inspection and archived in a \"failed_jobs\" database table.\n* [SCAL"
+    },
+    "A4-security-review": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "groups_hit": 5,
+      "min": 4,
+      "cats": [
+       "AUTHZ",
+       "INJECTION",
+       "LOGGING",
+       "SECRET",
+       "SSRF",
+       "XSS"
+      ]
+     },
+     "reply": "1. INJECTION\n2. AUTHZ\n3. SECRET\n4. LOGGING\n5. SSRF\n6. XSS"
+    },
+    "A5-sharding-math": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 11,
+      "got": 11.0
+     },
+     "reply": "11"
+    }
+   }
+  },
+  {
+   "model": "minimax/minimax-m3",
+   "tasks": {
+    "S1-recall-facts": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": [
+      "PO-77142",
+      "Priya Shah"
+     ],
+     "reply": "\nThe PO number is **PO-77142**, and the account rep is **Priya Shah**."
+    },
+    "S2-intent-classify": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "BILLING": true,
+      "SALES": true,
+      "SUPPORT": true
+     },
+     "reply": "1. BILLING\n2. BILLING\n3. SUPPORT\n4. SALES\n5. SUPPORT"
+    },
+    "S3-word-limit": {
+     "tier": "simple",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "S4-tax-math": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 538.6,
+      "got": 538.6
+     },
+     "reply": "538.60"
+    },
+    "S5-date-extract": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "missing": []
+     },
+     "reply": "2026-03-03\n2026-03-10\n2026-03-24"
+    },
+    "M1-email-json": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"sender\":\"accounts@meridian-supply.com\",\"due_date\":\"2026-04-15\",\"amount\":3180.50,\"action\":\"pay\"}"
+    },
+    "M2-threestep-math": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 4030,
+      "got": 4030.0
+     },
+     "reply": "4030"
+    },
+    "M3-record-merge": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "tags": {
+       "want": "beta, vip",
+       "got": "beta, vip, west"
+      }
+     },
+     "reply": "{\"email\":\"jane@acme.com\",\"phone\":\"+1-555-0100\",\"address\":\"48 Birch Ave\",\"tags\":\"beta, vip, west\"}"
+    },
+    "M4-tool-args": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"tool\": \"search_orders\", \"args\": {\"customer_email\": \"mia@rltech.ca\", \"status\": \"delivered\", \"limit\": 5}}"
+    },
+    "M5-conditional-policy": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "A: APPROVED": true,
+      "B: DENIED": true,
+      "C: DENIED": false
+     },
+     "reply": "A: APPROVED\nB: DENIED\nC: MANAGER"
+    },
+    "C1-code-groupby": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef group_transactions(transactions):\n    totals = {}\n    for t in transactions:\n        if t['pending']:\n            continue\n        account = t['account']\n        totals[account] = totals.get(account, 0.0) + t['amount']\n    return {acc: round(amt, 2) for acc, amt in totals.items()}\n```"
+    },
+    "C2-code-fix": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef top_words(text, n):\n    words = text.lower().split()\n    counts = {}\n    for w in words:\n        counts[w] = counts.get(w, 0) + 1\n    return sorted(counts, key=lambda w: (-counts[w], w))[:n]\n```\n\nThe original bug was in the sort key. Using only `key=counts.get` with `reverse=True` breaks ties in reverse insertion order, so for equal frequencies it didn't sort alphabetically. Sorting by the tuple `(-counts[w], w)` ensures descending frequency, then ascending alphabetical order for t"
+    },
+    "C3-yoy-analysis": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "Q2_YOY: 25.0\nH1_2026: North"
+    },
+    "C4-constraint-schedule": {
+     "tier": "complex",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "C5-json-flatten": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {
+      "expected_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ],
+      "got_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ]
+     },
+     "reply": "region,city,sales\nEast,Halifax,17\nWest,Banff,9\nWest,Calgary,42"
+    },
+    "A1-olympiad-integer": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 18,
+      "got": 18.0
+     },
+     "reply": "18"
+    },
+    "A2-expert-mcq": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "B": true
+     },
+     "reply": "\n\nB"
+    },
+    "A3-design-constraints": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "violations": []
+     },
+     "reply": "- [ISOLATION] Per-tenant RabbitMQ vhost with dedicated queue namespace; tenant_id is a routing key prefix, and workers consume only from their assigned vhost, preventing cross-tenant message access.\n- [RETRY] 5 attempts total; exponential backoff: 10s, 30s, 2m, 10m, 30m, with \u00b120% jitter to avoid thundering herd.\n- [POISON] After 5 failed attempts, the job is moved to a `tenant.{tenant_id}.dead_letter` queue, retained 30 days, and emits a `job.poisoned` event for ops alerting.\n- [SCALE] Scale wo"
+    },
+    "A4-security-review": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "groups_hit": 5,
+      "min": 4,
+      "cats": [
+       "AUTHZ",
+       "INJECTION",
+       "LOGGING",
+       "SECRET",
+       "SSRF",
+       "XSS"
+      ]
+     },
+     "reply": "1. INJECTION\n2. AUTHZ\n3. SECRET\n4. LOGGING\n5. SSRF\n6. XSS"
+    },
+    "A5-sharding-math": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 11,
+      "got": 11.0
+     },
+     "reply": "11"
+    }
+   }
+  },
+  {
+   "model": "moonshotai/kimi-k2.5",
+   "tasks": {
+    "S1-recall-facts": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": [
+      "PO-77142",
+      "Priya Shah"
+     ],
+     "reply": "The PO number is **PO-77142** and the account rep is **Priya Shah**."
+    },
+    "S2-intent-classify": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "BILLING": true,
+      "SALES": true,
+      "SUPPORT": true
+     },
+     "reply": "1. BILLING\n2. SALES\n3. SUPPORT\n4. SALES\n5. SUPPORT"
+    },
+    "S3-word-limit": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "words": 25,
+      "limit": 25
+     },
+     "reply": "Q3 revenue up 12% on logistics; churn flat at 2.1%; onboarding cut support tickets by a third; four roles filled; Q4: enterprise pipeline, mobile redesign."
+    },
+    "S4-tax-math": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 538.6,
+      "got": 538.6
+     },
+     "reply": "538.60"
+    },
+    "S5-date-extract": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "missing": []
+     },
+     "reply": " 2026-03-03\n2026-03-10\n2026-03-24"
+    },
+    "M1-email-json": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": " ```json\n{\n  \"sender\": \"accounts@meridian-supply.com\",\n  \"due_date\": \"2026-04-15\",\n  \"amount\": 3180.50,\n  \"action\": \"pay\"\n}\n```"
+    },
+    "M2-threestep-math": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 4030,
+      "got": 4030.0
+     },
+     "reply": "4030"
+    },
+    "M3-record-merge": {
+     "tier": "moderate",
+     "verdict": "INCONCLUSIVE",
+     "detail": "no JSON object found",
+     "reply": " {\"email\":\"jane"
+    },
+    "M4-tool-args": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"tool\": \"search_orders\", \"args\": {\"customer_email\": \"mia@rltech.ca\", \"status\": \"delivered\", \"limit\": 5}}"
+    },
+    "M5-conditional-policy": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "A: APPROVED": true,
+      "B: DENIED": true,
+      "C: DENIED": false
+     },
+     "reply": "A: APPROVED\nB: DENIED\nC: MANAGER"
+    },
+    "C1-code-groupby": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef group_transactions(transactions):\n    totals = {}\n    for t in transactions:\n        if t.get(\"pending\"):\n            continue\n        account = t[\"account\"]\n        totals[account] = totals.get(account, 0.0) + t[\"amount\"]\n    return {account: round(amount, 2) for account, amount in totals.items()}\n```"
+    },
+    "C2-code-fix": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": " ```python\ndef top_words(text, n):\n    words = text.lower().split()\n    counts = {}\n    for w in words:\n        counts[w] = counts.get(w, 0) + 1\n    return sorted(counts, key=lambda w: (-counts[w], w))[:n]\n```"
+    },
+    "C3-yoy-analysis": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "Q2_YOY: 25.0\nH1_2026: North"
+    },
+    "C4-constraint-schedule": {
+     "tier": "complex",
+     "verdict": "FAIL",
+     "detail": {
+      "Alice": {
+       "want": "Wednesday",
+       "got": "Wednesday 10:00"
+      },
+      "Bob": {
+       "want": "Thursday",
+       "got": "Thursday 11:00"
+      },
+      "Client": {
+       "want": "Friday",
+       "got": "Friday 14:00"
+      }
+     },
+     "reply": "Alice: Wednesday 10:00\nBob: Thursday 11:00\nClient: Friday 14:00"
+    },
+    "C5-json-flatten": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {
+      "expected_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ],
+      "got_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ]
+     },
+     "reply": "region,city,sales\nEast,Halifax,17\nWest,Banff,9\nWest,Calgary,42"
+    },
+    "A1-olympiad-integer": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 18,
+      "got": 18.0
+     },
+     "reply": "18"
+    },
+    "A2-expert-mcq": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "B": true
+     },
+     "reply": "B"
+    },
+    "A3-design-constraints": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "violations": []
+     },
+     "reply": "\u2022 [ISOLATION] Separate Redis Streams per tenant, routed by tenant-ID sharding keys so workers consume only from assigned tenant partitions.\n\u2022 [RETRY] Exponential backoff: 5 attempts at 5s, 15s, 45s, 2m, and 6m.\n\u2022 [POISON] After final failure, the job is moved to a tenant-isolated dead-letter queue and an alert is triggered.\n\u2022 [SCALE] Horizontal pod autoscaler adds workers when per-tenant queued job depth exceeds 50 for 2 minutes.\n\u2022 [AUDIT] Start time, end time, tenant ID, job ID, worker host, at"
+    },
+    "A4-security-review": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "groups_hit": 5,
+      "min": 4,
+      "cats": [
+       "AUTHZ",
+       "INJECTION",
+       "LOGGING",
+       "SECRET",
+       "SSRF",
+       "XSS"
+      ]
+     },
+     "reply": "1. INJECTION\n2. AUTHZ\n3. SECRET\n4. LOGGING\n5. SSRF\n6. XSS"
+    },
+    "A5-sharding-math": {
+     "tier": "advanced",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    }
+   }
+  },
+  {
+   "model": "qwen/qwen3-max",
+   "tasks": {
+    "S1-recall-facts": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": [
+      "PO-77142",
+      "Priya Shah"
+     ],
+     "reply": "PO number: PO-77142  \nAccount rep: Priya Shah"
+    },
+    "S2-intent-classify": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "BILLING": true,
+      "SALES": true,
+      "SUPPORT": true
+     },
+     "reply": "1. BILLING  \n2. SALES  \n3. SUPPORT  \n4. SALES  \n5. SUPPORT"
+    },
+    "S3-word-limit": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "words": 21,
+      "limit": 25
+     },
+     "reply": "Q3: 12% revenue growth (logistics), flat 2.1% churn, onboarding cut tickets by 1/3, 4/6 roles filled; Q4: enterprise pipeline, mobile redesign."
+    },
+    "S4-tax-math": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 538.6,
+      "got": 538.6
+     },
+     "reply": "538.60"
+    },
+    "S5-date-extract": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "missing": []
+     },
+     "reply": "2026-03-03\n2026-03-10\n2026-03-24"
+    },
+    "M1-email-json": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\n  \"sender\": \"accounts@meridian-supply.com\",\n  \"due_date\": \"2026-04-15\",\n  \"amount\": 3180.5,\n  \"action\": \"pay\"\n}"
+    },
+    "M2-threestep-math": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "expected": 4030,
+      "got": 3720.0
+     },
+     "reply": "3,720"
+    },
+    "M3-record-merge": {
+     "tier": "moderate",
+     "verdict": "FAIL",
+     "detail": {
+      "tags": {
+       "want": "beta, vip",
+       "got": "beta,vip,west"
+      }
+     },
+     "reply": "{\n  \"email\": \"jane@acme.com\",\n  \"phone\": \"+1-555-0100\",\n  \"address\": \"48 Birch Ave\",\n  \"tags\": \"beta,vip,west\"\n}"
+    },
+    "M4-tool-args": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"tool\": \"search_orders\", \"args\": {\"customer_email\": \"mia@rltech.ca\", \"status\": \"delivered\", \"limit\": 5}}"
+    },
+    "M5-conditional-policy": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {
+      "A: APPROVED": true,
+      "B: DENIED": true,
+      "C: DENIED": true
+     },
+     "reply": "A: APPROVED  \nB: DENIED  \nC: DENIED"
+    },
+    "C1-code-groupby": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef group_transactions(transactions):\n    account_totals = {}\n    for tx in transactions:\n        if not tx['pending']:\n            account = tx['account']\n            amount = tx['amount']\n            account_totals[account] = account_totals.get(account, 0) + amount\n    return {account: round(total, 2) for account, total in account_totals.items()}\n```"
+    },
+    "C2-code-fix": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": "ALL_OK\n",
+     "reply": "```python\ndef top_words(text, n):\n    words = text.lower().split()\n    counts = {}\n    for w in words:\n        counts[w] = counts.get(w, 0) + 1\n    return sorted(counts, key=lambda x: (-counts[x], x))[:n]\n```"
+    },
+    "C3-yoy-analysis": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "Q2_YOY: 25.0  \nH1_2026: North"
+    },
+    "C4-constraint-schedule": {
+     "tier": "complex",
+     "verdict": "FAIL",
+     "detail": {
+      "Alice": {
+       "want": "Wednesday",
+       "got": "Wed 13:00"
+      },
+      "Bob": {
+       "want": "Thursday",
+       "got": "Mon 10:00"
+      },
+      "Client": {
+       "want": "Friday",
+       "got": "Fri 14:00"
+      }
+     },
+     "reply": "Alice: Wed 13:00  \nBob: Mon 10:00  \nClient: Fri 14:00"
+    },
+    "C5-json-flatten": {
+     "tier": "complex",
+     "verdict": "PASS",
+     "detail": {
+      "expected_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ],
+      "got_lines": [
+       "region,city,sales",
+       "East,Halifax,17",
+       "West,Banff,9",
+       "West,Calgary,42"
+      ]
+     },
+     "reply": "region,city,sales\nEast,Halifax,17\nWest,Banff,9\nWest,Calgary,42"
+    },
+    "A1-olympiad-integer": {
+     "tier": "advanced",
+     "verdict": "FAIL",
+     "detail": {
+      "expected": 18,
+      "got": 14.0
+     },
+     "reply": "14"
+    },
+    "A2-expert-mcq": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "B": true
+     },
+     "reply": "B"
+    },
+    "A3-design-constraints": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "violations": []
+     },
+     "reply": "[ISOLATION] Each tenant has a dedicated Redis stream queue, namespaced by tenant ID.  \n[RETRY] Jobs retry up to 3 times with exponential backoff: 1s, 2s, 4s delays between attempts.  \n[POISON] After 3 failures, the job is moved to a per-tenant dead-letter queue for manual inspection.  \n[SCALE] Autoscale worker pods when average queue depth across all tenants exceeds 50 pending jobs per pod.  \n[AUDIT] Log job ID, tenant ID, start/end timestamps, status (success/failure), and error message (if any"
+    },
+    "A4-security-review": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "groups_hit": 4,
+      "min": 4,
+      "cats": [
+       "AUTHZ",
+       "INJECTION",
+       "LOGGING",
+       "SECRET",
+       "SSRF"
+      ]
+     },
+     "reply": "1. INJECTION  \n2. AUTHZ  \n3. SECRET  \n4. LOGGING  \n5. SSRF"
+    },
+    "A5-sharding-math": {
+     "tier": "advanced",
+     "verdict": "FAIL",
+     "detail": {
+      "expected": 11,
+      "got": 8.0
+     },
+     "reply": "8"
+    }
+   }
+  },
+  {
+   "model": "qwen/qwen3.7-flash",
+   "tasks": {
+    "S1-recall-facts": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": [
+      "PO-77142",
+      "Priya Shah"
+     ],
+     "reply": "PO Number: PO-77142\nAccount Rep: Priya Shah"
+    },
+    "S2-intent-classify": {
+     "tier": "simple",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "S3-word-limit": {
+     "tier": "simple",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "S4-tax-math": {
+     "tier": "simple",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 538.6,
+      "got": 538.6
+     },
+     "reply": "538.60"
+    },
+    "S5-date-extract": {
+     "tier": "simple",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "M1-email-json": {
+     "tier": "moderate",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "M2-threestep-math": {
+     "tier": "moderate",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "M3-record-merge": {
+     "tier": "moderate",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "M4-tool-args": {
+     "tier": "moderate",
+     "verdict": "PASS",
+     "detail": {},
+     "reply": "{\"tool\": \"search_orders\", \"args\": {\"customer_email\": \"mia@rltech.ca\", \"status\": \"delivered\", \"limit\": 5}}"
+    },
+    "M5-conditional-policy": {
+     "tier": "moderate",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "C1-code-groupby": {
+     "tier": "complex",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "C2-code-fix": {
+     "tier": "complex",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "C3-yoy-analysis": {
+     "tier": "complex",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "C4-constraint-schedule": {
+     "tier": "complex",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "C5-json-flatten": {
+     "tier": "complex",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "A1-olympiad-integer": {
+     "tier": "advanced",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "A2-expert-mcq": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "B": true
+     },
+     "reply": "B"
+    },
+    "A3-design-constraints": {
+     "tier": "advanced",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "A4-security-review": {
+     "tier": "advanced",
+     "verdict": "INCONCLUSIVE",
+     "detail": "length-capped-empty",
+     "reply": ""
+    },
+    "A5-sharding-math": {
+     "tier": "advanced",
+     "verdict": "PASS",
+     "detail": {
+      "expected": 11,
+      "got": 11.0
+     },
+     "reply": "11"
+    }
+   }
+  }
+ ]
+}

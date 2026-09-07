@@ -158,7 +158,18 @@ export function ReasoningChain({
                     agent_id: agentId,
                     run_id: runId || 'manual_run_' + Date.now(),
                     step_index: idx,
-                    step_content: { type: stepContent.type, content: stepContent.content },
+                    // The step's thought IS what the user is judging — the
+                    // backend stores step_content.thought as the feedback's
+                    // original_output. Sending only `content` (undefined on
+                    // thought-bearing steps) recorded an empty training
+                    // target, so send the full step substance.
+                    step_content: {
+                        type: stepContent.type ?? (stepContent.thought ? 'thought' : 'step'),
+                        content: stepContent.content ?? stepContent.thought ?? stepContent.observation ?? '',
+                        thought: stepContent.thought,
+                        observation: stepContent.observation,
+                        action: stepContent.action,
+                    },
                     feedback_type: type,
                     comment: comment
                 })

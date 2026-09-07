@@ -486,6 +486,108 @@ def extract_email_draft(content: Any) -> Optional[Dict[str, str]]:
     return None
 
 
+def _md_table_to_styled_html(rows: List[List[str]], has_header: bool = True) -> str:
+    """One markdown pipe table → an email-client-safe styled HTML table.
+
+    Inline styles only (Gmail/Outlook strip <style> blocks). Header shading
+    + borders match the styling the co-editor produces when asked to "fix
+    the table styling", so a fresh draft is born looking like that answer.
+    """
+    def _cell(text: str) -> str:
+        escaped = (
+            str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        )
+        # markdown emphasis the agent writes inside cells
+        escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
+        escaped = re.sub(r"(?<!\*)\*([^*\n]+)\*(?!\*)", r"<em>\1</em>", escaped)
+        return escaped.strip()
+
+    td = "border: 1px solid #b0b0b0; padding: 8px 12px; vertical-align: top;"
+    th = (
+        "border: 1px solid #b0b0b0; padding: 8px 12px; background-color: #1f3864; "
+        "color: #ffffff; text-align: left;"
+    )
+    head, body_rows = (rows[0], rows[1:]) if has_header and len(rows) > 1 else ([], rows)
+    parts = [
+        '<table style="border-collapse: collapse; width: 100%; '
+        'font-family: Arial, Helvetica, sans-serif; font-size: 14px; margin: 8px 0;">'
+    ]
+    if head:
+        parts.append("<thead><tr>")
+        parts.extend(
+            f'<th style="{th}">{_cell(c)}</th>' for c in head
+        )
+        parts.append("</tr></thead>")
+    if body_rows:
+        parts.append("<tbody>")
+        for r in body_rows:
+            cells = list(r) + [""] * (len(head or r) - len(r))
+            parts.append("<tr>")
+            parts.extend(f'<td style="{td}">{_cell(c)}</td>' for c in cells[: len(head or r)])
+            parts.append("</tr>")
+        parts.append("</tbody>")
+    parts.append("</table>")
+    return "".join(parts)
+
+
+def _style_markdown_tables(body: str) -> str:
+    """Convert markdown pipe tables in an email body to styled HTML tables.
+
+    Fresh email drafts are born with raw markdown tables — the agent writes
+    ``| Desc | Price |`` / ``|---|---|`` — which the composer's rich-text
+    editor and the recipient's mail client render as literal pipes. That is
+    the "fix the table and signature styling" ask this used to need a whole
+    extra agent turn for; the conversion happens at the funnel instead, so
+    the FIRST draft is already styled. Idempotent: a body that already
+    carries a ``<table>`` (the editor's own HTML) passes through untouched,
+    and non-table prose is preserved byte-for-byte.
+    """
+    if not body or "<table" in body.lower() or "|" not in body:
+        return body
+
+    def _is_sep(line: str) -> bool:
+        compact = line.replace(" ", "").replace(":", "")
+        return (
+            len(compact) >= 3
+            and set(compact) <= {"|", "-"}
+            and "-" in compact
+            and "|" in compact
+        )
+
+    def _split_row(line: str) -> Optional[List[str]]:
+        s = line.strip()
+        if not (s.startswith("|") and s.endswith("|") and len(s) >= 2):
+            return None
+        # unescape markdown's escaped pipes first so they survive the split
+        s = s[1:-1].replace("\\|", "\x00")
+        cells = [c.replace("\x00", "|").strip() for c in s.split("|")]
+        return cells
+
+    lines = body.split("\n")
+    out: List[str] = []
+    i = 0
+    while i < len(lines):
+        row = _split_row(lines[i])
+        nxt = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        if row and _is_sep(nxt):
+            header = row
+            j = i + 2
+            data: List[List[str]] = []
+            while j < len(lines):
+                r = _split_row(lines[j])
+                if r is None:
+                    break
+                data.append(r)
+                j += 1
+            if header or data:
+                out.append(_md_table_to_styled_html([header] + data))
+                i = j
+                continue
+        out.append(lines[i])
+        i += 1
+    return "\n".join(out)
+
+
 def normalize_email_content(content: Any) -> Dict[str, str]:
     """Normalize any stored email-canvas content into ``{to, subject, body}``.
 
@@ -493,10 +595,12 @@ def normalize_email_content(content: Any) -> Dict[str, str]:
     ``{to, subject, body}`` (canvas composer / classifier output — returned
     with defaults filled), ``{"draft": {"to_emails": [...], ...}}``
     (EmailCanvasService.create_email_canvas details), a bare body string,
-    and ``{"type": "doc", "content": str}`` doc bodies.
+    and ``{"type": "doc", "content": str}`` doc bodies. The body passes
+    through markdown-table styling last: fresh drafts must open styled on
+    the first try, not after a "fix the table styling" follow-up turn.
     """
     if isinstance(content, str):
-        return {"to": "", "cc": "", "subject": "", "body": content}
+        return {"to": "", "cc": "", "subject": "", "body": _style_markdown_tables(content)}
     if isinstance(content, dict):
         draft = content.get("draft")
         if isinstance(draft, dict):
@@ -506,7 +610,7 @@ def normalize_email_content(content: Any) -> Dict[str, str]:
                 "to": ", ".join(to) if isinstance(to, list) else str(to or ""),
                 "cc": ", ".join(cc) if isinstance(cc, list) else str(cc or ""),
                 "subject": str(draft.get("subject") or content.get("subject") or ""),
-                "body": str(draft.get("body") or ""),
+                "body": _style_markdown_tables(str(draft.get("body") or "")),
             }
         body = content.get("body")
         if not isinstance(body, str):
@@ -515,7 +619,7 @@ def normalize_email_content(content: Any) -> Dict[str, str]:
             "to": str(content.get("to") or ""),
             "cc": str(content.get("cc") or ""),
             "subject": str(content.get("subject") or ""),
-            "body": body,
+            "body": _style_markdown_tables(body),
         }
     return {"to": "", "cc": "", "subject": "", "body": ""}
 
@@ -536,5 +640,8 @@ def coerce_email_canvas(canvas_type: Optional[str], content: Any) -> Tuple[str, 
     if ctype in _DOC_LIKE_TYPES:
         draft = extract_email_draft(content)
         if draft:
-            return "email", draft
+            # through the normalizer so the body gets the same markdown-table
+            # styling the typed-email branch gets — first-try styling is the
+            # point of this funnel.
+            return "email", normalize_email_content(draft)
     return canvas_type or "generic", content

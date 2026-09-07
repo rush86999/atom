@@ -451,6 +451,34 @@ class BYOKManager:
                 cost_per_token=0.000003,  # Varies by model — rough floor
                 model="openai/gpt-4o-mini",
                 reasoning_level=4
+            ),
+            # OpenCode Zen gateway — the BYOK handler has routed provider id
+            # "opencode-go" (and alias "opencode") since the OpenCode Go
+            # integration, but the catalog never listed them, so the API
+            # Keys page had no option to view/store the key (and
+            # store_tenant_api_key 404'd for these ids). Same key serves
+            # both; Go is the subscription tier.
+            AIProviderConfig(
+                id="opencode",
+                name="OpenCode",
+                description="OpenCode Zen gateway — tested open coding models (DeepSeek, Kimi) via one API key.",
+                api_key_env_var="OPENCODE_API_KEY",
+                base_url="https://opencode.ai/zen/v1",
+                supported_tasks=["code", "general", "chat", "reasoning"],
+                cost_per_token=0.0,  # Usage-billed; flash-class pricing
+                model="deepseek-v4-flash",
+                reasoning_level=3
+            ),
+            AIProviderConfig(
+                id="opencode-go",
+                name="OpenCode Go",
+                description="OpenCode Go subscription — flat-rate access to the Zen model catalog (~90% cheaper than direct APIs).",
+                api_key_env_var="OPENCODE_API_KEY",
+                base_url="https://opencode.ai/zen/v1",
+                supported_tasks=["code", "general", "chat", "reasoning"],
+                cost_per_token=0.0,  # Subscription: ~$0 marginal per token
+                model="deepseek-v4-flash",
+                reasoning_level=3
             )
         ]
         

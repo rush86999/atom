@@ -1,13 +1,42 @@
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 import httpx
 from fastapi import HTTPException
+
+from core.identifier_search import (
+    identifier_rank as _identifier_rank,
+    identifier_variants as _identifier_variants,
+    normalize_code as _norm_code,
+    query_terms as _query_terms,
+    run_search_ladder as _run_search_ladder,
+)
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
 from core.integration_service import IntegrationService
+
+# Resolved organization ids keyed by tenant — Zoho Inventory has no
+# "who am I" without an organization_id on every call, and this workspace
+# never had ZOHO_ORG_ID configured. Populated lazily from the live
+# /orgganizations lookup in _resolve_organization.
+_ORG_CACHE: Dict[str, str] = {}
+
+# Inventory API hosts for the no-api_domain fallback. Zoho's newer data
+# centers consolidated onto the zohoapis domain (the OAuth token response's
+# api_domain, e.g. https://www.zohoapis.ca) with the service path appended
+# (/inventory/v1) — the classic inventory.zoho.<suffix> hosts don't exist
+# for every DC (inventory.zoho.ca has no DNS record) and the zohocloud.ca
+# hosts 400 with "Use the zohoapis domain for API requests" (live
+# 2026-09-03).
+_SPECIAL_INVENTORY_HOSTS = {
+    "ca": "https://www.zohoapis.ca/inventory/v1",
+}
+
 
 class ZohoInventoryService(IntegrationService):
     def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
@@ -28,7 +57,7 @@ class ZohoInventoryService(IntegrationService):
     def get_capabilities(self) -> Dict[str, Any]:
         """Return the operations this Zoho service exposes."""
         return {
-            "operations": ['get_items', 'get_inventory_levels', 'check_stock'],
+            "operations": ['get_items', 'search_items', 'get_inventory_levels', 'check_stock'],
             "required_params": ["access_token"],
             "optional_params": ["organization_id", "tenant_id"],
             "rate_limits": {"requests_per_minute": 100},
@@ -55,20 +84,30 @@ class ZohoInventoryService(IntegrationService):
         try:
             if operation == "get_items":
                 return {"success": True, "result": await self.get_items()}
+            if operation in ("search_items", "search"):
+                return {"success": True, "result": await self.search_items(
+                    parameters.get("query", ""), limit=parameters.get("limit", 8))}
             if operation == "get_inventory_levels":
                 return {"success": True, "result": await self.get_inventory_levels()}
             return {
                 "success": False,
                 "error": f"Unsupported operation: {operation}",
-                "supported": ['get_items', 'get_inventory_levels'],
+                "supported": ['get_items', 'search_items', 'get_inventory_levels'],
             }
         except Exception as exc:
             return {"success": False, "error": "Zoho Inventory operation failed"}
 
-    async def _get_active_token(self, tenant_id: Optional[str] = None) -> Optional[str]:
-        """Get a valid access token for the tenant, refreshing if necessary"""
+    async def _get_active_token(self, tenant_id: Optional[str] = None, user_id: Optional[str] = None) -> Optional[str]:
+        """Get a valid access token, refreshing if necessary.
+
+        Resolution order: the acting USER's IntegrationToken row first (the
+        unified OAuth connect flow keys rows by user_id — a tenant-scoped
+        lookup with tenant 'default' missed them, so every agent-planned
+        inventory search died on "no access token" while the integration was
+        connected, live 2026-09-03), then the tenant row for system contexts.
+        """
         tid = tenant_id or getattr(self, "session_id", None) or self.tenant_id
-        if not tid:
+        if not tid and not user_id:
             return self.access_token or os.getenv("ZOHO_INVENTORY_ACCESS_TOKEN")
 
         from core.database import SessionLocal
@@ -81,13 +120,31 @@ class ZohoInventoryService(IntegrationService):
         try:
             db = SessionLocal()
         except Exception as e:
-            logger.error(f"Error retrieving Zoho Inventory token for tenant {tid}: {e}")
+            logger.error(f"Error retrieving Zoho Inventory token (user={user_id} tenant={tid}): {e}")
             return None
         try:
-            token_record = db.query(IntegrationToken).filter(
-                IntegrationToken.tenant_id == tid,
-                IntegrationToken.provider == "zoho_inventory"
-            ).first()
+            token_record = None
+            if user_id:
+                # No cross-user fallback: any active token would serve one
+                # user's Zoho data to every authenticated user (same policy
+                # as zoho_workdrive_service._integration_token_access_token).
+                for provider in ("zoho_inventory", "zoho"):
+                    token_record = (
+                        db.query(IntegrationToken)
+                        .filter(
+                            IntegrationToken.user_id == user_id,
+                            IntegrationToken.provider == provider,
+                            IntegrationToken.status == "active",
+                        )
+                        .first()
+                    )
+                    if token_record:
+                        break
+            if token_record is None:
+                token_record = db.query(IntegrationToken).filter(
+                    IntegrationToken.tenant_id == tid,
+                    IntegrationToken.provider == "zoho_inventory"
+                ).first()
 
             if not token_record:
                 return None
@@ -102,12 +159,20 @@ class ZohoInventoryService(IntegrationService):
                     from core.privsec.token_encryption import decrypt_token, encrypt_token, stamp_credential_metadata
                     refresh_plain = decrypt_token(token_record.refresh_token, allow_plaintext=True) if token_record.refresh_token else None
                     new_tokens = await self.refresh_token(refresh_plain)
-                    if new_tokens:
-                        token_record.access_token = encrypt_token(new_tokens["access_token"])
+                    # .get, not [ ]: a failed refresh returns a truthy error
+                    # payload ({"error": ...}) — indexing it raised
+                    # KeyError('access_token') and masked the real problem
+                    # ("refresh failed") as a token-store error.
+                    new_access = (new_tokens or {}).get("access_token")
+                    if new_access:
+                        token_record.access_token = encrypt_token(new_access)
                         token_record.expires_at = datetime.now(timezone.utc) + timedelta(seconds=new_tokens.get("expires_in", 3600))
                         stamp_credential_metadata(token_record)
                         db.commit()
-                        return token_record.access_token
+                        # Decrypt before returning — the row stores ciphertext;
+                        # returning it verbatim handed Zoho an encrypted blob
+                        # as the bearer token.
+                        return decrypt_token(token_record.access_token, allow_plaintext=True)
                 return None
 
             from core.privsec.token_encryption import decrypt_token
@@ -136,20 +201,313 @@ class ZohoInventoryService(IntegrationService):
             logger.error(f"Failed to refresh Zoho Inventory token: {e}")
             return None
 
+    async def _datacenter_suffix(self, tenant_id: Optional[str] = None) -> str:
+        """Datacenter suffix ('ca', 'com', 'com.au', ...) of this workspace's
+        Zoho grant. Tokens are DC-scoped: a .ca-issued token 401s against the
+        .com API, so the inventory host must follow the grant. The OAuth
+        callback stamps the token response's api_domain (e.g.
+        https://www.zohoapis.ca) on the canonical 'zoho' token row only —
+        the fanned-out zoho_inventory row gets instance_url=None — so fall
+        back to that row (single-operator semantics, mirroring ZohoAdapter)."""
+        domain = (
+            self.config.get("api_domain")
+            or self.config.get("instance_url")
+            or os.getenv("ZOHO_INVENTORY_API_DOMAIN")
+            or os.getenv("ZOHO_API_DOMAIN")
+        )
+        if not domain:
+            try:
+                from core.database import SessionLocal
+                from core.models import IntegrationToken
+
+                db = SessionLocal()
+                try:
+                    tid = tenant_id or self.tenant_id
+                    row = None
+                    if tid:
+                        row = db.query(IntegrationToken).filter(
+                            IntegrationToken.provider == "zoho_inventory",
+                            IntegrationToken.tenant_id == tid,
+                            IntegrationToken.status == "active",
+                        ).first()
+                    if row and row.instance_url:
+                        domain = row.instance_url
+                    else:
+                        canonical = db.query(IntegrationToken).filter(
+                            IntegrationToken.provider == "zoho",
+                            IntegrationToken.status == "active",
+                        ).first()
+                        if canonical and canonical.instance_url:
+                            domain = canonical.instance_url
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.debug(f"datacenter lookup fell back to default: {e}")
+        host = urlparse(domain).netloc if domain and "://" in str(domain) else (domain or "")
+        if "zohoapis." in host:
+            return host.split("zohoapis.", 1)[1]
+        if ".zoho." in host:
+            return host.rsplit(".zoho.", 1)[1]
+        return "com"
+
+    async def _api_domain(self, tenant_id: Optional[str] = None) -> Optional[str]:
+        """The datacenter API domain Zoho itself instructs this workspace to
+        use — the OAuth token response's api_domain, stamped by the callback
+        onto the canonical 'zoho' token row's instance_url (the fanned-out
+        zoho_inventory row gets instance_url=None, hence the fallback)."""
+        domain = (
+            self.config.get("api_domain")
+            or self.config.get("instance_url")
+            or os.getenv("ZOHO_INVENTORY_API_DOMAIN")
+            or os.getenv("ZOHO_API_DOMAIN")
+        )
+        if domain:
+            return str(domain).rstrip("/")
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationToken
+
+            db = SessionLocal()
+            try:
+                tid = tenant_id or self.tenant_id
+                row = None
+                if tid:
+                    row = db.query(IntegrationToken).filter(
+                        IntegrationToken.provider == "zoho_inventory",
+                        IntegrationToken.tenant_id == tid,
+                        IntegrationToken.status == "active",
+                    ).first()
+                if row and row.instance_url:
+                    domain = row.instance_url
+                else:
+                    canonical = db.query(IntegrationToken).filter(
+                        IntegrationToken.provider == "zoho",
+                        IntegrationToken.status == "active",
+                    ).first()
+                    if canonical and canonical.instance_url:
+                        domain = canonical.instance_url
+            finally:
+                db.close()
+        except Exception as e:
+            logger.debug(f"api domain lookup failed: {e}")
+        return str(domain).rstrip("/") if domain else None
+
+    async def _inventory_base(self, tenant_id: Optional[str] = None) -> str:
+        """Datacenter-correct Inventory API base URL for this workspace.
+        Preferred form: <api_domain>/inventory/v1 (what Zoho's own error
+        messages instruct). Falls back to the classic host pattern, with
+        special cases for DCs where that pattern doesn't resolve."""
+        domain = await self._api_domain(tenant_id)
+        if domain:
+            return f"{domain}/inventory/v1"
+        suffix = await self._datacenter_suffix(tenant_id)
+        special = _SPECIAL_INVENTORY_HOSTS.get(suffix)
+        if special:
+            return special
+        return f"https://inventory.zoho.{suffix}/api/v1"
+
+    async def _resolve_organization(
+        self,
+        tenant_id: Optional[str] = None,
+        token: Optional[str] = None,
+        base_url: Optional[str] = None,
+    ) -> Optional[str]:
+        """Organization id for Inventory calls: explicit config/env first
+        (ZOHO_ORG_ID), then a cached value, then one live lookup — the
+        orgganizations endpoint under both of Zoho's historical spellings —
+        cached for the process lifetime so each turn costs no extra call."""
+        org = self.organization_id or os.getenv("ZOHO_ORG_ID")
+        if org:
+            return org
+        key = tenant_id or self.tenant_id or "default"
+        cached = _ORG_CACHE.get(key)
+        if cached:
+            return cached
+        if not (token and base_url):
+            return None
+        headers = {"Authorization": f"Zoho-oauthtoken {token}"}
+        # /organizations works on the zohoapis domain; /orgganizations is the
+        # legacy inventory.zoho.<dc> spelling — kept as a fallback.
+        for path in ("/organizations", "/orgganizations"):
+            try:
+                response = await self.client.get(f"{base_url}{path}", headers=headers)
+                if response.status_code != 200:
+                    # Surface WHY (DC mismatch, expiry, wrong endpoint) — a
+                    # silent skip here is how inventory lookups failed
+                    # invisibly for weeks.
+                    logger.warning(
+                        f"org lookup {base_url}{path} -> HTTP {response.status_code}: "
+                        f"{str(response.text)[:160]}")
+                    continue
+                orgs = response.json().get("organizations") or []
+                if orgs:
+                    resolved = str(orgs[0].get("organization_id"))
+                    _ORG_CACHE[key] = resolved
+                    logger.info(f"Resolved Zoho Inventory organization_id for tenant {key}")
+                    return resolved
+            except Exception as e:
+                logger.warning(f"org lookup via {path} failed: {type(e).__name__}: {e}")
+        return None
+
+    @staticmethod
+    def _slim_item(item: Dict[str, Any]) -> Dict[str, Any]:
+        """Project an Inventory item to the fields a stock answer needs.
+        The chat tool harness renders results into a ~2500-char prompt block,
+        so full item payloads truncate to a single item."""
+        return {
+            "item_id": item.get("item_id"),
+            "name": item.get("name"),
+            "sku": item.get("sku"),
+            "stock_on_hand": item.get("stock_on_hand", 0),
+            "available_stock": item.get("available_stock", 0),
+            "rate": item.get("rate"),
+            "description": (item.get("description") or "")[:160] or None,
+        }
+
+    # Search-ladder bounds: at most this many items-list calls per query
+    # (each ~a round trip), and the candidate pool ranked before the limit
+    # cut. One page of 100 is the pool — deeper pages only matter when a
+    # generic term matches hundreds of items, where no ranking signal
+    # exists anyway.
+    _MAX_SEARCH_CALLS = 5
+    _MAX_CANDIDATES = 100
+
+    async def _fetch_items_page(
+        self, url: str, headers: Dict[str, str], organization_id: str,
+        search_param: str, value: str,
+    ) -> List[Dict[str, Any]]:
+        """One items-list call with a single search parameter
+        (search_text or name_contains), slimmed for ranking."""
+        response = await self.client.get(
+            url,
+            headers=headers,
+            params={
+                "organization_id": organization_id,
+                "per_page": self._MAX_CANDIDATES,
+                "page": 1,
+                search_param: value,
+            },
+        )
+        response.raise_for_status()
+        payload = response.json()
+        return [
+            self._slim_item(item)
+            for item in (payload.get("items") or [])[: self._MAX_CANDIDATES]
+        ]
+
+    async def search_items(
+        self,
+        query: str,
+        token: Optional[str] = None,
+        organization_id: Optional[str] = None,
+        limit: int = 8,
+        user_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search live Zoho Inventory items by name/SKU.
+
+        Zoho's item search is word-exact (live 2026-09-04, org 110000796196):
+        ``search_text`` ANDs its tokens — 'Linmac WG-350DSAV' returns zero
+        even though 'WG-350DSAV' is in stock — and matches only exact name
+        tokens, so 'wg350dsav' (the price-book spelling) also returns zero.
+        'bandsaw' matches 42 items by description and the saw itself sits
+        past any small limit cut. Queries therefore arrive as prose or in
+        another source's spelling, and a single search_text pass is not
+        enough: this runs the shared identifier ladder
+        (core.identifier_search.run_search_ladder) over Zoho's two indexed
+        search forms — search_text (full-text: name+description+sku) and
+        name_contains (name substring) — and ranks the merged candidates by
+        skeleton name match: exact first, name-contains next, Zoho's own
+        order last.
+
+        This is the live leg the chat tool planner intends when it plans
+        zoho_inventory.search — until Sep 2026 that action matched no
+        handler and every "Zoho Inventory search" answer was really the
+        ingested-file memory search (live 2026-09-03: WG-350DSAV in stock,
+        agent said "no live stock records").
+
+        ``user_id`` (the acting user from the executor context) resolves the
+        OAuth token per-user; without it the tenant lookup runs and — for
+        agent turns, where the tenant is 'default' but the token rows are
+        user-keyed — finds nothing.
+
+        Never raises: an empty result lets the planner's memory fallback run
+        instead of dead-ending the turn."""
+        query = (query or "").strip()
+        if not query:
+            return []
+        try:
+            active_token = (
+                token
+                or self.access_token
+                or os.getenv("ZOHO_INVENTORY_ACCESS_TOKEN")
+                or await self._get_active_token(self.tenant_id, user_id=user_id)
+            )
+            if not active_token:
+                logger.warning("zoho_inventory.search_items: no access token available")
+                return []
+            base_url = await self._inventory_base()
+            active_org = organization_id or await self._resolve_organization(
+                token=active_token, base_url=base_url,
+            )
+            if not active_org:
+                logger.warning("zoho_inventory.search_items: no organization_id resolved")
+                return []
+
+            headers = {"Authorization": f"Zoho-oauthtoken {active_token}"}
+            url = f"{base_url}/items"
+
+            async def _fetch(kind: str, value: str) -> List[Dict[str, Any]]:
+                # kind: 'text' -> Zoho full-text search_text (name +
+                # description + sku); 'name' -> name_contains (name
+                # substring, keeps separators).
+                param = "search_text" if kind == "text" else "name_contains"
+                return await self._fetch_items_page(
+                    url, headers, active_org, param, value)
+
+            ranked = await _run_search_ladder(
+                _fetch,
+                query,
+                name_of=lambda item: str(item.get("name") or ""),
+                max_calls=self._MAX_SEARCH_CALLS,
+                limit=limit,
+            )
+            if not ranked:
+                logger.info(
+                    f"zoho_inventory.search_items({query!r}): no items found")
+            return ranked
+        except Exception as e:
+            logger.warning(f"zoho_inventory.search_items({query!r}) failed: {type(e).__name__}: {e}")
+            return []
+
     async def get_items(self, token: Optional[str] = None, organization_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch items list for pricing and availability checks"""
         try:
             active_token = token or self.access_token
             active_org = organization_id or self.organization_id
-            
+
+            if not active_token:
+                # Same resolution chain search_items uses: explicit arg >
+                # config > env > the tenant's stored OAuth grant (the DB
+                # row is where the token actually lives in production).
+                active_token = await self._get_active_token(self.tenant_id)
             if not active_token:
                  raise HTTPException(status_code=401, detail="Not authenticated")
             if not active_org:
+                active_org = await self._resolve_organization(
+                    token=active_token,
+                    base_url=await self._inventory_base(),
+                )
+            if not active_org:
                  raise HTTPException(status_code=400, detail="Organization ID required")
 
-            params = {"organization_id": active_org}
+            # DC-correct host: the legacy self.base_url (.com) 401s for tokens
+            # issued by any other data center (live 2026-09-03).
             headers = {"Authorization": f"Zoho-oauthtoken {active_token}"}
-            response = await self.client.get(f"{self.base_url}/items", headers=headers, params=params)
+            response = await self.client.get(
+                f"{await self._inventory_base()}/items",
+                headers=headers,
+                params={"organization_id": active_org},
+            )
             response.raise_for_status()
             return response.json().get("items", [])
         except HTTPException:
@@ -158,20 +516,37 @@ class ZohoInventoryService(IntegrationService):
             logger.error(f"Failed to fetch Zoho Inventory items: {e}")
             return []
 
-    async def check_stock(self, item_id: str, token: Optional[str] = None, organization_id: Optional[str] = None) -> Dict[str, Any]:
-        """Check current stock levels for an item"""
-        try:
-            active_token = token or self.access_token
-            active_org = organization_id or self.organization_id
+    async def check_stock(self, item_id: str, token: Optional[str] = None,
+                          organization_id: Optional[str] = None,
+                          user_id: Optional[str] = None) -> Dict[str, Any]:
+        """Check current stock levels for one item by id.
 
+        Same resolution chain as search_items (per-user token, DC-correct
+        base URL, org resolution) — this method predated it and still used
+        the legacy ``self.base_url`` host + bare tenant token lookup, which
+        401s for data-center-issued tokens (live 2026-09-03) and found no
+        token for agent turns (token rows are user-keyed). Never raises:
+        returns {"error": ...} so pollers can skip a bad tick."""
+        try:
+            active_token = (
+                token
+                or self.access_token
+                or os.getenv("ZOHO_INVENTORY_ACCESS_TOKEN")
+                or await self._get_active_token(self.tenant_id, user_id=user_id)
+            )
             if not active_token:
-                 raise HTTPException(status_code=401, detail="Not authenticated")
+                return {"error": "no access token"}
+            active_org = organization_id or await self._resolve_organization(
+                token=active_token, base_url=await self._inventory_base(),
+            )
             if not active_org:
-                 raise HTTPException(status_code=400, detail="Organization ID required")
+                return {"error": "no organization id"}
 
             params = {"organization_id": active_org}
             headers = {"Authorization": f"Zoho-oauthtoken {active_token}"}
-            response = await self.client.get(f"{self.base_url}/items/{item_id}", headers=headers, params=params)
+            response = await self.client.get(
+                f"{await self._inventory_base()}/items/{item_id}",
+                headers=headers, params=params)
             response.raise_for_status()
             item = response.json().get("item", {})
             return {
@@ -180,8 +555,6 @@ class ZohoInventoryService(IntegrationService):
                 "stock_on_hand": item.get("stock_on_hand", 0),
                 "available_stock": item.get("available_stock", 0)
             }
-        except HTTPException:
-            raise
         except Exception as e:
             logger.error(f"Failed to check stock for {item_id}: {e}")
             return {"error": "Failed to check stock"}

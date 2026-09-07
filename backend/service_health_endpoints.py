@@ -126,8 +126,23 @@ def generate_realistic_metrics() -> ServiceMetrics:
     )
 
 @router.get("/{service}/health")
-async def get_service_health(service: str) -> HealthResponse:
+async def get_service_health(service: str):
     """Get health status for a specific third-party service"""
+
+    # Delegate the webhook-push apps (no public read API — see their routes
+    # files) whose real /health routes this prefix-wide catch-all can shadow
+    # depending on router include order (live 2026-09-05: zoho-forms/health
+    # returned this route's 404 while the real router was mounted).
+    if service in ("zoho-forms", "zoho-flow"):
+        try:
+            if service == "zoho-forms":
+                from integrations.zoho_forms_service import zoho_forms_service
+                return zoho_forms_service.health_check()
+            from integrations.zoho_flow_service import zoho_flow_service
+            return zoho_flow_service.health_check()
+        except Exception as exc:
+            logger.warning("delegated health check failed for %s: %s", service, exc)
+            return {"healthy": False, "service": service, "message": str(exc)}
 
     if service not in SERVICE_DATA:
         raise HTTPException(status_code=404, detail=f"Service {service} not found")

@@ -263,20 +263,107 @@ first (test residue under `backend/data/` is gitignored).
 
 ---
 
-## 2026-09-03 - Codex session: localhost login unavailable
+## 2026-09-06 ~20:15 — ZCode: canvas chat streaming garble root cause + composer double-signature fix
 
-**Context**: User reported `/login?callbackUrl=http://localhost:3000/dashboard`
-showing "Invalid email or password" for `admin@example.com` / `securePass123`,
-with logs showing `ECONNREFUSED` to backend `localhost:8001`.
+**Change (all frontend, no backend changes):**
+- `hooks/useWebSocket.ts` — added `onMessage(handler)` listener registry: handlers are invoked
+  synchronously for EVERY WS frame in arrival order. The existing `lastMessage` state slot is a
+  single-slot delivery that React coalesces under burst.
+- `pages/canvas/[id].tsx` — the co-editor WS effect now registers through `onMessage` instead of
+  reading `lastMessage`, and the POST-timeout late-reply path retires a lingering
+  `stream_{sid}` bubble (renamed, like the new-turn retire) instead of leaving it "streaming".
+- `components/canvas/CanvasPanel.tsx` — `hasSignoff` now tag-strips the body and matches the
+  sign-off pattern on the trailing TEXT (600 chars) instead of the last 400 chars of raw HTML.
 
-**Findings/fix**: No backend process was listening on `:8001`; the frontend dev
-server was already listening on `:3000` (node PID 17276). Started the backend on
-`127.0.0.1:8001` with `ADMIN_PASSWORD=securePass123`, which reset the local
-`admin@example.com` row. Added gitignored `frontend-nextjs/.env.local` with
-`NEXT_PUBLIC_API_URL=http://localhost:8001`; updated
-`backend/logs/bootstrap_admin_password.txt` to match the active local password.
+**Why (evidence, canvas c3617a7f-…-3445a2324537 "Re: … Linmac WG-350DSAV"):** a streamed chat
+reply (993 `chat_token` frames, logged clean in uvicorn_8001_restart.log ~759172) rendered with
+whole chunks missing ("garbled bubble") because the `[lastMessage]` effect never saw frames that
+landed between render commits; the turn also exceeded the page's 120s POST timeout (fresh-data
+lookup + Excel parse errors + a grounded regeneration — stream A ≠ persisted B, both clean, both
+in the log), so the garbled partial bubble never got finalized. Separately, opening the email
+composer on a body whose styled signature `<div>` ends >400 raw-HTML chars after "Regards," made
+`hasSignoff` miss it and stack the integration default signature below it (observed live in the
+browser verify pass; audit rows 739→741 window).
 
-**Verification**: `POST http://127.0.0.1:8001/api/auth/login` returned an
-access token. Browser-facing proxy `POST http://127.0.0.1:3000/api/auth/login`
-also returned an access token. `GET http://127.0.0.1:3000/login?...` returned
-200.
+**Verified**: `npx tsc --noEmit` clean; jest `CanvasPanel.test.tsx` + `useChatInterface.test.ts`
+79/79; hasSignoff 6/6 new cases incl. the live failure body; canvas PUT via the live API renders
+the styled table + signature in the composer (browser-verified). No backend restart needed.
+
+**Flag**: canvas c3617a7f audit rows 740/741 (00:05/00:09 UTC) are the OWNER's own edits from a
+second editor surface (Outlook-style Calibri/Segoe HTML, PUT without title param) — someone is
+actively editing that draft in parallel; do not treat 741 as corruption. Also noted for whoever
+tackles it: `Consolidated Price List 2019.xlsx` fails ingestion — `core.auto_document_ingestion`
+logs "Excel parse error: Unable to read workbook: could not read strings from None" repeatedly,
+which is why the agent couldn't read the LINMAC sheet row.
+
+---
+
+## 2026-09-06 ~21:55 — ZCode round 2: agent couldn't read "Consolidated Price List 2019.xlsx" — root causes + fixes
+
+**Symptom** (canvas c3617a7f session): user asked the agent to check the 2019 price list for the
+Linmac bandsaw price and fill it in; the agent found the file but said only the sheet headers were
+visible ("excerpt cuts off right at the header row"), the canvas edit declined twice, and turn 3
+also produced the garbled bubble (fixed separately, see the ~20:15 entry).
+
+**Root causes (all traced from runtime evidence):**
+1. **Excerpt anchoring** — `_query_anchored_excerpt` anchored on the rarest query token's FIRST
+   occurrence. For "consolidated price list 2019 linmac" that is the WORKBOOK INDEX line at the
+   file head (or a brand row in an unrelated sheet) — never the LINMAC sheet body. The WG350DSAV
+   row (R17, List 14145 / US NET 5325) sits at 58% of the 3.4M-char text. The agent honestly
+   reported the row unreadable.
+2. **Fresh-data budget vs cold read** — the canvas editor's 20s lookup covered planner LLM + query
+   rewrite LLM + 13MB download + ~10s parse (formula extraction makes the first pass slower); it
+   timed out twice → edit declined. The same file was re-parsed 4× in one evening.
+3. **Read-by-id with no file_name** → empty extension → "Unsupported file type" despite a
+   successful download (found reproducing the E2E path).
+4. **Zoho refresh error-body swallow** — `ZohoAdapter.refresh_token` treated Zoho's HTTP-200
+   error payloads (invalid_client/invalid_code) as success and persisted access_token=None with a
+   fresh +3600s expiry; `ZohoWorkDriveService._refresh` returned the error dict as tokens. This
+   produced dead rows that LOOK fresh (the historical 631 TokenRefreshWorker failures were the
+   pre-env era: ZOHO_* vars only exist in the ROOT .env, loaded by main_api_app since its dotenv
+   chain gained the root file; refresh verified working now — the grant is on accounts.zohocloud.ca).
+
+**Fixes:** sheet-name anchoring + workbook-index skip + compacted-token variants in
+`_query_anchored_excerpt` (universal_integration_service.py; weak-coverage queries now fall back
+to the index head instead of a random numeric window); `parse_document_cached` content-hash LRU
+used by the read path (parse_document itself untouched — tests re-run per call); explicit
+file_id reads resolve file_name from the ingested record then magic bytes; fresh-data budget
+20s→25s (top of the orchestrator-compatible band the grounding test pins); refresh guards in both
+Zoho paths (no token in payload ⇒ log + return False/None, row untouched); planner prompt: a
+message that only says WHERE the file lives after a content request plans intent=read.
+
+**Verified:** excerpt repro on the real workbook 5/5 (row surfaces for every realistic query);
+E2E `_read_storage_file` on the live WorkDrive file: R17 surfaced, cold 23.7s / warm 12.5s;
+`test_canvas_editor_grounding` 12/12, `test_planner_storage_memory_supplement` 28/28,
+`test_auto_document_ingestion` 50/51 (1 pre-existing: long-file refresh, fails on pristine HEAD
+too — verified via git worktree). `test_chat_canvas_editor` 24 failures and
+`test_tool_routing_generalized` collection error are pre-existing on HEAD. Backend restarted via
+scripts/restart_backend.sh, healthy. **The real price per LINMAC R17: List $14,145.00 — the
+$12,180.00 currently in the draft does not match the sheet.**
+
+---
+
+## 2026-09-06 ~22:40 — ZCode round 3: first-try styling for fresh installs
+
+**Change:** email canvases are now born styled — no "fix the table styling" follow-up turn needed.
+- `core/chat_draft_classifier.py` — `_style_markdown_tables` + `_md_table_to_styled_html`: markdown
+  pipe tables in email bodies convert to email-client-safe styled HTML (inline styles, shaded
+  header #1f3864, borders, cell emphasis **/* honored, escaped pipes handled, idempotent on bodies
+  that already carry <table>). Wired into `normalize_email_content` (every email body passes it:
+  composer saves, agent edits via canvas_crud_tool, chat_routes auto path) and into
+  `coerce_email_canvas`'s doc-like branch. `extract_email_draft` itself untouched — it feeds
+  classification.
+- `integrations/chat_routes.py` — explicit-email creation routes through coerce (styled), and the
+  sign-off strip now counts `signature_html`-only users (they read as "no default" before, leaving
+  the agent's plain signoff AND the composer's styled one — two signatures on first open).
+- Frontend composer already preferred signature_html (no change needed there this round).
+
+**Verified:** unit — 5 shapes incl. emphasis, escaped pipes, idempotence, prose-with-pipes
+untouched; live — fresh canvas created through POST /api/chat/to-canvas with a markdown-table
+draft opens in the composer with the styled table AND the mined Outlook signature auto-inserted,
+no double signature (browser-verified; test canvas deleted after).
+
+**Pre-existing failures NOT mine (verified on HEAD worktrees):** test_chat_draft_classifier
+TestSignature::test_stored_preference_wins (expects the old 3-key get_signature shape — now
+returns signature_html too), test_chat_canvas_editor 24, test_auto_document_ingestion
+long-file-refresh, test_tool_routing_generalized collection error.

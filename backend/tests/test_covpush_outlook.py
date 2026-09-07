@@ -583,12 +583,20 @@ class TestEmailOperations:
             assert await make_service().send_email("u-1", ["a@b.c"], "S", "B") is None
 
     async def test_reply_to_email_success(self):
+        # The mixed-thread leak guard fires its own Graph reads before the
+        # reply, so assert the REPLY call happened with the right payload
+        # instead of asserting the exact total await count.
         with patch(
             "integrations.outlook_service.OutlookService._make_graph_request",
             new=AsyncMock(return_value={"success": True}),
         ) as mock_req:
             assert await make_service().reply_to_email("u-1", "m-1", "nice") is True
-        mock_req.assert_awaited_once_with("u-1", "/me/messages/m-1/reply", "POST", {"comment": "nice"}, access_token=None)
+        reply_calls = [
+            c for c in mock_req.await_args_list
+            if c.args[1:3] == ("/me/messages/m-1/reply", "POST")
+        ]
+        assert reply_calls, "legacy /reply call missing"
+        assert reply_calls[0].args[3] == {"comment": "nice"}
 
     async def test_reply_to_email_graph_failure_reports_false(self):
         with patch(

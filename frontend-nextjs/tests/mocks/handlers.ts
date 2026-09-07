@@ -121,6 +121,14 @@ export const commonHandlers = [
         records_ingested: 0,
         last_ingested: null,
         ingestion_status: 'active',
+        first_ingestion: {
+          phase: 'pending',
+          label: '~1-5 min',
+          seconds: 180,
+          range: [60, 300],
+          measured: false,
+          basis: 'typical first sync',
+        },
       })
     );
   }),

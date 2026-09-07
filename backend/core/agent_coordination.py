@@ -17,6 +17,56 @@ from core.coordinated_strategy_service import CoordinatedStrategyService
 logger = logging.getLogger(__name__)
 
 
+def active_canvas_agents(db: Session, canvas_id: str) -> List[Dict]:
+    """The hires explicitly attached to a canvas (AgentCanvasPresence rows
+    still ``active``), newest join first, joined to their AgentRegistry row.
+
+    This is the authoritative "who works here" signal for everything that
+    must refuse when a canvas has no hire — the data-load gate and the
+    training-context resolution both read it. Created via the attach route
+    (POST /api/canvas/{id}/agents) or join_canvas; presence written only by
+    backend internals before those existed stays rare and legacy.
+    """
+    pairs = (
+        db.query(AgentCanvasPresence, AgentRegistry)
+        .join(AgentRegistry, AgentRegistry.id == AgentCanvasPresence.agent_id)
+        .filter(
+            AgentCanvasPresence.canvas_id == canvas_id,
+            AgentCanvasPresence.status == "active",
+        )
+        .order_by(AgentCanvasPresence.joined_at.desc())
+        .all()
+    )
+    agents: List[Dict] = []
+    for presence, agent in pairs:
+        agents.append({
+            "agent_id": agent.id,
+            "canvas_id": canvas_id,
+            "name": agent.display_name or agent.name,
+            "description": agent.description,
+            "category": agent.category,
+            "maturity": agent.status,
+            "confidence": agent.confidence_score,
+            "presence_role": presence.role,
+            "joined_at": presence.joined_at.isoformat() if presence.joined_at else None,
+        })
+    return agents
+
+
+def canvas_load_role(db: Session, canvas_id: str) -> Optional[str]:
+    """Role tag for a canvas-scoped data load: the newest attached hire's
+    category (feeds the ingestion pipeline's role-aware recall tag).
+
+    Returns None when the canvas has NO attached hire — every canvas-scoped
+    load path must refuse in that case (a canvas loads data only through its
+    hire), with 409 NO_AGENT_ON_CANVAS at the API boundary.
+    """
+    agents = active_canvas_agents(db, canvas_id)
+    if not agents:
+        return None
+    return agents[0].get("category")
+
+
 class AgentHandoffProtocol:
     """
     Protocol for coordinating handoffs between agents on a canvas.

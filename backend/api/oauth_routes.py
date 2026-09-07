@@ -427,7 +427,20 @@ async def _handle_callback_logic(provider: str, code: str, config: Any, request:
                     workspace_id=resolve_workspace_id(current_user),
                     tenant_id=resolve_tenant_id(current_user),
                 )
-                asyncio.create_task(service.sync_integration_data("zoho"))
+                # A fire-and-forget task whose exception is never retrieved
+                # dies silently — the sync completion/failure logs inside the
+                # service cover the run itself, but a task-level crash
+                # (lock, persistence) must still surface.
+                def _log_connect_sync_done(task: "asyncio.Task") -> None:
+                    if task.cancelled():
+                        logger.warning("Zoho post-connect sync cancelled")
+                    elif task.exception() is not None:
+                        logger.error(
+                            f"Zoho post-connect sync crashed: {task.exception()}"
+                        )
+
+                _sync_task = asyncio.create_task(service.sync_integration_data("zoho"))
+                _sync_task.add_done_callback(_log_connect_sync_done)
                 logger.info("Zoho background sync scheduled after OAuth connect")
             except Exception as sync_err:
                 logger.error(f"Failed to schedule Zoho sync after OAuth connect: {sync_err}")

@@ -39,10 +39,16 @@ class WebhookBridge:
         # Register rollback fallback callback
         circuit_breaker.register_on_open(self._on_circuit_open_fallback)
 
-    async def _on_circuit_open_fallback(self, service: str, stats: dict[str, Any]):
+    async def _on_circuit_open_fallback(self, service: str):
         """
         Callback triggered when a circuit breaker opens.
         Automatically falls back to historical polling sync to prevent data loss.
+
+        One positional arg: circuit_breaker._disable_integration dispatches
+        callbacks as callback(integration). The old (service, stats)
+        signature raised "missing 1 required positional argument: 'stats'"
+        on EVERY circuit open — observed live Sep 5, 2026 while the memory
+        store was offline and webhook circuits opened.
         """
         if ":" not in service:
             return

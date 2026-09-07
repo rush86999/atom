@@ -23,6 +23,10 @@ from core.evidence_grounding import (
     EVIDENCE_GROUNDING_RULE,
     asserts_unverified_confirmation,
 )
+from core.outbound_identity import (
+    identity_rule_block,
+    signature_signer_status,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -260,11 +264,21 @@ _INABILITY_RE = re.compile(
 )
 
 
-def _strip_protocol_tags(text: str) -> str:
+def _strip_protocol_tags(text: str, captured: Optional[List[str]] = None) -> str:
     """Strip reasoning/protocol fragments weak models leak into content
     (minimax "</mm:think>", raw tool-call XML) — shared by the streaming
-    and non-streaming reply paths."""
+    and non-streaming reply paths.
+
+    When ``captured`` is a list, the inner text of paired ``<think>…</think>``
+    blocks is APPENDED to it before stripping: the model's chain-of-thought is
+    training/audit signal (feedback flows judge ``thought`` text), not junk to
+    silently discard."""
     t = str(text or "").strip()
+    if captured is not None:
+        for _m in re.finditer(r"<think>(.*?)</think>", t, flags=re.DOTALL):
+            _block = (_m.group(1) or "").strip()
+            if _block:
+                captured.append(_block)
     t = re.sub(r"<think>.*?</think>", "", t, flags=re.DOTALL)
     t = re.sub(r"<tool_call>.*?</tool_call>", "", t, flags=re.DOTALL)
     t = re.sub(r"</?(?:mm:)?think>", "", t)
@@ -279,6 +293,23 @@ def _reply_claims_inability(text: str) -> bool:
     if not text:
         return False
     return bool(_INABILITY_RE.search(text))
+
+
+def _tool_failure_block(planned: str) -> str:
+    """Prompt block injected when a PLANNED live lookup failed or timed out.
+
+    Silently dropping the block (the old behavior) reads to the model as
+    "no tool ran, therefore no tool exists": it told the user it had no
+    Outlook search tool (live 2026-09-06, right after the same lookup had
+    succeeded the turn before). An explicit failure block keeps the reply
+    truthful about what happened instead."""
+    return (
+        f"LIVE TOOL RESULTS ({planned}): the live lookup FAILED (timed out or "
+        "errored) — you DID attempt it. Tell the user the live lookup could not "
+        "complete right now and suggest trying again in a moment. Do NOT claim "
+        "you lack tools or integrations, and do NOT claim the data does not "
+        "exist — those are both false."
+    )
 
 
 class ChatOrchestrator:
@@ -514,10 +545,15 @@ class ChatOrchestrator:
         step_type: str,
         action: Optional[Dict[str, Any]],
         observation: str,
+        thought: Optional[str] = None,
     ) -> None:
         """Persist + broadcast one chat-turn step for the workspace panel.
         Best-effort on both legs: a DB failure still broadcasts, a broadcast
-        failure still persists."""
+        failure still persists. ``thought`` (the ReAct reasoning OR the
+        model's chain-of-thought for this turn) is persisted AND broadcast —
+        dropping it left every chat surface's "Reasoning Process" collapsible
+        expanding to nothing, and step-feedback training payloads judging an
+        empty thought."""
         try:
             from core.models import AgentReasoningStep
             from core.database import get_db_session
@@ -527,6 +563,7 @@ class ChatOrchestrator:
                     execution_id=execution_id,
                     step_number=step_number,
                     step_type=step_type,
+                    thought=(thought or "")[:20000] or None,
                     action=action,
                     observation=(observation or "")[:2000],
                 ))
@@ -539,6 +576,7 @@ class ChatOrchestrator:
             {
                 "step_number": step_number,
                 "type": step_type,
+                "thought": thought or "",
                 "action": action,
                 "action_input": (action or {}).get("params") or "",
                 "observation": observation,
@@ -604,7 +642,8 @@ class ChatOrchestrator:
         message: str,
         session_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-        routing_overrides: Optional[Dict[str, str]] = None
+        routing_overrides: Optional[Dict[str, str]] = None,
+        images: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Process a chat message and coordinate across all ATOM features.
@@ -721,6 +760,35 @@ class ChatOrchestrator:
                         sticky_hint = (_p, _m)
             except Exception:
                 pass
+
+            # Mini-app authoring leg ("build me a mini-app inventory tracker",
+            # "publish it", "install it"): runs BEFORE the canvas-edit leg so a
+            # ship request on a mini-app canvas isn't mangled into a content
+            # edit. The module's keyword gate makes this a no-op (and free)
+            # for turns that never say "mini app"; anything else it can't
+            # handle returns None and the normal legs proceed. Fault-isolated:
+            # never raises into the chat flow.
+            _mini_app_response = None
+            try:
+                from core.chat_mini_app_authoring import try_handle as _mini_app_try_handle
+                _mini_app_response = await _mini_app_try_handle(
+                    message, session.get("history", []) or history, user_id,
+                    self.llm_service, canvas=_canvas_ctx, session_id=session_id,
+                )
+            except Exception as mini_app_err:
+                logger.debug(f"mini-app authoring leg skipped: {mini_app_err}")
+            if _mini_app_response:
+                self._update_session(
+                    session, message, _mini_app_response,
+                    {"primary_intent": "mini_app_authoring", "confidence": 0.9},
+                )
+                await self._emit_agent_status(
+                    session_id, _trace_agent_id, _execution_id, "success"
+                )
+                self._finish_chat_execution(_execution_id, "success", _mini_app_response.get("message", ""))
+                if _tool_plan_task is not None and not _tool_plan_task.done():
+                    _tool_plan_task.cancel()
+                return _mini_app_response
             _turn_t0 = time.monotonic()
             try:
                 if _canvas_ctx:
@@ -774,6 +842,7 @@ class ChatOrchestrator:
                     tool_plan_task=_tool_plan_task,
                     mission_critical=bool((context or {}).get("mission_critical")),
                     canvas_provenance=(context or {}).get("canvas_provenance"),
+                    images=images,
                 )
             finally:
                 if _tool_plan_task is not None:
@@ -907,6 +976,11 @@ class ChatOrchestrator:
                 "model": used_model,
                 "provider": used_provider,
                 "memory_context": (ai_response or {}).get("memory_context") if ai_response else None,
+                # The model's chain-of-thought for this turn (what the agent
+                # was thinking) — rendered by the "Reasoning Process" drawer
+                # and persisted with the assistant message for feedback
+                # training (ExchangeExample.reasoning).
+                "reasoning": (ai_response or {}).get("reasoning") if ai_response else None,
             }
             if budget_failure:
                 response["error_code"] = "budget_exceeded"
@@ -1115,8 +1189,14 @@ class ChatOrchestrator:
         canvas_context: Optional[Dict[str, Any]] = None,
         mission_critical: bool = False,
         canvas_provenance: Optional[Dict[str, Any]] = None,
+        images: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
+
+        ``images``: user-submitted image data URLs for this turn — routed to
+        vision-capable models via the handler's image_payload path (streaming
+        is bypassed on image turns: the stream request has no vision
+        coordination).
 
         Returns ``{"content": str, "model": str, "provider": str}`` on success
         (so model identity can be surfaced to the UI and tied to feedback), or
@@ -1164,6 +1244,42 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
 """ + _APPROVAL_EXECUTION_RULE + "\n\n" + EVIDENCE_GROUNDING_RULE
 
+            # OUTBOUND IDENTITY: resolved per-install data — the agent's
+            # OWNER (agents are owned by, and trained by, one user) falling
+            # back to the session user, plus the tenant team set from users
+            # + installation profile people (role/domain classified).
+            # Appended AFTER the persona branch below, which reassigns the
+            # prompt — both the platform and hire voices carry the rule.
+            _identity_rule = ""
+            _outbound_signers: Optional[Dict[str, Any]] = None
+            if user_id or agent_id:
+                try:
+                    _outbound_signers = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            collect_team_signers, user_id, self.tenant_id, agent_id
+                        ),
+                        timeout=5,
+                    )
+                except Exception as id_err:
+                    logger.debug(f"outbound identity resolution skipped: {id_err}")
+            _primary = (_outbound_signers or {}).get("primary")
+            _team = (_outbound_signers or {}).get("team") or []
+            # Composer signature only matters for email artifacts; mined for
+            # the SIGNING identity (the owner), not the session user.
+            if _primary and _primary.get("user_id") and (
+                (canvas_context or {}).get("canvas_type") == "email"
+            ):
+                try:
+                    _sig_ident = await asyncio.wait_for(
+                        self._sender_identity(_primary["user_id"], "email"),
+                        timeout=5,
+                    )
+                    if (_sig_ident or {}).get("signature"):
+                        _primary = {**_primary, "signature": _sig_ident["signature"]}
+                except Exception as sig_err:
+                    logger.debug(f"composer signature lookup skipped: {sig_err}")
+            _identity_rule = identity_rule_block(_primary, _team)
+
             # Chatting WITH a hire: the employee speaks as themselves, not as
             # the platform. Persona and tier behavior come from the registry,
             # so "chat with my SDR" answers as the SDR within its maturity
@@ -1197,6 +1313,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         + _APPROVAL_EXECUTION_RULE
                         + "\n\n" + EVIDENCE_GROUNDING_RULE
                     )
+
+            if _identity_rule:
+                system_prompt += "\n\n" + _identity_rule
 
             messages = [
                 {
@@ -1316,12 +1435,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             _planned: Optional[str] = None
             _step_n = 0
 
-            async def _trace(step_type: str, action: Optional[Dict[str, Any]], observation: str) -> None:
+            async def _trace(step_type: str, action: Optional[Dict[str, Any]], observation: str,
+                             thought: Optional[str] = None) -> None:
                 nonlocal _step_n
                 _step_n += 1
                 await self._record_chat_step(
                     session_id, agent_id, execution_id,
-                    _step_n, step_type, action, observation,
+                    _step_n, step_type, action, observation, thought=thought,
                 )
 
             try:
@@ -1354,6 +1474,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         execute_tool_plan(
                             _plan, user_id, self.tenant_id,
                             context={
+                                "agent_id": agent_id,
                                 "history": (planner_history or history or [])[-6:],
                                 "canvas": {
                                     "title": canvas_context.get("title"),
@@ -1361,8 +1482,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                        if isinstance(canvas_context, dict) else {}),
                                 } if isinstance(canvas_context, dict) else None,
                             },
+                            llm_service=self.llm_service,
                         ),
-                        timeout=30,
+                        timeout=45,
                     )
                     _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
                     await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
@@ -1373,7 +1495,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     await _trace("thought", {"tool": "tool_planner", "params": {}},
                                  f"No live lookup needed: {(_plan.reason or 'conversation suffices')[:160]}")
             except Exception as tool_err:
-                logger.warning(f"tool planning skipped: {tool_err}")
+                # !r, not str: a bare asyncio.TimeoutError() stringifies to
+                # "" — the old warning printed "tool planning skipped: " and
+                # hid the 45s exec timeout entirely (live 2026-09-06).
+                logger.warning(f"tool planning skipped: {tool_err!r}")
+                if _planned and not _tool_block:
+                    _tool_block = _tool_failure_block(_planned)
 
             # Add conversation history. When fresh tool results exist for
             # this turn, include ONLY the user turns as context: measured
@@ -1460,11 +1587,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # and protocol-tag hygiene. ANY failure falls back to the
             # non-streaming completion: streaming is pure UX sugar.
             _streamed: Optional[str] = None
+            _turn_reasoning: Optional[str] = None
             if (
                 os.getenv("ATOM_CHAT_STREAMING", "true").lower() == "true"
                 and user_id and session_id
                 # routing_overrides is None on the common path — must not crash
                 and not (routing_overrides or {}).get("model")
+                # image turns use the non-streaming vision path (image_payload
+                # → vision-capable model routing); the stream request has no
+                # vision coordination
+                and not images
             ):
                 try:
                     import time as _time
@@ -1480,12 +1612,21 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
                     _buf: List[str] = []
                     _t0 = _time.monotonic()
+                    # Model chain-of-thought capture: reasoning deltas arrive
+                    # on a separate field (delta.reasoning / reasoning_content
+                    # / thinking) which the stream loop previously dropped on
+                    # the floor. Collected here, persisted + broadcast as the
+                    # turn's "thought" step, and returned with the reply so
+                    # feedback training captures WHAT the model was thinking.
+                    _reasoning_parts: List[str] = []
+                    _reasoning_sink: Dict[str, Any] = {"deltas": _reasoning_parts}
                     async for _tok in self.llm_service.stream_completion(
                         messages=messages,
                         model=_s_model,
                         provider_id=_s_prov,
                         temperature=0.7,
                         max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
+                        reasoning_sink=_reasoning_sink,
                     ):
                         if not _tok:
                             continue
@@ -1499,7 +1640,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         })
                     _full = "".join(_buf).strip()
                     if _full:
-                        _streamed = _strip_protocol_tags(_full)
+                        _streamed = _strip_protocol_tags(_full, captured=_reasoning_parts)
                         # GROUNDING GUARD: a streamed reply that denies having
                         # data contradicts the LIVE TOOL RESULT injected above
                         # (model-quality wobble, observed live). One grounded
@@ -1524,6 +1665,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not _reply_claims_inability(_fixed):
                                 _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
                         # EVIDENCE GUARD: the request asked to confirm/verify
                         # something and the reply ASSERTS it as established
                         # fact (observed live 2026-09-02: "confirm 480V
@@ -1558,6 +1700,68 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not asserts_unverified_confirmation(message, _fixed):
                                 _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
+                        # IDENTITY GUARD (streaming): two tiers — a signer
+                        # who is not on the tenant's team is the hard
+                        # confabulation class (observed live 2026-09-02: a
+                        # draft to one lead was signed with ANOTHER lead's
+                        # name); a teammate-but-not-owner signature is an
+                        # attribution miss. One regeneration each; if it
+                        # still violates, ship anyway — the supervisor sees
+                        # the draft (HITL), the violation is logged.
+                        elif signature_signer_status(_streamed, _primary, _team):
+                            _wrong, _wrong_kind = signature_signer_status(_streamed, _primary, _team)
+                            _owner = (_primary or {}).get("name")
+                            if _wrong_kind == "external":
+                                logger.warning(
+                                    f"streamed reply signs as {_wrong!r} — NOT on the "
+                                    f"tenant team; identity regeneration")
+                                messages.append({"role": "system", "content": (
+                                    f"Your previous reply signed the message as "
+                                    f"{_wrong!r}, who is not on this business's team. "
+                                    f"The sender is {_owner}. Regenerate the reply "
+                                    "with the SAME content but signed with the "
+                                    "sender's own name/signature only. Never name "
+                                    "a lead, customer, or any external contact as sender."
+                                )})
+                            else:
+                                logger.warning(
+                                    f"streamed reply signs as teammate {_wrong!r} "
+                                    f"instead of the owner; attribution regeneration")
+                                messages.append({"role": "system", "content": (
+                                    f"Your previous reply signed the message as "
+                                    f"{_wrong!r}. You work on behalf of {_owner}; "
+                                    "sign with THEIR name/signature. Regenerate "
+                                    "the reply with the SAME content, signed as "
+                                    f"{_owner}."
+                                )})
+                            _fix = await self.llm_service.generate_completion(
+                                messages=messages,
+                                model=forced_model,
+                                tenant_id=self.tenant_id,
+                                **extra_kwargs,
+                            )
+                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            if _fixed and not signature_signer_status(_fixed, _primary, _team):
+                                _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
+                        # Chain-of-thought → a real "thought" step: persisted
+                        # (trace/history) + broadcast (live reasoningTrace in
+                        # every chat surface) + returned for feedback capture.
+                        if _reasoning_parts:
+                            _turn_reasoning = "\n\n".join(
+                                p.strip() for p in _reasoning_parts if p and p.strip()
+                            ).strip() or None
+                        if _turn_reasoning:
+                            try:
+                                await _trace(
+                                    "thought",
+                                    {"tool": "llm", "params": {"model": _s_model, "provider": _s_prov}},
+                                    "model chain-of-thought (expand for training/audit)",
+                                    thought=_turn_reasoning,
+                                )
+                            except Exception:
+                                pass
                         await _ws_manager.broadcast(f"user:{user_id}", {
                             "type": "chat_token_done",
                             "data": {
@@ -1587,6 +1791,16 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     model=forced_model,  # "auto" unless overridden
                     tenant_id=self.tenant_id,
                     **extra_kwargs,
+                )
+                # Non-streaming path: same chain-of-thought capture as the
+                # streaming leg — the response's separate reasoning field
+                # (if any) plus inline <think> blocks (captured by the strip
+                # call on the next line via the shared _reasoning_parts list).
+                _reasoning_parts: List[str] = []
+                _strip_protocol_tags(response_data.get("content"), captured=_reasoning_parts)
+                _turn_reasoning = (
+                    (response_data or {}).get("reasoning")
+                    or ("\n\n".join(p.strip() for p in _reasoning_parts if p and p.strip()).strip() or None)
                 )
             
             logger.info(
@@ -1650,6 +1864,44 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     _fixed = _strip_protocol_tags(
                         (response_data or {}).get("content"))
                     if _fixed and not asserts_unverified_confirmation(message, _fixed):
+                        _content = _fixed
+                        response_data = {**response_data, "content": _fixed}
+                # IDENTITY GUARD (non-streaming): same two-tier wrong-signer
+                # backstop as the streaming path.
+                elif signature_signer_status(_content, _primary, _team):
+                    _wrong, _wrong_kind = signature_signer_status(_content, _primary, _team)
+                    _owner = (_primary or {}).get("name")
+                    if _wrong_kind == "external":
+                        logger.warning(
+                            f"reply signs as {_wrong!r} — NOT on the tenant "
+                            f"team; identity regeneration")
+                        messages.append({"role": "system", "content": (
+                            f"Your previous reply signed the message as "
+                            f"{_wrong!r}, who is not on this business's team. "
+                            f"The sender is {_owner}. Regenerate the reply "
+                            "with the SAME content but signed with the "
+                            "sender's own name/signature only. Never name a "
+                            "lead, customer, or any external contact as sender."
+                        )})
+                    else:
+                        logger.warning(
+                            f"reply signs as teammate {_wrong!r} instead of "
+                            f"the owner; attribution regeneration")
+                        messages.append({"role": "system", "content": (
+                            f"Your previous reply signed the message as "
+                            f"{_wrong!r}. You work on behalf of {_owner}; "
+                            "sign with THEIR name/signature. Regenerate the "
+                            f"reply with the SAME content, signed as {_owner}."
+                        )})
+                    response_data = await self.llm_service.generate_completion(
+                        messages=messages,
+                        model=forced_model,
+                        tenant_id=self.tenant_id,
+                        **extra_kwargs,
+                    )
+                    _fixed = _strip_protocol_tags(
+                        (response_data or {}).get("content"))
+                    if _fixed and not signature_signer_status(_fixed, _primary, _team):
                         _content = _fixed
                         response_data = {**response_data, "content": _fixed}
                 if _tool_block and len(_content) < 20:
@@ -1738,11 +1990,24 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                      _content[:300])
                     except Exception:
                         pass
+                # Non-streaming leg: the chain-of-thought step is emitted here
+                # (the streaming leg emits its own right after the stream).
+                if _turn_reasoning and _streamed is None:
+                    try:
+                        await _trace(
+                            "thought",
+                            {"tool": "llm", "params": {"model": response_data.get("model")}},
+                            "model chain-of-thought (expand for training/audit)",
+                            thought=_turn_reasoning,
+                        )
+                    except Exception:
+                        pass
                 return {
                     "content": _content,
                     "model": response_data.get("model"),
                     "provider": response_data.get("provider"),
                     "memory_context": memory_block,
+                    "reasoning": _turn_reasoning,
                 }
 
             return None
@@ -2126,6 +2391,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         value = str((sig or {}).get("signature") or "").strip()
                         if value:
                             identity["signature"] = value
+                        # The STYLED variant (raw HTML — fonts, layout
+                        # tables, links) rides to the drafting prompt so the
+                        # agent reproduces the user's real signature markup
+                        # in the canvas body, not a plain-text shadow.
+                        sig_html = str((sig or {}).get("signature_html") or "").strip()
+                        if sig_html:
+                            identity["signature_html"] = sig_html
                     except Exception as sig_err:
                         logger.debug(f"canvas editor signature lookup skipped: {sig_err}")
         except Exception as e:
@@ -2156,6 +2428,28 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         canvas = await self._refresh_canvas_from_store(user_id, canvas)
         canvas = await self._heal_degenerate_canvas(user_id, canvas)
+
+        # PDF canvases are byte-backed: their pages/forms/signatures change
+        # only through the maturity-gated pdf_canvas tools — a text patch on
+        # the content JSON would corrupt the document state. Steer the turn
+        # to the tools instead (reads still flow through the planner).
+        if (canvas.get("canvas_type") or "").lower() == "pdf":
+            return {
+                "success": True,
+                "message": (
+                    "This is a PDF canvas — its content is edited through the "
+                    "pdf_canvas tools (page ops, form fill, redact, sign), which "
+                    "follow your approval policy. Tell me what to change and I'll "
+                    "propose it through those tools."
+                ),
+                "data": {
+                    "canvas_action": {
+                        "action": "pdf_tool_redirect",
+                        "canvas_id": canvas.get("canvas_id"),
+                    }
+                },
+            }
+
         corrections = self._recent_canvas_corrections(user_id, canvas.get("canvas_id"))
         versions = self._recent_canvas_versions(user_id, canvas.get("canvas_id"))
         lessons = self._agent_lessons(agent_id, message)
@@ -2165,6 +2459,43 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         user_identity = await self._sender_identity(user_id, canvas.get("canvas_type"))
         playbooks = await asyncio.to_thread(
             self._relevant_playbooks, user_id, message, canvas.get("canvas_type"))
+
+        # Live evidence when the edit hinges on data the editor cannot see
+        # (a price "from the consolidated price list"). Same read-only tool
+        # planner the chat path uses. When a live-data need EXISTS but the
+        # lookup failed, DECLINE the edit (None → the tool/conversational
+        # path answers the lookup): applying a data-dependent edit without
+        # its evidence fabricated values on the user's real draft (live
+        # 2026-09-04: 'In Stock' + placeholder price invented on timeout).
+        # step_recorder: the co-editor lane used to run real provider calls
+        # with NOTHING recorded in the reasoning-step trail — the applied
+        # "In Stock" edit's search existed only in gatekeeper logs. Recorded
+        # through the same trail the chat lane writes so the audit and the
+        # training payloads see the lookup, its query AND its result.
+        _step_counter = {"n": 0}
+
+        async def _record_fresh_data_step(step_type: str,
+                                          action: Dict[str, Any],
+                                          observation: str) -> None:
+            _step_counter["n"] += 1
+            await self._record_chat_step(
+                session_id, agent_id, execution_id,
+                step_number=_step_counter["n"],
+                step_type=step_type, action=action, observation=observation)
+
+        from core.chat_canvas_editor import fetch_fresh_data_section
+        fresh = await fetch_fresh_data_section(
+            message, history, self.llm_service, user_id,
+            canvas_id=canvas.get("canvas_id"),
+            step_recorder=_record_fresh_data_step,
+        )
+        if fresh.needed and not fresh.ok:
+            logger.info(
+                "canvas edit declined: the turn needs live data and the "
+                "lookup failed — falling through to the tool path instead "
+                "of editing without evidence")
+            return None
+        fresh_data = fresh.section
 
         try:
             plan = await asyncio.wait_for(
@@ -2178,6 +2509,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     provenance=provenance,
                     user_identity=user_identity,
                     playbooks=playbooks,
+                    fresh_data=fresh_data,
                 ),
                 timeout=30,
             )
@@ -2219,6 +2551,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             return None
         if plan is None or not plan.wants_edit:
             return None
+        # P3 transparency: WHICH company playbooks guided this edit — the
+        # chat response carries them (chat_routes maps `data`→`metadata`)
+        # so the co-editor transcript can show "Following playbook: X".
+        matched_playbooks = [
+            {"id": pb.get("id"), "name": pb.get("name")}
+            for pb in (playbooks or [])[:2]
+            if isinstance(pb, dict) and pb.get("id")
+        ]
 
         # Maturity gate — canvas edits are INTERN+ (governance action
         # "update_canvas"). A hire that isn't mature enough is NOT refused:
@@ -2247,8 +2587,10 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         if agent_id:
             try:
                 from core.autonomy_policy import (
-                    MODE_AUTO_IF_MATURE,
+                    MODE_AUTO_UNTIL_CORRECTED,
+                    autonomy_cycle,
                     get_effective_mode,
+                    mode_allows_autonomy,
                     trust_check,
                 )
                 from core.database import get_db_session
@@ -2264,22 +2606,30 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # human_always forces proposal semantics even for a
                     # mature hire, and (flag-on) unproven trust demotes the
                     # edit to a proposal — the same gate_for_topic outcome
-                    # the Autonomy tab displays.
+                    # the Autonomy tab displays. auto_until_corrected also
+                    # allows execution, but its correction cycle is checked
+                    # explicitly here (this path predates gate_for_topic).
                     mode = get_effective_mode(db, user_id, "canvas_edit")
-                    hitl_policy = mode != MODE_AUTO_IF_MATURE
+                    hitl_policy = not mode_allows_autonomy(mode)
                     trust_ok = trust_check(db, agent_id, "canvas_edit")["ok"]
+                    cycle_ok = True
+                    if mode == MODE_AUTO_UNTIL_CORRECTED:
+                        cycle_ok = autonomy_cycle(
+                            db, agent_id, "canvas_edit")["ok"]
                 learning_mode = (
                     not check.get("allowed", True)
                     or hitl_policy
                     or not trust_ok
+                    or not cycle_ok
                 )
                 await self._record_chat_step(
                     session_id, agent_id, execution_id, 2, "thought",
                     {"tool": "canvas_governance", "params": {"action": "update_canvas"}},
                     f"gate: {'PROPOSAL' if learning_mode else 'allowed'}"
                     f" (maturity={'fail' if not check.get('allowed', True) else 'ok'},"
-                    f" policy={'human_always' if hitl_policy else 'auto_if_mature'},"
-                    f" trust={'fail' if not trust_ok else 'ok'})"
+                    f" policy={mode},"
+                    f" trust={'fail' if not trust_ok else 'ok'},"
+                    f" cycle={'reset' if not cycle_ok else 'ok'})"
                     f" — {str(check.get('reason', ''))[:120]}",
                 )
             except Exception as gov_err:
@@ -2320,6 +2670,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "canvas_id": canvas.get("canvas_id"),
                         "updated": False,
                         "no_change": True,
+                        **({"matched_playbooks": matched_playbooks}
+                           if matched_playbooks else {}),
                     }
                 },
                 "suggested_actions": [],
@@ -2433,6 +2785,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     "canvas_id": canvas.get("canvas_id"),
                     "updated": True,
                     **({"learning_mode": True} if learning_mode else {}),
+                    **({"matched_playbooks": matched_playbooks}
+                       if matched_playbooks else {}),
                 }
             },
             "suggested_actions": [],
@@ -2470,9 +2824,25 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         # (possibly stale) content would dispatch an out-of-date draft.
         canvas = await self._refresh_canvas_from_store(user_id, canvas)
 
+        # Same evidence rule as edits: a send that amends the draft with
+        # external facts ("send it with the current price") gets the live
+        # FRESH DATA section; when that need exists but the lookup failed,
+        # DECLINE (None → the conversational/tool path answers) — a send
+        # composed from guessed values is fabrication, not assistance.
+        from core.chat_canvas_editor import fetch_fresh_data_section
+        fresh = await fetch_fresh_data_section(
+            message, history, self.llm_service, user_id,
+        )
+        if fresh.needed and not fresh.ok:
+            logger.info(
+                "canvas action declined: the turn needs live data and the "
+                "lookup failed — falling through to the tool path")
+            return None
+        fresh_data = fresh.section
+
         try:
             plan = await asyncio.wait_for(
-                plan_canvas_action(message, history, canvas, self.llm_service),
+                plan_canvas_action(message, history, canvas, self.llm_service, fresh_data=fresh_data),
                 timeout=25,
             )
         except Exception as e:
@@ -2489,7 +2859,11 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
         from core.autonomy_policy import (
             MODE_AUTO_IF_MATURE,
+            MODE_HUMAN_ALWAYS,
+            MODE_AUTO_UNTIL_CORRECTED,
+            autonomy_cycle,
             get_effective_mode,
+            mode_allows_autonomy,
             trust_check,
         )
         from core.database import get_db_session
@@ -2498,11 +2872,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         mode = MODE_AUTO_IF_MATURE
         governance_allows = True
         trust_allows = True
+        cycle_allows = True
         policy_decision = None
         try:
             with get_db_session() as db:
                 mode = get_effective_mode(db, user_id, "send_email")
-                if agent_id and mode == MODE_AUTO_IF_MATURE:
+                if agent_id and mode_allows_autonomy(mode):
                     from core.service_factory import ServiceFactory
 
                     governance = ServiceFactory.get_governance_service(db)
@@ -2514,6 +2889,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # when policy + maturity would allow the send. Neutral-pass
                     # while the trust flag is off — legacy behavior unchanged.
                     trust_allows = trust_check(db, agent_id, "send_email")["ok"]
+                    # Correction cycle (auto_until_corrected): a human
+                    # correction reset the hire's EARNED send autonomy —
+                    # propose until verified work re-graduates it.
+                    if mode == MODE_AUTO_UNTIL_CORRECTED:
+                        cycle_allows = autonomy_cycle(
+                            db, agent_id, "send_email")["ok"]
 
                 # The email policy's APPROVE (e.g. external recipient on the
                 # egress allowlist) ALWAYS requires a human — for agent-initiated
@@ -2546,12 +2927,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             logger.warning(f"canvas action gates skipped: {e}")
 
         # Gate outcomes → direct execution ONLY when policy allows autonomy
-        # AND the hire is mature enough AND trust clears the bar AND the
-        # email policy doesn't demand a human. Everything else proposes (HITL).
+        # AND the hire is mature enough AND trust clears the bar AND no
+        # correction reset the cycle (until_corrected) AND the email policy
+        # doesn't demand a human. Everything else proposes (HITL).
         needs_approval = (
-            (mode != MODE_AUTO_IF_MATURE)
+            (not mode_allows_autonomy(mode))
             or not governance_allows
             or not trust_allows
+            or not cycle_allows
             or (agent_id is not None and policy_decision is not None
                 and policy_decision.get("decision") == EMAIL_APPROVE)
         )
@@ -2591,7 +2974,8 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         reply = (
             (plan.reply or "Ready to send that email.").strip()
             + f"\n\n🔐 This needs your approval first"
-            + (" (you've set email sends to always require a human)" if mode != MODE_AUTO_IF_MATURE
+            + (" (you've set email sends to always require a human)" if mode == MODE_HUMAN_ALWAYS
+               else " (a correction reset this hire's send autonomy — it re-earns it through verified work)" if not cycle_allows
                else " (the hire isn't mature enough to send autonomously yet)"
                if not governance_allows
                else " (the hire's verified trust hasn't earned autonomous sends yet)")
@@ -3748,14 +4132,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # Store the assistant response; error turns carry a
                     # metadata flag so hydration can exclude them from the
                     # model's context (they remain visible in the UI).
+                    # The model's chain-of-thought rides metadata_json so
+                    # history hydration re-renders it and ExchangeExample
+                    # capture (feedback training) can pick it up.
                     resp_content = response.get("message", "") if isinstance(response, dict) else str(response)
                     if resp_content:
+                        _msg_meta: Dict[str, Any] = {}
+                        if _is_error_turn:
+                            _msg_meta["quality"] = "error"
+                        _turn_reasoning = response.get("reasoning") if isinstance(response, dict) else None
+                        if _turn_reasoning:
+                            _msg_meta["reasoning"] = str(_turn_reasoning)[:20000]
                         db.add(ChatMessageModel(
                             conversation_id=session_id,
                             tenant_id=tenant_id,
                             role="assistant",
                             content=resp_content,
-                            metadata_json=json.dumps({"quality": "error"}) if _is_error_turn else None,
+                            metadata_json=json.dumps(_msg_meta) if _msg_meta else None,
                         ))
         except Exception as e:
             logger.warning(f"Could not persist chat history to DB (non-fatal): {e}")

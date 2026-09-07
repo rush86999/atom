@@ -6,7 +6,7 @@ Provides endpoints for Slack, Teams, and Gmail webhooks.
 import hmac
 import logging
 import os
-from typing import Optional
+from typing import Any, Optional
 from fastapi import BackgroundTasks, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -258,3 +258,85 @@ async def zoho_flow_webhook(
         "triggers_fired": triggered,
         "role": role,
     }
+
+
+# ---------------------------------------------------------------------------
+# Storage change pushes (real-time ingestion) — one generic dispatcher,
+# per-provider payload parsers live in integrations/storage_change_events.py
+# (add a business's storage app = one parser + one spec row; no per-business
+# routes). Auth: shared secret as ?token=... or Bearer; FAILS CLOSED when
+# the per-provider env secret is unset. On an event, touched files re-ingest
+# for the connected account(s) — hash-dedup makes unchanged files cost one
+# download+parse, real edits replace the stored family in ~9min batched
+# (small files: seconds).
+# ---------------------------------------------------------------------------
+
+_STORAGE_WEBHOOK_SECRET_ENVS = {
+    "zoho_workdrive": "WORKDRIVE_WEBHOOK_SECRET",
+    "google_drive": "GDRIVE_WEBHOOK_SECRET",
+    "onedrive": "ONEDRIVE_WEBHOOK_SECRET",
+    "dropbox": "DROPBOX_WEBHOOK_SECRET",
+    "box": "BOX_WEBHOOK_SECRET",
+}
+
+
+@router.post("/storage/{provider}")
+async def storage_change_webhook(
+    provider: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    token: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
+):
+    """Real-time file-change ingestion for any connected storage app.
+
+    Auth: the provider's shared secret as ?token=... (WorkDrive custom apps
+    and Box put the key in the endpoint URL) or a Bearer header. Fails
+    closed. Unknown payloads 202 as no-ops — a push must never 500 its
+    vendor."""
+    provider = (provider or "").strip().lower()
+    secret_env = _STORAGE_WEBHOOK_SECRET_ENVS.get(provider)
+    if not secret_env:
+        raise HTTPException(status_code=404, detail=f"Unknown storage provider: {provider}")
+    secret = os.getenv(secret_env)
+    supplied = (token or (authorization or "").strip().removeprefix("Bearer ").strip())
+    if not secret or not supplied or not hmac.compare_digest(supplied, secret):
+        raise HTTPException(status_code=401, detail="Invalid webhook token")
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    from integrations.storage_change_events import (
+        parse_storage_event, queue_provider_refresh, STORAGE_PROVIDERS,
+    )
+
+    event = parse_storage_event(provider, payload, dict(request.headers))
+    if not event:
+        return JSONResponse(status_code=202, content={
+            "success": True, "received": True,
+            "message": "Event carried no recognizable change; nothing to refresh.",
+        })
+
+    background_tasks.add_task(queue_provider_refresh, provider, event)
+    return JSONResponse(status_code=202, content={
+        "success": True, "provider": provider,
+        "action": "resync" if event.get("resync") else f"refresh {len(event.get('file_ids') or [])} file(s)",
+        "message": "Refresh queued.",
+    })
+
+
+@router.post("/zoho-workdrive")
+async def zoho_workdrive_webhook(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    token: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
+):
+    """Back-compat alias for /api/webhooks/storage/zoho-workdrive (existing
+    WorkDrive custom-app webhook URLs keep working)."""
+    return await storage_change_webhook(
+        "zoho_workdrive", request, background_tasks,
+        token=token, authorization=authorization,
+    )

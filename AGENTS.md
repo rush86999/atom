@@ -20,11 +20,28 @@ coordination protocol lives in `notes/AGENT_COORDINATION.md` (local, gitignored)
 - **Check for the known cross-cutting bug classes before assuming local cause:**
   - **Path anchoring**: anything resolving `./data/...` or relative paths must
     be anchored to `backend/` (root-vs-backend launches already caused
-    divergent LanceDB stores, DB URLs, and the pricing cache).
+    divergent LanceDB stores, DB URLs, and the pricing cache — most recently
+    2026-09-02, when the agent memory store forked and the agent went
+    memory-blind). Startup reconciliation (`core/memory_store_bootstrap`)
+    now auto-adopts legacy root stores; keep new store access on
+    `LanceDBHandler._resolve_local_db_path`.
+  - **Stale server = false bug reports**: the API server does not run
+    `--reload`. After backend code changes run `scripts/restart_backend.sh`
+    and only then reproduce/verify (`docs/architecture/MEMORY_STORE_AND_OPERATIONS.md`).
   - **Message flattening**: the LLM layer must receive full message lists;
     anything that reduces to (last-prompt, last-system) destroys multi-turn.
   - **Stale caches shadowing durable state**: file/session caches can lag the
     DB — the durable store is authoritative on conflict.
+  - **LIVE-DB WIPE BY STRAY SCRIPTS** (2026-09-04: an ephemeral "govcheck"
+    script emptied `backend/data/atom.db` — the whole dev world: users,
+    agents, canvases, playbooks — and the app re-seeded a blank one silently).
+    Ad-hoc scripts and one-off test harnesses NEVER connect to the live dev
+    DB: set `TESTING=1` (forced scratch DB) or point `DATABASE_URL`/engine at
+    your own scratch file. Safety nets now in place: `core/db_safety.py`
+    (maintenance cycle snapshots the DB every cycle + row-count fingerprint;
+    startup logs a CRITICAL when the world shrank) and
+    `scripts/restart_backend.sh` (snapshot before every restart). Snapshots
+    live in `backend/data/backups/` — restore from there, never re-seed.
 - **Read the run history.** `git log`, recent commits by other agents, and
   `notes/AGENT_COORDINATION.md` — someone may have already built (or
   deliberately removed) what you're about to add. E.g. the cross-user token

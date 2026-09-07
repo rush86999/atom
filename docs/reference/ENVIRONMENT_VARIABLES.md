@@ -43,6 +43,7 @@ disabled until you configure a provider (see §6).
 | `HOST` | `0.0.0.0` | — | FastAPI bind host. |
 | `PORT` | `8000` | — | FastAPI bind port (container). Dev launch uses `--port 8001`. |
 | `WORKERS` | `1` | — | Uvicorn workers (production). Use `1` with `--reload`. |
+| `ATOM_EXTERNAL_DRIVE` | _(unset)_ | — | Opt-in external volume path (e.g. `/Volumes/MyDrive`) for drive-hosted layouts: `restart_backend.sh` mirrors DB snapshots to `<volume>/atom-backups/` and `scripts/drive_status.sh` treats the layout as drive-hosted. Unset (default) = local-only layout, no external drive required; a dangling memory-store symlink also marks the layout drive-hosted. |
 | `DEBUG` | `false` | — | Enables debug logging / verbose errors. |
 | `RELOAD` | `false` | — | Uvicorn auto-reload on file change. |
 | `APP_URL` | `http://localhost:3000` | — | App's public URL (password-reset links, OAuth redirects). |
@@ -215,7 +216,18 @@ before enforcing. See [`docs/architecture/SWITCHYARD_GAP_ANALYSIS.md`](../archit
 
 ---
 
-## 6b. Multi-Agent Coordination (AgentRadio)
+## 6b. Background task model pins (planner / canvas editor / knowledge extraction)
+
+Interactive calls can't always trust BPC's value ranking — tiny or bulk
+structured calls pin one flash-class (provider, model) via
+`generate_structured_response(provider_model=...)`, each with an unpinned
+retry. Same convention as `ATOM_TOOL_PLANNER_MODEL` / `ATOM_CANVAS_EDITOR_MODEL`.
+
+| Variable | Default | Required? | Description |
+|----------|---------|-----------|-------------|
+| `ATOM_KG_EXTRACTION_MODEL` | `qwen/qwen3.7-flash` | — | Model pinned for background knowledge-graph extraction (communication/document ingestion, ~800+ calls/6h observed). Flash-class: unpinned BPC routing sent this bulk workload to frontier models at ~26-30x the per-token cost (2026-09-05). |
+
+## 6c. Multi-Agent Coordination (AgentRadio)
 
 See [`docs/architecture/AGENT_RADIO.md`](../architecture/AGENT_RADIO.md).
 

@@ -6,9 +6,11 @@ interface GmailSearchProps {
     onSearch: (results: any[], filters: any, sort: any) => void;
     loading: boolean;
     totalCount: number;
+    /** Items currently shown after filtering (defaults to data.length). */
+    resultCount?: number;
 }
 
-const GmailSearch: React.FC<GmailSearchProps> = ({ data, dataType, onSearch, loading, totalCount }) => {
+const GmailSearch: React.FC<GmailSearchProps> = ({ data, dataType, onSearch, loading, totalCount, resultCount }) => {
     const [query, setQuery] = useState('');
 
     const handleSearchChange = (value: string) => {
@@ -42,7 +44,7 @@ const GmailSearch: React.FC<GmailSearchProps> = ({ data, dataType, onSearch, loa
                 />
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
-                {loading ? 'Loading...' : `Showing ${data.length} of ${totalCount} items`}
+                {loading ? 'Loading...' : `Showing ${resultCount ?? data.length} of ${totalCount} items`}
             </div>
         </div>
     );

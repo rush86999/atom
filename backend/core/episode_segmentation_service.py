@@ -672,6 +672,13 @@ class EpisodeSegmentationService:
         if any("fail" in s or "error" in s for s in statuses):
             return "failure"
         if all("complete" in s or "success" in s for s in statuses) and statuses:
+            # Tool errors recorded at the integration chokepoint make the
+            # turn partial, not a clean success — the evolution harness
+            # learns from failures, and swallowed tool errors used to be
+            # invisible here.
+            for exec in executions:
+                if (getattr(exec, "metadata_json", None) or {}).get("tool_errors"):
+                    return "partial"
             return "success"
         return "partial"
 

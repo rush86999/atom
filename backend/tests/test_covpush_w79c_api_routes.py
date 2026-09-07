@@ -20,6 +20,7 @@ real module names (no `backend.` prefix), zero network / LLM spend, no real DB
 (admin/template/versioning/zoho use mocked sessions; workspace_context uses the
 in-memory `db_session` fixture). Schemas: direct Pydantic validation tests.
 """
+import time
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, mock_open, patch
@@ -549,20 +550,39 @@ class TestZohoListFiles:
 
 
 class TestZohoIngest:
-    def test_ingest_success(self, zoho_client):
+    @staticmethod
+    def _await_ingest_job(zoho_client, job_id, timeout=5.0):
+        # Ingest runs as a background task; poll the job-status endpoint
+        # until it leaves "running" (mocked service calls resolve fast).
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            resp = zoho_client.get(f"/api/zoho-workdrive/ingest/jobs/{job_id}")
+            assert resp.status_code == 200
+            job = resp.json()["data"]
+            if job["status"] != "running":
+                return job
+            time.sleep(0.02)
+        raise AssertionError(f"ingest job {job_id} never finished")
+
+    def test_ingest_starts_background_job_and_completes(self, zoho_client):
         with patch("api.zoho_workdrive_routes.zoho_service.ingest_file_to_memory",
                    new=AsyncMock(return_value={"success": True, "doc_id": "d1"})):
             resp = zoho_client.post("/api/zoho-workdrive/ingest", json={
                 "user_id": "u1", "file_id": "f1"})
         assert resp.status_code == 200
-        assert resp.json()["doc_id"] == "d1"
+        job = self._await_ingest_job(zoho_client, resp.json()["data"]["job_id"])
+        assert job["status"] == "completed"
+        assert job["result"]["doc_id"] == "d1"
 
-    def test_ingest_error_500(self, zoho_client):
+    def test_ingest_service_error_becomes_failed_job(self, zoho_client):
         with patch("api.zoho_workdrive_routes.zoho_service.ingest_file_to_memory",
                    new=AsyncMock(side_effect=RuntimeError("boom"))):
             resp = zoho_client.post("/api/zoho-workdrive/ingest", json={
                 "user_id": "u1", "file_id": "f1"})
-        assert resp.status_code == 500
+        assert resp.status_code == 200
+        job = self._await_ingest_job(zoho_client, resp.json()["data"]["job_id"])
+        assert job["status"] == "failed"
+        assert "boom" in job["error"]
 
     def test_ingest_validation_422(self, zoho_client):
         resp = zoho_client.post("/api/zoho-workdrive/ingest", json={})

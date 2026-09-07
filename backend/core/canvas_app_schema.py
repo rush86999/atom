@@ -93,7 +93,12 @@ _APPS: Dict[str, CanvasAppSpec] = {
             "An email composer: To/Cc/Subject are single-line recipient/subject "
             "inputs, the body is a rich-text editor. Filling the To/Cc fields is "
             "a normal edit (set-field ops or a field merge) — recipients shown in "
-            "the body text are NOT the fields."
+            "the body text are NOT the fields. The body renders sanitized HTML, "
+            "and inline-styled <table> markup is supported end-to-end (borders, "
+            "cell padding, background-color shading, font color/size) — it "
+            "renders in the composer AND the outgoing email. Implement styling "
+            "requests like 'shade/highlight/color the headings' by restyling the "
+            "header row's <td> styles in place, keeping their text unchanged."
         ),
     ),
     "sheet": CanvasAppSpec(

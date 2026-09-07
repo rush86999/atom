@@ -244,6 +244,13 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "WikiSkill W5: replay the playbook's related incident evals when a draft is approved. "
       "shadow = record the replay outcome on the playbook and approve anyway; enforce = block "
       "draft→approved while any related eval FAILS (skips never block); off = no replay"),
+    B("ATOM_PLAYBOOKS_AUTO_APPROVE", False, C_LEARN,
+      "Autonomy latch (Playbook Journey §6): a learned draft playbook promotes without a "
+      "human click only where autonomy already allows no-human-gating — its trigger canvas's "
+      "topics are auto-if-mature with ALL active hires clearing the maturity×trust bar — "
+      "AND its ORIGIN incident evals pass 3 consecutive nightly replays (a failing replay "
+      "resets the streak; an ineligible crew freezes it). Default off — the supervisor "
+      "approve click stays the contract. taught/authored drafts never auto-approve"),
     S("ATOM_SEND_GROUNDING", "shadow", C_LEARN,
       "Grounded send gate for outbound email: every availability/spec/price claim needs a facts-registry "
       "entry or hedged wording. off = not consulted; shadow (recommended) = verdicts logged, nothing blocked; "

@@ -5,7 +5,9 @@ Supports: Excel, PDF, DOC/DOCX, TXT, CSV, Markdown files
 """
 
 import asyncio
+from collections import OrderedDict
 from dataclasses import dataclass, field
+import hashlib
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 import io
@@ -87,6 +89,218 @@ class IngestedDocument:
     superseded_by: Optional[str] = None  # id of a newer same-topic doc
 
 
+def _parse_source_modified(raw: Any) -> Optional[datetime]:
+    """Parse a connector-reported modified_at into an aware UTC datetime.
+
+    Sources use wildly different shapes: WorkDrive listings render
+    "May 1, 2025, 12:16 PM", APIs return ISO strings, some callers pass a
+    datetime already. None → None (unknown, comparisons must not guess).
+    """
+    if isinstance(raw, datetime):
+        return raw if raw.tzinfo else raw.replace(tzinfo=timezone.utc)
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    raw = raw.strip()
+    for fmt in (
+        "%b %d, %Y, %I:%M %p",  # May 1, 2025, 12:16 PM (WorkDrive listings)
+        "%b %d, %Y",  # May 1, 2025
+        "%Y-%m-%dT%H:%M:%S.%f%z",  # ISO with micros + offset
+        "%Y-%m-%dT%H:%M:%S%z",  # ISO + offset
+        "%Y-%m-%dT%H:%M:%S.%f",  # ISO naive
+        "%Y-%m-%dT%H:%M:%S",  # ISO naive
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+    ):
+        try:
+            dt = datetime.strptime(raw, fmt)
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    return None
+
+
+def _stored_copy_older_than(stored: Optional[Dict[str, Any]], source_modified_dt: Optional[datetime]) -> bool:
+    """True when a stored document copy is KNOWN to predate the source's
+    current modified_at. Baseline precedence: the modified time captured at
+    last ingest, else the ingest/creation time itself (a source modified
+    after we ingested is newer by definition). Conservative: when NO
+    baseline and no source time can be established → False, because 'can't
+    tell' must not trigger a re-ingest."""
+    if not stored or source_modified_dt is None:
+        return False
+    meta = stored.get("metadata") or {}
+    for raw in (
+        meta.get("source_modified_at"),
+        stored.get("source_modified_at"),  # top-level freshness column
+        meta.get("external_modified_at"),
+        stored.get("external_modified_at"),
+        meta.get("ingested_at"),
+        stored.get("created_at"),
+    ):
+        stored_dt = _parse_source_modified(raw)
+        if stored_dt is not None:
+            return (source_modified_dt - stored_dt).total_seconds() > 1.0
+    return False
+
+
+def _hashlib_sha1(value: str) -> str:
+    import hashlib
+
+    return hashlib.sha1(value.encode("utf-8")).hexdigest()
+
+
+def interpret_ingest_result(result: Dict[str, Any]) -> Dict[str, Any]:
+    """One interpretation of a ``process_file_bytes`` result for every caller.
+
+    Drive services' ``ingest_file_to_memory``-style methods, the agent JIT
+    tool and the UI job records all need to answer the same question — did
+    the content end up in memory? — and each used to re-derive it and
+    diverge: WorkDrive reported an unchanged re-ingest as a hard failure
+    (the panel showed "File ingest failed" for a plain re-click) while
+    Box/Dropbox/Google Drive/OneDrive reported unsupported formats and store
+    write failures as success. The semantics are decided here, once:
+
+    - ``ingested``            → success (fresh content stored)
+    - ``skipped: unchanged``  → success with ``unchanged=True`` — the exact
+      content is already stored; a re-ingest is a no-op, not a failure
+    - anything else (unsupported format, ``no_text``, ``write_failed``,
+      ``parse_failed``, ``ingest_failed``) → failure with the reason
+      surfaced so the UI/agent can say what did not happen
+    """
+    status = result.get("status")
+    reason = result.get("reason") or status or "unknown"
+    if status == "ingested":
+        return {"success": True, "unchanged": False, "error": None}
+    if status == "skipped" and reason == "unchanged":
+        return {"success": True, "unchanged": True, "error": None}
+    return {"success": False, "unchanged": False,
+            "error": f"File not ingested ({reason})"}
+
+
+# Extraction budget: the cap on EXTRACTED TEXT per file (not on source
+# records). The old hard caps (5 sheets x 100 rows, 50 PDF pages, 500 docx
+# paragraphs, 1000 CSV rows) silently truncated real business files — live
+# 2026-09-03, Consolidated Price List 2019.xlsx (46 sheets, ~2.7M chars)
+# ingested without its machine-pricing sheets, so the agent could never find
+# the WG350DSAV row and confabulated the price instead. The write path
+# chunks arbitrarily long text (vector_upsert ::c{i} rows), so extraction
+# may emit everything up to this budget; the budget only bounds memory and
+# embedding cost for pathological files. Env-tunable per deployment.
+# NOTE: the explicit read path (_read_storage_file) deliberately exceeds
+# this — opening a named file must see all of it.
+DEFAULT_EXTRACTION_MAX_CHARS = 4_000_000
+
+# Safety ceiling for the explicit read path (a named-file open). Still
+# finite so a hostile multi-GB workbook cannot OOM the process, but far
+# above any real spreadsheet/PDF.
+READ_EXTRACTION_MAX_CHARS = 50_000_000
+
+
+class _ParseResultCache:
+    """Tiny content-hash LRU for parse_document results (see the docstring
+    there). 4 entries — a 50M-char ceiling means worst case ~200MB of text;
+    real entries are far smaller. Dict + insertion-order eviction under the
+    async single-loop model (no cross-thread access)."""
+
+    _MAX = 4
+
+    def __init__(self) -> None:
+        self._entries: "OrderedDict[tuple, str]" = OrderedDict()
+
+    def get(self, key: tuple) -> Optional[str]:
+        text = self._entries.get(key)
+        if text is not None:
+            self._entries.move_to_end(key)
+        return text
+
+    def put(self, key: tuple, text: str) -> None:
+        self._entries[key] = text
+        self._entries.move_to_end(key)
+        while len(self._entries) > self._MAX:
+            self._entries.popitem(last=False)
+
+
+_PARSE_CACHE = _ParseResultCache()
+
+
+async def parse_document_cached(file_content: bytes, file_type: str, file_name: str,
+                                max_chars: Optional[int] = None) -> str:
+    """``parse_document`` with a content-hash LRU — for the INTERACTIVE read
+    path, which re-parses the SAME file on every question about it ("check
+    the price list" → "fill in the price" → "it's in WorkDrive" …). A large
+    workbook costs ~10s of parse plus formula extraction EACH time, and the
+    canvas editor's fresh-data budget times out on the second question
+    (live 2026-09-06: Consolidated Price List 2019.xlsx, 13MB, parsed 4× in
+    one evening for the same draft). Bounded LRU — a few multi-MB texts, not
+    unbounded growth. Deliberately NOT applied inside parse_document: the
+    ingestion path dedupes by content hash downstream, and tests rely on
+    parse_document re-running per call."""
+    cache_key = None
+    if file_content:
+        cache_key = (hashlib.sha1(file_content).hexdigest(), file_type, max_chars)
+        cached = _PARSE_CACHE.get(cache_key)
+        if cached is not None:
+            logger.debug(f"parse cache hit for {file_name}")
+            return cached
+    text = await DocumentParser.parse_document(
+        file_content, file_type, file_name, max_chars=max_chars
+    )
+    if cache_key and text:
+        _PARSE_CACHE.put(cache_key, text)
+    return text
+
+
+def extraction_max_chars() -> int:
+    try:
+        return max(50_000, int(os.getenv("ATOM_EXTRACTION_MAX_CHARS", "")))
+    except (TypeError, ValueError):
+        return DEFAULT_EXTRACTION_MAX_CHARS
+
+
+class _ExtractionBudget:
+    """Accumulates text parts until the per-file char budget is exhausted.
+
+    Callers append whole logical units (a sheet, a page, a row block) and
+    check ``exhausted`` between units, so a unit is never split mid-way;
+    ``truncation_note(total_units, consumed_units)`` renders the marker that
+    tells recall (and the model) exactly what was skipped.
+    """
+
+    __slots__ = ("limit", "_parts", "_len")
+
+    def __init__(self, limit: Optional[int] = None):
+        self.limit = extraction_max_chars() if limit is None else limit
+        self._parts: List[str] = []
+        self._len = 0
+
+    @property
+    def consumed(self) -> int:
+        return self._len
+
+    @property
+    def exhausted(self) -> bool:
+        return self._len >= self.limit
+
+    def add(self, part: str) -> bool:
+        """Append if budget remains; True when written, False when dropped."""
+        if self.exhausted or not part:
+            return False
+        self._parts.append(part)
+        self._len += len(part)
+        return True
+
+    def join(self, sep: str = "\n") -> str:
+        return sep.join(p for p in self._parts if p)
+
+    def truncation_note(self, total: int, consumed: int) -> str:
+        if consumed >= total:
+            return ""
+        return (
+            f"... (extraction budget reached: showing {consumed} of {total} "
+            f"sections; raise ATOM_EXTRACTION_MAX_CHARS to extract more)"
+        )
+
+
 class DocumentParser:
     """
     Parses various document formats and extracts text.
@@ -114,13 +328,20 @@ class DocumentParser:
         return cls._docling_processor if cls._docling_processor else None
     
     @staticmethod
-    async def parse_document(file_content: bytes, file_type: str, file_name: str) -> str:
-        """Parse document and extract text content"""
+    async def parse_document(file_content: bytes, file_type: str, file_name: str,
+                             max_chars: Optional[int] = None) -> str:
+        """Parse document and extract text content.
+
+        ``max_chars`` overrides the per-file extraction budget for this call
+        (None = the configured budget). The explicit read path passes a
+        much larger ceiling: when the user opens a NAMED file, the answer
+        must be able to see every sheet/page of it.
+        """
         try:
             # Try docling first for supported formats
             docling = DocumentParser._get_docling_processor()
             docling_formats = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'htm', 'png', 'jpg', 'jpeg', 'tiff']
-            
+
             if docling and file_type in docling_formats:
                 try:
                     result = await docling.process_document(
@@ -136,11 +357,11 @@ class DocumentParser:
                         logger.warning(f"Docling parse failed for {file_name}, using fallback")
                 except Exception as e:
                     logger.warning(f"Docling error for {file_name}: {e}, using fallback")
-            
+
             # Fallback to legacy parsers
             if file_type in ["txt", "md", "toml", "yaml", "yml", "xml", "html", "ini", "cfg", "conf", "log", "sql", "py", "ts", "js", "sh", "bat", "env"]:
                 return file_content.decode("utf-8", errors="ignore")
-            
+
             elif file_type == "json":
                 try:
                     data = json.loads(file_content.decode("utf-8", errors="ignore"))
@@ -150,78 +371,84 @@ class DocumentParser:
                     # returning the broken bytes verbatim pollutes memory
                     # with junk rows.
                     return ""
-            
+
             elif file_type == "csv":
-                return DocumentParser._parse_csv(file_content)
-            
+                return DocumentParser._parse_csv(file_content, max_chars=max_chars)
+
             elif file_type == "pdf":
-                return await DocumentParser._parse_pdf(file_content)
-            
+                return await DocumentParser._parse_pdf(file_content, max_chars=max_chars)
+
             elif file_type in ["doc", "docx"]:
-                return await DocumentParser._parse_docx(file_content)
-            
+                return await DocumentParser._parse_docx(file_content, max_chars=max_chars)
+
             elif file_type in ["xlsx", "xls"]:
-                return await DocumentParser._parse_excel(file_content)
-            
+                return await DocumentParser._parse_excel(file_content, max_chars=max_chars)
+
             else:
                 logger.warning(f"Unsupported file type: {file_type}")
                 return ""
-                
+
         except Exception as e:
             logger.error(f"Failed to parse {file_name}: {e}")
             return ""
     
     @staticmethod
-    def _parse_csv(content: bytes, file_path: str = None, workspace_id: str = "default") -> str:
+    def _parse_csv(content: bytes, file_path: str = None, workspace_id: str = "default", max_chars: Optional[int] = None) -> str:
         """Parse CSV to text - reuses DataIngestionService logic.
         Also extracts implicit formulas from column patterns.
         """
-        # Extract formulas from CSV if file_path provided
-        if file_path:
+        # Formula memory from implicit column patterns (same extractor the
+        # MCP upload path uses). Runs unconditionally — the extractor reads a
+        # temp copy of the bytes, so gating on the caller's disk path only
+        # ever excluded cloud-connector ingests (bytes-only).
+        try:
+            from core.formula_extractor import get_formula_extractor
+            extractor = get_formula_extractor(workspace_id)
+            # Need to save content to temp file
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode='wb') as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
             try:
-                from core.formula_extractor import get_formula_extractor
-                extractor = get_formula_extractor(workspace_id)
-                # Need to save content to temp file
-                import tempfile
-                with tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode='wb') as tmp:
-                    tmp.write(content)
-                    tmp_path = tmp.name
-                try:
-                    extracted = extractor.extract_from_csv(tmp_path, auto_store=True)
-                    if extracted:
-                        logger.info(f"Extracted {len(extracted)} formulas from CSV")
-                finally:
-                    os.unlink(tmp_path)
-            except Exception as fe:
-                logger.warning(f"CSV formula extraction failed: {fe}")
+                extracted = extractor.extract_from_csv(tmp_path, auto_store=True)
+                if extracted:
+                    logger.info(f"Extracted {len(extracted)} formulas from CSV")
+            finally:
+                os.unlink(tmp_path)
+        except Exception as fe:
+            logger.warning(f"CSV formula extraction failed: {fe}")
         
         try:
             import csv
             text = content.decode("utf-8", errors="ignore")
             reader = csv.reader(io.StringIO(text))
-            rows = []
-            for i, row in enumerate(reader):
-                if i > 1000:  # Limit rows
-                    rows.append("... (truncated)")
+            budget = _ExtractionBudget(limit=max_chars)
+            total_rows = 0
+            for row in reader:
+                total_rows += 1
+                if not budget.add(" | ".join(row)):
                     break
-                rows.append(" | ".join(row))
-            return "\n".join(rows)
+            note = budget.truncation_note(total_rows, len(budget._parts))
+            return budget.join() + ("\n" + note if note else "")
         except Exception as e:
             logger.error(f"CSV parse error: {e}")
             return content.decode("utf-8", errors="ignore")
 
     
     @staticmethod
-    async def _parse_pdf(content: bytes) -> str:
+    async def _parse_pdf(content: bytes, max_chars: Optional[int] = None) -> str:
         """Parse PDF to text - compatible with DocumentLifecycleLearner"""
         try:
             # Use pypdf (PyPDF2 merged into pypdf package)
             import pypdf as PyPDF2
             reader = PyPDF2.PdfReader(io.BytesIO(content))
-            text_parts = []
-            for page in reader.pages[:50]:  # Limit pages
-                text_parts.append(page.extract_text() or "")
-            return "\n\n".join(text_parts)
+            budget = _ExtractionBudget(limit=max_chars)
+            total_pages = len(reader.pages)
+            for page in reader.pages:
+                if not budget.add(page.extract_text() or ""):
+                    break
+            note = budget.truncation_note(total_pages, len(budget._parts))
+            return budget.join("\n\n") + ("\n\n" + note if note else "")
         except ImportError:
             logger.warning("pypdf not available, PDF parsing disabled")
             return "[PDF content - parser not available]"
@@ -230,24 +457,37 @@ class DocumentParser:
             return ""
     
     @staticmethod
-    async def _parse_docx(content: bytes) -> str:
+    async def _parse_docx(content: bytes, max_chars: Optional[int] = None) -> str:
         """Parse DOCX to text - compatible with DocumentLifecycleLearner"""
         try:
             from docx import Document
             doc = Document(io.BytesIO(content))
-            full_text = []
-            
+            budget = _ExtractionBudget(limit=max_chars)
+            total_units = len(doc.paragraphs) + len(doc.tables)
+            consumed = 0
+
             # Extract paragraphs
-            for para in doc.paragraphs[:500]:
-                full_text.append(para.text)
-            
-            # Also extract tables (from DocumentLifecycleLearner)
-            for table in doc.tables:
-                for row in table.rows:
-                    row_text = [cell.text for cell in row.cells]
-                    full_text.append(" | ".join(row_text))
-                    
-            return "\n".join(full_text)
+            for para in doc.paragraphs:
+                if not budget.add(para.text):
+                    break
+                consumed += 1
+
+            # Also extract tables (from DocumentLifecycleLearner) — table text
+            # shares the budget with paragraphs, so a paragraph-heavy doc
+            # leaves less room for tables and vice versa.
+            if not budget.exhausted:
+                for table in doc.tables:
+                    done = False
+                    for row in table.rows:
+                        if not budget.add(" | ".join(cell.text for cell in row.cells)):
+                            done = True
+                            break
+                    consumed += 1
+                    if done or budget.exhausted:
+                        break
+
+            note = budget.truncation_note(total_units, consumed)
+            return budget.join() + ("\n" + note if note else "")
         except ImportError:
             logger.warning("python-docx not available")
             return "[DOCX content - parser not available]"
@@ -256,7 +496,7 @@ class DocumentParser:
             return ""
     
     @staticmethod
-    async def _parse_excel(content: bytes, file_path: str = None, workspace_id: str = "default") -> str:
+    async def _parse_excel(content: bytes, file_path: str = None, workspace_id: str = "default", max_chars: Optional[int] = None) -> str:
         """Parse Excel to text - compatible with DocumentLifecycleLearner.
         Also extracts formulas and stores them in Atom's formula memory.
         """
@@ -267,16 +507,34 @@ class DocumentParser:
             try:
                 import xlrd
                 wb = xlrd.open_workbook(file_contents=content)
-                parts = []
+                budget = _ExtractionBudget(limit=max_chars)
+                sheets_done = 0
+                summaries: List[str] = []
                 for sheet in wb.sheets():
-                    parts.append(f"--- Sheet: {sheet.name} ---")
-                    for r in range(getattr(sheet, "nrows", 0)):
+                    if budget.exhausted:
+                        break
+                    budget.add(f"--- Sheet: {sheet.name} ---")
+                    ncols = getattr(sheet, "ncols", 0)
+                    if ncols:
+                        headers = []
+                        for c in range(min(ncols, 40)):
+                            h = " ".join(str(sheet.cell_value(0, c)).split())[:48]
+                            if h:
+                                headers.append(f"{chr(65 + c) if c < 26 else '?'}={h}")
+                        if headers:
+                            budget.add("COLS: " + " | ".join(headers))
+                    for r in range(1, getattr(sheet, "nrows", 0)):
                         row = []
-                        for c in range(getattr(sheet, "ncols", 0)):
+                        for c in range(ncols):
                             val = sheet.cell_value(r, c)
                             row.append(str(val) if val is not None else "")
-                        parts.append(" | ".join(row))
-                return "\n".join(parts)
+                        if not budget.add(f"R{r + 1} | " + " | ".join(row)):
+                            break
+                    sheets_done += 1
+                    summaries.append(f"{sheet.name}: {getattr(sheet, 'nrows', 0)} rows, {ncols} cols")
+                note = budget.truncation_note(len(wb.sheets()), sheets_done)
+                index = "\n".join([f"WORKBOOK INDEX: {len(summaries)} sheets"] + [f"- {s}" for s in summaries])
+                return index + "\n" + budget.join() + ("\n" + note if note else "")
             except ImportError:
                 logger.warning("xlrd not installed; cannot parse old .xls (OLE2) files")
                 return ""
@@ -284,58 +542,331 @@ class DocumentParser:
                 logger.error(f"XLS (xlrd) parse error: {e}")
                 return ""
 
-        # Extract formulas if file_path is provided
-        if file_path:
+        # Formula memory (Phase 19 mechanism — same extractor the MCP upload
+        # path uses). Runs unconditionally: the extractor reads a temp copy
+        # of the bytes, so there is no reason to gate it on the caller having
+        # a disk path. Cloud-connector ingests (bytes-only) were silently
+        # excluded here, so formula memory never saw any WorkDrive/OneDrive/
+        # Drive workbook. Hostile workbooks fail fast inside the extractor
+        # (openpyxl) and are fault-isolated to [].
+        try:
+            from core.formula_extractor import get_formula_extractor
+            extractor = get_formula_extractor(workspace_id)
+            # openpyxl needs a real file, not bytes
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
             try:
-                from core.formula_extractor import get_formula_extractor
-                extractor = get_formula_extractor(workspace_id)
-                # Need to save content to temp file for openpyxl
-                import tempfile
-                with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
-                    tmp.write(content)
-                    tmp_path = tmp.name
-                try:
-                    extracted = extractor.extract_from_excel(tmp_path, auto_store=True)
-                    if extracted:
-                        logger.info(f"Extracted {len(extracted)} formulas from Excel")
-                finally:
-                    os.unlink(tmp_path)
-            except Exception as fe:
-                logger.warning(f"Formula extraction failed: {fe}")
+                extracted = extractor.extract_from_excel(tmp_path, auto_store=True)
+                if extracted:
+                    logger.info(f"Extracted {len(extracted)} formulas from Excel")
+            finally:
+                os.unlink(tmp_path)
+        except Exception as fe:
+            logger.warning(f"Formula extraction failed: {fe}")
         
         try:
             import pandas as pd
 
-            # Read all sheets
+            # Read ALL sheets — sheet-count caps silently dropped real pricing
+            # sections (live 2026-09-03: Consolidated Price List 2019.xlsx
+            # ingested without its machine sheets; only the first five sheets
+            # were extracted). Only total extracted chars are bounded.
             xls = pd.ExcelFile(io.BytesIO(content))
-            full_text = []
-            for sheet_name in xls.sheet_names[:5]:  # Limit sheets
-                df = pd.read_excel(xls, sheet_name=sheet_name, nrows=100)  # Limit rows
-                full_text.append(f"--- Sheet: {sheet_name} ---")
-                full_text.append(df.to_string())
-            return "\n".join(full_text)
+            budget = _ExtractionBudget(limit=max_chars)
+            sheets_done = 0
+            summaries: List[str] = []
+            for sheet_name in xls.sheet_names:
+                if budget.exhausted:
+                    break
+                df = pd.read_excel(xls, sheet_name=sheet_name)
+                budget.add(f"--- Sheet: {sheet_name} ---")
+                # Structure anchoring: column letters -> headers, and the
+                # sheet-row offset (pandas index 0 == sheet row 2).
+                headers = []
+                for i, col in enumerate(df.columns[:40]):
+                    h = " ".join(str(col).split())[:48]
+                    if h and h.lower() != "nan":
+                        letters = (
+                            chr(65 + i) if i < 26 else f"A{chr(65 + i - 26)}"
+                        )
+                        headers.append(f"{letters}={h}")
+                if headers:
+                    budget.add("COLS: " + " | ".join(headers))
+                if len(df):
+                    budget.add(f"ROWS: sheet rows 2..{len(df) + 1}")
+                # Rows in sheet coordinates (pandas index 0 == sheet row 2),
+                # same R# convention as the raw-XML path so a citation is
+                # unambiguous about WHERE the value lives. Values stay
+                # positional — the COLS line above is the single schema
+                # anchor (header=value per row would re-serialize the header
+                # on every row: the token cost SheetCompressor exists to
+                # avoid).
+                for idx, row_vals in enumerate(df.itertuples(index=False, name=None)):
+                    cells = ["" if v is None else " ".join(str(v).split()) for v in row_vals]
+                    while cells and not cells[-1]:
+                        cells.pop()
+                    if not budget.add(f"R{idx + 2} | " + " | ".join(cells)):
+                        break
+                sheets_done += 1
+                summaries.append(
+                    f"{sheet_name}: {len(df)} data rows, {len(df.columns)} cols"
+                    + (f" | headers: {', '.join(str(c) for c in df.columns[:8])}" if len(df.columns) else "")
+                )
+            note = budget.truncation_note(len(xls.sheet_names), sheets_done)
+            index = "\n".join([f"WORKBOOK INDEX: {len(summaries)} sheets"] + [f"- {s}" for s in summaries])
+            return index + "\n" + budget.join() + ("\n" + note if note else "")
         except ImportError:
             # Fallback to openpyxl
             try:
                 from openpyxl import load_workbook
                 wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
-                text_parts = []
-                for sheet_name in wb.sheetnames[:5]:
+                budget = _ExtractionBudget(limit=max_chars)
+                sheets_done = 0
+                summaries: List[str] = []
+                for sheet_name in wb.sheetnames:
+                    if budget.exhausted:
+                        break
                     sheet = wb[sheet_name]
-                    text_parts.append(f"=== Sheet: {sheet_name} ===")
-                    for i, row in enumerate(sheet.iter_rows(values_only=True)):
-                        if i > 100:
-                            text_parts.append("... (truncated)")
+                    budget.add(f"=== Sheet: {sheet_name} ===")
+                    rownum = 0
+                    headers = []
+                    for row in sheet.iter_rows(values_only=True):
+                        rownum += 1
+                        cells = [str(cell) if cell is not None else "" for cell in row]
+                        if rownum == 1:
+                            for i, h in enumerate(cells[:40]):
+                                h = " ".join(h.split())[:48]
+                                if h:
+                                    letters = (
+                                        chr(65 + i) if i < 26 else f"A{chr(65 + i - 26)}"
+                                    )
+                                    headers.append(f"{letters}={h}")
+                            if headers:
+                                budget.add("COLS: " + " | ".join(headers))
+                            continue
+                        if not budget.add(f"R{rownum} | " + " | ".join(cells)):
                             break
-                        row_text = " | ".join(str(cell) if cell else "" for cell in row)
-                        text_parts.append(row_text)
-                return "\n".join(text_parts)
+                    sheets_done += 1
+                    summaries.append(f"{sheet_name}: {rownum} rows" + (f" | headers: {', '.join(h.split('=',1)[-1] for h in headers[:8])}" if headers else ""))
+                note = budget.truncation_note(len(wb.sheetnames), sheets_done)
+                index = "\n".join([f"WORKBOOK INDEX: {len(summaries)} sheets"] + [f"- {s}" for s in summaries])
+                return index + "\n" + budget.join() + ("\n" + note if note else "")
             except ImportError:
                 logger.warning("No Excel parser available")
                 return "[Excel content - parser not available]"
         except Exception as e:
+            # openpyxl is strict about workbook XML schema and hard-fails on
+            # spreadsheets written by non-Excel tools (Zoho Sheet exports trip
+            # read_strings on unusual sharedStrings content). Those files are
+            # still plain well-formed XML — extract them directly instead of
+            # returning "" (which the caller turns into a no_text skip and the
+            # file silently never becomes searchable).
             logger.error(f"Excel parse error: {e}")
+            try:
+                fallback_text = DocumentParser._parse_xlsx_raw(content, max_chars=max_chars)
+                if fallback_text and fallback_text.strip():
+                    logger.info(
+                        f"Raw-XML fallback extracted {len(fallback_text)} chars "
+                        f"after Excel parser failure"
+                    )
+                    return fallback_text
+            except Exception as raw_err:
+                logger.error(f"Raw-XML Excel fallback failed: {raw_err}")
             return ""
+
+    @staticmethod
+    def _parse_xlsx_raw(content: bytes, max_sheets: Optional[int] = None, max_rows: Optional[int] = None, max_chars: Optional[int] = None) -> str:
+        """Extract cell text from an xlsx zip with stdlib XML parsing only.
+
+        Engine-agnostic last resort for workbooks openpyxl/pandas reject:
+        reads sharedStrings.xml (concatenating rich-text runs, ignoring
+        structure it doesn't understand), inline strings, and raw values.
+        Namespace-agnostic so producer-specific namespaces don't matter.
+        All sheets/rows are extracted up to the shared per-file char budget;
+        ``max_sheets``/``max_rows`` remain as optional additional caps for
+        callers that want them.
+
+        Structure preservation (spreadsheet-RAG practice — SpreadsheetLLM/
+        SheetCompressor arXiv:2407.09025 structure anchoring; TableRAG
+        arXiv:2410.04739 schema-first retrieval):
+          - a WORKBOOK INDEX at the head: per sheet — name, row/col counts,
+            header names, formula count ("which sheet has prices?" is
+            answerable from one chunk);
+          - a per-sheet column map (column letter -> header) — the schema
+            anchor that makes rows interpretable without serializing every
+            cell address;
+          - real row numbers on every row (``R17 | ...``) so any hit cites
+            its sheet row ("LINMAC R17") instead of an anonymous tuple;
+          - per-cell formulas kept next to their cached values.
+        """
+        import zipfile
+        import xml.etree.ElementTree as ET
+
+        def _local(tag: str) -> str:
+            return tag.rsplit("}", 1)[-1]
+
+        def _texts(si) -> str:
+            # <si> children: <t> plain text, <r> rich-text runs, <rPh>
+            # phonetic hints (pronunciations — not content, skip them).
+            parts = []
+            for child in si:
+                tag = _local(child.tag)
+                if tag == "t":
+                    parts.append(child.text or "")
+                elif tag == "r":
+                    parts.extend(
+                        sub.text or "" for sub in child if _local(sub.tag) == "t"
+                    )
+            return "".join(parts)
+
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+            shared: list = []
+            if "xl/sharedStrings.xml" in zf.namelist():
+                sst_root = ET.fromstring(zf.read("xl/sharedStrings.xml"))
+                for si in sst_root:
+                    if _local(si.tag) == "si":
+                        shared.append(_texts(si))
+
+            # Real sheet names from workbook.xml + its rels (rid -> part
+            # target). "Sheet: sheet1.xml" is retrieval noise — the name is
+            # often the only semantic label a price-book tab has.
+            names: Dict[str, str] = {}
+            try:
+                wb_root = ET.fromstring(zf.read("xl/workbook.xml"))
+                rels_root = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
+                rid_to_target = {
+                    rel.get("Id"): rel.get("Target", "")
+                    for rel in rels_root
+                    if _local(rel.tag) == "Relationship"
+                }
+                for sheet in wb_root.iter():
+                    if _local(sheet.tag) != "sheet":
+                        continue
+                    rid = sheet.get(
+                        "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+                    )
+                    target = rid_to_target.get(rid, "")
+                    target = target.lstrip("/")
+                    if target and not target.startswith("xl/"):
+                        target = f"xl/{target}"
+                    if target:
+                        names[target] = sheet.get("name") or target
+            except Exception as name_err:  # noqa: BLE001 — names are best-effort
+                logger.debug(f"workbook sheet-name read failed: {name_err}")
+
+            budget = _ExtractionBudget(limit=max_chars)
+            sheets = sorted(n for n in zf.namelist() if n.startswith("xl/worksheets/") and n.endswith(".xml"))
+
+            def _col_letters(ref: str) -> str:
+                """'C17' -> 'C' — the column letters of a cell reference."""
+                return "".join(ch for ch in (ref or "") if ch.isalpha())
+
+            sheet_summaries: List[str] = []
+            sheets_done = 0
+            for sheet_path in sheets:
+                if max_sheets is not None and sheets_done >= max_sheets:
+                    break
+                if budget.exhausted:
+                    break
+                sheet_name = names.get(sheet_path, sheet_path.rsplit('/', 1)[-1])
+                budget.add(f"=== Sheet: {sheet_name} ===")
+                root = ET.fromstring(zf.read(sheet_path))
+                rows_shown = 0
+                row_numbers_seen = 0
+                formula_count = 0
+                header_map: List[str] = []
+                for row in root.iter():
+                    if _local(row.tag) != "row":
+                        continue
+                    if max_rows is not None and rows_shown >= max_rows:
+                        budget.add("... (truncated)")
+                        break
+                    cells = []
+                    row_has_formula = False
+                    for c in row:
+                        if _local(c.tag) != "c":
+                            continue
+                        ctype = c.get("t")
+                        if ctype == "inlineStr":
+                            cells.append(
+                                "".join(
+                                    node.text or ""
+                                    for node in c.iter()
+                                    if _local(node.tag) == "t"
+                                )
+                            )
+                            continue
+                        v = next((ch for ch in c if _local(ch.tag) == "v"), None)
+                        if v is None:
+                            cells.append("")
+                        elif ctype == "s":
+                            try:
+                                cells.append(shared[int(v.text)])
+                            except (ValueError, IndexError):
+                                cells.append(v.text or "")
+                        else:
+                            cells.append(v.text or "")
+                        # Formula cells: <v> holds only the last computed
+                        # value; the <f> element is the actual business logic
+                        # (markups, currency conversion). Render both — the
+                        # cached value alone hides HOW the number is derived.
+                        f_el = next(
+                            (ch for ch in c if _local(ch.tag) == "f"), None
+                        )
+                        if f_el is not None and (f_el.text or "").strip():
+                            cells[-1] = f"{cells[-1]} [={f_el.text.strip()}]".strip()
+                            row_has_formula = True
+                    while cells and not str(cells[-1]).strip():
+                        cells.pop()  # trailing empties are noise
+                    # Structure anchoring: the first substantive row of the
+                    # sheet defines the column map (letter -> header).
+                    if not header_map and sum(1 for c in cells if str(c).strip()) >= 2:
+                        for c in row:
+                            if _local(c.tag) != "c":
+                                continue
+                            if len(header_map) >= 40:
+                                break
+                            v = next((ch for ch in c if _local(ch.tag) == "v"), None)
+                            header = ""
+                            if c.get("t") == "s" and v is not None and v.text:
+                                try:
+                                    header = shared[int(v.text)]
+                                except (ValueError, IndexError):
+                                    header = ""
+                            elif c.get("t") == "inlineStr":
+                                header = "".join(
+                                    node.text or "" for node in c.iter()
+                                    if _local(node.tag) == "t"
+                                )
+                            header = " ".join(str(header).split())[:48]
+                            if header:
+                                header_map.append(f"{_col_letters(c.get('r') or '')}={header}")
+                    rownum = row.get("r") or str(rows_shown + 1)
+                    row_numbers_seen += 1
+                    if row_has_formula:
+                        formula_count += 1
+                    prefix = f"R{rownum} | "
+                    if not budget.add(prefix + " | ".join(str(c) for c in cells)):
+                        break
+                    rows_shown += 1
+                if header_map:
+                    budget.add("COLS: " + " | ".join(header_map))
+                sheets_done += 1
+                sheet_summaries.append(
+                    f"{sheet_name}: {row_numbers_seen} rows, "
+                    f"{formula_count} formula rows"
+                    + (f" | headers: {', '.join(h.split('=', 1)[-1] for h in header_map[:8])}" if header_map else "")
+                )
+            # Workbook index (TableRAG-style schema-first discovery): one
+            # chunk at the head that answers "which sheet has X" without
+            # walking 4M chars.
+            index_lines = [f"WORKBOOK INDEX: {len(sheet_summaries)} sheets"]
+            index_lines.extend(f"- {s}" for s in sheet_summaries)
+            text = budget.join() + ("\n" + budget.truncation_note(len(sheets), sheets_done) if sheets_done < len(sheets) else "")
+            text = "\n".join(index_lines) + "\n" + text
+            return text
 
 
 class AutoDocumentIngestionService:
@@ -518,6 +1049,7 @@ class AutoDocumentIngestionService:
         role: Optional[str] = None,
         extra_metadata: Optional[Dict[str, Any]] = None,
         external_id: Optional[str] = None,
+        explicit: bool = True,
     ) -> Dict[str, Any]:
         """Parse raw file bytes and ingest the extracted text into Atom memory.
 
@@ -540,6 +1072,10 @@ class AutoDocumentIngestionService:
                 driveItem id, Box file id, Dropbox path …). Preferred identity —
                 titles are not identity. Falls back to a SHA-256 of the
                 extracted text (content addressing) when absent.
+            explicit: False for AUTOMATIC bulk syncs — lets the integration's
+                content mode (hybrid/list_only) skip content ingestion to save
+                disk + extraction cost. Explicit user/agent pulls always pass
+                True and are never mode-gated.
 
         Returns:
             Dict with ``status``, ``file_name``, ``chars_ingested``, ``doc_id``.
@@ -547,6 +1083,75 @@ class AutoDocumentIngestionService:
         file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
         if not file_ext:
             return {"status": "skipped", "reason": "no_file_extension", "file_name": file_name}
+
+        _external_id = str(
+            external_id or (extra_metadata or {}).get("external_id") or ""
+        ).strip()
+        # Key normalization: connectors name the modified time inconsistently
+        # (WorkDrive's bulk walker passes "modified_at"; uploads/tools pass
+        # "source_modified_at"). This timestamp IS the update-detection
+        # signal — reading only one key meant WorkDrive files never stamped
+        # it, so hybrid-mode refresh probes ("has the source changed since we
+        # ingested?") always answered False and source-side edits were
+        # silently skipped in hybrid/list_only mode.
+        source_modified_dt = _parse_source_modified(
+            (extra_metadata or {}).get("source_modified_at")
+            or (extra_metadata or {}).get("modified_at")
+        )
+
+        # Content-mode gate for storage drives: hybrid/list_only keep the
+        # file index but skip automatic content ingestion. Explicit
+        # user/agent pulls bypass this — that is the entire point of hybrid.
+        # EXCEPTION — source-side updates: when the walker reports a newer
+        # modified_at for a file whose content we ALREADY hold, the stored
+        # copy is silently rotting (it still reads "fresh" to recall while
+        # the source moved on). Refresh it: the walker already downloaded
+        # these bytes, so the marginal cost is one parse+write, and the
+        # upsert replaces the old row under the same identity key.
+        stored_is_outdated = False
+        if not explicit and source and source != "upload" and _external_id:
+            try:
+                probe_id = f"ext_{_hashlib_sha1(f'{source}:{_external_id}')[:24]}"
+                stored = await asyncio.to_thread(
+                    self.memory_handler.get_document_by_id, "documents", probe_id
+                )
+                if stored is None:
+                    # chunked layout: the family lives under {doc_id}::c{i}
+                    stored = await asyncio.to_thread(
+                        self.memory_handler.get_document_by_id,
+                        "documents",
+                        f"{probe_id}::c0",
+                    )
+                stored_is_outdated = _stored_copy_older_than(
+                    stored, source_modified_dt
+                )
+            except Exception as probe_err:  # noqa: BLE001 — probe is best-effort
+                logger.debug(f"update probe skipped for {file_name}: {probe_err}")
+
+        if not explicit and source and source != "upload":
+            try:
+                from core.hybrid_data_ingestion import get_hybrid_ingestion_service
+
+                mode = get_hybrid_ingestion_service(
+                    workspace_id or "default"
+                ).get_content_mode(source)
+                if mode in ("hybrid", "list_only") and not stored_is_outdated:
+                    logger.info(
+                        f"Content-mode {mode}: skipping auto-ingest of {file_name} "
+                        f"from {source} (metadata indexed; content on demand)"
+                    )
+                    return {
+                        "status": "skipped",
+                        "reason": f"content_mode_{mode}",
+                        "file_name": file_name,
+                    }
+                if mode in ("hybrid", "list_only") and stored_is_outdated:
+                    logger.info(
+                        f"Content refresh: {file_name} changed at source — "
+                        f"re-ingesting stored copy (was outdated)"
+                    )
+            except Exception as mode_err:
+                logger.debug(f"Content-mode lookup failed for {source}: {mode_err}")
 
         try:
             text = await self.parser.parse_document(content, file_ext, file_name)
@@ -605,12 +1210,13 @@ class AutoDocumentIngestionService:
         # other's row. Never key on file NAME.
         import hashlib as _hashlib
 
-        from core.doc_freshness_service import hash_text
+        from core.doc_freshness_service import (
+            extraction_content_hash,
+            extra_columns_for_ingest,
+            has_current_extraction_version,
+        )
 
-        _content_hash = hash_text(text)
-        _external_id = str(
-            external_id or (extra_metadata or {}).get("external_id") or ""
-        ).strip()
+        _content_hash = extraction_content_hash(text)
         if _external_id:
             _identity_input = f"{source}:{_external_id}"
             _file_doc_id = f"ext_{_hashlib.sha1(_identity_input.encode('utf-8')).hexdigest()[:24]}"
@@ -628,6 +1234,10 @@ class AutoDocumentIngestionService:
             "source_content_hash": _content_hash,
             "freshness_status": "fresh",
         }
+        # Normalized source modified time — the comparison key for future
+        # update detection (see the content-refresh exception at the gate).
+        if source_modified_dt:
+            _meta["source_modified_at"] = source_modified_dt.isoformat()
         if _external_id:
             _meta["external_id"] = _external_id
         # Connector-supplied context (e.g. WorkDrive folder path / root)
@@ -640,10 +1250,14 @@ class AutoDocumentIngestionService:
 
         if _handler:
             try:
-                # Shared upsert contract (hash-skip / delete prior / write).
-                from core.vector_upsert import upsert_document
+                # Shared upsert contract (hash-skip / delete prior / write),
+                # chunked: long documents store as {doc_id}::c{i} rows so
+                # each region gets its own embedding — a single 55k-char row
+                # embedded once matches only whatever its head looked like.
+                # Short texts delegate to the plain single-row upsert.
+                from core.vector_upsert import upsert_document_chunks
 
-                _upsert_status = await upsert_document(
+                _upsert_status = await upsert_document_chunks(
                     _handler,
                     table_name="documents",
                     text=text,
@@ -652,6 +1266,11 @@ class AutoDocumentIngestionService:
                     metadata=_meta,
                     user_id=user_id,
                     workspace_id=ws_id,
+                    extra_columns=extra_columns_for_ingest(
+                        freshness_status="fresh",
+                        source_modified_at=source_modified_dt,
+                        source_url=None,
+                    ),
                 )
                 if _upsert_status == "written":
                     chars_ingested = len(text)
@@ -674,13 +1293,23 @@ class AutoDocumentIngestionService:
                             external_id=_external_id or f"vector:{_file_doc_id}",
                             content_hash=_content_hash,
                             role=str(_meta.get("role")) if _meta.get("role") else None,
+                            source_modified_at=source_modified_dt,
                         )
                     except Exception as mirror_err:  # noqa: BLE001 — mirror is best-effort
                         logger.warning(f"PG mirror row skipped for {_file_doc_id}: {mirror_err}")
                 else:
+                    # Distinguish "we already have this exact content" from
+                    # "the write FAILED" — both previously surfaced as
+                    # 'unchanged', which told the user (and the agent) the
+                    # file was already stored when the store had actually
+                    # rejected the write.
+                    reason = (
+                        "unchanged" if _upsert_status == "skipped_unchanged"
+                        else f"write_failed ({_upsert_status})"
+                    )
                     return {
                         "status": "skipped",
-                        "reason": "unchanged",
+                        "reason": reason,
                         "file_name": file_name,
                         "chars_ingested": 0,
                         "source": source,
@@ -700,8 +1329,35 @@ class AutoDocumentIngestionService:
             "doc_id": _file_doc_id,
         }
 
+    async def ingested_external_ids(self, source: str, external_ids: List[str]) -> List[str]:
+        """Which of these source-native ids already have documents in memory?
+
+        Mirrors the write identity (doc_id = ``ext_sha1(source:external_id)``,
+        see process_file_bytes), probing both the single-doc and the chunked
+        (``{doc_id}::c0``) layouts. Point lookups run in one worker thread —
+        the drive panels call this per folder listing to hydrate "already
+        ingested" badges from durable state instead of session-only React
+        state.
+        """
+        if not external_ids or not self.memory_handler:
+            return []
+
+        def _probe_all() -> List[str]:
+            found: List[str] = []
+            for ext in external_ids:
+                probe = f"ext_{_hashlib_sha1(f'{source}:{ext}')[:24]}"
+                try:
+                    if (self.memory_handler.get_document_by_id("documents", probe)
+                            or self.memory_handler.get_document_by_id("documents", f"{probe}::c0")):
+                        found.append(ext)
+                except Exception:  # noqa: BLE001 — a single bad probe must not kill the batch
+                    continue
+            return found
+
+        return await asyncio.to_thread(_probe_all)
+
     async def sync_integration(
-        self, 
+        self,
         integration_id: str,
         force: bool = False
     ) -> Dict[str, Any]:
@@ -711,6 +1367,8 @@ class AutoDocumentIngestionService:
         Returns:
             Dict with sync results
         """
+        from core.doc_freshness_service import has_current_extraction_version
+
         settings = self.get_settings(integration_id)
         
         if not settings.enabled and not force:
@@ -752,14 +1410,26 @@ class AutoDocumentIngestionService:
                     break
 
                 try:
-                    # Skip if already ingested and not modified
+                    # Skip if already ingested and not modified AND the stored
+                    # extraction was produced by the current extractor. The
+                    # second condition is what makes extractor improvements
+                    # self-propagating: after EXTRACTION_VERSION bumps, the
+                    # next sync re-downloads (once) and re-extracts files the
+                    # old extractor truncated, instead of skipping them forever
+                    # because the SOURCE never changed (live 2026-09-03:
+                    # Consolidated Price List 2019.xlsx stored without its
+                    # machine-pricing sheets — the 5-sheet cap — and no sync
+                    # would ever revisit it).
                     external_id = file_info.get("id")
                     if external_id:
                         seen_external_ids.add(external_id)
                     existing: Optional[IngestedDocument] = None
                     if external_id in self.ingested_docs:
                         existing = self.ingested_docs[external_id]
-                        if file_info.get("modified_at") == existing.external_modified_at:
+                        if (
+                            file_info.get("modified_at") == existing.external_modified_at
+                            and has_current_extraction_version(existing.source_content_hash)
+                        ):
                             results["files_skipped"] += 1
                             continue
                         # Source modified_at differs → the stored copy is stale
@@ -801,12 +1471,12 @@ class AutoDocumentIngestionService:
                     # Ingest into Atom Memory
                     if self.memory_handler:
                         from core.doc_freshness_service import (
-                            hash_text,
+                            extraction_content_hash,
                             extra_columns_for_ingest,
                         )
 
                         source_modified = file_info.get("modified_at")
-                        content_hash = hash_text(text)
+                        content_hash = extraction_content_hash(text)
                         # Content-level idempotency: source modified_at can
                         # change (touch/rename) without the bytes changing —
                         # skip the rewrite and just refresh the cache marker.
@@ -1007,6 +1677,7 @@ class AutoDocumentIngestionService:
         external_id: str,
         content_hash: str,
         role: Optional[str] = None,
+        source_modified_at: Optional[datetime] = None,
     ) -> None:
         """Upsert the IngestedDocument mirror row for a vector-first ingest.
 
@@ -1046,6 +1717,14 @@ class AutoDocumentIngestionService:
             row.last_verified_at = now
             row.ingested_at = now
             row.freshness_status = "fresh"
+            # Update-detection inputs: freshness gates and hybrid-refresh
+            # probes compare the SOURCE's modified time against these. Left
+            # NULL, a vector-first ingest could never be detected as
+            # out-of-date (the walker's modified_at check had nothing to
+            # compare against).
+            if source_modified_at is not None:
+                row.source_modified_at = source_modified_at
+                row.external_modified_at = source_modified_at
             if role:
                 row.role = role
             session.commit()

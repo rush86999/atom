@@ -27,12 +27,54 @@ MODEL_QUALITY_SCORES = {
     # minimax-m3 answered correctly; both flash models ignored the
     # assistant turn and claimed no access, so they score below the
     # conversational floor (85) regardless of their general aptitude.
-    "deepseek/deepseek-v4-flash": 84,   # $0.08/$0.16 per M — fails recall
+    "deepseek/deepseek-v4-flash": 84,   # $0.08/$0.16 per M — see 0731 note
     "deepseek/deepseek-v4-pro": 96,     # $0.51/$1.02 per M — flagship
-    "qwen/qwen3-max": 94,               # $0.78/$3.90 per M
+    "qwen/qwen3-max": 90,               # $0.78/$3.90 per M — demoted from 94
+        # (Sept 6 tier battery: WORST composite of the vetted pool — failed
+        # olympiad-integer, capacity-math and a moderate arithmetic item,
+        # all deterministic-answer — see bpc_tier_benchmark_results.json.
+        # 90 keeps it ADVANCED-eligible as a fallback; value ranking already
+        # placed it last, so routing is unchanged — bookkeeping only.)
     "moonshotai/kimi-k2.5": 92,         # $0.60/$3.00 per M
     "minimax/minimax-m3": 89,           # $0.30/$1.20 per M — recall ✓
-    "qwen/qwen3.7-flash": 76,           # $0.03/$0.13 per M — fails recall
+    "qwen/qwen3.7-flash": 76,           # $0.03/$0.13 per M — ultra-budget
+
+    # Flash-tier expansion (Sept 2026) — ADVANCED floor recalibrated 94 -> 90
+    # (byok_handler MIN_QUALITY_BY_COMPLEXITY): the 2026 flash tier now
+    # benchmarks at last-gen-flagship level, so reserving ADVANCED for 94+
+    # frontier models just bought qwen3-max at 2-14x the price for the same
+    # work. Every entry below was measured on the transcript-recall probe
+    # (scripts/bpc_recall_probe_sept2026_v2.py, Sept 6): with a
+    # production-like completion budget (2K tokens; prod default is 6000)
+    # ALL candidates pass — v1's "failures" were an artifact of a 200-token
+    # budget that starved reasoning models into empty answers, not model
+    # behavior. Scores are capability-calibrated against external
+    # benchmarks (Artificial Analysis / SWE-bench / Terminal-Bench coverage,
+    # see commit message for sources) on the repo's 0-100 anchor scale.
+    # Cross-check: the repo's own tier battery
+    # (scripts/bpc_tier_battery.json + bpc_tier_benchmark.py — original
+    # tasks with deterministic checkers, per-BPC-tier) measured the whole
+    # vetted pool on Sept 6: with valid items the flash tier saturated the
+    # battery while qwen3-max (then 94) scored worst — see
+    # bpc_tier_benchmark_results.json. Re-run the battery before further
+    # score moves; upward deltas on a saturated battery are meaningless.
+    "google/gemini-3-flash-preview": 93,  # $0.50/$3.00 per M — "frontier-
+        # class at flash pricing": beats o3/GPT-5 on a medical accuracy
+        # battery (PMC12894337), most cost-efficient frontier model
+    "z-ai/glm-5.3-flash": 92,             # $0.075/$0.25 per M — #3 open-
+        # weight (BenchmarkList), beats full GLM-5.3 on Toolathlon/GDPval-AA;
+        # DeepSWE 63.4, Terminal-Bench 84.3; recall probe ✓
+    "openai/gpt-5-mini": 91,              # $0.25/$2.00 per M — 99.3% of
+        # gpt-5 quality at 4.2x lower cost (Wolfia); recall probe ✓
+    "qwen/qwen3.8-flash": 90,             # $0.15/$0.47 per M — beats
+        # minimax-m3 on NL2Repo + SWE-Bench Pro; best grad-science of the
+        # flash tier (91.7); recall probe ✓
+    "deepseek/deepseek-v4-flash-0731": 88,  # $0.05/$0.10 per M (OpenRouter
+        # catalog) — SWE-bench Verified 79.0 vs v4-pro's 80.6, BEATS
+        # v4-pro-preview on Terminal-Bench 2.1; recall probe ✓. The sibling
+        # bare-ID entry above stays 84: its cache row carries DeepSeek-DIRECT
+        # pricing/attribution (the ID collides with the deepseek namespace),
+        # so it serves a different, pricier route — do not "align" blindly.
 
     # absolute frontier (early 2026)
     "gemini-3-pro": 100,

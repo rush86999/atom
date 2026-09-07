@@ -134,6 +134,11 @@ async def mini_app_scaffold(args: Dict[str, Any], context: Dict[str, Any]) -> Di
             "manifest": manifest,
             "message": f"Scaffolded mini-app '{name}' — edit logic, dev-run, then publish",
         }
+    except ValueError as e:
+        # Caller-fixable input problems (bad base canvas_type slug, invalid
+        # spec) must reach the agent verbatim — a generic "scaffold failed"
+        # gives the loop nothing to correct.
+        return {"success": False, "error": str(e)}
     except Exception as e:  # noqa: BLE001
         logger.error("mini_app_scaffold failed: %s", e)
         return {"success": False, "error": "Mini-app scaffold failed"}

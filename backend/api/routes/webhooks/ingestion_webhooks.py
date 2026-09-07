@@ -1048,6 +1048,7 @@ async def outlook_webhook_handler(
 ZOHO_INTEGRATIONS = {
     "zoho_crm",
     "zoho_books",
+    "zoho_inventory",
     "zoho_projects",
     "zoho_desk",
     "zoho_recruit",
@@ -1068,8 +1069,9 @@ async def zoho_webhook_handler(
     """
     Handle Zoho suite webhooks and trigger ingestion.
 
-    Supports zoho_crm, zoho_books, zoho_projects, zoho_desk, zoho_recruit,
-    zoho_campaigns, zoho_forms, zoho_showtime, zoho_meeting, and zoho_assist.
+    Supports zoho_crm, zoho_books, zoho_inventory, zoho_projects, zoho_desk,
+    zoho_recruit, zoho_campaigns, zoho_forms, zoho_showtime, zoho_meeting,
+    and zoho_assist.
 
     Extracts external Zoho org_id/portal_id to resolve tenant_id using Discovery Service,
     and enqueues the payload to WebhookIngestionQueue.

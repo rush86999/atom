@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { cn } from "../../lib/utils";
 import { authFetch } from "@/lib/auth-headers";
 
@@ -10,6 +11,8 @@ interface ZohoAppDetailProps {
   coveredServices: string[];
   /** Optional per-app deep links, used by the suite-level /integrations/zoho hub. */
   apps?: { name: string; href: string }[];
+  /** Where the Back control navigates. Default: the suite hub (/integrations/zoho). */
+  backHref?: string;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
@@ -29,6 +32,7 @@ const ZohoIntegrationDetail: React.FC<ZohoAppDetailProps> = ({
   category,
   coveredServices,
   apps,
+  backHref = "/integrations/zoho",
 }) => {
   const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
   const [syncInfo, setSyncInfo] = useState<SyncInfo | null>(null);
@@ -91,6 +95,13 @@ const ZohoIntegrationDetail: React.FC<ZohoAppDetailProps> = ({
     // No <Layout> here — _app.tsx already wraps every page in the app shell;
     // wrapping again rendered a second nested sidebar (duplicate navbar bug).
     <div className="p-6">
+      <Link
+        href={backHref}
+        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 mb-4 transition-colors"
+      >
+        <span aria-hidden>←</span>
+        Back
+      </Link>
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold mb-2">{appName} Integration</h1>
         {checked && connected && (

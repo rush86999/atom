@@ -38,6 +38,19 @@ jest.mock('@/lib/api-client', () => ({
   },
 }));
 
+const mockPlaybookApi = {
+  listPlaybooks: jest.fn(),
+  createPlaybook: jest.fn(),
+  updatePlaybook: jest.fn(),
+  approvePlaybook: jest.fn(),
+  retirePlaybook: jest.fn(),
+};
+
+jest.mock('@/lib/playbook-api', () => ({
+  __esModule: true,
+  ...mockPlaybookApi,
+}));
+
 jest.mock('@/lib/identity', () => ({
   __esModule: true,
   getCurrentUserId: () => 'user-1',
@@ -86,6 +99,7 @@ function makeContext(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockPlaybookApi.listPlaybooks.mockResolvedValue([]);
   mockApi.getCanvasTrainingContext.mockResolvedValue(makeContext());
   mockApi.getAgentGraduationProgress.mockResolvedValue({
     current_tier: 'student',
@@ -133,11 +147,39 @@ describe('TrainingPanel', () => {
       expect(mockApi.teachAgent).toHaveBeenCalledWith(
         'agent-1',
         'Always cc the team lead on replies',
-        undefined
+        undefined,
+        'cv-1',
+        { asPlaybook: false, playbookCanvasType: undefined }
       )
     );
     await waitFor(() =>
       expect(screen.getByText(/confidence grew/)).toBeInTheDocument()
+    );
+  });
+
+  test('teach with the playbook toggle ALSO drafts a playbook (P2)', async () => {
+    mockApi.teachAgent.mockResolvedValue({ status: 'ok', playbook_id: 'pb-9' });
+    render(<TrainingPanel canvasId="cv-1" canvasType="email" />);
+    await waitFor(() => screen.getByTestId('teach-lesson-input'));
+
+    fireEvent.change(screen.getByTestId('teach-lesson-input'), {
+      target: { value: 'Always ask for the ROI table before quoting a price.' },
+    });
+    fireEvent.click(screen.getByLabelText('Save as playbook draft'));
+    expect(screen.getByTestId('teach-as-playbook-canvas-type')).toHaveTextContent('email');
+    fireEvent.click(screen.getByTestId('teach-submit'));
+
+    await waitFor(() =>
+      expect(mockApi.teachAgent).toHaveBeenCalledWith(
+        'agent-1',
+        'Always ask for the ROI table before quoting a price.',
+        undefined,
+        'cv-1',
+        { asPlaybook: true, playbookCanvasType: 'email' }
+      )
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/playbook draft created below/)).toBeInTheDocument()
     );
   });
 
@@ -310,6 +352,26 @@ describe('TrainingPanel teaching points', () => {
     expect(points[0]).toHaveTextContent('human_correction');
     expect(points[1]).toHaveTextContent('taught');
     expect(points[1]).toHaveTextContent('Keep refund emails short.');
+  });
+
+  test('teaching points show the canvas they were taught on', async () => {
+    mockApi.getCanvasTrainingContext.mockResolvedValue(makeContext({
+      teaching_points: [
+        {
+          source: 'teacher',
+          topic: 'budget',
+          text: 'Costs always go in row 3.',
+          learned_at: '2026-09-01T10:00:00+00:00',
+          canvas: { canvas_id: 'cv-9', name: 'Q3 Budget', canvas_type: 'sheet', label: 'Sheet' },
+        },
+        { source: 'observation', topic: 'human_correction', text: 'No canvas on this one.', learned_at: '2026-08-31T09:00:00+00:00' },
+      ],
+    }));
+    render(<TrainingPanel canvasId="cv-1" />);
+
+    const points = await waitFor(() => screen.getAllByTestId('teaching-point'));
+    expect(points[0]).toHaveTextContent('canvas "Q3 Budget" (Sheet)');
+    expect(screen.getAllByTestId('teaching-point-canvas')).toHaveLength(1);
   });
 
   test('teaching a lesson refreshes the journal so the new point shows', async () => {

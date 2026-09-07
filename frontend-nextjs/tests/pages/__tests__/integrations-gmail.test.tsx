@@ -83,7 +83,10 @@ describe("GmailIntegrationPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Disconnected")).toBeInTheDocument();
     });
-    expect(mockFetch).toHaveBeenCalledWith("/api/integrations/gmail/status");
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/integrations/gmail/status",
+      expect.anything(),
+    );
   });
 
   it("shows Connected when the status endpoint reports connected", async () => {
@@ -307,18 +310,16 @@ describe("GmailIntegrationPage (extended coverage)", () => {
     await settled();
 
     fireEvent.click(screen.getByRole("button", { name: /🏷️ Labels/i }));
-    expect(screen.getByText("Primary")).toBeInTheDocument();
-    expect(screen.getByText("Social")).toBeInTheDocument();
-    expect(screen.getByText("Promotions")).toBeInTheDocument();
-    expect(screen.getByText("Work")).toBeInTheDocument();
-    expect(screen.getByText("Important")).toBeInTheDocument();
-    expect(screen.getByText("Archive")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Gmail Labels/i }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /🧠 Memory/i }));
-    expect(screen.getByText("Memory Statistics")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Gmail Memory/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Memory Search")).toBeInTheDocument();
     expect(screen.getByText("Memory Features")).toBeInTheDocument();
-    expect(screen.getByText("Sync Memory Now")).toBeInTheDocument();
   });
 
   it("renders the compose form fields and buttons", async () => {
@@ -339,8 +340,8 @@ describe("GmailIntegrationPage (extended coverage)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /📅 Calendar/i }));
     expect(screen.getByPlaceholderText("Search events...")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Create Event/i })).toBeInTheDocument();
     expect(screen.getByText("Upcoming")).toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /✅ Tasks/i }));
     expect(screen.getByPlaceholderText("Search tasks...")).toBeInTheDocument();

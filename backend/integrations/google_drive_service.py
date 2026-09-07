@@ -580,12 +580,15 @@ class GoogleDriveService(IntegrationService):
         access_token: str,
         file_id: str,
         extra_metadata: Optional[Dict[str, Any]] = None,
+        role: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Download a file and process it through the ingestion pipeline.
 
         Every file type is attempted; Google-native Docs/Sheets/Slides are
         exported to their Office equivalents before parsing, and anything the
         parser chain cannot extract is skipped gracefully.
+        role: optional AI-employee role tag (canvas-scoped loads pass the
+        attached hire's category) for role-aware recall.
         """
         token = self._resolve_token(access_token)
         if not token:
@@ -616,8 +619,13 @@ class GoogleDriveService(IntegrationService):
                 user_id=self.tenant_id,
                 extra_metadata=extra_metadata,
                 external_id=file_id,
+                role=role,
             )
-            return {"success": True, "result": result}
+            # Shared semantics (core.auto_document_ingestion): unchanged
+            # re-ingests are success no-ops; unsupported formats and write
+            # failures must NOT be masked as success.
+            from core.auto_document_ingestion import interpret_ingest_result
+            return {**interpret_ingest_result(result), "result": result}
         except Exception as e:
             logger.error(f"Failed to ingest Google Drive file {file_id}: {e}")
             return {"success": False, "error": str(e)}
@@ -681,16 +689,15 @@ class GoogleDriveService(IntegrationService):
             logger.error(f"Google Drive PostgreSQL cache sync failed: {e}")
             return {"success": False, "error": "Google Drive cache sync failed"}
 
-    async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
-        """Trigger full dual-pipeline sync for Google Drive.
+    async def _ingest_walked_files(
+        self, access_token: str, files: List[Dict[str, Any]], modified_field: str,
+        role: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Ingest walked files into memory with folder-path context.
 
-        Pipeline 1: Ingest every file (all types, all subfolders, pagination
-        followed) into Atom memory (LanceDB + GraphRAG) with folder-path
-        context stamped into the memory metadata.
-        Pipeline 2: Refresh the Postgres metrics cache.
+        Shared tally loop for full_sync (whole drive) and
+        ingest_folder_to_memory (selected subtrees).
         """
-        files = await self.walk_files(access_token)
-
         ingested = 0
         skipped: list[str] = []
         errors: list[str] = []
@@ -699,9 +706,11 @@ class GoogleDriveService(IntegrationService):
             try:
                 meta = {
                     "folder_path": f.get("path") or "",
-                    "modified_at": f.get("modifiedTime") or "",
+                    "modified_at": f.get(modified_field) or "",
                 }
-                res = await self.ingest_file_to_memory(access_token, f.get("id"), extra_metadata=meta)
+                res = await self.ingest_file_to_memory(
+                    access_token, f.get("id"), extra_metadata=meta, role=role
+                )
                 inner = res.get("result") or {}
                 if res.get("success") and inner.get("status") == "ingested":
                     ingested += 1
@@ -711,16 +720,53 @@ class GoogleDriveService(IntegrationService):
                     skipped.append(f"{name} ({inner.get('reason') or 'no_text'})")
             except Exception as file_err:
                 errors.append(f"{name}: {file_err}")
+        return {
+            "files_found": len(files),
+            "files_ingested": ingested,
+            "files_skipped": skipped,
+            "errors": errors,
+        }
+
+    async def ingest_folder_to_memory(
+        self,
+        access_token: str,
+        folder_id: str,
+        folder_name: Optional[str] = None,
+        role: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Recursively ingest one folder subtree into Atom memory.
+
+        User-selected folder ingestion ("Ingest folders") — the same
+        walk + parse pipeline as full_sync, scoped to the chosen folder.
+        role: optional AI-employee role tag (canvas-scoped loads pass the
+        attached hire's category) for role-aware recall.
+        """
+        files = await self.walk_files(access_token, folder_id=folder_id or None)
+        tally = await self._ingest_walked_files(access_token, files, "modifiedTime", role=role)
+        return {
+            "success": True,
+            "folder_id": folder_id,
+            "folder_name": folder_name,
+            **tally,
+        }
+
+    async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Google Drive.
+
+        Pipeline 1: Ingest every file (all types, all subfolders, pagination
+        followed) into Atom memory (LanceDB + GraphRAG) with folder-path
+        context stamped into the memory metadata.
+        Pipeline 2: Refresh the Postgres metrics cache.
+        """
+        files = await self.walk_files(access_token)
+        tally = await self._ingest_walked_files(access_token, files, "modifiedTime")
 
         cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
         return {
             "success": True,
             "workspace_id": workspace_id,
-            "files_found": len(files),
-            "files_ingested": ingested,
-            "files_skipped": skipped,
+            **tally,
             "postgres_cache": cache_result,
-            "errors": errors,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 

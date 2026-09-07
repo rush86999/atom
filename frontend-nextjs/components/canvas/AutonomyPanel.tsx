@@ -1,17 +1,20 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Lock, Zap, Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Lock, Zap, RefreshCcw, Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
 
 /**
  * Autonomy policy panel — the owner decides, per action topic, whether the
- * agent ALWAYS needs a human in the loop or may act autonomously once its
- * maturity tier allows. Backed by GET/PUT /api/autonomy/topics.
+ * agent ALWAYS needs a human in the loop, may act autonomously once its
+ * maturity tier allows, or acts autonomously UNTIL a human correction resets
+ * the cycle (the hire proposes again and re-earns autonomy through verified
+ * work). Backed by GET/PUT /api/autonomy/topics.
  *
  * Canvas-aware: with canvasId/agentId the backend flags the topics primary
  * for this canvas's type ("On this canvas" section) and attaches each
  * hire's live gate — owner mode × governance maturity × skill-scoped trust
- * — so the panel shows exactly what a turn would enforce today.
+ * × correction cycle — so the panel shows exactly what a turn would enforce
+ * today.
  */
 interface AutonomyGate {
     outcome: "execute" | "propose";
@@ -29,6 +32,13 @@ interface AutonomyGate {
         cold_start: boolean | null;
         ok: boolean;
     };
+    cycle?: {
+        reset: boolean;
+        tier: string | null;
+        required: string | null;
+        ok: boolean;
+        reason: string | null;
+    } | null;
 }
 
 interface AutonomyTopic {
@@ -67,8 +77,8 @@ function GateChip({ gate }: { gate: AutonomyGate }) {
 }
 
 function GateDetail({ gate }: { gate: AutonomyGate }) {
-    const { maturity, trust } = gate;
-    if (!maturity.known && !trust.enabled) return null;
+    const { maturity, trust, cycle } = gate;
+    if (!maturity.known && !trust.enabled && !cycle?.tier) return null;
     const bits: string[] = [];
     if (maturity.known) {
         bits.push(
@@ -79,6 +89,13 @@ function GateDetail({ gate }: { gate: AutonomyGate }) {
         bits.push(
             `trust ${(trust.trust ?? 0).toFixed(2)} / ${trust.threshold.toFixed(2)}${
                 trust.cold_start ? " (no evidence yet)" : ""
+            }`
+        );
+    }
+    if (cycle?.tier) {
+        bits.push(
+            `cycle ${cycle.tier} (needs ${cycle.required ?? "?"})${
+                cycle.reset ? " — reset by a correction" : ""
             }`
         );
     }
@@ -102,7 +119,7 @@ function TopicCard({
                     <p className="text-[11px] text-muted-foreground">{topic.description}</p>
                 </div>
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-1">
+            <div className="mt-2 grid grid-cols-3 gap-1">
                 <button
                     onClick={() => onSetMode(topic.topic, "human_always")}
                     disabled={busy}
@@ -126,6 +143,19 @@ function TopicCard({
                     data-testid={`autonomy-${topic.topic}-auto`}
                 >
                     <Zap className="h-3 w-3" /> Auto if mature
+                </button>
+                <button
+                    onClick={() => onSetMode(topic.topic, "auto_until_corrected")}
+                    disabled={busy}
+                    title="Acts autonomously once mature; a human correction resets the cycle — the hire proposes again and re-earns autonomy through verified work."
+                    className={`flex items-center justify-center gap-1.5 rounded px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                        topic.mode === "auto_until_corrected"
+                            ? "bg-sky-500/15 text-sky-700 dark:text-sky-400 border border-sky-500/40"
+                            : "bg-muted/60 text-muted-foreground border border-transparent hover:bg-muted"
+                    }`}
+                    data-testid={`autonomy-${topic.topic}-cycle`}
+                >
+                    <RefreshCcw className="h-3 w-3" /> Auto until corrected
                 </button>
             </div>
             {topic.gate && <GateChip gate={topic.gate} />}
@@ -199,8 +229,10 @@ export function AutonomyPanel({
     return (
         <div className="flex-1 overflow-y-auto p-3 space-y-3" data-testid="autonomy-panel">
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Choose which agent actions <strong>always require you</strong> and which the
-                agent may do autonomously <strong>once mature enough</strong>. Immature hires
+                Choose which agent actions <strong>always require you</strong>, which the
+                agent may do autonomously <strong>once mature enough</strong>, and which run
+                autonomously <strong>until a correction resets the cycle</strong> (the hire
+                proposes again and re-earns autonomy through verified work). Immature hires
                 always propose first and learn from your decisions.
             </p>
             {error && <p className="text-xs text-red-500">{error}</p>}

@@ -15,6 +15,7 @@ import { BarChartCanvas } from "@/components/canvas/BarChart";
 import { PieChartCanvas } from "@/components/canvas/PieChart";
 import { InteractiveForm } from "@/components/canvas/InteractiveForm";
 import { OfficeFileCanvas } from "@/components/canvas/OfficeFileCanvas";
+import { PdfFileCanvas } from "@/components/canvas/PdfFileCanvas";
 import { EmailRecipientField } from "@/components/canvas/EmailRecipientField";
 import { CanvasTypeBadge } from "@/components/canvas/CanvasTypeBadge";
 import { persistCanvasTypeSwitch, switchCanvasType, normalizeCanvasComponent, type SwitchableCanvasType } from "@/components/canvas/canvasType";
@@ -25,7 +26,7 @@ import { EmailAttachmentStrip, type EmailAttachmentRecord } from "@/components/c
 interface CanvasState {
     id?: string;
     visible: boolean;
-    component: "markdown" | "code" | "chart" | "form" | "status_panel" | "eval" | "snapshot" | "browser_view" | "email" | "sheet" | "document" | "office_excel" | "office_word" | "office_pptx" | "custom";
+    component: "markdown" | "code" | "chart" | "form" | "status_panel" | "eval" | "snapshot" | "browser_view" | "email" | "sheet" | "document" | "pdf" | "office_excel" | "office_word" | "office_pptx" | "custom";
     title?: string;
     data: any;
     version?: number;
@@ -83,7 +84,15 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
     const hasSignoff = (body: string, sig: string | null): boolean => {
         if (!body) return false;
         if (sig && body.includes(sig)) return true;
-        return /(?:best regards|warm regards|kind regards|regards|sincerely|thank you|thanks|cheers|respectfully)\s*,?\s*(?:\n|<br|<div|$)/im.test(body.slice(-400));
+        // Styled signatures (a bordered <div> with padded <p> blocks) wrap a
+        // short sign-off in a lot of HTML — "Regards,<br><strong>Rish…"
+        // sat ~550 raw-HTML chars from the end, outside this raw window, so
+        // the integration default got appended AGAIN below it (two stacked
+        // signatures, observed live 2026-09-06). Tag-strip first and match
+        // on the trailing TEXT, where styled and plain sign-offs look alike.
+        const text = body.replace(/<[^>]+>/g, "\n").replace(/&nbsp;/gi, " ");
+        const tail = text.slice(-600);
+        return /(?:best regards|warm regards|kind regards|regards|sincerely|thank you|thanks|cheers|respectfully)\s*,?\s*(?:\n|$)/im.test(tail);
     };
 
     // A draft's own trailing plain sign-off ("Best regards,\nRish …") —
@@ -124,7 +133,10 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
     };
 
     // Fetch the default signature once per composer mount; when it lands,
-    // append it to a body that doesn't already carry a sign-off.
+    // append it to a body that doesn't already carry a sign-off. The STYLED
+    // variant (signature_html — the real markup mined from sent mail: fonts,
+    // layout tables, links) is preferred; the composer body is an HTML
+    // string, so inserting the plain-text shadow loses the style.
     useEffect(() => {
         if (state?.component !== "email" || signatureFetchedRef.current) return;
         signatureFetchedRef.current = true;
@@ -133,10 +145,13 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
                 const { apiClient } = await import("@/lib/api");
                 const res = await apiClient.get("/api/canvas/email/signature");
                 const data = (res as any).data || res || {};
-                if (typeof data.signature === "string" && data.signature.trim()) {
-                    setEmailSignature(data.signature);
+                const styled = typeof data.signature_html === "string" && data.signature_html.trim()
+                    ? data.signature_html
+                    : (typeof data.signature === "string" ? data.signature : null);
+                if (styled && styled.trim()) {
+                    setEmailSignature(styled);
                     setSignatureSource(data.source || null);
-                    applySignature(data.signature);
+                    applySignature(styled);
                 }
             } catch {
                 // No signature configured — nothing to append.
@@ -596,6 +611,21 @@ export function CanvasPanel({ lastMessage, registerFlushBeforeSend }: CanvasHost
                     slides: (state.data as any)?.slides || [],
                     filePath: (state.data as any)?.file_path,
                 };
+            // PDF canvas (real file, like office_*): agents read back the
+            // document's shape (filename, page count, lifecycle) — the bytes
+            // themselves stream from /api/canvas/pdf/{id}/file when needed.
+            case "pdf": {
+                const d = (state.data as any)?.file ? state.data : (state.data as any)?.content || {};
+                return {
+                    type: "generic" as const,
+                    component: "pdf" as const,
+                    title: state.title || (d as any)?.file?.filename || "PDF",
+                    filename: (d as any)?.file?.filename,
+                    pageCount: (d as any)?.file?.page_count,
+                    lifecycle: (d as any)?.lifecycle?.state || "drafting",
+                    versionHash: (d as any)?.file?.hash,
+                };
+            }
             default:
                 return {
                     type: "generic" as const,
@@ -795,6 +825,7 @@ function CanvasIcon({ component }: { component: string }) {
         case "office_excel": return <Table2 className="h-4 w-4 text-amber-500" />;
         case "office_word": return <FileText className="h-4 w-4 text-blue-500" />;
         case "office_pptx": return <Presentation className="h-4 w-4 text-orange-500" />;
+        case "pdf": return <FileText className="h-4 w-4 text-red-500" />;
         default: return <Layers className="h-4 w-4 text-indigo-500" />;
     }
 }
@@ -856,6 +887,12 @@ function CanvasContent({
         case "office_word":
         case "office_pptx":
             return <OfficeFileCanvas canvasId={canvasId} data={data} showPreview={showPreview} />;
+
+        // PDF canvas (real file, same family): local page-map edits commit
+        // through /api/canvas/pdf/{id}/pages as audited versions; the viewer
+        // re-renders from the new version's streamed bytes.
+        case "pdf":
+            return <PdfFileCanvas canvasId={canvasId} data={data} />;
 
         case "line_chart":
             return <LineChartCanvas data={resolveChartData(data)} title={resolveChartTitle(data, canvasTitle)} />;

@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Dict, Any, List, Optional
 from core.database import SessionLocal
+from core.identifier_search import filter_by_terms
 from integrations.salesforce_service import SalesforceService
 from integrations.hubspot_service import get_hubspot_service
 from integrations.shopify_service import ShopifyService
@@ -25,6 +26,130 @@ except ImportError:
         return 0.0
 
 logger = logging.getLogger(__name__)
+
+
+def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) -> str:
+    """Excerpt of ``text`` centered on the best query-token match region.
+
+    A workbook read must surface the REGION the question is about (the
+    WG350DSAV row), not the file head — the head is usually sheet 1 /
+    cover-page boilerplate, which is exactly what the old preview-only paths
+    showed while the answer sat further in. Falls back to the head when no
+    query token appears.
+
+    RAREST-TOKEN ANCHOR first: the query token with the fewest occurrences
+    in the text is the identifying one (the model number vs "price"/"list"
+    boilerplate). Coverage scoring alone loses exactly here — a row region
+    is a numeric dump, so header windows containing "consolidated price
+    list" out-score it 3-to-1 and the excerpt lands thousands of rows away
+    (live 2026-09-04: 'wg350dsav' at offset 2.4M of a 4.1M-char workbook
+    never surfaced). When the rarest token is itself frequent (>50 hits,
+    i.e. not identifying), fall back to distinct-token coverage scoring.
+
+    SHEET ANCHOR before that: our Excel parsers emit per-sheet markers
+    (``=== Sheet: NAME ===`` / ``--- Sheet: NAME ---``). When a query token
+    names a SHEET, anchor at that sheet's start and read forward — the
+    rarest-token path cannot express "the region this token NAMES" because
+    the token's first occurrences are the workbook index at the file head
+    and brand-name rows in unrelated sheets (live 2026-09-06: "check
+    Consolidated Price List 2019 for the Linmac bandsaw price" anchored on
+    the index's LINMAC line ~3k chars in; the WG350DSAV row sat at 58% of a
+    3.4M-char text — the agent saw sheet headers and reported the row
+    unreadable). Hyphenated model tokens also try their compacted form
+    ("wg-350dsav" → "wg350dsav" as the workbook spells it).
+    """
+    text = text or ""
+    import re as _re
+
+    tokens = [t for t in _re.split(r"[^a-z0-9]+", (query or "").lower()) if len(t) > 2]
+    # Compacted variants: workbooks write codes without the separator the
+    # user typed ("WG-350DSAV" lives in the sheet as "WG350DSAV").
+    for _raw in list(tokens):
+        _compact = _raw.replace("-", "").replace("_", "")
+        if _compact != _raw and len(_compact) >= 6 and _compact not in tokens:
+            tokens.append(_compact)
+    lower = text.lower()
+    uniq = set(tokens)
+    if not uniq:
+        return text[:excerpt_chars]
+
+    # Sheet-name anchor: query token names a sheet in the parsed body.
+    sheet_hits = list(_re.finditer(
+        r"\n(?:===|---) Sheet: ([^\n=]+?)(?:===|---)\n", text))
+    if sheet_hits:
+        compact = {t.replace("-", "").replace("_", ""): t for t in uniq}
+        for m in sheet_hits:
+            sheet_name = _re.sub(r"[^a-z0-9]+", "", m.group(1).lower())
+            matched_token = next(
+                (tok for compacted, tok in compact.items()
+                 if len(compacted) >= 4 and len(sheet_name) >= 3
+                 and (compacted in sheet_name or sheet_name in compacted)),
+                None,
+            )
+            if matched_token:
+                start = min(len(text) - 1, m.start() + 1)
+                end = min(len(text), start + excerpt_chars)
+                suffix = " …" if end < len(text) else ""
+                return (
+                    f"[excerpt from the '{m.group(1).strip()}' sheet] "
+                    f"{text[start:end]}{suffix}"
+                )
+
+    # Rare-token/coverage anchors search the sheet BODIES, not the workbook
+    # index head — a sheet NAME's first occurrences are index lines whose
+    # windows carry headers but no rows.
+    index_m = _re.search(r"^WORKBOOK INDEX:", text, flags=_re.MULTILINE)
+    body_start = 0
+    if index_m:
+        body_m = _re.search(r"\n(?:===|---) Sheet: ", text[index_m.end():])
+        if body_m:
+            body_start = index_m.end() + body_m.start() + 1
+    counts = {t: lower.count(t) for t in uniq}
+    # Anchor only on tokens PRESENT in the text: an enriched context token
+    # may name a different product entirely (count 0) — anchoring on it
+    # would land on the head and be worse than coverage scoring.
+    present = {t: c for t, c in counts.items() if c > 0}
+    half = excerpt_chars // 2
+    if present:
+        anchor = min(present, key=lambda t: (present[t], -len(t)))
+        if present[anchor] <= 50:
+            idx = lower.find(anchor, body_start)
+            if idx < 0:
+                idx = lower.find(anchor)
+            start = max(0, idx - half)
+            end = min(len(text), idx + half)
+            prefix = "… " if start > 0 else ""
+            suffix = " …" if end < len(text) else ""
+            return f"{prefix}{text[start:end]}{suffix}"
+    best_pos, best_hits = 0, -1
+    for tok in sorted(uniq, key=len, reverse=True):
+        start = body_start
+        finds = 0
+        while finds < 2000:  # cap: boilerplate tokens can occur thousands of times
+            idx = lower.find(tok, start)
+            if idx < 0:
+                break
+            finds += 1
+            # count how many DISTINCT tokens appear in this window
+            window = lower[max(0, idx - excerpt_chars // 2): idx + excerpt_chars // 2]
+            hits = sum(1 for t in uniq if t in window)
+            if hits > best_hits:
+                best_pos, best_hits = idx, hits
+            start = idx + len(tok)
+            if best_hits >= len(uniq):
+                break
+    if best_hits <= 0 or (index_m and best_hits < len(uniq)):
+        # Workbook texts: every-token-co-occurrence or the index. "price",
+        # "list" and year numbers occur in nearly every sheet of a price
+        # book, so a partial-coverage window is boilerplate coincidence from
+        # a random sheet — the index head is the useful fallback: the model
+        # sees the sheet list and can re-read with a sheet or model token.
+        return text[:excerpt_chars]
+    start = max(0, best_pos - half)
+    end = min(len(text), best_pos + half)
+    prefix = "… " if start > 0 else ""
+    suffix = " …" if end < len(text) else ""
+    return f"{prefix}{text[start:end]}{suffix}"
 
 # All native integrations supported by Atom
 NATIVE_INTEGRATIONS = {
@@ -55,6 +180,93 @@ NATIVE_INTEGRATIONS = {
     "aws_ses",
 }
 
+# Services with a LIVE search implementation in UniversalIntegrationService.search()
+# (the family branches below). Single source of truth for:
+#   - chat_tool_planner.execute_tool_plan: plain "search" intents for these
+#     services route through search() instead of execute(), whose family
+#     handlers only implement named actions;
+#   - the planner catalog annotation ("live search supported" vs
+#     "no live search — use memory").
+# Keep in sync with the search() routing — asserted by
+# tests/test_planner_live_search_routing.py.
+SEARCHABLE_SERVICES = frozenset({
+    # CRM
+    "salesforce", "hubspot", "pipedrive", "zoho_crm",
+    # Communication
+    "slack", "teams", "discord", "google_chat", "telegram", "whatsapp",
+    "gmail", "outlook", "zoho_mail",
+    # Calendar
+    "google_calendar", "outlook_calendar",
+    # Project management
+    "linear", "monday", "zoho_projects", "asana", "jira", "trello",
+    # Storage
+    "google_drive", "dropbox", "onedrive", "box", "notion", "zoho_workdrive",
+    # Forms & automation (search the INGESTED records — no live read API)
+    "zoho_forms", "zoho_flow",
+    # Support
+    "zendesk", "freshdesk", "intercom",
+    # Development
+    "github", "gitlab",
+    # Marketing / analytics
+    "mailchimp", "tableau", "google_analytics",
+    # Finance (recent lists, client-side query filter)
+    "stripe", "quickbooks", "xero", "zoho_books",
+    # Dedicated item search (DC-correct service method)
+    "zoho_inventory",
+})
+
+# Execute-path search routing (service → _search_* helper). The search()
+# entry and the execute() families grew separate search implementations;
+# the family chains implemented search for only SOME services, so planner
+# "search" intents silently dead-ended for the rest (live 2026-09-03 class:
+# box, linear, jira, asana, trello, gmail). _dispatch_execution routes
+# search actions for these services through the same _search_* helpers the
+# search() entry uses — one search implementation per service. Kept in sync
+# with the families by tests/test_integration_dispatch_parity.py.
+_SEARCH_ROUTES = {
+    # Communication
+    "slack": "_search_communication",
+    "teams": "_search_communication",
+    "discord": "_search_communication",
+    "google_chat": "_search_communication",
+    "telegram": "_search_communication",
+    "whatsapp": "_search_communication",
+    "gmail": "_search_communication",
+    "outlook": "_search_communication",
+    "zoho_mail": "_search_communication",
+    # Project management
+    "linear": "_search_project_management",
+    "monday": "_search_project_management",
+    "zoho_projects": "_search_project_management",
+    "asana": "_search_project_management",
+    "jira": "_search_project_management",
+    "trello": "_search_project_management",
+    # Storage
+    "google_drive": "_search_storage",
+    "dropbox": "_search_storage",
+    "onedrive": "_search_storage",
+    "box": "_search_storage",
+    "notion": "_search_storage",
+    "zoho_workdrive": "_search_storage",
+    # CRM
+    "salesforce": "_search_crm",
+    "hubspot": "_search_crm",
+    "zoho_crm": "_search_crm",
+    "pipedrive": "_search_crm",
+    # Support
+    "zendesk": "_search_support",
+    "freshdesk": "_search_support",
+    "intercom": "_search_support",
+    # Development
+    "github": "_search_dev",
+    "gitlab": "_search_dev",
+    # Finance (client-side filter over recent lists)
+    "stripe": "_search_finance",
+    "quickbooks": "_search_finance",
+    "xero": "_search_finance",
+    "zoho_books": "_search_finance",
+}
+
 class UniversalIntegrationService:
     """
     Unified interface for accessing third-party integrations.
@@ -77,6 +289,23 @@ class UniversalIntegrationService:
                 logger.warning(f"Response masking skipped for {service}", exc_info=True)
         return response
 
+    @staticmethod
+    def _filter_by_query(data: Any, query: str, limit: int = 8) -> List[Any]:
+        """Client-side relevance filter for list endpoints that lack a
+        server-side search param. ANY query term (>=3 chars; falls back to
+        the whole query) matches, ranked by total matched-term weight — a
+        record carrying the model code the question is about outranks ones
+        that merely share a prose word — with recency (original) order
+        preserved for ties. Previously this kept the FIRST limit matches in
+        list order, which buried identifier matches under generic-term
+        matches (live 2026-09-04: "bandsaw" matched 42 items while the
+        stocked WG-350DSAV sat past the cut). Shared implementation:
+        core.identifier_search.filter_by_terms."""
+        from core.identifier_search import filter_by_terms
+        return filter_by_terms(
+            data if isinstance(data, (list, tuple)) else [data],
+            query, text_of=str, limit=limit)
+
     async def execute(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Execute an action against a specific integration service via IntegrationRegistry.
@@ -84,20 +313,69 @@ class UniversalIntegrationService:
         from core.database import SessionLocal
         from core.integration_registry import IntegrationRegistry
 
-        # Circuit Breaker Check
-        if not await circuit_breaker.is_enabled(service):
-            stats = circuit_breaker.get_stats(service)
-            return {
-                "status": "error", 
-                "error": f"Circuit breaker is OPEN for {service}. Cooldown active until {stats['disabled_until']}",
-                "circuit_open": True
-            }
-
         context = context or {}
         user_id = context.get("user_id")
         workspace_id = context.get("workspace_id") or self.workspace_id
         tenant_id = context.get("tenant_id") or workspace_id
         agent_id = context.get("agent_id")
+
+        # --- Tool-error signal capture ---
+        # The evolution harness (ReflectionEngine → Memento/AlphaEvolver)
+        # only learns from FAILED episodes, and episode outcome comes from
+        # execution metadata. Swallowed tool errors (a 400 returned as [])
+        # used to die here invisibly. Record every error/circuit-open/
+        # attribution-hold onto the agent's running execution so episodes
+        # stop recording silent failures as successes. Fire-and-forget,
+        # never breaks the call.
+        async def _record_tool_error(kind: str, detail: str) -> None:
+            try:
+                from core.auto_dev.tool_error_signals import (
+                    record_tool_error,
+                    should_trigger_live,
+                    tool_error_signature,
+                )
+
+                await asyncio.to_thread(
+                    record_tool_error,
+                    agent_id,
+                    service,
+                    action,
+                    f"{kind}: {detail}"[:500],
+                    tenant_id=str(tenant_id or "default"),
+                    user_id=user_id,
+                )
+                # REAL-TIME evolution trigger for the ACTIVE task: the
+                # moment this tool's errors cross the repeat threshold,
+                # propose a tool-mutation fix — no waiting for episode
+                # finalization (one dispatch per signature per 30min).
+                if agent_id and should_trigger_live(
+                    agent_id, tool_error_signature(service, action)
+                ):
+                    from core.auto_dev.reflection_engine import (
+                        trigger_live_tool_fix,
+                    )
+
+                    asyncio.ensure_future(trigger_live_tool_fix(
+                        agent_id=agent_id,
+                        tenant_id=str(tenant_id or "default"),
+                        service=service,
+                        action=action,
+                        error_detail=detail[:400],
+                        execution_id=None,
+                    ))
+            except Exception:
+                pass
+
+        if not await circuit_breaker.is_enabled(service):
+            stats = circuit_breaker.get_stats(service)
+            await _record_tool_error(
+                "circuit_open", f"Circuit breaker OPEN for {service}"
+            )
+            return {
+                "status": "error",
+                "error": f"Circuit breaker is OPEN for {service}. Cooldown active until {stats['disabled_until']}",
+                "circuit_open": True
+            }
 
         # --- Governance Risk Check ---
         # NOTE: the governance_middleware.check_action_risk call was broken
@@ -124,7 +402,55 @@ class UniversalIntegrationService:
                 "intervention_id": risk_result.get("intervention_id"),
                 "message": f"Action paused for manual review: {risk_result['reason']}"
             }
-        
+
+        # --- Outbound attribution check ---
+        # The email body gate (chat_orchestrator + outbound_identity) sees
+        # signatures; IM sends, task assignment, calendar events and CRM
+        # ownership name their sender/assignee/organizer in PARAMS instead.
+        # Same confabulation class (live 2026-09-02: a lead's name used as
+        # sender), gated at this shared chokepoint for ALL integrations.
+        # Shadow by default; enforce refuses off-team attribution. Never
+        # blocks on resolution failure — a broken identity lookup must not
+        # break sends.
+        try:
+            from core.outbound_identity import check_tool_call_attribution
+            identity_verdict = await check_tool_call_attribution(
+                service, action, params, context or {}
+            )
+            if identity_verdict:
+                if (
+                    identity_verdict["mode"] == "enforce"
+                    and identity_verdict["status"] == "external"
+                ):
+                    await _record_tool_error(
+                        "identity_hold",
+                        f"{identity_verdict['field']}='{identity_verdict['value']}' "
+                        "not on tenant team",
+                    )
+                    return {
+                        "status": "paused",
+                        "action": action,
+                        "reason": (
+                            f"{identity_verdict['field']}="
+                            f"'{identity_verdict['value']}' is not on the "
+                            "tenant team — outbound attribution held for "
+                            "review"
+                        ),
+                        "identity_check": identity_verdict,
+                        "message": (
+                            "Action paused: the outbound artifact would be "
+                            "attributed to someone outside the team."
+                        ),
+                    }
+                logger.info(
+                    f"[outbound-identity][{identity_verdict['mode']}] "
+                    f"{service}.{action}: {identity_verdict['field']}="
+                    f"'{identity_verdict['value']}' is "
+                    f"{identity_verdict['status']} (not the acting owner)"
+                )
+        except Exception:
+            pass
+
         try:
             # Use SessionLocal to provide registry with DB access
             with SessionLocal() as db:
@@ -139,6 +465,15 @@ class UniversalIntegrationService:
                 # Never return credentials/secret-shaped fields to callers.
                 result = self._mask_response(service, result)
 
+                # Tool-error signal: the integration ran but failed (or the
+                # circuit tripped mid-flight) — feed the evolution harness.
+                if isinstance(result, dict) and result.get("status") in (
+                    "error", "circuit_open",
+                ):
+                    await _record_tool_error(
+                        "tool_error", str(result.get("error") or "")[:400]
+                    )
+
                 # --- Spend Attribution (Phase 44) ---
                 if result.get("status") in ("success", "error"):
                     cost = get_action_cost(service, action)
@@ -150,8 +485,12 @@ class UniversalIntegrationService:
                 return result
                 
         except Exception as e:
-            logger.error(f"Universal Integration Execution Failed ({service}.{action}): {e}")
-            circuit_breaker.record_failure(service, e)
+            # exc_info: anonymous salesforce/jira/asana list calls recur with
+            # no traceback — this names the calling code the moment it fires.
+            logger.error(f"Universal Integration Execution Failed ({service}.{action}): {e}", exc_info=True)
+            # await: record_failure is async — un-awaited since forever, so
+            # the breaker never recorded failures and never opened.
+            await circuit_breaker.record_failure(service, e)
             
             # Record spend even on crash if it was a real attempt
             cost = get_action_cost(service, action)
@@ -201,7 +540,24 @@ class UniversalIntegrationService:
         # If still no user_id and not a system agent, raise error
         if not user_id:
             raise ValueError("user_id required for non-system agents")
-        
+
+        # SEARCH PARITY BRIDGE — the search() entry has complete per-service
+        # helpers (_search_*), but the execute() families implemented search
+        # for only SOME services. Everywhere else a planner "search" intent
+        # fell through the family branch chains to a generic routed message
+        # with no data (live 2026-09-03 class: box, linear, jira, asana,
+        # trello, gmail — the planner catalog advertised search while the
+        # execute path silently returned nothing). One search implementation
+        # per service: execute-path searches route through the same helpers.
+        if action == "search":
+            helper = _SEARCH_ROUTES.get(service)
+            if helper is not None:
+                result = await getattr(self, helper)(
+                    service, params.get("query") or "", context)
+                if isinstance(result, dict) and "status" in result:
+                    return result
+                return {"status": "success", "data": result}
+
         if service == "salesforce":
             return await self._execute_salesforce(action, params, user_id, context)
         elif service == "hubspot":
@@ -270,7 +626,7 @@ class UniversalIntegrationService:
                 elif service == "hubspot":
                     result = await self._search_hubspot(query, entity_type, context)
                 elif service in ("slack", "teams", "discord", "google_chat", "telegram", "whatsapp", "gmail", "outlook", "zoho_mail"):
-                    result = await self._search_communication(service, query, entity_type, context)
+                    result = await self._search_communication(service, query, context)
                 elif service in ("google_calendar", "outlook_calendar"):
                     result = await self._search_calendar(service, query, context)
                 elif service in ("linear", "monday", "zoho_projects", "asana", "jira", "trello"):
@@ -304,6 +660,18 @@ class UniversalIntegrationService:
                     result = await self._search_analytics(service, query, context)
                 elif service == "zoho_workdrive":
                     result = await self._execute_storage(service, "search", {"query": query}, context)
+                elif service == "zoho_inventory":
+                    # Live item search — the DC-correct service method (see
+                    # ZohoInventoryService.search_items).
+                    result = await self.execute(
+                        service, "search_items", {"query": query, "limit": 8}, context)
+                elif service in ("stripe", "quickbooks", "xero", "zoho_books"):
+                    # Finance list endpoints have no server-side search param —
+                    # pull the recent list and filter client-side (same pattern
+                    # as _search_dev). Single implementation in _search_finance,
+                    # shared with the execute-path search bridge.
+                    result = {"status": "success",
+                              "data": await self._search_finance(service, query, context)}
                 else:
                     raise ValueError(f"Service '{service}' not supported for search.")
 
@@ -478,7 +846,23 @@ class UniversalIntegrationService:
             return {"status": "error", "message": "access_token and shop are required"}
         
         entity = params.get("entity", "product")
-        
+
+        if action == "search":
+            # Client-side filter over the entity's list — ShopifyService has
+            # no server-side search; without this branch a planner "search"
+            # intent fell through to the generic routed message with no
+            # data while the catalog advertised "search orders, products,
+            # customers".
+            fetch = {
+                "product": shopify.get_products,
+                "order": shopify.get_orders,
+                "customer": shopify.get_customers,
+            }.get(entity)
+            if fetch is None:
+                return {"status": "error", "message": f"Unsupported shopify entity: {entity}"}
+            items = await fetch(access_token, shop)
+            return {"status": "success", "data": self._filter_by_query(items or [], params.get("query") or "")}
+
         if action == "list":
             if entity == "product":
                 return {"status": "success", "data": await shopify.get_products(access_token, shop)}
@@ -525,6 +909,10 @@ class UniversalIntegrationService:
                 return {"status": "success", "data": res}
                 
         elif service == "teams":
+            # Registry-resolved TeamsEnhancedService carries the real
+            # search (TeamsService.get_teams — the old branch here — lists
+            # workspaces, not messages, and the registry class doesn't
+            # even have it).
             if action == "send_message":
                 return {"status": "success", "data": await comm_service.send_message(params.get("chat_id"), params.get("message") or params.get("content"))}
             elif action == "list_chats":
@@ -652,13 +1040,27 @@ class UniversalIntegrationService:
                         reply_all=reply_all,
                         token=token,
                     )
+                    if sent:
+                        reply_data = {
+                            "reply_to_message_id": reply_message_id,
+                            "reply_all": reply_all,
+                        }
+                    else:
+                        # Surface the diagnosable reason (internal-quote
+                        # guard, thread not found, transport) so the agent
+                        # can correct the draft instead of retrying blind.
+                        detail = dict(getattr(comm_service, "last_send_error", None) or {})
+                        reply_data = {
+                            "error": detail.get("error", "Outlook reply failed"),
+                            **(
+                                {"policy": detail["policy"], "quotes": detail.get("quotes") or []}
+                                if detail.get("policy")
+                                else {}
+                            ),
+                        }
                     return {
                         "status": "success" if sent else "error",
-                        "data": (
-                            {"reply_to_message_id": reply_message_id, "reply_all": reply_all}
-                            if sent
-                            else {"error": "Outlook reply failed"}
-                        ),
+                        "data": reply_data,
                     }
                 to = params.get("to") or params.get("to_recipients") or params.get("recipients")
                 if isinstance(to, str):
@@ -743,7 +1145,7 @@ class UniversalIntegrationService:
                 
         return {"status": "error", "message": f"Action {action} not supported for {service}"}
 
-    async def _search_communication(self, service: str, query: str, entity_type: str, context: Dict[str, Any]) -> List[Dict]:
+    async def _search_communication(self, service: str, query: str, context: Dict[str, Any]) -> List[Dict]:
         """Global search parity for communication platforms"""
         if service == "slack":
             from integrations.slack_service_unified import slack_unified_service
@@ -765,9 +1167,33 @@ class UniversalIntegrationService:
             gmail_service = GmailService()
             return {"status": "success", "data": gmail_service.search_messages(query)}
         elif service == "teams":
-            from integrations.teams_service import TeamsService
-            teams_service = TeamsService()
-            return {"status": "success", "data": teams_service.get_teams()}
+            # Search lives on the registry class (TeamsEnhancedService.
+            # search_messages) — TeamsService.get_teams, the old shape here,
+            # lists workspaces, not messages.
+            registry = context.get("registry")
+            teams_service = None
+            if registry:
+                teams_service = await registry.get_service_instance(
+                    "teams", context.get("tenant_id", "system"))
+            if not teams_service:
+                return {"status": "error", "message": "Teams service not found in registry"}
+            return {"status": "success", "data": await teams_service.search_messages(
+                context.get("workspace_id") or "default", query)}
+        elif service == "outlook":
+            # Same source the chat planner's dedicated outlook leg uses —
+            # planner-planned outlook searches through the universal path
+            # previously had no branch at all and errored into the memory
+            # fallback while the mailbox was never queried.
+            from integrations.outlook_service import (
+                outlook_service,
+                sanitize_graph_kql,
+            )
+            kql = sanitize_graph_kql(query) or query
+            emails = await outlook_service.search_emails(
+                user_id=context.get("user_id"), query=kql,
+                max_results=10, quote=False,
+            )
+            return {"status": "success", "data": emails or []}
         # Add more search handlers...
         return {"status": "success", "data": []}
 
@@ -778,7 +1204,12 @@ class UniversalIntegrationService:
         if service == "google_calendar":
             from integrations.google_calendar_service import google_calendar_service
             events = google_calendar_service.get_events()
-            return {"status": "success", "data": [e for e in events if query.lower() in e.get("title", "").lower() or query.lower() in e.get("description", "").lower()]}
+            return {"status": "success",
+                    "data": filter_by_terms(
+                        events, query,
+                        text_of=lambda e: " ".join([
+                            e.get("title") or "", e.get("description") or "",
+                        ]))}
         return []
 
     # --- Project Management ---
@@ -912,16 +1343,27 @@ class UniversalIntegrationService:
 
         if service == "linear":
              issues = await pm_service.get_issues(token)
-             return [i for i in issues if query.lower() in i.get("title", "").lower() or query.lower() in (i.get("description") or "").lower()]
+             # Any-term ranked filter (core.identifier_search) — the old
+             # whole-query substring test zero-hits the moment the query
+             # carries prose + an identifier ("bandsaw WG-350DSAV"), the
+             # exact shape the planner's identifier net produces.
+             return filter_by_terms(
+                 issues, query,
+                 text_of=lambda i: f"{i.get('title', '')} {i.get('description') or ''}")
         elif service == "monday":
              return await pm_service.search_items(token, query)
         elif service == "asana":
              tasks = await pm_service.get_tasks(token)
-             return [t for t in tasks if query.lower() in t.get("name", "").lower()]
+             return filter_by_terms(tasks, query, text_of=lambda t: t.get("name", ""))
         elif service == "jira":
              # search_issues is synchronous (requests-based) — do NOT await
              # (awaiting a plain dict raised TypeError).
              return pm_service.search_issues(f"text ~ '{query}'", token=token).get("issues", [])
+        elif service == "trello":
+             # TrelloService.search is synchronous (requests-based) — same
+             # no-await rule as jira above.
+             results = pm_service.search(query)
+             return results or []
         return []
 
     # The following methods have been refactored to use the Registry pattern:
@@ -932,7 +1374,39 @@ class UniversalIntegrationService:
         tenant_id = context.get("tenant_id", "system")
         storage_service = await registry.get_service_instance(service, tenant_id)
         token = getattr(storage_service, 'access_token', None) or context.get("access_token")
-        
+
+        # The `read` intent (open a file, return its contents) is implemented
+        # ONCE for every storage service — download, extract, ingest (warming
+        # the hybrid index for next time), and return a query-anchored
+        # excerpt. This is step 2 of the find→open→read journey that
+        # previously had no implementation at all (live 2026-09-03: the agent
+        # could search WorkDrive metadata but nothing could open a file).
+        if action in ("read", "read_file", "open_file", "get_file_content"):
+            return await self._read_storage_file(
+                service, storage_service, token, params, context
+            )
+
+        # Push-refresh actions (webhook events → per-file or bulk re-ingest).
+        # One contract for every storage provider; per-vendor differences are
+        # the signatures below, nothing else.
+        if action in ("full_sync", "resync"):
+            ws_id = context.get("workspace_id") or "default"
+            if service == "zoho_workdrive":
+                return {"status": "success", "data": await storage_service.full_sync(
+                    context.get("user_id") or token or "default", workspace_id=ws_id)}
+            return {"status": "success", "data": await storage_service.full_sync(
+                ws_id, token)}
+        if action in ("ingest_file_to_memory", "ingest_file", "ingest"):
+            fid = params.get("file_id") or params.get("query")
+            if service == "zoho_workdrive":
+                return {"status": "success", "data": await storage_service.ingest_file_to_memory(
+                    context.get("user_id") or token, fid)}
+            if service == "dropbox":
+                return {"status": "success", "data": await storage_service.ingest_file_to_memory(
+                    fid, token)}
+            return {"status": "success", "data": await storage_service.ingest_file_to_memory(
+                token, fid)}
+
         if service == "google_drive":
             if action in ("list", "list_files"):
                 return {"status": "success", "data": await storage_service.list_files(token, params.get("folder_id"))}
@@ -953,12 +1427,25 @@ class UniversalIntegrationService:
             if action in ("list", "list_files"):
                 return {"status": "success", "data": await storage_service.list_drive_items(token, params.get("path"))}
             elif action == "search":
-                items = await storage_service.list_drive_items(token, "")
-                return {"status": "success", "data": [i for i in items if params.get("query").lower() in i.get("name", "").lower()]}
+                # Real Graph root search — the service's search_files sat
+                # unused while this branch listed the drive root and
+                # filtered client-side, so only top-folder items ever
+                # matched a search.
+                res = await storage_service.search_files(token, params.get("query"))
+                data = res.get("data") or {} if isinstance(res, dict) else {}
+                return {"status": "success", "data": data.get("value", [])}
 
         elif service == "box":
             if action == "list":
                 return {"status": "success", "data": await storage_service.list_folder_items(token, params.get("folder_id", "0"))}
+            elif action == "search":
+                # The service's search_files (Box GET /search) existed but
+                # this dispatch never offered search — the planner
+                # advertised "box: search files" while every search fell
+                # through to the generic routed message with no data.
+                res = await storage_service.search_files(token, params.get("query"))
+                data = res.get("data") or {} if isinstance(res, dict) else {}
+                return {"status": "success", "data": data.get("entries", [])}
 
         elif service == "notion":
             if action == "search":
@@ -969,12 +1456,230 @@ class UniversalIntegrationService:
                 return {"status": "success", "data": await storage_service.search_pages_in_workspace(token=token)}
         
         elif service == "zoho_workdrive":
+            # WorkDrive resolves its OAuth token PER USER
+            # (ConnectionService/IntegrationToken rows); the instance carries
+            # no access_token and the executor context usually has none, so
+            # the raw `token` here is None — passing it as user_id silently
+            # emptied every WorkDrive list/search (live 2026-09-03 price-book
+            # miss). Pass the acting user, as execute_operation does.
+            wd_user = context.get("user_id") or token
             if action in ("list", "list_files"):
-                return {"status": "success", "data": await storage_service.list_files(token, params.get("folder_id"))}
+                return {"status": "success", "data": await storage_service.list_files(wd_user, params.get("folder_id"))}
             elif action == "search":
-                return {"status": "success", "data": await storage_service.search_files(token, params.get("query"))}
-        
+                return {"status": "success", "data": await storage_service.search_files(wd_user, params.get("query"), limit=params.get("limit") or 20)}
+
         return {"status": "success", "message": f"Routed to {service} handler (Registry Storage)"}
+
+    async def _read_storage_file(
+        self,
+        service: str,
+        storage_service: Any,
+        token: Optional[str],
+        params: Dict[str, Any],
+        context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Open a storage file: resolve → download → extract → excerpt.
+
+        One implementation shared by every storage integration (the read leg
+        of find→open→read). Resolution uses an explicit ``file_id`` when the
+        caller has one, otherwise it runs the service's own search and picks
+        the name-best-matching hit. The excerpt is query-anchored so a
+        "find the WG350DSAV row" read returns the region around that model
+        number rather than the workbook's head. The full text is ALSO
+        ingested (best-effort) under the file's stable identity, so this one
+        open warms the hybrid index — later questions hit search, not the
+        download path.
+        """
+        user_id = context.get("user_id")
+        query = (params.get("query") or "").strip()
+        file_id = params.get("file_id") or params.get("id")
+        file_name: Optional[str] = None
+
+        try:
+            # --- resolve the file ---------------------------------------
+            if not file_id:
+                hits: List[Dict[str, Any]] = []
+                if service == "zoho_workdrive":
+                    raw = await storage_service.search_files(
+                        user_id or token, query or " ", limit=5)
+                    # search_files returns a PLAIN LIST of file records (and
+                    # always has — the dict unwrap here matched no real
+                    # shape, so every planner read without an explicit
+                    # file_id resolved zero hits and returned found:False
+                    # while the file sat on the drive; live 2026-09-04
+                    # 'Consolidated Price List' read). Tolerate both shapes
+                    # in case a wrapped envelope appears later.
+                    if isinstance(raw, list):
+                        hits = raw
+                    else:
+                        hits = (raw or {}).get("data", {}).get("files", []) \
+                            if isinstance(raw, dict) else []
+                elif service == "google_drive":
+                    raw = await storage_service.search_files(token, query)
+                    hits = (raw or {}).get("data", {}).get("files", []) \
+                        if isinstance(raw, dict) else []
+                elif service == "onedrive":
+                    raw = await storage_service.search_files(token, query)
+                    hits = (raw or {}).get("data", {}).get("value", []) \
+                        if isinstance(raw, dict) else []
+                elif service == "box":
+                    raw = await storage_service.search_files(token, query)
+                    hits = (raw or {}).get("data", {}).get("entries", []) \
+                        if isinstance(raw, dict) else []
+                elif service == "dropbox":
+                    hits = await storage_service.search(query or " ", token) or []
+                if not hits:
+                    return {"status": "success", "data": {
+                        "found": False,
+                        "message": f"No file in {service} matched '{query}'.",
+                    }}
+                file_id, file_name = self._best_file_match(hits, query)
+
+            # --- download -------------------------------------------------
+            content: Optional[bytes] = None
+            if service == "zoho_workdrive":
+                content = await storage_service.download_file(user_id or token, file_id)
+            elif service == "google_drive":
+                content = await storage_service.download_file_bytes(token, file_id)
+            elif service == "onedrive":
+                content = await storage_service.download_file_bytes(token, file_id)
+            elif service == "box":
+                content = await storage_service.download_file_bytes(token, file_id)
+            elif service == "dropbox":
+                content = await storage_service.download_file(file_id or query, token)
+            if not content:
+                return {"status": "success", "data": {
+                    "found": True, "file_id": file_id, "file_name": file_name,
+                    "message": f"Found the file in {service} but the download failed.",
+                }}
+            if not file_name:
+                # Explicit file_id reads may carry no name (the planner's
+                # read params hold only the id). Derive it: the ingested
+                # copy's record first, then magic bytes — an empty name
+                # yields an empty extension and the extractor refuses the
+                # file ("Unsupported file type") even though the download
+                # succeeded (live 2026-09-06: read-by-id on the price list).
+                try:
+                    from core.database import get_db_session
+                    from core.models import IngestedDocument
+
+                    with get_db_session() as _db:
+                        _row = (
+                            _db.query(IngestedDocument)
+                            .filter(IngestedDocument.external_id == str(file_id))
+                            .first()
+                        )
+                        if _row is not None:
+                            file_name = _row.file_name
+                except Exception as name_err:  # noqa: BLE001 — sniffing is the fallback
+                    logger.debug(f"ingested-name lookup skipped for {file_id}: {name_err}")
+            if not file_name:
+                if content[:4] == b"%PDF":
+                    file_name = f"{service}:{file_id}.pdf"
+                elif content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+                    file_name = f"{service}:{file_id}.xls"
+                elif content[:4] == b"PK\x03\x04":
+                    file_name = f"{service}:{file_id}.xlsx"
+                else:
+                    file_name = f"{service}:{file_id}"
+
+            # --- extract --------------------------------------------------
+            from core.auto_document_ingestion import (
+                READ_EXTRACTION_MAX_CHARS,
+                parse_document_cached,
+            )
+
+            file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
+            # Explicit open of a NAMED file: extract with a far larger
+            # ceiling than the ingestion budget. The user asked for THIS
+            # file's contents — a row in its last sheet must be reachable
+            # (live 2026-09-03: the ingestion-budget cut landed before the
+            # LINMAC sheet, so a read limited to that budget could not see
+            # WG350DSAV row 17 either). Cached on the content hash: the
+            # same file is re-opened on every follow-up question about it,
+            # and a 13MB workbook costs ~10s per parse.
+            text = await parse_document_cached(
+                content, file_ext, file_name, max_chars=READ_EXTRACTION_MAX_CHARS
+            )
+            if not text or not text.strip():
+                return {"status": "success", "data": {
+                    "found": True, "file_id": file_id, "file_name": file_name,
+                    "message": f"Opened {file_name} but no text could be extracted from it.",
+                }}
+
+            # --- ingest (warming the hybrid index) — best-effort ----------
+            ingested = False
+            try:
+                from core.auto_document_ingestion import AutoDocumentIngestionService
+
+                ingest_result = await AutoDocumentIngestionService().process_file_bytes(
+                    content,
+                    file_name=file_name,
+                    source=service,
+                    user_id=user_id or "system",
+                    external_id=file_id,
+                    explicit=True,
+                )
+                ingested = ingest_result.get("status") == "ingested"
+            except Exception as ingest_err:  # noqa: BLE001 — read still returns
+                logger.debug(f"read-path ingest skipped for {file_name}: {ingest_err}")
+
+            excerpt = _query_anchored_excerpt(text, query)
+            return {"status": "success", "data": {
+                "found": True,
+                "file_id": file_id,
+                "file_name": file_name,
+                "chars_extracted": len(text),
+                "excerpt": excerpt,
+                "ingested_into_workspace": ingested,
+                "note": (
+                    "Contents above are EXCERPTS around the query. Cite only "
+                    "values visible in them; the file is now ingested for "
+                    "full-text search."
+                ),
+            }}
+        except Exception as e:
+            logger.error(f"read_storage_file failed ({service}, file={file_id}): {e}")
+            return {"status": "error", "message": f"Could not open the file: {e}"}
+
+    @staticmethod
+    def _best_file_match(
+        hits: List[Dict[str, Any]], query: str
+    ) -> tuple:
+        """Pick the hit whose NAME best matches the query tokens (falls back
+        to the top hit). Returns (file_id, file_name)."""
+        import re as _re
+
+        def _norm(s: str) -> str:
+            return _re.sub(r"[^a-z0-9]+", "", str(s or "").lower())
+
+        q_tokens = [t for t in _re.split(r"[^a-z0-9]+", query.lower()) if len(t) > 2]
+        best, best_score = None, -1
+        for h in hits:
+            name = str(
+                h.get("name") or h.get("title")
+                or (h.get("attributes") or {}).get("name", "")
+            )
+            nid = _norm(name)
+            score = sum(1 for t in q_tokens if _norm(t) and _norm(t) in nid)
+            if score > best_score:
+                best, best_score = h, score
+        h = best or hits[0]
+        file_id = (
+            h.get("id") or h.get("file_id") or h.get("fileId")
+            or ((h.get("metadata") or {}).get("id") if isinstance(h.get("metadata"), dict) else None)
+        )
+        # Box wraps metadata; OneDrive nests under parent; keep a last-resort walk
+        if file_id is None and isinstance(h, dict):
+            for v in h.values():
+                if isinstance(v, dict) and v.get("id"):
+                    file_id = v["id"]
+                    break
+        file_name = str(
+            h.get("name") or h.get("title")
+            or (h.get("attributes") or {}).get("name", "")
+        )
+        return file_id, file_name
 
     async def _search_storage(self, service: str, query: str, context: Dict[str, Any]) -> List[Dict]:
         """Search files/pages across storage platforms via Registry"""
@@ -992,6 +1697,22 @@ class UniversalIntegrationService:
         elif service == "notion":
             res = await storage_service.search(query, token=token)
             return res.get("results", [])
+        elif service == "zoho_workdrive":
+            # Same per-user token resolution as _execute_storage — the
+            # storage branch previously fell through to `return []` here, so
+            # agent-facing search_files fan-outs never saw WorkDrive results.
+            return await storage_service.search_files(
+                context.get("user_id") or token, query)
+        elif service == "onedrive":
+            res = await storage_service.search_files(token, query)
+            return (res.get("data") or {}).get("value", []) if isinstance(res, dict) else []
+        elif service == "box":
+            # Was a silent fall-through `return []` — the MCP no-platform
+            # search_files fan-out (which routes through _search_storage)
+            # never saw Box results even though BoxService.search_files
+            # existed.
+            res = await storage_service.search_files(token, query)
+            return (res.get("data") or {}).get("entries", []) if isinstance(res, dict) else []
         return []
 
     # --- Support Platforms ---
@@ -1081,9 +1802,12 @@ class UniversalIntegrationService:
         if service == "github":
             from integrations.github_service import GitHubService
             github_service = GitHubService()
-            # Generic repo search or issue search
+            # Generic repo search or issue search — any-term ranked, same
+            # identifier-tolerant filter as the other client-side families.
             repos = github_service.get_user_repositories()
-            return {"status": "success", "data": [r for r in repos if query.lower() in r.get("name", "").lower()]}
+            return {"status": "success",
+                    "data": filter_by_terms(repos, query,
+                                            text_of=lambda r: r.get("name", ""))}
         elif service == "gitlab":
             from integrations.gitlab_service import GitLabService
             gitlab_service = GitLabService()
@@ -1098,10 +1822,36 @@ class UniversalIntegrationService:
             from integrations.mailchimp_service import MailchimpService
             mailchimp_service = MailchimpService()
             campaigns = await mailchimp_service.get_campaigns(access_token, server_prefix)
-            return {"status": "success", "data": [c for c in campaigns if query.lower() in c.get("settings", {}).get("subject_line", "").lower() or query.lower() in c.get("settings", {}).get("title", "").lower()]}
+            return {"status": "success",
+                    "data": filter_by_terms(
+                        campaigns, query,
+                        text_of=lambda c: " ".join([
+                            (c.get("settings") or {}).get("subject_line") or "",
+                            (c.get("settings") or {}).get("title") or "",
+                        ]))}
         return []
 
     # --- Finance Platforms ---
+    async def _search_finance(self, service: str, query: str, context: Dict[str, Any]) -> List[Dict]:
+        """Search across finance platforms — finance list endpoints have no
+        server-side search param, so pull the recent list and filter
+        client-side (same pattern as _search_dev). Shared by the search()
+        entry and the execute-path search bridge."""
+        fin_service = await context["registry"].get_service_instance(service, context.get("tenant_id", "system"))
+        token = getattr(fin_service, "access_token", None) or context.get("access_token")
+        if not fin_service:
+            return {"status": "error", "message": f"{service} service unavailable"}
+        if service == "stripe":
+            # StripeAdapter.get_charges — the branch used to call
+            # list_payments, a method that exists on no stripe class
+            # (AttributeError on the first live finance search).
+            data = await fin_service.get_charges(limit=25)
+        elif service == "quickbooks":
+            data = await fin_service.get_invoices(token=token)
+        else:
+            data = await fin_service.get_invoices(token)
+        return self._filter_by_query(data, query)
+
     async def _execute_finance(self, service: str, action: str, params: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Handle Stripe, QuickBooks, Xero, Zoho Books via Registry"""
         registry = context.get("registry")
@@ -1111,7 +1861,10 @@ class UniversalIntegrationService:
 
         if service == "stripe":
             if action == "list_payments":
-                return {"status": "success", "data": await fin_service.list_payments(access_token=token, limit=params.get("limit", 10))}
+                # StripeAdapter.get_charges — list_payments exists on no
+                # stripe class (AttributeError class, caught by the parity
+                # test).
+                return {"status": "success", "data": await fin_service.get_charges(limit=params.get("limit", 10))}
             elif action == "get_balance":
                 return {"status": "success", "data": await fin_service.get_balance(access_token=token)}
         elif service == "quickbooks":
@@ -1128,6 +1881,17 @@ class UniversalIntegrationService:
             if action == "list_invoices":
                 return {"status": "success", "data": await fin_service.get_invoices(token)}
         elif service == "zoho_inventory":
+            if action in ("search_items", "search"):
+                # The live search leg the chat tool planner plans when a user
+                # asks about stock ("is the wg-350dsav in stock?"). The service
+                # resolves token/datacenter/org itself and returns slim item
+                # dicts; an empty result flows to the planner's memory fallback.
+                # user_id is required for the per-user token lookup — token
+                # rows are user-keyed, so this previously died on
+                # "no access token available" for every agent turn.
+                return {"status": "success", "data": await fin_service.search_items(
+                    params.get("query", ""), limit=params.get("limit", 8),
+                    user_id=context.get("user_id"))}
             if action == "list_items":
                 return {"status": "success", "data": await fin_service.get_items(token)}
         elif service == "aws_ses":
@@ -1151,12 +1915,15 @@ class UniversalIntegrationService:
         if service == "zoho_crm":
             from integrations.zoho_crm_service import ZohoCRMService
             crm = ZohoCRMService()
+            # ZohoCRMService credentials self-resolve (tenant token lookup);
+            # the token= kwargs here TypeError'd on every call (live
+            # 2026-09-03), so zoho_crm list/deals/create always failed.
             if action in ("list", "get_leads"):
-                return {"status": "success", "data": await crm.get_leads(token=access_token)}
+                return {"status": "success", "data": await crm.get_leads()}
             elif action == "get_deals":
-                return {"status": "success", "data": await crm.get_deals(token=access_token)}
+                return {"status": "success", "data": await crm.get_deals()}
             elif action == "create_lead":
-                return {"status": "success", "data": await crm.create_lead(params.get("data", params), token=access_token)}
+                return {"status": "success", "data": await crm.create_lead(params.get("data", params))}
         elif service == "zoho_mail":
             from integrations.zoho_mail_service import ZohoMailService
             zoho_mail_service = ZohoMailService()
@@ -1193,18 +1960,27 @@ class UniversalIntegrationService:
         """Search across CRM platforms"""
         access_token = context.get("access_token")
         if service == "salesforce":
-            # Search Salesforce (implemented in main search method usually)
-            pass
+            # Delegate to the real implementation (the search() entry's
+            # Salesforce search) — this branch used to be a literal `pass`
+            # that returned [] while the catalog advertised the search.
+            # SOQL entity defaults to contact (the common "find this
+            # company/person" intent); the helper only implements
+            # contact/account SOQL.
+            return await self._search_salesforce(
+                query, context.get("entity_type") or "contact",
+                context.get("user_id"), context)
         elif service == "hubspot":
-            # Search HubSpot
-            pass
+            return await self._search_hubspot(query, None, context)
         elif service == "zoho_crm":
             from integrations.zoho_crm_service import ZohoCRMService
             crm = ZohoCRMService()
-            # Zoho CRM doesn't have a direct simple search in the snippet, 
-            # but we can list and filter or implement COQL. For parity, list and filter.
-            leads = await crm.get_leads(token=access_token)
-            return {"status": "success", "data": [l for l in leads if query.lower() in l.get("Last_Name", "").lower() or query.lower() in l.get("Email", "").lower()]}
+            # List-and-filter: Zoho CRM has no simple text search endpoint at
+            # this integration depth. Self-resolving credential path — the
+            # token= kwarg predates it and TypeError'd on every call (live
+            # 2026-09-03), so planner-planned zoho_crm searches always errored
+            # into the memory fallback.
+            leads = await crm.get_leads()
+            return {"status": "success", "data": self._filter_by_query(leads, query)}
         return {"status": "success", "data": []}
 
     async def _search_support(self, service: str, query: str, context: Dict[str, Any]) -> Dict[str, Any]:
