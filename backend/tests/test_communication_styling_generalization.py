@@ -20,6 +20,7 @@ import os
 os.environ.setdefault("TESTING", "1")
 
 import importlib
+import json
 
 import pytest
 
@@ -141,3 +142,112 @@ class TestSharedHelpers:
             "metadata": "not-json{{{",
         })
         assert rec["content"]
+
+
+class TestStoreChokePoint:
+    """The store-level net: producers that BYPASS the normalizers (projects/
+    sales pipelines, API/webhook ingests building CommunicationData directly)
+    still get styling preservation at ingest_communication /
+    ingest_generic_record."""
+
+    @pytest.fixture
+    def mm(self, tmp_path):
+        from integrations.atom_communication_ingestion_pipeline import (
+            LanceDBMemoryManager,
+        )
+
+        from unittest.mock import MagicMock
+
+        mgr = LanceDBMemoryManager(db_path=str(tmp_path / "mm"), workspace_id="w1")
+        mgr.db = MagicMock()
+        mgr.connections_table = MagicMock()
+        mgr.metadata_table = MagicMock()
+        mgr._update_metadata = lambda *a, **k: None
+        mgr._stored_row_blocked = lambda *a, **k: False
+        mgr._stored_content_blocked = lambda *a, **k: False
+        mgr.embedding_dim = 384
+        mgr.generate_embedding = lambda text: [0.0] * 384
+        return mgr
+
+    def _stored(self, mm, fn, *args, **kw):
+        from unittest.mock import MagicMock
+
+        assert fn(*args, **kw) is True
+        add = mm.connections_table.add
+        calls = [c for c in add.call_args_list if c.args]
+        record = calls[-1].args[0][0]
+        return record, json.loads(record["metadata"])
+
+    def test_bypass_styled_html_gets_normalized_and_kept(self, mm):
+        from datetime import datetime
+
+        from integrations.atom_communication_ingestion_pipeline import (
+            CommunicationData,
+        )
+
+        data = CommunicationData(
+            id="bypass-1", app_type="slack", timestamp=datetime.now(),
+            direction="inbound", sender="s@x", recipient="u",
+            subject=None,
+            content='<div style="font-family:Arial">quote at '
+                    '<a href="https://x.co/q">this link</a></div>',
+            attachments=[], metadata={}, status="active", priority="normal",
+            tags=[],
+        )
+        record, meta = self._stored(mm, mm.ingest_communication, data)
+        assert "this link](https://x.co/q)" in record["content"]
+        assert "html_body" in meta and "font-family" in meta["html_body"]
+
+    def test_bypass_slack_mrkdwn_converted(self, mm):
+        from datetime import datetime
+
+        from integrations.atom_communication_ingestion_pipeline import (
+            CommunicationData,
+        )
+
+        data = CommunicationData(
+            id="bypass-2", app_type="slack", timestamp=datetime.now(),
+            direction="inbound", sender="s@x", recipient="u",
+            subject=None, content="see <https://x.co/q|the quote>",
+            attachments=[], metadata={}, status="active", priority="normal",
+            tags=[],
+        )
+        record, _ = self._stored(mm, mm.ingest_communication, data)
+        assert "[the quote](https://x.co/q)" in record["content"]
+
+    def test_already_normalized_content_idempotent(self, mm):
+        from datetime import datetime
+
+        from integrations.atom_communication_ingestion_pipeline import (
+            CommunicationData,
+        )
+
+        data = CommunicationData(
+            id="bypass-3", app_type="email", timestamp=datetime.now(),
+            direction="inbound", sender="s@x", recipient="u",
+            subject=None, content="normalized text with [l](https://x)",
+            attachments=[],
+            metadata={"html_body": '<div style="f">original</div>'},
+            status="active", priority="normal", tags=[],
+        )
+        record, meta = self._stored(mm, mm.ingest_communication, data)
+        assert record["content"] == "normalized text with [l](https://x)"
+        assert meta["html_body"] == '<div style="f">original</div>'
+
+    def test_generic_record_path_preserves_styling(self, mm):
+        from datetime import datetime
+
+        from integrations.atom_ingestion_pipeline import (
+            AtomRecordData,
+            RecordType,
+        )
+
+        rec = AtomRecordData(
+            id="gen-1", app_type="linear", record_type=RecordType.DOCUMENT,
+            timestamp=datetime.now(),
+            content='<p>spec at <a href="https://x.co/s">spec doc</a></p>',
+            metadata={},
+        )
+        record, meta = self._stored(mm, mm.ingest_generic_record, rec)
+        assert "spec doc](https://x.co/s)" in record["content"]
+        assert "html_body" in meta

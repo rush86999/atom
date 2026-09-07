@@ -167,3 +167,30 @@ def _non_html_rich_payload(message_data: Dict[str, Any]) -> Optional[str]:
     except Exception:
         return None
     return None
+
+
+def apply_styling_preservation(
+    content: Any, metadata: Optional[Dict[str, Any]]
+) -> Tuple[str, Dict[str, Any]]:
+    """Final safety net for the store choke point: ANY producer reaching the
+    store with style-bearing markup gets the normalized treatment even if it
+    bypassed the per-app normalizers (projects/sales pipelines, API/webhook
+    ingests).
+
+    - Content already normalized upstream (metadata carries html_body /
+      raw_markup) → idempotent link sweep only; raw is never duplicated.
+    - Content is style-bearing HTML → stored text becomes the link-preserving
+      conversion and the original lands in metadata.html_body (capped).
+    - Anything else → link sweep (no-op for plain text). Never raises.
+    """
+    meta = metadata if isinstance(metadata, dict) else {}
+    text = content if isinstance(content, str) else str(content or "")
+    try:
+        if meta.get("html_body") or meta.get("raw_markup"):
+            return preserve_links(text), meta
+        key, raw = extract_raw_markup(text, {}, None)
+        if key and raw:
+            return html_to_text(text), {**meta, key: raw}
+        return preserve_links(text), meta
+    except Exception:
+        return text, meta

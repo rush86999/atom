@@ -98,6 +98,7 @@ _HTML_WS_RE = _re_mod.compile(r"[ \t]*\n[ \t\n]*")
 # Module-level aliases keep the historical names importable from here.
 from core.communication_styling import (  # noqa: E402
     MAX_RAW_CHARS as _MAX_INGEST_HTML_CHARS,
+    apply_styling_preservation as _apply_styling_preservation,
     extract_raw_markup as _extract_raw_markup,
     html_to_text as _shared_html_to_text,
     preserve_links as _preserve_links_general,
@@ -889,6 +890,14 @@ class LanceDBMemoryManager:
                 )
                 return True
 
+            # Styling preservation net (ALL apps): producers that bypass the
+            # per-app normalizers (projects/sales pipelines, API/webhook
+            # ingests) get the same treatment here — idempotent for content
+            # a normalizer already processed.
+            data.content, data.metadata = _apply_styling_preservation(
+                data.content, data.metadata
+            )
+
             # Convert to record
             record = {
                 "id": data.id,
@@ -940,6 +949,12 @@ class LanceDBMemoryManager:
                     f"already present in store (cross-process guard)"
                 )
                 return True
+
+            # Styling preservation net — same contract as
+            # ingest_communication, for the unified-record path.
+            record_data.content, record_data.metadata = _apply_styling_preservation(
+                record_data.content, record_data.metadata
+            )
 
             # Map AtomRecordData to a format compatible with atom_communications table
             record = {
