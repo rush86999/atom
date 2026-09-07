@@ -792,6 +792,108 @@ async def _ingested_mailbox_lines(
 _PRODUCT_TOKEN_RE = re.compile(
     r"\b(?=[A-Za-z-]*\d)(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9][A-Za-z0-9-]{4,}\b"
 )
+_STYLED_BODY_BLOCK_CAP = 6000
+
+
+def _candidate_addresses(user_id, query, context=None, limit: int = 3) -> List[str]:
+    """Email addresses named in the query or the last few history turns —
+    the same haystack _ingested_mailbox_lines uses, so the styled-base
+    lookup agrees with the listing about WHO the conversation is about."""
+    import re as _re_addr
+
+    hay = (query or "") + " " + " ".join(
+        _entry_text(m) for m in ((context or {}).get("history") or [])[-6:]
+    )
+    out: List[str] = []
+    for addr in _re_addr.findall(r"[\w.+-]+@[\w.-]+", hay):
+        if addr.lower() not in [x.lower() for x in out]:
+            out.append(addr.lower())
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _latest_styled_ingested(user_id, addresses: List[str]) -> Optional[Dict[str, str]]:
+    """Newest ingested message among ``addresses`` carrying style-bearing
+    raw HTML. Ingestion persists every comm app's original markup under
+    metadata.html_body (core.communication_styling, store choke point) —
+    this surfaces it so the model can base a NEW draft on the REAL styled
+    message instead of retyping from a 220-char text snippet. Lance filter
+    on the (now internal) store, off-loop; fault-isolated → None."""
+    if not addresses:
+        return None
+    try:
+        import json as _json
+
+        import lancedb
+
+        base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
+        table = lancedb.connect(str(base / "default")).open_table(
+            "atom_communications"
+        )
+        rows = table.to_arrow().to_pandas().sort_values(
+            "timestamp", ascending=False
+        )
+        for _, row in rows.iterrows():
+            blob = (str(row.get("sender") or "") + " " + str(row.get("recipient") or "")).lower()
+            if not any(a in blob for a in addresses):
+                continue
+            meta = row.get("metadata")
+            if isinstance(meta, str):
+                try:
+                    meta = _json.loads(meta)
+                except Exception:
+                    continue
+            html = (meta or {}).get("html_body") if isinstance(meta, dict) else None
+            if html and "<" in str(html):
+                return {
+                    "sender": str(row.get("sender") or "?"),
+                    "subject": str(row.get("subject") or ""),
+                    "html": str(html)[:_STYLED_BODY_BLOCK_CAP],
+                }
+        return None
+    except Exception as e:
+        logger.debug(f"styled ingested body lookup skipped: {e}")
+        return None
+
+
+def _styled_base_section(styled: Optional[Dict[str, str]]) -> str:
+    """Prompt section that hands the model a real styled message as a draft
+    BASE. Copying the markup (not retyping from a snippet) is the point —
+    the canvas and send path preserve raw HTML end to end."""
+    if not styled:
+        return ""
+    return (
+        f"\n\nSTYLED HTML BODY — newest styled message matching this lookup "
+        f"(From: {styled.get('sender')} | {str(styled.get('subject') or '')[:90]}). "
+        "To base a NEW draft on it: copy this markup as the canvas body and edit "
+        "the wording in place; keep the styling tags intact (the canvas and send "
+        "path preserve raw HTML):\n"
+        + str(styled.get("html") or "")
+    )
+
+
+def _graph_styled_fallback(emails: List[Dict[str, Any]]) -> Optional[Dict[str, str]]:
+    """Top-ranked live Graph hit whose body is styled HTML — the base when
+    the ingested store has no styled copy for this participant."""
+    try:
+        from core.communication_styling import has_style_markup
+    except Exception:
+        return None
+    for e in emails[:2]:
+        body = e.get("body") or {}
+        content = str(body.get("content") or "")
+        if str(body.get("contentType") or "").lower() == "html" and has_style_markup(content):
+            return {
+                "sender": (
+                    ((e.get("from_field") or {}).get("emailAddress") or {}).get("address")
+                    or "?"
+                ),
+                "subject": str(e.get("subject") or ""),
+                "html": content[:_STYLED_BODY_BLOCK_CAP],
+            }
+    return None
+
 _HEX_COLOR_RE = re.compile(r"^[0-9A-Fa-f]{6}$")
 
 
@@ -1457,9 +1559,21 @@ async def execute_tool_plan(
             )
             if graph_listing:
                 listing = (listing + "\n" if listing else "") + graph_listing
+            # Styled-draft base: the newest ingested message for this
+            # participant carries its original markup (metadata.html_body);
+            # when the store has none, the top live hit's Graph HTML body
+            # stands in. Without this the model only ever sees a 200-char
+            # text preview and CANNOT honor "draft a new email that looks
+            # like that message".
+            styled_section = _styled_base_section(
+                _latest_styled_ingested(
+                    user_id, _candidate_addresses(user_id, query, context)
+                )
+            ) or _styled_base_section(_graph_styled_fallback(emails))
             return _with_grounding(
                 f"LIVE TOOL RESULTS (outlook.search_emails, query='{query}') — "
                 f"use these to answer:\n{listing}"
+                f"{styled_section}"
             )
         except Exception as e:
             logger.warning(f"outlook tool execution failed: {e}")
@@ -1570,12 +1684,18 @@ async def execute_tool_plan(
             if service in _COMMUNICATION_SERVICES:
                 mail_lines = await _ingested_mailbox_lines(user_id, query, context)
                 if mail_lines:
+                    styled_section = _styled_base_section(
+                        _latest_styled_ingested(
+                            user_id, _candidate_addresses(user_id, query, context)
+                        )
+                    )
                     return _with_grounding(
                         f"LIVE TOOL RESULTS ({service}.{action}, query='{query}'): "
                         f"the live {service} search returned nothing usable "
                         f"({reason}). INGESTED MAILBOX matches (deterministic "
                         f"sender/recipient lookup over the workspace's own "
                         f"copies):\n" + "\n".join(mail_lines)
+                        + styled_section
                     )
                 # Store has nothing either: an empty SUCCESS from an
                 # AND-semantics provider is usually one common token zeroing
@@ -1664,6 +1784,11 @@ async def execute_tool_plan(
             # app the planner picked.
             mail_lines = await _ingested_mailbox_lines(user_id, query, context, cap=4)
             if mail_lines:
+                styled_section = _styled_base_section(
+                    _latest_styled_ingested(
+                        user_id, _candidate_addresses(user_id, query, context)
+                    )
+                )
                 return _with_grounding(
                     f"LIVE TOOL RESULTS ({service}.{action}, query='{query}') — "
                     f"INGESTED MAILBOX matches first (deterministic "
@@ -1672,6 +1797,7 @@ async def execute_tool_plan(
                     + f"\n\nLive {service} results (supplemental — provider "
                     f"relevance ranking, known to miss sender addresses):\n"
                     f"{str(data)[:1800]}"
+                    + styled_section
                 )
         return _with_grounding(header)
     except Exception as e:

@@ -417,3 +417,20 @@ opencode 50GB, antigravity trio + pair ~21GB, .claude/projects 8GB (all symlinke
 work while the drive is mounted), chromium snapshots. Internal free: 125Gi (was 56Gi at start,
 after adding the 31GB memory store back). Single-copy caveat: the drive now holds the ONLY copy
 of the relocated data; the symlinks resolve only while it is mounted.
+
+## 2026-09-07 ~13:20 ET — ZCode: agent can now base NEW drafts on real styled messages
+
+Owner request: "agent can get styled email or other messages and create it as base for
+drafting new emails or messages". Gap found: comm tool blocks only surfaced 200/220-char
+TEXT previews (outlook graph_listing body_preview; ingested-mailbox lines) — the styled
+markup ingestion preserves (metadata.html_body, store choke point) never reached the model,
+so "draft a new one styled like that message" was impossible.
+
+Fix (core/chat_tool_planner.py): STYLED HTML BODY section appended to the outlook block
+(ingested store's newest matching metadata.html_body first — `_latest_styled_ingested`,
+address candidates from query+history; fallback = top Graph hit's HTML body.content) and to
+both universal comm branches (live-miss + success-with-ingested-leads). Section instructs:
+copy the markup as the canvas body and edit the wording; canvas + send preserve raw HTML
+(funnel `normalize_email_content` passes HTML through; composer sanitizer allows style).
+Block cap 6000 chars. Tests: tests/test_tool_planner_styled_base.py (5) + the 3 existing
+planner suites 28 green. Backend restarted.
