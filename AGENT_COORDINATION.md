@@ -260,3 +260,23 @@ no-inheritance, owner-filter), `tests/core/test_knowledge_spotlighting.py` 10/10
 threading), assembler/agents/status/memory-index 126/126. py_compile clean. fetch-state file
 pollution made the new-owner test order-sensitive — the test now clears its own per-owner key
 first (test residue under `backend/data/` is gitignored).
+
+---
+
+## 2026-09-03 - Codex session: localhost login unavailable
+
+**Context**: User reported `/login?callbackUrl=http://localhost:3000/dashboard`
+showing "Invalid email or password" for `admin@example.com` / `securePass123`,
+with logs showing `ECONNREFUSED` to backend `localhost:8001`.
+
+**Findings/fix**: No backend process was listening on `:8001`; the frontend dev
+server was already listening on `:3000` (node PID 17276). Started the backend on
+`127.0.0.1:8001` with `ADMIN_PASSWORD=securePass123`, which reset the local
+`admin@example.com` row. Added gitignored `frontend-nextjs/.env.local` with
+`NEXT_PUBLIC_API_URL=http://localhost:8001`; updated
+`backend/logs/bootstrap_admin_password.txt` to match the active local password.
+
+**Verification**: `POST http://127.0.0.1:8001/api/auth/login` returned an
+access token. Browser-facing proxy `POST http://127.0.0.1:3000/api/auth/login`
+also returned an access token. `GET http://127.0.0.1:3000/login?...` returned
+200.
