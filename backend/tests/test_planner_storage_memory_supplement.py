@@ -440,6 +440,97 @@ class TestQueryAnchoredExcerpt:
         excerpt = _query_anchored_excerpt(text, "alpha beta gamma")
         assert "gamma" in excerpt
 
+    # ---- sheet-anchor branch (live workbook shapes) --------------------
+
+    @staticmethod
+    def _pricebook_text(target_row: int = 45) -> str:
+        """LINMAC-like price book: wide numeric rows (real parsed rows run
+        ~300 chars of computed pricing columns) so the WG350DSAV row begins
+        ~12k chars into its sheet — well past both the old 4k head window
+        and a head-sized read. A HECK sheet sits FIRST: 'heck' ⊂ 'check'
+        must not let 'check the price' queries anchor there."""
+        def row(i, code, desc, price):
+            cells = "|".join(f"{i * 13.7 * k:.8f}" for k in range(1, 18))
+            return f"R{i} | {code} | {desc} | {price} | {cells}\n"
+
+        body = (
+            "R1 | Linmac Machinery \"B\" |  | 1.38\n"
+            "R2 | Part Number | Description | List Price | Weight"
+            " | US NET | Exch | QPS | Freight | Landed\n"
+        )
+        body += "".join(
+            row(i, f"WV-310DSV-{i}", "Dual Miter Bandsaw 575V 3Ph", 10405 + i)
+            for i in range(3, target_row))
+        linmac = (
+            "=== Sheet: LINMAC ===\n" + body
+            + row(target_row, "WG350DSAV",
+                  "Bandsaw 230V/3PH Linmac 10.5 Double Miter", 14145)
+            + row(target_row + 1, "Lathes", " | 0", 0)
+            + "\n=== Sheet: OTHER ===\nR1 | misc\n")
+        return ("=== Sheet: HECK ===\nR1 | HECK INDUSTRIES\n"
+                + linmac)
+
+    def test_sheet_anchor_reaches_row_beyond_head_and_window(self):
+        """Live 2026-09-07: 'consolidated price list 2019 linmac bandsaw'
+        anchored the LINMAC sheet correctly, but the excerpt was a fixed
+        4k window from the sheet start and WG350DSAV (List 14145) began
+        ~4.2k chars in — the read ended ONE ROW short (R16) and the agent
+        again reported the row unreadable. The sheet anchor must follow
+        the query's tokens INTO the sheet."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        text = self._pricebook_text()
+        assert len(text.split("WG350DSAV")[0]) > 12_000  # past head AND window
+        excerpt = _query_anchored_excerpt(
+            text, "consolidated price list 2019 linmac bandsaw")
+        assert "excerpt from the 'LINMAC' sheet" in excerpt
+        assert "WG350DSAV" in excerpt
+        assert "14145" in excerpt
+
+    def test_deep_anchor_keeps_column_headers(self):
+        """Header + row (spreadsheet-retrieval consensus): a deep-anchored
+        window must carry the sheet's header block, or the model sees the
+        row's numbers without the column names and cannot tell the List
+        Price column from Weight."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        excerpt = _query_anchored_excerpt(
+            self._pricebook_text(),
+            "consolidated price list 2019 linmac bandsaw")
+        assert "List Price" in excerpt.split("WG350DSAV")[0]
+
+    def test_query_verb_does_not_hijack_a_similar_sheet_name(self):
+        """'check the price…' must not anchor the HECK sheet: 'heck' ⊂
+        'check' passed the old name-containment check, and HECK sits before
+        LINMAC in document order, so the whole read landed on the wrong
+        sheet (live 2026-09-07 query variant)."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        excerpt = _query_anchored_excerpt(
+            self._pricebook_text(),
+            "check the price of the linmac bandsaw")
+        assert "excerpt from the 'HECK' sheet" not in excerpt
+        assert "WG350DSAV" in excerpt
+
+    def test_brand_line_loses_tie_to_data_row(self):
+        """'linmac' alone keys both the brand title line and the WG350DSAV
+        data row (same single token, same rarity); the data row — dense
+        with the numeric cells the question is about — must win."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        excerpt = _query_anchored_excerpt(self._pricebook_text(), "linmac")
+        assert "Linmac Machinery" in excerpt      # head block still shipped
+        assert "WG350DSAV" in excerpt             # data row anchored
+        assert "14145" in excerpt
+
 
 class TestOutlookEmptyFallback:
     async def test_outlook_empty_returns_ingested_matches(self, mem_block):

@@ -48,15 +48,20 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
 
     SHEET ANCHOR before that: our Excel parsers emit per-sheet markers
     (``=== Sheet: NAME ===`` / ``--- Sheet: NAME ---``). When a query token
-    names a SHEET, anchor at that sheet's start and read forward — the
-    rarest-token path cannot express "the region this token NAMES" because
-    the token's first occurrences are the workbook index at the file head
-    and brand-name rows in unrelated sheets (live 2026-09-06: "check
-    Consolidated Price List 2019 for the Linmac bandsaw price" anchored on
-    the index's LINMAC line ~3k chars in; the WG350DSAV row sat at 58% of a
-    3.4M-char text — the agent saw sheet headers and reported the row
-    unreadable). Hyphenated model tokens also try their compacted form
-    ("wg-350dsav" → "wg350dsav" as the workbook spells it).
+    names a SHEET, the excerpt comes from that sheet — the rarest-token
+    path cannot express "the region this token NAMES" because the token's
+    first occurrences are the workbook index at the file head and brand-name
+    rows in unrelated sheets (live 2026-09-06: "check Consolidated Price
+    List 2019 for the Linmac bandsaw price" anchored on the index's LINMAC
+    line ~3k chars in; the WG350DSAV row sat at 58% of a 3.4M-char text —
+    the agent saw sheet headers and reported the row unreadable). Within
+    the sheet the anchor follows the query's OTHER tokens (the model code)
+    rather than the sheet head: a price-book sheet runs tens of thousands
+    of chars, and the wanted row can begin just past a head-sized window
+    (live 2026-09-07: WG350DSAV row 17 began ~4.2k chars into LINMAC — one
+    row past the head window, again "unreadable"). Hyphenated model tokens
+    also try their compacted form ("wg-350dsav" → "wg350dsav" as the
+    workbook spells it).
     """
     text = text or ""
     import re as _re
@@ -72,6 +77,7 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
     uniq = set(tokens)
     if not uniq:
         return text[:excerpt_chars]
+    counts = {t: lower.count(t) for t in uniq}
 
     # Sheet-name anchor: query token names a sheet in the parsed body.
     sheet_hits = list(_re.finditer(
@@ -82,17 +88,91 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
             sheet_name = _re.sub(r"[^a-z0-9]+", "", m.group(1).lower())
             matched_token = next(
                 (tok for compacted, tok in compact.items()
-                 if len(compacted) >= 4 and len(sheet_name) >= 3
-                 and (compacted in sheet_name or sheet_name in compacted)),
+                 if len(sheet_name) >= 3
+                 and (compacted == sheet_name
+                      # containment needs BOTH sides ≥5: "heck" ⊂ "check"
+                      # must not route a "check the price" query to the
+                      # HECK sheet (live 2026-09-07 query variant)
+                      or (len(compacted) >= 5 and len(sheet_name) >= 5
+                          and (compacted in sheet_name
+                               or sheet_name in compacted)))),
                 None,
             )
             if matched_token:
-                start = min(len(text) - 1, m.start() + 1)
-                end = min(len(text), start + excerpt_chars)
+                # The row the question asks about may sit far past the sheet
+                # head — the LINMAC price list's WG350DSAV row begins ~4.2k
+                # chars into its sheet, just past a head window, so the
+                # anchor-at-sheet-start read ended ONE ROW short and the
+                # agent again reported the row unreadable (live 2026-09-07:
+                # 'consolidated price list 2019 linmac bandsaw'). Two-stage
+                # sheet→row anchor, the shape mature spreadsheet-retrieval
+                # stacks converge on (select the named sheet, locate the
+                # row, ship it with the sheet's header block so the column
+                # values are attributable). Parsed rows ARE lines: candidate
+                # lines hold the sheet-identifying token (matched_token);
+                # among them pick most distinct query tokens, then rarest
+                # token set, then digit-densest (data row beats brand-title
+                # line), then earliest.
+                sheet_start = min(len(text) - 1, m.start() + 1)
+                next_m = next(
+                    (s for s in sheet_hits if s.start() > m.start()), None)
+                sheet_end = next_m.start() if next_m else len(text)
+                lines = []
+                for line_m in _re.finditer(r"[^\n]+\n", text[m.end():sheet_end]):
+                    line_raw = line_m.group(0)
+                    toks = frozenset(
+                        t for t in uniq if t in line_raw.lower())
+                    if toks:
+                        lines.append((
+                            line_m.start() + m.end(),
+                            toks,
+                            sum(c.isdigit() for c in line_raw),
+                        ))
+                best_line = None
+                if lines:
+                    # The token that IDENTIFIED the sheet keys the row
+                    # search — "the region this token names". Global counts
+                    # would misfire on small workbooks where header
+                    # boilerplate ("price") is nominally rarer than the
+                    # brand (live-shape repro: one-sheet book, price=1 <
+                    # linmac=2 → anchored the header line, row lost).
+                    keyed = [
+                        (pos, toks, digits) for pos, toks, digits in lines
+                        if matched_token in toks]
+                    if keyed:
+                        # Digit count breaks the brand-title-vs-data-row
+                        # tie: "R1 | Linmac Machinery" and the WG350DSAV
+                        # row both carry just "linmac" for a linmac-only
+                        # query, but only one holds the price.
+                        best_line, _, _ = max(
+                            keyed,
+                            key=lambda item: (
+                                len(item[1]),
+                                -sum(counts[t] for t in item[1]),
+                                item[2],
+                                -item[0],
+                            ),
+                        )
+                # A query that NAMES a sheet wants that sheet's content, and
+                # price-book sheets run 10k+ chars — the old 4k cap is what
+                # cut R17 off. Head stays the fallback ("open the LINMAC
+                # sheet" legitimately reads from the top).
+                start = max(sheet_start, best_line - 200) \
+                    if best_line is not None else sheet_start
+                end = min(sheet_end, start + 12_000)
+                excerpt_body = text[start:end]
+                head_chars = 800  # title + column-header rows
+                if start > sheet_start + head_chars:
+                    # Header + row: ship the sheet's head block ahead of a
+                    # deep-anchored window so the row's numbers have their
+                    # column names attached.
+                    excerpt_body = (
+                        text[sheet_start:sheet_start + head_chars]
+                        + "\n…\n" + excerpt_body)
                 suffix = " …" if end < len(text) else ""
                 return (
                     f"[excerpt from the '{m.group(1).strip()}' sheet] "
-                    f"{text[start:end]}{suffix}"
+                    f"{excerpt_body}{suffix}"
                 )
 
     # Rare-token/coverage anchors search the sheet BODIES, not the workbook
@@ -104,7 +184,6 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
         body_m = _re.search(r"\n(?:===|---) Sheet: ", text[index_m.end():])
         if body_m:
             body_start = index_m.end() + body_m.start() + 1
-    counts = {t: lower.count(t) for t in uniq}
     # Anchor only on tokens PRESENT in the text: an enriched context token
     # may name a different product entirely (count 0) — anchoring on it
     # would land on the head and be worse than coverage scoring.
