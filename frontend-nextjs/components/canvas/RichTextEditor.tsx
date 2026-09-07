@@ -275,6 +275,78 @@ export default function RichTextEditor({
     exec("createLink", url);
   };
 
+  // "Default color" reset — strips explicit text color from the selection so
+  // it goes back to following the surface (black-on-white light, white-on-
+  // black dark). execCommand("foreColor", "inherit") is a silent no-op in
+  // Chromium, so the reset is real DOM surgery on what this editor emits:
+  // <font color> wrappers are unwrapped and inline color styles dropped.
+  // extractContents (not clone+delete) matters: it splits partially selected
+  // colored wrappers, so the reset middle stays clean while the untouched
+  // before/after halves keep their color. The emitted HTML carries no color
+  // on reset text — recipients' clients render their default (black).
+  const resetTextColor = () => {
+    // Read the range BEFORE any focus() — focus can collapse the selection
+    // (jsdom always does; Chromium restores it, but don't rely on that).
+    const readRange = () => {
+      const s = window.getSelection();
+      return s && s.rangeCount ? s.getRangeAt(0) : null;
+    };
+    let range = readRange();
+    const inEditor =
+      !!range && !!ref.current && ref.current.contains(range.commonAncestorContainer);
+    if (!inEditor) {
+      ref.current?.focus();
+      range = readRange();
+    }
+    if (!range) {
+      emit();
+      return;
+    }
+    if (range.collapsed) {
+      // Caret only: clear the pending formatting state for next typed text.
+      try {
+        document.execCommand("removeFormat");
+      } catch {
+        // jsdom / unsupported — nothing pending to clear there anyway
+      }
+      emit();
+      return;
+    }
+    try {
+      const frag = range.extractContents();
+      frag.querySelectorAll?.("font[color]").forEach((f) => {
+        const parent = f.parentNode;
+        if (parent) {
+          while (f.firstChild) parent.insertBefore(f.firstChild, f);
+          parent.removeChild(f);
+        }
+      });
+      frag.querySelectorAll?.("[style]").forEach((el) => {
+        (el as HTMLElement).style.removeProperty("color");
+        if (!(el as HTMLElement).getAttribute("style")) {
+          el.removeAttribute("style");
+        }
+      });
+      range.insertNode(frag);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      if (frag.lastChild) {
+        const caret = document.createRange();
+        caret.setStartAfter(frag.lastChild);
+        caret.collapse(true);
+        sel?.addRange(caret);
+      }
+      ref.current?.focus();
+    } catch {
+      try {
+        document.execCommand("removeFormat");
+      } catch {
+        // last-resort fallback was best-effort too
+      }
+    }
+    emit();
+  };
+
   // Shade the table cell the caret is in; outside a table, fall back to an
   // inline text highlight so the control still does something useful.
   const applyShading = (color: string) => {
@@ -384,9 +456,10 @@ export default function RichTextEditor({
             type="button"
             title={c.value ? `Text color ${c.value}` : "Default color"}
             aria-label={c.value ? `Text color ${c.value}` : "Default color"}
-            className={`${toolbarBtn} font-bold`}
+            data-testid={c.value ? undefined : `${testIdPrefix}-default-color`}
+            className={c.value ? `${toolbarBtn} font-bold` : `${toolbarBtn} font-bold text-zinc-900 dark:text-zinc-100`}
             style={{ color: c.value || undefined }}
-            onClick={() => exec("foreColor", c.value || "inherit")}
+            onClick={() => (c.value ? exec("foreColor", c.value) : resetTextColor())}
           >
             A
           </button>

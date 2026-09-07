@@ -193,3 +193,26 @@ describe("RichTextEditor theme contract", () => {
     expect(editor.className).toContain("rte-surface");
   });
 });
+
+describe("RichTextEditor Default color reset", () => {
+  it("strips explicit text color so text follows the theme default again", () => {
+    const onChange = jest.fn();
+    render(
+      <RichTextEditor
+        value={'<font color="#e03131">red text here</font>'}
+        onChange={onChange}
+        testIdPrefix="dcolor"
+      />
+    );
+    const editor = screen.getByTestId("dcolor-editor");
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    fireEvent.click(screen.getByTestId("dcolor-default-color"));
+    const emitted = onChange.mock.calls[onChange.mock.calls.length - 1][0] as string;
+    expect(emitted).not.toContain("color");
+    expect(emitted).toContain("red text here");
+  });
+});
