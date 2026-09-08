@@ -97,6 +97,7 @@ async def test_threaded_reply_with_verified_price_passes():
             "body": "Confirmed: $1,250.",
             "price_verified": True,
             "price_source": "price list",
+            "item_model": "SR48P",
         },
         _ctx(reg),
     )
