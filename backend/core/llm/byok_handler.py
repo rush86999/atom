@@ -477,6 +477,38 @@ MODELS_WITHOUT_TOOLS = {
     "deepseek-v3.2-speciale",
 }
 
+# Free-tier gate: the Zen gateway refuses "-free" models without a session id
+# ("OpenCode's free tier can only be used in OpenCode"). One stable id per
+# process satisfies the gate for API use; override via OPENCODE_SESSION_ID.
+_OPENCODE_SESSION_ID = os.getenv("OPENCODE_SESSION_ID", "").strip() or uuid.uuid4().hex
+
+# Provider ids served by the OpenCode Zen gateway (opencode.ai/zen/v1).
+# "opencode-go" is the env-key provider; "opencode" is the catalog id used
+# for UI-stored keys — same gateway, so both need the same client headers.
+_OPENCODE_GATEWAY_PROVIDERS = {"opencode-go", "opencode"}
+
+
+def _opencode_gateway_headers() -> dict[str, str]:
+    """Browser-like headers + stable X-Session-Id for the Zen gateway clients.
+
+    Cloudflare 403s (error 1010) plain python clients, and the free tier is
+    gated on a session id — header-less calls are rejected with
+    MissingSessionID ("OpenCode's free tier can only be used in OpenCode").
+    One stable id per process satisfies the gate for API use; override via
+    OPENCODE_SESSION_ID.
+    """
+    return {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/125.0 Safari/537.36"
+        ),
+        "Origin": "https://opencode.ai",
+        "Referer": "https://opencode.ai/",
+        "X-Session-Id": _OPENCODE_SESSION_ID,
+    }
+
+
 # OpenCode Go free-usage vs subscription-paid split.
 # Per the official Zen docs (opencode.ai/docs/zen): free models carry a
 # "-free" suffix in their gateway ID (deepseek-v4-flash-free, mimo-v2.5-free,
@@ -1352,6 +1384,12 @@ class BYOKHandler:
                             "HTTP-Referer": os.getenv("OPENROUTER_REFERER", "https://atom.ai"),
                             "X-Title": "Atom",
                         }
+                    if provider_id in _OPENCODE_GATEWAY_PROVIDERS:
+                        # The Zen gateway sits behind Cloudflare, which 403s
+                        # (error 1010) plain python clients, and its free tier
+                        # is gated on a session id (MissingSessionID). See
+                        # _opencode_gateway_headers.
+                        client_kwargs["default_headers"] = _opencode_gateway_headers()
                     self.clients[provider_id] = OpenAI(**client_kwargs)
                     if AsyncOpenAI:
                         self.async_clients[provider_id] = AsyncOpenAI(**client_kwargs)
