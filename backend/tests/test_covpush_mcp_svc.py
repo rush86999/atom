@@ -1611,13 +1611,32 @@ class TestExecuteToolUniversal:
         assert result == {"status": "success"}
 
     @pytest.mark.asyncio
-    async def test_search_emails_default_gmail(self, svc, monkeypatch):
+    async def test_search_emails_default_all_mail_providers(self, svc, monkeypatch):
+        """No platform => every mail provider is searched (description says
+        'across Gmail, Outlook, and Zoho Mail'); gmail-only silently missed
+        mail that lived in Outlook."""
         cls, inst = _fake_universal_cls(execute_result={"status": "success"})
         monkeypatch.setattr("integrations.universal_integration_service.UniversalIntegrationService", cls)
         result = await svc.execute_tool(
             "local-tools", "search_emails", {"query": "q"}, {}
         )
-        assert result == {"gmail": {"status": "success"}}
+        assert result == {
+            "gmail": {"status": "success"},
+            "outlook": {"status": "success"},
+            "zoho_mail": {"status": "success"},
+        }
+
+    @pytest.mark.asyncio
+    async def test_search_emails_surfaces_provider_failures(self, svc, monkeypatch):
+        """Per-provider failures are surfaced (not swallowed) so the agent can
+        tell 'no results' apart from 'not connected'."""
+        cls, inst = _fake_universal_cls(execute_raises=Exception("boom"))
+        monkeypatch.setattr("integrations.universal_integration_service.UniversalIntegrationService", cls)
+        result = await svc.execute_tool(
+            "local-tools", "search_emails", {"query": "q"}, {}
+        )
+        assert set(result) == {"gmail", "outlook", "zoho_mail"}
+        assert all(v["status"] == "error" and v["error"] == "boom" for v in result.values())
 
     @pytest.mark.asyncio
     async def test_unified_communication_search_all_fail(self, svc, monkeypatch):
