@@ -295,6 +295,24 @@ def _reply_claims_inability(text: str) -> bool:
     return bool(_INABILITY_RE.search(text))
 
 
+def _reply_is_generic_non_answer(reply: str, message: str) -> bool:
+    """True when a reply is so short AND shares no content word with the
+    request that it cannot be answering it (live 2026-09-08: "web research
+    lead's bandsaw … compare" got back "I've processed your request across
+    all connected platforms." — 55 chars, zero overlap, while search
+    evidence sat in the prompt). Conservative by construction: requires a
+    tool block (checked by the caller), a short reply, and no overlap of
+    any 3+ char word; a substantive answer to a research ask names the
+    subject, so healthy replies never trip this."""
+    if not reply or len(reply) > 200:
+        return False
+    reply_words = set(re.findall(r"[a-z0-9]{3,}", reply.lower()))
+    if not reply_words:
+        return True
+    message_words = set(re.findall(r"[a-z0-9]{3,}", (message or "").lower()))
+    return not reply_words.intersection(message_words)
+
+
 def _tool_failure_block(planned: str) -> str:
     """Prompt block injected when a PLANNED live lookup failed or timed out.
 
@@ -1454,6 +1472,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # failed attempts — results placed before them lost to recency.
             _tool_block: Optional[str] = None
             _planned: Optional[str] = None
+            # Timer for the "[stage-timing] reply generation" log. The plan
+            # branch re-anchors it; the prefetched path (blackboard reuse)
+            # never enters that branch, so it needs a value up front — the
+            # unbound-variable crash here took down the whole reply path
+            # and pushed the turn into the legacy intent-router fallback
+            # (live 2026-09-08: "I've processed your request across all
+            # connected platforms.").
+            _plan_t0 = time.monotonic()
             _step_n = 0
 
             async def _trace(step_type: str, action: Optional[Dict[str, Any]], observation: str,
@@ -1667,7 +1693,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "type": "chat_token",
                             "data": {
                                 "session_id": session_id,
-                                "execution_id": _execution_id,
+                                "execution_id": execution_id,
                                 "delta": _tok,
                             },
                         })
@@ -1736,6 +1762,37 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not _reply_claims_inability(_fixed):
+                                _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
+                        # NON-RESPONSIVE GUARD: a reply this short that shares
+                        # NO content word with the request cannot be answering
+                        # it (live 2026-09-08: "web research lead's bandsaw …
+                        # compare" got back "I've processed your request
+                        # across all connected platforms.") — especially with
+                        # search evidence sitting in the prompt. One
+                        # regeneration anchored on the user's actual ask.
+                        elif (_tool_block
+                              and _reply_is_generic_non_answer(_streamed, message)):
+                            logger.warning(
+                                "streamed reply is a generic non-answer despite "
+                                "tool results — grounded regeneration")
+                            messages.append({"role": "system", "content": (
+                                "Your previous reply was a generic non-answer "
+                                "(it did not address what the user asked and "
+                                "ignored the research evidence above it). "
+                                "Regenerate: answer the user's ACTUAL request "
+                                "in full, grounded in the LIVE TOOL RESULTS "
+                                "where relevant — real findings, real numbers, "
+                                "no platform-status filler."
+                            )})
+                            _fix = await self.llm_service.generate_completion(
+                                messages=messages,
+                                model=forced_model,
+                                tenant_id=self.tenant_id,
+                                **extra_kwargs,
+                            )
+                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            if _fixed and not _reply_is_generic_non_answer(_fixed, message):
                                 _streamed = _fixed
                                 _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
                         # EVIDENCE GUARD: the request asked to confirm/verify
@@ -1838,7 +1895,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "type": "chat_token_done",
                             "data": {
                                 "session_id": session_id,
-                                "execution_id": _execution_id,
+                                "execution_id": execution_id,
                                 "content": _streamed,
                                 "elapsed_s": round(_time.monotonic() - _t0, 1),
                             },
@@ -1930,6 +1987,29 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "conversation where you can, state plainly what "
                         "you could not verify this turn, and offer to "
                         "retry — never claim the tool does not exist."
+                    )})
+                    response_data = await self.llm_service.generate_completion(
+                        messages=messages,
+                        model=forced_model,
+                        tenant_id=self.tenant_id,
+                        **extra_kwargs,
+                    )
+                    _content = _strip_protocol_tags(
+                        (response_data or {}).get("content"))
+                # NON-RESPONSIVE GUARD (non-streaming path): same short
+                # zero-overlap reply detection as the streaming path.
+                elif (_tool_block
+                      and _reply_is_generic_non_answer(_content, message)):
+                    logger.warning(
+                        "reply is a generic non-answer despite tool results — "
+                        "grounded regeneration")
+                    messages.append({"role": "system", "content": (
+                        "Your previous reply was a generic non-answer "
+                        "(it did not address what the user asked and ignored "
+                        "the research evidence above it). Regenerate: answer "
+                        "the user's ACTUAL request in full, grounded in the "
+                        "LIVE TOOL RESULTS where relevant — real findings, "
+                        "real numbers, no platform-status filler."
                     )})
                     response_data = await self.llm_service.generate_completion(
                         messages=messages,

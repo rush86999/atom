@@ -392,6 +392,22 @@ async def _escalate_declined_web_research(
     if "web_search" not in allowed:
         # Honestly unavailable in this workspace — keep the decline.
         return declined
+    if declined is None:
+        # NO decision at all (provider outage / unparseable output). A
+        # corrective LLM call into the same degraded provider just
+        # multiplies latency — the deterministic rung answers immediately
+        # (live 2026-09-08: 429 storms made each planner attempt cost
+        # 25s+; the repair pass doubled that before failing too).
+        from core.intelligent_search import build_search_query
+
+        query = build_search_query(message, history_turns=history) or message[:120]
+        logger.info(
+            f"tool planner: explicit-web-research floor (no plan from "
+            f"provider) -> web_search {query!r}")
+        return ToolPlan(
+            use_tool=True, service="web_search", intent="search", query=query,
+            reason="explicit web research instruction",
+        )
     defect = (
         "the user EXPLICITLY asked for web research in their latest message, "
         "but the plan declined to use any tool "

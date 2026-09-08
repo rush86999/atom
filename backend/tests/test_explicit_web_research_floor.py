@@ -335,6 +335,26 @@ async def test_fresh_data_timeout_leaves_shared_plan_task_alive(monkeypatch):
     assert plan is not None and not plan.use_tool
 
 
+@pytest.mark.asyncio
+async def test_floor_skips_llm_repair_when_provider_gave_no_plan():
+    """Live 2026-09-08 (429 storm): the first pass returned None (provider
+    failure, no decision) and the repair LLM call just multiplied latency
+    into the same failing provider. No decision -> deterministic rung
+    immediately."""
+    llm = MagicMock()
+    with patch("core.chat_tool_planner._structured_with_fallback",
+               new_callable=AsyncMock, return_value=None), \
+         patch("core.chat_tool_planner.get_connected_services",
+               return_value=[]), \
+         patch("core.chat_tool_planner._repair_plan_via_llm",
+               new_callable=AsyncMock) as repair:
+        result = await plan_tool_use(
+            "web research the lead's bandsaw and compare to ours", [], "u1",
+            llm)
+    assert result is not None and result.service == "web_search"
+    repair.assert_not_awaited()
+
+
 # ───────────── orchestrator wiring (shape pins) ──────────────────────────
 
 def test_turn_blackboard_wired_through_process_chat_message():
@@ -361,6 +381,54 @@ def test_chat_leg_reuses_prefetched_block_without_reexecution():
     src = inspect.getsource(co.ChatOrchestrator._get_qwen_response)
     assert "if prefetched_tool_block:" in src
     assert "reused canvas-edit leg" in src
+
+
+# ───────────── non-responsive reply guard (2026-09-08 wobble) ─────────────
+
+def test_generic_non_answer_detected():
+    from integrations.chat_orchestrator import _reply_is_generic_non_answer
+    msg = ("web research lead's bandsaw that was mentioned and compare it o "
+           "our bandsaw. give me a response but don't update the draft")
+    assert _reply_is_generic_non_answer(
+        "I've processed your request across all connected platforms.", msg)
+
+
+def test_substantive_and_short_addressing_replies_not_flagged():
+    from integrations.chat_orchestrator import _reply_is_generic_non_answer
+    msg = "web research lead's bandsaw and compare it to our bandsaw"
+    assert not _reply_is_generic_non_answer(
+        "The Hydmech DM10 cuts 10-inch rounds; our Linmac WG-350DSAV cuts "
+        "10.64-inch rounds with inverter variable speed — the comparison "
+        "holds on capacity, miter range and speed control.", msg)
+    # short but genuinely addressing the ask -> overlap -> not flagged
+    assert not _reply_is_generic_non_answer(
+        "Found the bandsaw comparison — see the table above.", msg)
+    # long replies are out of scope for the guard
+    assert not _reply_is_generic_non_answer(
+        "x" * 300, msg)
+
+
+def test_non_responsive_guard_wired_on_both_reply_paths():
+    import inspect
+    from integrations import chat_orchestrator as co
+    src = inspect.getsource(co.ChatOrchestrator._get_qwen_response)
+    # streaming: condition + clean-check; non-streaming: condition only
+    # (matching its sibling guards, which overwrite without re-checking)
+    assert src.count("_reply_is_generic_non_answer(") == 3
+    assert src.count("generic non-answer") >= 2
+
+
+def test_tool_choice_json_mode_fallback_pinned():
+    """Thinking-mode models reject instructor Mode.TOOLS' tool_choice=
+    'required' with a 400 (98 occurrences live 2026-09-08, breaking the
+    structured fallback ladder). The handler must retry once in JSON mode
+    and memoize the provider/model pair."""
+    import inspect
+    from core.llm import byok_handler
+    src = inspect.getsource(byok_handler)
+    assert "_TOOLCHOICE_UNSUPPORTED" in src
+    assert "instructor.Mode.JSON" in src
+    assert "tool_choice" in src and "thinking" in src
 
 
 # ───────────────── orchestrator guard wiring (shape pins) ─────────────────

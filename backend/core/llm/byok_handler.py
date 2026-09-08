@@ -66,6 +66,17 @@ _CREDENTIAL_LOOP_LOCK = threading.Lock()
 # round-trip per structured call.
 _LOGPROBS_UNSUPPORTED: set = set()
 
+# Provider/model pairs whose endpoint rejects instructor Mode.TOOLS'
+# tool_choice="required" because the model runs in thinking mode ("The
+# tool_choice parameter does not support being set to required or object
+# in thinking mode" — 98 occurrences live 2026-09-08, failing EVERY
+# structured call for that model and breaking the whole fallback ladder).
+# Known incompatibility: forced tool_choice + thinking (instructor's own
+# Anthropic integration downgrades to tool_choice=auto for thinking;
+# pydantic-ai #6916 documents the same conflict via OpenRouter). Those
+# pairs go straight to instructor Mode.JSON hereafter.
+_TOOLCHOICE_UNSUPPORTED: set = set()
+
 
 def _run_coroutine_sync(coro, timeout: float = 15.0):
     """Run ``coro`` synchronously from sync code — safe with or without a
@@ -4017,6 +4028,10 @@ class BYOKHandler:
                         failed_providers.add(provider_id)
                         continue
                     instructor_client = instructor.from_openai(client)
+                    _json_mode = f"{provider_id}/{model}" in _TOOLCHOICE_UNSUPPORTED
+                    if _json_mode:
+                        instructor_client = instructor.from_openai(
+                            client, mode=instructor.Mode.JSON)
                     
                     # Truncate prompts to fit context window
                     context_window = self.get_context_window(model)
@@ -4119,6 +4134,27 @@ class BYOKHandler:
                         result = await _to_thread_safe(
                             instructor_client.chat.completions.create, **_create_kwargs
                         )
+                    except Exception as _toolchoice_reject:
+                        # Thinking-mode endpoints reject Mode.TOOLS'
+                        # tool_choice="required". Retry once with the JSON-mode
+                        # instructor client (no tools in the request) and
+                        # memoize the pair so later calls skip TOOLS mode.
+                        _err_txt = str(_toolchoice_reject).lower()
+                        if ("tool_choice" in _err_txt and "thinking" in _err_txt
+                                and not _json_mode):
+                            _TOOLCHOICE_UNSUPPORTED.add(_logprobs_key)
+                            logger.warning(
+                                f"{provider_id}/{model} rejects tool_choice in "
+                                f"thinking mode — retrying once in JSON mode "
+                                f"and memoizing the pair"
+                            )
+                            instructor_client = instructor.from_openai(
+                                client, mode=instructor.Mode.JSON)
+                            result = await _to_thread_safe(
+                                instructor_client.chat.completions.create, **_create_kwargs
+                            )
+                        else:
+                            raise
                     except Exception as _reasoning_reject:
                         # Some endpoints run reasoning-mandatory models and
                         # reject the disable switch with a 400 ("Reasoning is
