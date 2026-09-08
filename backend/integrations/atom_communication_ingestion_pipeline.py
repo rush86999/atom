@@ -3369,7 +3369,7 @@ class CommunicationIngestionPipeline:
                         f"Gmail attachment fetch failed for {message_id}/{attachment_id}: {e}"
                     )
                     continue
-                if content:
+                if isinstance(content, (bytes, bytearray)):
                     att["data"] = base64.b64encode(content).decode()
                     budget -= 1
         # Second pass: binary attachments (pdf/docx/…). Their bytes feed the
@@ -3402,7 +3402,7 @@ class CommunicationIngestionPipeline:
                         f"Gmail attachment fetch failed for {message_id}/{attachment_id}: {e}"
                     )
                     continue
-                if content:
+                if isinstance(content, (bytes, bytearray)):
                     att["data"] = base64.b64encode(content).decode()
                     budget -= 1
 

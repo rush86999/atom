@@ -46,9 +46,15 @@ def mock_memory_manager():
 
 
 @pytest.fixture
-def ingestion_pipeline(mock_memory_manager):
-    """Create CommunicationIngestionPipeline instance"""
+def ingestion_pipeline(mock_memory_manager, tmp_path):
+    """Create CommunicationIngestionPipeline instance.
+
+    The state file is redirected to tmp_path: the real constructor resolves
+    the LIVE memory-dir path, and _save_fetch_state() after cursor-mutating
+    tests persisted fixtures like last_fetch_outlook_user-trunc into
+    backend/data/atom_memory/poll_fetch_state.json (found 2026-09-08)."""
     pipeline = CommunicationIngestionPipeline(mock_memory_manager)
+    pipeline._fetch_state_path = tmp_path / "poll_fetch_state.json"
     return pipeline
 
 
@@ -432,7 +438,9 @@ class TestOutlookAPIIntegration:
             await ingestion_pipeline._fetch_outlook_messages(None)
 
         advanced = ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-empty"]
-        assert advanced > datetime(2024, 1, 1, 0, 0, 0)
+        # Cursors are aware UTC now (naive legacy values assumed UTC on restore).
+        assert advanced.tzinfo is not None
+        assert advanced > datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
 
     @pytest.mark.asyncio()
     async def test_truncated_walk_holds_cursor_and_pins_resume_bound(self, ingestion_pipeline):
@@ -634,7 +642,7 @@ class TestOutlookAPIIntegration:
         assert captured["$filter"].startswith("receivedDateTime ge ")
         # And the new owner's own cursor starts fresh from this walk.
         advanced = ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-new"]
-        assert advanced > datetime(2023, 6, 1)
+        assert advanced > datetime(2023, 6, 1, tzinfo=timezone.utc)
 
     @pytest.mark.asyncio()
     async def test_fetched_messages_carry_mailbox_owner(self, ingestion_pipeline):
