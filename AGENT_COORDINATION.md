@@ -477,3 +477,38 @@ Reviewed the three stacked email PRs by visak14 against AGENTS.md/CLAUDE.md.
 
 Verified: 56/56 new tests green; covpush suites show the same 15 pre-existing
 main failures before/after (InterventionService signature drift — separate issue).
+
+## 2026-09-08 ~22:00 — ZCode (Rish): fix-all pass — UTC port into rewrite, HITL required_role, covpush repair, outlook state reset + redeploy
+
+**Rebase:** local main (3 unpushed commits) rebased onto #609's merge; the
+on-demand-ingest rewrite (`b5562c4e3`) conflicted with the cursor UTC fix and
+had dropped its hunks — re-ported the six-site UTC fix into the rewritten
+shape (`1d669f611`). Tests: cursor tz + ingest-tool 25/25.
+
+**Real bug found in the 15 pre-existing covpush failures** (`03b4aed9d`):
+`InterventionService.request_intervention` never accepted the `required_role`
+kwarg that `mcp_service._check_hitl_policy` has passed since `d99541d82` —
+every governed intercept raised TypeError and failed closed into "policy
+check unavailable; action blocked pending approval" instead of creating the
+HITL action. Service now accepts + persists it in `context_snapshot`. The
+other 14 were stale test contracts vs phase-253 service changes —
+re-contracted (details in the commit). covpush suites 389/389; intervention
+consumers 760/760.
+
+**Gmail batch-drop bug** (`359c40b58`): `base64.b64encode(content)` outside
+the per-attachment try in both `_expand_gmail_attachments` passes — one
+non-bytes payload zeroed the whole fetch (docstring promised otherwise).
+Also isolated `test_email_api_ingestion.py`'s fixture state file to tmp_path
+(it was persisting user-a/user-trunc test cursors into the LIVE
+`atom_memory/poll_fetch_state.json`). 34/34 green.
+
+**Live outlook redeploy (state reset + restart, backups kept as
+`.bak-20260908`):** the live poller was stuck re-fetching the same 250
+messages and dedup-skipping them forever — the Sep-5 store purge left 6551
+"already-ingested" seen ids that blocked re-ingestion while the walk held
+its cursor. With the server STOPPED (the running process re-writes state),
+reset outlook cursors + outlook seen ids in `default/poll_fetch_state.json`,
+cleared the test-polluted top-level state file, restarted via
+`scripts/restart_backend.sh` (DB snapshotted first, pid 51504). Verified:
+initial sync walked the 90-day window, `atom_communications` repopulated to
+6561 rows, cursors now persist AWARE UTC (`+00:00`).

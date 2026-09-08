@@ -7244,3 +7244,5 @@ boundary, letting same-second unconsumed mail fall outside the inclusive le filt
 
 **Evidence**: test_email_api_ingestion 36/36 (+test_continuation_bound_keeps_fractional_seconds);
 140 passed across the four key suites; py_compile clean.
+
+| 2026-09-08 | `core/intervention_service.py`, `integrations/atom_communication_ingestion_pipeline.py`, `tests/test_covpush_{mcp_svc,integrations_core}.py`, `tests/test_email_api_ingestion.py` | required_role kwarg fix (HITL intercepts were TypeError→blocked); UTC port into ingest rewrite; gmail attachment batch-drop fix; 19 stale tests re-contracted | covpush 389/389, intervention consumers 760/760, email_api_ingestion 34/34; live store repopulated 6561 rows, cursors aware UTC |
