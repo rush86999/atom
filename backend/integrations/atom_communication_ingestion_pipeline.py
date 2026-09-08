@@ -116,10 +116,40 @@ def _format_graph_timestamp(dt: datetime) -> str:
     unconsumed message at 12:00:00.5 fell outside an inclusive
     ``le 12:00:00`` filter and was skipped. The compact form is kept for
     zero-microsecond values so ordinary cursors stay readable in filters.
+
+    Naive datetimes are assumed to be UTC (legacy persisted cursors were
+    written tz-less): treating a naive LOCAL wall-clock value as UTC here
+    would shift the watermark by the host offset and make incremental polls
+    silently skip mail (Sep 2026 — cursors advanced every cycle while the
+    store stayed empty).
     """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
     if dt.microsecond:
         return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _coerce_utc_ts(value: Any) -> Optional[datetime]:
+    """Coerce a persisted cursor / Graph timestamp to an AWARE UTC datetime.
+
+    Naive values are assumed to be UTC (see :func:`_format_graph_timestamp`).
+    Returns None for values that cannot be parsed — callers treat that as
+    "no cursor" (an initial-sync re-walk) rather than guessing.
+    """
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    if isinstance(value, str):
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except Exception:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    return None
 
 
 def _extract_tables_from_html(html_body: str):
@@ -1412,10 +1442,9 @@ class CommunicationIngestionPipeline:
             if self._fetch_state_path.exists():
                 data = json.loads(self._fetch_state_path.read_text() or "{}")
                 for key, ts in (data.get("fetch_timestamps") or {}).items():
-                    try:
-                        self.fetch_timestamps[key] = datetime.fromisoformat(ts)
-                    except Exception:
-                        continue
+                    parsed = _coerce_utc_ts(ts)
+                    if parsed is not None:
+                        self.fetch_timestamps[key] = parsed
                 by_owner = data.get("seen_message_ids_by_owner") or {}
                 self._seen_message_ids = {
                     str(app): {
@@ -2368,7 +2397,7 @@ class CommunicationIngestionPipeline:
                 ts = message.get("timestamp")
                 if isinstance(ts, datetime) and (newest is None or ts > newest):
                     newest = ts
-            self.fetch_timestamps[last_fetch_key] = newest or datetime.now()
+            self.fetch_timestamps[last_fetch_key] = newest or datetime.now(timezone.utc)
             self._save_fetch_state()
 
             return fresh
@@ -3597,7 +3626,7 @@ class CommunicationIngestionPipeline:
                         history_days = get_automation_settings().get_initial_sync_days("outlook")
                     except Exception:
                         history_days = 90
-                    since = (datetime.now() - timedelta(days=history_days))
+                    since = (datetime.now(timezone.utc) - timedelta(days=history_days))
                     ts = _format_graph_timestamp(since)
                     params["$filter"] = f"receivedDateTime ge {ts}"
                     # Enough pages to walk the window in one pass; if it
@@ -3696,7 +3725,7 @@ class CommunicationIngestionPipeline:
                             # bound when draining one, else the newest message
                             # seen (or now() on an empty window, so polls
                             # don't re-walk an empty window forever).
-                            new_cursor = resume_max or newest or datetime.now()
+                            new_cursor = resume_max or newest or datetime.now(timezone.utc)
                             new_resume = None
                             break
 
@@ -3749,9 +3778,11 @@ class CommunicationIngestionPipeline:
             # Parse timestamp
             received_datetime = msg.get("receivedDateTime")
             if received_datetime:
-                timestamp = datetime.fromisoformat(received_datetime)
+                timestamp = _coerce_utc_ts(received_datetime)
+                if timestamp is None:
+                    timestamp = datetime.now(timezone.utc)
             else:
-                timestamp = datetime.now()
+                timestamp = datetime.now(timezone.utc)
 
             # Extract sender
             from_data = msg.get("from", {})
