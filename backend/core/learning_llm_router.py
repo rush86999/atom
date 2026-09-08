@@ -456,6 +456,7 @@ class LearningBasedRouter:
                     ModelCapability.CODE_GENERATION,
                     ModelCapability.REASONING,
                     ModelCapability.TOOL_USE,
+                    ModelCapability.VISION,  # multimodal — screenshots are first-class input
                     ModelCapability.LONG_CONTEXT,
                     ModelCapability.HIGH_QUALITY,
                 },

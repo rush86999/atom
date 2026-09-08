@@ -659,7 +659,14 @@ class DynamicPricingFetcher:
 
         # Infer supports_tools
         # Reasoning models and small models don't support tools
-        if mode == "reasoning":
+        if any(k in model_lower for k in ("gpt-6",)):
+            # GPT-6 flagships (gpt-6-astra) are reasoning-first yet fully
+            # tool-capable (agentic). The mode=="reasoning" branch below
+            # would wrongly zero their supports_tools and lock them out of
+            # every requires_tools route (agentic, computer_use) before the
+            # frontier gate ever got a chance to admit them.
+            supports_tools = True
+        elif mode == "reasoning":
             supports_tools = False
         elif "speciale" in model_lower:
             supports_tools = False
@@ -677,7 +684,7 @@ class DynamicPricingFetcher:
             supports_vision = True
         elif any(keyword in model_lower for keyword in ["vision", "vl", "multimodal"]):
             supports_vision = True
-        elif any(keyword in model_lower for keyword in ["gpt-4o", "gemini-2.5", "gemini-2-flash", "gemini-3-flash", "gemini-3.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"]):
+        elif any(keyword in model_lower for keyword in ["gpt-4o", "gpt-6", "gemini-2.5", "gemini-2-flash", "gemini-3-flash", "gemini-3.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"]):
             supports_vision = True
         elif any(keyword in model_lower for keyword in ["claude-3.5-sonnet", "claude-3-opus", "claude-mythos", "claude-fable"]):
             supports_vision = True

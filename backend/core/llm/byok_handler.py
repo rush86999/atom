@@ -514,6 +514,35 @@ FRONTIER_RESERVED_MIN_COMPLEXITY = {
 FRONTIER_RESERVED_MIN_COGNITIVE_TIER = CognitiveTier.COMPLEX
 
 
+def _task_requires_tools(agent_id: Optional[str], task_type: Optional[str]) -> bool:
+    """Agentic AND computer-use turns need tool-capable models.
+
+    The computer-use loop drives the desktop through structured action JSON
+    on every step (a tools-family workload), so tool-blind candidates must
+    not win those turns either.
+    """
+    return agent_id is not None or task_type in ("agentic", "computer_use")
+
+
+def _frontier_reserved_floor(model_id: str) -> Optional[QueryComplexity]:
+    """FRONTIER_RESERVED_MIN_COMPLEXITY lookup that survives composite ids.
+
+    The pricing cache keys litellm entries as "openai/gpt-6-astra" while the
+    gate map keys the bare name — an exact .get() silently MISSED the
+    composite form, so a catalog-sourced astra escaped the frontier-reserved
+    floor entirely. Try exact, then progressively stripped prefixes (same
+    convention as _model_supports_vision / _filter_by_capabilities).
+    """
+    if model_id in FRONTIER_RESERVED_MIN_COMPLEXITY:
+        return FRONTIER_RESERVED_MIN_COMPLEXITY[model_id]
+    base = model_id or ""
+    while "/" in base:
+        base = base.split("/", 1)[1]
+        if base in FRONTIER_RESERVED_MIN_COMPLEXITY:
+            return FRONTIER_RESERVED_MIN_COMPLEXITY[base]
+    return None
+
+
 # Models that do not support tool calling or agentic runtimes (Phase 6.6)
 # DEPRECATED: Use pricing_fetcher._model_supports_tools() instead
 # This list is kept for reference/backwards compatibility only
@@ -1775,6 +1804,14 @@ class BYOKHandler:
 
         # 3. Task type override
         if task_type:
+            if task_type == "computer_use":
+                # Desktop actuation is the highest-difficulty workload the
+                # router sees: irreversible real-world actions decided from
+                # pixels, needing frontier vision+reasoning. This also carries
+                # the frontier-reserved gate's difficulty signal — anything
+                # lower would drop gpt-6-astra from its own computer-use
+                # candidates (FRONTIER_RESERVED_MIN_COMPLEXITY).
+                return QueryComplexity.ADVANCED
             if task_type in ["code", "analysis", "reasoning"]:
                 complexity_score += 2
             elif task_type in ["chat", "general"]:
@@ -2105,7 +2142,7 @@ class BYOKHandler:
                 # expensive flagships rankable only at the top of the difficulty
                 # ladder. When cognitive-tier steering is active, the cognitive
                 # ladder carries the difficulty signal instead.
-                _min_complexity = FRONTIER_RESERVED_MIN_COMPLEXITY.get(model_id)
+                _min_complexity = _frontier_reserved_floor(model_id)
                 if _min_complexity is not None:
                     if cognitive_tier is not None:
                         _allowed = cognitive_tier == FRONTIER_RESERVED_MIN_COGNITIVE_TIER
@@ -2346,7 +2383,7 @@ class BYOKHandler:
                 # Same frontier-reserved floor as the dynamic pool: a
                 # misconfigured COST_EFFICIENT_MODELS slot must not route the
                 # flagship into easier work.
-                _min_complexity = FRONTIER_RESERVED_MIN_COMPLEXITY.get(model)
+                _min_complexity = _frontier_reserved_floor(model)
                 if _min_complexity is not None and (
                     _COMPLEXITY_ORDER.get(complexity, -1)
                     < _COMPLEXITY_ORDER[_min_complexity]
@@ -2486,6 +2523,7 @@ class BYOKHandler:
         intent_override: Optional[str] = None,  # x-atom-intent override
         sticky_hint: Optional[tuple] = None,  # LKGP (provider, model) hint
         messages: Optional[List[Dict[str, Any]]] = None,  # Full conversation (chat path)
+        max_tokens: Optional[int] = None,  # Per-call completion budget (None = ATOM_COMPLETION_MAX_TOKENS)
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -2564,7 +2602,7 @@ class BYOKHandler:
                             complexity = self.analyze_query_complexity(prompt, task_type)
 
                             # Agents always require tools (Phase 6.6)
-                            requires_tools = agent_id is not None or task_type == "agentic"
+                            requires_tools = _task_requires_tools(agent_id, task_type)
 
                             # Temporary provider check for key resolution
                             temp_provider_id, _ = await self.get_optimal_provider(
@@ -2634,7 +2672,7 @@ class BYOKHandler:
                     pinned_model = model_type
 
             # Identify tool/structured requirements (Phase 6.6)
-            requires_tools = agent_id is not None or task_type == "agentic"
+            requires_tools = _task_requires_tools(agent_id, task_type)
 
             # --- Phase 14: Vision Routing ---
             # If image payload exists, we MUST route to a model that supports vision (GPT-4o, Gemini 1.5 Pro)
@@ -2795,6 +2833,12 @@ class BYOKHandler:
             last_error = None
             primary_provider = options[0][0] if options else None
             failed_providers = set()
+            # Snapshot the caller's transcript ONCE: each provider attempt
+            # below rebinds `messages` (attaching the image / current turn),
+            # and a fallback attempt must start from the pristine copy —
+            # otherwise every retry stacked another image or another copy of
+            # the user's text onto the same conversation.
+            _pristine_messages = [dict(m) for m in messages] if messages else None
             for provider_id, model in options:
                 if provider_id in failed_providers:
                     continue
@@ -2814,24 +2858,51 @@ class BYOKHandler:
                     # via `messages`; flattening that to prompt+system threw
                     # the transcript away, so follow-up questions referencing
                     # earlier turns were answered blind.
-                    if messages:
-                        messages = [dict(m) for m in messages]
+                    if _pristine_messages is not None:
+                        messages = [dict(m) for m in _pristine_messages]
                     else:
-                        messages = []
-                        messages.append({"role": "system", "content": system_instruction})
+                        messages = [{"role": "system", "content": system_instruction}]
 
+                    # Normalize the image payload to a URL the provider
+                    # accepts. Raw base64 gets wrapped; http(s) URLs and
+                    # ALREADY-FORMED data: URLs pass through untouched (the
+                    # old check only looked for "http", so a pre-built data:
+                    # URL got double-wrapped into an invalid nested URL).
+                    _image_url: Optional[str] = None
                     if image_payload:
-                        # OpenAI / Compatible Vision Format
-                        user_content = [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": image_payload if image_payload.startswith("http") else f"data:image/jpeg;base64,{image_payload}"
-                                }
-                            }
-                        ]
-                        messages.append({"role": "user", "content": user_content})
+                        if image_payload.startswith(("http", "data:")):
+                            _image_url = image_payload
+                        else:
+                            _image_url = f"data:image/jpeg;base64,{image_payload}"
+
+                    if _image_url:
+                        # Attach the image to the LAST user message when the
+                        # caller supplied a transcript — `prompt` is derived
+                        # from that same message (LLMService extraction), so
+                        # appending a fresh user message here sent the turn's
+                        # text TWICE on every vision call. With no transcript
+                        # (prompt-only callers), keep the append shape.
+                        if messages and messages[-1].get("role") == "user":
+                            last_msg = dict(messages[-1])
+                            _existing = last_msg.get("content")
+                            if isinstance(_existing, list):
+                                last_msg["content"] = list(_existing) + [
+                                    {"type": "image_url", "image_url": {"url": _image_url}}
+                                ]
+                            else:
+                                last_msg["content"] = [
+                                    {"type": "text", "text": _existing or prompt},
+                                    {"type": "image_url", "image_url": {"url": _image_url}},
+                                ]
+                            messages[-1] = last_msg
+                        else:
+                            messages.append({
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": prompt},
+                                    {"type": "image_url", "image_url": {"url": _image_url}},
+                                ],
+                            })
                         logger.info(f"Adding visual payload to request for {model}")
                     else:
                         # RTK compression: compress terminal/tool output in the
@@ -2839,6 +2910,7 @@ class BYOKHandler:
                         # form log/terminal text — structured data (JSON/SQL/API
                         # responses) is detected and skipped entirely. Default
                         # ON (ATOM_COMPRESSION_ENABLED + COMPRESS_RTK_ENABLED).
+                        _original_prompt = prompt
                         try:
                             from core.llm.compression import get_compression_pipeline
                             _compressed_prompt, _rtk_metrics = (
@@ -2848,7 +2920,23 @@ class BYOKHandler:
                                 prompt = _compressed_prompt
                         except Exception:
                             pass  # compression must never break the hot path
-                        messages.append({"role": "user", "content": prompt})
+                        # Skip the append when the caller's transcript already
+                        # ends with this exact user turn (the chat path passes
+                        # the full conversation INCLUDING the current message,
+                        # and `prompt` is extracted from that same message) —
+                        # appending anyway sent the turn's text twice on every
+                        # non-streaming chat call. If compression rewrote the
+                        # text, swap it in place so compression still applies.
+                        _last = messages[-1] if messages else None
+                        if (
+                            _last is not None
+                            and _last.get("role") == "user"
+                            and _last.get("content") == _original_prompt
+                        ):
+                            if prompt != _original_prompt:
+                                messages[-1] = {**_last, "content": prompt}
+                        else:
+                            messages.append({"role": "user", "content": prompt})
 
                     # Make the request.
                     # asyncio.to_thread: `client` is the SYNC OpenAI SDK, so a
@@ -2861,7 +2949,7 @@ class BYOKHandler:
                         model=model,
                         messages=messages,
                         temperature=temperature,
-                        max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
+                        max_tokens=max_tokens if max_tokens is not None else _DEFAULT_COMPLETION_MAX_TOKENS,
                     )
                     self._capture_echoed_model(response)
                     self._stash_last_reasoning(response)
@@ -3648,7 +3736,7 @@ class BYOKHandler:
 
         # Phase 68-06: Step 3 - Get optimal model (cache-aware)
         estimated_tokens = len(prompt) // 4
-        requires_tools = agent_id is not None or task_type == "agentic"
+        requires_tools = _task_requires_tools(agent_id, task_type)
 
         provider_id, model = self.tier_service.get_optimal_model(
             tier, estimated_tokens, requires_tools
@@ -3942,7 +4030,7 @@ class BYOKHandler:
             complexity = self.analyze_query_complexity(prompt, task_type)
             
             # Structured generation requires structured support (Phase 6.6)
-            requires_tools = agent_id is not None or task_type == "agentic"
+            requires_tools = _task_requires_tools(agent_id, task_type)
             
             # --- Phase 14: Vision Routing ---
             requires_vision = image_payload is not None

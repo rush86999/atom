@@ -230,6 +230,10 @@ def get_quality_score(model_id: str) -> int:
 # Used for specialized routing when models excel at specific tasks
 MODEL_CAPABILITY_SCORES = {
     "computer_use": {
+        "gpt-6-astra": 97,  # Frontier vision+reasoning flagship; unmeasured
+        # estimate pending an OSWorld-style battery — anchored just above
+        # specialized lux-1.0 per the Sept-2026 user directive to make
+        # astra the computer-use brain.
         "lux-1.0": 95,  # Specialized for computer use
         "claude-3.5-sonnet": 85,  # Good but not specialized
         "gpt-4o": 80,
