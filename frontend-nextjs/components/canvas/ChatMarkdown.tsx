@@ -15,8 +15,8 @@ import { renderMarkdownSafe } from "@/lib/sanitize";
 export default function ChatMarkdown({ content }: { content: string }) {
     return (
         <div
-            className="prose prose-sm dark:prose-invert max-w-none
-                [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0
+            className="prose prose-sm dark:prose-invert max-w-none break-words
+                [&_p]:my-1 [&_p]:break-words [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0
                 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:my-2 [&_h2]:my-2 [&_h3]:my-1
                 [&_blockquote]:my-1 [&_blockquote]:text-muted-foreground
                 [&_table]:my-2 [&_table]:text-xs [&_table]:border-collapse
