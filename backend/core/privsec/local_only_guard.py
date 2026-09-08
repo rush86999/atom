@@ -383,7 +383,7 @@ def require_local_allowed(service_name: str):
             return func(*args, **kwargs)
 
         # Return appropriate wrapper based on function type
-        if asyncio.iscoroutinefunction(func):
+        if iscoroutinefunction(func):
             return async_wrapper
         else:
             return sync_wrapper
@@ -393,6 +393,7 @@ def require_local_allowed(service_name: str):
 
 # Import asyncio for coroutine function detection
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 
 
 # ============================================================================

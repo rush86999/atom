@@ -39,6 +39,7 @@ semantics:
 from __future__ import annotations
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import itertools
 import json
 import logging
@@ -47,18 +48,17 @@ import shutil
 import sys
 import tempfile
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from core import sandbox_config
 from core.sandbox_runtime.base import SandboxExecResult
+from core.sandbox_runtime.guest_protocol import OUTPUT_CAP
+from core.sandbox_runtime.guest_protocol import exchange as _guest_exchange
 
 logger = logging.getLogger(__name__)
 
 # Detect Linux once at import (cheap). Referenced by is_available().
 _IS_LINUX = sys.platform.startswith("linux")
-
-# Output cap per stream (mirrors the Docker/E2B runners).
-OUTPUT_CAP = 65536  # 64 KiB
 
 # Guest-side metadata.
 GUEST_CID = 3
@@ -189,7 +189,7 @@ class FirecrackerRuntime:
         bound_loop = getattr(sem, "_bound_loop", None)
         if bound_loop is None:
             bound_loop = getattr(sem, "_loop", None)
-        if bound_loop is not None and bound_loop != asyncio.get_event_loop():
+        if bound_loop is not None and bound_loop != get_event_loop():
             self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
             return self._concurrency_sem
         return sem
@@ -203,6 +203,7 @@ class FirecrackerRuntime:
         cwd: Optional[str] = None,
         image: Optional[str] = None,
         callback_handler: Any = None,
+        deps: Optional[List[str]] = None,
     ) -> SandboxExecResult:
         """Boot a microVM, run ``code`` in the guest agent, capture output.
 
@@ -213,6 +214,11 @@ class FirecrackerRuntime:
         ``callback_handler`` (optional async callable) services mid-run guest
         callbacks (e.g. ``fetch_integration``). None disables callbacks — guest
         calls to ``fetch_integration`` get ``callbacks_disabled``.
+
+        ``deps`` (manifest dependencies) is accepted for interface parity and
+        ignored — the microVM rootfs is operator-built via
+        ``scripts/build_miniapp_rootfs.sh``, never auto-built at run time
+        (the docker-dev runner is the one that builds from ``deps``).
         """
         if not is_available():
             return SandboxExecResult(
@@ -381,20 +387,17 @@ class FirecrackerRuntime:
         vsock_path: str,
         callback_handler: Any = None,
     ) -> tuple:
-        """Wait for the vsock UDS, send exec, service callbacks, read final reply.
+        """Wait for the vsock UDS, then run the shared guest-protocol exchange.
 
-        Returns ``(stdout, stderr, exit_code, envelope, callbacks)``. Protocol
-        is multiplexed on the single socket:
-          * Host sends ``{"type":"exec", "code", "inputs"}``.
-          * Guest may send 0..N ``{"type":"callback","kind":"fetch_integration",
-            "service","action","params"}`` lines mid-run; the host services each
-            via ``callback_handler`` (await) and writes a ``callback_result`` line.
-          * Guest sends one terminal line tagged ``"type":"final"`` (or, for
-            older agents, an untagged line treated as final).
+        Protocol (see ``core.sandbox_runtime.guest_protocol`` — shared with the
+        docker-dev stdio transport): host sends one ``{"type":"exec", ...}``
+        line; the guest may interleave ``callback`` lines (serviced via
+        ``callback_handler``) before its terminal ``final`` reply carrying
+        ``{"stdout","stderr","exit_code","state_envelope"?}``.
 
-        Callback time counts against the caller's ``asyncio.wait_for`` budget
-        (no separate per-callback deadline). Raises ``asyncio.TimeoutError`` if
-        the socket never appears (boot timeout) or the guest never replies.
+        Boot-wait raises ``asyncio.TimeoutError`` if the socket never appears
+        within ``ATOM_SANDBOX_VM_BOOT_TIMEOUT_SECONDS``; the exchange itself
+        counts against the caller's ``asyncio.wait_for`` budget.
         """
         boot_timeout = sandbox_config.get_sandbox_vm_boot_timeout_seconds()
         deadline = time.time() + max(1, boot_timeout)
@@ -406,75 +409,13 @@ class FirecrackerRuntime:
             await asyncio.sleep(0.05)
 
         reader, writer = await asyncio.open_unix_connection(vsock_path)
-        callbacks: list = []
         try:
-            payload = json.dumps({"type": "exec", "code": code, "inputs": inputs})
-            writer.write((payload + "\n").encode("utf-8"))
-            await writer.drain()
-
-            # Service the guest's lines until a terminal/final reply arrives.
-            while True:
-                line = await reader.readline()
-                if not line:
-                    raise asyncio.TimeoutError("guest agent returned no response")
-                data = json.loads(line.decode("utf-8"))
-                msg_type = data.get("type")
-
-                if msg_type == "callback":
-                    reply, log_entry = await self._service_callback(data, callback_handler)
-                    callbacks.append(log_entry)
-                    writer.write((json.dumps(reply) + "\n").encode("utf-8"))
-                    await writer.drain()
-                    continue
-
-                # Terminal (msg_type == "final") OR untagged legacy reply.
-                stdout = str(data.get("stdout", ""))
-                stderr = str(data.get("stderr", ""))
-                exit_code = int(data.get("exit_code", -1))
-                envelope = data.get("state_envelope")
-                if not isinstance(envelope, dict):
-                    envelope = None
-                return (stdout, stderr, exit_code, envelope, callbacks)
+            return await _guest_exchange(reader, writer, code, inputs, callback_handler)
         finally:
             try:
                 writer.close()
             except Exception:  # noqa: BLE001
                 pass
-
-    async def _service_callback(self, request: Dict[str, Any], callback_handler: Any) -> tuple:
-        """Dispatch one guest callback request; return (reply_dict, log_entry).
-
-        When no handler is configured (legacy run / Docker runtime), every
-        callback fails with ``callbacks_disabled`` so user code sees a clear
-        error instead of hanging.
-        """
-        kind = request.get("kind") or "unknown"
-        cb_start = time.time()
-        if callback_handler is None:
-            reply = {"type": "callback_result", "ok": False, "error": "callbacks_disabled"}
-            log_entry = {"kind": kind, "ok": False, "error": "callbacks_disabled",
-                         "duration_ms": int((time.time() - cb_start) * 1000)}
-            return reply, log_entry
-        try:
-            result = await callback_handler(request)
-            reply = {"type": "callback_result", "ok": bool(result.get("ok", True)),
-                     "data": result.get("data")}
-            if not reply["ok"]:
-                reply["error"] = result.get("error", "failed")
-            log_entry = {
-                "kind": kind,
-                "service": request.get("service"),
-                "action": request.get("action"),
-                "ok": reply["ok"],
-                "duration_ms": int((time.time() - cb_start) * 1000),
-            }
-            return reply, log_entry
-        except Exception as e:  # noqa: BLE001
-            logger.warning("callback %s failed: %s", kind, e)
-            reply = {"type": "callback_result", "ok": False, "error": "failed"}
-            log_entry = {"kind": kind, "ok": False, "error": "failed",
-                         "duration_ms": int((time.time() - cb_start) * 1000)}
-            return reply, log_entry
 
 
 # ===========================================================================

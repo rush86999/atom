@@ -176,6 +176,65 @@ def run_code(code: str, inputs: dict, fetch_integration=None) -> dict:
     return result
 
 
+class StdioChannel:
+    """Bidirectional JSON-line channel over the process's ORIGINAL stdio.
+
+    For the ``--stdio`` transport (MiniAppDevRuntime ``docker run -i``). Holds
+    direct references to the interpreter's original streams so protocol
+    traffic bypasses the ``sys.stdout``/``sys.stderr`` redirection that
+    ``run_code`` applies while user code executes — exactly how the vsock
+    socket bypasses it in microVM boots. One class-level channel per agent
+    process (same as the one socket per VM).
+    """
+
+    def __init__(self, stdin=None, stdout=None):
+        self._stdin = stdin if stdin is not None else sys.stdin
+        self._stdout = stdout if stdout is not None else sys.stdout
+
+    def write(self, text):
+        return self._stdout.write(text)
+
+    def flush(self):
+        try:
+            self._stdout.flush()
+        except Exception:  # noqa: BLE001 - a closed pipe must not crash PID 1
+            pass
+
+    def readline(self):
+        return self._stdin.readline()
+
+
+def main_stdio() -> int:
+    """``--stdio`` transport: same protocol over process stdin/stdout.
+
+    Reads one exec request, executes it via the SAME ``run_code`` path as a
+    microVM boot (inputs as globals, ``fetch_integration`` callback helper,
+    ``state_envelope`` harvesting), replies one final line, and exits — the
+    dev host tears the ephemeral container down (``docker run --rm``), the
+    same teardown role the microVM kill plays. Used by ``MiniAppDevRuntime``
+    so local dev on a macOS/desktop host exercises the identical guest
+    execution semantics as Firecracker, with pipes swapped for vsock.
+    """
+    channel = StdioChannel()
+    line = channel.readline()
+    if not line:
+        return 1
+
+    try:
+        msg = json.loads(line)
+    except json.JSONDecodeError:
+        channel.write(json.dumps({"type": "final", "stdout": "", "stderr": "malformed request", "exit_code": 1}) + "\n")
+        channel.flush()
+        return 1
+
+    fetch = make_fetch_integration(channel)
+    result = run_code(str(msg.get("code", "")), msg.get("inputs") or {}, fetch_integration=fetch)
+    result["type"] = "final"
+    channel.write(json.dumps(result) + "\n")
+    channel.flush()
+    return 0
+
+
 def main() -> int:
     port = parse_miniapp_port()
     sock = connect_vsock(port)
@@ -217,4 +276,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # No argv (kernel init= boot) → vsock transport. ``--stdio`` → dev/Docker
+    # pipe transport (same protocol, same run_code execution core).
+    if "--stdio" in sys.argv[1:]:
+        sys.exit(main_stdio())
     sys.exit(main())

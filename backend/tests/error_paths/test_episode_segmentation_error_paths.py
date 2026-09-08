@@ -13,6 +13,7 @@ These tests discover bugs in exception handling code that is rarely
 executed in normal operation but critical for production reliability.
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import pytest
 import time
 from datetime import datetime, timedelta
@@ -688,7 +689,7 @@ def await_sync(coroutine):
     """Helper to run async functions in sync context"""
     import asyncio
     try:
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         if loop.is_running():
             # Handle nested event loop case
             import concurrent.futures

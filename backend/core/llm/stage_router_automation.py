@@ -36,6 +36,7 @@ Never raises: any failure is logged and the loop continues.
 from __future__ import annotations
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import logging
 import os
 from datetime import datetime, timezone
@@ -249,7 +250,7 @@ def _spawn_notification(
     task; in a sync/CLI context it runs inline via a throwaway loop.
     """
     try:
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         if loop.is_running():
             loop.create_task(_notify(notification_type, title, message, action_url))
             return
@@ -599,7 +600,7 @@ def ensure_automation_task() -> None:
     if _automation_task is not None or _MODE == "off":
         return
     try:
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         if loop.is_running():
             _automation_task = loop.create_task(stage_router_automation_loop())
     except Exception as e:

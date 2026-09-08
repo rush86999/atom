@@ -15,6 +15,7 @@ short timeout).
   decorator wrapper selection.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import time
 from unittest.mock import MagicMock, patch
 
@@ -293,11 +294,11 @@ class TestAutoIngest:
 
         assert handler.__name__ == "handler"
         assert handler.__doc__ == "docstring"
-        assert asyncio.iscoroutinefunction(handler) is False
+        assert iscoroutinefunction(handler) is False
 
     def test_async_wrapper_for_coroutine(self):
         @auto_ingest("apps", "records")
         async def handler():
             return {"id": 1}
 
-        assert asyncio.iscoroutinefunction(handler) is True
+        assert iscoroutinefunction(handler) is True

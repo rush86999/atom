@@ -7,6 +7,7 @@ Covers:
 - core/chat_process_manager.py            (lists bound to Text columns -> ProgrammingError)
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 import uuid
 from contextlib import asynccontextmanager
@@ -201,7 +202,7 @@ class TestChatProcessManagerPersistence:
                     tables=[ChatProcess.__table__, User.__table__],
                 )
 
-        asyncio.get_event_loop().run_until_complete(_init())
+        get_event_loop().run_until_complete(_init())
         SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
         @asynccontextmanager
@@ -211,7 +212,7 @@ class TestChatProcessManagerPersistence:
 
         with patch("core.chat_process_manager.get_async_db_session", side_effect=_session):
             yield SessionLocal
-        asyncio.get_event_loop().run_until_complete(engine.dispose())
+        get_event_loop().run_until_complete(engine.dispose())
 
     async def test_create_process_roundtrip(self, async_db):
         from core.chat_process_manager import ChatProcessManager

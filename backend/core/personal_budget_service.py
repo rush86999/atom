@@ -9,6 +9,7 @@ Changes: Removed Stripe, billing enforcement, tenant isolation, hard-stop blocki
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta, timezone
@@ -31,7 +32,7 @@ def _run_coroutine_safely(coro):
         asyncio.get_running_loop()
     except RuntimeError:
         try:
-            loop = asyncio.get_event_loop()
+            loop = get_event_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)

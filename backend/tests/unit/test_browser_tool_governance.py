@@ -12,6 +12,7 @@ Tests cover:
 Focus: Governance enforcement and audit trails for browser automation
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from unittest.mock import AsyncMock, Mock, patch, MagicMock
 from datetime import datetime, timedelta
 from uuid import uuid4
@@ -795,7 +796,7 @@ class TestBrowserSessionTimeout:
         # Cleanup expired sessions
         # Note: cleanup_expired_sessions is async, but we can test the synchronous part
         import asyncio
-        count = asyncio.get_event_loop().run_until_complete(manager.cleanup_expired_sessions())
+        count = get_event_loop().run_until_complete(manager.cleanup_expired_sessions())
 
         assert count == 1
         assert "expired-session" not in manager.sessions
@@ -818,7 +819,7 @@ class TestBrowserSessionTimeout:
 
         # Cleanup expired sessions
         import asyncio
-        count = asyncio.get_event_loop().run_until_complete(manager.cleanup_expired_sessions())
+        count = get_event_loop().run_until_complete(manager.cleanup_expired_sessions())
 
         assert count == 0
         assert "active-session" in manager.sessions
@@ -869,7 +870,7 @@ class TestBrowserSessionTimeout:
 
         # Cleanup expired sessions
         import asyncio
-        count = asyncio.get_event_loop().run_until_complete(manager.cleanup_expired_sessions())
+        count = get_event_loop().run_until_complete(manager.cleanup_expired_sessions())
 
         assert count == 5
         assert len(manager.sessions) == 1
@@ -900,7 +901,7 @@ class TestBrowserSessionTimeout:
 
         # Cleanup expired sessions
         import asyncio
-        count = asyncio.get_event_loop().run_until_complete(manager.cleanup_expired_sessions())
+        count = get_event_loop().run_until_complete(manager.cleanup_expired_sessions())
 
         assert count == 3
         assert len(manager.sessions) == 2

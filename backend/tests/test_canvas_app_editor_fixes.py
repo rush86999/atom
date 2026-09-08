@@ -35,6 +35,22 @@ from core.canvas_app_schema import (
     get_app_spec,
 )
 
+
+@pytest.fixture(autouse=True)
+def _no_live_fresh_data():
+    """Default the co-editor's live-evidence lookup to "not needed" — it runs
+    the real tool planner, which fails on the MagicMock llm_service these
+    tests install, and the 2026-09-04 fabrication guard then DECLINES the
+    whole edit (_try_canvas_edit -> None). Tests that exercise the fresh-data
+    path patch fetch_fresh_data_section themselves and win over this."""
+    from core.chat_canvas_editor import FreshDataResult
+
+    with patch(
+        "core.chat_canvas_editor.fetch_fresh_data_section",
+        new=AsyncMock(return_value=FreshDataResult(section="", needed=False, ok=True)),
+    ):
+        yield
+
 # The actual canvas content from the incident (chat-context payload, trimmed
 # from the [CHATCTX] log line) — the fixture every heal/edit test replays.
 LIVE_INCIDENT_CONTENT = {

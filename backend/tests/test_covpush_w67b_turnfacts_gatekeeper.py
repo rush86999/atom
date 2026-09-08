@@ -204,7 +204,7 @@ class TestQueueWorker:
         q = ExtractionQueue()
         q.enqueue("prompt a", "ws1")
         with patch.object(q, "_process", new=AsyncMock(return_value=1)) as proc:
-            task = asyncio.get_event_loop().create_task(q._worker_loop())
+            task = get_event_loop().create_task(q._worker_loop())
             await asyncio.sleep(0.05)
             task.cancel()
             await task
@@ -215,7 +215,7 @@ class TestQueueWorker:
         q = ExtractionQueue()
         q._q.put_nowait(object())
         q._process = AsyncMock(side_effect=RuntimeError("boom"))
-        task = asyncio.get_event_loop().create_task(q._worker_loop())
+        task = get_event_loop().create_task(q._worker_loop())
         await asyncio.sleep(0.15)
         assert task.done() is False
         task.cancel()
@@ -227,7 +227,7 @@ class TestQueueWorker:
 
     async def test_worker_loop_breaks_on_cancellation(self):
         q = ExtractionQueue()
-        task = asyncio.get_event_loop().create_task(q._worker_loop())
+        task = get_event_loop().create_task(q._worker_loop())
         await asyncio.sleep(0.01)
         task.cancel()
         await task
@@ -1253,6 +1253,7 @@ print("OK")
     async def test_atom_handler_falls_back_to_global_when_unavailable(self):
         script = """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import importlib
 from types import SimpleNamespace
 from unittest.mock import patch

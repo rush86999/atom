@@ -1,4 +1,5 @@
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from functools import wraps
 import importlib
@@ -155,5 +156,5 @@ def auto_ingest(app_type: str, record_type: str):
                     logger.error(f"AutoIngest failed for {app_type}: {e}")
             return result
 
-        return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
+        return async_wrapper if iscoroutinefunction(func) else sync_wrapper
     return decorator

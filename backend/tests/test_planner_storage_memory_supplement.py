@@ -440,6 +440,227 @@ class TestQueryAnchoredExcerpt:
         excerpt = _query_anchored_excerpt(text, "alpha beta gamma")
         assert "gamma" in excerpt
 
+    # ---- sheet-anchor branch (live workbook shapes) --------------------
+
+    @staticmethod
+    def _pricebook_text(target_row: int = 45) -> str:
+        """LINMAC-like price book: wide numeric rows (real parsed rows run
+        ~300 chars of computed pricing columns) so the WG350DSAV row begins
+        ~12k chars into its sheet — well past both the old 4k head window
+        and a head-sized read. A HECK sheet sits FIRST: 'heck' ⊂ 'check'
+        must not let 'check the price' queries anchor there."""
+        def row(i, code, desc, price):
+            cells = "|".join(f"{i * 13.7 * k:.8f}" for k in range(1, 18))
+            return f"R{i} | {code} | {desc} | {price} | {cells}\n"
+
+        body = (
+            "R1 | Linmac Machinery \"B\" |  | 1.38\n"
+            "R2 | Part Number | Description | List Price | Weight"
+            " | US NET | Exch | QPS | Freight | Landed\n"
+        )
+        body += "".join(
+            row(i, f"WV-310DSV-{i}", "Dual Miter Bandsaw 575V 3Ph", 10405 + i)
+            for i in range(3, target_row))
+        linmac = (
+            "=== Sheet: LINMAC ===\n" + body
+            + row(target_row, "WG350DSAV",
+                  "Bandsaw 230V/3PH Linmac 10.5 Double Miter", 14145)
+            + row(target_row + 1, "Lathes", " | 0", 0)
+            + "\n=== Sheet: OTHER ===\nR1 | misc\n")
+        # Real parses open with the WORKBOOK INDEX block, so the first
+        # marker always follows a newline — the leading \n mirrors that.
+        return ("\n=== Sheet: HECK ===\nR1 | HECK INDUSTRIES\n"
+                + linmac)
+
+    def test_sheet_anchor_reaches_row_beyond_head_and_window(self):
+        """Live 2026-09-07: 'consolidated price list 2019 linmac bandsaw'
+        anchored the LINMAC sheet correctly, but the excerpt was a fixed
+        4k window from the sheet start and WG350DSAV (List 14145) began
+        ~4.2k chars in — the read ended ONE ROW short (R16) and the agent
+        again reported the row unreadable. The sheet anchor must follow
+        the query's tokens INTO the sheet."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        text = self._pricebook_text()
+        assert len(text.split("WG350DSAV")[0]) > 12_000  # past head AND window
+        excerpt = _query_anchored_excerpt(
+            text, "consolidated price list 2019 linmac bandsaw")
+        assert "excerpt from the 'LINMAC' sheet" in excerpt
+        assert "WG350DSAV" in excerpt
+        assert "14145" in excerpt
+
+    def test_deep_anchor_keeps_column_headers(self):
+        """Header + row (spreadsheet-retrieval consensus): a deep-anchored
+        window must carry the sheet's header block, or the model sees the
+        row's numbers without the column names and cannot tell the List
+        Price column from Weight."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        excerpt = _query_anchored_excerpt(
+            self._pricebook_text(),
+            "consolidated price list 2019 linmac bandsaw")
+        assert "List Price" in excerpt.split("WG350DSAV")[0]
+
+    def test_query_verb_does_not_hijack_a_similar_sheet_name(self):
+        """'check the price…' must not anchor the HECK sheet: 'heck' ⊂
+        'check' passed the old name-containment check, and HECK sits before
+        LINMAC in document order, so the whole read landed on the wrong
+        sheet (live 2026-09-07 query variant)."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        excerpt = _query_anchored_excerpt(
+            self._pricebook_text(),
+            "check the price of the linmac bandsaw")
+        assert "excerpt from the 'HECK' sheet" not in excerpt
+        assert "WG350DSAV" in excerpt
+
+    def test_brand_line_loses_tie_to_data_row(self):
+        """'linmac' alone keys both the brand title line and the WG350DSAV
+        data row (same single token, same rarity); the data row — dense
+        with the numeric cells the question is about — must win."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        excerpt = _query_anchored_excerpt(self._pricebook_text(), "linmac")
+        assert "Linmac Machinery" in excerpt      # head block still shipped
+        assert "WG350DSAV" in excerpt             # data row anchored
+        assert "14145" in excerpt
+
+    # ---- cross-domain shapes (sheet anchoring is business-agnostic) ----
+
+    @staticmethod
+    def _deep_sheet(sheet_name, title_line, target_line, filler_line, n=60):
+        """A sheet whose target row sits past a 12k window from the head:
+        any business whose register runs long (invoices, roster, inventory).
+        Leading newline: real parses open with the WORKBOOK INDEX block."""
+        body = title_line + "".join(filler_line(i) for i in range(n))
+        return ("\n=== Sheet: " + sheet_name + " ===\n" + body + target_line
+                + "\n=== Sheet: NOTES ===\nR1 | misc\n")
+
+    def test_services_business_ar_aging_row(self):
+        """Bookkeeping/consulting shape: 'invoices sheet … brightwater' —
+        the sheet token never appears in data rows, so the fallback keys on
+        the query's rarest in-sheet token (the client name) and must reach
+        the row deep in the register."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        text = self._deep_sheet(
+            "INVOICES",
+            "R1 | AR Aging Export | Generated 2026-09-01\n"
+            "R2 | Invoice # | Client | Amount | Due Date\n",
+            "R264 | INV-2026-0904 | Brightwater Dental | 4820.00 | 2026-10-30\n",
+            lambda i: (f"R{i + 3} | INV-2026-{i:04d} | Meridian Labs"
+                       f" | {300 + i * 7}.00 | 2026-09-{(i % 28) + 1:02d}\n"),
+            n=260,
+        )
+        assert len(text.split("Brightwater")[0]) > 12_000
+        excerpt = _query_anchored_excerpt(
+            text, "check the invoices sheet for the Brightwater Dental total")
+        assert "Brightwater Dental" in excerpt
+        assert "4820.00" in excerpt
+        assert "Due Date" in excerpt            # header block shipped
+
+    def test_hr_roster_row(self):
+        """Staffing/HR shape: roster with 260 filler employees; the queried
+        person's row sits past the window and their name is the only
+        identifying token in the sheet body."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        text = self._deep_sheet(
+            "EMPLOYEES",
+            "R1 | Employee ID | Name | Start Date | Salary\n",
+            "R262 | E-1188 | Jane Okafor | 2024-03-11 | 98000\n",
+            lambda i: (f"R{i + 2} | E-{1100 + i:04d} | Alex Rivera {i}"
+                       f" | 2023-06-05 | {70000 + i * 11}\n"),
+            n=260,
+        )
+        assert len(text.split("Okafor")[0]) > 12_000
+        excerpt = _query_anchored_excerpt(
+            text, "employees sheet Jane Okafor salary")
+        assert "Jane Okafor" in excerpt
+        assert "98000" in excerpt
+
+    def test_text_heavy_policy_sheet_lines(self):
+        """Insurance/consulting shape: prose paragraphs where a wrong line
+        carries the sheet token AND heavy digits (a rate-card line), but
+        the answer line carries the query's identity tokens — token hits
+        must outrank digit density."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        paras = "".join(
+            f"R{i + 3} | reviewed 2026-0{(i % 9) + 1}-14 | Section {i}: "
+            f"standard billing and scheduling terms apply to all clients\n"
+            for i in range(40)
+        )
+        text = (
+            "\n=== Sheet: POLICIES ===\n"
+            "R1 | Policies Master | rate card 11.25 | 12.75 | 13.50\n"
+            + paras
+            + "R30 | policies reviewed 2026-05-05 | rate card 88.75"
+              " | 99.25 | 102.50 | 118.00\n"
+            + "R42 | reviewed 2026-08-30 | Grievance: clients may raise a "
+              "billing dispute within 30 days of the invoice date\n"
+            + "\n=== Sheet: NOTES ===\nR1 | misc\n"
+        )
+        excerpt = _query_anchored_excerpt(
+            text, "policies sheet grievance window")
+        assert "Grievance" in excerpt
+        assert "30 days" in excerpt
+
+    def test_small_fresh_install_single_sheet_book(self):
+        """Fresh-install shape: a 6-row single-sheet book (someone's first
+        upload), boilerplate-heavy query. No index block, no deep rows —
+        the whole sheet fits in the window and the target row surfaces."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        text = (
+            "\n=== Sheet: QUOTE ===\n"
+            "R1 | Cedar & Stone Landscaping\n"
+            "R2 | Item | Price\n"
+            "R3 | Cedar Elm 45gal | 425.00\n"
+            "R4 | Decomposed Granite per yard | 95.00\n"
+            "R5 | Drip irrigation zone | 380.00\n"
+        )
+        excerpt = _query_anchored_excerpt(
+            text, "check the price list quote for the cedar elm")
+        assert "Cedar Elm 45gal" in excerpt
+        assert "425.00" in excerpt
+
+    def test_duplicate_adjacent_sheet_markers_are_one_body(self):
+        """Real exports carry whitespace-variant twin tabs ('MULT SCOTCH
+        TOOLING' twice, 180 chars apart in the live workbook): the body
+        must span BOTH markers, not clip at the twin."""
+        from integrations.universal_integration_service import (
+            _query_anchored_excerpt,
+        )
+
+        text = (
+            "\n=== Sheet: STOCK ===\n"
+            "=== Sheet: STOCK ===\n"
+            "R1 | Part | Bin\n"
+            + "R filler\n" * 5
+            + "R7 | WG350DSAV | B-12\n"
+            + "R8 | spare | C-3\n"
+            + "\n=== Sheet: OTHER ===\nR1 | misc\n"
+        )
+        excerpt = _query_anchored_excerpt(text, "stock sheet WG350DSAV bin")
+        assert "B-12" in excerpt
+
 
 class TestOutlookEmptyFallback:
     async def test_outlook_empty_returns_ingested_matches(self, mem_block):

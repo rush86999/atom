@@ -4,6 +4,7 @@ Central memory system for all communication data with LanceDB vector storage
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -614,13 +615,14 @@ class LanceDBMemoryManager:
                 logger.debug(f"dim check skipped: {dim_err}")
             logger.info("Opened existing atom_communications table")
             
-        # Create FTS index for hybrid search if it doesn't exist
+        # Create FTS index for hybrid search. replace=True: an index left by
+        # a prior run turned this into a per-boot WARNING (lance refuses
+        # same-name index creation) — rebuilding is idempotent and cheap.
         try:
-            # Note: create_fts_index is idempotent in recent lancedb versions or we catch the error
-            self.connections_table.create_fts_index("content", replace=False)
+            self.connections_table.create_fts_index("content", replace=True)
             logger.info("FTS index enabled on 'content' column")
         except Exception as e:
-            logger.warning(f"Could not create FTS index (might already exist): {e}")
+            logger.warning(f"Could not create FTS index (non-fatal): {e}")
     
     def _create_metadata_table(self):
         """Create metadata table for ingestion pipeline"""
@@ -3105,7 +3107,7 @@ class CommunicationIngestionPipeline:
                 logger.info(f"Gmail initial sync: fetching {history_days} days of history")
 
             # Run in executor to avoid blocking
-            loop = asyncio.get_event_loop()
+            loop = get_event_loop()
             messages = await loop.run_in_executor(
                 None,
                 lambda: gmail_service.get_messages(query=query, max_results=100)
@@ -4177,8 +4179,18 @@ class CommunicationIngestionPipeline:
     def get_ingestion_stats(self) -> Dict[str, Any]:
         """Get ingestion statistics"""
         try:
-            # Get metadata from LanceDB
-            metadata = self.memory_manager.metadata_table.search().to_pandas()
+            # Get metadata from LanceDB. The metadata table is created on
+            # first ingest — before that it is None, and .search() on None
+            # is what crashed this method on every call (live boot log).
+            metadata_table = getattr(self.memory_manager, "metadata_table", None)
+            if metadata_table is None:
+                return {
+                    "configured_apps": list(self.ingestion_configs.keys()),
+                    "active_streams": list(self.active_streams.keys()),
+                    "total_messages": 0,
+                    "app_stats": {},
+                }
+            metadata = metadata_table.search().to_pandas()
             
             stats = {
                 "configured_apps": list(self.ingestion_configs.keys()),

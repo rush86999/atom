@@ -8,6 +8,7 @@ Covers:
 - resume_workflow publishes WORKFLOW_RESUMED
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import uuid
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -61,8 +62,8 @@ class FakeStateManager:
 
 
 async def wait_for_background_tasks(engine: WorkflowEngine, timeout: float = 10.0) -> bool:
-    deadline = asyncio.get_event_loop().time() + timeout
-    while asyncio.get_event_loop().time() < deadline:
+    deadline = get_event_loop().time() + timeout
+    while get_event_loop().time() < deadline:
         if all(t.done() for t in engine._background_tasks):
             return True
         await asyncio.sleep(0.05)

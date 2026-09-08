@@ -13,6 +13,7 @@ Design:
 from __future__ import annotations
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import logging
 import os
 from dataclasses import dataclass, field
@@ -98,7 +99,7 @@ class ExtractionQueue:
         if self._started:
             return
         try:
-            loop = asyncio.get_event_loop()
+            loop = get_event_loop()
             if loop.is_closed():
                 return
             self._worker_task = loop.create_task(self._worker_loop())

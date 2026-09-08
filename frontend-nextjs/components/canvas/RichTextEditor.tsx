@@ -16,6 +16,17 @@
  *
  * Enter inserts <br> (email-style), matching the line-aware plain-text →
  * HTML conversion in integrations/outlook_service._body_to_html.
+ *
+ * The editable surface follows the APP THEME (dark paper in dark mode) —
+ * owner request, 2026-09-07, superseding the earlier always-white rule.
+ * Hardcoded-color content (Outlook-imported signatures carry
+ * color:rgb(0,0,0), #44546A and white chip backgrounds — on a transparent
+ * dark surface that text rendered invisible, observed live 2026-09-07:
+ * "Regards," black-on-dark) is display-normalized in dark mode by scoped
+ * CSS in globals.css: near-black text renders light, white chips render
+ * transparent. That normalization is DISPLAY-ONLY — the stored and sent
+ * HTML keeps its inline styles, so recipients on white email clients see
+ * exactly the authored email, and dark-mode clients render it better too.
  */
 
 import React, { useEffect, useRef } from "react";
@@ -264,6 +275,78 @@ export default function RichTextEditor({
     exec("createLink", url);
   };
 
+  // "Default color" reset — strips explicit text color from the selection so
+  // it goes back to following the surface (black-on-white light, white-on-
+  // black dark). execCommand("foreColor", "inherit") is a silent no-op in
+  // Chromium, so the reset is real DOM surgery on what this editor emits:
+  // <font color> wrappers are unwrapped and inline color styles dropped.
+  // extractContents (not clone+delete) matters: it splits partially selected
+  // colored wrappers, so the reset middle stays clean while the untouched
+  // before/after halves keep their color. The emitted HTML carries no color
+  // on reset text — recipients' clients render their default (black).
+  const resetTextColor = () => {
+    // Read the range BEFORE any focus() — focus can collapse the selection
+    // (jsdom always does; Chromium restores it, but don't rely on that).
+    const readRange = () => {
+      const s = window.getSelection();
+      return s && s.rangeCount ? s.getRangeAt(0) : null;
+    };
+    let range = readRange();
+    const inEditor =
+      !!range && !!ref.current && ref.current.contains(range.commonAncestorContainer);
+    if (!inEditor) {
+      ref.current?.focus();
+      range = readRange();
+    }
+    if (!range) {
+      emit();
+      return;
+    }
+    if (range.collapsed) {
+      // Caret only: clear the pending formatting state for next typed text.
+      try {
+        document.execCommand("removeFormat");
+      } catch {
+        // jsdom / unsupported — nothing pending to clear there anyway
+      }
+      emit();
+      return;
+    }
+    try {
+      const frag = range.extractContents();
+      frag.querySelectorAll?.("font[color]").forEach((f) => {
+        const parent = f.parentNode;
+        if (parent) {
+          while (f.firstChild) parent.insertBefore(f.firstChild, f);
+          parent.removeChild(f);
+        }
+      });
+      frag.querySelectorAll?.("[style]").forEach((el) => {
+        (el as HTMLElement).style.removeProperty("color");
+        if (!(el as HTMLElement).getAttribute("style")) {
+          el.removeAttribute("style");
+        }
+      });
+      range.insertNode(frag);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      if (frag.lastChild) {
+        const caret = document.createRange();
+        caret.setStartAfter(frag.lastChild);
+        caret.collapse(true);
+        sel?.addRange(caret);
+      }
+      ref.current?.focus();
+    } catch {
+      try {
+        document.execCommand("removeFormat");
+      } catch {
+        // last-resort fallback was best-effort too
+      }
+    }
+    emit();
+  };
+
   // Shade the table cell the caret is in; outside a table, fall back to an
   // inline text highlight so the control still does something useful.
   const applyShading = (color: string) => {
@@ -373,9 +456,10 @@ export default function RichTextEditor({
             type="button"
             title={c.value ? `Text color ${c.value}` : "Default color"}
             aria-label={c.value ? `Text color ${c.value}` : "Default color"}
-            className={`${toolbarBtn} font-bold`}
+            data-testid={c.value ? undefined : `${testIdPrefix}-default-color`}
+            className={c.value ? `${toolbarBtn} font-bold` : `${toolbarBtn} font-bold text-zinc-900 dark:text-zinc-100`}
             style={{ color: c.value || undefined }}
-            onClick={() => exec("foreColor", c.value || "inherit")}
+            onClick={() => (c.value ? exec("foreColor", c.value) : resetTextColor())}
           >
             A
           </button>
@@ -463,7 +547,7 @@ export default function RichTextEditor({
         onInput={emit}
         onBlur={emit}
         style={{ minHeight, fontFamily: baseFontFamily, fontSize: baseFontSize }}
-        className="w-full overflow-y-auto bg-transparent border border-zinc-200 dark:border-white/10 rounded p-2 text-zinc-900 dark:text-zinc-100 focus:ring-0 outline-none [&_a]:underline [&_a]:text-indigo-500 dark:[&_a]:text-indigo-300"
+        className="w-full overflow-y-auto rte-surface bg-white border border-zinc-200 dark:border-white/10 dark:bg-[#0F172A] rounded p-2 text-zinc-900 dark:text-zinc-200 focus:ring-0 outline-none [&_a]:underline [&_a]:text-indigo-600 dark:[&_a]:text-indigo-400"
       />
     </div>
   );

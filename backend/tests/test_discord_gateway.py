@@ -19,6 +19,7 @@ Contracts pinned here (all against an injected fake WebSocket — no network):
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 from unittest.mock import MagicMock, patch
 
@@ -208,6 +209,6 @@ class TestResilience:
                 return maybe_start_from_env(cb=received.append)
 
             with patch.dict(os.environ, env_on):
-                started = _asyncio.get_event_loop().run_until_complete(_start())
+                started = _get_event_loop().run_until_complete(_start())
             assert started is True
             assert called["token"] == "tok" and called["started"] is True

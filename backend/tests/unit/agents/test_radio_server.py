@@ -6,6 +6,7 @@ never hang, and the drain covers queue/DB both sides.
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 
 import pytest
 
@@ -59,7 +60,7 @@ class TestWaitForMention:
                             lambda: 1)
         server = get_radio_server()
         # Requested 30s but config caps at 1s — must return promptly.
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         start = loop.time()
         await server.wait_for_mention(thread.id, "nobody", timeout=30, db=db_session)
         assert loop.time() - start < 5

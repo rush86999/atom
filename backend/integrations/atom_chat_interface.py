@@ -4,6 +4,7 @@ Enhanced chat interface with Slack integration, command handling, and context ma
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import json
@@ -696,7 +697,7 @@ class AtomChatInterface:
         """Notify registered message callbacks"""
         for callback in self.message_callbacks:
             try:
-                if asyncio.iscoroutinefunction(callback):
+                if iscoroutinefunction(callback):
                     await callback(message)
                 else:
                     callback(message)

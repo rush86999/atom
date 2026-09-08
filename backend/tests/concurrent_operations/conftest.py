@@ -31,6 +31,7 @@ For production deployment with PostgreSQL:
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import gc
 import os
 import pytest
@@ -186,7 +187,7 @@ def run_async_tasks():
         Returns:
             List of results from all tasks
         """
-        tasks = [coro(i, **kwargs) if asyncio.iscoroutinefunction(coro) else coro for i in range(count)]
+        tasks = [coro(i, **kwargs) if iscoroutinefunction(coro) else coro for i in range(count)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         return results
 

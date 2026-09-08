@@ -674,6 +674,13 @@ def _ensure_vfs_registered():
             register_provider(KnowledgeVFSProvider())
         except Exception:
             pass  # provider optional; actions degrade to empty results
+    if get_provider("datasets") is None:
+        try:
+            from integrations.vfs.datasets_vfs import DatasetsVFSProvider
+            from core.vfs_registry import register_provider
+            register_provider(DatasetsVFSProvider())
+        except Exception:
+            pass  # provider optional; actions degrade to empty results
 
 
 @register_action(

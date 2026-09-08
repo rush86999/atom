@@ -5,6 +5,7 @@ Generates LLM-based semantic summaries of canvas state for episodic memory.
 Summaries capture business context, intent, and key information.
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 import hashlib
 from typing import Optional, Dict, Any
@@ -122,7 +123,7 @@ class CanvasPresentationSummaryService:
             try:
                 # Cache might be async or sync depending on implementation
                 import asyncio
-                if asyncio.iscoroutinefunction(cache.get):
+                if iscoroutinefunction(cache.get):
                     cached_summary = await cache.get(cache_key)
                 else:
                     cached_summary = cache.get(cache_key)
@@ -168,7 +169,7 @@ Summary:"""
             if use_cache and summary and has_cache:
                 try:
                     import asyncio
-                    if asyncio.iscoroutinefunction(cache.set):
+                    if iscoroutinefunction(cache.set):
                         await cache.set(cache_key, summary, expire=3600)
                     else:
                         cache.set(cache_key, summary, expire=3600)

@@ -18,6 +18,7 @@ Covers:
 - ensure_worker_running: always True.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 import os
 from datetime import datetime, timedelta, timezone
@@ -228,7 +229,7 @@ def test_dequeue_empty_queue_times_out(queue):
 def test_dequeue_empty_queue_polls_then_finds_job(queue):
     async def scenario():
         q = queue
-        asyncio.get_event_loop().call_later(2, lambda: None)  # keep loop busy
+        get_event_loop().call_later(2, lambda: None)  # keep loop busy
 
         async def populate():
             await asyncio.sleep(0.2)

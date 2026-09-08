@@ -8,6 +8,7 @@ Enhanced with POMDP Memory Framework for experience-driven graduation.
 Based on 2025-2026 research on memory for autonomous LLM agents.
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
@@ -850,7 +851,7 @@ class AgentGraduationService:
                     "new_maturity": new_maturity,
                 }
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = get_event_loop()
                 except RuntimeError:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)

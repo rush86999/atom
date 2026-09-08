@@ -14,6 +14,7 @@ Previous implementation had race conditions when used in async contexts.
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from functools import wraps
@@ -84,7 +85,7 @@ class GovernanceCache:
     def _start_cleanup_task(self):
         """Start background task to expire stale entries."""
         try:
-            loop = asyncio.get_event_loop()
+            loop = get_event_loop()
             if loop.is_running():
                 self._cleanup_task = loop.create_task(self._cleanup_expired())
         except Exception as e:

@@ -367,3 +367,70 @@ no double signature (browser-verified; test canvas deleted after).
 TestSignature::test_stored_preference_wins (expects the old 3-key get_signature shape — now
 returns signature_html too), test_chat_canvas_editor 24, test_auto_document_ingestion
 long-file-refresh, test_tool_routing_generalized collection error.
+
+---
+
+## 2026-09-07 ~10:50 ET — ZCode: atom_memory migration off the portable drive (IN FLIGHT, autonomously finalizing)
+
+**Why:** 2026-09-07 morning the user's Seagate portable drive disconnected/reconnected; every
+memory-assembler leg + the canvas-edit fresh-data lookup timed out at once (canvas c3617a7f
+"try the search again for linmac" turn, 13:29 UTC). Root cause of the blast radius:
+`backend/data/atom_memory` is a symlink onto the USB volume, and the link is ~4 files/sec on
+the store's 94k small files (seq read is fine: 128 MB/s measured) — a remounted, cache-cold
+store + an LLM-retry-slowed planner burned the whole 25s fresh-data budget. User asked to move
+inactive data TO the drive and port atom_memory back to internal.
+
+**Ops state (safe at every step, originals kept until verified):**
+- Backend healthy, running on the USB store while a `tar` stream stages the 31GB store into
+  `backend/data/.memstage/atom_memory` (~256 files/min small-file grind — hours).
+- `/tmp/finalize_memory_migration.sh` (nohup'd) polls for tar completion, then: stop backend →
+  rsync delta → swap symlink for the real dir → `scripts/restart_backend.sh` → health gate →
+  AUTO-ROLLBACK to the USB symlink on failed health. On success it relaunches
+  `/tmp/zcode_relocate.sh`, which moves INACTIVE data to the drive: reingest backup 20GB +
+  comms-lance backup 1.5GB (from `backend/data/backups/`, no symlink — one-off op artifacts),
+  opencode 50GB / .gemini antigravity ~20GB / .claude/projects ~8GB (symlinked back, tools
+  still work while the drive is mounted), chromium snapshots 0.4GB. ≈100GB off internal.
+- Monitor: `tail -f /tmp/mem_migration_finalize.log` and
+  `tail -f /tmp/zcode_relocate_progress.log` (drive log also at
+  `relocated-from-internal-20260907/move-log.txt` on the Seagate).
+- After the swap: `atom_memory` is a REAL directory (canonical `backend/data/atom_memory`), so
+  the restart script's `DRIVE_CONFIGURED` symlink probe goes false — external DB-snapshot
+  copies to the drive still happen whenever it's mounted, but the unmounted-drive WARNING no
+  longer fires. Do not re-symlink the store onto the drive.
+- Drive disconnect risk remains for the relocated INACTIVE data only; nothing in the agent's
+  hot path depends on the drive after this lands. Backups dir keeps only active cycle/restart
+  snapshots locally (~130MB, 5-cap).
+
+**UPDATE 2026-09-07 ~12:00 ET — MIGRATION COMPLETE.** `backend/data/atom_memory` is now a REAL
+directory on internal disk (symlink removed); fresh startup log confirms LanceDB connects at the
+canonical internal path; backend healthy (pid 3073). Parallel rsync streams + a stopped-backend
+delta pass cut the 31GB / 71k-file copy from ~5h (single tar stream, 4 files/sec on this USB
+link) to ~45 min. The relocation queue (opencode 50GB, antigravity ~21GB, claude/projects 8GB,
+atom backups 21.5GB, chromium snapshots → the drive; symlinks back where tools need them) is
+running unattended — progress in /tmp/zcode_relocate_progress.log. If a relocated tool misbehaves
+while the drive is unplugged, that's expected: move its dir back from
+`/Volumes/Seagate Portable Drive/relocated-from-internal-20260907/`.
+
+**FINAL 2026-09-07 ~12:30 ET — RELOCATION QUEUE COMPLETE.** All 10 items moved with verified
+file counts, zero failures (~100GB): atom reingest+lance backups (no links — op artifacts),
+opencode 50GB, antigravity trio + pair ~21GB, .claude/projects 8GB (all symlinked back — tools
+work while the drive is mounted), chromium snapshots. Internal free: 125Gi (was 56Gi at start,
+after adding the 31GB memory store back). Single-copy caveat: the drive now holds the ONLY copy
+of the relocated data; the symlinks resolve only while it is mounted.
+
+## 2026-09-07 ~13:20 ET — ZCode: agent can now base NEW drafts on real styled messages
+
+Owner request: "agent can get styled email or other messages and create it as base for
+drafting new emails or messages". Gap found: comm tool blocks only surfaced 200/220-char
+TEXT previews (outlook graph_listing body_preview; ingested-mailbox lines) — the styled
+markup ingestion preserves (metadata.html_body, store choke point) never reached the model,
+so "draft a new one styled like that message" was impossible.
+
+Fix (core/chat_tool_planner.py): STYLED HTML BODY section appended to the outlook block
+(ingested store's newest matching metadata.html_body first — `_latest_styled_ingested`,
+address candidates from query+history; fallback = top Graph hit's HTML body.content) and to
+both universal comm branches (live-miss + success-with-ingested-leads). Section instructs:
+copy the markup as the canvas body and edit the wording; canvas + send preserve raw HTML
+(funnel `normalize_email_content` passes HTML through; composer sanitizer allows style).
+Block cap 6000 chars. Tests: tests/test_tool_planner_styled_base.py (5) + the 3 existing
+planner suites 28 green. Backend restarted.

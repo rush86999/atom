@@ -8,6 +8,7 @@
   with no db, singleton reset between tests.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from unittest.mock import MagicMock
 
 from core.meta_agent_orchestrator import (
@@ -36,7 +37,7 @@ class TestOrchestratorStub:
 
     def test_orchestrate_ontology_management_default_trigger(self):
         orch = MetaAgentOrchestrator()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = get_event_loop().run_until_complete(
             orch.orchestrate_ontology_management("t1", {})
         )
         assert result["orchestration_id"] == "stub-id"
@@ -46,14 +47,14 @@ class TestOrchestratorStub:
 
     def test_orchestrate_ontology_management_explicit_trigger(self):
         orch = MetaAgentOrchestrator()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = get_event_loop().run_until_complete(
             orch.orchestrate_ontology_management("t1", {"trigger_type": "ingestion"})
         )
         assert result["trigger_type"] == "ingestion"
 
     def test_trigger_on_ingestion(self):
         orch = MetaAgentOrchestrator()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = get_event_loop().run_until_complete(
             orch.trigger_on_ingestion({"doc_id": "d1"})
         )
         assert result == {"patterns_detected": 0, "suggestions_created": 0,

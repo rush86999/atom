@@ -10,6 +10,7 @@ and configuration for the entire test suite.
 # test database. A test run against data/atom.db wiped live data on
 # 2026-09-04 (see AGENT_COORDINATION.md INCIDENT 2026-09-04) — this line is
 # the tripwire so a bare `pytest` can never touch the real DB again.
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import os
 
 os.environ["TESTING"] = "1"
@@ -1168,7 +1169,7 @@ def async_client():
                 yield client
 
         # Run the async generator
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         gen = get_client()
         client = loop.run_until_complete(gen.__anext__())
         yield client

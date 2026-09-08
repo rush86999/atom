@@ -46,6 +46,7 @@ Usage:
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import gzip
 import logging
 import os
@@ -501,7 +502,7 @@ async def log_media_action_async(
 
     Runs logging in background thread to avoid blocking.
     """
-    loop = asyncio.get_event_loop()
+    loop = get_event_loop()
     await loop.run_in_executor(
         None,
         lambda: AuditLogger().log_media_action(
@@ -528,7 +529,7 @@ async def log_smarthome_action_async(
 
     Runs logging in background thread to avoid blocking.
     """
-    loop = asyncio.get_event_loop()
+    loop = get_event_loop()
     await loop.run_in_executor(
         None,
         lambda: AuditLogger().log_smarthome_action(

@@ -44,6 +44,12 @@ this prompt:
   a question makes no claim in either direction.
 - Say plainly in `reply` that the claim is unverified rather than silently
   writing it into the artifact.
+- URLS ARE CLAIMS TOO: only write a web address you can copy VERBATIM from
+  the current canvas content, the user's message, or this prompt's evidence
+  blocks. Never construct a URL from a pattern (site + model number, guessed
+  slugs like /products/<name>) — an invented link that 404s in a sent draft
+  is worse than a missing link. When asked to add a link and no real URL is
+  in evidence, say so in `reply` instead of writing one.
 Never upgrade an instruction to verify/confirm something into an assertion
 that it is true."""
 

@@ -13,6 +13,7 @@ place of the enum (plus a ScheduledMessage model whose columns drifted from
 alembic 6463674076ea) — the 12 pre-existing failures in test_scheduled_
 messaging.py were symptoms of that schema drift.
 """
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
@@ -419,7 +420,7 @@ class TestExecutionHistory:
 def asyncio_run(coro):
     import asyncio
     try:
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return get_event_loop().run_until_complete(coro)
     except RuntimeError:
         loop = asyncio.new_event_loop()
         try:

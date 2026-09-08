@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import threading
 
 try:
@@ -30,7 +31,7 @@ except (ImportError, BaseException) as e:
     logger.warning(f"Numpy check failed: {e}")
 
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Dict, List, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from core.doc_freshness_service import FRESHNESS_FILTER_ENABLED
 
@@ -328,9 +329,105 @@ class LanceDBHandler:
 
             self.db = lancedb.connect(self.db_path, storage_options=opts)
             logger.info(f"LanceDB connected successfully")
+            self._repair_known_schema_drift()
         except Exception as e:
             logger.error(f"Failed to initialize LanceDB at {self.db_path}: {e}")
             self.db = None
+
+    # ── Schema-drift self-heal ────────────────────────────────────────────
+    # Older stored tables predate columns that newer writers stamp via
+    # extra_columns and newer readers prefilter on — the prefilter then dies
+    # with "No field named X" and the whole feature leg degrades (live
+    # 2026-09-07: episodes tables without agent_id killed every agent-scoped
+    # episode recall). Repair: add the missing column(s) as strings, retry.
+
+    _MISSING_FIELD_RE = re.compile(r"No field named ['\"]?([A-Za-z_][A-Za-z0-9_]*)")
+
+    #: Tables known to have drifted: column → SQL default expression. Newer
+    #: writers stamp these via extra_columns; the expressions backfill old
+    #: rows from their metadata where possible. add_columns values are
+    #: SQL EXPRESSIONS in this lancedb version — a type name like "string"
+    #: fails with "Column string does not exist" (which silently broke the
+    #: segmentation service's own repair until 2026-09-07).
+    _KNOWN_TABLE_COLUMNS = {
+        "episodes": {
+            "agent_id": "coalesce(metadata['agent_id'], '')",
+            "outcome": "coalesce(metadata['outcome'], '')",
+        },
+        "exchange_examples": {"label": "''"},
+    }
+
+    def ensure_columns(self, table_name: str, columns: Dict[str, str]) -> bool:
+        """Add missing top-level columns to a stored table (schema evolution).
+
+        Values are SQL default expressions evaluated against existing rows.
+        True when every requested column exists afterwards (added now, or
+        already present); False when the table is absent or repair failed.
+        """
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return False
+            existing = {f.name for f in table.schema}
+            missing = {c: t for c, t in columns.items() if c not in existing}
+            if not missing:
+                return True
+            table.add_columns(missing)
+            logger.info(
+                f"LanceDB schema repair: added {sorted(missing)} to '{table_name}'"
+            )
+            return True
+        except Exception as e:  # noqa: BLE001 — repair is best-effort
+            logger.warning(f"LanceDB schema repair failed for '{table_name}': {e}")
+            return False
+
+    def _repair_missing_column(self, table_name: str, err: Exception) -> bool:
+        """True when `err` was a missing-column schema error AND the column
+        was added now (caller should retry the query once)."""
+        m = self._MISSING_FIELD_RE.search(str(err))
+        if not m:
+            return False
+        col = m.group(1)
+        try:
+            table = self.get_table(table_name)
+        except Exception:  # noqa: BLE001
+            return False
+        if table is None:
+            return False
+        if col in {f.name for f in table.schema}:
+            return False  # column exists — the error was something else
+        return self.ensure_columns(table_name, {col: "''"})
+
+    def _repair_known_schema_drift(self) -> None:
+        """Apply the known-drift map to every table that already exists.
+        Cheap schema introspection, runs once per handler connect."""
+        if self.db is None:
+            return
+        try:
+            names = set(self.db.table_names())
+        except Exception:  # noqa: BLE001
+            return
+        for table_name, columns in self._KNOWN_TABLE_COLUMNS.items():
+            if table_name not in names:
+                continue
+            try:
+                table = self.get_table_nocheck(table_name)
+                if table is None:
+                    continue
+                existing = {f.name for f in table.schema}
+                missing = {c: expr for c, expr in columns.items() if c not in existing}
+                if not missing:
+                    continue
+                try:
+                    table.add_columns(missing)
+                except Exception:  # noqa: BLE001 — expression unsupported: plain empty strings
+                    table.add_columns({c: "''" for c in missing})
+                logger.info(
+                    f"LanceDB schema repair: added {sorted(missing)} to "
+                    f"'{table_name}' in {self.db_path}"
+                )
+            except Exception as e:  # noqa: BLE001 — never block connect
+                logger.debug(f"schema drift check skipped for {table_name}: {e}")
 
     def _initialize_embedder(self):
         """Deprecated. Logic moved to LLMService."""
@@ -490,34 +587,95 @@ class LanceDBHandler:
             return None
 
     def get_table(self, table_name: str) -> Union[Table, None]:
-        """Get existing table"""
+        """Get existing table.
+
+        Resolves by DIRECT open first — the previous names()-listing check
+        missed tables whose manifest was mid-commit from a concurrent writer
+        (in-process sync loop + read-path ingestion + app sync all write
+        'documents'), sending every write down the create path where it
+        collided with the existing table ("Unable to create dir
+        _transactions: File exists", lance discussions #1888: concurrent
+        writes are unsafe) and silently returned write_failed. open_table is
+        authoritative; the listing is only a fallback for not-found probing.
+        """
         self._ensure_db()
         if self.db is None:
             logger.error("LanceDB not initialized")
             return None
 
         try:
-            tnames = self.db.table_names()
-            if table_name in tnames:
-                table = self.db.open_table(table_name)
-                # Registry check is a cheap dict compare; it schedules a
-                # background re-embed when the active embedding model no
-                # longer matches the one that produced the table's vectors.
-                try:
-                    self._check_embedding_identity(table_name, table)
-                except Exception:
-                    pass
-                return table
-            else:
+            table = self.db.open_table(table_name)
+            # Registry check is a cheap dict compare; it schedules a
+            # background re-embed when the active embedding model no
+            # longer matches the one that produced the table's vectors.
+            try:
+                self._check_embedding_identity(table_name, table)
+            except Exception:
+                pass
+            return table
+        except Exception as open_err:
+            # Not-found is the expected miss; anything else may be a
+            # transient mid-commit state — the names listing decides.
+            try:
+                if table_name in self.db.table_names():
+                    table = self.db.open_table(table_name)
+                    try:
+                        self._check_embedding_identity(table_name, table)
+                    except Exception:
+                        pass
+                    return table
                 return None
-
-        except Exception as e:
-            logger.error(f"Failed to get table '{table_name}': {e}")
-            return None
+            except Exception as e:
+                logger.error(f"Failed to get table '{table_name}': {e}")
+                return None
 
     # ------------------------------------------------------------------
     # Embedding-model identity & background re-embedding migration
     # ------------------------------------------------------------------
+
+    # Per-table write serialization (STRUCTURAL FIX 2026-09-07): every writer
+    # in this process (hybrid sync loop, read-path ingestion, app-record
+    # sync, episodes archival) reaches LanceDB through this handler, and
+    # lance's local-FS commit path races when table.add() calls overlap —
+    # "_transactions: File exists (os error 17)" — leaving ingestion silently
+    # write_failed for hours (live: nothing newer than 2026-09-06 in memory).
+    # lance discussions #1888: concurrent writes are unsafe; appends must be
+    # serialized per table. Class-level so all handler instances share locks.
+    _TABLE_WRITE_LOCKS: Dict[str, "threading.Lock"] = {}
+    _TABLE_WRITE_LOCKS_GUARD = threading.Lock()
+
+    # Commit-race error signatures worth one bounded retry.
+    _TRANSIENT_COMMIT_RE = re.compile(r"(?i)file exists \(os error 17\)|_transactions|object writer|object store.*conflict")
+
+    @classmethod
+    def _write_lock(cls, table_name: str) -> "threading.Lock":
+        with cls._TABLE_WRITE_LOCKS_GUARD:
+            lock = cls._TABLE_WRITE_LOCKS.get(table_name)
+            if lock is None:
+                lock = threading.Lock()
+                cls._TABLE_WRITE_LOCKS[table_name] = lock
+            return lock
+
+    @classmethod
+    def _add_with_retry(cls, table, records, *, attempts: int = 3, backoff_s: float = 0.25) -> bool:
+        """table.add() under the per-table lock, retrying transient commit
+        races (mid-commit manifest states from a concurrent writer outside
+        this process, or crashed-writer residue). Returns True on success."""
+        import time as _time
+
+        last_err: Optional[Exception] = None
+        for attempt in range(attempts):
+            try:
+                table.add(records)
+                return True
+            except Exception as e:  # noqa: BLE001 — classified below
+                last_err = e
+                if not cls._TRANSIENT_COMMIT_RE.search(str(e)):
+                    raise  # real schema/data error — caller handles
+                _time.sleep(backoff_s * (attempt + 1))
+        # Final attempt without classification: surface the raw error.
+        table.add(records)
+        return True
 
     # Migration jobs in flight across ALL handler instances (handlers are
     # created per-request in places; one shared set prevents duplicate work).
@@ -977,7 +1135,7 @@ class LanceDBHandler:
                     # vector column from a Python list of floats.
                     table = self.create_table(table_name)
                 if table is not None:
-                    # Tables created before a top-level column existed (e.g.
+                    # Tables created before a top-level column existed (e.g
                     # freshness_* on pre-feature documents tables) reject the
                     # write with "Field ... not found in target schema" —
                     # migrate them instead of losing the row.
@@ -998,7 +1156,8 @@ class LanceDBHandler:
                                     f"Could not migrate columns {missing} on "
                                     f"'{table_name}': {col_err}"
                                 )
-                    table.add([record])
+                    with self._write_lock(table_name):
+                        self._add_with_retry(table, [record])
                 else:
                     return False
                 logger.info(f"Document added to '{table_name}': {doc_id}")
@@ -1116,7 +1275,8 @@ class LanceDBHandler:
                 table = self.create_table(table_name)
                 try:
                     if table is not None:
-                        table.add(records)
+                        with self._write_lock(table_name):
+                            self._add_with_retry(table, records)
                         logger.info(f"Created table '{table_name}' and added {len(records)} documents")
                         return len(records)
                     table = self.db.create_table(table_name, data=records)
@@ -1127,7 +1287,8 @@ class LanceDBHandler:
                     return 0
 
             # Add to existing
-            table.add(records)
+            with self._write_lock(table_name):
+                self._add_with_retry(table, records)
             logger.info(f"Added {len(records)} documents to '{table_name}'")
             return len(records)
 
@@ -1246,8 +1407,82 @@ class LanceDBHandler:
             return results_list
 
         except Exception as e:
+            # Schema-drift self-heal: an old table predating a newer writer's
+            # extra_columns raises "No field named X" on prefilter queries —
+            # add the column and retry ONCE (live 2026-09-07: episodes tables
+            # without agent_id killed every agent-scoped episode recall). The
+            # repair only returns True when it actually added the column, so
+            # this cannot loop.
+            if self._repair_missing_column(table_name, e):
+                try:
+                    return self.search(
+                        table_name=table_name,
+                        query=query,
+                        user_id=user_id,
+                        limit=limit,
+                        filter_str=filter_str,
+                        include_stale=include_stale,
+                    )
+                except Exception as retry_err:  # noqa: BLE001 — degrade, don't raise
+                    logger.error(
+                        f"Search retry after schema repair still failed in "
+                        f"'{table_name}': {retry_err}"
+                    )
             logger.error(f"Failed to search in '{table_name}': {e}")
             return []
+
+    def list_incomplete_chunk_families(self, table_name: str = "documents", limit: int = 10) -> list[Dict[str, Any]]:
+        """Chunk families whose stored row count < their declared chunk_total
+        (a writer died mid-family). Each hit carries the parent doc_id, the
+        source label and the metadata external_id needed to re-download and
+        re-ingest. Read-only scan; used by the sync loop's repair pass.
+        """
+        self._ensure_db()
+        if self.db is None:
+            return []
+        try:
+            df = self.get_table(table_name).to_pandas()
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"list_incomplete_chunk_families: scan failed: {e}")
+            return []
+
+        families: Dict[str, Dict[str, Any]] = {}
+        for rid, meta_raw, src in zip(
+            df["id"].astype(str), df["metadata"], df["source"].astype(str)
+        ):
+            if "::c" not in rid:
+                continue
+            parent = rid.split("::c")[0]
+            fam = families.setdefault(parent, {"stored": 0, "chunk_total": 0, "meta_raw": meta_raw, "source": src})
+            fam["stored"] += 1
+            if meta_raw:
+                try:
+                    m = json.loads(meta_raw)
+                except (TypeError, ValueError):
+                    continue
+                ct = m.get("chunk_total")
+                if isinstance(ct, int) and ct > fam["chunk_total"]:
+                    fam["chunk_total"] = ct
+                    fam["meta_raw"] = meta_raw
+
+        out: List[Dict[str, Any]] = []
+        for parent, fam in families.items():
+            if fam["chunk_total"] and fam["stored"] < fam["chunk_total"]:
+                try:
+                    meta = json.loads(fam["meta_raw"]) if fam["meta_raw"] else {}
+                except (TypeError, ValueError):
+                    meta = {}
+                out.append({
+                    "parent": parent,
+                    "stored": fam["stored"],
+                    "expected": fam["chunk_total"],
+                    "source": fam["source"],
+                    "external_id": meta.get("external_id"),
+                    "file_name": meta.get("file_name") or meta.get("title") or "",
+                })
+                if len(out) >= limit:
+                    break
+        return out
 
     def list_document_heads(self, table_name: str, limit: int = 200) -> list[dict[str, Any]]:
         """List lightweight heads ({id, metadata, created_at}) without vectors.

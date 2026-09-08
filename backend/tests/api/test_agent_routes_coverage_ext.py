@@ -15,6 +15,7 @@ Covers routes/branches NOT exercised by tests/api/test_agent_routes.py:
 Also includes TDD bug-hunt tests (BUG-prefixed docstrings).
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import uuid
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
@@ -550,7 +551,7 @@ def test_execute_agent_task_agent_not_found():
     import asyncio
     from api.agent_routes import execute_agent_task
 
-    result = asyncio.get_event_loop().run_until_complete(
+    result = get_event_loop().run_until_complete(
         execute_agent_task("missing-agent", {})
     )
     assert result is None
@@ -587,7 +588,7 @@ def test_execute_agent_task_full_success_path(agent):
             result = await execute_agent_task(agent.id, {"task_input": "do thing"})
             return result
 
-    result = asyncio.get_event_loop().run_until_complete(run())
+    result = get_event_loop().run_until_complete(run())
     assert result == {"final_output": "done"}
 
 
@@ -622,7 +623,7 @@ def test_execute_agent_task_generic_agent_failure_records_experience(agent):
             wm.record_experience.assert_awaited_once()
             return result
 
-    assert asyncio.get_event_loop().run_until_complete(run()) is None
+    assert get_event_loop().run_until_complete(run()) is None
 
 
 def test_execute_agent_task_routes_back_to_source_platform(agent):
@@ -660,7 +661,7 @@ def test_execute_agent_task_routes_back_to_source_platform(agent):
             )
             return mock_action.await_count
 
-    count = asyncio.get_event_loop().run_until_complete(run())
+    count = get_event_loop().run_until_complete(run())
     assert count == 1
 
 
@@ -695,7 +696,7 @@ def test_execute_agent_task_legacy_list_memories(agent):
 
             return await execute_agent_task(agent.id, {"task_input": "x"})
 
-    assert asyncio.get_event_loop().run_until_complete(run()) == "ok"
+    assert get_event_loop().run_until_complete(run()) == "ok"
 
 
 # ============================================================================

@@ -15,10 +15,15 @@ set -u
 PORT="${PORT:-8001}"
 # Interpreter resolution, most-specific first:
 #   1. PYTHON_BIN env — explicit override.
-#   2. This repo's known Homebrew 3.11 path (this dev machine).
-#   3. python3 from PATH — fresh installs on any machine.
+#   2. backend/venv314 — the Python 3.14 venv (uv-managed, requirements-py314.txt)
+#      when it exists; the 3.11 Homebrew path remains the fallback.
+#   3. This repo's known Homebrew 3.11 path (this dev machine).
+#   4. python3 from PATH — fresh installs on any machine.
 # A fresh installation must not require this exact Cellar path to exist.
 PY="${PYTHON_BIN:-}"
+if [ -z "$PY" ] && [ -x "$(dirname "$0")/../backend/venv314/bin/python" ]; then
+    PY="$(cd "$(dirname "$0")/../backend/venv314/bin" && pwd)/python"
+fi
 if [ -z "$PY" ] && [ -x "/usr/local/Cellar/python@3.11/3.11.13/Frameworks/Python.framework/Versions/3.11/Resources/Python.app/Contents/MacOS/Python" ]; then
     PY="/usr/local/Cellar/python@3.11/3.11.13/Frameworks/Python.framework/Versions/3.11/Resources/Python.app/Contents/MacOS/Python"
 fi

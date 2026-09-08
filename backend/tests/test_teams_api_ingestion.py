@@ -62,7 +62,7 @@ class TestTeamsAPIIntegration:
         assert "microsoft_teams" in ingestion_pipeline.ingestion_configs
         assert "microsoft_teams" in ingestion_pipeline.app_configs
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_teams_messages_without_token(self, ingestion_pipeline):
         """Test that missing Microsoft token is handled gracefully"""
         with patch('core.token_storage.token_storage') as mock_storage:
@@ -72,7 +72,7 @@ class TestTeamsAPIIntegration:
 
             assert messages == []
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_teams_chat_messages_success(self, ingestion_pipeline, teams_config):
         """Test successful chat message fetching from Teams"""
         ingestion_pipeline.configure_app(CommunicationAppType.MICROSOFT_TEAMS, teams_config)
@@ -138,7 +138,7 @@ class TestTeamsAPIIntegration:
                 assert messages[0]["sender_email"] == "john@example.com"
                 assert messages[0]["metadata"]["chat_id"] == "19:chat_123@thread.v2"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_teams_channel_messages_success(self, ingestion_pipeline, teams_config):
         """Test successful channel message fetching from Teams"""
         ingestion_pipeline.configure_app(CommunicationAppType.MICROSOFT_TEAMS, teams_config)
@@ -212,7 +212,7 @@ class TestTeamsAPIIntegration:
                 assert messages[0]["metadata"]["team_name"] == "Marketing Team"
                 assert messages[0]["metadata"]["channel_name"] == "General"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_teams_messages_incremental(self, ingestion_pipeline, teams_config):
         """Test incremental fetching with timestamp filtering"""
         ingestion_pipeline.configure_app(CommunicationAppType.MICROSOFT_TEAMS, teams_config)
@@ -252,7 +252,7 @@ class TestTeamsAPIIntegration:
                 assert filter_params is not None
                 assert "$filter" in filter_params
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_teams_messages_rate_limiting(self, ingestion_pipeline, teams_config):
         """Test handling of Teams API rate limiting"""
         ingestion_pipeline.configure_app(CommunicationAppType.MICROSOFT_TEAMS, teams_config)
@@ -286,7 +286,7 @@ class TestTeamsAPIIntegration:
                 # Should handle gracefully and return empty list
                 assert len(messages) == 0
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_teams_with_adaptive_cards(self, ingestion_pipeline, teams_config):
         """Test handling of Teams messages with Adaptive Cards"""
         ingestion_pipeline.configure_app(CommunicationAppType.MICROSOFT_TEAMS, teams_config)
@@ -342,7 +342,7 @@ class TestTeamsAPIIntegration:
                 assert messages[0]["metadata"]["adaptive_card"] is not None
                 assert messages[0]["metadata"]["adaptive_card"]["type"] == "AdaptiveCard"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_teams_message_normalization_structure(self, ingestion_pipeline):
         """Test that Teams messages are properly normalized"""
         pipeline = CommunicationIngestionPipeline(Mock())
@@ -399,7 +399,7 @@ class TestTeamsAPIIntegration:
 class TestTeamsErrorHandling:
     """Test error handling in Teams integration"""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_handles_api_error_gracefully(self):
         """Test graceful handling of Teams API errors"""
         pipeline = CommunicationIngestionPipeline(Mock())
@@ -425,7 +425,7 @@ class TestTeamsErrorHandling:
                 # Should handle gracefully and return empty list
                 assert messages == []
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_handles_missing_chat_id(self):
         """Test handling of chats without IDs"""
         pipeline = CommunicationIngestionPipeline(Mock())
@@ -457,7 +457,7 @@ class TestTeamsErrorHandling:
 class TestTeamsIngestionIntegration:
     """Integration tests for Teams message ingestion"""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_full_teams_ingestion_flow(self):
         """Test complete flow: fetch -> ingest"""
         mock_manager = Mock()

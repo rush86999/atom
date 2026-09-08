@@ -1201,6 +1201,95 @@ def _decode_replace_content(
     return parsed, None
 
 
+_HTTP_URL_RE = re.compile(r"https?://[^\s\"'<>\)\]]+", re.IGNORECASE)
+_LINK_CHECK_MAX_URLS = 8
+_LINK_CHECK_TIMEOUT_SECONDS = 8.0
+
+
+def _extract_http_urls(value: Any, _seen: Optional[set] = None) -> List[str]:
+    """Every absolute http(s) URL appearing anywhere in canvas content —
+    dict fields, list items, HTML attribute values, markdown, plain text.
+    Order-stable, de-duplicated."""
+    found: List[str] = []
+    seen_ids = _seen if _seen is not None else set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, str):
+            for match in _HTTP_URL_RE.findall(node):
+                url = match.rstrip(".,;:")
+                if url not in found:
+                    found.append(url)
+        elif isinstance(node, dict):
+            for k in node:
+                if id(node[k]) in seen_ids:
+                    continue
+                seen_ids.add(id(node[k]))
+                _walk(node[k])
+        elif isinstance(node, (list, tuple)):
+            for item in node:
+                if id(item) in seen_ids:
+                    continue
+                seen_ids.add(id(item))
+                _walk(item)
+
+    _walk(value)
+    return found
+
+
+async def _new_dead_links(current: Any, new_content: Any) -> List[str]:
+    """URLs the edit INTRODUCES that confirmably do not resolve (HTTP 404 /
+    410). The live incident (2026-09-08, canvas c3617a7f…): asked to find a
+    product page on brennan.ca, the editor composed a plausible-looking
+    `/products/<model-number>` URL that 404'd straight into a
+    customer-facing quote email — nothing verified it before the write, and
+    the user caught it by clicking.
+
+    Only links NEW relative to the current content are checked (links the
+    user already published stay untouched), and the check fails OPEN:
+    network errors, timeouts, bot walls (403/401) and unknown statuses all
+    count as alive — only a confirmed 404/410 blocks, because a dead link
+    in an outgoing draft is worse than no link."""
+    try:
+        old_urls = set(_extract_http_urls(current))
+        new_urls = [
+            u for u in _extract_http_urls(new_content) if u not in old_urls
+        ][:_LINK_CHECK_MAX_URLS]
+        if not new_urls:
+            return []
+
+        import httpx
+
+        async def _is_dead(client: "httpx.AsyncClient", url: str) -> bool:
+            try:
+                head = await client.head(url)
+                if head.status_code not in (404, 410):
+                    return False
+                # HEAD may be unsupported/bot-filtered — confirm with GET
+                # before declaring a link dead.
+                get = await client.get(url)
+                return get.status_code in (404, 410)
+            except Exception:  # noqa: BLE001 — unreachable ≠ dead
+                return False
+
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=_LINK_CHECK_TIMEOUT_SECONDS,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; AtomAgent/1.0)"},
+        ) as client:
+            results = await asyncio.wait_for(
+                asyncio.gather(*(_is_dead(client, url) for url in new_urls)),
+                timeout=_LINK_CHECK_TIMEOUT_SECONDS + 4,
+            )
+        return [url for url, dead in zip(new_urls, results) if dead]
+    except asyncio.TimeoutError:
+        # Verification budget exhausted — proceed rather than stall the edit.
+        logger.debug("canvas edit link check timed out — proceeding")
+        return []
+    except Exception as check_err:  # noqa: BLE001 — verification never blocks
+        logger.debug(f"canvas edit link check skipped: {check_err}")
+        return []
+
+
 async def apply_canvas_edit(
     plan: CanvasEditPlan,
     user_id: str,
@@ -1292,6 +1381,17 @@ async def apply_canvas_edit(
     # the audit trail free of non-edits.
     if new_content == current:
         return _out(None, "no_change")
+
+    # Dead-link gate: a URL the edit introduces that confirmably 404s never
+    # reaches the canvas (and from there, a customer's inbox). Fail-open —
+    # only a confirmed 404/410 blocks; see _new_dead_links.
+    dead_links = await _new_dead_links(current, new_content)
+    if dead_links:
+        logger.info(
+            f"canvas edit blocked for {canvas_id}: introduced link(s) "
+            f"return 404: {dead_links[:3]}"
+        )
+        return _out(None, f"dead_link: {dead_links[0]}")
 
     try:
         from tools.canvas_crud_tool import update_canvas_content
@@ -1461,6 +1561,16 @@ def describe_apply_failure(
             "canvas-text edits can't change the document itself — tell me "
             "what to change and I'll route it through the file engine "
             "instead."
+        )
+    if reason and reason.startswith("dead_link"):
+        dead_url = reason.split(":", 1)[1].strip() if ":" in reason else ""
+        where = f" ({dead_url})" if dead_url else ""
+        return (
+            f"I checked the link this edit would have added{where} and it "
+            "returns 404 — the page doesn't exist. I left your draft "
+            "unchanged rather than put a broken link in it. If you know the "
+            "correct address, paste it and I'll add it; otherwise I can "
+            "search the site again."
         )
     if reason and reason.startswith("store_rejected"):
         return (

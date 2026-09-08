@@ -18,6 +18,7 @@ No network, no real LLM, no real Redis — every external boundary
 Plain pytest + unittest.mock (asyncio_mode=auto).
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json as _json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace as NS
@@ -1500,7 +1501,7 @@ class TestUniversalCacheService:
         c = UniversalCacheService()
         yield c
         try:
-            asyncio.get_event_loop()
+            get_event_loop()
         except Exception:
             pass
 
@@ -1575,7 +1576,7 @@ class TestUniversalCacheService:
         assert cache.get("k") == "local"
 
     def test_async_get_set_delete(self, cache):
-        assert asyncio.get_event_loop()
+        assert get_event_loop()
         async def run():
             assert await cache.set_async("ak", [1, 2], ttl=30) is True
             assert await cache.get_async("ak") == [1, 2]

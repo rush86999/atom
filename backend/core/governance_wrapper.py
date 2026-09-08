@@ -208,7 +208,7 @@ def require_governance(
             return func(*args, **kwargs)
 
         # Return appropriate wrapper based on whether function is async
-        if asyncio.iscoroutinefunction(func):
+        if iscoroutinefunction(func):
             return async_wrapper
         else:
             return sync_wrapper
@@ -321,6 +321,7 @@ def _check_governance(
 
 # Import asyncio at module level
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 
 
 class GovernanceAudit:

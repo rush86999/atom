@@ -7,6 +7,7 @@ intent router into TASKS (creating junk local tasks). These tests pin the
 new behavior: canvas-context turns either edit the canvas through
 canvas_crud_tool (durable + broadcast) or fall through to the normal path.
 """
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -30,6 +31,25 @@ def _hermetic_canvas_store():
     with patch(
         "tools.canvas_crud_tool.read_canvas",
         new=AsyncMock(return_value={"success": False, "error": "Canvas c-123 not found"}),
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _no_live_fresh_data():
+    """Default the co-editor's live-evidence lookup to "not needed". The
+    lookup runs the real tool planner, and with the MagicMock llm_service
+    these tests install it fails ('MagicMock' object can't be awaited) —
+    which the 2026-09-04 fabrication guard turns into a DECLINED edit
+    (_try_canvas_edit → None), failing every orchestrator test that expects
+    a response. Tests that exercise the fresh-data path patch
+    fetch_fresh_data_section themselves — their mock applies inside this
+    one and wins for the duration."""
+    from core.chat_canvas_editor import FreshDataResult
+
+    with patch(
+        "core.chat_canvas_editor.fetch_fresh_data_section",
+        new=AsyncMock(return_value=FreshDataResult(section="", needed=False, ok=True)),
     ):
         yield
 
@@ -1540,7 +1560,7 @@ def test_journey_events_expose_actual_content(tmp_path):
 
     with patch("tools.canvas_crud_tool.read_canvas", new=fake_read_canvas):
         with db_session() as route_db:
-            result = asyncio.get_event_loop().run_until_complete(
+            result = get_event_loop().run_until_complete(
                 get_canvas_journey("c-j", current_user=FakeUser(), db=route_db)
             )
 
@@ -1608,7 +1628,7 @@ def test_identical_feedback_resubmit_creates_no_duplicate_training_rows(tmp_path
     payload = ReasoningStepFeedback(**_feedback_payload())
 
     with patch("api.reasoning_routes.AgentGovernanceService", FakeGov):
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         with Sess() as db_arg:
             r1 = loop.run_until_complete(submit_step_feedback(feedback=payload, db=db_arg, current_user=user))
         with Sess() as db_arg:
@@ -1656,7 +1676,7 @@ def test_canvas_chat_feedback_persists_and_clears(tmp_path):
         s.commit()
 
     payload = ReasoningStepFeedback(**_feedback_payload(summary="Reply A"))
-    loop = asyncio.get_event_loop()
+    loop = get_event_loop()
     with patch("api.reasoning_routes.AgentGovernanceService", return_value=gov), Sess() as db_arg:
         loop.run_until_complete(submit_step_feedback(feedback=payload, db=db_arg, current_user=user))
 

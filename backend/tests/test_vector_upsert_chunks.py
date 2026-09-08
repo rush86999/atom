@@ -4,6 +4,7 @@ stay per-file. (2026-09-03 — single-row-per-document made mid-file recall
 depend on whatever the document's head looked like.)"""
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import hashlib
 
 import pytest
@@ -50,7 +51,7 @@ def _long_text(marker, n_paragraphs=40):
 
 
 def _run(handler, **kwargs):
-    return asyncio.get_event_loop().run_until_complete(
+    return get_event_loop().run_until_complete(
         upsert_document_chunks(handler, table_name="documents", **kwargs)
     )
 

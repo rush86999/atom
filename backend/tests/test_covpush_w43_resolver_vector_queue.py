@@ -9,6 +9,7 @@
   tolerance + cancellation, _process success/exception, singleton
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import os
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -254,7 +255,7 @@ class TestExtractionQueue:
 
     async def test_ensure_worker_idempotent(self):
         q = ExtractionQueue()
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         with patch.object(loop, "create_task", return_value=Mock()) as ct:
             q.ensure_worker()
             q.ensure_worker()
@@ -281,7 +282,7 @@ class TestExtractionQueue:
         q = ExtractionQueue()
         q.enqueue("prompt a", "ws1")
         with patch.object(q, "_process", new=AsyncMock(return_value=1)) as proc:
-            task = asyncio.get_event_loop().create_task(q._worker_loop())
+            task = get_event_loop().create_task(q._worker_loop())
             await asyncio.sleep(0.05)
             task.cancel()
             try:
@@ -295,7 +296,7 @@ class TestExtractionQueue:
         # _process swallows its own errors; force an exception from the loop body
         q._q.put_nowait(object())
         q._process = AsyncMock(side_effect=RuntimeError("boom"))
-        task = asyncio.get_event_loop().create_task(q._worker_loop())
+        task = get_event_loop().create_task(q._worker_loop())
         await asyncio.sleep(0.15)
         assert task.done() is False  # worker kept running after the failure
         task.cancel()

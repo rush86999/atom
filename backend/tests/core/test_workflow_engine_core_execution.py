@@ -6,6 +6,7 @@ Focus: DAG execution, step processing, error handling, state management
 """
 import pytest
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import uuid
 from unittest.mock import Mock, patch, AsyncMock, MagicMock, call
 from datetime import datetime, timezone
@@ -75,8 +76,8 @@ async def wait_for_background_tasks(engine: WorkflowEngine, timeout: float = 10.
     Unlike wait_for_execution_end this performs no state-manager reads, so it
     is safe to use with the real (DB-backed) state manager.
     """
-    deadline = asyncio.get_event_loop().time() + timeout
-    while asyncio.get_event_loop().time() < deadline:
+    deadline = get_event_loop().time() + timeout
+    while get_event_loop().time() < deadline:
         if all(t.done() for t in engine._background_tasks):
             return True
         await asyncio.sleep(0.05)
@@ -91,9 +92,9 @@ async def wait_for_execution_end(engine: WorkflowEngine, execution_id: str, time
     a task cancelled at teardown can leave the shared sqlite DB locked for the
     next test) before asserting on side effects.
     """
-    deadline = asyncio.get_event_loop().time() + timeout
+    deadline = get_event_loop().time() + timeout
     state = None
-    while asyncio.get_event_loop().time() < deadline:
+    while get_event_loop().time() < deadline:
         pending = [t for t in engine._background_tasks if not t.done()]
         state = await engine.state_manager.get_execution_state(execution_id)
         if state and state.get("status") in TERMINAL_STATES and not pending:

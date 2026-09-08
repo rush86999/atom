@@ -305,6 +305,7 @@ class ChatMessageResponse(BaseModel):
     model: Optional[str] = Field(None, description="Which model produced the response")
     provider: Optional[str] = Field(None, description="Which provider served the response")
     reasoning: Optional[str] = Field(None, description="The model's chain-of-thought for this reply — rendered by the Reasoning Process drawer and captured with feedback for training")
+    execution_id: Optional[str] = Field(None, description="The chat-trace run id for this turn — lets the client finalize THIS turn's streamed bubble when turns overlap (e.g. two tabs on one session)")
     error_code: Optional[str] = Field(None, description="Structured error code (e.g. no_llm_provider, budget_exceeded)")
     recovery_url: Optional[str] = Field(None, description="Recovery URL for structured errors")
 
@@ -1188,6 +1189,7 @@ async def send_chat_message(
             model=response.get("model"),
             provider=response.get("provider"),
             reasoning=response.get("reasoning"),
+            execution_id=response.get("execution_id"),
         )
 
     except Exception as e:

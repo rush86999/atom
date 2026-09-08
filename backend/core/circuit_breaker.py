@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 import logging
 import time
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 from typing import Dict, Set, Optional, Any
 
@@ -297,7 +298,7 @@ class CircuitBreaker:
         # Trigger reset callbacks
         for callback in self._on_reset_callbacks:
             try:
-                if asyncio.iscoroutinefunction(callback):
+                if iscoroutinefunction(callback):
                     await callback(integration or "all")
                 else:
                     callback(integration or "all")
@@ -345,7 +346,7 @@ class CircuitBreaker:
         # Trigger callbacks (open-source version uses callbacks instead of tenant-scoped alerts)
         for callback in self._on_open_callbacks:
             try:
-                if asyncio.iscoroutinefunction(callback):
+                if iscoroutinefunction(callback):
                     await callback(integration)
                 else:
                     callback(integration)
@@ -379,7 +380,7 @@ class CircuitBreaker:
             # Trigger callbacks
             for callback in self._on_reset_callbacks:
                 try:
-                    if asyncio.iscoroutinefunction(callback):
+                    if iscoroutinefunction(callback):
                         await callback(integration)
                     else:
                         callback(integration)

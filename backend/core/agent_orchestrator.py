@@ -1,4 +1,5 @@
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import datetime
 from datetime import timezone
 import json
@@ -122,7 +123,7 @@ class AgentOrchestrator:
                     try:
                         tool_func = toolbox[tool_name]
                         # Check if tool_func is a coroutine or just a regular function
-                        if asyncio.iscoroutinefunction(tool_func):
+                        if iscoroutinefunction(tool_func):
                             observation = await tool_func(**tool_params)
                         else:
                             observation = tool_func(**tool_params)

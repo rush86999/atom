@@ -6,6 +6,7 @@ No network, no LLM: all integration/LLM boundaries are mocked; LanceDB
 handlers and DB sessions are plain fakes/mocks.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 import os
 import uuid
@@ -2101,7 +2102,7 @@ async def test_meta_mentorship_guidance(meta_agent, monkeypatch):
 
 
 def _async_wrap(value):
-    fut = asyncio.get_event_loop().create_future()
+    fut = get_event_loop().create_future()
     fut.set_result(value)
     return fut
 

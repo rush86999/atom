@@ -102,7 +102,14 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     };
 
     const connect = useCallback(() => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) return;
+        // A CONNECTING socket is an in-flight attempt, not a dead one.
+        // Creating a second socket then orphaned the first: it kept the
+        // handler wiring, finished connecting, and delivered EVERY frame
+        // twice (observed live 2026-09-07 on /canvas/[id]: duplicated
+        // reasoning steps and a doubled reply bubble). Auth recovery is
+        // unaffected — it always goes through disconnect(), which nulls
+        // wsRef before reconnecting.
+        if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return;
 
         // A fresh connect() is an auto-connect unless disconnect() sets this
         // again immediately before. Reset so the onclose handler treats the

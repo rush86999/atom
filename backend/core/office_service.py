@@ -5,6 +5,7 @@ Provides core utilities for reading, modifying, and rendering Word (.docx),
 Excel (.xlsx), and PowerPoint (.pptx) documents without native Office dependencies.
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import logging
 import os
 import re
@@ -615,7 +616,7 @@ class DocumentRenderer:
                 import asyncio as _asyncio
                 runtime = get_workbook_runtime()
                 try:
-                    loop = _asyncio.get_event_loop()
+                    loop = _get_event_loop()
                     if loop.is_running():
                         # We're in an async context — can't await here directly.
                         # Fall back to basic render (the sync path).

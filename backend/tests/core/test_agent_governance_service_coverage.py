@@ -17,6 +17,7 @@ These tests are self-contained (MagicMock db / patch external services) and
 do NOT require LanceDB, Redis, or a real event loop.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -253,7 +254,7 @@ class TestCanPerformActionBranches:
                 mock_budget.assert_not_called()
                 return res
 
-        res = asyncio.get_event_loop().run_until_complete(_runner())
+        res = get_event_loop().run_until_complete(_runner())
         assert res["allowed"] is True
 
     def test_recursion_depth_limit_blocks(self, governance_service, mock_db):

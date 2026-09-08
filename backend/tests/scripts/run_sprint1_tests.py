@@ -4,6 +4,7 @@ Sprint 1 Test Runner
 Runs tests without loading conftest to avoid main app import issues
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import os
 import sys
 
@@ -30,7 +31,7 @@ def run_test_file(test_file_name, test_class_name):
             method = getattr(test_class, method_name)
             # Check if it's async
             import asyncio
-            if asyncio.iscoroutinefunction(method):
+            if iscoroutinefunction(method):
                 print(f"  ⏭️  Skipping async test: {method_name}")
                 continue
 

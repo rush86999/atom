@@ -28,6 +28,7 @@ Env knobs (all optional):
 from __future__ import annotations
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import hashlib
 import json
 import logging
@@ -237,7 +238,7 @@ def _spawn_notification(notification_type: str, title: str, message: str, action
         await _notify(notification_type, title, message, action_url)
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         if loop.is_running():
             loop.create_task(_run())
         else:
@@ -632,7 +633,7 @@ def ensure_automation_task() -> None:
     if _automation_task is not None or _mode == "off":
         return
     try:
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         if loop.is_running():
             _automation_task = loop.create_task(fleet_router_automation_loop())
     except Exception:

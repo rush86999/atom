@@ -18,6 +18,7 @@ Covers:
 - close(), get_local_agent_service singleton (fresh global each test).
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -60,7 +61,7 @@ def _dir_allowed(**over):
 def service():
     svc = LocalAgentService(backend_url="http://localhost:8000/")
     yield svc
-    asyncio.get_event_loop().run_until_complete(svc.close())
+    get_event_loop().run_until_complete(svc.close())
 
 
 def _patch_exec(service, process=None):

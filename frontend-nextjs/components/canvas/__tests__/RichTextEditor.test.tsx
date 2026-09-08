@@ -177,3 +177,42 @@ describe("cell shading", () => {
     expect(emitted.toLowerCase()).toContain("background-color");
   });
 });
+
+describe("RichTextEditor theme contract", () => {
+  it("renders a theme-aware paper (light default, dark-mode surface + legibility hook)", () => {
+    render(<RichTextEditor value="<p>hi</p>" onChange={() => {}} testIdPrefix="theme" />);
+    const editor = screen.getByTestId("theme-editor");
+    // Light mode unchanged: white paper, dark ink.
+    expect(editor.className).toContain("bg-white");
+    expect(editor.className).toContain("text-zinc-900");
+    // Dark mode: dark paper, light ink — and the rte-surface hook that the
+    // globals.css dark-legibility rules scope to (Outlook black text and
+    // white chips render legibly in the editor; stored HTML keeps them).
+    expect(editor.className).toContain("dark:bg-[#0F172A]");
+    expect(editor.className).toContain("dark:text-zinc-200");
+    expect(editor.className).toContain("rte-surface");
+  });
+});
+
+describe("RichTextEditor Default color reset", () => {
+  it("strips explicit text color so text follows the theme default again", () => {
+    const onChange = jest.fn();
+    render(
+      <RichTextEditor
+        value={'<font color="#e03131">red text here</font>'}
+        onChange={onChange}
+        testIdPrefix="dcolor"
+      />
+    );
+    const editor = screen.getByTestId("dcolor-editor");
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    fireEvent.click(screen.getByTestId("dcolor-default-color"));
+    const emitted = onChange.mock.calls[onChange.mock.calls.length - 1][0] as string;
+    expect(emitted).not.toContain("color");
+    expect(emitted).toContain("red text here");
+  });
+});

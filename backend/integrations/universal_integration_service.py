@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from core.database import SessionLocal
 from core.identifier_search import filter_by_terms
@@ -48,15 +49,20 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
 
     SHEET ANCHOR before that: our Excel parsers emit per-sheet markers
     (``=== Sheet: NAME ===`` / ``--- Sheet: NAME ---``). When a query token
-    names a SHEET, anchor at that sheet's start and read forward — the
-    rarest-token path cannot express "the region this token NAMES" because
-    the token's first occurrences are the workbook index at the file head
-    and brand-name rows in unrelated sheets (live 2026-09-06: "check
-    Consolidated Price List 2019 for the Linmac bandsaw price" anchored on
-    the index's LINMAC line ~3k chars in; the WG350DSAV row sat at 58% of a
-    3.4M-char text — the agent saw sheet headers and reported the row
-    unreadable). Hyphenated model tokens also try their compacted form
-    ("wg-350dsav" → "wg350dsav" as the workbook spells it).
+    names a SHEET, the excerpt comes from that sheet — the rarest-token
+    path cannot express "the region this token NAMES" because the token's
+    first occurrences are the workbook index at the file head and brand-name
+    rows in unrelated sheets (live 2026-09-06: "check Consolidated Price
+    List 2019 for the Linmac bandsaw price" anchored on the index's LINMAC
+    line ~3k chars in; the WG350DSAV row sat at 58% of a 3.4M-char text —
+    the agent saw sheet headers and reported the row unreadable). Within
+    the sheet the anchor follows the query's OTHER tokens (the model code)
+    rather than the sheet head: a price-book sheet runs tens of thousands
+    of chars, and the wanted row can begin just past a head-sized window
+    (live 2026-09-07: WG350DSAV row 17 began ~4.2k chars into LINMAC — one
+    row past the head window, again "unreadable"). Hyphenated model tokens
+    also try their compacted form ("wg-350dsav" → "wg350dsav" as the
+    workbook spells it).
     """
     text = text or ""
     import re as _re
@@ -72,6 +78,7 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
     uniq = set(tokens)
     if not uniq:
         return text[:excerpt_chars]
+    counts = {t: lower.count(t) for t in uniq}
 
     # Sheet-name anchor: query token names a sheet in the parsed body.
     sheet_hits = list(_re.finditer(
@@ -82,17 +89,121 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
             sheet_name = _re.sub(r"[^a-z0-9]+", "", m.group(1).lower())
             matched_token = next(
                 (tok for compacted, tok in compact.items()
-                 if len(compacted) >= 4 and len(sheet_name) >= 3
-                 and (compacted in sheet_name or sheet_name in compacted)),
+                 if len(sheet_name) >= 3
+                 and (compacted == sheet_name
+                      # containment needs BOTH sides ≥5: "heck" ⊂ "check"
+                      # must not route a "check the price" query to the
+                      # HECK sheet (live 2026-09-07 query variant)
+                      or (len(compacted) >= 5 and len(sheet_name) >= 5
+                          and (compacted in sheet_name
+                               or sheet_name in compacted)))),
                 None,
             )
             if matched_token:
-                start = min(len(text) - 1, m.start() + 1)
-                end = min(len(text), start + excerpt_chars)
+                # The row the question asks about may sit far past the sheet
+                # head — the LINMAC price list's WG350DSAV row begins ~4.2k
+                # chars into its sheet, just past a head window, so the
+                # anchor-at-sheet-start read ended ONE ROW short and the
+                # agent again reported the row unreadable (live 2026-09-07:
+                # 'consolidated price list 2019 linmac bandsaw'). Two-stage
+                # sheet→row anchor, the shape mature spreadsheet-retrieval
+                # stacks converge on (select the named sheet, locate the
+                # row, ship it with the sheet's header block so the column
+                # values are attributable). Parsed rows ARE lines: candidate
+                # lines hold the sheet-identifying token (matched_token);
+                # among them pick most distinct query tokens, then rarest
+                # token set, then digit-densest (data row beats brand-title
+                # line), then earliest.
+                sheet_start = min(len(text) - 1, m.start() + 1)
+                # Same-named adjacent markers (real exports carry duplicate/
+                # whitespace-variant sheet tabs) are ONE body: clipping at
+                # the twin marker would strand the rows between/after it.
+                next_m = next(
+                    (s for s in sheet_hits if s.start() > m.start()
+                     and _re.sub(r"[^a-z0-9]+", "", s.group(1).lower())
+                     != sheet_name),
+                    None,
+                )
+                sheet_end = next_m.start() if next_m else len(text)
+                lines = []
+                for line_m in _re.finditer(
+                        r"[^\n]+\n?", text[m.end():sheet_end]):
+                    line_raw = line_m.group(0)
+                    if _re.match(r"\s*(?:===|---) Sheet:", line_raw):
+                        continue  # structural marker, never an anchor
+                    toks = frozenset(
+                        t for t in uniq if t in line_raw.lower())
+                    if toks:
+                        lines.append((
+                            line_m.start() + m.end(),
+                            toks,
+                            sum(c.isdigit() for c in line_raw),
+                        ))
+                best_line = None
+                if lines:
+                    # Primary key: the token that IDENTIFIED the sheet —
+                    # "the region this token names". Global counts misfire
+                    # as the primary key on small workbooks where header
+                    # boilerplate ("price") is nominally rarer than the
+                    # brand (live-shape repro: one-sheet book, price=1 <
+                    # linmac=2 → anchored the header line, row lost).
+                    keyed = [
+                        (pos, toks, digits) for pos, toks, digits in lines
+                        if matched_token in toks]
+                    if keyed:
+                        # Digit count breaks the brand-title-vs-data-row
+                        # tie: "R1 | Linmac Machinery" and the WG350DSAV
+                        # row both carry just "linmac" for a linmac-only
+                        # query, but only one holds the price.
+                        best_line, _, _ = max(
+                            keyed,
+                            key=lambda item: (
+                                len(item[1]),
+                                -sum(counts[t] for t in item[1]),
+                                item[2],
+                                -item[0],
+                            ),
+                        )
+                    else:
+                        # The identifier can live only on the sheet's title
+                        # line (query "invoices sheet … brightwater" against
+                        # an AR-aging export whose rows never say
+                        # "invoices"): score every content line by token
+                        # identity. Keying on a single "rarest" token does
+                        # NOT work here — header words ("Salary") tie with
+                        # names ("Okafor") at count 1 and the header wins
+                        # the coin flip, anchoring the head; whole-line hits
+                        # ("Jane Okafor" = 2) beat header words (= 1) for
+                        # free.
+                        best_line, _, _ = max(
+                            lines,
+                            key=lambda item: (
+                                len(item[1]),
+                                -sum(counts[t] for t in item[1]),
+                                item[2],
+                                -item[0],
+                            ),
+                        )
+                # A query that NAMES a sheet wants that sheet's content, and
+                # price-book sheets run 10k+ chars — the old 4k cap is what
+                # cut R17 off. Head stays the fallback ("open the LINMAC
+                # sheet" legitimately reads from the top).
+                start = max(sheet_start, best_line - 200) \
+                    if best_line is not None else sheet_start
+                end = min(sheet_end, start + 12_000)
+                excerpt_body = text[start:end]
+                head_chars = 800  # title + column-header rows
+                if start > sheet_start + head_chars:
+                    # Header + row: ship the sheet's head block ahead of a
+                    # deep-anchored window so the row's numbers have their
+                    # column names attached.
+                    excerpt_body = (
+                        text[sheet_start:sheet_start + head_chars]
+                        + "\n…\n" + excerpt_body)
                 suffix = " …" if end < len(text) else ""
                 return (
                     f"[excerpt from the '{m.group(1).strip()}' sheet] "
-                    f"{text[start:end]}{suffix}"
+                    f"{excerpt_body}{suffix}"
                 )
 
     # Rare-token/coverage anchors search the sheet BODIES, not the workbook
@@ -104,7 +215,6 @@ def _query_anchored_excerpt(text: str, query: str, excerpt_chars: int = 4000) ->
         body_m = _re.search(r"\n(?:===|---) Sheet: ", text[index_m.end():])
         if body_m:
             body_start = index_m.end() + body_m.start() + 1
-    counts = {t: lower.count(t) for t in uniq}
     # Anchor only on tokens PRESENT in the text: an enriched context token
     # may name a different product entirely (count 0) — anchoring on it
     # would land on the head and be worse than coverage scoring.
@@ -266,6 +376,65 @@ _SEARCH_ROUTES = {
     "xero": "_search_finance",
     "zoho_books": "_search_finance",
 }
+
+async def _download_storage_file_bytes(service: str, storage_service: Any, token: Optional[str],
+                                       user_id: Optional[str], file_id: str) -> Optional[bytes]:
+    """Provider-neutral download for the background dataset re-verify (mirrors
+    the per-service branches in _read_storage_file)."""
+    if service == "zoho_workdrive":
+        return await storage_service.download_file(user_id or token, file_id)
+    if service in ("google_drive", "onedrive", "box"):
+        return await storage_service.download_file_bytes(token, file_id)
+    if service == "dropbox":
+        return await storage_service.download_file(file_id, token)
+    return None
+
+
+def _dataset_reverify_due(ds_result: Dict[str, Any]) -> bool:
+    """Should a served-from-copy answer trigger a background re-verification?
+    Only when the copy is older than the min-age — a copy materialized seconds
+    ago is definitionally current, and skipping keeps the common case free."""
+    try:
+        min_age_s = float(os.getenv("ATOM_SHEET_DATASET_REVERIFY_MIN_AGE_S", "300"))
+    except ValueError:
+        min_age_s = 300.0
+    ingested = ds_result.get("ingested_at")
+    if not ingested:
+        return True
+    try:
+        ingested_dt = datetime.fromisoformat(str(ingested).replace("Z", "+00:00"))
+        if ingested_dt.tzinfo is None:
+            ingested_dt = ingested_dt.replace(tzinfo=timezone.utc)
+        age = datetime.now(timezone.utc) - ingested_dt
+        return age.total_seconds() >= min_age_s
+    except (ValueError, TypeError):
+        return True
+
+
+def _schedule_dataset_reverify(service: str, storage_service: Any, token: Optional[str],
+                               user_id: Optional[str], file_id: str, *, file_name: str,
+                               workspace_id: Optional[str]) -> None:
+    """Background: re-download the source, hash-check, re-materialize on
+    change. Converts the answer-time staleness window into seconds — the user
+    gets the instant copy answer AND the store self-corrects right after."""
+    from core.sheet_dataset_service import ensure_sheet_dataset, spawn_background
+
+    async def _task() -> None:
+        content = await _download_storage_file_bytes(service, storage_service, token, user_id, file_id)
+        if not content:
+            return
+        await ensure_sheet_dataset(
+            content,
+            file_name=file_name or f"{service}:{file_id}",
+            source=service,
+            user_id=user_id,
+            workspace_id=workspace_id,
+            external_id=str(file_id),
+        )
+
+    if not spawn_background(_task(), f"dataset re-verify {file_id}"):
+        logger.debug(f"dataset re-verify not scheduled (no loop) for {file_id}")
+
 
 class UniversalIntegrationService:
     """
@@ -1496,7 +1665,77 @@ class UniversalIntegrationService:
         file_name: Optional[str] = None
 
         try:
+            # --- dataset fast path: resolve from the CATALOG first --------
+            # The drive search is the variable cost here (fan-out latency,
+            # AND-matching that zeroes out on over-specific queries — live
+            # 2026-09-07: "consolidated price list 2019 WG-350DSAV" matched
+            # nothing) while the catalog is local. When the top catalog hit
+            # can answer via NL→SQL over a TTL-fresh copy, return it without
+            # touching the drive at all; every other case (no entry, stale,
+            # LLM absent, empty SQL) continues to normal resolution below,
+            # where the search-hit's own mtime provides the stricter
+            # freshness proof for the second fast-path attempt.
+            if query and context.get("llm_service"):
+                try:
+                    from core.sheet_dataset_service import (
+                        answer_from_datasets,
+                        find_entries_sync,
+                        render_dataset_answer,
+                        sheet_datasets_enabled,
+                    )
+
+                    if sheet_datasets_enabled():
+                        entries = await asyncio.to_thread(
+                            find_entries_sync, query, user_id, None, 5
+                        )
+                        if entries:
+                            best = entries[0]
+                            ds_result = await answer_from_datasets(
+                                best["source"], best["external_id"], query,
+                                llm_service=context.get("llm_service"),
+                                context_texts=[
+                                    str(t) for t in (context.get("history_texts") or [])
+                                    if t
+                                ],
+                            )
+                            if ds_result:
+                                # The copy answered within its freshness TTL —
+                                # re-verify it in the background so a changed
+                                # source self-heals immediately instead of at
+                                # TTL expiry. Keyed on the CATALOG's canonical
+                                # external_id — file_id is None here because
+                                # resolution never ran on this path.
+                                if _dataset_reverify_due(ds_result):
+                                    _schedule_dataset_reverify(
+                                        service, storage_service, token, user_id,
+                                        str(best["external_id"]),
+                                        file_name=ds_result.get("file_name") or file_name,
+                                        workspace_id=context.get("workspace_id") or "default",
+                                    )
+                                return {"status": "success", "data": {
+                                    "found": True,
+                                    "file_id": best["external_id"],
+                                    "file_name": ds_result.get("file_name") or best.get("file_name"),
+                                    "chars_extracted": ds_result.get("row_count", 0),
+                                    "excerpt": render_dataset_answer(ds_result),
+                                    "dataset": {
+                                        "name": ds_result.get("dataset_name"),
+                                        "sheet": ds_result.get("entity_name"),
+                                        "content_hash": ds_result.get("content_hash"),
+                                        "rows": ds_result.get("row_count"),
+                                    },
+                                    "ingested_into_workspace": True,
+                                    "note": (
+                                        "Rows above were queried from the query-verified "
+                                        "dataset copy of this file (R# = spreadsheet row "
+                                        "numbers). Cite only these values for exact figures."
+                                    ),
+                                }}
+                except Exception as ds_err:  # noqa: BLE001 — fast path is best-effort
+                    logger.debug(f"catalog fast path skipped: {ds_err}")
+
             # --- resolve the file ---------------------------------------
+            source_modified_hint = None  # connector mtime, set on search-resolved reads
             if not file_id:
                 hits: List[Dict[str, Any]] = []
                 if service == "zoho_workdrive":
@@ -1534,6 +1773,65 @@ class UniversalIntegrationService:
                         "message": f"No file in {service} matched '{query}'.",
                     }}
                 file_id, file_name = self._best_file_match(hits, query)
+                # The connector's own modified-time for the chosen hit — the
+                # freshness proof the dataset fast path below checks against
+                # its materialized copy.
+                source_modified_hint = next(
+                    (
+                        h.get("modified_at") or h.get("modified_time")
+                        for h in hits
+                        if str(h.get("id") or h.get("file_id") or h.get("fileId") or "") == str(file_id)
+                    ),
+                    None,
+                )
+
+            # --- dataset fast path (BEFORE the download) -----------------
+            # The chat harness runs ONE planned tool leg per turn and the
+            # reply model is under a strict no-tool-calling contract — so
+            # "the agent should query the dataset" can only happen HERE, in
+            # the harness. If a hash-verified-fresh materialized copy of this
+            # file exists, turn the question into SQL over it and return the
+            # exact rows; every failure mode (no copy, stale copy, LLM
+            # unavailable, bad SQL, zero rows) falls through to the ordinary
+            # download→extract→excerpt path, so this can only SKIP a
+            # 13MB-download/10s-parse round trip, never degrade an answer.
+            if query and context.get("llm_service"):
+                try:
+                    from core.sheet_dataset_service import (
+                        answer_from_datasets,
+                        render_dataset_answer,
+                        sheet_datasets_enabled,
+                    )
+
+                    if sheet_datasets_enabled():
+                        ds_result = await answer_from_datasets(
+                            service, str(file_id), query,
+                            llm_service=context.get("llm_service"),
+                            source_modified_hint=source_modified_hint,
+                        )
+                        if ds_result:
+                            return {"status": "success", "data": {
+                                "found": True,
+                                "file_id": file_id,
+                                "file_name": file_name or ds_result.get("file_name"),
+                                "chars_extracted": ds_result.get("row_count", 0),
+                                "excerpt": render_dataset_answer(ds_result),
+                                "dataset": {
+                                    "name": ds_result.get("dataset_name"),
+                                    "sheet": ds_result.get("entity_name"),
+                                    "content_hash": ds_result.get("content_hash"),
+                                    "rows": ds_result.get("row_count"),
+                                },
+                                "ingested_into_workspace": True,
+                                "note": (
+                                    "Rows above were queried from the materialized copy of this "
+                                    "file, freshness-verified against the source before answering "
+                                    "(R# = spreadsheet row numbers). Cite only these values for "
+                                    "exact figures."
+                                ),
+                            }}
+                except Exception as ds_err:  # noqa: BLE001 — fast path is best-effort
+                    logger.debug(f"dataset fast path skipped for {file_id}: {ds_err}")
 
             # --- download -------------------------------------------------
             content: Optional[bytes] = None
@@ -1590,6 +1888,41 @@ class UniversalIntegrationService:
             )
 
             file_ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
+
+            # --- materialize the SQL-queryable dataset copy (fire-and-forget)
+            # Deliberately INDEPENDENT of the ingest block below: it needs
+            # only the downloaded bytes, and the ingest service can fail or
+            # bail fast (live 2026-09-07: two reads, zero datasets — the hook
+            # inside process_file_bytes never ran and its skip logged at
+            # DEBUG, invisible). Background so the read's 45s tool budget is
+            # never spent on the one-time parse+Parquet write; atomic writes
+            # make a shutdown mid-task harmless, and the byte-hash key makes
+            # concurrent duplicates collapse to one version.
+            if file_ext in ("xlsx", "xls", "xlsm", "csv"):
+                try:
+                    from core.sheet_dataset_service import (
+                        ensure_sheet_dataset_background,
+                        sheet_datasets_enabled,
+                    )
+
+                    if sheet_datasets_enabled():
+                        ensure_sheet_dataset_background(
+                            content,
+                            file_name=file_name,
+                            source=service,
+                            user_id=user_id,
+                            workspace_id=context.get("workspace_id") or "default",
+                            external_id=str(file_id),
+                            source_modified_hint=source_modified_hint,
+                        )
+                except Exception as ds_err:  # noqa: BLE001 — never block the read
+                    logger.warning(f"sheet datasets: scheduling failed for {file_name}: {ds_err}")
+
+            # --- extract --------------------------------------------------
+            from core.auto_document_ingestion import (
+                READ_EXTRACTION_MAX_CHARS,
+                parse_document_cached,
+            )
             # Explicit open of a NAMED file: extract with a far larger
             # ceiling than the ingestion budget. The user asked for THIS
             # file's contents — a row in its last sheet must be reachable
@@ -1622,9 +1955,29 @@ class UniversalIntegrationService:
                 )
                 ingested = ingest_result.get("status") == "ingested"
             except Exception as ingest_err:  # noqa: BLE001 — read still returns
-                logger.debug(f"read-path ingest skipped for {file_name}: {ingest_err}")
+                # The read's hybrid-index warming failed — visible at WARNING
+                # (was DEBUG): silent skips left memory frozen for days.
+                # The read itself still returns.
+                logger.warning(f"read-path ingest skipped for {file_name}: {ingest_err}")
 
             excerpt = _query_anchored_excerpt(text, query)
+            # After this open the file has SQL-queryable datasets (if it is a
+            # sheet) — the NEXT value question about it skips the download
+            # entirely via the fast path above. Surface that in the note so
+            # the provenance trail stays honest.
+            dataset_note = ""
+            try:
+                from core.sheet_dataset_service import datasets_for_file
+
+                _ds_entries = await datasets_for_file(service, str(file_id))
+                if _ds_entries:
+                    dataset_note = (
+                        f" This file is also queryable as {_ds_entries[0]['dataset_name']}"
+                        f" (+{max(0, len(_ds_entries) - 1)} more sheets): exact-value "
+                        f"questions are answered from the copy directly."
+                    )
+            except Exception:  # noqa: BLE001 — metadata only
+                dataset_note = ""
             return {"status": "success", "data": {
                 "found": True,
                 "file_id": file_id,
@@ -1635,7 +1988,7 @@ class UniversalIntegrationService:
                 "note": (
                     "Contents above are EXCERPTS around the query. Cite only "
                     "values visible in them; the file is now ingested for "
-                    "full-text search."
+                    "full-text search." + dataset_note
                 ),
             }}
         except Exception as e:

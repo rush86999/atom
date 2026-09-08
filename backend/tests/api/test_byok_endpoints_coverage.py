@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timezone
 
 # Import the router
-from core.byok_endpoints import router
+from api.byok_routes import router  # router moved out of core.byok_endpoints (routes layer split)
 
 
 # =============================================================================

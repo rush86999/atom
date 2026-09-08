@@ -17,6 +17,7 @@ to avoid dependencies on real third-party APIs.
 
 import pytest
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 import httpx
 from datetime import datetime, timedelta
@@ -111,7 +112,7 @@ class TestOAuthFlows:
                 )
                 return response.json()
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         new_tokens = loop.run_until_complete(
             refresh_token("old_refresh_token")
         )
@@ -149,7 +150,7 @@ class TestOAuthFlows:
                 )
                 return response.status_code == 200
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         revoked = loop.run_until_complete(
             revoke_token("test_access_token")
         )
@@ -198,7 +199,7 @@ class TestOAuthFlows:
                 )
                 return response.json()
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         token_response = loop.run_until_complete(
             exchange_with_pkce("test_code", "test_verifier")
         )
@@ -241,7 +242,7 @@ class TestOAuthFlows:
                 )
                 return response.json()
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
 
         # Valid state should succeed
         result = loop.run_until_complete(
@@ -289,7 +290,7 @@ class TestOAuthErrorHandling:
                 except httpx.HTTPStatusError as e:
                     return {"error": e.response.status_code}
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         result = loop.run_until_complete(attempt_token_exchange())
 
         assert result["error"] == 401, "Invalid client must return 401"
@@ -322,7 +323,7 @@ class TestOAuthErrorHandling:
                     return response.json()
                 return {}
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         result = loop.run_until_complete(attempt_token_exchange())
 
         assert result.get("error") == "invalid_grant", \
@@ -380,7 +381,7 @@ class TestOAuthErrorHandling:
                 )
                 return response.json()
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         result = loop.run_until_complete(attempt_token_exchange())
 
         assert result.get("error") == "redirect_uri_mismatch", \
@@ -425,7 +426,7 @@ class TestOAuthErrorHandling:
                     "data": response.json() if response.status_code != 403 else None
                 }
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         result = loop.run_until_complete(
             call_protected_api("limited_token")
         )
@@ -1033,7 +1034,7 @@ class TestAPIIntegration:
 
             return all_items
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         items = loop.run_until_complete(
             fetch_all_pages("https://api.example.com/items")
         )
@@ -1083,7 +1084,7 @@ class TestAPIIntegration:
                         return response.json()
             return {}
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         result = loop.run_until_complete(
             fetch_with_retry("https://api.example.com/data")
         )
@@ -1122,7 +1123,7 @@ class TestAPIIntegration:
                 )
                 return response.json()
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         v1_result = loop.run_until_complete(
             fetch_api_version("v1")
         )
@@ -1165,7 +1166,7 @@ class TestAPIIntegration:
                 )
                 return response.json()["responses"]
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         results = loop.run_until_complete(
             batch_request([
                 {"method": "GET", "path": "/items/1"},
@@ -1212,7 +1213,7 @@ class TestAPIIntegration:
                 # httpx auto-decompresses
                 return response.json()
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         result = loop.run_until_complete(
             fetch_compressed("https://api.example.com/data")
         )
@@ -1455,7 +1456,7 @@ class TestAPIContractValidation:
 
             return True
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         async def fetch_and_validate() -> Dict:
             async with httpx.AsyncClient() as client:
                 response = await client.get("https://api.example.com/users/1")
@@ -1504,7 +1505,7 @@ class TestAPIContractValidation:
             required = error_schema["required"]
             return all(field in response_data for field in required)
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         async def fetch_error() -> Dict:
             async with httpx.AsyncClient() as client:
                 response = await client.get("https://api.example.com/users/999")
@@ -1552,7 +1553,7 @@ class TestAPIContractValidation:
 
         # When - Fetch and validate types
         import httpx
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
 
         async def fetch_and_validate_types() -> Dict:
             async with httpx.AsyncClient() as client:
@@ -1597,7 +1598,7 @@ class TestAPIContractValidation:
         def validate_enum(value: str, allowed: List[str]) -> bool:
             return value in allowed
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         async def fetch_status() -> Dict:
             async with httpx.AsyncClient() as client:
                 response = await client.get("https://api.example.com/users/1/status")
@@ -1649,7 +1650,7 @@ class TestAPIContractValidation:
                         return False
             return True
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         async def fetch_with_headers() -> Dict:
             async with httpx.AsyncClient() as client:
                 response = await client.get("https://api.example.com/data")

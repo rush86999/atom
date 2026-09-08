@@ -10,6 +10,7 @@ Plain pytest + unittest.mock, no network / no real LLM / no real sandbox.
 from __future__ import annotations
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import sys
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace as NS
@@ -34,7 +35,7 @@ from core.federation.federation_security import (
 
 
 def run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro) if False else asyncio.run(coro)
+    return get_event_loop().run_until_complete(coro) if False else asyncio.run(coro)
 
 
 class TestMutualTLSManagerGap:

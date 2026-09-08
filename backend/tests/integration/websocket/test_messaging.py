@@ -67,7 +67,7 @@ def connected_websocket(cleanup_websocket_manager):
 class TestSendAndReceiveMessage:
     """Test sending and receiving messages through WebSocket."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_send_and_receive_message(self, connected_websocket):
         """Test sending and receiving messages via WebSocket."""
         from core.websockets import manager
@@ -88,7 +88,7 @@ class TestSendAndReceiveMessage:
         assert call_args["type"] == "message"
         assert call_args["content"] == "Hello, World!"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_send_message_to_specific_user(self, connected_websocket):
         """Test sending message to specific user."""
         from core.websockets import manager
@@ -112,7 +112,7 @@ class TestSendAndReceiveMessage:
         ws1.send_json.assert_called_once()
         ws2.send_json.assert_not_called()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_send_message_includes_timestamp(self, connected_websocket):
         """Test broadcast_event automatically includes timestamp."""
         from core.websockets import manager
@@ -135,7 +135,7 @@ class TestSendAndReceiveMessage:
         assert call_args["type"] == "test_event"
         assert call_args["data"] == {"data": "test data"}
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_send_multiple_messages_sequentially(self, connected_websocket):
         """Test sending multiple messages sequentially."""
         from core.websockets import manager
@@ -169,7 +169,7 @@ class TestSendAndReceiveMessage:
 class TestMultipleClients:
     """Test multiple WebSocket clients simultaneously."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_multiple_clients_connected(self, cleanup_websocket_manager):
         """Test multiple WebSocket clients can connect simultaneously."""
         from core.websockets import manager
@@ -188,7 +188,7 @@ class TestMultipleClients:
         assert sum(len(conns) for conns in manager.user_connections.values()) == 5
         assert len(manager.user_connections["dev-user"]) == 5
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_broadcast_to_all_clients_in_channel(self, cleanup_websocket_manager):
         """Test broadcasting message to all clients in a channel."""
         from core.websockets import manager
@@ -211,7 +211,7 @@ class TestMultipleClients:
         for ws in clients:
             ws.send_json.assert_called_once()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_send_personal_message_to_user_with_multiple_connections(self, cleanup_websocket_manager):
         """Test sending personal message to user with multiple connections."""
         from core.websockets import manager
@@ -233,7 +233,7 @@ class TestMultipleClients:
         for ws in connections:
             ws.send_json.assert_called_once()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_clients_dont_interfere_with_each_other(self, cleanup_websocket_manager):
         """Test multiple clients don't interfere with each other."""
         from core.websockets import manager
@@ -265,7 +265,7 @@ class TestMultipleClients:
 class TestBroadcastMessages:
     """Test broadcasting messages to channels."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_broadcast_to_channel(self, connected_websocket):
         """Test broadcasting message to a channel."""
         from core.websockets import manager
@@ -287,7 +287,7 @@ class TestBroadcastMessages:
             for call in ws.send_json.call_args_list
         )
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_broadcast_to_multiple_channels(self, connected_websocket):
         """Test broadcasting to multiple channels."""
         from core.websockets import manager
@@ -309,7 +309,7 @@ class TestBroadcastMessages:
         ]
         assert len(broadcast_calls) == 3
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_broadcast_to_empty_channel(self, connected_websocket, caplog):
         """Test broadcasting to empty channel logs warning."""
         from core.websockets import manager
@@ -325,7 +325,7 @@ class TestBroadcastMessages:
         # Then: Should log warning (and not crash)
         assert any("EMPTY channel" in record.message for record in caplog.records)
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_broadcast_json_serialization(self, connected_websocket):
         """Test broadcast message is properly JSON serialized."""
         from core.websockets import manager
@@ -360,7 +360,7 @@ class TestBroadcastMessages:
 class TestPrivateMessages:
     """Test private messaging functionality."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_private_message_only_reaches_target_user(self, cleanup_websocket_manager):
         """Test private message only reaches target user."""
         from core.websockets import manager
@@ -389,7 +389,7 @@ class TestPrivateMessages:
         ws1.send_json.assert_called_once()
         ws2.send_json.assert_not_called()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_private_message_to_nonexistent_user(self, connected_websocket, caplog):
         """Test sending private message to nonexistent user handles gracefully."""
         from core.websockets import manager
@@ -409,7 +409,7 @@ class TestPrivateMessages:
         # Test passes if no exception is raised
         assert True
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_private_message_reaches_all_user_connections(self, cleanup_websocket_manager):
         """Test private message reaches all connections for a user."""
         from core.websockets import manager
@@ -440,7 +440,7 @@ class TestPrivateMessages:
 class TestChannelIsolation:
     """Test messages don't leak between channels."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_channel_isolation_messages_dont_leak(self, cleanup_websocket_manager):
         """Test messages don't leak between channels."""
         from core.websockets import manager
@@ -461,7 +461,7 @@ class TestChannelIsolation:
         ws_channel_a.send_json.assert_called_once()
         ws_channel_b.send_json.assert_not_called()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_user_and_workspace_channels_separate(self, connected_websocket):
         """Test user and workspace channels are isolated."""
         from core.websockets import manager
@@ -492,7 +492,7 @@ class TestChannelIsolation:
 class TestMessageOrdering:
     """Test message ordering and delivery guarantees."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_messages_delivered_in_order(self, connected_websocket):
         """Test messages are delivered in order."""
         from core.websockets import manager

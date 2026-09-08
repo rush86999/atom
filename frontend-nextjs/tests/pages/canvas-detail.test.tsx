@@ -22,9 +22,42 @@ jest.mock("next/router", () => ({
 }));
 
 let wsState: any = { lastMessage: null, isConnected: true };
+// Registered page handlers + the last frame delivered, so the mock hook
+// behaves like the real one: handlers fire when a NEW lastMessage arrives.
+const mockWsHandlers = new Set<(msg: any) => void>();
+let mockWsLastDelivered: any = null;
 
 jest.mock("@/hooks/useWebSocket", () => ({
-  useWebSocket: () => wsState,
+  // The page destructures { lastMessage, isConnected, onMessage } and
+  // registers handleWsMessage through onMessage — a bare data object broke
+  // every test with "onMessage is not a function" (49 failures, 2026-09-08).
+  // This mini-implementation registers handlers, delivers each NEW
+  // lastMessage frame to them (like the real hook), and still lets tests
+  // drive frames by reassigning wsState + rerendering.
+  useWebSocket: () => {
+    const { useEffect, useRef } = require("react");
+    // STABLE identity (like the real hook's useCallback): a fresh fn per
+    // render would re-run the page's registration effect each render, and
+    // its cleanup would unsubscribe before this delivery effect ran.
+    const onMessageRef = useRef<(handler: (msg: any) => void) => () => void>();
+    if (!onMessageRef.current) {
+      onMessageRef.current = (handler: (msg: any) => void) => {
+        mockWsHandlers.add(handler);
+        return () => {
+          mockWsHandlers.delete(handler);
+        };
+      };
+    }
+    const onMessage = onMessageRef.current!;
+    useEffect(() => {
+      console.log("MOCK-WS render; handlers=", mockWsHandlers.size, "last=", !!wsState.lastMessage, "delivered=", wsState.lastMessage === mockWsLastDelivered);
+      if (wsState.lastMessage && wsState.lastMessage !== mockWsLastDelivered) {
+        mockWsLastDelivered = wsState.lastMessage;
+        mockWsHandlers.forEach((handler) => handler(wsState.lastMessage));
+      }
+    });
+    return { onMessage, subscribe: jest.fn(), unsubscribe: jest.fn(), ...wsState };
+  },
 }));
 
 jest.mock("@/hooks/useCanvasStateRegistration", () => ({
@@ -1049,9 +1082,13 @@ describe("canvas chat reasoning steps (training parity)", () => {
     fireEvent.click(screen.getAllByText(/Reasoning Process/i)[0]);
     expect(screen.getByText(/gate: PROPOSAL/)).toBeInTheDocument();
 
-    // Rate the step — the thumbs buttons carry no accessible label; the
-    // expanded chain's first lucide thumbs-down is step 1's.
-    const thumbsDownSvg = document.querySelector("svg.lucide-thumbs-down");
+    // Rate the step — the thumbs buttons carry no accessible label and a
+    // document-wide query grabs the MESSAGE-level feedback thumbs (which
+    // never calls submitStepFeedback), so scope to the step item that
+    // carries this step's observation.
+    const stepItem = screen.getByText(/gate: PROPOSAL/).closest("div.group");
+    expect(stepItem).not.toBeNull();
+    const thumbsDownSvg = stepItem!.querySelector("svg.lucide-thumbs-down");
     expect(thumbsDownSvg).not.toBeNull();
     fireEvent.click(thumbsDownSvg!.closest("button")!);
     await waitFor(() => expect(mockSubmitStepFeedback).toHaveBeenCalled());

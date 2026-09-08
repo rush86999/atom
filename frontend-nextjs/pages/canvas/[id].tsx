@@ -417,20 +417,59 @@ export default function CanvasDetailPage() {
             } as unknown as ReasoningStep;
             const executionId = String(payload.execution_id ?? rawStep.execution_id ?? "live");
             const wireAgentId = payload.agent_id ?? msg.agent_id;
+            // Steps belong to the message they streamed alongside. Only a
+            // STILL-STREAMING assistant message is this turn's reply — every
+            // finished one is an earlier turn, and appending to the newest of
+            // those put this turn's trace under the preceding message
+            // (observed live 2026-09-07). When the turn's bubble doesn't exist
+            // yet, create it ON DEMAND seeded with the step: the first token
+            // then adopts it (see the chat_token handler), so every step lands
+            // on exactly one message with no buffer/flush round-trip.
+            // The execution_id scopes the pairing: a concurrent run (another
+            // tab on the same session) or a late frame from an earlier run
+            // must not splice its steps into this turn's trace.
             setMessages(prev => {
                 const next = [...prev];
                 for (let i = next.length - 1; i >= 0; i--) {
                     if (next[i].type === "assistant") {
-                        next[i] = {
-                            ...next[i],
-                            executionId,
-                            agentId: next[i].agentId ?? wireAgentId,
-                            reasoningTrace: [...(next[i].reasoningTrace || []), step],
-                        };
+                        if (next[i].streaming === true) {
+                            if (next[i].executionId && next[i].executionId !== executionId && next[i].executionId !== "live" && executionId !== "live") {
+                                return prev;
+                            }
+                            next[i] = {
+                                ...next[i],
+                                executionId,
+                                agentId: next[i].agentId ?? wireAgentId,
+                                reasoningTrace: [...(next[i].reasoningTrace || []), step],
+                            };
+                            return next;
+                        }
+                        if (executionId !== "live" && next[i].executionId === executionId) {
+                            // Late steps of an ALREADY-FINISHED turn belong on
+                            // that turn's own trace — an orphan placeholder
+                            // here rendered as a permanent EMPTY bubble
+                            // ("Reasoning Process (N steps)" with no reply;
+                            // observed live 2026-09-08: the co-editor turn's
+                            // trailing observation landed after chat_token_done).
+                            next[i] = {
+                                ...next[i],
+                                reasoningTrace: [...(next[i].reasoningTrace || []), step],
+                            };
+                            return next;
+                        }
                         break;
                     }
                 }
-                return next;
+                return [...next, {
+                    id: `pending_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                    type: "assistant" as const,
+                    content: "",
+                    timestamp: new Date(),
+                    streaming: true,
+                    executionId,
+                    agentId: wireAgentId,
+                    reasoningTrace: [step],
+                }];
             });
             return;
         }
@@ -444,9 +483,68 @@ export default function CanvasDetailPage() {
             // sets chatSessionId (the server creates the session id). Only
             // filter once the panel knows its session.
             if (msg.type === "chat_token" && chatSessionIdRef.current && data.session_id !== chatSessionIdRef.current) return;
+            // Turn scoping: the server stamps each frame with the turn's
+            // execution id. Two turns can overlap on ONE session (two tabs,
+            // or an API client driving the same conversation — live
+            // 2026-09-08), and every frame then hit the SAME session-keyed
+            // bubble: interleaved text, overwritten replies, and a
+            // retire-on-finished path that materialized a DUPLICATE bubble
+            // per extra done frame. Frames are routed to their own turn's
+            // bubble whenever the id is present; frames without one fall
+            // back to the legacy session-keyed behavior.
+            const frameExec = typeof data.execution_id === "string" && data.execution_id ? data.execution_id : undefined;
             setMessages(prev => {
                 const streamId = `stream_${data.session_id}`;
+                // A done frame for a turn whose bubble ALREADY finished is a
+                // re-fired/duplicate frame — finalizing again re-ran the
+                // retire path and produced a second bubble with the same
+                // reply text (observed live 2026-09-08). Ignore it.
+                if (frameExec && msg.type === "chat_token_done") {
+                    const alreadyDone = prev.find(m => m.type === "assistant" && m.executionId === frameExec && m.streaming !== true);
+                    if (alreadyDone) return prev;
+                }
                 const existing = prev.find(m => m.id === streamId);
+                // A reasoning step may have arrived before the first token and
+                // created this turn's placeholder bubble (pending_…, still
+                // streaming, empty content). ADOPT it instead of opening a
+                // second bubble — its trace (and its position under the right
+                // question) carries over. A placeholder belonging to a
+                // DIFFERENT turn is left alone (its turn owns it). Any
+                // finished bubble holding the session's stream id is retired
+                // first so ids stay unique.
+                const placeholderIdx = prev.findIndex(m =>
+                    m.type === "assistant" && m.streaming === true && m.id.startsWith("pending_"));
+                if (placeholderIdx >= 0 && !existing?.streaming) {
+                    const ph = prev[placeholderIdx];
+                    if (frameExec && ph.executionId && ph.executionId !== "live" && ph.executionId !== frameExec) {
+                        // Someone else's turn placeholder — skip adoption and
+                        // let the turn-scoped branches below place this frame.
+                        // (Falls through: existing is undefined here.)
+                    } else {
+                        const adopted: CanvasMessage = {
+                            ...ph,
+                            id: streamId,
+                            executionId: frameExec ?? ph.executionId,
+                        };
+                        if (msg.type === "chat_token_done") {
+                            const finalContent = String(data.content ?? "");
+                            if (finalContent) {
+                                adopted.content = finalContent;
+                                adopted.streaming = false;
+                            }
+                        } else {
+                            adopted.content = adopted.content + String(data.delta ?? "");
+                        }
+                        const next = prev.map(m => {
+                            if (m.id === streamId) {
+                                return { ...m, id: `a_${m.timestamp.getTime()}_${Math.random().toString(36).slice(2, 7)}` };
+                            }
+                            return m;
+                        });
+                        next[placeholderIdx] = adopted;
+                        return next;
+                    }
+                }
                 // The stream id is session-keyed, so it is REUSED across
                 // turns. A bubble with that id that already FINISHED belongs
                 // to a previous turn: appending this turn's reply into it
@@ -457,10 +555,17 @@ export default function CanvasDetailPage() {
                 // where it was rendered) and open a fresh stream bubble at
                 // the end of the thread for this turn. `!== true` (not
                 // `=== false`) so a bubble the done event created without
-                // the flag also counts as finished.
-                if (existing && existing.streaming !== true) {
+                // the flag also counts as finished. Same for a STILL-
+                // STREAMING bubble tagged with a DIFFERENT turn's execution
+                // id — that's a concurrent turn's live bubble; this frame
+                // must open its own.
+                const belongsToOtherTurn = !!(
+                    existing && frameExec && existing.executionId &&
+                    existing.executionId !== "live" && existing.executionId !== frameExec
+                );
+                if (existing && (existing.streaming !== true || belongsToOtherTurn)) {
                     const retired = { ...existing, id: `a_${existing.timestamp.getTime()}_${Math.random().toString(36).slice(2, 7)}` };
-                    const fresh: CanvasMessage = { id: streamId, type: "assistant", content: "", timestamp: new Date(), streaming: true };
+                    const fresh: CanvasMessage = { id: streamId, type: "assistant", content: "", timestamp: new Date(), streaming: true, executionId: frameExec };
                     if (msg.type === "chat_token_done") {
                         const finalContent = String(data.content ?? "");
                         if (!finalContent) return [...prev.map(m => (m.id === streamId ? retired : m))];
@@ -475,15 +580,15 @@ export default function CanvasDetailPage() {
                     const finalContent = String(data.content ?? (existing?.content ?? ""));
                     if (!finalContent) return prev.filter(m => m.id !== streamId);
                     if (existing) {
-                        return prev.map(m => (m.id === streamId ? { ...m, content: finalContent, streaming: false } : m));
+                        return prev.map(m => (m.id === streamId ? { ...m, content: finalContent, streaming: false, executionId: m.executionId ?? frameExec } : m));
                     }
-                    return [...prev, { id: streamId, type: "assistant" as const, content: finalContent, timestamp: new Date() }];
+                    return [...prev, { id: streamId, type: "assistant" as const, content: finalContent, timestamp: new Date(), executionId: frameExec }];
                 }
                 const delta = String(data.delta ?? "");
                 if (existing) {
-                    return prev.map(m => (m.id === streamId ? { ...m, content: m.content + delta } : m));
+                    return prev.map(m => (m.id === streamId ? { ...m, content: m.content + delta, executionId: m.executionId ?? frameExec } : m));
                 }
-                return [...prev, { id: streamId, type: "assistant" as const, content: delta, timestamp: new Date(), streaming: true }];
+                return [...prev, { id: streamId, type: "assistant" as const, content: delta, timestamp: new Date(), streaming: true, executionId: frameExec }];
             });
             return;
         }
@@ -548,11 +653,15 @@ export default function CanvasDetailPage() {
             // before chat_token_done — it stays stuck mid-stream) would
             // otherwise swallow the NEXT turn's reply and render it under
             // the wrong question. Renamed here it stays visible where it
-            // was, and this turn's tokens open a fresh bubble.
-            const prevSid = chatSessionId;
-            const retired = prevSid
-                ? prev.map(m => (m.id === `stream_${prevSid}` ? { ...m, id: `a_${m.timestamp.getTime()}_${Math.random().toString(36).slice(2, 7)}` } : m))
-                : prev;
+            // was, and this turn's tokens open a fresh bubble. The same
+            // goes for on-demand step placeholders (pending_…): still
+            // streaming only means the turn never resolved — a finished
+            // turn's bubble is never streaming.
+            const retired = prev.map(m => (
+                m.type === "assistant" && m.streaming === true
+                    ? { ...m, id: `a_${m.timestamp.getTime()}_${Math.random().toString(36).slice(2, 7)}` }
+                    : m
+            ));
             return [...retired, userMsg];
         });
         setChatInput("");
@@ -617,22 +726,54 @@ export default function CanvasDetailPage() {
                 // Process" drawer always has the turn's thinking.
                 const restReasoningStep = reasoningTextToStep(data.reasoning);
                 const streamId = `stream_${data.session_id}`;
+                // The turn's execution id (backend-stamped): finalization may
+                // only touch bubbles belonging to THIS turn. A concurrent
+                // turn on the same session owns the session-keyed stream id
+                // otherwise, and the response overwrote the other turn's
+                // live reply (observed live 2026-09-08: duplicated/garbled
+                // replies on the last message).
+                const respExec = typeof data.execution_id === "string" && data.execution_id ? data.execution_id : undefined;
+                const mine = (m: CanvasMessage) => !respExec || !m.executionId || m.executionId === "live" || m.executionId === respExec;
                 // P3 transparency: company playbooks that guided this edit
                 // (chat_routes maps the orchestrator's `data` to `metadata`).
                 const matchedPlaybooks = data.metadata?.canvas_edit?.matched_playbooks;
                 setMessages(prev => {
-                    const streamed = prev.find(m => m.id === streamId);
+                    const streamed = prev.find(m => m.id === streamId && mine(m));
                     if (streamed) {
-                        return prev.map(m => (m.id === streamId ? {
+                        return prev.map(m => (m.id === streamed.id ? {
                             ...m,
                             content: data.message,
                             streaming: false,
+                            executionId: m.executionId ?? respExec,
                             model: data.model ?? m.model ?? null,
                             provider: data.provider ?? m.provider ?? null,
                             reasoning: data.reasoning ?? m.reasoning ?? undefined,
                             reasoningTrace: m.reasoningTrace?.length
                                 ? m.reasoningTrace
                                 : (restReasoningStep ? [restReasoningStep] : m.reasoningTrace),
+                            ...(matchedPlaybooks ? { matchedPlaybooks } : {}),
+                        } : m));
+                    }
+                    const noStreamTrace = restReasoningStep ? [restReasoningStep] : undefined;
+                    // The streamed bubble can be missed on a session-id
+                    // mismatch; when a step-created placeholder exists it IS
+                    // this turn's reply — finalize it rather than appending a
+                    // second assistant row (the 2026-09-01 duplication shape).
+                    // Only a placeholder from THIS turn qualifies — a foreign
+                    // turn's placeholder is filled by its own response.
+                    const placeholder = [...prev].reverse().find(m =>
+                        m.type === "assistant" && m.streaming === true && m.id.startsWith("pending_") && mine(m));
+                    if (placeholder) {
+                        return prev.map(m => (m.id === placeholder.id ? {
+                            ...m,
+                            id: `a_${m.timestamp.getTime()}_${Math.random().toString(36).slice(2, 7)}`,
+                            content: data.message,
+                            streaming: false,
+                            executionId: m.executionId && m.executionId !== "live" ? m.executionId : respExec,
+                            model: data.model ?? m.model ?? null,
+                            provider: data.provider ?? m.provider ?? null,
+                            reasoning: data.reasoning ?? m.reasoning ?? undefined,
+                            ...(noStreamTrace && !m.reasoningTrace?.length ? { reasoningTrace: noStreamTrace } : {}),
                             ...(matchedPlaybooks ? { matchedPlaybooks } : {}),
                         } : m));
                     }
@@ -645,7 +786,8 @@ export default function CanvasDetailPage() {
                         model: data.model ?? null,
                         provider: data.provider ?? null,
                         reasoning: data.reasoning || undefined,
-                        ...(restReasoningStep ? { reasoningTrace: [restReasoningStep] } : {}),
+                        executionId: respExec,
+                        ...(noStreamTrace ? { reasoningTrace: noStreamTrace } : {}),
                         ...(matchedPlaybooks ? { matchedPlaybooks } : {}),
                     }];
                 });

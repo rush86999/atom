@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from core.sandbox_runtime.base import SandboxExecResult
 
@@ -49,7 +49,10 @@ class DockerRuntime:
         inputs: Optional[Dict[str, Any]] = None,
         cwd: Optional[str] = None,
         image: Optional[str] = None,
+        deps: Optional[List[str]] = None,
     ) -> SandboxExecResult:
+        # deps (mini-app manifest dependencies) accepted for interface parity;
+        # this generic runtime has no image-building semantics for them.
         try:
             sandbox = await self._ensure_sandbox()
             timeout = max(1, int(getattr(policy, "max_exec_seconds", 30) or 30))

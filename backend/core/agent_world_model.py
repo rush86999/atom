@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Optional
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 import logging
 import uuid
@@ -2221,7 +2222,7 @@ class WorldModelService:
             try:
                 # Try to get event loop, create new one if none exists
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = get_event_loop()
                 except RuntimeError:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)

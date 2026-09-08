@@ -1153,6 +1153,30 @@ class AutoDocumentIngestionService:
             except Exception as mode_err:
                 logger.debug(f"Content-mode lookup failed for {source}: {mode_err}")
 
+        # --- SQL-queryable sheet datasets (best-effort, after the gate) ----
+        # Only files whose content is ALREADY being ingested get a dataset
+        # copy (Parquet + dataset_entries catalog): hybrid/list_only syncs
+        # keep their cost contract, explicit opens / full syncs / refreshes /
+        # JIT pulls materialize. Hash-keyed: same bytes = zero re-parse, a
+        # changed source = a new version (never a stale overwrite). The read
+        # leg consults this copy BEFORE downloading, so value questions skip
+        # the 13MB-download/10s-parse round trip entirely.
+        try:
+            from core.sheet_dataset_service import ensure_sheet_dataset, sheet_datasets_enabled
+
+            if sheet_datasets_enabled() and file_ext in ("xlsx", "xls", "xlsm", "csv"):
+                await ensure_sheet_dataset(
+                    content,
+                    file_name=file_name,
+                    source=source,
+                    user_id=user_id,
+                    workspace_id=workspace_id or self.workspace_id,
+                    external_id=_external_id or None,
+                    source_modified_at=source_modified_dt,
+                )
+        except Exception as ds_err:  # noqa: BLE001 — datasets never block ingestion
+            logger.debug(f"sheet dataset materialization skipped for {file_name}: {ds_err}")
+
         try:
             text = await self.parser.parse_document(content, file_ext, file_name)
         except Exception as parse_err:
@@ -1307,6 +1331,16 @@ class AutoDocumentIngestionService:
                         "unchanged" if _upsert_status == "skipped_unchanged"
                         else f"write_failed ({_upsert_status})"
                     )
+                    if _upsert_status not in ("skipped_unchanged",) and explicit:
+                        # LOUD (structural lesson 2026-09-07): a failed explicit
+                        # ingest is DATA LOSS for the user's request — silent
+                        # debug-level skips left memory frozen for days while
+                        # everything looked healthy.
+                        logger.error(
+                            f"INGEST WRITE FAILED (explicit) for {file_name} "
+                            f"doc_id={_file_doc_id} status={_upsert_status} "
+                            f"source={source} — memory copy NOT stored"
+                        )
                     return {
                         "status": "skipped",
                         "reason": reason,

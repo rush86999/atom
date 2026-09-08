@@ -179,6 +179,11 @@ _SERVICE_DESCRIPTIONS = {
     # The first tool that queries the business's own ingested data directly;
     # available to every agent, no OAuth.
     "memory": "ingested workspace memory — search ALL emails, chats, documents and records the business has received or stored (emails by person/company/address, quotes, threads, file contents)",
+    # SQL-queryable dataset catalog: every ingested spreadsheet materialized
+    # into per-sheet tables (core/sheet_dataset_service). Answers WHERE a
+    # value lives and returns the exact rows — the user should never have to
+    # name the file.
+    "datasets": "dataset catalog — for a specific value, code, model or part number: searches EVERY ingested spreadsheet and returns the exact rows plus the file and sheet they live in",
 }
 
 # Web tools that ship with the platform (key-gated, no user OAuth needed).
@@ -212,7 +217,36 @@ def _with_grounding(block: Optional[str]) -> Optional[str]:
 # Available unconditionally — memory searches the workspace's OWN ingested
 # data (no external key, no OAuth). Coupling it to the Tavily key gate made
 # it vanish wherever web search wasn't configured.
+# `datasets` is also gated only by runtime state (feature enabled + catalog
+# non-empty), checked in _available_platform_services below.
 _ALWAYS_AVAILABLE_SERVICES = ("memory",)
+
+
+def _datasets_service_available() -> bool:
+    """Cheap 60s-cached gate: datasets show up in the planner catalog only
+    when the feature is on AND at least one dataset exists."""
+    global _datasets_avail_cache  # noqa: PLW0603
+    import time
+
+    now = time.monotonic()
+    cached = _datasets_avail_cache
+    if cached and now - cached[0] < 60:
+        return cached[1]
+    available = False
+    try:
+        from core.sheet_dataset_service import (
+            catalog_has_entries_sync,
+            sheet_datasets_enabled,
+        )
+
+        available = bool(sheet_datasets_enabled() and catalog_has_entries_sync())
+    except Exception:  # noqa: BLE001 — planner must never fail on this
+        available = False
+    _datasets_avail_cache = (now, available)
+    return available
+
+
+_datasets_avail_cache: Optional[tuple] = None
 
 
 def _available_platform_services() -> List[str]:
@@ -226,6 +260,8 @@ def _available_platform_services() -> List[str]:
         if s not in _ALWAYS_AVAILABLE_SERVICES and os.getenv("TAVILY_API_KEY")
     ]
     services.extend(_ALWAYS_AVAILABLE_SERVICES)
+    if "datasets" not in services and _datasets_service_available():
+        services.append("datasets")
     return services
 
 _PLANNER_SYSTEM = """You are the tool planner for an AI automation platform.
@@ -251,6 +287,14 @@ Rules:
   query MUST contain that name.
 - Return exactly ONE plan. If a search and a URL check would both help,
   plan ONLY web_fetch when the address is known, otherwise web_search.
+- READ vs FIND: web_fetch is only for READING a page whose full address is
+  already known or stated in the conversation. When the user asks you to
+  FIND the page/URL/link ON a site ("find the product page on brennan.ca
+  for this model"), the target address is the UNKNOWN being asked for —
+  plan web_search with the site name AND the subject terms (e.g.
+  "brennan.ca WG-350DSAV"). Search results carry the real URLs; fetching
+  the site's homepage cannot enumerate a site, and inventing a URL from a
+  pattern (adding "/products/…" to the model number) is fabrication.
 - Read-only: search/list intents for lookups; `read` intent ONLY for the
   file-storage services, when the user wants a specific row, value, price,
   figure or section OUT OF a named document ("open the catalog and find the
@@ -261,6 +305,13 @@ Rules:
   own the what-for ("check X for the price"), this message adds the where;
   planning search again just re-lists the file name the user already named.
   Never plan sends, writes, or deletes.
+- VALUE LOOKUPS WITHOUT A NAMED SOURCE ("what's the price of WG-350DSAV?",
+  "find invoice 123", "look up policy 7.2"): plan service "datasets",
+  intent "search", query = the exact code/value ALONE. The dataset catalog
+  searches every ingested spreadsheet and returns the file, sheet and
+  exact rows — the user should never have to say where a value lives.
+  Stock/quantity questions still go to the inventory app; when the user
+  DOES name a document, keep using the file-storage read.
 - The query MUST carry every identifying code — model, SKU, part, order or
   invoice number — EXACTLY as written anywhere in the conversation or open
   canvas, even when the user's latest message doesn't repeat it ("check the
@@ -792,6 +843,108 @@ async def _ingested_mailbox_lines(
 _PRODUCT_TOKEN_RE = re.compile(
     r"\b(?=[A-Za-z-]*\d)(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9][A-Za-z0-9-]{4,}\b"
 )
+_STYLED_BODY_BLOCK_CAP = 6000
+
+
+def _candidate_addresses(user_id, query, context=None, limit: int = 3) -> List[str]:
+    """Email addresses named in the query or the last few history turns —
+    the same haystack _ingested_mailbox_lines uses, so the styled-base
+    lookup agrees with the listing about WHO the conversation is about."""
+    import re as _re_addr
+
+    hay = (query or "") + " " + " ".join(
+        _entry_text(m) for m in ((context or {}).get("history") or [])[-6:]
+    )
+    out: List[str] = []
+    for addr in _re_addr.findall(r"[\w.+-]+@[\w.-]+", hay):
+        if addr.lower() not in [x.lower() for x in out]:
+            out.append(addr.lower())
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _latest_styled_ingested(user_id, addresses: List[str]) -> Optional[Dict[str, str]]:
+    """Newest ingested message among ``addresses`` carrying style-bearing
+    raw HTML. Ingestion persists every comm app's original markup under
+    metadata.html_body (core.communication_styling, store choke point) —
+    this surfaces it so the model can base a NEW draft on the REAL styled
+    message instead of retyping from a 220-char text snippet. Lance filter
+    on the (now internal) store, off-loop; fault-isolated → None."""
+    if not addresses:
+        return None
+    try:
+        import json as _json
+
+        import lancedb
+
+        base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
+        table = lancedb.connect(str(base / "default")).open_table(
+            "atom_communications"
+        )
+        rows = table.to_arrow().to_pandas().sort_values(
+            "timestamp", ascending=False
+        )
+        for _, row in rows.iterrows():
+            blob = (str(row.get("sender") or "") + " " + str(row.get("recipient") or "")).lower()
+            if not any(a in blob for a in addresses):
+                continue
+            meta = row.get("metadata")
+            if isinstance(meta, str):
+                try:
+                    meta = _json.loads(meta)
+                except Exception:
+                    continue
+            html = (meta or {}).get("html_body") if isinstance(meta, dict) else None
+            if html and "<" in str(html):
+                return {
+                    "sender": str(row.get("sender") or "?"),
+                    "subject": str(row.get("subject") or ""),
+                    "html": str(html)[:_STYLED_BODY_BLOCK_CAP],
+                }
+        return None
+    except Exception as e:
+        logger.debug(f"styled ingested body lookup skipped: {e}")
+        return None
+
+
+def _styled_base_section(styled: Optional[Dict[str, str]]) -> str:
+    """Prompt section that hands the model a real styled message as a draft
+    BASE. Copying the markup (not retyping from a snippet) is the point —
+    the canvas and send path preserve raw HTML end to end."""
+    if not styled:
+        return ""
+    return (
+        f"\n\nSTYLED HTML BODY — newest styled message matching this lookup "
+        f"(From: {styled.get('sender')} | {str(styled.get('subject') or '')[:90]}). "
+        "To base a NEW draft on it: copy this markup as the canvas body and edit "
+        "the wording in place; keep the styling tags intact (the canvas and send "
+        "path preserve raw HTML):\n"
+        + str(styled.get("html") or "")
+    )
+
+
+def _graph_styled_fallback(emails: List[Dict[str, Any]]) -> Optional[Dict[str, str]]:
+    """Top-ranked live Graph hit whose body is styled HTML — the base when
+    the ingested store has no styled copy for this participant."""
+    try:
+        from core.communication_styling import has_style_markup
+    except Exception:
+        return None
+    for e in emails[:2]:
+        body = e.get("body") or {}
+        content = str(body.get("content") or "")
+        if str(body.get("contentType") or "").lower() == "html" and has_style_markup(content):
+            return {
+                "sender": (
+                    ((e.get("from_field") or {}).get("emailAddress") or {}).get("address")
+                    or "?"
+                ),
+                "subject": str(e.get("subject") or ""),
+                "html": content[:_STYLED_BODY_BLOCK_CAP],
+            }
+    return None
+
 _HEX_COLOR_RE = re.compile(r"^[0-9A-Fa-f]{6}$")
 
 
@@ -1050,6 +1203,69 @@ def _doc_hit_excerpt(doc_id: str, query: str, fallback: str, width: int = 600,
 async def _memory_search_block(
     user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
 ) -> Optional[str]:
+    """Memory leg entry point: dataset-catalog evidence (when the query
+    carries an identifying code) PREPENDED to the hybrid memory search — so
+    the exact rows surface no matter which leg the planner picks (it
+    nondeterministically chooses memory/read/inventory for value questions).
+    None when neither matched."""
+    ds_block = await _datasets_evidence(user_id, query, context)
+    mem_block = await _memory_hybrid_block(user_id, query, context)
+    if ds_block and mem_block:
+        return f"{ds_block}\n\n{mem_block}"
+    return ds_block or mem_block
+
+
+async def _datasets_evidence(
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+) -> Optional[str]:
+    """Positive-only dataset evidence for a code-bearing query: exact rows
+    from the catalog, ungrounded (the caller's block carries the grounding
+    rule). None when the query has no identifying code or the catalog has no
+    match — memory then answers alone."""
+    try:
+        from core.sheet_dataset_service import (
+            candidate_probe_tokens,
+            render_dataset_answer,
+            search_all_datasets_sync,
+            sheet_datasets_enabled,
+        )
+    except ImportError:
+        return None
+    if not sheet_datasets_enabled():
+        return None
+    history_texts = [
+        str(h.get("message") or "")[:500]
+        for h in ((context or {}).get("history") or [])
+        if isinstance(h, dict) and h.get("message")
+    ][-6:]
+    probe_query = query
+    try:
+        extra = _context_identifier_net(context or {}, query)
+        if extra:
+            probe_query = f"{query} {' '.join(extra)}"
+    except Exception:  # noqa: BLE001 — enrichment is best-effort
+        pass
+    if not candidate_probe_tokens([probe_query] + history_texts):
+        return None
+    result = await asyncio.to_thread(
+        search_all_datasets_sync, probe_query, user_id,
+        (context or {}).get("workspace_id"), 2, 200, history_texts,
+    )
+    hits = (result or {}).get("hits") or []
+    if not hits:
+        return None  # augmentation is positive-only; memory answers alone
+    lines = [
+        f"DATASET CATALOG MATCH — every ingested spreadsheet searched for "
+        f"'{result['token']}' ({result['files_searched']} files):"
+    ]
+    for hit in hits:
+        lines.append(render_dataset_answer(hit))
+    return "\n".join(lines)
+
+
+async def _memory_hybrid_block(
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+) -> Optional[str]:
     """Hybrid search over the ingested workspace (documents, mailbox copies,
     records) formatted as a LIVE TOOL RESULTS block. The `memory` service leg
     of execute_tool_plan, factored out so other legs can fall back to it when
@@ -1155,6 +1371,69 @@ async def _memory_search_block(
         return None
 
 
+async def _datasets_search_block(
+    user_id: Optional[str], query: str, context: Optional[Dict[str, Any]]
+) -> Optional[str]:
+    """Cross-file content probe over the dataset catalog, formatted as a LIVE
+    TOOL RESULTS block. The `datasets` service leg of execute_tool_plan: lets
+    the agent locate a value WITHOUT the user naming a file. Identifying
+    (digit-bearing) tokens are probed across every ingested spreadsheet;
+    a probe miss is returned as real negative evidence so the reply model
+    says "not in any ingested sheet" and pivots to live sources instead of
+    confabulating. Queries without an identifying token delegate to memory."""
+    try:
+        from core.sheet_dataset_service import (
+            candidate_probe_tokens,
+            render_dataset_answer,
+            search_all_datasets_sync,
+            sheet_datasets_enabled,
+        )
+    except ImportError:
+        return None
+    if not sheet_datasets_enabled():
+        return None
+
+    # Candidate identifiers come from the query AND the surrounding turns —
+    # a 'try again' or pronoun-heavy turn may not carry the code itself.
+    history_texts = [
+        str(h.get("message") or "")[:500]
+        for h in ((context or {}).get("history") or [])
+        if isinstance(h, dict) and h.get("message")
+    ][-6:]
+    if not candidate_probe_tokens([query] + history_texts):
+        # No identifying code — sheet-level SQL adds nothing over memory.
+        return await _memory_search_block(user_id, query, context)
+
+    result = await asyncio.to_thread(
+        search_all_datasets_sync, query, user_id,
+        (context or {}).get("workspace_id"), 2, 200, history_texts,
+    )
+    files_searched = result.get("files_searched", 0) if result else 0
+    hits = (result or {}).get("hits") or []
+    if hits:
+        lines = [
+            f"LIVE TOOL RESULTS (datasets.search, query='{query}') — every "
+            f"ingested spreadsheet searched for '{result['token']}' "
+            f"({files_searched} files). Exact rows, with file and sheet:"
+        ]
+        for hit in hits:
+            lines.append(render_dataset_answer(hit))
+        return _with_grounding(
+            "\n".join(lines)
+            + "\nThese rows come from the query-verified dataset copy; R# = "
+            "spreadsheet row numbers. Cite only these values for exact figures."
+        )
+    tried = ", ".join(f"'{t}'" for t in ((result or {}).get("tokens_tried") or []))
+    return _with_grounding(
+        f"LIVE TOOL RESULTS (datasets.search, query='{query}'): every ingested "
+        f"spreadsheet was searched ({files_searched} files) and the value(s) "
+        f"{tried} appear in NONE of them. "
+        "Say that plainly — do not estimate or fill the gap — and consider "
+        "live sources (inventory/accounting apps) or asking the user where "
+        "else it might live."
+    )
+
+
 async def _comm_per_term_retry(
     svc: Any, service: str, action: str, query: str,
     user_id: Optional[str], tenant_id: str, context: Optional[Dict[str, Any]],
@@ -1217,6 +1496,55 @@ async def _comm_per_term_retry(
         )
     except Exception as retry_err:
         logger.debug(f"per-term retry skipped: {retry_err}")
+        return None
+
+
+_DOMAIN_TOKEN_RE = re.compile(
+    r"(?<![\w@.])((?:[a-z0-9-]+\.)+(?:com|ca|org|net|io|co|ai|dev|info|biz|us"
+    r"|uk|de|fr|au|in|shop|store|app))(?:/[^\s]*)?",
+    re.IGNORECASE,
+)
+
+
+async def _site_search_evidence(
+    query: str,
+    tenant_id: Optional[str],
+    mcp: Any,
+    search_err: str = "",
+) -> Optional[str]:
+    """When public web search yields nothing (unavailable or empty) but the
+    query names a domain, read THAT site's own /search?q= results page. The
+    site knows its own URLs even when the search provider doesn't — live
+    2026-09-08 (canvas c3617a7f…): asked to find a product page on
+    brennan.ca with search unavailable, the editor invented a
+    /products/<model-number> URL that 404'd into a customer quote. Falls
+    back to None on anything unusable; the caller then reports the failure
+    honestly and the grounding rules keep the model from guessing."""
+    try:
+        match = _DOMAIN_TOKEN_RE.search(query or "")
+        if not match:
+            return None
+        domain = match.group(1).lower()
+        terms = " ".join(_DOMAIN_TOKEN_RE.sub(" ", query or "").split())
+        if not terms:
+            return None
+        from urllib.parse import quote
+
+        search_url = f"https://{domain}/search?q={quote(terms)}"
+        res = await mcp.web_fetch(search_url, tenant_id)
+        content = str(res.get("content") or "").strip()
+        if not content:
+            return None
+        note = f" (search provider: {search_err[:120]})" if search_err else ""
+        return (
+            f"LIVE TOOL RESULTS (web_search, query='{query}'): no results"
+            f"{note}. Fetched the SITE'S OWN search results page instead: "
+            f"{search_url}\n\nThe matching page URLs are listed under "
+            "'Links on this page' below — use one of them VERBATIM, do not "
+            f"construct a URL:\n{content[:5000]}"
+        )
+    except Exception as exc:  # noqa: BLE001 — fallback must never raise
+        logger.debug(f"site-search fallback skipped: {exc}")
         return None
 
 
@@ -1288,15 +1616,22 @@ async def execute_tool_plan(
             if service == "web_search":
                 res = await _mcp.web_search(query, tenant_id)
                 err = str(res.get("error") or "").strip()
+                answer = str(res.get("answer") or "").strip()
+                results = res.get("results") or []
+                if err or not (answer or results):
+                    # Search unavailable (no/invalid key) or empty — but the
+                    # query names a site. The site's own /search page knows
+                    # its URLs even when the search provider doesn't (live
+                    # 2026-09-08: with search unavailable the model invented
+                    # /products/<model-number> instead). Evidence, not guess.
+                    site_block = await _site_search_evidence(
+                        query, tenant_id, _mcp, err
+                    )
+                    if site_block:
+                        return _with_grounding(site_block)
                 if err:
                     return _with_grounding(
                         f"LIVE TOOL RESULTS (web_search, query='{query}'): unavailable — {err[:200]}"
-                    )
-                answer = str(res.get("answer") or "").strip()
-                results = res.get("results") or []
-                if not answer and not results:
-                    return _with_grounding(
-                        f"LIVE TOOL RESULTS (web_search, query='{query}'): no results found."
                     )
                 lines = []
                 if answer:
@@ -1366,6 +1701,19 @@ async def execute_tool_plan(
         return _with_grounding(
             f"LIVE TOOL RESULTS (memory.search, query='{query}'): "
             "nothing in the ingested workspace matched."
+        )
+
+    # Datasets: cross-file content probe over the SQL-queryable catalog —
+    # the planner's answer to value questions the user asks WITHOUT naming
+    # a source ("what's the price of X?"). Always returns a block: either
+    # exact rows (file + sheet + R# cited) or honest negative evidence.
+    if service == "datasets":
+        block = await _datasets_search_block(user_id, query, context)
+        if block:
+            return block
+        return _with_grounding(
+            f"LIVE TOOL RESULTS (datasets.search, query='{query}'): "
+            "no dataset catalog available."
         )
 
     # Outlook: dedicated service with per-user token handling. Graph $search
@@ -1457,9 +1805,21 @@ async def execute_tool_plan(
             )
             if graph_listing:
                 listing = (listing + "\n" if listing else "") + graph_listing
+            # Styled-draft base: the newest ingested message for this
+            # participant carries its original markup (metadata.html_body);
+            # when the store has none, the top live hit's Graph HTML body
+            # stands in. Without this the model only ever sees a 200-char
+            # text preview and CANNOT honor "draft a new email that looks
+            # like that message".
+            styled_section = _styled_base_section(
+                _latest_styled_ingested(
+                    user_id, _candidate_addresses(user_id, query, context)
+                )
+            ) or _styled_base_section(_graph_styled_fallback(emails))
             return _with_grounding(
                 f"LIVE TOOL RESULTS (outlook.search_emails, query='{query}') — "
                 f"use these to answer:\n{listing}"
+                f"{styled_section}"
             )
         except Exception as e:
             logger.warning(f"outlook tool execution failed: {e}")
@@ -1550,6 +1910,16 @@ async def execute_tool_plan(
                     "workspace_id": "default",
                     "tenant_id": tenant_id,
                     "agent_id": (context or {}).get("agent_id"),
+                    # The read leg's dataset fast path probes the conversation's
+                    # own identifier codes ('WG-350DSAV' sat in earlier turns)
+                    # — harness-side, where the reply model's no-tool-calling
+                    # contract is never violated.
+                    "history_texts": [
+                        str(h.get("message") or "")[:500]
+                        for h in ((context or {}).get("history") or [])
+                        if isinstance(h, dict) and h.get("message")
+                    ][-6:],
+                    "llm_service": llm_service,
                 },
             )
         data = result.get("data") if isinstance(result, dict) else None
@@ -1570,12 +1940,18 @@ async def execute_tool_plan(
             if service in _COMMUNICATION_SERVICES:
                 mail_lines = await _ingested_mailbox_lines(user_id, query, context)
                 if mail_lines:
+                    styled_section = _styled_base_section(
+                        _latest_styled_ingested(
+                            user_id, _candidate_addresses(user_id, query, context)
+                        )
+                    )
                     return _with_grounding(
                         f"LIVE TOOL RESULTS ({service}.{action}, query='{query}'): "
                         f"the live {service} search returned nothing usable "
                         f"({reason}). INGESTED MAILBOX matches (deterministic "
                         f"sender/recipient lookup over the workspace's own "
                         f"copies):\n" + "\n".join(mail_lines)
+                        + styled_section
                     )
                 # Store has nothing either: an empty SUCCESS from an
                 # AND-semantics provider is usually one common token zeroing
@@ -1664,6 +2040,11 @@ async def execute_tool_plan(
             # app the planner picked.
             mail_lines = await _ingested_mailbox_lines(user_id, query, context, cap=4)
             if mail_lines:
+                styled_section = _styled_base_section(
+                    _latest_styled_ingested(
+                        user_id, _candidate_addresses(user_id, query, context)
+                    )
+                )
                 return _with_grounding(
                     f"LIVE TOOL RESULTS ({service}.{action}, query='{query}') — "
                     f"INGESTED MAILBOX matches first (deterministic "
@@ -1672,6 +2053,7 @@ async def execute_tool_plan(
                     + f"\n\nLive {service} results (supplemental — provider "
                     f"relevance ranking, known to miss sender addresses):\n"
                     f"{str(data)[:1800]}"
+                    + styled_section
                 )
         return _with_grounding(header)
     except Exception as e:

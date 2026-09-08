@@ -21,6 +21,7 @@ empty, populated, exception), manage_tenant_member (all actions), manage_workspa
 update, unknown, exception), tenant/workspace/team CRUD helpers
 (success/not-found/exception), member add/remove strings, setup helpers.
 """
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import uuid
 from unittest.mock import MagicMock, patch
 
@@ -124,7 +125,7 @@ class TestBugPins:
 
 def pytest_asyncio_run(coro):
     import asyncio
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return get_event_loop().run_until_complete(coro)
 
 
 # ============================================================================

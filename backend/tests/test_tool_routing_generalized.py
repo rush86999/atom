@@ -1,73 +1,22 @@
-"""Generalized tool-routing fixes: named-entity planner repair, explicit-open
-search→read chain, KQL token quoting, query-anchored excerpts, file matching.
+"""Generalized tool-routing fixes: KQL token quoting, query-anchored
+excerpts, file matching, planner context reading.
 
 Live regressions these pin (2026-09-03):
-  - "check consolidated price list file again and see if you can find the row"
-    planned a NULL service; history-first fallback rerouted it to outlook
-    (recently used) while the named entity was a FILE in zoho_workdrive.
   - outlook.search("WG350DSAV …") 400'd: Graph KQL rejects bare mixed
     letter+digit tokens.
   - storage search returned only metadata — nothing could OPEN a file.
+
+(The pattern-matching router tests — named-service beats file nouns,
+explicit-open regex — were removed 2026-09-08: commit 2523258fd made
+routing LLM-owned and deleted _service_named_in_message/_EXPLICIT_OPEN,
+so those tests pinned machinery that no longer exists.)
 """
 
 import pytest
 
 from core.chat_tool_planner import (
-    _EXPLICIT_OPEN,
     _current_message_text,
-    _service_named_in_message,
 )
-
-
-def test_named_service_beats_file_nouns():
-    """An explicitly named integration wins even though the message also says
-    'file' (which would otherwise route to storage)."""
-    connected = ["zoho_inventory", "zoho_workdrive"]
-    assert _service_named_in_message(
-        "is the WG350DSAV in stock in zoho inventory?", connected
-    ) == "zoho_inventory"
-
-
-def test_file_noun_routes_to_connected_storage():
-    """'check the price list file' names a document — route to the connected
-    storage integration instead of whatever was used recently."""
-    assert _service_named_in_message(
-        "check consolidated price list file again and see if you can find the row",
-        ["outlook", "zoho_workdrive"],
-    ) == "zoho_workdrive"
-
-
-def test_file_noun_prefers_storage_order():
-    """Deterministic preference order: zoho_workdrive first (the primary
-    connector in this workspace), then gdrive/onedrive/dropbox/box/notion."""
-    assert _service_named_in_message(
-        "open the workbook", ["google_drive", "zoho_workdrive"]
-    ) == "zoho_workdrive"
-    assert _service_named_in_message("open the workbook", ["dropbox"]) == "dropbox"
-    assert _service_named_in_message("open the file", ["onedrive"]) == "onedrive"
-
-
-def test_no_entity_matches_none():
-    assert _service_named_in_message("try again", ["outlook"]) is None
-
-
-def test_explicit_open_regex_matches_live_utterances():
-    hits = [
-        "check consolidated price list file again and see if you can find the row",
-        "open the price list and find WG350DSAV",
-        "show me the row for the bandsaw",
-        "look inside the workbook",
-        "contents of Consolidated Price List 2019.xlsx",
-    ]
-    for h in hits:
-        assert _EXPLICIT_OPEN.search(h), f"explicit-open regex missed: {h}"
-    misses = [
-        "what's the price of the bandsaw?",  # hybrid search stays the fast path
-        "do we have it in stock?",
-        "send the email to Mark",
-    ]
-    for m in misses:
-        assert not _EXPLICIT_OPEN.search(m), f"regex over-fired: {m}"
 
 
 def test_current_message_text_reads_last_user_entry():

@@ -9,6 +9,7 @@
 Plain pytest + unittest.mock. No network / no LLM / no real DB: httpx
 boundaries mocked, dropbox SDK mocked, SessionLocal mocked.
 """
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import sys
 import types
 from types import SimpleNamespace
@@ -123,32 +124,32 @@ class TestAirtableService:
         svc.client = MagicMock()
         svc.client.aclose = AsyncMock()
         import asyncio
-        asyncio.get_event_loop().run_until_complete(svc.close())
+        get_event_loop().run_until_complete(svc.close())
         svc.client.aclose.assert_awaited_once()
 
     def test_get_bases(self):
         svc = _airtable()
         svc.http.get = AsyncMock(return_value=_ok({"bases": [{"id": "b"}]}))
         import asyncio
-        assert asyncio.get_event_loop().run_until_complete(svc.get_bases()) == [{"id": "b"}]
+        assert get_event_loop().run_until_complete(svc.get_bases()) == [{"id": "b"}]
 
     def test_get_bases_error(self):
         svc = _airtable()
         svc.http.get = AsyncMock(side_effect=RuntimeError("x"))
         import asyncio
-        assert asyncio.get_event_loop().run_until_complete(svc.get_bases()) == []
+        assert get_event_loop().run_until_complete(svc.get_bases()) == []
 
     def test_get_tables(self):
         svc = _airtable()
         svc.http.get = AsyncMock(return_value=_ok({"tables": [{"id": "tbl"}]}))
         import asyncio
-        assert asyncio.get_event_loop().run_until_complete(svc.get_tables("b")) == [{"id": "tbl"}]
+        assert get_event_loop().run_until_complete(svc.get_tables("b")) == [{"id": "tbl"}]
 
     def test_get_tables_error(self):
         svc = _airtable()
         svc.http.get = AsyncMock(side_effect=RuntimeError("x"))
         import asyncio
-        assert asyncio.get_event_loop().run_until_complete(svc.get_tables("b")) == []
+        assert get_event_loop().run_until_complete(svc.get_tables("b")) == []
 
     @pytest.mark.asyncio
     async def test_list_records(self):

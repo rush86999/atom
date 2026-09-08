@@ -15,6 +15,7 @@ PolicyFactExtractor tested with the LLM service fully mocked (zero LLM spend):
 - get_policy_fact_extractor: singleton cache hit and miss.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -30,7 +31,7 @@ def _fake_llm(responses):
     async def _generate(*a, **k):
         if isinstance(responses, list) and callable(responses[0]):
             fn = responses.pop(0)
-            return await fn(k["prompt"]) if asyncio.iscoroutinefunction(fn) else fn(k["prompt"])
+            return await fn(k["prompt"]) if iscoroutinefunction(fn) else fn(k["prompt"])
         return responses.pop(0) if isinstance(responses, list) else responses
     llm.generate = _generate
     return llm

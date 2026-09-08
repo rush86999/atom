@@ -966,6 +966,10 @@ class ChatOrchestrator:
                 "success": not budget_failure,
                 "message": budget_failure["message"] if budget_failure else main_message,
                 "session_id": session["id"],
+                # Lets the client finalize THIS turn's streamed bubble (and
+                # only it) — two turns on one session must not overwrite each
+                # other's bubbles (live 2026-09-08: duplicate replies).
+                "execution_id": _execution_id,
                 "intent": intent_analysis["primary_intent"].value,
                 "confidence": intent_analysis["confidence"],
                 "data": combined_data,
@@ -1635,6 +1639,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "type": "chat_token",
                             "data": {
                                 "session_id": session_id,
+                                "execution_id": _execution_id,
                                 "delta": _tok,
                             },
                         })
@@ -1766,6 +1771,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "type": "chat_token_done",
                             "data": {
                                 "session_id": session_id,
+                                "execution_id": _execution_id,
                                 "content": _streamed,
                                 "elapsed_s": round(_time.monotonic() - _t0, 1),
                             },
@@ -2778,6 +2784,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "success": True,
             "message": reply,
             "session_id": session_id,
+            "execution_id": execution_id,
             "intent": "canvas_edit",
             "confidence": 0.9,
             "data": {
@@ -2949,6 +2956,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "success": True,
                 "message": reply,
                 "session_id": session_id,
+                "execution_id": execution_id,
                 "intent": "canvas_action",
                 "confidence": 0.9,
                 "data": {"canvas_action": result},
@@ -2985,6 +2993,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             "success": True,
             "message": reply,
             "session_id": session_id,
+            "execution_id": execution_id,
             "intent": "canvas_action",
             "confidence": 0.9,
             "data": {

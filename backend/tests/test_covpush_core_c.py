@@ -11,6 +11,7 @@ All DB/HTTP/LLM interactions are mocked or use in-memory SQLite — never real
 network. Companion bug-hunt file: tests/test_bughunt_core_c.py.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 import os
 import sqlite3
@@ -423,7 +424,7 @@ class TestBudgetGuardrailGaps:
         from core.budget_guardrail import BudgetGuardrailService
 
         service = BudgetGuardrailService(db_session=db)
-        result = asyncio.get_event_loop().run_until_complete(
+        result = get_event_loop().run_until_complete(
             service.calculate_project_burn("missing-project")
         )
         assert result["status"] == "unknown"
@@ -443,7 +444,7 @@ class TestBudgetGuardrailGaps:
         service = BudgetGuardrailService()
         service.db = None
         with patch("core.budget_guardrail.SessionLocal", return_value=real_session):
-            result = asyncio.get_event_loop().run_until_complete(
+            result = get_event_loop().run_until_complete(
                 service.calculate_project_burn("missing-project")
             )
         assert result["total_burn"] == 0.0
@@ -1153,7 +1154,7 @@ class TestChatProcessManager:
                     tables=[ChatProcess.__table__, User.__table__],
                 )
 
-        asyncio.get_event_loop().run_until_complete(_init())
+        get_event_loop().run_until_complete(_init())
         SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
         @asynccontextmanager
@@ -1163,7 +1164,7 @@ class TestChatProcessManager:
 
         with patch("core.chat_process_manager.get_async_db_session", side_effect=_session):
             yield SessionLocal
-        asyncio.get_event_loop().run_until_complete(engine.dispose())
+        get_event_loop().run_until_complete(engine.dispose())
 
     @pytest.fixture()
     async def manager(self, async_db):
@@ -1906,7 +1907,7 @@ class TestAutonomousSupervisorServiceGaps:
 
         agent = _make_agent(db, "sup-1")
         service = AutonomousSupervisorService(db)
-        found = asyncio.get_event_loop().run_until_complete(
+        found = get_event_loop().run_until_complete(
             service.find_autonomous_supervisor(agent, category="nonexistent")
         )
         assert found is None
@@ -1926,7 +1927,7 @@ class TestAutonomousSupervisorServiceGaps:
         intern.diversity_profile = {"risk_profile": "conservative"}
         db.commit()
         service = AutonomousSupervisorService(db)
-        found = asyncio.get_event_loop().run_until_complete(
+        found = get_event_loop().run_until_complete(
             service.find_autonomous_supervisor(intern, adversarial=True)
         )
         assert found.id == "sup-adv"
@@ -1943,7 +1944,7 @@ class TestAutonomousSupervisorServiceGaps:
         intern.diversity_profile = {"risk_profile": "same"}
         db.commit()
         service = AutonomousSupervisorService(db)
-        found = asyncio.get_event_loop().run_until_complete(
+        found = get_event_loop().run_until_complete(
             service.find_autonomous_supervisor(intern, adversarial=True)
         )
         assert found is not None  # falls back to highest confidence
@@ -1967,7 +1968,7 @@ class TestAutonomousSupervisorServiceGaps:
         f.filter.return_value = f
         f.all.return_value = [falsy]
         service.db.query.return_value = f
-        found = asyncio.get_event_loop().run_until_complete(
+        found = get_event_loop().run_until_complete(
             service.find_autonomous_supervisor(intern, adversarial=False)
         )
         assert found is falsy
@@ -1992,7 +1993,7 @@ class TestAutonomousSupervisorServiceGaps:
         wm.get_experience_statistics = AsyncMock(return_value={"success_rate": 0.7})
         service = AutonomousSupervisorService(db)
         with patch("core.agent_world_model.WorldModelService", return_value=wm):
-            review = asyncio.get_event_loop().run_until_complete(
+            review = get_event_loop().run_until_complete(
                 service.review_proposal(proposal, agent)
             )
         assert review.risk_level == "medium"
@@ -2004,7 +2005,7 @@ class TestAutonomousSupervisorServiceGaps:
 
         agent = _make_agent(db, "sup-1")
         service = AutonomousSupervisorService(db)
-        events = asyncio.get_event_loop().run_until_complete(
+        events = get_event_loop().run_until_complete(
             _drain(service.monitor_execution("missing-exec", agent))
         )
         types = [e.event_type for e in events]
@@ -2114,13 +2115,13 @@ class TestAutonomousSupervisorServiceGaps:
         service = AutonomousSupervisorService(MagicMock())
         supervisor = SimpleNamespace(name="Sup", confidence_score=0.95)
         proposal = SimpleNamespace()
-        analysis = asyncio.get_event_loop().run_until_complete(
+        analysis = get_event_loop().run_until_complete(
             service._analyze_proposal_with_llm(
                 supervisor, proposal, "device_command", "because", "ctx"
             )
         )
         assert analysis["confidence"] == 0.75  # high risk -> -0.2
-        safe = asyncio.get_event_loop().run_until_complete(
+        safe = get_event_loop().run_until_complete(
             service._analyze_proposal_with_llm(
                 SimpleNamespace(name="S", confidence_score=0.95), proposal, "canvas_present", "r"
             )
@@ -2138,15 +2139,15 @@ class TestAutonomousSupervisorServiceGaps:
         assert service._should_approve_proposal({"confidence": 0.8}, "safe", 0.86) is True
 
         exec_row = SimpleNamespace(status="completed")
-        res = asyncio.get_event_loop().run_until_complete(
+        res = get_event_loop().run_until_complete(
             service._analyze_execution_result(exec_row, supervisor)
         )
         assert res["success"] is True
-        err = asyncio.get_event_loop().run_until_complete(
+        err = get_event_loop().run_until_complete(
             service._analyze_execution_error(exec_row, supervisor)
         )
         assert err["root_cause"] == "unknown"
-        concerns = asyncio.get_event_loop().run_until_complete(
+        concerns = get_event_loop().run_until_complete(
             service._check_execution_concerns(exec_row, supervisor)
         )
         assert concerns["has_concerns"] is False
@@ -2172,7 +2173,7 @@ class TestAutonomousSupervisorServiceGaps:
         wm.get_experience_statistics = AsyncMock(return_value={})
         service = AutonomousSupervisorService(db)
         with patch("core.agent_world_model.WorldModelService", return_value=wm):
-            review = asyncio.get_event_loop().run_until_complete(
+            review = get_event_loop().run_until_complete(
                 service.review_proposal(
                     db.query(AgentProposal).filter(AgentProposal.id == "prop-3").first(),
                     agent,
