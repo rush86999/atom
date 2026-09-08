@@ -266,12 +266,16 @@ async def _lessons_leg(message: str, agent_id: Optional[str]) -> str:
     return await asyncio.to_thread(_read)
 
 
-async def _playbooks_leg(message: str, workspace_id: str, tenant_id: str) -> str:
+async def _playbooks_leg(message: str, workspace_id: str, tenant_id: str,
+                         canvas_type: Optional[str] = None) -> str:
     """Company playbooks matching the turn (Installation Adaptation Plan
     Phase 3) — the install's own processes as advisory prompt context on
-    every chat surface, not just canvas edits. Keyword-scored by
-    PlaybookService.get_relevant (approved only); empty string renders no
-    block. ATOM_PLAYBOOKS=off short-circuits inside the service."""
+    every chat surface, not just canvas edits. Hybrid retrieval in
+    PlaybookService.get_relevant (approved only; keyword/canvas triggers
+    plus dense recall); empty string renders no block. canvas_type is
+    threaded when the caller knows it — keyword-less playbooks trigger on
+    canvas type alone, so dropping it silently disabled that trigger here.
+    ATOM_PLAYBOOKS=off short-circuits inside the service."""
     def _read() -> str:
         from core.database import SessionLocal
         from core.playbook_service import PlaybookService
@@ -280,7 +284,7 @@ async def _playbooks_leg(message: str, workspace_id: str, tenant_id: str) -> str
         try:
             playbooks = PlaybookService(
                 db, tenant_id=tenant_id, workspace_id=workspace_id,
-            ).get_relevant(message, limit=2)
+            ).get_relevant(message, canvas_type=canvas_type, limit=2)
             if not playbooks:
                 return ""
             blocks = []
@@ -884,6 +888,7 @@ async def assemble_memory_context(
     tenant_id: str = "default",
     agent_id: str = "atom_main",
     user_id: Optional[str] = None,
+    canvas_type: Optional[str] = None,
 ) -> Optional[str]:
     """Return a bounded `RELEVANT MEMORY` prompt block, or None if nothing
     relevant (or the flag is off). Never raises.
@@ -891,6 +896,9 @@ async def assemble_memory_context(
     user_id (when the caller has a request-scoped identity) scopes comms
     recall to that account's own ingested mail — the ownership boundary for
     the shared communications corpus. Internal/background callers pass None.
+
+    canvas_type (when the turn is canvas-scoped) feeds playbook retrieval —
+    keyword-less playbooks trigger on canvas type alone.
     """
     if not message or not message.strip():
         return None
@@ -908,7 +916,8 @@ async def assemble_memory_context(
             _safe(_facts_leg(message, workspace_id), "facts"),
             _safe(_lessons_leg(message, agent_id), "lessons"),
             _safe(_exchange_examples_leg(message, workspace_id), "exchange_examples"),
-            _safe(_playbooks_leg(message, workspace_id, tenant_id), "playbooks"),
+            _safe(_playbooks_leg(message, workspace_id, tenant_id,
+                                 canvas_type=canvas_type), "playbooks"),
         )
 
         # P1.4 rerank phase — budget-gated: only when the gather stayed fast

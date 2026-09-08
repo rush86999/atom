@@ -12647,6 +12647,15 @@ class Playbook(Base):
     # (ATOM_PLAYBOOK_EVAL_GATE shadow/enforce). {ran, failed, results[…]}.
     last_eval_result = Column(JSONColumn, nullable=True)
 
+    # Dense-recall hybrid (playbook retrieval): embedding of the playbook
+    # document (name+description+steps+questions+keywords), computed at
+    # create/update and lazily backfilled on read. NULL → the playbook is
+    # still retrieved by trigger keywords / canvas type, just never by
+    # semantic similarity. embedding_model invalidates vectors when the
+    # local embedder model changes (cross-model cosine is meaningless).
+    embedding = Column(JSONColumn, nullable=True)
+    embedding_model = Column(String(128), nullable=True)
+
     created_by = Column(String(255), nullable=True)
     approved_by = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

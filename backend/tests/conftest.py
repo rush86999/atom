@@ -473,6 +473,36 @@ def reset_canvas_provider():
     reset_canvas_provider()
 
 
+class _UnavailablePlaybookEmbedder:
+    """Test stub standing in for the shared playbook dense-recall embedder.
+
+    The real one lazy-loads a local ONNX model (seconds on first embed, and
+    a download on fresh machines) — no test should pay that implicitly.
+    Tests that exercise the hybrid path inject a fake backend via
+    PlaybookService(..., embedding_backend=...); everything else degrades
+    to keyword/canvas triggers exactly like a deploy without fastembed."""
+
+    model = None
+    available = False
+
+    def embed(self, texts):
+        raise RuntimeError("playbook embeddings are stubbed out in tests")
+
+
+@pytest.fixture(autouse=True)
+def stub_shared_playbook_embedder(monkeypatch):
+    """Keep the real local embedder out of the test suite (see class doc).
+    Patched on the module attribute the service consults, so per-test
+    injection via the constructor still wins."""
+    from core import playbook_service as _ps
+
+    monkeypatch.setattr(
+        _ps, "_EMBEDDING_BACKEND", _UnavailablePlaybookEmbedder(),
+        raising=False,
+    )
+    yield
+
+
 @pytest.fixture(scope="function")
 def unique_resource_name():
     """

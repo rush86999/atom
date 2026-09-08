@@ -1397,6 +1397,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # mailbox-ownership boundary: comms recall only
                         # surfaces this account's own ingested mail
                         user_id=user_id,
+                        # canvas-scoped turns feed playbook retrieval —
+                        # keyword-less playbooks trigger on canvas type
+                        canvas_type=(canvas_context or {}).get("canvas_type"),
                     )
                     if memory_block:
                         messages.append({"role": "system", "content": memory_block})
