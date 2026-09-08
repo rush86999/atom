@@ -23,10 +23,17 @@ class InterventionService:
         params: Dict[str, Any],
         reason: str,
         agent_id: Optional[str] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        required_role: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Create a new HITL action request in the database.
+
+        ``required_role`` (from governance config ``roles`` map) is persisted
+        in ``context_snapshot`` so the approval surface can enforce it; the
+        kwarg was already being passed by mcp_service._check_hitl_policy —
+        before it existed here every governed intercept raised TypeError and
+        failed closed into "policy check unavailable".
         """
         try:
             with get_db_session() as db:
@@ -38,6 +45,7 @@ class InterventionService:
                     platform=platform,
                     params=params, # SQLAlchemy JSON type handles dict
                     reason=reason,
+                    context_snapshot={"required_role": required_role} if required_role else None,
                     status=HITLActionStatus.PENDING.value
                 )
                 db.add(hitl_action)
