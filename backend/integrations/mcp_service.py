@@ -2312,9 +2312,25 @@ class MCPService(IntegrationService):
                 service = UniversalIntegrationService()
                 platform = arguments.get("platform")
                 query = arguments.get("query")
-                if platform: return await service.execute(platform, "list_messages", {"query": query}, context=context)
-                else:
-                    return {"gmail": await service.execute("gmail", "list_messages", {"query": query}, context=context)}
+                if platform:
+                    return await service.execute(platform, "list_messages", {"query": query}, context=context)
+                # No platform => search EVERY connected mail provider, matching
+                # the tool description ("across Gmail, Outlook, and Zoho Mail").
+                # The gmail-only default silently missed mail that lived in
+                # Outlook (live 2026-09-08: agent searched gmail, the Forrester
+                # email sat in Outlook, and the reply draft never happened).
+                # Per-provider failures are SURFACED, not swallowed, so the
+                # agent can tell "no results" apart from "not connected".
+                results = {}
+                for _p in ("gmail", "outlook", "zoho_mail"):
+                    try:
+                        results[_p] = await service.execute(
+                            _p, "list_messages", {"query": query}, context=context
+                        )
+                    except Exception as _se:
+                        logger.debug("search_emails %s failed: %s", _p, _se, exc_info=True)
+                        results[_p] = {"status": "error", "error": str(_se)[:300]}
+                return results
 
             elif tool_name == "unified_communication_search":
                 from integrations.universal_integration_service import UniversalIntegrationService

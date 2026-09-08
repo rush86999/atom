@@ -836,7 +836,7 @@ class TestExecuteToolLocalTools:
             r = await _run_local(svc, "search_emails", {"query": "q", "platform": "gmail"}, {"user_id": "u"})
             assert r == {"ok": 1}
             r = await _run_local(svc, "search_emails", {"query": "q"})
-            assert "gmail" in r
+            assert set(r) == {"gmail", "outlook", "zoho_mail"}
             r = await _run_local(svc, "unified_communication_search", {"query": "q"}, {"user_id": "u"})
             assert "slack" in r
             r = await _run_local(svc, "list_calendar_events", {"calendar_id": "c"}, {"user_id": "u"})
