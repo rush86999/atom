@@ -135,7 +135,11 @@ def test_specific_domain_query_is_never_prepended():
         history_turns=LIVE_HISTORY,
         canvas_content=LIVE_CANVAS,
     )
-    assert q == "brennan.ca bandsaw model"
+    # Model codes from the canvas ENRICH the head (strongest identifiers),
+    # but the already-specific message survives verbatim — no prose prepended.
+    assert "brennan.ca bandsaw model" in q
+    assert "Hydmech DM10" in q or "WG-350DSAV" in q
+    assert "Done" not in q and "Notes" not in q
 
 
 def test_web_research_scaffold_stripped_from_floor_query():
@@ -151,7 +155,7 @@ def test_web_research_scaffold_stripped_from_floor_query():
     )
     ql = q.lower()
     assert not ql.startswith("web research")
-    assert "update the draft" in ql  # question terms survive the strip
+    assert "update the draft" not in ql  # pure-instruction sentence dropped
     assert "bandsaw" in ql
 
 
@@ -179,12 +183,76 @@ def test_strong_entities_ignore_prose_but_keep_identifiers():
 
 def test_bare_domain_counts_as_entity_in_query():
     assert _entities("see brennan.ca for the model") == ["brennan.ca"]
-    # …so the query is treated as already-specific (no context prepend)
-    assert build_search_query(
+    # …so the query is treated as already-specific (no prose prepended) —
+    # model codes may enrich the head, the message itself survives intact.
+    q = build_search_query(
         "see brennan.ca for the model",
         history_turns=LIVE_HISTORY,
         canvas_content=LIVE_CANVAS,
-    ) == "see brennan.ca for the model"
+    )
+    assert "see brennan.ca for the model" in q
+    assert "Done" not in q and "Notes" not in q
+
+
+# ───────────── 2026-09-08 live incident (machinery research): model codes ─────────────
+# The canvas research turn searched "blumetric Re Equivalent lead's bandsaw
+# that was mentioned and compare it o our bandsaw. give me a response but
+# don't update the draft" — recipient-domain + subject prose took the head,
+# the 160-char cut dropped both machines, and Tavily returned consumer
+# woodworking saws for an industrial comparison. Model codes (WG-350DSAV,
+# DM10) are the strongest identifiers and the caps-sequence regex could not
+# even capture them (digit-led segments break it).
+
+def test_model_code_extraction_with_brand():
+    from core.intelligent_search import _model_refs
+    refs = _model_refs(
+        "details for the Linmac WG-350DSAV, our closest equivalent to the "
+        "Hydmech DM10 bandsaw (also 330B and BS-350M and SU-280)")
+    codes = [r.split()[-1].upper() for r in refs]
+    assert "WG-350DSAV" in codes and "DM10" in codes
+    assert "330B" in codes and "BS-350M" in codes and "SU-280" in codes
+    joined = " | ".join(refs)
+    assert "Linmac WG-350DSAV" in joined and "Hydmech DM10" in joined
+    # pure numbers are never model codes
+    assert _model_refs("serial 2026 price 14,150 qty 50") == []
+
+
+def test_machinery_query_puts_model_codes_first_and_drops_instructions():
+    q = build_search_query(
+        "lead's bandsaw that was mentioned and compare it o our bandsaw. "
+        "give me a response but don't update the draft",
+        history_turns=[{"message": "check the contact form submission",
+                        "response": {"message": "the inquiry came via forms"}}],
+        canvas_content={"to": "jschulz@blumetric.ca",
+                        "subject": "Re: Equivalent to Hydmech DM10 Bandsaw - Linmac WG-350DSAV",
+                        "body": "details for the Linmac WG-350DSAV vs Hydmech DM10"},
+    )
+    assert q.startswith("Hydmech DM10")
+    assert "WG-350DSAV" in q
+    assert "update the draft" not in q
+    assert "blumetric" not in q and "Re Equivalent" not in q
+    assert len(q) <= 160
+
+
+def test_instruction_sentence_survives_when_it_names_the_subject():
+    # A sentence carrying entities is NOT dropped as scaffolding.
+    q = build_search_query(
+        "research Acme Industrial. don't web research the pricing.",
+        history_turns=[], canvas_content=None,
+    )
+    assert "acme industrial" in q.lower()
+
+
+def test_no_code_paths_unchanged():
+    # The generic-lead resolution still works when no model codes exist.
+    q = build_search_query(
+        "research the lead over the web to determine if end user or dealer",
+        history_turns=[{"message": "check if Jacob Schulz is end user or dealer",
+                        "response": {"message": "contact at Blumetric"}}],
+        canvas_content={"to": "jschulz@blumetric.ca", "subject": "", "body": ""},
+    )
+    assert "jacob" in q.lower() or "schulz" in q.lower()
+    assert "end user" in q.lower()
 
 
 # ───────────────────────── execution-path wiring ─────────────────────────

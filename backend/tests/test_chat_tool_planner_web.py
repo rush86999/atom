@@ -90,6 +90,88 @@ async def test_plan_gate_rejects_platform_service_without_key(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_web_search_deep_fetches_authoritative_page_for_model_codes():
+    """Machinery research needs the spec PAGE, not just snippets (live
+    2026-09-08: a bandsaw comparison answered from snippets missed every
+    capacity figure). When the query carries a model code, the search leg
+    fetches the ONE best result — preferring a site named in the query —
+    and appends its full text."""
+    from core.chat_tool_planner import ToolPlan, execute_tool_plan
+
+    plan = ToolPlan(use_tool=True, service="web_search", intent="search",
+                    query="Hydmech DM10 Linmac WG-350DSAV bandsaw specifications")
+    searches = []
+
+    async def fake_search(query, tenant_id):
+        searches.append(query)
+        return {
+            "answer": "Two industrial band saws.",
+            "results": [
+                {"title": "Consumer woodworking saws blog", "url":
+                 "https://woodworking-blog.com/bandsaws", "content": "Wen Ryobi"},
+                {"title": "HYDMECH DM-10 | Double Miter Band Saw", "url":
+                 "https://www.hydmech.com/products/band-saw-double-miter-dm-10/",
+                 "content": "Capacity 10 in round"},
+            ],
+        }
+
+    fetched = []
+
+    async def fake_fetch(url, tenant_id):
+        fetched.append(url)
+        return {"content": "DM-10: 10\" round @90°, 9½\"×11\" rect, 45°L–45°R, "
+                           "1\"×9'8\" blade, 2/2.4 HP VFD, 440 kg."}
+
+    with patch("integrations.mcp_service.mcp_service") as mcp:
+        mcp.web_search = AsyncMock(side_effect=fake_search)
+        mcp.web_fetch = AsyncMock(side_effect=fake_fetch)
+        block = await execute_tool_plan(plan, "user-1", "default", context={})
+    assert "LIVE TOOL RESULTS" in block
+    # the query-named site won over Tavily's top hit
+    assert fetched == ["https://www.hydmech.com/products/band-saw-double-miter-dm-10/"]
+    assert "FULL SPEC PAGE" in block and "2/2.4 HP VFD" in block
+
+
+@pytest.mark.asyncio
+async def test_web_search_no_deep_fetch_without_model_codes():
+    from core.chat_tool_planner import ToolPlan, execute_tool_plan
+
+    plan = ToolPlan(use_tool=True, service="web_search", intent="search",
+                    query="Blumetric end user or dealer")
+
+    async def fake_search(query, tenant_id):
+        return {"answer": "BluMetric is an environmental firm.",
+                "results": [{"title": "t", "url": "https://x.com/a", "content": "c"}]}
+
+    with patch("integrations.mcp_service.mcp_service") as mcp:
+        mcp.web_search = AsyncMock(side_effect=fake_search)
+        mcp.web_fetch = AsyncMock()
+        block = await execute_tool_plan(plan, "user-1", "default", context={})
+    mcp.web_fetch.assert_not_awaited()
+    assert "FULL SPEC PAGE" not in block
+
+
+@pytest.mark.asyncio
+async def test_deep_fetch_failure_never_breaks_the_search_block():
+    from core.chat_tool_planner import ToolPlan, execute_tool_plan
+
+    plan = ToolPlan(use_tool=True, service="web_search", intent="search",
+                    query="Hydmech DM10 specifications")
+
+    async def fake_search(query, tenant_id):
+        return {"answer": "a", "results": [{"title": "t", "url": "https://h.com/x", "content": "c"}]}
+
+    async def boom(url, tenant_id):
+        raise RuntimeError("site down")
+
+    with patch("integrations.mcp_service.mcp_service") as mcp:
+        mcp.web_search = AsyncMock(side_effect=fake_search)
+        mcp.web_fetch = AsyncMock(side_effect=boom)
+        block = await execute_tool_plan(plan, "user-1", "default", context={})
+    assert "LIVE TOOL RESULTS" in block and "FULL SPEC PAGE" not in block
+
+
+@pytest.mark.asyncio
 async def test_execute_web_search_formats_results():
     payload = {
         "answer": "WFS Ltd is a welding supply store.",

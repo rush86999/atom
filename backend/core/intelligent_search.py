@@ -27,6 +27,12 @@ _COMMON_CAPS = {
     "should", "shall", "will", "may", "might", "must", "have", "has", "had",
     "hi", "hello", "hey", "dear", "thanks", "thank", "please", "regards",
     "best", "sincerely", "cheers", "yes", "no", "ok", "okay", "done",
+    # email-subject / spec-sheet prose that pattern-matches as "entities"
+    # (live 2026-09-08: 'blumetric Re Equivalent …' pushed the actual
+    # machines out of the search query head)
+    "re", "fw", "fwd", "equivalent", "comparison", "inquiry", "quote",
+    "form", "forms", "stock", "cad", "usd", "semi", "automatic", "double",
+    "miter",
     "and", "but",
     "or", "so", "then", "when", "what", "which", "who", "whom", "whose",
     "why", "how", "where", "there", "here", "it", "its", "we", "our", "you",
@@ -68,6 +74,76 @@ _BARE_DOMAIN = re.compile(
     r"|us|uk|de|fr|au|in|shop|store|app))(?:/[^\s]*)?",
     re.IGNORECASE,
 )
+
+# Machinery/product model codes: letters+digits with optional dashes and
+# letter suffixes — WG-350DSAV, DM10, DM-10, 330B, BS-350M, SU-280. At
+# least one letter AND one digit required, so years/prices ("2026", "350")
+# never match. These are the STRONGEST search identifiers in industrial
+# queries: the caps-sequence regex splits them ("WG" alone, "350DSAV"
+# unmatched — digit-led), which is how a bandsaw research query lost both
+# machine models (live 2026-09-08).
+_MODEL_CODE_RE = re.compile(
+    r"\b[A-Z]{1,4}-?\d{2,}[A-Z][A-Z0-9-]*\b"      # WG-350DSAV, BS-350M
+    r"|\b[A-Z]{1,4}-?\d{2,}(?:-[A-Z0-9]+)*\b"     # DM10, DM-10, SU-280
+    r"|\b\d{2,}[A-Z][A-Z0-9-]*\b"                 # 330B (digit-led codes)
+)
+
+# Sentences that are pure instruction scaffolding — they carry intent, not
+# search signal ("give me a response but don't update the draft"). Dropped
+# only when they hold NO entity and NO model code, so a sentence that names
+# the subject always survives.
+_INSTRUCTION_SENTENCE_RE = re.compile(
+    r"^\s*(?:please\s+|kindly\s+)?"
+    r"(?:give|show|tell|reply|respond|send|keep|leave|make|check|confirm|"
+    r"don'?t|do\s+not|doesn'?t|no)\b",
+    re.IGNORECASE,
+)
+
+
+def _model_refs(text: str) -> List[str]:
+    """Model codes with their adjacent brand word — the subject-of-record
+    for machinery/equipment lookups: "Hydmech DM10", "Linmac WG-350DSAV".
+    Brand = up to two capitalized words immediately before the code."""
+    if not text:
+        return []
+    refs: List[str] = []
+    seen = set()
+    for m in _MODEL_CODE_RE.finditer(text):
+        code = m.group(0).strip("-")
+        # dash-insensitive dedup: DM10 and DM-10 are the same machine
+        key = code.upper().replace("-", "")
+        if key in seen:
+            continue
+        seen.add(key)
+        before = text[:m.start()].rstrip()
+        words: List[str] = []
+        for _ in range(2):
+            wm = re.search(r"([A-Z][a-zA-Z0-9]+|\d+[A-Z][A-Z0-9]*)$", before)
+            if not wm:
+                break
+            words.insert(0, wm.group(1))
+            before = before[: wm.start()].rstrip()
+        refs.append(" ".join(words + [code]))
+    return refs
+
+
+def _drop_instruction_sentences(text: str) -> str:
+    """Remove pure-imperative sentences that contain neither entities nor
+    model codes — the trailing "give me a response but don't update the
+    draft" class that otherwise rides along to the search API."""
+    if not text:
+        return text
+    kept = []
+    for sentence in re.split(r"(?<=[.!?;])\s+", text):
+        s = sentence.strip()
+        if not s:
+            continue
+        if (_INSTRUCTION_SENTENCE_RE.match(s)
+                and not _model_refs(s)
+                and not _entities(s)):
+            continue
+        kept.append(s)
+    return " ".join(kept)
 
 
 def _strong_entities(text: str) -> List[str]:
@@ -143,17 +219,57 @@ def build_search_query(
 ) -> str:
     """A search query that names the subject, whatever the user said.
 
-    Resolution order for the subject: named entities IN the message beat the
-    conversation transcript, which beats the open canvas (To/Subject/body —
-    an email's recipient domain is itself a strong entity). The message's
-    own question terms ("end user or dealer") are preserved alongside the
-    resolved entity, because the user's question is the search intent.
+    Resolution order for the subject: MODEL CODES beat named entities IN the
+    message, which beat the conversation transcript, which beats the open
+    canvas (To/Subject/body — an email's recipient domain is itself a strong
+    entity). The message's own question terms ("end user or dealer") are
+    preserved alongside the resolved entity, because the user's question is
+    the search intent.
 
     Returns a cleaned query; when nothing resolvable exists anywhere, the
     de-scaffolded message (still better than the raw instruction sentence).
     """
-    cleaned = _clean_message(message)
+    cleaned = _drop_instruction_sentences(_clean_message(message))
     msg_entities = _entities(message)
+
+    # MODEL CODES FIRST: "Hydmech DM10 Linmac WG-350DSAV …" is the query a
+    # subject-matter expert would type. Prose entities (recipient domains,
+    # subject-line words) must never push codes out of the head — live
+    # 2026-09-08: 'blumetric Re Equivalent …' did, and the search returned
+    # consumer woodworking saws for an industrial-machinery comparison.
+    model_refs: List[str] = _model_refs(message)
+    if not model_refs:
+        for turn in reversed(list(history_turns or [])):
+            if isinstance(turn, dict):
+                user_text = str(turn.get("message") or "")
+                resp = turn.get("response")
+                assistant_text = (
+                    str(resp.get("message") or "")
+                    if isinstance(resp, dict) else str(resp or "")
+                )
+            else:
+                user_text, assistant_text = str(turn or ""), ""
+            model_refs = (_model_refs(user_text)
+                          or _model_refs(assistant_text))
+            if model_refs:
+                break
+    if not model_refs and canvas_content and isinstance(canvas_content, dict):
+        canvas_text = " ".join(
+            str(canvas_content.get(k) or "")
+            for k in ("subject", "to", "cc", "body", "title")
+        )
+        model_refs = _model_refs(canvas_text)
+
+    if model_refs:
+        head = " ".join(model_refs[:3])
+        tail = cleaned
+        # Truncate the TAIL (message prose), never the codes — the old
+        # blind cut could drop the machines and keep "don't update the
+        # draft".
+        room = max_length - len(head) - 1
+        if len(tail) > room:
+            tail = tail[:max(0, room)].rsplit(" ", 1)[0]
+        return re.sub(r"\s+", " ", f"{head} {tail}").strip()
 
     if msg_entities:
         query = cleaned

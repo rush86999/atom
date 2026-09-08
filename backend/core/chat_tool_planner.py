@@ -1764,6 +1764,49 @@ async def execute_tool_plan(
                         f"- {str(r.get('title') or '(untitled)')[:120]} | {str(r.get('url') or '')[:160]}\n"
                         f"  {str(r.get('content') or '')[:400]}"
                     )
+                # DEEP FETCH for product/machinery research: snippets carry
+                # a fragment of the spec table; the manufacturer/dealer page
+                # carries the whole thing. When the query names a model
+                # code (WG-350DSAV, DM-10 …), read the ONE best result —
+                # the site named in the query when present, else Tavily's
+                # top hit — so the reply model compares real numbers
+                # instead of guessing around snippet gaps (live 2026-09-08:
+                # a bandsaw comparison answered from snippets missed every
+                # capacity figure; fetching hydmech.com's DM-10 page had
+                # them all).
+                from core.intelligent_search import _MODEL_CODE_RE
+
+                if _MODEL_CODE_RE.search(query):
+                    try:
+                        query_tokens = {
+                            t for t in re.split(r"[^a-z0-9]+", query.lower())
+                            if len(t) > 3
+                        }
+                        best = None
+                        for r in results[:5]:
+                            host = str(r.get("url") or "")
+                            host_label = re.sub(
+                                r"^https?://(?:www\.)?", "", host).split("/")[0]
+                            if any(tok in host_label for tok in query_tokens):
+                                best = r
+                                break
+                        fetch_url = str(
+                            (best or (results[0] if results else {}) or {}).get("url") or ""
+                        )
+                        if fetch_url:
+                            fres = await asyncio.wait_for(
+                                _mcp.web_fetch(fetch_url, tenant_id),
+                                timeout=20,
+                            )
+                            fcontent = str((fres or {}).get("content") or "").strip()
+                            if fcontent:
+                                lines.append(
+                                    f"FULL SPEC PAGE ({fetch_url[:160]}) — "
+                                    f"authoritative detail for the model above:\n"
+                                    f"{fcontent[:4500]}"
+                                )
+                    except Exception as deep_err:  # noqa: BLE001 — enhancement only
+                        logger.debug(f"deep spec fetch skipped: {deep_err}")
                 return _with_grounding(
                     f"{graph_block}"
                     f"LIVE TOOL RESULTS (web_search, query='{query}') — "
