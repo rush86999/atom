@@ -113,7 +113,7 @@ class TestFirecrackerRuntimeBoot:
 
         policy = type("P", (), {"max_exec_seconds": 30})()
         runtime = fr.FirecrackerRuntime()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             runtime.execute_python("x = 1", policy=policy, inputs={}, image=None)
         )
         assert result.success is True
@@ -159,7 +159,7 @@ class TestFirecrackerRuntimeBoot:
         monkeypatch.setattr(fr.asyncio, "create_subprocess_exec", lambda *a, **k: _coro(proc))
         runtime = fr.FirecrackerRuntime()
         policy = type("P", (), {"max_exec_seconds": 30})()
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             runtime.execute_python("x=1", policy=policy, image=str(custom_rootfs))
         )
         cfg = json.loads(open(os.path.join(workdir, "config.json")).read())
@@ -174,7 +174,7 @@ class TestFirecrackerRuntimeBoot:
         monkeypatch.setattr(fr.asyncio, "create_subprocess_exec", lambda *a, **k: _coro(proc))
         runtime = fr.FirecrackerRuntime()
         policy = type("P", (), {"max_exec_seconds": 1})()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             runtime.execute_python("x=1", policy=policy)
         )
         assert result.success is False

@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +86,7 @@ class SandboxRuntime(Protocol):
         inputs: Optional[Dict[str, Any]] = None,
         cwd: Optional[str] = None,
         image: Optional[str] = None,
+        deps: Optional[List[str]] = None,
     ) -> SandboxExecResult:
         """Execute Python code inside the sandbox.
 
@@ -98,6 +99,11 @@ class SandboxRuntime(Protocol):
                 ``FirecrackerRuntime`` this is the ext4 **rootfs path** for the
                 microVM (``None`` → the base template rootfs). Mini apps pass
                 their per-app rootfs here; the generic runtime ignores it.
+            deps: optional manifest dependency list (mini apps). Backends that
+                build images from deps (``MiniAppDevRuntime`` — docker-dev)
+                consume it; Firecracker ignores it (its rootfs is
+                operator-built), and the generic Docker/E2B runtimes accept it
+                for interface parity.
         """
         ...
 

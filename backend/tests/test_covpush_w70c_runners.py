@@ -634,27 +634,32 @@ class TestFirecrackerExchange:
 
 
 class TestFirecrackerCallbacks:
+    """Callback servicing lives in ``guest_protocol`` (shared with the
+    docker-dev runner since the transport split) — FirecrackerRuntime
+    delegates to it inside ``_exchange``."""
+
     def test_service_callback_disabled(self):
-        runtime = fr.FirecrackerRuntime()
-        reply, log = asyncio.run(
-            runtime._service_callback({"kind": "fetch_integration"}, None)
-        )
+        from core.sandbox_runtime.guest_protocol import service_callback
+
+        reply, log = asyncio.run(service_callback({"kind": "fetch_integration"}, None))
         assert reply == {"type": "callback_result", "ok": False,
                          "error": "callbacks_disabled"}
         assert log["ok"] is False
         assert log["kind"] == "fetch_integration"
 
     def test_service_callback_missing_kind(self):
-        runtime = fr.FirecrackerRuntime()
-        reply, log = asyncio.run(runtime._service_callback({}, None))
+        from core.sandbox_runtime.guest_protocol import service_callback
+
+        reply, log = asyncio.run(service_callback({}, None))
         assert reply["error"] == "callbacks_disabled"
         assert log["kind"] == "unknown"
 
     def test_service_callback_success(self):
-        runtime = fr.FirecrackerRuntime()
+        from core.sandbox_runtime.guest_protocol import service_callback
+
         handler = AsyncMock(return_value={"ok": True, "data": {"x": 1}})
         reply, log = asyncio.run(
-            runtime._service_callback(
+            service_callback(
                 {"kind": "fetch_integration", "service": "s", "action": "a"},
                 handler,
             )
@@ -666,25 +671,33 @@ class TestFirecrackerCallbacks:
         assert "duration_ms" in log
 
     def test_service_callback_ok_false(self):
-        runtime = fr.FirecrackerRuntime()
+        from core.sandbox_runtime.guest_protocol import service_callback
+
         handler = AsyncMock(return_value={"ok": False, "error": "nope"})
         reply, log = asyncio.run(
-            runtime._service_callback({"kind": "fetch_integration"}, handler)
+            service_callback({"kind": "fetch_integration"}, handler)
         )
         assert reply["ok"] is False
         assert reply["error"] == "nope"
         assert log["ok"] is False
 
     def test_service_callback_exception(self):
-        runtime = fr.FirecrackerRuntime()
+        from core.sandbox_runtime.guest_protocol import service_callback
+
         handler = AsyncMock(side_effect=RuntimeError("handler crashed"))
         reply, log = asyncio.run(
-            runtime._service_callback({"kind": "fetch_integration"}, handler)
+            service_callback({"kind": "fetch_integration"}, handler)
         )
         assert reply == {"type": "callback_result", "ok": False, "error": "failed"}
         assert log["error"] == "failed"
         assert log["kind"] == "fetch_integration"
 
+    def test_exchange_delegates_to_shared_protocol(self):
+        """The FC runner's vsock exchange delegates to the shared
+        transport-agnostic exchange (same one the docker-dev pipes use)."""
+        import core.sandbox_runtime.guest_protocol as gp
+
+        assert fr._guest_exchange is gp.exchange
 
 # ===========================================================================
 # core/sandbox_runtime/docker_runner.py

@@ -4,6 +4,13 @@ Mini apps execute **only** in Firecracker microVMs. Docker is a build-time
 host tool for rootfs construction and is **never** the mini-app runtime. This
 guide is for the operator who provisions the host; the API never auto-builds.
 
+> **Developing on a MacBook?** Firecracker requires Linux KVM and cannot run
+> on macOS. For local development there is an explicitly opt-in, DEV-ONLY
+> `ATOM_MINIAAP_RUNTIME=docker-dev` mode (same guest agent + protocol in a
+> Docker container; refused in production) — see
+> [MINIAPP_LOCAL_DEV.md](./MINIAPP_LOCAL_DEV.md). Production still requires
+> the microVM host provisioned below.
+
 ## 1. Host requirements
 
 - **Linux** with hardware virtualization: `/dev/kvm` present and usable.

@@ -15,7 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from core.sandbox_runtime.base import SandboxExecResult
 
@@ -62,7 +62,10 @@ class E2BRuntime:
         inputs: Optional[Dict[str, Any]] = None,
         cwd: Optional[str] = None,
         image: Optional[str] = None,
+        deps: Optional[List[str]] = None,
     ) -> SandboxExecResult:
+        # deps (mini-app manifest dependencies) accepted for interface parity;
+        # this backend has no per-app image semantics for them.
         if not is_available():
             return SandboxExecResult(
                 success=False,

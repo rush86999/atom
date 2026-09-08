@@ -30,7 +30,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
-from core.mini_app_runtime import get_miniapp_runtime, get_miniapp_rootfs_dir
+from core.mini_app_runtime import get_miniapp_runtime, get_miniapp_rootfs_dir, is_docker_dev_selected
 
 logger = logging.getLogger(__name__)
 
@@ -254,6 +254,11 @@ def prepare_runtime(app: Any, db: Session) -> Optional[str]:
       The operator-built rootfs ``MINIAPP_ROOTFS_DIR/miniapp-{app.id}.ext4``
       MUST exist (raise ``RuntimeError`` pointing at the build script — never
       auto-build). Persists ``runtime_image`` and bumps ``runtime_version``.
+    * DEV exception (``ATOM_MINIAAP_RUNTIME=docker-dev``): the dev host has no
+      ext4 toolchain (macOS can't mkfs.ext4) and the docker-dev runner builds
+      a deps-tagged image on demand — so the rootfs-existence gate is skipped
+      and ``runtime_image`` is left untouched. The dependency scan still gates
+      (same fail-closed posture; vulnerabilities are a dev problem too).
     """
     from core.models import MiniApp
     from core.package_dependency_scanner import PackageDependencyScanner
@@ -275,6 +280,10 @@ def prepare_runtime(app: Any, db: Session) -> Optional[str]:
             f"{len(vulns)} vulnerability(s), {len(conflicts)} conflict(s). "
             "Fix dependencies and re-run."
         )
+
+    if is_docker_dev_selected():
+        # Dev-only docker runtime: image resolved from deps at execution time.
+        return None
 
     rootfs_path = os.path.join(get_miniapp_rootfs_dir(), f"miniapp-{app.id}.ext4")
     if not os.path.isfile(rootfs_path):
@@ -812,7 +821,12 @@ def _wrap_source(source: str) -> str:
         '"record_ops": globals().get("record_ops", [])}))',
         "    ",
     )
-    return header + body + "\n" + epilogue + "\n"
+    # ``finally:`` is load-bearing: without it the wrapper is a bare ``try:``
+    # (SyntaxError on compile — every app silently no-oped since the original
+    # mini-apps commit, masked by mocked VM execution in tests), and the
+    # fallback marker print must run even when user code raised so the host
+    # can distinguish a crash from a clean run via exit_code.
+    return header + body + "\n" + "finally:\n" + epilogue + "\n"
 
 
 def _parse_envelope(output: str) -> Optional[Dict[str, Any]]:
@@ -1226,7 +1240,7 @@ async def run_stateful(
                 return {"success": False, "error": f"No logic saved for canvas {canvas_id}"}
             wrapped = _wrap_source(source.get("source", ""))
 
-            runtime = get_miniapp_runtime()  # raises RuntimeError when FC unavailable
+            runtime = get_miniapp_runtime()  # raises RuntimeError when FC unavailable (or docker-dev refused/unreachable)
             callback_handler = _make_callback_handler(
                 db, canvas.tenant_id, scopes, getattr(canvas, "workspace_id", None), agent_id
             )
@@ -1236,6 +1250,9 @@ async def run_stateful(
                 inputs=run_inputs,
                 image=app.runtime_image,  # None → base template rootfs
                 callback_handler=callback_handler,
+                # Manifest deps drive the docker-dev runner's image resolution;
+                # FirecrackerRuntime ignores them (its rootfs is operator-built).
+                deps=list((app.manifest or {}).get("dependencies") or []),
             )
 
             stdout = getattr(result, "stdout", "") or ""
@@ -1252,6 +1269,25 @@ async def run_stateful(
             envelope = meta.get("state_envelope")
             if not isinstance(envelope, dict):
                 envelope = _parse_envelope(stdout) or _parse_envelope(stderr)
+
+            # A crashed run must fail loudly, never surface as success with a
+            # stale/partial state: the guest returns exit_code != 0 when user
+            # code raised (its envelope, if any, reflects the crash point).
+            # Before the _wrap_source finally-fix this path was unreachable in
+            # production — every app compiled as a bare try: and silently
+            # no-oped as "success" with unchanged state.
+            if int(exit_code) != 0:
+                return {
+                    "success": False,
+                    "error": (
+                        "Mini-app run failed inside the sandbox "
+                        f"(exit {exit_code}). See stderr for the traceback; "
+                        "state unchanged."
+                    ),
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "exit_code": exit_code,
+                }
 
             # If stdout was truncated and no structured envelope was found, we
             # cannot trust a partial __MINIAPP_STATE__ line — fail loudly rather
@@ -1950,7 +1986,13 @@ def status_probe(app: Any, db: Session, viewer: Any = None) -> Dict[str, Any]:
     rootfs: Optional[Dict[str, Any]] = None
     if deps:
         path = os.path.join(get_miniapp_rootfs_dir(), f"miniapp-{app.id}.ext4")
-        rootfs = {"path": path, "present": os.path.isfile(path)}
+        rootfs = {
+            "path": path,
+            "present": os.path.isfile(path),
+            # docker-dev builds a Docker image from deps instead — no ext4
+            # rootfs needed on a dev host.
+            "required": not is_docker_dev_selected(),
+        }
 
     runtime_available, runtime_reason = True, None
     try:
@@ -1981,7 +2023,15 @@ def status_probe(app: Any, db: Session, viewer: Any = None) -> Dict[str, Any]:
             "scan": scan,
         },
         "rootfs": rootfs,
-        "runtime": {"available": runtime_available, "reason": runtime_reason},
+        "runtime": {
+            "available": runtime_available,
+            "reason": runtime_reason,
+            # Which backend will execute: "firecracker" (microVM, prod path)
+            # or "docker-dev" (DEV-ONLY local Docker container). Under
+            # docker-dev the rootfs field is informational only — not
+            # required to run.
+            "mode": "docker-dev" if is_docker_dev_selected() else "firecracker",
+        },
         "tests": {"count": len(manifest.get("tests") or [])},
         "db": {
             "enabled": db_store_enabled() and bool((manifest.get("db") or {}).get("enabled", True)),
