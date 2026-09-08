@@ -751,6 +751,7 @@ async def fetch_fresh_data_section(
     user_id: Optional[str],
     canvas_id: Optional[str] = None,
     step_recorder: Optional[Callable[[str, Dict[str, Any], str], Awaitable[None]]] = None,
+    canvas: Optional[Dict[str, Any]] = None,
 ) -> FreshDataResult:
     """LIVE evidence for edit requests that hinge on data the editor cannot
     see — a price "from the consolidated price list", specs from a drive
@@ -801,10 +802,23 @@ async def fetch_fresh_data_section(
                             "source": "canvas_edit_fresh_data"}},
                 f"canvas edit needs live data; planning "
                 f"{plan.service}.{plan.intent} query={plan.query!r}")
+            # Canvas context feeds the intelligent query rewrite (subject
+            # resolution from the open draft). Live 2026-09-08: this leg
+            # executed an explicit web-research search with NO canvas — the
+            # query stayed generic ("lead's bandsaw…") and Tavily returned
+            # buying guides instead of the DM10/WG-350DSAV pages the open
+            # draft names. Same dict shape the chat path sends.
             block = await execute_tool_plan(
                 plan,
                 user_id,
-                context={"history": history},
+                context={
+                    "history": history,
+                    **({"canvas": {
+                        "title": canvas.get("title"),
+                        **((canvas.get("content") or {})
+                           if isinstance(canvas.get("content"), dict) else {}),
+                    }} if canvas else {}),
+                },
             )
             observation = (block or "lookup returned nothing usable")[:2000]
             await _record(

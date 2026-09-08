@@ -42,7 +42,8 @@ _COMMON_CAPS = {
 # as query terms — these verbs carry intent, not search signal.
 _INSTRUCTION_PREFIX = re.compile(
     r"^\s*(?:(?:please|kindly)\s+)*"
-    r"(?:(?:can|could|would|will)\s+you\s+|(?:you\s+)|(?:please\s+))?"
+    r"(?:(?:can|could|would|will)\s+you\s+|(?:you\s+)|(?:please\s+)"
+    r"|(?:web|internet|online)\s+)?"
     r"(?:research|look\s*up|search(?:\s+(?:the\s+)?(?:web|internet|online))?(?:\s+for)?|"
     r"find\s+(?:out|info(?:rmation)?(?:\s+about)?)?|check|verify|confirm|"
     r"determine|figure\s+out|google|investigate|browse)\b[,:]?\s*",

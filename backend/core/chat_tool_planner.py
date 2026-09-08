@@ -332,6 +332,92 @@ Rules:
 PLANNER_MODEL = os.getenv("ATOM_TOOL_PLANNER_MODEL", "qwen/qwen3.7-flash")
 
 
+# Explicit web-research phrasings. DETECTOR ONLY — it never chooses the
+# service or the query (that stays with the LLM, per the repo standard of
+# LLM routing over intent regexes); it only decides whether a DECLINED plan
+# earns one corrective pass plus a deterministic floor. Live 2026-09-08:
+# "web research lead's bandsaw … compare it to our bandsaw" got use_tool=false
+# from the planner and the reply claimed the agent had no research ability.
+_NEGATED_WEB_RESEARCH_RE = re.compile(
+    r"\b(?:no|not|don'?t|do\s*not|doesn'?t|never|without|skip(?:ping)?|"
+    r"avoid|stop|except|instead\s+of)\b[^.!?;]{0,30}$",
+    re.IGNORECASE,
+)
+_EXPLICIT_WEB_RESEARCH_RE = re.compile(
+    r"\bweb\s+research(?:ing|ed)?\b"
+    r"|\bsearch(?:ing)?\s+the\s+(?:web|internet)\b"
+    r"|\bgoogle\b\s+(?:it|this|that|them|him|her|the|for)\b"
+    r"|\b(?:research|look|find|check|search)\b[^!?;\n]{0,40}?\bonline\b"
+    r"|\b(?:research|look)\b[^!?;\n]{0,40}?\bover\s+the\s+web\b"
+    r"|\bonline\s+research\b",
+    re.IGNORECASE,
+)
+
+
+def _explicit_web_research_requested(message: str) -> bool:
+    """True when the user's message itself instructs web research, and the
+    mention is not negated ("don't web research" / "no web research" must
+    NOT trigger the floor)."""
+    if not message:
+        return False
+    for m in _EXPLICIT_WEB_RESEARCH_RE.finditer(message):
+        before = message[max(0, m.start() - 40):m.start()]
+        if _NEGATED_WEB_RESEARCH_RE.search(before):
+            continue
+        return True
+    return False
+
+
+async def _escalate_declined_web_research(
+    llm_service: Any,
+    declined: Optional[ToolPlan],
+    connected: List[str],
+    catalog: str,
+    history: List[Dict[str, Any]],
+    message: str,
+) -> Optional[ToolPlan]:
+    """Force the web question back onto web tools. Covers every non-web
+    outcome of the first pass on a message that EXPLICITLY asks for web
+    research: a declined plan, a failed plan, or a valid plan that routed
+    elsewhere (memory/CRM — live 2026-09-08: pass 1 returned a legitimate
+    memory.search plan and the reply STILL claimed no web-search tool
+    exists). Hybrid per repo standards: the regex detector only flags the
+    instruction; one corrective structured pass still owns HOW to search
+    the web (web_search vs web_fetch); only when that pass fails to name a
+    WEB tool does a deterministic web_search rung fire, with the query
+    built by build_search_query from the conversation — not from
+    pattern-matched nouns. The user's words name the source, and they said
+    the web."""
+    allowed = set(connected) | set(_available_platform_services())
+    if "web_search" not in allowed:
+        # Honestly unavailable in this workspace — keep the decline.
+        return declined
+    defect = (
+        "the user EXPLICITLY asked for web research in their latest message, "
+        "but the plan declined to use any tool "
+        f"({(declined.reason if declined else '') or 'no reason given'}). "
+        "The corrected plan MUST use web_search (or web_fetch when the "
+        "message names a specific page to read)"
+    )
+    repaired = await _repair_plan_via_llm(
+        llm_service, defect, connected, catalog, history, message)
+    if (repaired and repaired.use_tool
+            and repaired.service in ("web_search", "web_fetch")):
+        logger.info(
+            f"tool planner: explicit-web-research repair -> "
+            f"{repaired.service}.{repaired.intent}")
+        return repaired
+    from core.intelligent_search import build_search_query
+
+    query = build_search_query(message, history_turns=history) or message[:120]
+    logger.info(
+        f"tool planner: explicit-web-research floor -> web_search {query!r}")
+    return ToolPlan(
+        use_tool=True, service="web_search", intent="search", query=query,
+        reason="explicit web research instruction",
+    )
+
+
 class ToolPlan(BaseModel):
     use_tool: bool = False
     service: Optional[str] = None
@@ -543,6 +629,18 @@ async def plan_tool_use(
         response_model=ToolPlan,
         system_instruction="You return only the requested JSON object.",
     )
+    # EXPLICIT-RESEARCH FLOOR: a message that explicitly instructs web
+    # research must END in a web tool whenever web is configured — whether
+    # the first pass declined, failed, or validly routed somewhere else
+    # (live 2026-09-08: pass 1 returned a legitimate memory.search plan and
+    # the reply still claimed no web-search tool exists). The escalation
+    # lets the LLM re-route among web tools and falls to a deterministic
+    # web_search rung only when it won't.
+    if _explicit_web_research_requested(message) and (
+            plan is None or not plan.use_tool
+            or (plan.service or "") not in ("web_search", "web_fetch")):
+        plan = await _escalate_declined_web_research(
+            llm_service, plan, connected, catalog, history, message)
     if plan is None:
         return None
     if plan.use_tool:
@@ -1581,6 +1679,15 @@ async def execute_tool_plan(
             if rewritten and rewritten != query:
                 logger.info(f"search query rewritten: {query!r} -> {rewritten!r}")
                 query = rewritten
+            else:
+                # Rewrite skipped — make the reason visible at the default
+                # log level: an un-rewritten generic query on a canvas turn
+                # is how the 2026-09-08 research misses started.
+                logger.info(
+                    f"tool exec query kept as planned: {query!r} "
+                    f"(canvas={'present' if ctx.get('canvas') else 'MISSING'}, "
+                    f"history_turns={len(ctx.get('history') or [])})"
+                )
         except Exception as query_err:
             logger.debug(f"intelligent query rewrite skipped: {query_err}")
 

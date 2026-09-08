@@ -138,6 +138,23 @@ def test_specific_domain_query_is_never_prepended():
     assert q == "brennan.ca bandsaw model"
 
 
+def test_web_research_scaffold_stripped_from_floor_query():
+    """The floor's de-scaffolded query: 'web research …' must not reach
+    Tavily as the whole instruction sentence (live 2026-09-08, third
+    iteration: the floor query carried 'web research' + 'don't update the
+    draft' verbatim)."""
+    q = build_search_query(
+        "web research lead's bandsaw that was mentioned and compare it o "
+        "our bandsaw. give me a response but don't update the draft",
+        history_turns=[],
+        canvas_content=None,
+    )
+    ql = q.lower()
+    assert not ql.startswith("web research")
+    assert "update the draft" in ql  # question terms survive the strip
+    assert "bandsaw" in ql
+
+
 def test_assistant_reply_prose_never_becomes_context_entity():
     q = build_search_query(
         "research the lead's bandsaw and compare it to ours",

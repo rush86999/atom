@@ -1645,6 +1645,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         })
                     _full = "".join(_buf).strip()
                     if _full:
+                        from core.chat_tool_planner import (
+                            _explicit_web_research_requested,
+                        )
                         _streamed = _strip_protocol_tags(_full, captured=_reasoning_parts)
                         # GROUNDING GUARD: a streamed reply that denies having
                         # data contradicts the LIVE TOOL RESULT injected above
@@ -1660,6 +1663,42 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "above — answer the user's current message from it "
                                 "now, in plain language, with no capability "
                                 "disclaimers."
+                            )})
+                            _fix = await self.llm_service.generate_completion(
+                                messages=messages,
+                                model=forced_model,
+                                tenant_id=self.tenant_id,
+                                **extra_kwargs,
+                            )
+                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            if _fixed and not _reply_claims_inability(_fixed):
+                                _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
+                        # CAPABILITY-HONESTY GUARD: an inability claim with NO
+                        # tool block on a message that EXPLICITLY asked for web
+                        # research (live 2026-09-08: "web research lead's
+                        # bandsaw…" planned no tool, and the reply claimed "I
+                        # don't have a web-search tool" — false whenever Tavily
+                        # is configured). The planner floor now runs the lookup,
+                        # so this branch is the residual: the plan still
+                        # declined or the block was lost. Regeneration cannot
+                        # conjure data — it keeps the reply TRUE about what
+                        # exists instead of denying the capability.
+                        elif (not _tool_block and _reply_claims_inability(_streamed)
+                              and _explicit_web_research_requested(message)):
+                            logger.warning(
+                                "streamed reply claims research inability with no "
+                                "tool results on an explicit web-research ask — "
+                                "capability-honest regeneration")
+                            messages.append({"role": "system", "content": (
+                                "Your previous reply claimed you lack web research "
+                                "ability. That is FALSE: a web_search tool is "
+                                "configured in this workspace; this turn's lookup "
+                                "simply did not produce results. Regenerate with "
+                                "no capability disclaimers: answer from the "
+                                "conversation where you can, state plainly what "
+                                "you could not verify this turn, and offer to "
+                                "retry — never claim the tool does not exist."
                             )})
                             _fix = await self.llm_service.generate_completion(
                                 messages=messages,
@@ -1820,6 +1859,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # reply is stored or displayed — otherwise they persist into
                 # the transcript and the next turn's context.
                 _content = _strip_protocol_tags(response_data.get("content"))
+                from core.chat_tool_planner import (
+                    _explicit_web_research_requested,
+                )
                 # GROUNDING GUARD (non-streaming path): same wobble guard as
                 # the streaming path — one grounded regeneration when the
                 # reply denies having data that a LIVE TOOL RESULT provided.
@@ -1832,6 +1874,34 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "ability. A LIVE TOOL RESULT block IS present above — "
                         "answer the user's current message from it now, in plain "
                         "language, with no capability disclaimers."
+                    )})
+                    response_data = await self.llm_service.generate_completion(
+                        messages=messages,
+                        model=forced_model,
+                        tenant_id=self.tenant_id,
+                        **extra_kwargs,
+                    )
+                    _content = _strip_protocol_tags(
+                        (response_data or {}).get("content"))
+                # CAPABILITY-HONESTY GUARD (non-streaming path): same residual
+                # as the streaming path — inability claim, no tool block, on
+                # an explicit web-research ask. Keeps the reply TRUE about the
+                # workspace's capabilities without inventing data.
+                elif (not _tool_block and _reply_claims_inability(_content)
+                      and _explicit_web_research_requested(message)):
+                    logger.warning(
+                        "reply claims research inability with no tool results "
+                        "on an explicit web-research ask — capability-honest "
+                        "regeneration")
+                    messages.append({"role": "system", "content": (
+                        "Your previous reply claimed you lack web research "
+                        "ability. That is FALSE: a web_search tool is "
+                        "configured in this workspace; this turn's lookup "
+                        "simply did not produce results. Regenerate with "
+                        "no capability disclaimers: answer from the "
+                        "conversation where you can, state plainly what "
+                        "you could not verify this turn, and offer to "
+                        "retry — never claim the tool does not exist."
                     )})
                     response_data = await self.llm_service.generate_completion(
                         messages=messages,
@@ -2494,6 +2564,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             message, history, self.llm_service, user_id,
             canvas_id=canvas.get("canvas_id"),
             step_recorder=_record_fresh_data_step,
+            canvas=canvas,
         )
         if fresh.needed and not fresh.ok:
             logger.info(
