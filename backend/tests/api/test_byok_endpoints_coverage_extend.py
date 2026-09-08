@@ -22,8 +22,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Import the router to test
+from api.byok_routes import router  # router moved out of core.byok_endpoints (routes layer split)
 from core.byok_endpoints import (
-    router,
     BYOKManager,
     get_byok_manager,
     AIProviderConfig,

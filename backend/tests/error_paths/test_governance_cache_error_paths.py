@@ -14,6 +14,7 @@ executed in normal operation but critical for production reliability.
 
 import pytest
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import threading
 import time
 from typing import Dict, Any
@@ -107,7 +108,7 @@ class TestCacheInitializationErrors:
         """
         # Ensure no event loop is running
         try:
-            asyncio.get_event_loop().close()
+            get_event_loop().close()
         except:
             pass
 

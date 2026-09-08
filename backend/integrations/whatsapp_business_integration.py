@@ -15,6 +15,7 @@ Key Features:
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import base64
 from datetime import datetime, timedelta
 import hashlib
@@ -870,7 +871,7 @@ def _process_incoming_message(message: Dict[str, Any]):
             # or just call if it's sync. WhatsApp BP is sync (Flask).
             # We need to bridge to async.
             try:
-                loop = asyncio.get_event_loop()
+                loop = get_event_loop()
                 if loop.is_running():
                     loop.create_task(universal_webhook_bridge.process_incoming_message("whatsapp", message))
                 else:

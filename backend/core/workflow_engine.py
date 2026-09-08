@@ -9,6 +9,7 @@ Handles the execution of workflows with support for:
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 from datetime import datetime, timezone
 import logging
@@ -2499,7 +2500,7 @@ Use the available tools as needed to complete the action. Return your response i
             if hasattr(service, action):
                 method = getattr(service, action)
                 # Allow async methods
-                if asyncio.iscoroutinefunction(method):
+                if iscoroutinefunction(method):
                     result = await method(**params)
                 else:
                     result = method(**params)
@@ -2523,7 +2524,7 @@ Use the available tools as needed to complete the action. Return your response i
                 method = getattr(service, action)
                 if token:
                     params["token"] = token
-                if asyncio.iscoroutinefunction(method):
+                if iscoroutinefunction(method):
                     result = await method(**params)
                 else:
                     result = method(**params)
@@ -2553,7 +2554,7 @@ Use the available tools as needed to complete the action. Return your response i
                 if organization_id and "organization_id" not in kwargs:
                     kwargs["organization_id"] = organization_id
 
-                if asyncio.iscoroutinefunction(method):
+                if iscoroutinefunction(method):
                     result = await method(**kwargs)
                 else:
                     result = method(**kwargs)
@@ -2582,7 +2583,7 @@ Use the available tools as needed to complete the action. Return your response i
                 if organization_id and "organization_id" not in kwargs:
                     kwargs["organization_id"] = organization_id
 
-                if asyncio.iscoroutinefunction(method):
+                if iscoroutinefunction(method):
                     result = await method(**kwargs)
                 else:
                     result = method(**kwargs)

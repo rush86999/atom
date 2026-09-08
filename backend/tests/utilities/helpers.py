@@ -6,6 +6,7 @@ across the test suite.
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import uuid
 from typing import Optional, Callable, Any
 from unittest.mock import MagicMock, AsyncMock
@@ -143,8 +144,8 @@ async def wait_for_condition(
             error_message="Agent did not complete"
         )
     """
-    start = asyncio.get_event_loop().time()
-    while (asyncio.get_event_loop().time() - start) < timeout:
+    start = get_event_loop().time()
+    while (get_event_loop().time() - start) < timeout:
         if condition():
             return
         await asyncio.sleep(interval)

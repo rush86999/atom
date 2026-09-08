@@ -1,4 +1,5 @@
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import os
 import sys
 import unittest
@@ -155,7 +156,7 @@ class TestAutonomousCollections(unittest.TestCase):
         self.db.add_all([inv1, inv2, inv3])
         self.db.commit()
         
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         actions = loop.run_until_complete(self.collector.scan_and_collect("w_multi"))
         
         self.assertEqual(len(actions), 3)

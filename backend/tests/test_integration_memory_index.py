@@ -8,6 +8,7 @@ indirect-prompt-injection surface with no provenance framing.
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import os
 import sys
 import tempfile
@@ -32,13 +33,13 @@ def test_unknown_integration_degrades_gracefully():
     from core.drive_tree_ingestion import IntegrationMemoryIndexer
 
     svc = IntegrationMemoryIndexer("default")
-    out = asyncio.get_event_loop().run_until_complete(
+    out = get_event_loop().run_until_complete(
         svc.index_structure("nonexistent_app", "user-1")
     )
     assert out["success"] is False
     assert "No structure adapter" in out["error"]
     # …and the picker reports the available set instead of failing silently
-    listing = asyncio.get_event_loop().run_until_complete(
+    listing = get_event_loop().run_until_complete(
         svc.list_structure("nonexistent_app", "user-1")
     )
     assert listing["success"] is False
@@ -86,7 +87,7 @@ def test_index_structure_writes_provenance_and_freshness_columns():
     svc = IntegrationMemoryIndexer("default")
     with patch("core.drive_tree_ingestion.STRUCTURE_ADAPTERS", {"zoho_crm": fake_adapter}), \
          patch.object(svc, "_handler", return_value=_Handler()):
-        out = asyncio.get_event_loop().run_until_complete(
+        out = get_event_loop().run_until_complete(
             svc.index_structure("zoho_crm", "user-1")
         )
 
@@ -124,7 +125,7 @@ def test_ingest_item_refused_when_integration_disabled(monkeypatch):
     monkeypatch.setitem(dt.FILE_FETCHERS, "onedrive", AsyncMock(return_value=b"x"))
     monkeypatch.setitem(dt.STRUCTURE_ADAPTERS, "onedrive", AsyncMock(return_value=[]))
 
-    out = asyncio.get_event_loop().run_until_complete(
+    out = get_event_loop().run_until_complete(
         dt.integration_ingest_item("onedrive", "file-1")
     )
     assert out["success"] is False
@@ -145,7 +146,7 @@ def test_ingest_item_enforces_size_cap(monkeypatch):
     )
     monkeypatch.setitem(dt.STRUCTURE_ADAPTERS, "onedrive", AsyncMock(return_value=[]))
 
-    out = asyncio.get_event_loop().run_until_complete(
+    out = get_event_loop().run_until_complete(
         dt.integration_ingest_item("onedrive", "file-big")
     )
     assert out["success"] is False
@@ -161,7 +162,7 @@ def test_record_apps_have_no_fetcher_and_say_so(monkeypatch):
     monkeypatch.setitem(dt.STRUCTURE_ADAPTERS, "zoho_crm", AsyncMock(return_value=[]))
     assert "zoho_crm" not in dt.FILE_FETCHERS
 
-    out = asyncio.get_event_loop().run_until_complete(
+    out = get_event_loop().run_until_complete(
         dt.integration_ingest_item("zoho_crm", "lead-1")
     )
     assert out["success"] is False
@@ -197,7 +198,7 @@ def test_notification_with_bad_client_state_is_not_ingested():
             {"clientState": "forged", "resource": "me/messages/evil"},
         ]
     }
-    asyncio.get_event_loop().run_until_complete(mgr.process_notifications(payload))
+    get_event_loop().run_until_complete(mgr.process_notifications(payload))
     assert fetched == []  # spoofed notification never reached ingestion
 
 
@@ -227,7 +228,7 @@ def test_valid_notification_fetches_and_ingests():
     fake_pipeline = MagicMock()
     fake_pipeline.ingest_message = _FakePipeline().ingest_message
     with patch.object(pipeline_mod, "ingestion_pipeline", fake_pipeline):
-        asyncio.get_event_loop().run_until_complete(mgr.process_notifications(payload))
+        get_event_loop().run_until_complete(mgr.process_notifications(payload))
     assert ingested == [("outlook", {"id": "m-9", "subject": "hello"})]
 
 
@@ -319,7 +320,7 @@ def test_jit_office_file_opens_in_app_canvas(monkeypatch, tmp_path):
             return {"status": "ok", "doc_id": "doc-1"}
 
     with patch("core.auto_document_ingestion.AutoDocumentIngestionService", _FakeIngestor):
-        out = asyncio.get_event_loop().run_until_complete(
+        out = get_event_loop().run_until_complete(
             dt.integration_ingest_item(
                 "onedrive", "file-x1", file_name="budget.xlsx",
                 open_as_canvas=True, user_id="user-1",
@@ -359,7 +360,7 @@ def test_jit_non_office_file_ignores_canvas_request(monkeypatch):
             return {"status": "ok", "doc_id": "doc-2"}
 
     with patch("core.auto_document_ingestion.AutoDocumentIngestionService", _FakeIngestor):
-        out = asyncio.get_event_loop().run_until_complete(
+        out = get_event_loop().run_until_complete(
             dt.integration_ingest_item(
                 "onedrive", "file-t1", file_name="notes.txt",
                 open_as_canvas=True, user_id="user-1",

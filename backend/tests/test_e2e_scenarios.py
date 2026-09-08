@@ -23,6 +23,7 @@ Run:
 from __future__ import annotations
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import os
 import sys
 import time
@@ -250,7 +251,7 @@ class TestTurnFactExtraction:
                 ("We must use Stripe for all payments", "hard_constraint", 0.9),
             )
         )
-        rows = asyncio.get_event_loop().run_until_complete(
+        rows = get_event_loop().run_until_complete(
             extractor.extract_from_turn(
                 user_request="Setup payments",
                 thought="Need to use Stripe",
@@ -268,7 +269,7 @@ class TestTurnFactExtraction:
                 ("SLA is 7 days", "exact_value", 0.88),
             )
         )
-        rows = asyncio.get_event_loop().run_until_complete(
+        rows = get_event_loop().run_until_complete(
             extractor.extract_from_turn(
                 user_request="finance review",
                 observation="$50K MRR, 7-day SLA",
@@ -284,7 +285,7 @@ class TestTurnFactExtraction:
                 ("Chose Postgres for horizontal scaling", "decision_reason", 0.85),
             )
         )
-        rows = asyncio.get_event_loop().run_until_complete(
+        rows = get_event_loop().run_until_complete(
             extractor.extract_from_turn(
                 user_request="db choice",
                 observation="chose Postgres because scaling",
@@ -300,7 +301,7 @@ class TestTurnFactExtraction:
                 ("Onboarding v2 is blocked by auth service", "cross_task_dep", 0.88),
             )
         )
-        rows = asyncio.get_event_loop().run_until_complete(
+        rows = get_event_loop().run_until_complete(
             extractor.extract_from_turn(
                 user_request="roadmap",
                 observation="blocks onboarding v2",
@@ -316,7 +317,7 @@ class TestTurnFactExtraction:
                 ("User prefers terse bullet-point responses", "implicit_pref", 0.82),
             )
         )
-        rows = asyncio.get_event_loop().run_until_complete(
+        rows = get_event_loop().run_until_complete(
             extractor.extract_from_turn(
                 user_request="style",
                 observation="prefers terse bullet-point responses",
@@ -331,7 +332,7 @@ class TestTurnFactExtraction:
         assert _likely_contains_fact("hello, thanks") is False
         # And the extractor returns [] without invoking the LLM.
         before = extractor.llm.generate.call_count
-        rows = asyncio.get_event_loop().run_until_complete(
+        rows = get_event_loop().run_until_complete(
             extractor.extract_from_turn(
                 user_request="hello",
                 final_answer="thanks",
@@ -345,7 +346,7 @@ class TestTurnFactExtraction:
         extractor.llm.generate = AsyncMock(
             return_value=_canned_facts(("must use Stripe", "hard_constraint", 0.9))
         )
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         loop.run_until_complete(
             extractor.extract_from_turn(
                 user_request="payments", observation="must use Stripe"
@@ -373,7 +374,7 @@ class TestTurnFactExtraction:
         extractor.llm.generate = AsyncMock(
             return_value=_canned_facts(("must use Stripe", "hard_constraint", 0.5))
         )
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         loop.run_until_complete(
             extractor.extract_from_turn(
                 user_request="payments", observation="must use Stripe"
@@ -416,7 +417,7 @@ class TestAgentMemoryTools:
         """memory_remember persists all 5 categories with correct metadata."""
         from tools.memory_tool import memory_remember
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         for cat in ALL_FACT_CATEGORIES:
             res = loop.run_until_complete(
                 memory_remember(
@@ -436,7 +437,7 @@ class TestAgentMemoryTools:
         """memory_forget by fact_id → status=invalidated, audit preserved."""
         from tools.memory_tool import memory_remember, memory_forget
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         res = loop.run_until_complete(
             memory_remember(
                 fact_text="stripe-only fact",
@@ -460,7 +461,7 @@ class TestAgentMemoryTools:
         """memory_forget by substring → all matching rows invalidated."""
         from tools.memory_tool import memory_remember, memory_forget
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         for txt in ["stripe-key-1", "stripe-key-2", "paypal-key-3"]:
             loop.run_until_complete(
                 memory_remember(
@@ -492,7 +493,7 @@ class TestAgentMemoryTools:
         """Blank forget (no target) → refused."""
         from tools.memory_tool import memory_forget
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         out = loop.run_until_complete(memory_forget(workspace_id="ws-D"))
         assert out["success"] is False
         assert out["invalidated_count"] == 0
@@ -502,7 +503,7 @@ class TestAgentMemoryTools:
         """Remember in ws-A, forget in ws-B → ws-A untouched."""
         from tools.memory_tool import memory_remember, memory_forget
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         # Same fact text in two workspaces
         loop.run_until_complete(
             memory_remember(
@@ -674,7 +675,7 @@ class TestContextCompression:
             )
             assert ok is True
 
-            loop = asyncio.get_event_loop()
+            loop = get_event_loop()
             drained = loop.run_until_complete(q.drain_once())
             # drain_once returns count extracted; [] → 0, but item was processed.
             assert q.stats()["drained"] == 1
@@ -745,7 +746,7 @@ class TestEpisodicMemoryRetrieval:
 
             svc.lancedb.search = fake_search
 
-            loop = asyncio.get_event_loop()
+            loop = get_event_loop()
             loop.run_until_complete(
                 svc.retrieve_semantic(
                     agent_id="ep-32",
@@ -868,7 +869,7 @@ class TestResilienceFailureModes:
         extractor.llm.generate = slow_generate
         before = get_failure_counts().get("timeout", 0)
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         rows = loop.run_until_complete(
             extractor.extract_from_turn(
                 user_request="payments",
@@ -891,7 +892,7 @@ class TestResilienceFailureModes:
 
         extractor._write_vectors_best_effort = failing_write
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         rows = loop.run_until_complete(
             extractor.extract_from_turn(
                 user_request="payments", observation="must use Stripe"
@@ -919,7 +920,7 @@ class TestResilienceFailureModes:
         # Force LLM to raise — extractor must still return [].
         extractor.llm.generate = AsyncMock(side_effect=RuntimeError("provider 500"))
 
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         # extract_from_turn
         r1 = loop.run_until_complete(
             extractor.extract_from_turn(

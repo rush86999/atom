@@ -22,6 +22,7 @@ Covered surfaces (see REPORT):
      (c) series names cannot escape the instance namespace.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 import os
 from datetime import datetime
@@ -361,7 +362,7 @@ class TestRpcActionNameTraversal:
 
         reg = ActionRegistry()
         with pytest.raises(ActionNotFoundError):
-            asyncio.get_event_loop().run_until_complete(
+            get_event_loop().run_until_complete(
                 reg.execute_action("does_not_exist", {}, {})
             )
         assert reg.get_action("does_not_exist") is None
@@ -427,7 +428,7 @@ class TestRpcActionNameTraversal:
             for evil in ("..", "../x", "a/b", "documents.search/.."):
                 assert action_registry.get_action(evil) is None
                 try:
-                    res = asyncio.get_event_loop().run_until_complete(
+                    res = get_event_loop().run_until_complete(
                         action_registry.execute_action(evil, {}, {"user": FakeUser()})
                     )
                     raise AssertionError(f"{evil!r} must not execute")
@@ -502,7 +503,7 @@ class TestMiniAppRecordCaps:
             yield db_session
 
         monkeypatch.setattr("core.database.get_db_session", _cm)
-        res = asyncio.get_event_loop().run_until_complete(
+        res = get_event_loop().run_until_complete(
             svc.run_stateful(canvas.id, user_id="u1")
         )
         assert res["success"] is True

@@ -16,6 +16,7 @@ Quality Standards: 303-QUALITY-STANDARDS.md (no stub tests, imports from target 
 
 import pytest
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from datetime import datetime
 from typing import Dict, Any, List, Optional
@@ -149,7 +150,7 @@ class TestOrchestratorInitialization:
         """Test orchestrator has run method for task execution."""
         # Assert
         assert hasattr(orchestrator, 'run')
-        assert asyncio.iscoroutinefunction(orchestrator.run)
+        assert iscoroutinefunction(orchestrator.run)
 
 
 # ============================================================================

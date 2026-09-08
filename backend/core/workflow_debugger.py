@@ -15,6 +15,7 @@ Provides step-through debugging capabilities for workflows including:
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import copy
 from datetime import datetime
 import json
@@ -1270,7 +1271,7 @@ class WorkflowDebugger:
         try:
             # Try to get running event loop
             try:
-                loop = asyncio.get_event_loop()
+                loop = get_event_loop()
                 if loop.is_running():
                     # Create task in running loop
                     asyncio.create_task(coro)

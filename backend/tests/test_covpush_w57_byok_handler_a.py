@@ -8,6 +8,7 @@ optimal-provider paths, routing info, pricing surfaces, trial gate, error
 classes, AwaitableResult operators.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 import os
 from types import SimpleNamespace
@@ -121,7 +122,7 @@ class TestAwaitableResultOperators:
         async def consume():
             return await AwaitableResult(7)
 
-        # asyncio.get_event_loop() raises when no loop is set (Python 3.14+
+        # get_event_loop() raises when no loop is set (Python 3.14+
         # always; earlier versions after another test closed the loop) —
         # drive the coroutine on a fresh loop instead.
         loop = asyncio.new_event_loop()

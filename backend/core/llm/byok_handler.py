@@ -1,4 +1,5 @@
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime, timezone
 from enum import Enum
 import hashlib
@@ -73,7 +74,7 @@ def _run_coroutine_sync(coro, timeout: float = 15.0):
         asyncio.get_running_loop()
     except RuntimeError:
         # No running loop on this thread: drive the coroutine on a fresh
-        # loop — asyncio.get_event_loop() no longer creates one implicitly
+        # loop — get_event_loop() no longer creates one implicitly
         # on Python 3.14+, so that call raised RuntimeError here.
         loop = asyncio.new_event_loop()
         try:

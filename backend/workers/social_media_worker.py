@@ -5,6 +5,7 @@ Handles scheduled social media posts in the background using RQ.
 Processes posts at their scheduled time and logs results to the database.
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
@@ -190,7 +191,7 @@ def process_scheduled_post_sync(*args, **kwargs):
 
     try:
         # Get or create event loop
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
     except RuntimeError:
         # No event loop in this thread
         loop = asyncio.new_event_loop()

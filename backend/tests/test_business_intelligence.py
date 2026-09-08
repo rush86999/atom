@@ -1,4 +1,5 @@
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import os
 import sys
 import unittest
@@ -94,7 +95,7 @@ class TestBusinessIntelligence(unittest.TestCase):
             "app_type": "email"
         }
         
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         result = loop.run_until_complete(self.comm_intel.analyze_and_route(comm_data, "user_1"))
         
         knowledge = result["knowledge"]
@@ -112,7 +113,7 @@ class TestBusinessIntelligence(unittest.TestCase):
             "app_type": "email"
         }
         
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         result = loop.run_until_complete(self.comm_intel.analyze_and_route(comm_data, "user_1"))
         
         knowledge = result["knowledge"]
@@ -129,7 +130,7 @@ class TestBusinessIntelligence(unittest.TestCase):
             "app_type": "email"
         }
         
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         result = loop.run_until_complete(self.comm_intel.analyze_and_route(comm_data, "user_1"))
         
         self.assertIn("knowledge", result)
@@ -151,7 +152,7 @@ class TestBusinessIntelligence(unittest.TestCase):
         
         learner = HistoricalLifecycleLearner(ai_service=self.ai, db_session=self.db)
         
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         loop.run_until_complete(learner.learn_from_history("w_intel", "user_1"))
         
         # Verify that business intelligence was triggered

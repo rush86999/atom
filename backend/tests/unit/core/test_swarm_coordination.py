@@ -11,6 +11,7 @@ Covers:
 from __future__ import annotations
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 import sys
 import os
@@ -124,7 +125,7 @@ class TestBranchReconciler:
         return ConductorAgent(ConductorConfig())
 
     def _run(self, coro):
-        # asyncio.get_event_loop() no longer auto-creates a loop and is
+        # get_event_loop() no longer auto-creates a loop and is
         # removed in Python 3.14; asyncio.run() is the supported replacement.
         return asyncio.run(coro)
 

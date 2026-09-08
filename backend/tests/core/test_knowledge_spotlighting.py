@@ -40,7 +40,7 @@ def fake_search_hits():
 class TestKnowledgeLegSpotlighting:
     """Knowledge-leg hits render as delimited UNTRUSTED retrieved content."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_spotlighted_block_with_markers(self, fake_search_hits):
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
         from core.memory_context_assembler import _knowledge_leg
@@ -64,7 +64,7 @@ class TestKnowledgeLegSpotlighting:
         assert "from bob@example.com" in lines[2]
         assert "as of 2024-02-01" in lines[2]
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_no_results_returns_empty(self):
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
         from core.memory_context_assembler import _knowledge_leg
@@ -76,7 +76,7 @@ class TestKnowledgeLegSpotlighting:
 
         assert lines == []
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_untrusted_content_cannot_close_spotlight(self):
         """A hit containing provenance-tag-shaped text must be escaped so it
         cannot close the block early and re-open one as a trusted type — in
@@ -177,7 +177,7 @@ class TestOwnerScopedRecall:
     """The request-scoped user identity must reach the comms search so one
     account's ingested mail cannot surface in another account's context."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_knowledge_leg_threads_owner_to_search(self, fake_search_hits):
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
         from core.memory_context_assembler import _knowledge_leg
@@ -189,7 +189,7 @@ class TestOwnerScopedRecall:
 
         assert mock_search.await_args.kwargs.get("owner_user_id") == "user-a"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_knowledge_leg_defaults_unfiltered(self, fake_search_hits):
         from core.hybrid_search.documents_hybrid import DocumentsHybridSearch
         from core.memory_context_assembler import _knowledge_leg

@@ -1,6 +1,7 @@
 import logging
 import json
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import inspect
 import re
 from typing import Dict, Any, List, Optional
@@ -1481,7 +1482,7 @@ class MCPService(IntegrationService):
                             kwargs[_k] = _v
                 except (TypeError, ValueError):
                     pass
-                if asyncio.iscoroutinefunction(tool_func):
+                if iscoroutinefunction(tool_func):
                     return await tool_func(**kwargs)
                 else:
                     return tool_func(**kwargs)

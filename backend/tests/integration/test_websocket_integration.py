@@ -66,7 +66,7 @@ def mock_websocket():
 class TestWebSocketAuthentication:
     """Test WebSocket authentication flow."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_manager_auth_flow(self, db_session):
         """Test WebSocket connection manager authentication flow using dev-token."""
         from core.websockets import manager
@@ -96,7 +96,7 @@ class TestWebSocketAuthentication:
         assert "dev-user" in manager.user_connections
         assert mock_ws in manager.user_connections["dev-user"]
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_manager_rejects_invalid_token(self, db_session):
         """Test WebSocket connection manager rejects invalid JWT token."""
         from core.websockets import manager
@@ -115,7 +115,7 @@ class TestWebSocketAuthentication:
         assert result is None
         mock_ws.close.assert_called_once()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_manager_rejects_expired_token(self, db_session):
         """Test WebSocket connection manager rejects expired JWT token."""
         from core.websockets import manager
@@ -149,7 +149,7 @@ class TestWebSocketAuthentication:
             # Then: Connection should fail
             assert result is None
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_dev_token_bypass_in_non_production(self, db_session, monkeypatch):
         """Test WebSocket dev-token bypass in non-production environments."""
         from core.websockets import manager
@@ -177,7 +177,7 @@ class TestWebSocketAuthentication:
 class TestWebSocketMessaging:
     """Test real-time messaging through WebSocket."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_broadcast_to_channel(self, mock_websocket):
         """Test broadcasting message to a channel."""
         from core.websockets import manager
@@ -198,7 +198,7 @@ class TestWebSocketMessaging:
         assert call_args["type"] == "test"
         assert call_args["content"] == "Hello, WebSocket!"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_broadcast_event_with_timestamp(self, mock_websocket):
         """Test broadcasting event with automatic timestamp."""
         from core.websockets import manager
@@ -219,7 +219,7 @@ class TestWebSocketMessaging:
         assert "timestamp" in call_args
         assert call_args["data"] == {"data": "test data"}
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_send_personal_message(self, mock_websocket):
         """Test sending personal message to specific user."""
         from core.websockets import manager
@@ -237,7 +237,7 @@ class TestWebSocketMessaging:
         call_args = mock_websocket.send_json.call_args[0][0]
         assert call_args["content"] == "Private message"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_multiple_connections_same_channel(self):
         """Test broadcasting to multiple connections in same channel."""
         from core.websockets import manager
@@ -262,7 +262,7 @@ class TestWebSocketMessaging:
         ws2.send_json.assert_called_once()
         ws3.send_json.assert_called_once()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_channel_isolation(self):
         """Test messages don't leak between channels."""
         from core.websockets import manager
@@ -291,7 +291,7 @@ class TestWebSocketMessaging:
 class TestAgentGuidanceStreaming:
     """Test agent guidance canvas streaming."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_streaming_update_event(self, mock_websocket):
         """Test streaming update event type."""
         from core.websockets import manager
@@ -311,7 +311,7 @@ class TestAgentGuidanceStreaming:
         assert call_args["type"] == "streaming:update"
         assert call_args["data"]["progress"] == 50
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_streaming_error_event(self, mock_websocket):
         """Test streaming error event type."""
         from core.websockets import manager
@@ -331,7 +331,7 @@ class TestAgentGuidanceStreaming:
         assert call_args["type"] == "streaming:error"
         assert "error" in call_args["data"]
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_streaming_complete_event(self, mock_websocket):
         """Test streaming complete event type."""
         from core.websockets import manager
@@ -350,7 +350,7 @@ class TestAgentGuidanceStreaming:
         call_args = mock_websocket.send_json.call_args[0][0]
         assert call_args["type"] == "streaming:complete"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_canvas_present_event(self, mock_websocket):
         """Test canvas present event type."""
         from core.websockets import manager
@@ -370,7 +370,7 @@ class TestAgentGuidanceStreaming:
         assert call_args["type"] == "canvas:present"
         assert call_args["data"]["canvas_id"] == "canvas_123"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_canvas_update_event(self, mock_websocket):
         """Test canvas update event type."""
         from core.websockets import manager
@@ -389,7 +389,7 @@ class TestAgentGuidanceStreaming:
         call_args = mock_websocket.send_json.call_args[0][0]
         assert call_args["type"] == "canvas:update"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_canvas_close_event(self, mock_websocket):
         """Test canvas close event type."""
         from core.websockets import manager
@@ -416,7 +416,7 @@ class TestAgentGuidanceStreaming:
 class TestDeviceEventStreaming:
     """Test device event streaming through WebSocket."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_device_registered_event(self, mock_websocket):
         """Test device registered event."""
         from core.websockets import manager
@@ -434,7 +434,7 @@ class TestDeviceEventStreaming:
         call_args = mock_websocket.send_json.call_args[0][0]
         assert call_args["type"] == "device:registered"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_device_command_event(self, mock_websocket):
         """Test device command event."""
         from core.websockets import manager
@@ -452,7 +452,7 @@ class TestDeviceEventStreaming:
         call_args = mock_websocket.send_json.call_args[0][0]
         assert call_args["type"] == "device:command"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_device_camera_ready_event(self, mock_websocket):
         """Test device camera ready event."""
         from core.websockets import manager
@@ -470,7 +470,7 @@ class TestDeviceEventStreaming:
         call_args = mock_websocket.send_json.call_args[0][0]
         assert call_args["type"] == "device:camera:ready"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_device_recording_complete_event(self, mock_websocket):
         """Test device recording complete event."""
         from core.websockets import manager
@@ -488,7 +488,7 @@ class TestDeviceEventStreaming:
         call_args = mock_websocket.send_json.call_args[0][0]
         assert call_args["type"] == "device:recording:complete"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_device_location_update_event(self, mock_websocket):
         """Test device location update event."""
         from core.websockets import manager
@@ -506,7 +506,7 @@ class TestDeviceEventStreaming:
         call_args = mock_websocket.send_json.call_args[0][0]
         assert call_args["type"] == "device:location:update"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_device_notification_sent_event(self, mock_websocket):
         """Test device notification sent event."""
         from core.websockets import manager
@@ -532,7 +532,7 @@ class TestDeviceEventStreaming:
 class TestWebSocketConnectionLifecycle:
     """Test WebSocket connection lifecycle management."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_connect_and_disconnect_user(self, mock_websocket):
         """Test connecting and disconnecting user."""
         from core.websockets import manager
@@ -549,7 +549,7 @@ class TestWebSocketConnectionLifecycle:
         assert user_id not in manager.user_connections or \
                mock_websocket not in manager.user_connections.get(user_id, [])
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_subscribe_and_unsubscribe_channel(self, mock_websocket):
         """Test subscribing and unsubscribing from channel."""
         from core.websockets import manager
@@ -564,7 +564,7 @@ class TestWebSocketConnectionLifecycle:
         # Then: Should be removed from channel
         assert mock_websocket not in manager.active_connections.get("test_channel", [])
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_multiple_channels_same_connection(self):
         """Test single connection can subscribe to multiple channels."""
         from core.websockets import manager
@@ -582,7 +582,7 @@ class TestWebSocketConnectionLifecycle:
         assert ws in manager.active_connections["channel_2"]
         assert ws in manager.active_connections["channel_3"]
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_get_connection_stats(self):
         """Test getting connection statistics."""
         from core.websockets import manager
@@ -621,7 +621,7 @@ class TestWebSocketConnectionLifecycle:
 class TestWebSocketErrorHandling:
     """Test WebSocket error handling."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_broadcast_to_empty_channel_logs_warning(self, mock_websocket, caplog):
         """Test broadcasting to empty channel logs warning."""
         from core.websockets import manager
@@ -637,7 +637,7 @@ class TestWebSocketErrorHandling:
         # Then: Should log warning
         assert any("EMPTY channel" in record.message for record in caplog.records)
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_broadcast_handles_send_errors_gracefully(self):
         """Test broadcasting handles connection errors gracefully."""
         from core.websockets import manager
@@ -657,7 +657,7 @@ class TestWebSocketErrorHandling:
         # Then: Working connection should still receive
         ws_working.send_json.assert_called_once()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_personal_message_to_nonexistent_user(self, caplog):
         """Test sending personal message to nonexistent user."""
         from core.websockets import manager
@@ -677,7 +677,7 @@ class TestWebSocketErrorHandling:
         # The test passes if no exception is raised
         assert True
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_subscribe_duplicate_idempotent(self, mock_websocket):
         """Test subscribing same connection multiple times is idempotent."""
         from core.websockets import manager
@@ -693,7 +693,7 @@ class TestWebSocketErrorHandling:
         # This test verifies the behavior
         assert count >= 1
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_unsubscribe_nonexistent_channel(self, mock_websocket):
         """Test unsubscribing from nonexistent channel doesn't crash."""
         from core.websockets import manager

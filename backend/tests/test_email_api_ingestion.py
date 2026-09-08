@@ -90,7 +90,7 @@ class TestGmailAPIIntegration:
         assert "gmail" in ingestion_pipeline.ingestion_configs
         assert "gmail" in ingestion_pipeline.app_configs
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_gmail_messages_without_service(self, ingestion_pipeline):
         """Test that missing Gmail service is handled gracefully"""
         with patch('integrations.gmail_service.GmailService') as mock_service_class:
@@ -102,7 +102,7 @@ class TestGmailAPIIntegration:
 
             assert messages == []
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_gmail_messages_success(self, ingestion_pipeline, gmail_config):
         """Test successful Gmail message fetching"""
         ingestion_pipeline.configure_app(CommunicationAppType.GMAIL, gmail_config)
@@ -141,7 +141,7 @@ class TestGmailAPIIntegration:
             assert messages[0]["content"] == "This is a test email from Gmail"
             assert "INBOX" in messages[0]["tags"]
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_gmail_messages_incremental(self, ingestion_pipeline):
         """Test incremental Gmail fetching with date filter"""
         with patch('integrations.gmail_service.GmailService') as mock_service_class:
@@ -161,7 +161,7 @@ class TestGmailAPIIntegration:
 
             assert "after:" in query
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_gmail_message_normalization(self, ingestion_pipeline):
         """Test Gmail message normalization structure"""
         with patch('integrations.gmail_service.GmailService') as mock_service_class:
@@ -221,7 +221,7 @@ class TestOutlookAPIIntegration:
         assert "outlook" in ingestion_pipeline.ingestion_configs
         assert "outlook" in ingestion_pipeline.app_configs
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_outlook_messages_without_token(self, ingestion_pipeline):
         """Test that missing Microsoft token is handled gracefully"""
         with patch.object(
@@ -236,7 +236,7 @@ class TestOutlookAPIIntegration:
             assert messages == []
             mock_token.assert_awaited_once()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_outlook_messages_success(self, ingestion_pipeline, outlook_config):
         """Test successful Outlook message fetching"""
         ingestion_pipeline.configure_app(CommunicationAppType.OUTLOOK, outlook_config)
@@ -300,7 +300,7 @@ class TestOutlookAPIIntegration:
                 assert messages[0]["status"] == "unread"
                 assert messages[0]["priority"] == "normal"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_outlook_messages_uses_configured_user_token(
         self, ingestion_pipeline, outlook_config
     ):
@@ -339,7 +339,7 @@ class TestOutlookAPIIntegration:
         # The token lookup must target the configured user, never None
         assert mock_token.await_args.kwargs["user_id"] == "user-abc123"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_outlook_polls_every_connected_user(self, ingestion_pipeline):
         """Multi-user: the poller must fetch EACH connected mailbox, not just
         the most recent connect (Greptile P1 — a later connection must not
@@ -371,7 +371,7 @@ class TestOutlookAPIIntegration:
         assert "last_fetch_outlook_user-a" in ingestion_pipeline.fetch_timestamps
         assert "last_fetch_outlook_user-b" in ingestion_pipeline.fetch_timestamps
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_failed_page_walk_holds_cursor(self, ingestion_pipeline):
         """Regression (Greptile P1): a failed Graph page walk must NOT advance
         the owner cursor. The filter is `receivedDateTime gt cursor`, so a
@@ -404,7 +404,7 @@ class TestOutlookAPIIntegration:
             2024, 1, 1, 0, 0, 0
         )
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_empty_window_advances_cursor(self, ingestion_pipeline):
         """A COMPLETE walk with zero new messages moves the watermark to now,
         so polls don't re-walk an empty window forever (mirror of the hold
@@ -434,7 +434,7 @@ class TestOutlookAPIIntegration:
         advanced = ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-empty"]
         assert advanced > datetime(2024, 1, 1, 0, 0, 0)
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_truncated_walk_holds_cursor_and_pins_resume_bound(self, ingestion_pipeline):
         """A page-cap truncation must NOT move the low watermark (the strict
         gt filter would exclude the unconsumed older pages forever). With the
@@ -490,7 +490,7 @@ class TestOutlookAPIIntegration:
             "last_fetch_outlook_resume_user-trunc"
         ] == datetime.fromisoformat("2024-02-01T12:00:00Z")
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_continuation_drain_promotes_cursor_and_clears_bound(self, ingestion_pipeline):
         """When a continuation walk (C, bound] completes naturally, the
         cursor promotes to the bound and the continuation state clears —
@@ -533,7 +533,7 @@ class TestOutlookAPIIntegration:
         ] == datetime.fromisoformat("2024-02-01T12:00:00Z")
         assert "last_fetch_outlook_resume_user-resume" not in ingestion_pipeline.fetch_timestamps
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_continuation_bound_keeps_fractional_seconds(self, ingestion_pipeline):
         """Regression (Greptile): Graph receivedDateTime values carry
         microsecond precision. A continuation bound truncated to whole
@@ -591,7 +591,7 @@ class TestOutlookAPIIntegration:
             "2024-02-01T12:00:00Z"
         )
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_new_owner_does_not_inherit_global_cursor(self, ingestion_pipeline):
         """Regression (Greptile): a freshly connected owner must start from
         its own initial-sync window, never from the loop-level global
@@ -636,7 +636,7 @@ class TestOutlookAPIIntegration:
         advanced = ingestion_pipeline.fetch_timestamps["last_fetch_outlook_user-new"]
         assert advanced > datetime(2023, 6, 1)
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetched_messages_carry_mailbox_owner(self, ingestion_pipeline):
         """Regression (Greptile P1): ingested mail must record WHOSE mailbox
         it came from — knowledge extraction and communication intelligence
@@ -759,7 +759,7 @@ class TestOutlookAPIIntegration:
         assert password_value not in normalized["content"]
         assert "[REDACTED_" in normalized["content"]
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_outlook_messages_with_attachments(self, ingestion_pipeline):
         """Test Outlook messages with attachments"""
         with patch.object(
@@ -818,7 +818,7 @@ class TestOutlookAPIIntegration:
                 assert messages[0]["attachments"][0]["name"] == "report.xlsx"
                 assert messages[0]["priority"] == "high"  # Importance: High
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_outlook_rate_limiting(self, ingestion_pipeline):
         """Test Outlook API rate limiting handling"""
         with patch(
@@ -849,7 +849,7 @@ class TestOutlookAPIIntegration:
                 # Should handle gracefully and return empty list
                 assert messages == []
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_fetch_outlook_incremental_filtering(self, ingestion_pipeline):
         """Test Outlook incremental fetching with timestamp filter"""
         with patch.object(
@@ -886,7 +886,7 @@ class TestOutlookAPIIntegration:
 class TestEmailErrorHandling:
     """Test error handling in email integration"""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_gmail_service_import_error(self, ingestion_pipeline):
         """Test graceful handling when Gmail service is not available"""
         # Force ImportError by replacing integrations.gmail_service with a stub
@@ -909,7 +909,7 @@ class TestEmailErrorHandling:
             else:
                 sys.modules.pop('integrations.gmail_service', None)
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_outlook_handles_api_error(self, ingestion_pipeline):
         """Test graceful handling of Outlook API errors"""
         with patch(
@@ -935,7 +935,7 @@ class TestEmailErrorHandling:
 class TestOutlookPollerWiring:
     """Test the Outlook poller wiring (P0.4 audit fix)"""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_start_outlook_poller_configured(self, ingestion_pipeline):
         """Starting the poller configures outlook with real-time + embedding on"""
         with patch.object(ingestion_pipeline, '_real_time_ingestion', new_callable=AsyncMock):
@@ -948,7 +948,7 @@ class TestOutlookPollerWiring:
             assert cfg["embed_content"] is True
             assert cfg["polling_interval_seconds"] == 45
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_start_outlook_poller_idempotent(self, ingestion_pipeline):
         """Starting the poller twice creates only one stream task"""
         with patch.object(ingestion_pipeline, '_real_time_ingestion', new_callable=AsyncMock) as mock_rt:
@@ -961,13 +961,13 @@ class TestOutlookPollerWiring:
             assert task2 is task1
             assert mock_rt.call_count == 1
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_start_outlook_poller_failure_returns_false(self, ingestion_pipeline):
         """A failed stream start propagates False instead of raising"""
         with patch.object(ingestion_pipeline, 'start_real_time_stream', return_value=False):
             assert ingestion_pipeline.start_outlook_poller() is False
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_start_outlook_poller_stores_user_id(self, ingestion_pipeline):
         """Starting the poller for a user records that user in the config,
         so the fetch loop can resolve that user's token (not None)."""
@@ -978,7 +978,7 @@ class TestOutlookPollerWiring:
             assert "outlook" in ingestion_pipeline.active_streams
             assert ingestion_pipeline.app_configs["outlook"]["user_id"] == "user-abc123"
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_start_outlook_poller_reads_interval_env(self, ingestion_pipeline, monkeypatch):
         """ATOM_OUTLOOK_POLL_SECONDS drives the default interval"""
         monkeypatch.setenv("ATOM_OUTLOOK_POLL_SECONDS", "45")
@@ -986,7 +986,7 @@ class TestOutlookPollerWiring:
             assert ingestion_pipeline.start_outlook_poller() is True
         assert ingestion_pipeline.app_configs["outlook"]["polling_interval_seconds"] == 45
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_start_outlook_poller_interval_floor(self, ingestion_pipeline, monkeypatch):
         """Intervals below 15 are clamped to the 15s floor"""
         monkeypatch.setenv("ATOM_OUTLOOK_POLL_SECONDS", "10")
@@ -994,7 +994,7 @@ class TestOutlookPollerWiring:
             assert ingestion_pipeline.start_outlook_poller() is True
         assert ingestion_pipeline.app_configs["outlook"]["polling_interval_seconds"] == 15
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_oauth_callback_microsoft_starts_poller(self):
         """Connecting Microsoft OAuth starts the Outlook poller"""
         from api import oauth_routes
@@ -1025,7 +1025,7 @@ class TestOutlookPollerWiring:
                 )
                 mock_poller.assert_called_once()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_oauth_callback_google_does_not_start_poller(self):
         """Non-Microsoft providers must NOT start the Outlook poller"""
         from api import oauth_routes
@@ -1060,7 +1060,7 @@ class TestOutlookPollerWiring:
 class TestEmailMessageNormalization:
     """Test email message normalization to unified format"""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_gmail_and_outlook_same_structure(self):
         """Verify Gmail and Outlook messages have same unified structure"""
         # Both should have the same core fields

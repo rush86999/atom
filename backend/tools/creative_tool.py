@@ -11,6 +11,7 @@ Supports:
 Governance: AUTONOMOUS maturity level required (file safety)
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import os
 from typing import Optional
 
@@ -285,7 +286,7 @@ class FFmpegTool(BaseTool):
                 return pool.submit(asyncio.run, coro).result()
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = get_event_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)

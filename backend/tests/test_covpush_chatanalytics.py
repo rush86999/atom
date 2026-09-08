@@ -10,6 +10,7 @@ All external APIs (slack_sdk, httpx, MS Graph, redis, LLM service) are mocked.
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import base64
 import fnmatch
 import io
@@ -428,7 +429,7 @@ class TestSlackServiceInit:
         assert svc._decrypt_token("tok") == "tok"
 
     def test_get_service_info(self, slack_service):
-        info = asyncio.get_event_loop().run_until_complete(
+        info = get_event_loop().run_until_complete(
             slack_service.get_service_info()
         )
         assert info["name"] == "Slack Enhanced Service"
@@ -442,7 +443,7 @@ class TestSlackServiceInit:
         assert caps["supports_webhooks"] is True
 
     def test_health_check(self, slack_service):
-        info = asyncio.get_event_loop().run_until_complete(slack_service.health_check())
+        info = get_event_loop().run_until_complete(slack_service.health_check())
         assert info["healthy"] is True
 
 
@@ -1529,7 +1530,7 @@ class TestTeamsServiceInit:
         assert teams_service._decrypt_token(enc) == "tok"
 
     def test_get_service_info(self, teams_service):
-        info = asyncio.get_event_loop().run_until_complete(teams_service.get_service_info())
+        info = get_event_loop().run_until_complete(teams_service.get_service_info())
         assert info["name"] == "Microsoft Teams Enhanced Service"
 
     def test_get_capabilities(self, teams_service):

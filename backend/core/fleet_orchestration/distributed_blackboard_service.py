@@ -1,6 +1,7 @@
 import logging
 import json
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from typing import Dict, Any, Callable, Optional
 from datetime import datetime, timezone
 import redis.asyncio as redis
@@ -68,11 +69,11 @@ class FleetStateNotifier:
         async def listener():
             # DEADLOCK PREVENTION: Add timeout to prevent infinite hangs
             try:
-                start_time = asyncio.get_event_loop().time()
+                start_time = get_event_loop().time()
 
                 async for message in pubsub.listen():
                     # Check for timeout
-                    elapsed = asyncio.get_event_loop().time() - start_time
+                    elapsed = get_event_loop().time() - start_time
                     if elapsed > listener_timeout:
                         logger.warning(f"Listener timeout after {elapsed:.1f}s, closing subscription")
                         await pubsub.close()

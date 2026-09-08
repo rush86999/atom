@@ -16,6 +16,7 @@ GraphRAGEngine. Zero LLM spend, no network, no real DB.
 - _persist_to_graph: success True / engine failure / import failure → False.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
@@ -121,11 +122,11 @@ def _run(coro):
 
     Earlier suites in a batch may create/close loops via
     ``asyncio.new_event_loop()``, which poisons
-    ``asyncio.get_event_loop()`` for sync tests — fall back to a fresh
+    ``get_event_loop()`` for sync tests — fall back to a fresh
     loop (and close it) when no loop is current.
     """
     try:
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return get_event_loop().run_until_complete(coro)
     except RuntimeError:
         loop = asyncio.new_event_loop()
         try:

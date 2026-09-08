@@ -140,10 +140,11 @@ import core.media.sonos_service as sonos_module
 from core.media.sonos_service import SonosService
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 
 
 def run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return get_event_loop().run_until_complete(coro)
 
 
 def _fake_speaker(

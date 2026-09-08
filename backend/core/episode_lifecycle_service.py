@@ -8,6 +8,7 @@ Manages episode lifecycle:
 - Update importance scores
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime, timedelta, timezone
 import logging
 from typing import Dict, List
@@ -450,7 +451,7 @@ class EpisodeLifecycleService:
         try:
             # Try to get existing event loop
             try:
-                loop = asyncio.get_event_loop()
+                loop = get_event_loop()
                 if loop.is_running():
                     # Create new loop in thread to run async function
                     import concurrent.futures

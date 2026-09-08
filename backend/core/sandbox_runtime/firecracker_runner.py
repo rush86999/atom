@@ -39,6 +39,7 @@ semantics:
 from __future__ import annotations
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import itertools
 import json
 import logging
@@ -188,7 +189,7 @@ class FirecrackerRuntime:
         bound_loop = getattr(sem, "_bound_loop", None)
         if bound_loop is None:
             bound_loop = getattr(sem, "_loop", None)
-        if bound_loop is not None and bound_loop != asyncio.get_event_loop():
+        if bound_loop is not None and bound_loop != get_event_loop():
             self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
             return self._concurrency_sem
         return sem

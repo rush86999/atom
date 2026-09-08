@@ -6,6 +6,7 @@ No network: requests/httpx boundaries, psycopg2 connections and the
 universal webhook bridge are all mocked.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import base64
 import hashlib
 import hmac
@@ -271,17 +272,17 @@ def test_flask_send_route():
             patch.object(wa_mod, 'jsonify', _jsonify):
         wa_mod.whatsapp_integration.send_message = AsyncMock(
             return_value={'success': True})
-        res = asyncio.get_event_loop().run_until_complete(flask_send())
+        res = get_event_loop().run_until_complete(flask_send())
         assert res['payload'][0]['success'] is True
         # missing fields
         req2 = _FlaskReq(json_data={'to': '1'})
         with patch.object(wa_mod, 'request', req2):
-            res = asyncio.get_event_loop().run_until_complete(flask_send())
+            res = get_event_loop().run_until_complete(flask_send())
             assert res[1] == 400
         # exception branch
         req3 = _FlaskReq()  # get_json raises
         with patch.object(wa_mod, 'request', req3):
-            res = asyncio.get_event_loop().run_until_complete(flask_send())
+            res = get_event_loop().run_until_complete(flask_send())
             assert res[1] == 500
 
 

@@ -11,6 +11,7 @@ Fully mocked deps (sqlalchemy Session + AgentRegistry query), zero LLM spend,
 no network, no real DB.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import logging
 from unittest.mock import MagicMock, patch
 
@@ -282,7 +283,7 @@ class TestDecoratorWrapsSyncFunction:
         def sync_fn(agent_id, command, db):
             return "sync-ok"
 
-        assert asyncio.iscoroutinefunction(sync_fn)
+        assert iscoroutinefunction(sync_fn)
 
         with pytest.raises(TypeError):
             await sync_fn(agent_id="agent-1", command="cat x", db=mock_db)

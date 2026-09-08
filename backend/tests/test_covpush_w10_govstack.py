@@ -24,6 +24,7 @@ BUGS PROVEN RED HERE (fixed in source):
                    in the sync path, once via the real await).
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import time
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -421,11 +422,11 @@ def _asyncio(coro_factory):
     import asyncio
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         if loop.is_running():
             import inspect
 
-            return asyncio.get_event_loop().run_until_complete(
+            return get_event_loop().run_until_complete(
                 asyncio.ensure_future(coro_factory())
             )
         return loop.run_until_complete(coro_factory())

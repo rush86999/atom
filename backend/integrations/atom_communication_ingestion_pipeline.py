@@ -4,6 +4,7 @@ Central memory system for all communication data with LanceDB vector storage
 """
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -3106,7 +3107,7 @@ class CommunicationIngestionPipeline:
                 logger.info(f"Gmail initial sync: fetching {history_days} days of history")
 
             # Run in executor to avoid blocking
-            loop = asyncio.get_event_loop()
+            loop = get_event_loop()
             messages = await loop.run_in_executor(
                 None,
                 lambda: gmail_service.get_messages(query=query, max_results=100)

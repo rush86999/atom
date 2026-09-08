@@ -1,4 +1,5 @@
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import os
 import sys
 import unittest
@@ -115,7 +116,7 @@ class TestSmallBizScheduling(unittest.TestCase):
         self.db.commit()
         
         # Run async recovery flow
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
         success = loop.run_until_complete(self.scheduler.trigger_no_show_flow("a_missed"))
         
         self.assertTrue(success)

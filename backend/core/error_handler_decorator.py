@@ -71,7 +71,7 @@ def handle_errors(
                 raise api_error(error_code, str(e))
 
         # Return appropriate wrapper based on whether function is async
-        if asyncio.iscoroutinefunction(func):
+        if iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper
 
@@ -140,7 +140,7 @@ def handle_validation_errors(func: Callable) -> Callable:
                 "An unexpected error occurred"
             )
 
-    if asyncio.iscoroutinefunction(func):
+    if iscoroutinefunction(func):
         return async_wrapper
     return sync_wrapper
 
@@ -254,7 +254,7 @@ def handle_database_errors(
                         details={"original_error": error_msg} if logger.level <= logging.DEBUG else None
                     )
 
-        if asyncio.iscoroutinefunction(func):
+        if iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper
 
@@ -305,7 +305,7 @@ def log_errors(func: Optional[Callable] = None, *, level: str = "ERROR") -> Call
                 )
                 raise
 
-        if asyncio.iscoroutinefunction(f):
+        if iscoroutinefunction(f):
             return async_wrapper
         return sync_wrapper
 
@@ -317,3 +317,4 @@ def log_errors(func: Optional[Callable] = None, *, level: str = "ERROR") -> Call
 
 # Import asyncio at module level for iscoroutinefunction check
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction

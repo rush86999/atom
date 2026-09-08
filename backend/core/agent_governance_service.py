@@ -1,3 +1,4 @@
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime, timezone
 import json
 import logging
@@ -838,7 +839,7 @@ class AgentGovernanceService:
                 # loop, creating one if necessary (get_event_loop() doesn't
                 # auto-create on 3.14+ when none exists in the thread).
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = get_event_loop()
                 except RuntimeError:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)

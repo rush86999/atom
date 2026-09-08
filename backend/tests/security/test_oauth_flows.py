@@ -9,6 +9,7 @@ Tests cover:
 - Token encryption at rest
 - Token refresh
 """
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import pytest
 from unittest.mock import Mock, patch
 from urllib.parse import urlparse, parse_qs
@@ -343,7 +344,7 @@ class TestTokenRefresh:
         }
         mock_post.return_value = mock_post_response
 
-        result = asyncio.get_event_loop().run_until_complete(
+        result = get_event_loop().run_until_complete(
             ZohoOAuthService.refresh_token(db_session, token)
         )
 
@@ -366,7 +367,7 @@ class TestTokenRefresh:
         mock_post_response.raise_for_status.side_effect = Exception("invalid_grant")
         mock_post.return_value = mock_post_response
 
-        result = asyncio.get_event_loop().run_until_complete(
+        result = get_event_loop().run_until_complete(
             ZohoOAuthService.refresh_token(db_session, token)
         )
 

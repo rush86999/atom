@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, text, update, cast, String, Float
 import logging
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import uuid
 from dataclasses import dataclass
 from enum import Enum
@@ -1562,7 +1563,7 @@ class EpisodeService:
 
             # Also sync to LanceDB for enhanced recall (fire and forget)
             try:
-                loop = asyncio.get_event_loop()
+                loop = get_event_loop()
                 if loop.is_running():
                     # If loop is running, create task in background
                     asyncio.ensure_future(self._sync_feedback_to_lancedb(episode, feedback))

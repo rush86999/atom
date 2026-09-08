@@ -7,6 +7,7 @@ approval-with-modifications, chat corrections) and ProposalService.
 reject_proposal — must drop the hire's per-capability tier to student, so
 the topic's gate proposes again until verified work re-graduates it.
 """
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import contextlib
 from unittest.mock import patch
 
@@ -76,7 +77,7 @@ def test_record_user_correction_resets_topic_cycle(fresh_db):
         _agent(db)
         import asyncio
 
-        asyncio.get_event_loop().run_until_complete(
+        get_event_loop().run_until_complete(
             AgentLearningEnhanced(db).record_user_correction(
                 "hire-1", "default",
                 original_action={"action_type": "send_email"},
@@ -94,7 +95,7 @@ def test_record_user_correction_ignores_unknown_action_type(fresh_db):
         _agent(db)
         import asyncio
 
-        asyncio.get_event_loop().run_until_complete(
+        get_event_loop().run_until_complete(
             AgentLearningEnhanced(db).record_user_correction(
                 "hire-1", "default",
                 original_action={},
@@ -115,7 +116,7 @@ def test_rejected_proposal_resets_topic_cycle(fresh_db):
         with patch("core.agent_learning_enhanced.AgentLearningEnhanced"):
             import asyncio
 
-            asyncio.get_event_loop().run_until_complete(
+            get_event_loop().run_until_complete(
                 ProposalService(db).reject_proposal("prop-1", "u-1", "wrong recipient")
             )
         assert _tier(db, "hire-1", "send_email") == "student"

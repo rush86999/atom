@@ -9,6 +9,7 @@ exception), and send_scheduled_messages counting. Real in-memory SQLite;
 gateway fully mocked (zero network).
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -106,7 +107,7 @@ def _pending(db, agent, **kwargs):
 
 def run(coro):
     try:
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return get_event_loop().run_until_complete(coro)
     except RuntimeError:
         loop = asyncio.new_event_loop()
         try:

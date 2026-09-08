@@ -9,6 +9,7 @@ Provides centralized agent chat execution with:
 - Episode creation for memory
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import logging
 import os
 import uuid
@@ -561,7 +562,7 @@ def execute_agent_chat_sync(
     import asyncio
 
     try:
-        loop = asyncio.get_event_loop()
+        loop = get_event_loop()
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

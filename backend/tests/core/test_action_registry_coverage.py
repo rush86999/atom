@@ -9,6 +9,7 @@ imports are mocked so there is no real network or DB dependency.
 from __future__ import annotations
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -43,7 +44,7 @@ class TestActionRegistryCore:
         reg.register("x", h2, description="second")
         assert len(reg.list_actions()) == 1
         # Second registration wins.
-        result = asyncio.get_event_loop().run_until_complete(
+        result = get_event_loop().run_until_complete(
             reg.execute_action("x", {}, {})
         )
         assert result == "v2"

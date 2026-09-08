@@ -1,5 +1,6 @@
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 import logging
 import os
@@ -48,7 +49,7 @@ class ComputerUseAgent:
         """
         Start a computer use task.
         """
-        task_id = f"task_{len(self._active_tasks) + 1}_{int(asyncio.get_event_loop().time())}"
+        task_id = f"task_{len(self._active_tasks) + 1}_{int(get_event_loop().time())}"
         mode = mode or self.default_mode
         
         task = AgentTask(

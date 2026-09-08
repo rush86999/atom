@@ -15,6 +15,7 @@ no network, no real DB.
   exception → EXECUTION_EXCEPTION.
 """
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import importlib
 from unittest.mock import AsyncMock, MagicMock
 
@@ -29,11 +30,11 @@ def _run_coro(coro):
     """Run a coroutine resilient to a missing current event loop.
 
     Earlier suites in a batch may create/close loops via
-    ``asyncio.new_event_loop()``, which poisons ``asyncio.get_event_loop()``
+    ``asyncio.new_event_loop()``, which poisons ``get_event_loop()``
     for sync tests — fall back to a fresh loop (and close it).
     """
     try:
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return get_event_loop().run_until_complete(coro)
     except RuntimeError:
         loop = asyncio.new_event_loop()
         try:

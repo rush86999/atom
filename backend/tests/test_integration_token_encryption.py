@@ -9,6 +9,7 @@ so a migration audit can verify encryption coverage.
 TDD: these tests are written against the intended behaviour and fail before the
 implementation lands.
 """
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import os
 import pytest
 from datetime import datetime, timezone, timedelta
@@ -148,7 +149,7 @@ class TestReadSites:
         from core.integrations.adapters.zoho import ZohoAdapter
         adapter = ZohoAdapter(db=db_session, workspace_id=encrypted_zoho_token.workspace_id)
         import asyncio
-        asyncio.get_event_loop().run_until_complete(adapter._load_token())
+        get_event_loop().run_until_complete(adapter._load_token())
         assert adapter._access_token == "secret-access-123"
         assert adapter._refresh_token == "secret-refresh-456"
 
@@ -168,7 +169,7 @@ class TestReadSites:
         db_session.commit()
         adapter = JiraAdapter(db=db_session, workspace_id=workspace.id)
         import asyncio
-        asyncio.get_event_loop().run_until_complete(adapter._load_token())
+        get_event_loop().run_until_complete(adapter._load_token())
         assert adapter._access_token == "jira-access-123"
         assert adapter._refresh_token == "jira-refresh-456"
 

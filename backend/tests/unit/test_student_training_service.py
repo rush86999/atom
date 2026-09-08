@@ -15,6 +15,7 @@ Target Branch Coverage: 60%+
 Pass Rate Target: 95%+
 """
 
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
@@ -745,7 +746,7 @@ class TestRealTimeGovernanceCacheInvalidation:
         )
         import asyncio
 
-        asyncio.get_event_loop().run_until_complete(
+        get_event_loop().run_until_complete(
             training_service.complete_training_session(training_session.id, outcome)
         )
         assert set(invalidated) == {test_agent.id}
@@ -766,7 +767,7 @@ class TestRealTimeGovernanceCacheInvalidation:
 
         import asyncio
 
-        asyncio.get_event_loop().run_until_complete(
+        get_event_loop().run_until_complete(
             AgentGraduationService(db).promote_agent(test_agent.id, "INTERN", "supervisor-1")
         )
         assert set(invalidated) == {test_agent.id}

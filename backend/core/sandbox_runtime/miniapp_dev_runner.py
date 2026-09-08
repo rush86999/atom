@@ -38,6 +38,7 @@ the cache and a dependency change rebuilds:
 from __future__ import annotations
 
 import asyncio
+from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import hashlib
 import itertools
 import json
@@ -166,7 +167,7 @@ class MiniAppDevRuntime:
         bound_loop = getattr(sem, "_bound_loop", None)
         if bound_loop is None:
             bound_loop = getattr(sem, "_loop", None)
-        if bound_loop is not None and bound_loop != asyncio.get_event_loop():
+        if bound_loop is not None and bound_loop != get_event_loop():
             self._concurrency_sem = asyncio.Semaphore(_max_concurrency())
             return self._concurrency_sem
         return sem
@@ -179,7 +180,7 @@ class MiniAppDevRuntime:
         bound_loop = getattr(lock, "_bound_loop", None)
         if bound_loop is None:
             bound_loop = getattr(lock, "_loop", None)
-        if bound_loop is not None and bound_loop != asyncio.get_event_loop():
+        if bound_loop is not None and bound_loop != get_event_loop():
             self._build_lock = asyncio.Lock()
             return self._build_lock
         return lock

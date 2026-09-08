@@ -67,7 +67,7 @@ def cleanup_websocket_manager():
 class TestWebSocketConnectionEstablishment:
     """Test WebSocket connection can be established successfully."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_connection_accept(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket connection is accepted."""
         from core.websockets import manager
@@ -83,7 +83,7 @@ class TestWebSocketConnectionEstablishment:
         assert connected_user.id == "dev-user"
         mock_websocket.accept.assert_called_once()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_connection_sends_welcome_message(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket sends welcome message on connection."""
         from core.websockets import manager
@@ -98,7 +98,7 @@ class TestWebSocketConnectionEstablishment:
         # Note: Current implementation doesn't send welcome, but test verifies behavior
         mock_websocket.accept.assert_called_once()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_connection_registers_user(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket connection registers user in connections."""
         from core.websockets import manager
@@ -113,7 +113,7 @@ class TestWebSocketConnectionEstablishment:
         assert connected_user.id in manager.user_connections
         assert mock_websocket in manager.user_connections[connected_user.id]
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_connection_auto_subscribes_to_user_channel(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket auto-subscribes to user channel on connection."""
         from core.websockets import manager
@@ -129,7 +129,7 @@ class TestWebSocketConnectionEstablishment:
         assert user_channel in manager.active_connections
         assert mock_websocket in manager.active_connections[user_channel]
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_connection_auto_subscribes_to_workspace_channel(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket auto-subscribes to workspace channel on connection."""
         from core.websockets import manager
@@ -153,7 +153,7 @@ class TestWebSocketConnectionEstablishment:
 class TestWebSocketAuthentication:
     """Test WebSocket authentication enforcement."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_requires_authentication(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket connection requires valid authentication."""
         from core.websockets import manager
@@ -168,7 +168,7 @@ class TestWebSocketAuthentication:
         assert result is None
         mock_websocket.close.assert_called_once_with(code=4001)
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_rejects_expired_token(self, db_session, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket rejects expired JWT token."""
         from core.websockets import manager
@@ -202,7 +202,7 @@ class TestWebSocketAuthentication:
         # Then: Connection should fail
         assert result is None
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_accepts_valid_token(self, db_session, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket accepts valid JWT token."""
         from core.websockets import manager
@@ -228,7 +228,7 @@ class TestWebSocketAuthentication:
         assert result.id == user.id
         mock_websocket.accept.assert_called_once()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_dev_token_bypass_in_non_production(self, mock_websocket, cleanup_websocket_manager, monkeypatch):
         """Test WebSocket dev-token bypass in non-production environments."""
         from core.websockets import manager
@@ -253,7 +253,7 @@ class TestWebSocketAuthentication:
 class TestWebSocketDisconnect:
     """Test WebSocket disconnect handling."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_disconnect_removes_from_user_connections(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket disconnect removes user from user_connections."""
         from core.websockets import manager
@@ -268,7 +268,7 @@ class TestWebSocketDisconnect:
         # Then: Should be removed from user_connections
         assert mock_websocket not in manager.user_connections.get(connected_user.id, [])
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_disconnect_removes_from_all_channels(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket disconnect removes connection from all channels."""
         from core.websockets import manager
@@ -285,7 +285,7 @@ class TestWebSocketDisconnect:
         for channel_connections in manager.active_connections.values():
             assert mock_websocket not in channel_connections
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_disconnect_handles_nonexistent_user(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket disconnect handles nonexistent user gracefully."""
         from core.websockets import manager
@@ -299,7 +299,7 @@ class TestWebSocketDisconnect:
         # Then: Should handle gracefully
         assert True
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_disconnect_handles_empty_channels(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket disconnect cleans up empty channels."""
         from core.websockets import manager
@@ -326,7 +326,7 @@ class TestWebSocketDisconnect:
 class TestWebSocketReconnection:
     """Test WebSocket reconnection scenarios."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_reconnection_after_disconnect(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket can reconnect after disconnect."""
         from core.websockets import manager
@@ -346,7 +346,7 @@ class TestWebSocketReconnection:
         assert user2.id == user1.id
         mock_websocket.accept.assert_called()
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_multiple_simultaneous_connections(self, cleanup_websocket_manager):
         """Test multiple WebSocket connections from same user."""
         from core.websockets import manager
@@ -368,7 +368,7 @@ class TestWebSocketReconnection:
         assert user1.id == user2.id
         assert len(manager.user_connections[user1.id]) == 2
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_reconnection_maintains_subscriptions(self, mock_websocket, cleanup_websocket_manager):
         """Test WebSocket reconnection can restore subscriptions."""
         from core.websockets import manager
@@ -397,7 +397,7 @@ class TestWebSocketReconnection:
 class TestWebSocketConnectionLifecycleE2E:
     """End-to-end WebSocket connection lifecycle tests."""
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_full_websocket_connection_lifecycle(self, cleanup_websocket_manager):
         """Test complete WebSocket connection lifecycle: connect -> use -> disconnect."""
         from core.websockets import manager
@@ -422,7 +422,7 @@ class TestWebSocketConnectionLifecycleE2E:
         # Then: Connection should be cleaned up
         assert ws not in manager.user_connections.get(user.id, [])
 
-    @pytest.mark.asyncio(mode="auto")
+    @pytest.mark.asyncio()
     async def test_websocket_connection_error_handling(self, cleanup_websocket_manager):
         """Test WebSocket connection handles errors gracefully."""
         from core.websockets import manager
