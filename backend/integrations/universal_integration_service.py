@@ -1066,9 +1066,20 @@ class UniversalIntegrationService:
         # never block a real send, so the check is wrapped and logged.
         if action == "send_message" and service in ("gmail", "outlook", "zoho_mail"):
             try:
+                from core.email_policy_data import load_send_policy_context
                 from core.email_policy_gate import blocked_payload, check_send_message
 
-                violations = check_send_message(params)
+                # Data-backed context (machine catalog + known customers) so the
+                # alternatives / customer-intro rules verify against real data.
+                # Empty on unseeded workspaces — param-contract behavior only.
+                _policy_ctx = load_send_policy_context(
+                    workspace_id=context.get("workspace_id") or self.workspace_id or "default"
+                )
+                violations = check_send_message(
+                    params,
+                    catalog=_policy_ctx["catalog"],
+                    known_customers=_policy_ctx["known_customers"],
+                )
                 if violations:
                     logger.warning(
                         "Email policy blocked %s send: %s",
