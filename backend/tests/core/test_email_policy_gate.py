@@ -6,9 +6,12 @@ customer-intro enforcement, all LLM-free.
 import pytest
 
 from core.email_policy_gate import (
+    POLICY_NAME,
+    active_rule_codes,
     blocked_payload,
     check_send_message,
-    POLICY_NAME,
+    filter_violations,
+    is_policy_enabled,
 )
 
 
@@ -274,3 +277,125 @@ def test_blocked_payload_shape():
     assert payload["policy"] == POLICY_NAME
     assert len(payload["violations"]) == 2
     assert all(v["fix"] for v in payload["violations"])
+
+
+# --- data-backed rules (catalog + known customers) --------------------------
+
+CATALOG = ["SR48P", "PH-52", "50514-EC", "EN100"]
+
+
+def test_alternatives_not_in_catalog_is_blocked_when_catalog_known():
+    violations = check_send_message({
+        "to": "a@b.com", "subject": "Re: SR48P",
+        "body": "SR48P is not available.",
+        "thread_id": "t",
+        "alternatives": ["Bogus-9000"],
+    }, catalog=CATALOG)
+    assert [v["code"] for v in violations] == ["alternatives_not_in_catalog"]
+
+
+def test_alternatives_from_catalog_pass():
+    violations = check_send_message({
+        "to": "a@b.com", "subject": "Re: SR48P",
+        "body": "SR48P is not available, but the PH-52 is a comparable shear.",
+        "thread_id": "t",
+        "alternatives": ["PH-52"],
+    }, catalog=CATALOG)
+    assert violations == []
+
+
+def test_alternatives_match_is_case_insensitive():
+    violations = check_send_message({
+        "to": "a@b.com", "subject": "Re: SR48P",
+        "body": "SR48P is not available.",
+        "thread_id": "t",
+        "alternatives": ["ph-52"],
+    }, catalog=CATALOG)
+    assert violations == []
+
+
+def test_empty_catalog_keeps_param_contract():
+    # No catalog seeded => alternatives are not DB-verifiable; only the
+    # presence check applies (backward compatible with unseeded workspaces).
+    violations = check_send_message({
+        "to": "a@b.com", "subject": "Re: SR48P",
+        "body": "SR48P is not available.",
+        "thread_id": "t",
+        "alternatives": ["Whatever-1"],
+    }, catalog=())
+    assert violations == []
+
+
+def test_known_customer_marked_new_is_blocked():
+    violations = check_send_message({
+        "to": "buyer.one@example.com", "subject": "Re: quote", "body": "Hi,",
+        "thread_id": "t",
+        "customer_is_new": True,
+        "company_name": "Brennan Machinery",
+        # body does NOT mention the company, but the mismatch rule should
+        # fire first and short-circuit the intro requirement.
+    }, known_customers=["buyer.one@example.com"])
+    assert [v["code"] for v in violations] == ["customer_already_known"]
+
+
+def test_recipient_from_to_recipients_dict_form():
+    violations = check_send_message({
+        "to_recipients": [{"emailAddress": {"address": "buyer.one@example.com"}}],
+        "subject": "Re: quote", "body": "Hi,",
+        "thread_id": "t",
+        "customer_is_new": True,
+    }, known_customers=["buyer.one@example.com"])
+    assert [v["code"] for v in violations] == ["customer_already_known"]
+
+
+def test_unknown_recipient_with_intro_passes_with_data_context():
+    violations = check_send_message({
+        "to": "brand-new@customer.com", "subject": "Re: quote",
+        "body": "Thanks for reaching out to Brennan Machinery Inc.",
+        "thread_id": "t",
+        "customer_is_new": True,
+        "company_name": "Brennan Machinery",
+    }, known_customers=["buyer.one@example.com"])
+    assert violations == []
+
+
+# --- kill switch + rule scoping ---------------------------------------------
+
+
+def test_policy_enabled_by_default(monkeypatch):
+    monkeypatch.delenv("ATOM_EMAIL_SEND_POLICY_ENABLED", raising=False)
+    assert is_policy_enabled() is True
+
+
+def test_policy_disabled_via_env(monkeypatch):
+    monkeypatch.setenv("ATOM_EMAIL_SEND_POLICY_ENABLED", "false")
+    assert is_policy_enabled() is False
+
+
+def test_active_rules_none_when_unset(monkeypatch):
+    monkeypatch.delenv("ATOM_EMAIL_SEND_POLICY_RULES", raising=False)
+    assert active_rule_codes() is None
+
+
+def test_active_rules_parsed_from_env(monkeypatch):
+    monkeypatch.setenv("ATOM_EMAIL_SEND_POLICY_RULES", "unverified_price,quote_without_item")
+    assert active_rule_codes() == {"unverified_price", "quote_without_item"}
+
+
+def test_filter_violations_keeps_all_when_no_scope():
+    violations = check_send_message({
+        "to": "a@b.com", "subject": "Re: quote", "body": "It costs $5.",
+        "item_model": "SR48P",
+    })
+    assert filter_violations(violations, None) == violations
+
+
+def test_filter_violations_keeps_only_scoped_codes():
+    violations = check_send_message({
+        "to": "a@b.com", "subject": "Re: quote", "body": "It costs $5.",
+        "item_model": "SR48P",
+    })
+    scoped = filter_violations(violations, {"quote_without_item"})
+    assert scoped == []
+    scoped2 = filter_violations(violations, {"reply_without_thread"})
+    assert [v["code"] for v in scoped2] == ["reply_without_thread"]

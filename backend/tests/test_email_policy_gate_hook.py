@@ -117,3 +117,47 @@ async def test_gate_import_failure_fails_open(monkeypatch):
         _ctx(reg),
     )
     assert result["status"] == "success"
+
+
+@pytest.mark.asyncio
+async def test_master_switch_disabled_lets_violation_through(monkeypatch):
+    """ATOM_EMAIL_SEND_POLICY_ENABLED=false turns the whole gate off."""
+    monkeypatch.setenv("ATOM_EMAIL_SEND_POLICY_ENABLED", "false")
+    svc = UniversalIntegrationService()
+    reg = _FakeRegistry(service_instance=_FakeCommService())
+    result = await svc._execute_communication(
+        "gmail", "send_message",
+        {"to": "a@b.com", "subject": "Re: quote", "body": "Hi"},
+        _ctx(reg),
+    )
+    assert result["status"] == "success"
+
+
+@pytest.mark.asyncio
+async def test_rule_scoping_lets_unlisted_violation_through(monkeypatch):
+    """ATOM_EMAIL_SEND_POLICY_RULES limits which violations block."""
+    monkeypatch.setenv("ATOM_EMAIL_SEND_POLICY_RULES", "quote_without_item")
+    svc = UniversalIntegrationService()
+    reg = _FakeRegistry(service_instance=_FakeCommService())
+    result = await svc._execute_communication(
+        "gmail", "send_message",
+        {"to": "a@b.com", "subject": "Re: quote", "body": "Hi"},
+        _ctx(reg),
+    )
+    # reply_without_thread is not in the scoped rules -> passes through.
+    assert result["status"] == "success"
+
+
+@pytest.mark.asyncio
+async def test_rule_scoping_still_blocks_scoped_violation(monkeypatch):
+    """A violation whose code IS in the scoped rules still blocks."""
+    monkeypatch.setenv("ATOM_EMAIL_SEND_POLICY_RULES", "reply_without_thread")
+    svc = UniversalIntegrationService()
+    reg = _FakeRegistry(service_instance=None)  # provider must never be reached
+    result = await svc._execute_communication(
+        "gmail", "send_message",
+        {"to": "a@b.com", "subject": "Re: quote", "body": "Hi"},
+        _ctx(reg),
+    )
+    assert result["status"] == "blocked"
+    assert result["violations"][0]["code"] == "reply_without_thread"

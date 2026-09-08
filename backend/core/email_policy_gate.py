@@ -1,4 +1,19 @@
-"""Email send policy gate — deterministic, LLM-free enforcement at the send boundary.
+"""Email send policy gate — deterministic, LLM-free business-quality email rules.
+
+RELATIONSHIP TO core/email_policy.py (read before extending either):
+
+  core/email_policy.py is the SAFETY gate (BLOCK/APPROVE/ALLOW) — recipient
+  egress allowlist, content sensitivity/taint, rate caps — wired at the
+  dispatch/HITL layer (mcp_service send_email, chat_orchestrator,
+  canvas_email_service, email_agent). THIS module is the BUSINESS-QUALITY
+  gate — the taught sales rules (same-thread, verified price, specs,
+  alternatives, customer intro) — wired at the universal-service transport
+  boundary. Both are deterministic and both must pass for an agent send to
+  leave the system: safety first (dispatch layer), then business quality
+  (transport layer). They intentionally do NOT share a module: safety policy
+  is per-install security data; these business rules are the seller's quality
+  contract. If you add a rule here, ask first whether it is a safety rule
+  (belongs in core/email_policy.py) or a business-quality rule (here).
 
 Level B email rules. Unlike the taught-lesson prompts (Level A, which ask the
 model to behave), this module BLOCKS a send/draft call that violates a rule,
@@ -36,14 +51,25 @@ Rules enforced here:
    (substring-verified), so the intro is present in the outbound text, not
    just claimed.
 
+5b. ``customer_already_known`` (intro rule, data-backed) — declaring
+   ``customer_is_new=true`` for a recipient already in the customer records
+   is contradicted by data (see core.email_policy_data).
+
+Kill switch / scoping (repo convention — every policy layer ships an ATOM_*
+escape hatch, see CLAUDE.md settings-catalog convention):
+  - ``ATOM_EMAIL_SEND_POLICY_ENABLED=false`` disables the whole gate
+  - ``ATOM_EMAIL_SEND_POLICY_RULES="code1,code2"`` limits enforcement to
+    those violation codes (see ``filter_violations``). Unset = all rules.
+
 Safety property: the *hook* in the integration layer is fail-open on gate
 errors (a gate bug must never block a real send). These pure checks
 themselves fail closed — a violation returns a blocked payload.
 """
 from __future__ import annotations
 
+import os
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # Reply/fwd prefixes that mark a message as a reply to something earlier.
 _REPLY_PREFIX = re.compile(r"^\s*(re|fwd|fw|aw|sv|antw|vs|答复|回复)\s*:", re.IGNORECASE)
@@ -64,6 +90,37 @@ _UNAVAILABLE_PHRASE = re.compile(
 )
 
 POLICY_NAME = "email_send_policy"
+
+
+# --- Kill switch + rule scoping -------------------------------------------
+# Read per call (not at import) so operators/tests can toggle live.
+
+
+def is_policy_enabled() -> bool:
+    """Master switch: ATOM_EMAIL_SEND_POLICY_ENABLED=false disables the gate.
+    Unset (or anything else) leaves it on — default-on, disable-able."""
+    return os.getenv("ATOM_EMAIL_SEND_POLICY_ENABLED", "true").strip().lower() != "false"
+
+
+def active_rule_codes() -> Optional[set]:
+    """Rule scoping: ATOM_EMAIL_SEND_POLICY_RULES="code1,code2" limits
+    enforcement to those codes; unset/empty => all rules active (None)."""
+    raw = os.getenv("ATOM_EMAIL_SEND_POLICY_RULES", "").strip()
+    if not raw:
+        return None
+    return {c.strip() for c in raw.split(",") if c.strip()}
+
+
+def filter_violations(
+    violations: List[Dict[str, str]],
+    rule_codes: Optional[set] = None,
+) -> List[Dict[str, str]]:
+    """Keep only violations whose code is in ``rule_codes`` (None = all)."""
+    if not violations:
+        return []
+    if not rule_codes:
+        return violations
+    return [v for v in violations if v.get("code") in rule_codes]
 
 # Params that prove the send is anchored to an existing thread/conversation.
 _THREAD_LINKAGE_KEYS = (
@@ -104,13 +161,28 @@ def _has_alternatives(params: Dict[str, Any]) -> bool:
     return bool(str(alts or "").strip())
 
 
-def check_send_message(params: Dict[str, Any]) -> List[Dict[str, str]]:
+def check_send_message(
+    params: Dict[str, Any],
+    catalog: Any = (),
+    known_customers: Any = (),
+) -> List[Dict[str, str]]:
     """Return the list of policy violations for an email send/draft call.
 
     ``params`` mirrors the tool-call arguments (to/subject/body/content,
     thread_id/conversation_id/reply_to_message_id/message_id,
     price_verified/price_source, item_model, alternatives,
     customer_is_new, company_name). Empty list = allowed.
+
+    ``catalog`` / ``known_customers`` are OPTIONAL data-backed context from
+    the workspace (see core.email_policy_data):
+    - catalog: iterable of catalogued machine model ids. When non-empty, a
+      stated alternative must actually exist in the catalog (alternatives
+      rule becomes DB-verified instead of self-reported). Empty catalog
+      keeps the param-contract behavior.
+    - known_customers: iterable of known customer emails. When a send
+      declares customer_is_new=true for a recipient that is ALREADY in the
+      customer table, the flag is contradicted by data and the send is
+      blocked (intro is not needed for existing customers).
     """
     subject = str(params.get("subject") or "")
     body = str(params.get("body") or params.get("content") or "")
@@ -161,7 +233,8 @@ def check_send_message(params: Dict[str, Any]) -> List[Dict[str, str]]:
         })
 
     # 4. Alternatives rule: "not available" must come with options.
-    if _UNAVAILABLE_PHRASE.search(body) and not _has_alternatives(params):
+    unavailable_claimed = bool(_UNAVAILABLE_PHRASE.search(body))
+    if unavailable_claimed and not _has_alternatives(params):
         violations.append({
             "code": "unavailable_without_alternatives",
             "rule": "offer_alternatives",
@@ -173,8 +246,45 @@ def check_send_message(params: Dict[str, Any]) -> List[Dict[str, str]]:
             "fix": "repass with alternatives=[same-category machines] or check stock first",
         })
 
+    # 4b. Alternatives DB-verify: when the workspace catalog is non-empty, a
+    # stated alternative must actually exist in it (self-reported options are
+    # no longer enough). Empty catalog = param-contract behavior preserved.
+    catalog_ids = {str(c).strip().upper() for c in (catalog or ()) if str(c).strip()}
+    if unavailable_claimed and catalog_ids and _has_alternatives(params):
+        alts = params.get("alternatives")
+        if isinstance(alts, str):
+            alts = [alts]
+        alt_ids = {str(a).strip().upper() for a in (alts or []) if str(a or "").strip()}
+        if not (alt_ids & catalog_ids):
+            violations.append({
+                "code": "alternatives_not_in_catalog",
+                "rule": "offer_alternatives",
+                "reason": (
+                    "Stated alternatives do not match any machine in the workspace "
+                    "catalog. Offer real, same-category machines from the catalog "
+                    "(check availability) instead of inventing options."
+                ),
+                "fix": "repass with alternatives that exist in the machine catalog",
+            })
+
     # 5. Intro rule: new customers get a company introduction in the body.
     if _flag_is_true(params, "customer_is_new"):
+        # 5b. Customer-status mismatch: an already-known recipient is NOT new
+        # (data contradicts the agent's declaration).
+        recipient = _first_recipient(params)
+        known = {str(e).strip().lower() for e in (known_customers or ()) if str(e).strip()}
+        if recipient and recipient in known:
+            violations.append({
+                "code": "customer_already_known",
+                "rule": "customer_intro",
+                "reason": (
+                    f"{recipient} is already in the customer records — this is an "
+                    "EXISTING customer, not new. No company intro is needed; "
+                    "mark customer_is_new=false."
+                ),
+                "fix": "repass with customer_is_new=false (no intro required)",
+            })
+            return violations
         company = str(params.get("company_name") or "").strip()
         if not company:
             violations.append({
@@ -199,6 +309,30 @@ def check_send_message(params: Dict[str, Any]) -> List[Dict[str, str]]:
             })
 
     return violations
+
+
+def _first_recipient(params: Dict[str, Any]) -> str:
+    """Normalized recipient email from to/to_recipients/recipients params."""
+    for key in ("to", "to_recipients", "recipients"):
+        raw = params.get(key)
+        if isinstance(raw, (list, tuple)):
+            for item in raw:
+                if isinstance(item, dict):
+                    item = item.get("emailAddress", {}).get("address") if isinstance(item.get("emailAddress"), dict) else item.get("address") or item.get("email")
+                email = _extract_email(str(item or ""))
+                if email:
+                    return email
+        elif raw:
+            email = _extract_email(str(raw))
+            if email:
+                return email
+    return ""
+
+
+def _extract_email(text: str) -> str:
+    """Pull the first bare email address out of arbitrary text."""
+    m = re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text or "")
+    return m.group(0).lower() if m else ""
 
 
 def blocked_payload(violations: List[Dict[str, str]]) -> Dict[str, Any]:

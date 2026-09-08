@@ -1058,23 +1058,46 @@ class UniversalIntegrationService:
         comm_service = await registry.get_service_instance(service, tenant_id)
         token = getattr(comm_service, 'access_token', None) or context.get("access_token")
 
-        # Email send-policy gate (Level B, minimal): deterministic, LLM-free
-        # enforcement of the same-thread + price-verification rules at the send
-        # boundary. Runs BEFORE any provider branch so every email surface that
-        # routes through the universal service (agent send_email tool, chat,
-        # canvas) is covered. Fail-open on gate errors — a policy bug must
-        # never block a real send, so the check is wrapped and logged.
+        # Email send-policy gate (Level B): deterministic, LLM-free
+        # BUSINESS-QUALITY rules (same-thread, verified price, specs,
+        # alternatives, customer intro) at the send boundary. Distinct from the
+        # SAFETY gate core/email_policy.py, which runs earlier at the
+        # dispatch/HITL layer (see email_policy_gate module docstring for the
+        # layering). Controlled by ATOM_EMAIL_SEND_POLICY_ENABLED / _RULES.
+        # Runs BEFORE any provider branch; fail-open on gate errors.
         if action == "send_message" and service in ("gmail", "outlook", "zoho_mail"):
             try:
-                from core.email_policy_gate import blocked_payload, check_send_message
+                from core.email_policy_data import load_send_policy_context
+                from core.email_policy_gate import (
+                    active_rule_codes,
+                    blocked_payload,
+                    check_send_message,
+                    filter_violations,
+                    is_policy_enabled,
+                )
 
-                violations = check_send_message(params)
-                if violations:
-                    logger.warning(
-                        "Email policy blocked %s send: %s",
-                        service, [v["code"] for v in violations],
+                if is_policy_enabled():
+                    # Data-backed context (machine catalog + known customers) so
+                    # the alternatives / customer-intro rules verify against real
+                    # data. Empty on unseeded workspaces — param-contract only.
+                    _policy_ctx = load_send_policy_context(
+                        workspace_id=context.get("workspace_id") or self.workspace_id or "default",
+                        tenant_id=context.get("tenant_id"),
                     )
-                    return blocked_payload(violations)
+                    violations = filter_violations(
+                        check_send_message(
+                            params,
+                            catalog=_policy_ctx["catalog"],
+                            known_customers=_policy_ctx["known_customers"],
+                        ),
+                        active_rule_codes(),
+                    )
+                    if violations:
+                        logger.warning(
+                            "Email policy blocked %s send: %s",
+                            service, [v["code"] for v in violations],
+                        )
+                        return blocked_payload(violations)
             except Exception as _gate_err:  # pragma: no cover - defensive
                 logger.warning(
                     "Email policy gate skipped (%s) — failing open", _gate_err
