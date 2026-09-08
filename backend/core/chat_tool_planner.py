@@ -1764,49 +1764,126 @@ async def execute_tool_plan(
                         f"- {str(r.get('title') or '(untitled)')[:120]} | {str(r.get('url') or '')[:160]}\n"
                         f"  {str(r.get('content') or '')[:400]}"
                     )
-                # DEEP FETCH for product/machinery research: snippets carry
-                # a fragment of the spec table; the manufacturer/dealer page
-                # carries the whole thing. When the query names a model
-                # code (WG-350DSAV, DM-10 …), read the ONE best result —
-                # the site named in the query when present, else Tavily's
-                # top hit — so the reply model compares real numbers
-                # instead of guessing around snippet gaps (live 2026-09-08:
-                # a bandsaw comparison answered from snippets missed every
-                # capacity figure; fetching hydmech.com's DM-10 page had
-                # them all).
-                from core.intelligent_search import _MODEL_CODE_RE
+                # DEEP FETCH for quote/product research: snippets carry a
+                # fragment of the spec/pricing table; the manufacturer's or
+                # primary listing's page carries the whole thing — the
+                # authoritative-source-first rule quoting research uses.
+                # Generalized beyond machinery model codes: fires when the
+                # query carries a product identifier (WG-350DSAV, DM-10,
+                # SKU/part shapes) OR research intent (specs/price/compare)
+                # plus a named brand. A comparison naming TWO identifiers
+                # fetches one authoritative page per side (max 2) — theirs
+                # AND ours (live 2026-09-08: hydmech.com answered the DM-10
+                # side fully while the WG-350DSAV side stayed snippet-less;
+                # the reply had to ask for our own spec sheet).
+                from core.intelligent_search import (
+                    _MODEL_CODE_RE, _research_intent,
+                )
 
-                if _MODEL_CODE_RE.search(query):
-                    try:
-                        query_tokens = {
-                            t for t in re.split(r"[^a-z0-9]+", query.lower())
+                try:
+                    codes = []
+                    seen_codes = set()
+                    for m in _MODEL_CODE_RE.finditer(query):
+                        key = m.group(0).upper().replace("-", "")
+                        if key not in seen_codes:
+                            seen_codes.add(key)
+                            codes.append(m.group(0))
+                    brand_named = bool(re.search(
+                        r"\b[A-Z][a-zA-Z]+[ -][A-Z][a-zA-Z0-9-]*\b", query))
+                    if codes or (_research_intent(query) and brand_named):
+                        # ordered tokens from the query that can identify a
+                        # host (brands, site names: "hydmech", "brennan").
+                        # ORDER MATTERS: our query builder puts identifiers
+                        # first, so an early token matching the host (the
+                        # brand) outranks a late category noun ("grill")
+                        # that any blog domain contains.
+                        query_tokens = [
+                            t for t in dict.fromkeys(
+                                re.split(r"[^a-z0-9]+", query.lower()))
                             if len(t) > 3
-                        }
-                        best = None
-                        for r in results[:5]:
-                            host = str(r.get("url") or "")
-                            host_label = re.sub(
-                                r"^https?://(?:www\.)?", "", host).split("/")[0]
-                            if any(tok in host_label for tok in query_tokens):
-                                best = r
-                                break
-                        fetch_url = str(
-                            (best or (results[0] if results else {}) or {}).get("url") or ""
-                        )
-                        if fetch_url:
+                        ]
+
+                        def _host(url: str) -> str:
+                            return re.sub(
+                                r"^https?://(?:www\.)?", "", url).split("/")[0]
+
+                        def _pick(target_code: Optional[str],
+                                  pool: Optional[List[Any]] = None,
+                                  require_code: bool = False,
+                                  ) -> Optional[Dict[str, Any]]:
+                            """Best unused result for this target: code-in-
+                            URL/title, then host tokens weighted by query
+                            position. None when no candidate scores.
+                            ``require_code``: only results whose URL/title
+                            carry the code count (used to decide whether a
+                            side of the comparison is covered at all)."""
+                            best, best_score = None, 0
+                            for r in (pool if pool is not None else results)[:5]:
+                                url = str(r.get("url") or "")
+                                if not url or url in picked_urls:
+                                    continue
+                                blob = f"{url} {r.get('title') or ''}".lower()
+                                score = 0
+                                if target_code and target_code.lower() in blob:
+                                    score += 2 + len(query_tokens)
+                                elif require_code:
+                                    continue
+                                host = _host(url)
+                                for idx, tok in enumerate(query_tokens):
+                                    if tok in host:
+                                        score += len(query_tokens) - idx
+                                        break
+                                if score > best_score:
+                                    best, best_score = r, score
+                            return best
+
+                        picked_urls: List[str] = []
+                        targets: List[Optional[str]] = codes[:2] if codes else [None]
+                        for target_code in targets:
+                            best = (_pick(target_code, require_code=True)
+                                    if target_code else _pick(None))
+                            via = ""
+                            if target_code and best is None:
+                                # UNCOVERED SIDE of the comparison: the
+                                # combined query's results never mention
+                                # this product (live 2026-09-08: brennan.ca
+                                # didn't rank for "Hydmech DM10 Linmac
+                                # WG-350DSAV …", so our own machine stayed
+                                # snippet-less). A human researcher runs a
+                                # SEPARATE search per product — "<code>
+                                # specifications" — and reads its top page.
+                                supp = await asyncio.wait_for(
+                                    _mcp.web_search(
+                                        f"{target_code} specifications",
+                                        tenant_id),
+                                    timeout=20,
+                                )
+                                spool = (supp or {}).get("results") or []
+                                best = (_pick(target_code, pool=spool,
+                                              require_code=True)
+                                        or _pick(target_code, pool=spool))
+                                via = " (via targeted per-product search)"
+                            if best is None:
+                                continue
+                            fetch_url = str(best.get("url") or "")
+                            picked_urls.append(fetch_url)
                             fres = await asyncio.wait_for(
                                 _mcp.web_fetch(fetch_url, tenant_id),
                                 timeout=20,
                             )
                             fcontent = str((fres or {}).get("content") or "").strip()
                             if fcontent:
+                                label = (
+                                    f" (authoritative page for {target_code}{via})"
+                                    if target_code else ""
+                                )
                                 lines.append(
-                                    f"FULL SPEC PAGE ({fetch_url[:160]}) — "
-                                    f"authoritative detail for the model above:\n"
+                                    f"FULL SPEC PAGE{label} ({fetch_url[:160]}) — "
+                                    f"primary-source detail, prefer over snippets:\n"
                                     f"{fcontent[:4500]}"
                                 )
-                    except Exception as deep_err:  # noqa: BLE001 — enhancement only
-                        logger.debug(f"deep spec fetch skipped: {deep_err}")
+                except Exception as deep_err:  # noqa: BLE001 — enhancement only
+                    logger.debug(f"deep spec fetch skipped: {deep_err}")
                 return _with_grounding(
                     f"{graph_block}"
                     f"LIVE TOOL RESULTS (web_search, query='{query}') — "

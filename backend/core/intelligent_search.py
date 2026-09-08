@@ -88,6 +88,25 @@ _MODEL_CODE_RE = re.compile(
     r"|\b\d{2,}[A-Z][A-Z0-9-]*\b"                 # 330B (digit-led codes)
 )
 
+# Quote-research intent: the words a sales/quote research ask carries when
+# it needs AUTHORITATIVE product data — not just snippets. Industry-
+# standard quoting research resolves specs/prices from the OEM or primary
+# listing, not vendor blogs (CPQ practice: authoritative-source-first).
+_RESEARCH_INTENT_RE = re.compile(
+    r"\b(?:spec(?:s|ifications)?|datasheet|data\s+sheet|price|pricing|"
+    r"cost|list\s+price|quote|compare|comparison|equivalent|alternative|"
+    r"vs\.?|versus|review|capacity|dimensions|model|part\s+number|sku)\b",
+    re.IGNORECASE,
+)
+
+
+def _research_intent(text: str) -> bool:
+    """True when the text carries quote-research intent words — specs,
+    pricing, comparison. Used to gate the authoritative-page deep fetch for
+    products WITHOUT model codes (branded goods, services: "Weber Genesis
+    grill specifications")."""
+    return bool(_RESEARCH_INTENT_RE.search(text or ""))
+
 # Sentences that are pure instruction scaffolding — they carry intent, not
 # search signal ("give me a response but don't update the draft"). Dropped
 # only when they hold NO entity and NO model code, so a sentence that names
@@ -108,12 +127,23 @@ def _model_refs(text: str) -> List[str]:
         return []
     refs: List[str] = []
     seen = set()
+    accepted_spans: List[Any] = []
     for m in _MODEL_CODE_RE.finditer(text):
         code = m.group(0).strip("-")
+        # volt/amp/watt ratings are not product codes ("Bandsaw 230V")
+        if re.fullmatch(r"\d{2,3}[VAW]", code):
+            continue
+        # nested double-match ("WG-350DSAV" also yields "350DSAV"): skip
+        # any match fully contained inside an already-accepted one
+        if any(a.start() <= m.start() and m.end() <= a.end()
+               for a in accepted_spans):
+            continue
+        accepted_spans.append(m)
         # dash-insensitive dedup: DM10 and DM-10 are the same machine
         key = code.upper().replace("-", "")
         if key in seen:
             continue
+        seen.add(key)
         seen.add(key)
         before = text[:m.start()].rstrip()
         words: List[str] = []
