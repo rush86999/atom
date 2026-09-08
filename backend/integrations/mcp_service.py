@@ -380,7 +380,7 @@ class MCPService(IntegrationService):
                 },
                 {
                     "name": "send_email",
-                    "description": "Send an email via Gmail, Outlook, or Zoho Mail. To reply within an existing thread pass thread_id (from search results) or reply_to_message_id — recipients and subject are inherited; do not re-fetch the thread. reply_all: true = reply to all (Outlook).",
+                    "description": "Send an email via Gmail, Outlook, or Zoho Mail. To reply within an existing thread pass thread_id (from search results) or reply_to_message_id — recipients and subject are inherited; do not re-fetch the thread. reply_all: true = reply to all (Outlook). POLICY: a reply-shaped send (subject starting Re:/Fwd:) without thread_id/conversation_id/reply_to_message_id is BLOCKED (same-thread rule), and a body quoting a price requires price_verified=true (verify from the price list first).",
                     "parameters": {
                         "platform": "string (gmail, outlook, zoho_mail, optional)",
                         "to": "string (recipient email; optional when thread_id or reply_to_message_id is given)",
@@ -388,7 +388,9 @@ class MCPService(IntegrationService):
                         "body": "string",
                         "thread_id": "string (Gmail threadId or Outlook conversationId from search_emails results — reply into that thread)",
                         "reply_to_message_id": "string (reply to this specific message)",
-                        "reply_all": "boolean (Outlook only — reply to the whole thread)"
+                        "reply_all": "boolean (Outlook only — reply to the whole thread)",
+                        "price_verified": "boolean (REQUIRED when body quotes a price — you verified it from the price list/customer file)",
+                        "price_source": "string (optional — where the verified price came from, e.g. price list email)"
                     }
                 },
                 {

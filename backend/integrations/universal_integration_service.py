@@ -1058,6 +1058,28 @@ class UniversalIntegrationService:
         comm_service = await registry.get_service_instance(service, tenant_id)
         token = getattr(comm_service, 'access_token', None) or context.get("access_token")
 
+        # Email send-policy gate (Level B, minimal): deterministic, LLM-free
+        # enforcement of the same-thread + price-verification rules at the send
+        # boundary. Runs BEFORE any provider branch so every email surface that
+        # routes through the universal service (agent send_email tool, chat,
+        # canvas) is covered. Fail-open on gate errors — a policy bug must
+        # never block a real send, so the check is wrapped and logged.
+        if action == "send_message" and service in ("gmail", "outlook", "zoho_mail"):
+            try:
+                from core.email_policy_gate import blocked_payload, check_send_message
+
+                violations = check_send_message(params)
+                if violations:
+                    logger.warning(
+                        "Email policy blocked %s send: %s",
+                        service, [v["code"] for v in violations],
+                    )
+                    return blocked_payload(violations)
+            except Exception as _gate_err:  # pragma: no cover - defensive
+                logger.warning(
+                    "Email policy gate skipped (%s) — failing open", _gate_err
+                )
+
         if service == "slack":
             if not comm_service:
                 from integrations.slack_service_unified import slack_unified_service
