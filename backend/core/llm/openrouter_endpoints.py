@@ -51,6 +51,16 @@ DEFAULT_MAX_LATENCY_P50_MS = 5000.0
 LATENCY_PENALTY_FACTOR = 0.75
 MAX_REFRESH_SLUGS = 50
 
+# Speed is ALWAYS secondary (operator direction, 2026-09-08): measured
+# throughput only breaks ties between candidates that price/quality
+# already rank equally. The factor is capped to [1 - SPEED_TIEBREAK_MAX,
+# 1.0] — a slow endpoint loses at most ~15% of its value score, which the
+# common 2x+ cost/quality gaps between candidates overwhelm by
+# construction. ATOM_OPENROUTER_FAST_TPS sets the "no penalty" reference
+# (measured p50 tokens/sec at or above it score 1.0).
+DEFAULT_FAST_TPS = 150.0
+SPEED_TIEBREAK_MAX = 0.15
+
 
 def _env_float(name: str, default: float) -> float:
     try:
@@ -74,6 +84,24 @@ def max_latency_p50_ms() -> float:
     return _env_float("ATOM_OPENROUTER_MAX_LATENCY_P50_MS", DEFAULT_MAX_LATENCY_P50_MS)
 
 
+def fast_tps() -> float:
+    """Measured p50 tokens/sec at or above this score the full 1.0 speed
+    factor. Defaults to 150 (the top of glm-5.3-flash's observed 40–155
+    tps provider spread)."""
+    return max(1.0, _env_float("ATOM_OPENROUTER_FAST_TPS", DEFAULT_FAST_TPS))
+
+
+def throughput_speed_factor(health: "EndpointHealth") -> float:
+    """Capped tiebreaker: 1.0 at/above the fast reference, tapering to
+    1 - SPEED_TIEBREAK_MAX for very slow endpoints. Fail-open to 1.0 when
+    no throughput was measured."""
+    tps = float(getattr(health, "throughput_p50", 0.0) or 0.0)
+    if tps <= 0.0:
+        return 1.0
+    ratio = min(1.0, tps / fast_tps())
+    return 1.0 - SPEED_TIEBREAK_MAX * (1.0 - ratio)
+
+
 def latency_penalty_factor(health: "EndpointHealth") -> float:
     """Multiplicative value-score factor for a known-health endpoint."""
     if health.latency_ms_p50 > max_latency_p50_ms():
@@ -87,7 +115,9 @@ def endpoint_health_gate(model_id: str) -> Optional[float]:
     Returns:
         None          — exclude the candidate (measured uptime below floor)
         1.0           — healthy / unknown / no data / flag off (no change)
-        0 < f < 1.0   — soft ordering penalty (degraded p50 latency)
+        0 < f < 1.0   — soft ordering penalty (degraded p50 latency and/or
+                        measured throughput below the fast reference — the
+                        speed term is tiebreaker-capped, never dominant)
     """
     if not telemetry_enabled():
         return 1.0
@@ -100,7 +130,7 @@ def endpoint_health_gate(model_id: str) -> Optional[float]:
             f"{health.uptime_30m:.2f}% < floor {min_uptime_percent():.0f}%"
         )
         return None
-    return latency_penalty_factor(health)
+    return latency_penalty_factor(health) * throughput_speed_factor(health)
 
 
 def slug_from_model_id(model_id: str) -> Optional[str]:
