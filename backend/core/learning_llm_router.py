@@ -443,6 +443,31 @@ class LearningBasedRouter:
             ),
         })
 
+        # GPT 6 Astra (OpenAI, 2026) — released 2026-09-03. $10/$50 per 1M
+        # (≤272K prompt tier), cached input $1/1M, 1.05M context, 128K max
+        # output. Positioned as OpenAI's most capable model ("best model for
+        # software engineering to date"). Blended cost = (10+50)/2 = 30.00.
+        self._model_registry.update({
+            "gpt-6-astra": ModelSpec(
+                model_id="gpt-6-astra",
+                provider="openai",
+                model_name="gpt-6-astra",
+                capabilities={
+                    ModelCapability.CODE_GENERATION,
+                    ModelCapability.REASONING,
+                    ModelCapability.TOOL_USE,
+                    ModelCapability.LONG_CONTEXT,
+                    ModelCapability.HIGH_QUALITY,
+                },
+                cost_per_million=30.00,  # avg of $10.00 in / $50.00 out
+                quality_score=0.99,
+                speed_score=0.65,  # frontier reasoning flagship; unmeasured estimate
+                context_window=1050000,
+                supports_cache=True,  # cached input billed at $1.00/1M
+                tier="premium",
+            ),
+        })
+
         # Claude Opus 4.6 (Anthropic, 2026)
         self._model_registry.update({
             "claude-opus-4.6": ModelSpec(

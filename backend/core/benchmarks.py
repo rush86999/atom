@@ -81,6 +81,11 @@ MODEL_QUALITY_SCORES = {
     "gpt-5.2": 100,
     "gpt-5": 99,
     "gpt-5.6-sol": 98,
+    # OpenAI's current SOTA (released 2026-09-03): "most capable model",
+    # "best model for software engineering to date" (OpenAI model guide) —
+    # anchored at the same 100 as the other frontier flagships pending a
+    # battery re-run (see flash-tier note above).
+    "gpt-6-astra": 100,
     "claude-mythos-5": 99,
     "o3": 99,
     "claude-4-opus": 99,

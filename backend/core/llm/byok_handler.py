@@ -379,7 +379,10 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.SIMPLE: "o4-mini",
         QueryComplexity.MODERATE: "o4-mini",
         QueryComplexity.COMPLEX: "o3-mini",
-        QueryComplexity.ADVANCED: "gpt-5.6-sol",
+        # Flagship slot (matches anthropic->mythos-5, gemini->3-pro): the
+        # static fallback serves ADVANCED with the provider's current SOTA.
+        # gpt-6-astra (2026-09-03) replaces gpt-5.6-sol.
+        QueryComplexity.ADVANCED: "gpt-6-astra",
     },
     "anthropic": {
         QueryComplexity.SIMPLE: "claude-3-haiku-20240307",
