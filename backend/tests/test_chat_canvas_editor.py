@@ -34,6 +34,25 @@ def _hermetic_canvas_store():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _no_live_fresh_data():
+    """Default the co-editor's live-evidence lookup to "not needed". The
+    lookup runs the real tool planner, and with the MagicMock llm_service
+    these tests install it fails ('MagicMock' object can't be awaited) —
+    which the 2026-09-04 fabrication guard turns into a DECLINED edit
+    (_try_canvas_edit → None), failing every orchestrator test that expects
+    a response. Tests that exercise the fresh-data path patch
+    fetch_fresh_data_section themselves — their mock applies inside this
+    one and wins for the duration."""
+    from core.chat_canvas_editor import FreshDataResult
+
+    with patch(
+        "core.chat_canvas_editor.fetch_fresh_data_section",
+        new=AsyncMock(return_value=FreshDataResult(section="", needed=False, ok=True)),
+    ):
+        yield
+
+
 def _canvas(content=None):
     return {
         "canvas_id": "c-123",
