@@ -12,15 +12,18 @@ import {
   completeTrainingSession,
   getAgentGraduationProgress,
   getCanvasTrainingContext,
+  fetchSelfDirectedProgress,
   getGraduationReadiness,
   GraduationProgress,
   GraduationReadiness,
   promoteAgent,
+  SelfDirectedAgentProgress,
   rejectTrainingProposal,
   teachAgent,
   updateTrainingGuidance,
 } from "@/lib/maturity-api";
 import { PlaybookSection } from "./PlaybookSection";
+import { SelfDirectedPathwayCard } from "@/components/Agents/SelfDirectedPathwayCard";
 
 // Session statuses the supervisor can still work (and complete). Mirrors
 // _ACTIVE_SESSION_STATUSES on the backend.
@@ -90,6 +93,9 @@ export function TrainingPanel({
 
   const [progress, setProgress] = useState<GraduationProgress | null>(null);
   const [readiness, setReadiness] = useState<GraduationReadiness | null>(null);
+  // Self-directed STUDENT pathway evidence (guides the supervisor's
+  // promote decision — the card IS the review surface for that pathway).
+  const [selfDirected, setSelfDirected] = useState<SelfDirectedAgentProgress | null>(null);
 
   // Teach form
   const [lesson, setLesson] = useState("");
@@ -136,6 +142,16 @@ export function TrainingPanel({
         }
       } else {
         setProgress(null);
+      }
+      // Self-directed evidence: only meaningful for STUDENT-tier hires.
+      if (context.agent && (context.agent.tier || "").toLowerCase() === "student") {
+        try {
+          setSelfDirected(await fetchSelfDirectedProgress(context.agent.id));
+        } catch {
+          setSelfDirected(null);
+        }
+      } else {
+        setSelfDirected(null);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -335,6 +351,26 @@ export function TrainingPanel({
     } finally {
       setProposalBusy(false);
       setRejectReason("");
+    }
+  };
+
+  const handleSelfDirectedPromote = async () => {
+    if (!agent) return;
+    if (!window.confirm(
+      `Promote ${agent.name} to INTERN? The episode evidence above is what you are validating.`
+    )) return;
+    setPromoteBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await promoteAgent(agent.id, "INTERN");
+      setNotice(`🎓 ${agent.name} promoted to INTERN after your review.`);
+      setSelfDirected(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPromoteBusy(false);
     }
   };
 
@@ -695,7 +731,21 @@ export function TrainingPanel({
           {isSupervisor && (
             <div className="border rounded-lg p-2.5 space-y-2" data-testid="graduation-section">
               <p className="text-xs font-medium">Graduation</p>
-              {!nextTier ? (
+              {tier === "student" && selfDirected ? (
+                <>
+                  {/* Self-directed pathway: the card IS the review surface —
+                  evidence vs floors, guidance checklist, the recent work,
+                  and the promote action once the evidence floor is met.
+                  It replaces the generic readiness block for STUDENT-tier
+                  hires, so there is exactly one promote button. */}
+                  <SelfDirectedPathwayCard
+                    progress={selfDirected}
+                    nextTierLabel={nextTier || "INTERN"}
+                    onPromote={handleSelfDirectedPromote}
+                    promoteBusy={promoteBusy}
+                  />
+                </>
+              ) : !nextTier ? (
                 <p className="text-[11px] text-muted-foreground">Top maturity tier reached.</p>
               ) : (
                 <>

@@ -667,6 +667,18 @@ class EpisodeService:
             f"(outcome={outcome}, constitutional_score={constitutional_score:.2f})"
         )
 
+        # Self-directed pathway: nudge the supervisor the first time a
+        # STUDENT agent crosses an evidence milestone (episodes toward the
+        # floor). Post-commit by design — the ledger row exists. The
+        # function's own contract is never-raise; the guard is belt-and-
+        # suspenders so episode archival can never fail on a notification.
+        try:
+            from core.self_directed_progress import maybe_notify_milestone
+
+            maybe_notify_milestone(self.db, str(episode.agent_id))
+        except Exception as milestone_err:
+            logger.debug(f"self-directed milestone notification skipped: {milestone_err}")
+
         # --- Auto-Dev Event Hooks ---
         # Emit lifecycle events for the Auto-Dev learning engines.
         # Wrapped in try/except: Auto-Dev is optional and must never break

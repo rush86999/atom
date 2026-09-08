@@ -16,6 +16,7 @@ const mockApi = {
   getCanvasTrainingContext: jest.fn(),
   getAgentGraduationProgress: jest.fn(),
   getGraduationReadiness: jest.fn(),
+  fetchSelfDirectedProgress: jest.fn(),
   teachAgent: jest.fn(),
   updateTrainingGuidance: jest.fn(),
   completeTrainingSession: jest.fn(),
@@ -107,6 +108,9 @@ beforeEach(() => {
     episode_count: 4,
     next_threshold_episodes: 10,
   });
+  mockApi.fetchSelfDirectedProgress.mockRejectedValue(
+    new Error('no self-directed progress')
+  );
   mockApi.getGraduationReadiness.mockResolvedValue({
     ready: false,
     score: 41,
@@ -417,5 +421,56 @@ describe('TrainingPanel teaching points', () => {
       expect(mockApi.getCanvasTrainingContext).toHaveBeenCalledTimes(2)
     );
     expect(screen.getByTestId('lesson-objective-input')).toHaveValue('Rewritten objective (unsaved)');
+  });
+});
+
+
+describe('Self-directed pathway card wiring', () => {
+  const PROGRESS = {
+    agent_id: 'agent-1',
+    agent_name: 'Student Hire',
+    tier: 'student',
+    confidence: 0.6,
+    episode_progress: 1,
+    ready_for_review: true,
+    completed_sessions: 1,
+    evidence: { episodes: 3, successes: 3, success_ratio: 1, required_episodes: 3 },
+    readiness: { ready: true, pathway: 'mentor_taught', reason: null },
+    recent_episodes: [],
+    guidance: [
+      { label: 'Real work recorded: 3/3 episodes', done: true, detail: 'd' },
+      { label: 'Success ratio: 100% (needs >= 70%)', done: true, detail: 'd' },
+    ],
+  };
+
+  function studentContext() {
+    return makeContext({
+      agent: { id: 'agent-1', name: 'Student Hire', tier: 'student' },
+    });
+  }
+
+  it('renders the self-directed card for a STUDENT-tier hire', async () => {
+    mockApi.getCanvasTrainingContext.mockResolvedValue(studentContext());
+    mockApi.fetchSelfDirectedProgress.mockResolvedValue(PROGRESS);
+    render(<TrainingPanel canvasId="cv-1" />);
+    await waitFor(() =>
+      expect(screen.getByTestId('self-directed-pathway-card')).toBeInTheDocument()
+    );
+    expect(screen.getByText('Verified episodes 3/3')).toBeInTheDocument();
+    // promote rides on the existing graduation endpoint
+    expect(mockApi.promoteAgent).not.toHaveBeenCalled();
+  });
+
+  it('promote button calls the graduation promote endpoint with INTERN', async () => {
+    mockApi.getCanvasTrainingContext.mockResolvedValue(studentContext());
+    mockApi.fetchSelfDirectedProgress.mockResolvedValue(PROGRESS);
+    mockApi.promoteAgent.mockResolvedValue({ promoted: true });
+    render(<TrainingPanel canvasId="cv-1" />);
+    const btn = await screen.findByTestId('self-directed-promote-button');
+    window.confirm = jest.fn(() => true);
+    fireEvent.click(btn);
+    await waitFor(() =>
+      expect(mockApi.promoteAgent).toHaveBeenCalledWith('agent-1', 'INTERN')
+    );
   });
 });

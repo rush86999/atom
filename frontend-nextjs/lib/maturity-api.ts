@@ -437,6 +437,25 @@ export async function getAgentGraduationProgress(
   return res.json();
 }
 
+// ── Self-directed STUDENT -> INTERN validation ──────────────────────────────
+// GET /api/maturity/training/self-directed — evidence vs graduation floors
+// for one agent (canvas panel card) or the whole STUDENT queue.
+
+export async function fetchSelfDirectedProgress(
+  agentId: string
+): Promise<SelfDirectedAgentProgress> {
+  const res = await fetchJson(
+    `/api/maturity/training/self-directed${query({ agent_id: agentId })}`
+  );
+  if (!res.ok) throw new Error(`Self-directed progress fetch failed (${res.status})`);
+  const payload = await res.json();
+  const agents: SelfDirectedAgentProgress[] = payload?.agents ?? [];
+  if (!agents.length) {
+    throw new Error("No self-directed progress recorded for this agent");
+  }
+  return agents[0];
+}
+
 // ── Action proposals (INTERN journey) ───────────────────────────────────────
 
 export async function listActionProposals(opts: {
