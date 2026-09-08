@@ -841,8 +841,15 @@ export default function CanvasDetailPage() {
                 : undefined;
             if (sid) {
                 const { apiClient } = await import("../../lib/api-client");
-                for (let attempt = 0; attempt < 12 && !lateReply; attempt++) {
-                    await new Promise(r => setTimeout(r, 5000));
+                // Research-grade turns legitimately run 4-5+ minutes (live
+                // 2026-09-08: a bandsaw web-research turn was persisted at
+                // ~4.7 min — after the 120s request timeout AND the old 60s
+                // poll had both given up, so the panel showed "Could not
+                // reach the agent" for a reply that landed seconds later).
+                // Poll the durable history for ~5 minutes after the request
+                // gives up: 5s cadence for the first minute, then 15s.
+                for (let attempt = 0; attempt < 28 && !lateReply; attempt++) {
+                    await new Promise(r => setTimeout(r, attempt < 12 ? 5000 : 15000));
                     try {
                         const resp = await apiClient.get(
                             `/api/chat/history/${sid}?user_id=${userId}`,

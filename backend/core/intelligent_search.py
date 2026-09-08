@@ -26,7 +26,8 @@ _COMMON_CAPS = {
     "are", "was", "were", "be", "do", "does", "did", "can", "could", "would",
     "should", "shall", "will", "may", "might", "must", "have", "has", "had",
     "hi", "hello", "hey", "dear", "thanks", "thank", "please", "regards",
-    "best", "sincerely", "cheers", "yes", "no", "ok", "okay", "and", "but",
+    "best", "sincerely", "cheers", "yes", "no", "ok", "okay", "done",
+    "and", "but",
     "or", "so", "then", "when", "what", "which", "who", "whom", "whose",
     "why", "how", "where", "there", "here", "it", "its", "we", "our", "you",
     "your", "he", "she", "they", "them", "their", "my", "me", "us",
@@ -57,17 +58,53 @@ _INSTRUCTION_CLAUSE = re.compile(
 _EMAIL = re.compile(r"\b[\w.+-]+@([\w-]+)\.[\w.-]+\b")
 _CAPS_SEQ = re.compile(r"\b[A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*\b")
 _URL = re.compile(r"\bhttps?://(?:www\.)?([\w-]+)\.[\w.-]+")
+# Bare domains in the query itself ("brennan.ca bandsaw model"): a domain IS
+# a named subject even in lowercase, where the capitalized-sequence regex
+# sees nothing (live 2026-09-08: that read made an already-specific planner
+# query look subject-less, so context entities got PREPENDED to it).
+_BARE_DOMAIN = re.compile(
+    r"(?<![\w@.])((?:[a-z0-9-]+\.)+(?:com|ca|org|net|io|co|ai|dev|info|biz"
+    r"|us|uk|de|fr|au|in|shop|store|app))(?:/[^\s]*)?",
+    re.IGNORECASE,
+)
 
 
-def _entities(text: str) -> List[str]:
-    """Distinct entity candidates from one text: email domains, URL hosts,
-    capitalized sequences minus the common-word list."""
+def _strong_entities(text: str) -> List[str]:
+    """Unambiguous identifiers only: email domains, URL hosts, bare domains.
+
+    Used for text the ASSISTANT authored (its replies, link dumps) where a
+    capitalized word is prose, not a subject — live 2026-09-08: "DONE" and
+    "Notes" from prior replies were extracted as entities and prepended to
+    an already-specific search query, and Tavily returned nothing."""
     if not text:
         return []
     found: List[str] = []
     for m in _EMAIL.finditer(text):
         found.append(m.group(1))
     for m in _URL.finditer(text):
+        found.append(m.group(1))
+    for m in _BARE_DOMAIN.finditer(text):
+        found.append(m.group(1).lower())
+    deduped: List[str] = []
+    seen = set()
+    for entity in found:
+        if entity.lower() not in seen:
+            seen.add(entity.lower())
+            deduped.append(entity)
+    return deduped
+
+
+def _entities(text: str) -> List[str]:
+    """Distinct entity candidates from one text: email domains, URL hosts,
+    bare domains, capitalized sequences minus the common-word list."""
+    if not text:
+        return []
+    found: List[str] = []
+    for m in _EMAIL.finditer(text):
+        found.append(m.group(1))
+    for m in _URL.finditer(text):
+        found.append(m.group(1))
+    for m in _BARE_DOMAIN.finditer(text):
         found.append(m.group(1))
     for m in _CAPS_SEQ.finditer(text):
         candidate = m.group(0).strip()
@@ -125,14 +162,24 @@ def build_search_query(
         # most recent turns first — the last-mentioned subject wins
         for turn in reversed(list(history_turns or [])):
             if isinstance(turn, dict):
-                text = " ".join(str(turn.get(k) or "") for k in ("message", "response"))
+                user_text = str(turn.get("message") or "")
+                resp = turn.get("response")
+                assistant_text = (
+                    str(resp.get("message") or "")
+                    if isinstance(resp, dict) else str(resp or "")
+                )
             else:
-                text = str(turn or "")
-            for entity in _entities(text):
-                key = entity.lower()
-                if key not in seen:
-                    seen.add(key)
-                    context_entities.append(entity)
+                user_text, assistant_text = str(turn or ""), ""
+            # The user's own words name the subject; assistant prose does
+            # not ("DONE", "Notes", markdown) — from replies take only
+            # unambiguous identifiers (links, email/inline domains).
+            for text, extractor in ((user_text, _entities),
+                                    (assistant_text, _strong_entities)):
+                for entity in extractor(text):
+                    key = entity.lower()
+                    if key not in seen:
+                        seen.add(key)
+                        context_entities.append(entity)
         if canvas_content and isinstance(canvas_content, dict):
             canvas_text = " ".join(
                 str(canvas_content.get(k) or "")

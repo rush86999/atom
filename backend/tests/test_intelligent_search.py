@@ -8,10 +8,12 @@ to the actual names from the conversation or the open canvas.
 """
 import pytest
 
-from core.intelligent_search import build_search_query, _entities
+from core.intelligent_search import build_search_query, _entities, _strong_entities
 
 HISTORY = [
-    {"message": "check if end user or dealer and then confirm my corrections",
+    # Subject named in the USER's words — assistant reply prose ("DONE",
+    # "Notes", boilerplate) is deliberately not an entity source.
+    {"message": "check if Jacob Schulz is end user or dealer and then confirm my corrections",
      "response": {"message": "I can see you're drafting an initial contact to Jacob at Blumetric."}},
     {"message": "how did the contact form submission help you determine it's an end user?",
      "response": {"message": "I was inferring based on the email address (@blumetric.ca)."}},
@@ -96,6 +98,76 @@ def test_query_length_capped_on_word_boundary():
         max_length=120,
     )
     assert len(q) <= 120
+
+
+# ───────────── 2026-09-08 live incident: specific query corrupted ─────────────
+# Canvas chat asked to "web research lead's bandsaw … compare it o our bandsaw".
+# The planner's query was already specific: "brennan.ca bandsaw model". The
+# rewrite saw no entity (lowercase domain, no caps sequence), pulled
+# "brennan" + "DONE" + "Notes" out of prior ASSISTANT replies, and prepended
+# them — Tavily got "brennan Done Notes brennan.ca bandsaw model" and the
+# agent answered "no web research results have come through".
+
+LIVE_HISTORY = [
+    {"message": "Do not edit anything. Reply with just: DONE",
+     "response": {"message": "DONE"}},
+    {"message": ("find the url link on brennan.ca for this model and add "
+                 "this as a link under notes column"),
+     "response": {"message": ('Done — I found the current product page on '
+                              'brennan.ca and added it as a hyperlink in the '
+                              'Notes column, replacing the dead link:\n\n'
+                              '**Notes cell now reads:**\n> Product page: '
+                              '[10.5" Semi-Automatic Double Miter Band Saw]'
+                              '(https://brennan.ca/en-us/products/linmac-'
+                              'wg-350dsav)')}},
+]
+
+LIVE_CANVAS = {
+    "to": "jschulz@blumetric.ca",
+    "subject": "Re: Equivalent to Hydmech DM10 Bandsaw – Linmac WG-350DSAV",
+    "body": "Hi Jacob, details for the Linmac WG-350DSAV, per brennan.ca.",
+}
+
+
+def test_specific_domain_query_is_never_prepended():
+    q = build_search_query(
+        "brennan.ca bandsaw model",
+        history_turns=LIVE_HISTORY,
+        canvas_content=LIVE_CANVAS,
+    )
+    assert q == "brennan.ca bandsaw model"
+
+
+def test_assistant_reply_prose_never_becomes_context_entity():
+    q = build_search_query(
+        "research the lead's bandsaw and compare it to ours",
+        history_turns=LIVE_HISTORY,
+        canvas_content={"to": "", "subject": "", "body": ""},
+    )
+    words = q.lower().split()
+    assert "done" not in words
+    assert "notes" not in words
+
+
+def test_strong_entities_ignore_prose_but_keep_identifiers():
+    text = ("DONE — added the link in the Notes column, see "
+            "https://brennan.ca/en-us/products/linmac-wg-350dsav "
+            "or mail jacob@blumetric.ca")
+    strong = [e.lower() for e in _strong_entities(text)]
+    assert "brennan" in strong and "brennan.ca" in strong
+    assert "blumetric" in strong
+    assert "done" not in strong and "notes" not in strong
+    assert _strong_entities("Notes and DONE only") == []
+
+
+def test_bare_domain_counts_as_entity_in_query():
+    assert _entities("see brennan.ca for the model") == ["brennan.ca"]
+    # …so the query is treated as already-specific (no context prepend)
+    assert build_search_query(
+        "see brennan.ca for the model",
+        history_turns=LIVE_HISTORY,
+        canvas_content=LIVE_CANVAS,
+    ) == "see brennan.ca for the model"
 
 
 # ───────────────────────── execution-path wiring ─────────────────────────
