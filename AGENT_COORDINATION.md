@@ -434,3 +434,59 @@ copy the markup as the canvas body and edit the wording; canvas + send preserve 
 (funnel `normalize_email_content` passes HTML through; composer sanitizer allows style).
 Block cap 6000 chars. Tests: tests/test_tool_planner_styled_base.py (5) + the 3 existing
 planner suites 28 green. Backend restarted.
+## 2026-09-07 ~22:40 — ZCode: OpenCode Zen free-tier gate — X-Session-Id fix finalized + verified
+
+**Context:** headless probe (`backend/probe_agent.py`, untracked, left as-is) repros an
+email-agent task that kept failing at the LLM layer. Root cause found by direct gateway
+probe: every `opencode-go` / `-free` model call WITHOUT a session id is rejected by the zen
+gateway with `400 MissingSessionID — "OpenCode's free tier can only be used in OpenCode"`.
+
+The browser headers added for Cloudflare (error 1010) were already shipped in the Brennan-demo
+commit; what was missing was the session id.
+
+**Change (backend/core/llm/byok_handler.py + new test):**
+- Module-level `_OPENCODE_SESSION_ID` (stable per process; env override OPENCODE_SESSION_ID),
+  `_OPENCODE_GATEWAY_PROVIDERS = {"opencode-go", "opencode"}`, and
+  `_opencode_gateway_headers()` (browser UA/Origin/Referer + X-Session-Id).
+- `_initialize_clients` now attaches those headers for BOTH gateway provider ids — the
+  previous working-tree edit only covered "opencode-go", but "opencode" (UI-stored key,
+  same `opencode.ai/zen/v1` base_url) would still have 403/MissingSessionID'd.
+- `tests/cli/test_opencode_zen_session_header.py`: headers shape, per-process stability,
+  env override, both-ids drift guard, and a client-construction test proving both zen
+  clients (sync+async) ship the header while env-keyed providers are unchanged.
+
+**Verified:** live 2-call gateway probe (2026-09-07) — no header → `MissingSessionID` error;
+with `X-Session-Id` → completion OK. Unit: 5/5 new + 17/17 `test_openrouter_free_fallback.py`
+regression. NOTE: the API server does not `--reload` — restart via `scripts/restart_backend.sh`
+before UI-level verification of the email-agent run. `backend/probe_agent.py` is the headless
+repro if you want the end-to-end check (it writes real drafts via the governed agent path).
+
+---
+
+## 2026-09-07 ~23:55 — ZCode: Outlook poller cursor timezone bug — incremental polls silently empty
+
+**Found while verifying the email-agent training pipeline (read-only checks):** the Outlook
+poller's cursors advanced every cycle (state file 23:23→23:34) but the `atom_communications`
+table stayed EMPTY (last write 20:40 purge) even though the mailbox has 125 messages in the
+90-day window (Graph probe: 200 OK; "Fw: Brennan Machinery" Sep 7 14:42Z etc.).
+
+**Root cause:** persisted cursors were NAIVE local `datetime.now()` values written via
+`v.isoformat()` (no tz), restored naive, then `_format_graph_timestamp` appended a blind `Z`.
+The watermark instant was therefore shifted +05:30 into the FUTURE, so every incremental
+`receivedDateTime gt <local-as-UTC>` returned an empty window — new mail was permanently
+skipped while the cursor happily advanced. (A store purge on Sep 7 ~20:40 that did not clear
+cursors then guaranteed nothing below the old watermark would ever re-ingest.)
+
+**Fix (`integrations/atom_communication_ingestion_pipeline.py`):**
+- `_coerce_utc_ts()` — parse persisted/Graph timestamps to AWARE UTC (naive assumed UTC).
+- `_format_graph_timestamp()` — naive datetimes assumed UTC before formatting.
+- `_load_fetch_state` restores cursors via the helper; global/owner/empty-window cursors and
+the receivedDateTime parse now use `datetime.now(timezone.utc)`.
+- New `tests/test_comm_poll_cursor_tz.py` (10 tests) pins naive→UTC semantics + restore.
+
+**Verified:** unit 10/10; end-to-end sim — a legacy naive cursor (`14:40:00`) restored as UTC,
+next incremental fetch returned the real 14:42:09Z message, and the state file now persists
+`+00:00`-aware ISO. **Outstanding:** the LIVE server runs the old code and its legacy cursor is
+ambiguous — needs a restart + one-time cursor clear so the poller initial-syncs the 90-day
+window (125 msgs) with styling preservation. User must confirm the restart (2 uvicorn PIDs on
+port 8000, launched manually).
