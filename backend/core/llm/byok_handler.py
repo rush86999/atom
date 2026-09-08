@@ -482,6 +482,37 @@ COST_EFFICIENT_MODELS = {
     },
 }
 
+# Ladder order for complexity comparisons (SIMPLE < MODERATE < COMPLEX < ADVANCED).
+_COMPLEXITY_ORDER = {
+    QueryComplexity.SIMPLE: 0,
+    QueryComplexity.MODERATE: 1,
+    QueryComplexity.COMPLEX: 2,
+    QueryComplexity.ADVANCED: 3,
+}
+
+# Frontier-reserved models: the most expensive flagship tier serves ONLY the
+# hardest requests. Value ranking alone can't express this — a 100-quality
+# model passes every min_quality floor (SIMPLE 85 / COMPLEX 88 / ADVANCED 90),
+# and cost competes it down only while a healthy cheap pool exists; a pricing
+# cache with few cheap entries lets the flagship win routine turns at 10-30x
+# the going rate. A model listed here is excluded from the BPC pool for any
+# complexity below its floor. When Phase 68 cognitive-tier steering is active
+# the cognitive ladder expresses difficulty instead (see
+# FRONTIER_RESERVED_MIN_COGNITIVE_TIER).
+FRONTIER_RESERVED_MIN_COMPLEXITY = {
+    # gpt-6-astra ($10/$50 per MTok — priciest OpenAI model): ADVANCED is the
+    # classifier's top rung ("code, math, analysis"). COMPLEX ("multi-step
+    # reasoning") still has frontier-class options at a fraction of the price
+    # (gemini-3-pro, kimi-k3, deepseek-v3.2-speciale), so the flagship stays
+    # above it.
+    "gpt-6-astra": QueryComplexity.ADVANCED,
+}
+
+# Cognitive-ladder floor for FRONTIER_RESERVED_MIN_COMPLEXITY entries, used
+# when cognitive_tier steering is active and the BPC complexity no longer
+# carries the difficulty signal: only the top cognitive tier qualifies.
+FRONTIER_RESERVED_MIN_COGNITIVE_TIER = CognitiveTier.COMPLEX
+
 
 # Models that do not support tool calling or agentic runtimes (Phase 6.6)
 # DEPRECATED: Use pricing_fetcher._model_supports_tools() instead
@@ -2070,6 +2101,22 @@ class BYOKHandler:
                 if quality_score < min_quality or quality_score > max_quality:
                     continue
 
+                # Frontier-reserved floor (see FRONTIER_RESERVED_MIN_COMPLEXITY):
+                # expensive flagships rankable only at the top of the difficulty
+                # ladder. When cognitive-tier steering is active, the cognitive
+                # ladder carries the difficulty signal instead.
+                _min_complexity = FRONTIER_RESERVED_MIN_COMPLEXITY.get(model_id)
+                if _min_complexity is not None:
+                    if cognitive_tier is not None:
+                        _allowed = cognitive_tier == FRONTIER_RESERVED_MIN_COGNITIVE_TIER
+                    else:
+                        _allowed = (
+                            _COMPLEXITY_ORDER.get(complexity, -1)
+                            >= _COMPLEXITY_ORDER[_min_complexity]
+                        )
+                    if not _allowed:
+                        continue
+
                 # Exclude o-series from extraction tasks (no reliable content)
                 if task_type == "extraction" and any(
                     m in model_id.lower() for m in _excluded_models
@@ -2295,6 +2342,16 @@ class BYOKHandler:
             if provider_id in self.clients:
                 models = COST_EFFICIENT_MODELS.get(provider_id, {})
                 model = models.get(complexity, "gpt-4o-mini")
+
+                # Same frontier-reserved floor as the dynamic pool: a
+                # misconfigured COST_EFFICIENT_MODELS slot must not route the
+                # flagship into easier work.
+                _min_complexity = FRONTIER_RESERVED_MIN_COMPLEXITY.get(model)
+                if _min_complexity is not None and (
+                    _COMPLEXITY_ORDER.get(complexity, -1)
+                    < _COMPLEXITY_ORDER[_min_complexity]
+                ):
+                    continue
 
                 # Same hard gates as the dynamic ranker's rate-aware pass:
                 # provider/per-model headroom, monthly subscription quota,
