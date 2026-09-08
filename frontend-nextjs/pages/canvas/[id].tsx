@@ -17,6 +17,7 @@ import { JourneyPanel } from "@/components/canvas/JourneyPanel";
 import { AutonomyPanel } from "@/components/canvas/AutonomyPanel";
 import { AgentAttachModal } from "@/components/canvas/AgentAttachModal";
 import { CanvasDataSection } from "@/components/canvas/CanvasDataSection";
+import ChatMarkdown from "@/components/canvas/ChatMarkdown";
 import { listCanvasAgents, type CanvasAgent } from "@/lib/canvas-api";
 import { ChatFeedbackControls, ChatFeedbackType } from "@/components/canvas/ChatFeedbackControls";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -1322,14 +1323,16 @@ export default function CanvasDetailPage() {
                             )}
                             {messages.map(msg => (
                                 <div key={msg.id} className={`text-sm ${msg.type === "user" ? "text-right" : ""}`}>
-                                    <div className={`inline-block max-w-[85%] px-3 py-2 rounded-lg ${
+                                    <div className={`inline-block max-w-full px-3 py-2 rounded-lg ${
                                         msg.type === "user"
                                             ? "bg-primary text-primary-foreground"
                                             : msg.type === "system"
                                             ? "bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200"
                                             : "bg-background border"
                                     }`}>
-                                        {msg.content}
+                                        {msg.type === "assistant"
+                                            ? <ChatMarkdown content={msg.content} />
+                                            : msg.content}
                                     </div>
                                     {msg.type === "assistant" && !!msg.reasoningTrace?.length && (
                                         <ReasoningChain
