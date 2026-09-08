@@ -5,6 +5,57 @@ import { apiClient } from './api-client';
 // sessions (confidence boost -> promotion), and approve/reject INTERN
 // action proposals.
 
+// Self-directed STUDENT -> INTERN validation (GET
+// /api/maturity/training/self-directed; backend core/self_directed_progress.py
+// snapshot() is the payload source of truth).
+export interface SelfDirectedEpisode {
+  id: string;
+  task: string;
+  outcome: string;
+  success: boolean;
+  started_at: string | null;
+  human_interventions: number;
+  maturity_at_time: string | null;
+  canvas_ids: string[];
+}
+
+export interface SelfDirectedGuidanceStep {
+  label: string;
+  done: boolean;
+  detail?: string;
+}
+
+export interface SelfDirectedReadiness {
+  ready: boolean;
+  pathway?: string | null;
+  reason?: string | null;
+  required_training_sessions?: number | null;
+  required_episodes?: number | null;
+  success_ratio?: number | null;
+}
+
+export interface SelfDirectedEvidence {
+  episodes: number;
+  successes: number;
+  success_ratio: number;
+  required_episodes?: number;
+}
+
+export interface SelfDirectedAgentProgress {
+  agent_id: string;
+  agent_name: string;
+  category?: string | null;
+  tier: string;
+  confidence: number;
+  episode_progress: number;
+  ready_for_review: boolean;
+  completed_sessions?: number;
+  evidence: SelfDirectedEvidence;
+  readiness: SelfDirectedReadiness;
+  recent_episodes: SelfDirectedEpisode[];
+  guidance: SelfDirectedGuidanceStep[];
+}
+
 export interface TrainingProposal {
   id: string;
   agent_id: string;
