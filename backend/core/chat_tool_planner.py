@@ -287,6 +287,14 @@ Rules:
   query MUST contain that name.
 - Return exactly ONE plan. If a search and a URL check would both help,
   plan ONLY web_fetch when the address is known, otherwise web_search.
+- READ vs FIND: web_fetch is only for READING a page whose full address is
+  already known or stated in the conversation. When the user asks you to
+  FIND the page/URL/link ON a site ("find the product page on brennan.ca
+  for this model"), the target address is the UNKNOWN being asked for —
+  plan web_search with the site name AND the subject terms (e.g.
+  "brennan.ca WG-350DSAV"). Search results carry the real URLs; fetching
+  the site's homepage cannot enumerate a site, and inventing a URL from a
+  pattern (adding "/products/…" to the model number) is fabrication.
 - Read-only: search/list intents for lookups; `read` intent ONLY for the
   file-storage services, when the user wants a specific row, value, price,
   figure or section OUT OF a named document ("open the catalog and find the
@@ -1491,6 +1499,55 @@ async def _comm_per_term_retry(
         return None
 
 
+_DOMAIN_TOKEN_RE = re.compile(
+    r"(?<![\w@.])((?:[a-z0-9-]+\.)+(?:com|ca|org|net|io|co|ai|dev|info|biz|us"
+    r"|uk|de|fr|au|in|shop|store|app))(?:/[^\s]*)?",
+    re.IGNORECASE,
+)
+
+
+async def _site_search_evidence(
+    query: str,
+    tenant_id: Optional[str],
+    mcp: Any,
+    search_err: str = "",
+) -> Optional[str]:
+    """When public web search yields nothing (unavailable or empty) but the
+    query names a domain, read THAT site's own /search?q= results page. The
+    site knows its own URLs even when the search provider doesn't — live
+    2026-09-08 (canvas c3617a7f…): asked to find a product page on
+    brennan.ca with search unavailable, the editor invented a
+    /products/<model-number> URL that 404'd into a customer quote. Falls
+    back to None on anything unusable; the caller then reports the failure
+    honestly and the grounding rules keep the model from guessing."""
+    try:
+        match = _DOMAIN_TOKEN_RE.search(query or "")
+        if not match:
+            return None
+        domain = match.group(1).lower()
+        terms = " ".join(_DOMAIN_TOKEN_RE.sub(" ", query or "").split())
+        if not terms:
+            return None
+        from urllib.parse import quote
+
+        search_url = f"https://{domain}/search?q={quote(terms)}"
+        res = await mcp.web_fetch(search_url, tenant_id)
+        content = str(res.get("content") or "").strip()
+        if not content:
+            return None
+        note = f" (search provider: {search_err[:120]})" if search_err else ""
+        return (
+            f"LIVE TOOL RESULTS (web_search, query='{query}'): no results"
+            f"{note}. Fetched the SITE'S OWN search results page instead: "
+            f"{search_url}\n\nThe matching page URLs are listed under "
+            "'Links on this page' below — use one of them VERBATIM, do not "
+            f"construct a URL:\n{content[:5000]}"
+        )
+    except Exception as exc:  # noqa: BLE001 — fallback must never raise
+        logger.debug(f"site-search fallback skipped: {exc}")
+        return None
+
+
 async def execute_tool_plan(
     plan: ToolPlan,
     user_id: Optional[str],
@@ -1559,15 +1616,22 @@ async def execute_tool_plan(
             if service == "web_search":
                 res = await _mcp.web_search(query, tenant_id)
                 err = str(res.get("error") or "").strip()
+                answer = str(res.get("answer") or "").strip()
+                results = res.get("results") or []
+                if err or not (answer or results):
+                    # Search unavailable (no/invalid key) or empty — but the
+                    # query names a site. The site's own /search page knows
+                    # its URLs even when the search provider doesn't (live
+                    # 2026-09-08: with search unavailable the model invented
+                    # /products/<model-number> instead). Evidence, not guess.
+                    site_block = await _site_search_evidence(
+                        query, tenant_id, _mcp, err
+                    )
+                    if site_block:
+                        return _with_grounding(site_block)
                 if err:
                     return _with_grounding(
                         f"LIVE TOOL RESULTS (web_search, query='{query}'): unavailable — {err[:200]}"
-                    )
-                answer = str(res.get("answer") or "").strip()
-                results = res.get("results") or []
-                if not answer and not results:
-                    return _with_grounding(
-                        f"LIVE TOOL RESULTS (web_search, query='{query}'): no results found."
                     )
                 lines = []
                 if answer:

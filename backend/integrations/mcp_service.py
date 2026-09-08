@@ -3305,6 +3305,25 @@ class MCPService(IntegrationService):
                     )
                     if response.status_code == 200:
                         return response.json()
+                    if response.status_code in (401, 403):
+                        # A key that is PRESENT but rejected must not read as
+                        # "not configured" — that sent live debugging (and
+                        # the agent's own error reporting) down the wrong
+                        # path while every search silently returned nothing.
+                        logger.error(
+                            f"Tavily rejected the API key (HTTP {response.status_code}) "
+                            "- key is invalid or expired"
+                        )
+                        return {
+                            "query": query,
+                            "results": [],
+                            "answer": None,
+                            "error": (
+                                f"Tavily rejected the configured API key "
+                                f"(HTTP {response.status_code}) - the key is "
+                                "invalid or expired."
+                            ),
+                        }
             except Exception as e:
                 logger.error(f"Tavily search failed: {e}")
 
@@ -3384,6 +3403,18 @@ class MCPService(IntegrationService):
                 content_type = response.headers.get("content-type", "")
                 if "html" in content_type or "text" in content_type or not content_type:
                     text = _html_to_text(response.text)
+                    # _html_to_text strips <a href> — without this the model
+                    # reads a search-results page's TEXT but never sees the
+                    # result URLs, and had to invent one (live 2026-09-08:
+                    # fabricated /products/<model-number> straight into a
+                    # customer quote email). Links ride along as a list.
+                    links = _extract_page_links(response.text, str(response.url))
+                    if links:
+                        text = (
+                            text[:16000]
+                            + "\n\nLinks on this page:\n"
+                            + "\n".join(f"- {l}" for l in links)
+                        )
                     return {
                         "url": str(response.url),
                         "content": text[:20000],
@@ -3429,6 +3460,38 @@ def _html_to_text(html: str) -> str:
         .replace("&#39;", "'")
     )
     return re.sub(r"\s+", " ", text).strip()
+
+
+_PAGE_LINK_RE = re.compile(
+    r'<a\b[^>]*?href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _extract_page_links(html: str, base_url: str, limit: int = 40) -> List[str]:
+    """Absolute hrefs (with anchor text) from an HTML page, de-duplicated,
+    order-stable. Bounded for prompt injection."""
+    from urllib.parse import urljoin
+
+    links: List[str] = []
+    seen = set()
+    for m in _PAGE_LINK_RE.finditer(html or ""):
+        href = (m.group(1) or "").strip()
+        if not href or href.startswith(("mailto:", "tel:", "javascript:", "#")):
+            continue
+        try:
+            absolute = urljoin(base_url, href)
+        except Exception:  # noqa: BLE001 — a malformed href is not fatal
+            continue
+        if absolute in seen:
+            continue
+        seen.add(absolute)
+        anchor = re.sub(r"(?s)<[^>]+>", " ", m.group(2) or "")
+        anchor = re.sub(r"\s+", " ", anchor).strip()[:80]
+        links.append(f"{absolute}" + (f" - {anchor}" if anchor else ""))
+        if len(links) >= limit:
+            break
+    return links
 
 
 # Singleton instance
