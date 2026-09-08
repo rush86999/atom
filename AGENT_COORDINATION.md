@@ -434,3 +434,46 @@ copy the markup as the canvas body and edit the wording; canvas + send preserve 
 (funnel `normalize_email_content` passes HTML through; composer sanitizer allows style).
 Block cap 6000 chars. Tests: tests/test_tool_planner_styled_base.py (5) + the 3 existing
 planner suites 28 green. Backend restarted.
+
+## 2026-09-08 — ZCode (Rish): PRs #606/#607/#608 review outcome — curated merge
+
+Reviewed the three stacked email PRs by visak14 against AGENTS.md/CLAUDE.md.
+**Merged (curated branch, cherry-picked with authorship kept):**
+
+- `294851b2` **Outlook poller cursor UTC fix** (+10 regression tests). Root cause:
+  naive local `datetime.now()` cursors formatted with a blind `Z` shifted the
+  watermark ~5.5h into the future — incremental polls returned empty windows
+  while cursors advanced; new mail never reached the comms store. Now aware
+  UTC end-to-end; naive legacy values assumed UTC.
+  **OPERATIONAL (carried from the original entry, still outstanding):** the live
+  server runs the old code and its legacy cursor is ambiguous — after deploying,
+  restart via `scripts/restart_backend.sh` and clear the poller cursors once so
+  the 90-day window initial-syncs (125 msgs).
+- `1ce0431` **search_emails defaults to every connected mail provider** (+2
+  tests, 1 updated). With no `platform` arg it queried ONLY gmail — Outlook mail
+  was silently invisible to agents (live 2026-09-08: Forrester thread found
+  nothing, no reply draft). Per-provider failures surfaced, not swallowed.
+
+**Discarded, with reasons (do NOT reintroduce as-is):**
+
+- `bad832fb` X-Session-Id + browser Origin/Referer/UA headers on the Zen gateway
+  clients: this masquerades as the OpenCode web client specifically to defeat the
+  gateway's free-tier client gate ("OpenCode's free tier can only be used in
+  OpenCode") — ToS circumvention + account-ban risk for the subscription key.
+  `-free` models are therefore effectively unusable via the API from Atom; the
+  paid-fallback machinery (CreditsError retry) already covers that path.
+- `65bd1b8`/`7f7c874`/`9420785` email send-policy gate (`core/email_policy_gate.py`
+  + hook + tool params + seed script): the deterministic Level B idea is
+  vision-aligned, but as written it (a) duplicates the existing general mechanism
+  `core/email_policy.py` (ALLOW/APPROVE/BLOCK, wired at mcp/canvas/chat) with a
+  second module, different vocabulary, different layer, no documented precedence;
+  (b) ships default-on blocking with NO kill switch / shadow mode / audit, against
+  the repo convention every other policy layer follows (ATOM_* flag +
+  settings-catalog + shadow-first); (c) hardcodes one business's machinery-sales
+  rules in core for all workspaces; (d) `price_verified` is agent self-attestation,
+  not verification. If Level B is wanted, rebuild ON `core/email_policy.py` with a
+  flag + per-workspace rule config. Seed script also wrote demo rows (real
+  counterparties' names/emails) into the live dev DB.
+
+Verified: 56/56 new tests green; covpush suites show the same 15 pre-existing
+main failures before/after (InterventionService signature drift — separate issue).
