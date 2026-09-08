@@ -790,12 +790,20 @@ class ChatOrchestrator:
                     _tool_plan_task.cancel()
                 return _mini_app_response
             _turn_t0 = time.monotonic()
+            # Turn-scoped tool blackboard: the shared plan task goes in, the
+            # executed LIVE TOOL RESULTS block comes out — whichever leg runs
+            # it first (canvas-edit evidence or the chat tool path) leaves it
+            # here and the other reuses it. Without this, a canvas turn paid
+            # for TWO planner LLM calls and TWO identical searches.
+            _shared_tool: Dict[str, Any] = {"plan_task": _tool_plan_task,
+                                            "block": None}
             try:
                 if _canvas_ctx:
                     _edit_response = await self._try_canvas_edit(
                         message, history, _canvas_ctx, user_id, session_id,
                         _execution_id, (context or {}).get("agent_id"),
                         provenance=(context or {}).get("canvas_provenance"),
+                        shared_tool_state=_shared_tool,
                     )
                     logger.info(
                         f"[stage-timing] canvas-edit plan: {time.monotonic() - _turn_t0:.1f}s")
@@ -819,6 +827,7 @@ class ChatOrchestrator:
                     _action_response = await self._try_canvas_action(
                         message, history, _canvas_ctx, user_id, session_id,
                         _execution_id, (context or {}).get("agent_id"),
+                        shared_tool_state=_shared_tool,
                     )
                     if _action_response:
                         self._update_session(
@@ -840,6 +849,7 @@ class ChatOrchestrator:
                     execution_id=_execution_id,
                     canvas_context=_canvas_ctx,
                     tool_plan_task=_tool_plan_task,
+                    prefetched_tool_block=_shared_tool.get("block"),
                     mission_critical=bool((context or {}).get("mission_critical")),
                     canvas_provenance=(context or {}).get("canvas_provenance"),
                     images=images,
@@ -1194,6 +1204,7 @@ class ChatOrchestrator:
         mission_critical: bool = False,
         canvas_provenance: Optional[Dict[str, Any]] = None,
         images: Optional[List[str]] = None,
+        prefetched_tool_block: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -1201,6 +1212,12 @@ class ChatOrchestrator:
         vision-capable models via the handler's image_payload path (streaming
         is bypassed on image turns: the stream request has no vision
         coordination).
+
+        ``prefetched_tool_block``: a LIVE TOOL RESULTS block already planned
+        AND executed earlier in THIS turn (by the canvas-edit fresh-data
+        leg, shared through the turn's tool blackboard). When present, the
+        planner/executor here are skipped entirely — re-running them would
+        double latency and provider calls for identical results.
 
         Returns ``{"content": str, "model": str, "provider": str}`` on success
         (so model identity can be surfaced to the UI and tied to feedback), or
@@ -1453,51 +1470,62 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 from core.hallucination_config import get_verify_panel_mode
                 from core.verify_panel import verify_reply
 
-                # Full hydrated history for the planner (not the [-6:] main-
-                # model window): in retry-heavy sessions the original request
-                # sits several turns back, and user-only lines are tiny.
-                # A pre-started plan task means the caller overlapped this
-                # plan with the canvas-edit plan — just await it.
-                _plan_t0 = time.monotonic()
-                if tool_plan_task is not None:
-                    _plan = await asyncio.wait_for(tool_plan_task, timeout=25)
-                else:
-                    _plan = await asyncio.wait_for(
-                        plan_tool_use(message, planner_history or history, user_id, self.llm_service),
-                        timeout=25,
-                    )
-                logger.info(
-                    f"[stage-timing] tool plan (overlapped={tool_plan_task is not None}): "
-                    f"{time.monotonic() - _plan_t0:.1f}s")
-                if _plan and _plan.use_tool:
-                    _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
-                    await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
-                                 f"Planned live lookup: {_planned}")
-                    _exec_t0 = time.monotonic()
-                    _tool_block = await asyncio.wait_for(
-                        execute_tool_plan(
-                            _plan, user_id, self.tenant_id,
-                            context={
-                                "agent_id": agent_id,
-                                "history": (planner_history or history or [])[-6:],
-                                "canvas": {
-                                    "title": canvas_context.get("title"),
-                                    **((canvas_context.get("content") or {})
-                                       if isinstance(canvas_context, dict) else {}),
-                                } if isinstance(canvas_context, dict) else None,
-                            },
-                            llm_service=self.llm_service,
-                        ),
-                        timeout=45,
-                    )
-                    _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
-                    await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
-                                 _first_line or "no results")
+                if prefetched_tool_block:
+                    # SINGLEFLIGHT/BLACKBOARD: the canvas-edit fresh-data leg
+                    # already joined this turn's shared plan task AND executed
+                    # the lookup (its steps are already on the trace trail).
+                    # Re-planning or re-executing would pay twice for
+                    # identical results — reuse the block as-is.
+                    _tool_block = prefetched_tool_block
                     logger.info(
-                        f"[stage-timing] tool exec: {time.monotonic() - _exec_t0:.1f}s")
-                elif _plan is not None:
-                    await _trace("thought", {"tool": "tool_planner", "params": {}},
-                                 f"No live lookup needed: {(_plan.reason or 'conversation suffices')[:160]}")
+                        "[stage-timing] tool exec: reused canvas-edit leg "
+                        "block (singleflight) — no second plan/execute")
+                else:
+                    # Full hydrated history for the planner (not the [-6:] main-
+                    # model window): in retry-heavy sessions the original request
+                    # sits several turns back, and user-only lines are tiny.
+                    # A pre-started plan task means the caller overlapped this
+                    # plan with the canvas-edit plan — just await it.
+                    _plan_t0 = time.monotonic()
+                    if tool_plan_task is not None:
+                        _plan = await asyncio.wait_for(tool_plan_task, timeout=25)
+                    else:
+                        _plan = await asyncio.wait_for(
+                            plan_tool_use(message, planner_history or history, user_id, self.llm_service),
+                            timeout=25,
+                        )
+                    logger.info(
+                        f"[stage-timing] tool plan (overlapped={tool_plan_task is not None}): "
+                        f"{time.monotonic() - _plan_t0:.1f}s")
+                    if _plan and _plan.use_tool:
+                        _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
+                        await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
+                                     f"Planned live lookup: {_planned}")
+                        _exec_t0 = time.monotonic()
+                        _tool_block = await asyncio.wait_for(
+                            execute_tool_plan(
+                                _plan, user_id, self.tenant_id,
+                                context={
+                                    "agent_id": agent_id,
+                                    "history": (planner_history or history or [])[-6:],
+                                    "canvas": {
+                                        "title": canvas_context.get("title"),
+                                        **((canvas_context.get("content") or {})
+                                           if isinstance(canvas_context, dict) else {}),
+                                    } if isinstance(canvas_context, dict) else None,
+                                },
+                                llm_service=self.llm_service,
+                            ),
+                            timeout=45,
+                        )
+                        _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
+                        await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
+                                     _first_line or "no results")
+                        logger.info(
+                            f"[stage-timing] tool exec: {time.monotonic() - _exec_t0:.1f}s")
+                    elif _plan is not None:
+                        await _trace("thought", {"tool": "tool_planner", "params": {}},
+                                     f"No live lookup needed: {(_plan.reason or 'conversation suffices')[:160]}")
             except Exception as tool_err:
                 # !r, not str: a bare asyncio.TimeoutError() stringifies to
                 # "" — the old warning printed "tool planning skipped: " and
@@ -2490,11 +2518,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         execution_id: Optional[str],
         agent_id: Optional[str],
         provenance: Optional[Dict[str, Any]] = None,
+        shared_tool_state: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Canvas co-editor edit step: plan the edit via the canvas editor
         module, persist it through canvas_crud_tool, and return the chat
         response. Returns None when the turn is NOT a canvas edit (or
-        anything fails) — the normal conversational path then runs."""
+        anything fails) — the normal conversational path then runs.
+
+        ``shared_tool_state`` is the turn's blackboard: ``plan_task`` (the
+        chat leg's pre-started plan_tool_use task — joined instead of
+        planning a second time) in, ``block`` (the executed LIVE TOOL
+        RESULTS) out for the chat leg to reuse when this leg declines."""
         from core.chat_canvas_editor import (
             CanvasPlanUnavailable,
             apply_canvas_edit,
@@ -2565,7 +2599,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             canvas_id=canvas.get("canvas_id"),
             step_recorder=_record_fresh_data_step,
             canvas=canvas,
+            plan_task=(shared_tool_state or {}).get("plan_task"),
+            existing_block=(shared_tool_state or {}).get("block"),
         )
+        if shared_tool_state is not None:
+            # Blackboard hand-back: whatever this leg executed belongs to
+            # the whole turn. When the edit declines below, the chat leg
+            # reuses this block instead of re-planning and re-executing.
+            shared_tool_state["block"] = fresh.block or None
         if fresh.needed and not fresh.ok:
             logger.info(
                 "canvas edit declined: the turn needs live data and the "
@@ -2882,6 +2923,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         session_id: Optional[str],
         execution_id: Optional[str],
         agent_id: Optional[str],
+        shared_tool_state: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """DOING something with the canvas (send the draft as email) — the
         counterpart of the edit step. Two gates, in order:
@@ -2910,7 +2952,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         from core.chat_canvas_editor import fetch_fresh_data_section
         fresh = await fetch_fresh_data_section(
             message, history, self.llm_service, user_id,
+            canvas=canvas,
+            plan_task=(shared_tool_state or {}).get("plan_task"),
+            existing_block=(shared_tool_state or {}).get("block"),
         )
+        if shared_tool_state is not None:
+            shared_tool_state["block"] = fresh.block or None
         if fresh.needed and not fresh.ok:
             logger.info(
                 "canvas action declined: the turn needs live data and the "

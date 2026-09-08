@@ -737,11 +737,17 @@ class FreshDataResult(NamedTuple):
     needed=True, ok=False   — a live-data need EXISTED but the lookup
                               failed/timed out. Callers must decline the
                               edit: applying guessed values is fabrication.
+
+    ``block`` carries the raw LIVE TOOL RESULTS block for reuse by the
+    chat leg when the turn turns out NOT to be an edit — without it the
+    chat leg re-planned AND re-executed the identical lookup, doubling
+    latency and provider calls on every canvas research turn.
     """
 
     section: str
     needed: bool
     ok: bool
+    block: str = ""
 
 
 async def fetch_fresh_data_section(
@@ -752,6 +758,8 @@ async def fetch_fresh_data_section(
     canvas_id: Optional[str] = None,
     step_recorder: Optional[Callable[[str, Dict[str, Any], str], Awaitable[None]]] = None,
     canvas: Optional[Dict[str, Any]] = None,
+    plan_task: Optional[Any] = None,
+    existing_block: Optional[str] = None,
 ) -> FreshDataResult:
     """LIVE evidence for edit requests that hinge on data the editor cannot
     see — a price "from the consolidated price list", specs from a drive
@@ -791,10 +799,39 @@ async def fetch_fresh_data_section(
     try:
         from core.chat_tool_planner import execute_tool_plan, plan_tool_use
 
-        async def _fetch() -> Tuple[bool, str]:
-            plan = await plan_tool_use(message, history, user_id, llm_service)
+        async def _fetch() -> Tuple[bool, str, str]:
+            # REUSE: an earlier leg on this turn already planned AND executed
+            # — reformat its block instead of hitting providers a second
+            # (or third) time with the identical query.
+            if existing_block:
+                return True, (
+                    "FRESH DATA for this edit (live tool results, fetched just "
+                    f"now):\n{existing_block}\n\n"
+                ), existing_block
+            # SINGLEFLIGHT: plan_tool_use is one structured LLM call per
+            # turn, and the chat leg pre-starts it (_tool_plan_task). Join
+            # the in-flight call instead of paying for a second one; a
+            # second planner pass re-decided the same need from the same
+            # words and doubled planning latency on every canvas turn.
+            if plan_task is not None:
+                try:
+                    # SHIELD: this leg's fresh-data timeout must NOT cancel
+                    # the shared task — cancellation propagates through a
+                    # plain `await task` and would poison it for the chat
+                    # leg (live 2026-09-08: 25s fresh-data timeout killed
+                    # the plan task → whole turn failed). On timeout the
+                    # CancelledError re-raises here (wait_for converts it)
+                    # while plan_task keeps running for the chat leg.
+                    plan = await asyncio.shield(plan_task)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as plan_err:  # noqa: BLE001
+                    logger.debug(f"shared tool plan failed: {plan_err}")
+                    plan = None
+            else:
+                plan = await plan_tool_use(message, history, user_id, llm_service)
             if not plan or not plan.use_tool:
-                return False, ""
+                return False, "", ""
             await _record(
                 "tool_planner",
                 {"tool": plan.service,
@@ -828,7 +865,7 @@ async def fetch_fresh_data_section(
                             "source": "canvas_edit_fresh_data"}},
                 observation)
             if not block:
-                return True, ""
+                return True, "", ""
             # Arm fact watches: when the evidence carries watchable facts
             # (zoho_inventory items, ...), a background poller re-checks
             # them and alerts if the grounded fact changes.
@@ -842,13 +879,14 @@ async def fetch_fresh_data_section(
             return True, (
                 "FRESH DATA for this edit (live tool results, fetched just "
                 f"now):\n{block}\n\n"
-            )
+            ), block
 
-        needed, section = await asyncio.wait_for(
+        needed, section, raw_block = await asyncio.wait_for(
             _fetch(), timeout=_FRESH_DATA_TIMEOUT_SECONDS
         )
         return FreshDataResult(section=section, needed=needed,
-                               ok=bool(section) or not needed)
+                               ok=bool(section) or not needed,
+                               block=raw_block)
     except asyncio.TimeoutError:
         logger.info(
             "canvas edit fresh-data lookup timed out — reporting failed "

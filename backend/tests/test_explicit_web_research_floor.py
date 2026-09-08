@@ -231,6 +231,138 @@ async def test_fresh_data_leg_sends_canvas_to_the_executor():
     assert canvas_ctx.get("title")
 
 
+# ───────────── singleflight: one plan + one execution per turn ─────────────
+
+@pytest.mark.asyncio
+async def test_fresh_data_leg_joins_shared_plan_task():
+    """Research: plan-and-execute (plan once, share across executors) +
+    singleflight (duplicate executions collapse into one). The editor leg
+    must JOIN the chat leg's in-flight plan task instead of paying for a
+    second planner LLM call, and hand the executed block back so the chat
+    leg never re-executes it."""
+    import asyncio
+
+    from core.chat_canvas_editor import fetch_fresh_data_section
+
+    llm = MagicMock()
+    web_plan = ToolPlan(use_tool=True, service="web_search", intent="search",
+                        query="hydmech dm10 vs linmac wg-350dsav", reason="")
+
+    async def _planned():
+        return web_plan
+
+    plan_task = asyncio.ensure_future(_planned())
+
+    async def _planner_should_not_run(*a, **k):
+        raise AssertionError("plan_tool_use called despite shared plan_task")
+
+    async def fake_execute(plan, user_id, tenant_id="default", context=None,
+                           llm_service=None):
+        assert context["canvas"]["subject"].startswith("Hydmech DM10")
+        return "LIVE TOOL RESULTS (web_search, query='x'): DM-10 specs"
+
+    with patch("core.chat_tool_planner.plan_tool_use",
+               side_effect=_planner_should_not_run), \
+         patch("core.chat_tool_planner.execute_tool_plan",
+               new_callable=AsyncMock, side_effect=fake_execute):
+        fresh = await fetch_fresh_data_section(
+            "web research the lead's bandsaw and compare", [], llm, "u1",
+            canvas_id="cv1",
+            canvas={"canvas_id": "cv1", "title": "Hydmech DM10 Bandsaw",
+                    "content": {"subject": "Hydmech DM10 vs Linmac",
+                                "body": "details"}},
+            plan_task=plan_task,
+        )
+    assert fresh.needed and fresh.ok
+    assert "DM-10 specs" in fresh.block
+    assert "FRESH DATA for this edit" in fresh.section
+
+
+@pytest.mark.asyncio
+async def test_fresh_data_leg_survives_failed_shared_plan():
+    """A failed shared plan degrades to 'no live lookup needed' — the edit
+    path continues without evidence instead of raising."""
+    import asyncio
+
+    from core.chat_canvas_editor import fetch_fresh_data_section
+
+    llm = MagicMock()
+
+    async def _boom():
+        raise RuntimeError("planner down")
+
+    plan_task = asyncio.ensure_future(_boom())
+    with patch("core.chat_tool_planner.plan_tool_use",
+               new_callable=AsyncMock) as planner, \
+         patch("core.chat_tool_planner.execute_tool_plan",
+               new_callable=AsyncMock) as execute:
+        fresh = await fetch_fresh_data_section(
+            "web research the lead's bandsaw", [], llm, "u1",
+            plan_task=plan_task,
+        )
+    assert not fresh.needed and fresh.ok and not fresh.block
+    planner.assert_not_awaited()
+    execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_fresh_data_timeout_leaves_shared_plan_task_alive(monkeypatch):
+    """Live 2026-09-08: the fresh-data wait_for timeout CANCELLED the shared
+    plan task (cancellation propagates through a plain `await task`), so a
+    slow planner under rate limiting killed the whole turn. The shield must
+    keep the shared task alive for the chat leg."""
+    import asyncio
+
+    import core.chat_canvas_editor as cce
+    from core.chat_canvas_editor import fetch_fresh_data_section
+
+    llm = MagicMock()
+
+    async def _slow_plan():
+        await asyncio.sleep(0.3)
+        return ToolPlan(use_tool=False, reason="slow planner")
+
+    plan_task = asyncio.ensure_future(_slow_plan())
+    monkeypatch.setattr(cce, "_FRESH_DATA_TIMEOUT_SECONDS", 0.05)
+    fresh = await fetch_fresh_data_section(
+        "web research the lead's bandsaw", [], llm, "u1", plan_task=plan_task,
+    )
+    # Timeout path: edit evidence declined honestly…
+    assert fresh.needed and not fresh.ok and not fresh.block
+    # …and the shared task survived for the chat leg.
+    assert not plan_task.cancelled()
+    plan = await plan_task
+    assert plan is not None and not plan.use_tool
+
+
+# ───────────── orchestrator wiring (shape pins) ──────────────────────────
+
+def test_turn_blackboard_wired_through_process_chat_message():
+    """process_chat_message must create the shared carrier (plan task in,
+    executed block out), pass it to the edit leg, and hand any prefetched
+    block to the chat leg."""
+    import inspect
+    from integrations import chat_orchestrator as co
+    src = inspect.getsource(co.ChatOrchestrator.process_chat_message)
+    assert '"plan_task": _tool_plan_task' in src
+    assert "shared_tool_state=_shared_tool" in src
+    assert "prefetched_tool_block=_shared_tool.get(\"block\")" in src
+
+    edit_src = inspect.getsource(co.ChatOrchestrator._try_canvas_edit)
+    assert "plan_task=(shared_tool_state or {}).get(\"plan_task\")" in edit_src
+    assert "shared_tool_state[\"block\"] = fresh.block or None" in edit_src
+
+
+def test_chat_leg_reuses_prefetched_block_without_reexecution():
+    """_get_qwen_response must skip planner+executor entirely when the turn
+    blackboard carries an already-executed block."""
+    import inspect
+    from integrations import chat_orchestrator as co
+    src = inspect.getsource(co.ChatOrchestrator._get_qwen_response)
+    assert "if prefetched_tool_block:" in src
+    assert "reused canvas-edit leg" in src
+
+
 # ───────────────── orchestrator guard wiring (shape pins) ─────────────────
 
 def test_capability_honesty_guard_wired_on_both_reply_paths():
