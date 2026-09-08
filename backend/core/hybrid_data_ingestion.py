@@ -1849,6 +1849,52 @@ class HybridDataIngestionService:
                                                         _content_budget -= 1
                                             except Exception as c_err:
                                                 logger.debug(f"WorkDrive content extraction skipped for {f.get('name')}: {c_err}")
+
+                                # Truncated-memory-family repair (bounded): the
+                                # concurrent-writer defect left chunk families
+                                # half-written (live: the flagship price list
+                                # had 449/2263 chunks in memory). Scan, and
+                                # re-download up to N of them per sync — the
+                                # hash-skip's family-completeness guard forces
+                                # a full rewrite on re-ingest.
+                                try:
+                                    _repair_budget = max(0, int(os.getenv(
+                                        "ATOM_MEMORY_REPAIR_PER_SYNC", "3")))
+                                except ValueError:
+                                    _repair_budget = 3
+                                if _repair_budget > 0 and _doc_ingestor:
+                                    try:
+                                        incomplete = await asyncio.to_thread(
+                                            _doc_ingestor.memory_handler.list_incomplete_chunk_families,
+                                            "documents", 10,
+                                        )
+                                        wd_incomplete = [
+                                            f for f in incomplete
+                                            if str(f.get("source", "")).startswith("zoho_workdrive:")
+                                            and f.get("external_id")
+                                        ][:_repair_budget]
+                                        for fam in wd_incomplete:
+                                            try:
+                                                _rid = fam["external_id"]
+                                                _bytes = await zoho_workdrive_service.download_file(wd_user, _rid)
+                                                if _bytes:
+                                                    await _doc_ingestor.process_file_bytes(
+                                                        content=_bytes,
+                                                        file_name=fam.get("file_name") or f"wd-{_rid}.xlsx",
+                                                        source="zoho_workdrive",
+                                                        user_id=wd_user,
+                                                        workspace_id=self.workspace_id,
+                                                        external_id=f"zoho_workdrive:{_rid}",
+                                                        extra_metadata={"source_modified_at": None},
+                                                    )
+                                                    logger.info(
+                                                        f"[WD] memory repair: re-ingested truncated family "
+                                                        f"{fam['parent'][:24]}… ({fam['stored']}/{fam['expected']} chunks)"
+                                                    )
+                                            except Exception as rep_err:
+                                                logger.warning(f"[WD] memory repair skipped for {fam.get('file_name')}: {rep_err}")
+                                    except Exception as scan_err:
+                                        logger.debug(f"memory repair scan failed: {scan_err}")
                         except Exception as wd_err:
                             logger.warning(f"WorkDrive fetch failed (non-fatal): {wd_err}")
 

@@ -1431,6 +1431,59 @@ class LanceDBHandler:
             logger.error(f"Failed to search in '{table_name}': {e}")
             return []
 
+    def list_incomplete_chunk_families(self, table_name: str = "documents", limit: int = 10) -> list[Dict[str, Any]]:
+        """Chunk families whose stored row count < their declared chunk_total
+        (a writer died mid-family). Each hit carries the parent doc_id, the
+        source label and the metadata external_id needed to re-download and
+        re-ingest. Read-only scan; used by the sync loop's repair pass.
+        """
+        self._ensure_db()
+        if self.db is None:
+            return []
+        try:
+            df = self.get_table(table_name).to_pandas()
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"list_incomplete_chunk_families: scan failed: {e}")
+            return []
+
+        families: Dict[str, Dict[str, Any]] = {}
+        for rid, meta_raw, src in zip(
+            df["id"].astype(str), df["metadata"], df["source"].astype(str)
+        ):
+            if "::c" not in rid:
+                continue
+            parent = rid.split("::c")[0]
+            fam = families.setdefault(parent, {"stored": 0, "chunk_total": 0, "meta_raw": meta_raw, "source": src})
+            fam["stored"] += 1
+            if meta_raw:
+                try:
+                    m = json.loads(meta_raw)
+                except (TypeError, ValueError):
+                    continue
+                ct = m.get("chunk_total")
+                if isinstance(ct, int) and ct > fam["chunk_total"]:
+                    fam["chunk_total"] = ct
+                    fam["meta_raw"] = meta_raw
+
+        out: List[Dict[str, Any]] = []
+        for parent, fam in families.items():
+            if fam["chunk_total"] and fam["stored"] < fam["chunk_total"]:
+                try:
+                    meta = json.loads(fam["meta_raw"]) if fam["meta_raw"] else {}
+                except (TypeError, ValueError):
+                    meta = {}
+                out.append({
+                    "parent": parent,
+                    "stored": fam["stored"],
+                    "expected": fam["chunk_total"],
+                    "source": fam["source"],
+                    "external_id": meta.get("external_id"),
+                    "file_name": meta.get("file_name") or meta.get("title") or "",
+                })
+                if len(out) >= limit:
+                    break
+        return out
+
     def list_document_heads(self, table_name: str, limit: int = 200) -> list[dict[str, Any]]:
         """List lightweight heads ({id, metadata, created_at}) without vectors.
 
