@@ -116,40 +116,10 @@ def _format_graph_timestamp(dt: datetime) -> str:
     unconsumed message at 12:00:00.5 fell outside an inclusive
     ``le 12:00:00`` filter and was skipped. The compact form is kept for
     zero-microsecond values so ordinary cursors stay readable in filters.
-
-    Naive datetimes are assumed to be UTC (legacy persisted cursors were
-    written tz-less): treating a naive LOCAL wall-clock value as UTC here
-    would shift the watermark by the host offset and make incremental polls
-    silently skip mail (Sep 2026 — cursors advanced every cycle while the
-    store stayed empty).
     """
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
     if dt.microsecond:
         return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def _coerce_utc_ts(value: Any) -> Optional[datetime]:
-    """Coerce a persisted cursor / Graph timestamp to an AWARE UTC datetime.
-
-    Naive values are assumed to be UTC (see :func:`_format_graph_timestamp`).
-    Returns None for values that cannot be parsed — callers treat that as
-    "no cursor" (an initial-sync re-walk) rather than guessing.
-    """
-    if isinstance(value, datetime):
-        if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
-    if isinstance(value, str):
-        try:
-            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except Exception:
-            return None
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
-    return None
 
 
 def _extract_tables_from_html(html_body: str):
@@ -1442,9 +1412,10 @@ class CommunicationIngestionPipeline:
             if self._fetch_state_path.exists():
                 data = json.loads(self._fetch_state_path.read_text() or "{}")
                 for key, ts in (data.get("fetch_timestamps") or {}).items():
-                    parsed = _coerce_utc_ts(ts)
-                    if parsed is not None:
-                        self.fetch_timestamps[key] = parsed
+                    try:
+                        self.fetch_timestamps[key] = datetime.fromisoformat(ts)
+                    except Exception:
+                        continue
                 by_owner = data.get("seen_message_ids_by_owner") or {}
                 self._seen_message_ids = {
                     str(app): {
@@ -2397,7 +2368,7 @@ class CommunicationIngestionPipeline:
                 ts = message.get("timestamp")
                 if isinstance(ts, datetime) and (newest is None or ts > newest):
                     newest = ts
-            self.fetch_timestamps[last_fetch_key] = newest or datetime.now(timezone.utc)
+            self.fetch_timestamps[last_fetch_key] = newest or datetime.now()
             self._save_fetch_state()
 
             return fresh
@@ -3150,72 +3121,9 @@ class CommunicationIngestionPipeline:
             # Normalize to unified message format
             normalized_messages = []
             for msg in messages:
-                try:
-                    # Received time: Date header / internalDate / timestamp
-                    timestamp = parse_message_timestamp(msg)
-
-                    # Extract sender name and email
-                    sender = msg.get("sender", "")
-                    sender_name = sender
-                    sender_email = sender
-
-                    # Parse email from "Name <email@domain.com>" format
-                    if "<" in sender and ">" in sender:
-                        parts = sender.rsplit("<", 1)
-                        sender_name = parts[0].strip()
-                        sender_email = parts[1].rstrip(">")
-                    elif "@" in sender:
-                        sender_email = sender
-                        sender_name = sender.split("@")[0]
-
-                    # Extract recipients
-                    recipient = msg.get("recipient", "")
-                    recipients_list = recipient.split(",") if recipient else []
-
-                    # Parse attachments — keep data (base64) so the shared
-                    # normalizer can extract the text layer; it strips the
-                    # raw bytes before storage.
-                    attachments_data = msg.get("attachments", [])
-                    attachments = []
-                    for att in attachments_data:
-                        attachments.append({
-                            "id": att.get("id"),
-                            "filename": att.get("filename"),
-                            "size": att.get("size"),
-                            "content_type": att.get("contentType"),
-                            "data": att.get("data"),
-                        })
-
-                    normalized_msg = {
-                        "id": msg.get("id"),
-                        "app_type": CommunicationAppType.GMAIL.value,
-                        "timestamp": timestamp,
-                        "direction": "inbound",
-                        "sender": sender_name,
-                        "sender_email": sender_email,
-                        "recipient": recipient,
-                        "subject": msg.get("subject", ""),
-                        "content": msg.get("body", ""),
-                        "content_type": msg.get("body_content_type", "text"),
-                        "attachments": attachments,
-                        "metadata": {
-                            "thread_id": msg.get("threadId"),
-                            "label_ids": msg.get("labelIds", []),
-                            "snippet": msg.get("snippet", ""),
-                            "history_id": msg.get("historyId"),
-                            "internal_date": msg.get("internalDate"),
-                            "size_estimate": msg.get("sizeEstimate"),
-                            "gmail_metadata": msg
-                        },
-                        "status": "active",
-                        "priority": "high" if "IMPORTANT" in msg.get("labelIds", []) else "normal",
-                        "tags": ["gmail"] + msg.get("labelIds", [])
-                    }
+                normalized_msg = self._normalize_gmail_service_message(msg)
+                if normalized_msg is not None:
                     normalized_messages.append(normalized_msg)
-
-                except Exception as e:
-                    logger.error(f"Error normalizing Gmail message {msg.get('id')}: {e}")
-                    continue
 
             logger.info(f"Fetched {len(normalized_messages)} messages from Gmail")
             return normalized_messages
@@ -3226,6 +3134,79 @@ class CommunicationIngestionPipeline:
         except Exception as e:
             logger.error(f"Error fetching Gmail messages: {e}")
             return []
+
+    def _normalize_gmail_service_message(
+        self, msg: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """One GmailService message dict → the normalized poller shape.
+        Shared by the Gmail poll walk and the on-demand single-message
+        ingest so both paths land identical rows. Returns None on a
+        malformed message (logged)."""
+        try:
+            # Received time: Date header / internalDate / timestamp
+            timestamp = parse_message_timestamp(msg)
+
+            # Extract sender name and email
+            sender = msg.get("sender", "")
+            sender_name = sender
+            sender_email = sender
+
+            # Parse email from "Name <email@domain.com>" format
+            if "<" in sender and ">" in sender:
+                parts = sender.rsplit("<", 1)
+                sender_name = parts[0].strip()
+                sender_email = parts[1].rstrip(">")
+            elif "@" in sender:
+                sender_email = sender
+                sender_name = sender.split("@")[0]
+
+            # Extract recipients
+            recipient = msg.get("recipient", "")
+            recipients_list = recipient.split(",") if recipient else []
+
+            # Parse attachments — keep data (base64) so the shared
+            # normalizer can extract the text layer; it strips the
+            # raw bytes before storage.
+            attachments_data = msg.get("attachments", [])
+            attachments = []
+            for att in attachments_data:
+                attachments.append({
+                    "id": att.get("id"),
+                    "filename": att.get("filename"),
+                    "size": att.get("size"),
+                    "content_type": att.get("contentType"),
+                    "data": att.get("data"),
+                })
+
+            normalized_msg = {
+                "id": msg.get("id"),
+                "app_type": CommunicationAppType.GMAIL.value,
+                "timestamp": timestamp,
+                "direction": "inbound",
+                "sender": sender_name,
+                "sender_email": sender_email,
+                "recipient": recipient,
+                "subject": msg.get("subject", ""),
+                "content": msg.get("body", ""),
+                "content_type": msg.get("body_content_type", "text"),
+                "attachments": attachments,
+                "metadata": {
+                    "thread_id": msg.get("threadId"),
+                    "label_ids": msg.get("labelIds", []),
+                    "snippet": msg.get("snippet", ""),
+                    "history_id": msg.get("historyId"),
+                    "internal_date": msg.get("internalDate"),
+                    "size_estimate": msg.get("sizeEstimate"),
+                    "gmail_metadata": msg
+                },
+                "status": "active",
+                "priority": "high" if "IMPORTANT" in msg.get("labelIds", []) else "normal",
+                "tags": ["gmail"] + msg.get("labelIds", [])
+            }
+            return normalized_msg
+        except Exception as e:
+            logger.error(f"Error normalizing Gmail message {msg.get('id')}: {e}")
+            return None
 
     # Graph calls budgeted per fetched page of messages: one
     # /attachments request per message flagged hasAttachments.
@@ -3616,7 +3597,7 @@ class CommunicationIngestionPipeline:
                         history_days = get_automation_settings().get_initial_sync_days("outlook")
                     except Exception:
                         history_days = 90
-                    since = (datetime.now(timezone.utc) - timedelta(days=history_days))
+                    since = (datetime.now() - timedelta(days=history_days))
                     ts = _format_graph_timestamp(since)
                     params["$filter"] = f"receivedDateTime ge {ts}"
                     # Enough pages to walk the window in one pass; if it
@@ -3695,96 +3676,17 @@ class CommunicationIngestionPipeline:
 
                         # Normalize messages
                         for msg in messages:
-                            try:
-                                # Parse timestamp
-                                received_datetime = msg.get("receivedDateTime")
-                                if received_datetime:
-                                    timestamp = _coerce_utc_ts(received_datetime)
-                                    if timestamp is None:
-                                        timestamp = datetime.now(timezone.utc)
-                                else:
-                                    timestamp = datetime.now(timezone.utc)
-
-                                # Extract sender
-                                from_data = msg.get("from", {})
-                                sender_email = from_data.get("emailAddress", {}).get("address", "UNKNOWN")
-                                sender_name = from_data.get("emailAddress", {}).get("name", sender_email)
-
-                                # Extract recipients
-                                to_recipients = msg.get("toRecipients", [])
-                                recipients_list = [
-                                    recipient.get("emailAddress", {}).get("address", "")
-                                    for recipient in to_recipients
-                                ]
-                                recipient = ", ".join(filter(None, recipients_list))
-
-                                # Extract body content (prefer HTML, fallback to text)
-                                body_data = msg.get("body", {})
-                                body_content = body_data.get("content", "")
-                                body_type = body_data.get("contentType", "text")
-
-                                # Parse attachments — keep contentBytes so the
-                                # email normalizer can extract the text layer;
-                                # it strips the raw bytes before storage.
-                                attachments_data = msg.get("attachments", [])
-                                attachments = []
-                                for att in attachments_data:
-                                    attachments.append({
-                                        "id": att.get("id"),
-                                        "name": att.get("name"),
-                                        "size": att.get("size"),
-                                        "content_type": att.get("contentType"),
-                                        "is_inline": att.get("isInline", False),
-                                        "contentBytes": att.get("contentBytes"),
-                                    })
-
-                                normalized_msg = {
-                                    "id": msg.get("id"),
-                                    "app_type": CommunicationAppType.OUTLOOK.value,
-                                    "timestamp": timestamp,
-                                    "direction": "inbound",
-                                    "sender": sender_name,
-                                    "sender_email": sender_email,
-                                    "recipient": recipient,
-                                    "subject": msg.get("subject", ""),
-                                    "content": body_content,
-                                    "content_type": body_type,
-                                    "attachments": attachments,
-                                    "metadata": {
-                                        # Mailbox owner: knowledge extraction and
-                                        # communication intelligence scope what
-                                        # they learn to this account via
-                                        # metadata["user_id"] (the normalizer
-                                        # hoists it to the top level).
-                                        "user_id": owner,
-                                        "conversation_id": msg.get("conversationId"),
-                                        "parent_folder_id": msg.get("parentFolderId"),
-                                        "importance": msg.get("importance"),
-                                        "is_read": msg.get("isRead"),
-                                        "is_draft": msg.get("isRead", False),
-                                        "flag": msg.get("flag"),
-                                        "web_link": msg.get("webLink"),
-                                        "outlook_metadata": msg
-                                    },
-                                    "status": "read" if msg.get("isRead") else "unread",
-                                    "priority": "high" if msg.get("importance") == "High" else "normal",
-                                    "tags": ["outlook"]
-                                }
-
-                                # Add category tags if present
-                                categories = msg.get("categories", [])
-                                if categories:
-                                    normalized_msg["tags"].extend(categories)
-
-                                all_messages.append(normalized_msg)
-                                if newest is None or timestamp > newest:
-                                    newest = timestamp
-                                if min_seen is None or timestamp < min_seen:
-                                    min_seen = timestamp
-
-                            except Exception as e:
-                                logger.error(f"Error normalizing Outlook message {msg.get('id')}: {e}")
+                            normalized_msg = self._normalize_outlook_graph_message(
+                                msg, owner
+                            )
+                            if normalized_msg is None:
                                 continue
+                            all_messages.append(normalized_msg)
+                            timestamp = normalized_msg.get("timestamp")
+                            if newest is None or timestamp > newest:
+                                newest = timestamp
+                            if min_seen is None or timestamp < min_seen:
+                                min_seen = timestamp
 
                         # Check for next page
                         next_link = data.get("@odata.nextLink")
@@ -3794,7 +3696,7 @@ class CommunicationIngestionPipeline:
                             # bound when draining one, else the newest message
                             # seen (or now() on an empty window, so polls
                             # don't re-walk an empty window forever).
-                            new_cursor = resume_max or newest or datetime.now(timezone.utc)
+                            new_cursor = resume_max or newest or datetime.now()
                             new_resume = None
                             break
 
@@ -3835,6 +3737,263 @@ class CommunicationIngestionPipeline:
         except Exception as e:
             logger.error(f"Error fetching Outlook messages (user {owner}): {e}")
             return [], None, resume_max
+
+    def _normalize_outlook_graph_message(
+        self, msg: Dict[str, Any], owner: str
+    ) -> Optional[Dict[str, Any]]:
+        """One raw Graph message (attachments collection attached) → the
+        normalized poller shape. Shared by the poll walk and the on-demand
+        single-message ingest (ingest_email_on_demand) so both paths land
+        identical rows. Returns None on a malformed message (logged)."""
+        try:
+            # Parse timestamp
+            received_datetime = msg.get("receivedDateTime")
+            if received_datetime:
+                timestamp = datetime.fromisoformat(received_datetime)
+            else:
+                timestamp = datetime.now()
+
+            # Extract sender
+            from_data = msg.get("from", {})
+            sender_email = from_data.get("emailAddress", {}).get("address", "UNKNOWN")
+            sender_name = from_data.get("emailAddress", {}).get("name", sender_email)
+
+            # Extract recipients
+            to_recipients = msg.get("toRecipients", [])
+            recipients_list = [
+                recipient.get("emailAddress", {}).get("address", "")
+                for recipient in to_recipients
+            ]
+            recipient = ", ".join(filter(None, recipients_list))
+
+            # Extract body content (prefer HTML, fallback to text)
+            body_data = msg.get("body", {})
+            body_content = body_data.get("content", "")
+            body_type = body_data.get("contentType", "text")
+
+            # Parse attachments — keep contentBytes so the
+            # email normalizer can extract the text layer;
+            # it strips the raw bytes before storage.
+            attachments_data = msg.get("attachments", [])
+            attachments = []
+            for att in attachments_data:
+                attachments.append({
+                    "id": att.get("id"),
+                    "name": att.get("name"),
+                    "size": att.get("size"),
+                    "content_type": att.get("contentType"),
+                    "is_inline": att.get("isInline", False),
+                    "contentBytes": att.get("contentBytes"),
+                })
+
+            normalized_msg = {
+                "id": msg.get("id"),
+                "app_type": CommunicationAppType.OUTLOOK.value,
+                "timestamp": timestamp,
+                "direction": "inbound",
+                "sender": sender_name,
+                "sender_email": sender_email,
+                "recipient": recipient,
+                "subject": msg.get("subject", ""),
+                "content": body_content,
+                "content_type": body_type,
+                "attachments": attachments,
+                "metadata": {
+                    # Mailbox owner: knowledge extraction and
+                    # communication intelligence scope what
+                    # they learn to this account via
+                    # metadata["user_id"] (the normalizer
+                    # hoists it to the top level).
+                    "user_id": owner,
+                    "conversation_id": msg.get("conversationId"),
+                    "parent_folder_id": msg.get("parentFolderId"),
+                    "importance": msg.get("importance"),
+                    "is_read": msg.get("isRead"),
+                    "is_draft": msg.get("isRead", False),
+                    "flag": msg.get("flag"),
+                    "web_link": msg.get("webLink"),
+                    "outlook_metadata": msg
+                },
+                "status": "read" if msg.get("isRead") else "unread",
+                "priority": "high" if msg.get("importance") == "High" else "normal",
+                "tags": ["outlook"]
+            }
+
+            # Add category tags if present
+            categories = msg.get("categories", [])
+            if categories:
+                normalized_msg["tags"].extend(categories)
+            return normalized_msg
+        except Exception as e:
+            logger.error(f"Error normalizing Outlook message {msg.get('id')}: {e}")
+            return None
+
+    async def _fetch_outlook_message_by_id(
+        self, owner: str, message_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Fetch ONE raw Graph message with its attachments collection for
+        the on-demand ingest path. Same auth contract as the poll walk: the
+        owner's own IntegrationToken via outlook_service (user_id=None would
+        return None by design — no cross-user fallback). $expand=attachments
+        is the single-message equivalent of _expand_outlook_attachments."""
+        from integrations.outlook_service import outlook_service
+
+        access_token = await outlook_service._get_access_token(user_id=owner)
+        if not access_token:
+            logger.warning(
+                f"On-demand outlook ingest: no Microsoft OAuth token for user {owner}"
+            )
+            return None
+        graph_base = os.getenv(
+            "MICROSOFT_GRAPH_BASE_URL",
+            "https://graph.microsoft.com/v1.0",
+        ).rstrip("/")
+        headers = {"Authorization": f"Bearer {access_token}"}
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(
+                    f"{graph_base}/me/messages/{message_id}",
+                    headers=headers,
+                    params={"$expand": "attachments"},
+                )
+                if response.status_code != 200:
+                    logger.error(
+                        f"On-demand outlook fetch {message_id} returned "
+                        f"{response.status_code}"
+                    )
+                    return None
+                return response.json()
+        except Exception as e:
+            logger.error(f"On-demand outlook fetch {message_id} failed: {e}")
+            return None
+
+    async def _fetch_and_normalize_gmail_message(
+        self, message_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Fetch ONE Gmail message with attachments expanded → the poller's
+        normalized shape (same service/auth contract as _fetch_gmail_messages)."""
+        from integrations.gmail_service import GmailService
+
+        gmail_service = GmailService()
+        if not gmail_service.service:
+            try:
+                gmail_service._authenticate()
+            except Exception as e:
+                logger.warning(f"On-demand gmail ingest: auth failed: {e}")
+                return None
+        if not gmail_service.service:
+            logger.warning("Gmail service not available for on-demand ingest")
+            return None
+        loop = get_event_loop()
+        msg = await loop.run_in_executor(
+            None, lambda: gmail_service.get_message(message_id)
+        )
+        if not msg:
+            return None
+        if msg.get("attachments") and self._attachments_enabled("gmail"):
+            await self._expand_gmail_attachments(gmail_service, [msg])
+        return self._normalize_gmail_service_message(msg)
+
+    async def ingest_email_on_demand(
+        self, provider: str, owner: str, message_id: str
+    ) -> Dict[str, Any]:
+        """On-demand ingest of ONE mailbox email (body + attachments) — the
+        agent tool path for "ingest this email". Bypasses the poll loop, so
+        it follows the webhook-handler contract: is_message_known
+        short-circuit, mark-after-success (mark_message_ingested), and the
+        store-level dedup guard behind that. The message dict is built by
+        the SAME per-provider normalizers the poller uses, so on-demand and
+        polled rows are identical (and dedupe against each other).
+
+        provider: "outlook" | "gmail". owner: mailbox-owning user id — the
+        fetch uses ONLY that user's token (no cross-user fallback).
+
+        Returns {"status": "ingested"|"already_ingested"|"error", ...}.
+        Never raises.
+        """
+        provider = (provider or "").strip().lower()
+        if provider in ("microsoft", "graph"):
+            provider = CommunicationAppType.OUTLOOK.value
+        app_type = provider
+        if app_type not in (CommunicationAppType.OUTLOOK.value, CommunicationAppType.GMAIL.value):
+            return {
+                "status": "error",
+                "reason": f"unsupported provider: {provider!r}",
+                "message_id": message_id,
+            }
+        message_id = str(message_id or "").strip()
+        owner = str(owner or "")
+        if not message_id:
+            return {"status": "error", "reason": "message_id is required", "app_type": app_type}
+
+        try:
+            if self.is_message_known(app_type, message_id, owner):
+                return {
+                    "status": "already_ingested",
+                    "app_type": app_type,
+                    "message_id": message_id,
+                }
+
+            if app_type == CommunicationAppType.OUTLOOK.value:
+                raw = await self._fetch_outlook_message_by_id(owner, message_id)
+                if raw is None:
+                    return {
+                        "status": "error",
+                        "reason": "message_not_found_or_unreachable",
+                        "app_type": app_type,
+                        "message_id": message_id,
+                    }
+                normalized = self._normalize_outlook_graph_message(raw, owner)
+            else:
+                normalized = await self._fetch_and_normalize_gmail_message(message_id)
+                if normalized is None:
+                    return {
+                        "status": "error",
+                        "reason": "message_not_found_or_unreachable",
+                        "app_type": app_type,
+                        "message_id": message_id,
+                    }
+            if normalized is None:
+                return {
+                    "status": "error",
+                    "reason": "message_normalization_failed",
+                    "app_type": app_type,
+                    "message_id": message_id,
+                }
+
+            success = await self.ingest_message(app_type, normalized)
+            if not success:
+                # NOT marked seen — the message stays on the retry path
+                # (same contract as _ingest_and_mark).
+                return {
+                    "status": "error",
+                    "reason": "store_write_failed",
+                    "app_type": app_type,
+                    "message_id": message_id,
+                }
+            self.mark_message_ingested(
+                app_type, message_id, _message_owner_stamp(normalized)
+            )
+            try:
+                self._save_fetch_state()
+            except Exception as e:
+                logger.debug(f"On-demand ingest: fetch-state save skipped: {e}")
+            return {
+                "status": "ingested",
+                "app_type": app_type,
+                "message_id": message_id,
+                "subject": normalized.get("subject") or "",
+                "attachments": len(normalized.get("attachments") or []),
+            }
+        except Exception as e:
+            logger.error(f"On-demand ingest failed for {provider}:{message_id}: {e}")
+            return {
+                "status": "error",
+                "reason": str(e),
+                "app_type": app_type,
+                "message_id": message_id,
+            }
+
     
     def _index_attachments(
         self, content: str, attachments: List[Dict[str, Any]]
