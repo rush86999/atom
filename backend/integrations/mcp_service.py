@@ -380,7 +380,7 @@ class MCPService(IntegrationService):
                 },
                 {
                     "name": "send_email",
-                    "description": "Send an email via Gmail, Outlook, or Zoho Mail. To reply within an existing thread pass thread_id (from search results) or reply_to_message_id — recipients and subject are inherited; do not re-fetch the thread. reply_all: true = reply to all (Outlook). POLICY: a reply-shaped send (subject starting Re:/Fwd:) without thread_id/conversation_id/reply_to_message_id is BLOCKED (same-thread rule), and a body quoting a price requires price_verified=true (verify from the price list first).",
+                    "description": "Send an email via Gmail, Outlook, or Zoho Mail. To reply within an existing thread pass thread_id (from search results) or reply_to_message_id — recipients and subject are inherited; do not re-fetch the thread. reply_all: true = reply to all (Outlook). POLICY (sends are BLOCKED with a reason if violated): a reply-shaped send (subject starting Re:/Fwd:) needs thread_id/conversation_id/reply_to_message_id (same-thread rule); a body quoting a price needs price_verified=true AND item_model (specs rule); a body saying a machine is not available needs alternatives (same-category options); customer_is_new=true needs company_name present in the body (intro rule).",
                     "parameters": {
                         "platform": "string (gmail, outlook, zoho_mail, optional)",
                         "to": "string (recipient email; optional when thread_id or reply_to_message_id is given)",
@@ -390,7 +390,11 @@ class MCPService(IntegrationService):
                         "reply_to_message_id": "string (reply to this specific message)",
                         "reply_all": "boolean (Outlook only — reply to the whole thread)",
                         "price_verified": "boolean (REQUIRED when body quotes a price — you verified it from the price list/customer file)",
-                        "price_source": "string (optional — where the verified price came from, e.g. price list email)"
+                        "price_source": "string (optional — where the verified price came from, e.g. price list email)",
+                        "item_model": "string (REQUIRED when body quotes a price — the machine being quoted; if the customer did not specify model/quantity/condition, ASK for the missing details first)",
+                        "alternatives": "string or list (REQUIRED when body says the requested machine is not available — same-category alternatives)",
+                        "customer_is_new": "boolean (true when the recipient has no prior dealings — then introduce the company briefly)",
+                        "company_name": "string (REQUIRED when customer_is_new=true — must appear in the body)"
                     }
                 },
                 {
