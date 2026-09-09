@@ -1058,16 +1058,16 @@ class UniversalIntegrationService:
         comm_service = await registry.get_service_instance(service, tenant_id)
         token = getattr(comm_service, 'access_token', None) or context.get("access_token")
 
-        # Email send-policy gate (Level B): deterministic, LLM-free
-        # BUSINESS-QUALITY rules (same-thread, verified price, specs,
-        # alternatives, customer intro) at the send boundary. Distinct from the
-        # SAFETY gate core/email_policy.py, which runs earlier at the
-        # dispatch/HITL layer (see email_policy_gate module docstring for the
-        # layering). Controlled by ATOM_EMAIL_SEND_POLICY_ENABLED / _RULES.
-        # Runs BEFORE any provider branch; fail-open on gate errors.
+        # Email send-policy gate (transport level): deterministic, LLM-free
+        # MEDIUM-hygiene checks (same-thread reply linkage) at the send
+        # boundary. Distinct from the SAFETY gate core/email_policy.py, which
+        # runs earlier at the dispatch/HITL layer. Carries NO business rules
+        # by design — those belong to per-workspace rule data (see the
+        # email_policy_gate module docstring). Controlled by
+        # ATOM_EMAIL_SEND_POLICY_ENABLED / _RULES. Runs BEFORE any provider
+        # branch; fail-open on gate errors.
         if action == "send_message" and service in ("gmail", "outlook", "zoho_mail"):
             try:
-                from core.email_policy_data import load_send_policy_context
                 from core.email_policy_gate import (
                     active_rule_codes,
                     blocked_payload,
@@ -1077,19 +1077,8 @@ class UniversalIntegrationService:
                 )
 
                 if is_policy_enabled():
-                    # Data-backed context (machine catalog + known customers) so
-                    # the alternatives / customer-intro rules verify against real
-                    # data. Empty on unseeded workspaces — param-contract only.
-                    _policy_ctx = load_send_policy_context(
-                        workspace_id=context.get("workspace_id") or self.workspace_id or "default",
-                        tenant_id=context.get("tenant_id"),
-                    )
                     violations = filter_violations(
-                        check_send_message(
-                            params,
-                            catalog=_policy_ctx["catalog"],
-                            known_customers=_policy_ctx["known_customers"],
-                        ),
+                        check_send_message(params),
                         active_rule_codes(),
                     )
                     if violations:

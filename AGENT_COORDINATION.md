@@ -537,7 +537,39 @@ Author session: feat/email-send-policy-gate + feat/email-policy-db-backed-rules.
   needed; demo catalog synthetic until the real consolidated price sheet is
   reachable (WorkDrive team search 500s).
 - **Verified:** 50 unit + hook tests pass for the gate suites.
-=======
+
+## 2026-09-09 — ZCode (Rish): business rules REMOVED from the send gate (PR #611 rework)
+
+Product decision after PR review: the platform targets any-category small
+businesses, so per-business rules must not live in core code. The five
+Brennan sales rules (verified price, item_model specs, alternatives,
+customer intro + the DB-backed variants) are deleted from
+`core/email_policy_gate.py`, along with `core/email_policy_data.py` and
+`scripts/seed_email_demo_catalog.py` (their only consumers). The six
+business params (`price_verified`, `price_source`, `item_model`,
+`alternatives`, `customer_is_new`, `company_name`) are gone from the
+`send_email` tool schema — agents of other businesses never see them.
+
+Why (root cause, not preference): Brennan itself prices more than one way
+(consolidated price list AND manual calculation), so the single
+"price_verified=true" attestation shape was wrong even for its authoring
+business — and hardcoded rules cannot follow a dynamic business process.
+Research (AGENTS.md #3): OPA/CNCF decouple policy from code so rules ship
+as data; CPQ practice (Salesforce) treats list-price vs manually-computed
+prices as per-deployment approval conditions, never one hardcoded shape.
+
+Kept: the gate hook, deterministic LLM-free check framework (violations
+with reason+fix, fail-open hook, ATOM_EMAIL_SEND_POLICY_ENABLED/_RULES),
+and the one rule that survives the swap-the-business test —
+`reply_without_thread` (medium hygiene, like the safety gate's recipient
+mechanics). When business rules return: per-workspace rule packs authored
+through the supervisor training loop, evaluated by this machinery. Also
+fixed the stray `=======` merge-conflict marker committed at this spot.
+
+Verified: gate (18) + hook (9) suites green (27 total); grep clean of the
+six params outside unrelated pre-existing code (b2b price_source,
+mobile-test names).
+
 ## 2026-09-08 late — ZCode: role-journey trace (all 8 user roles) + gap closure
 
 Traced every role's journey end to end (backend gates, frontend UI, approval

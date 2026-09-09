@@ -39,7 +39,7 @@ async def test_reply_without_thread_blocked_before_provider_call():
     reg = _FakeRegistry(service_instance=None)  # even a dead service must not be reached
     result = await svc._execute_communication(
         "gmail", "send_message",
-        {"to": "a@b.com", "subject": "Re: Quote for SR48P", "body": "Hi"},
+        {"to": "a@b.com", "subject": "Re: Quote", "body": "Hi"},
         _ctx(reg),
     )
     assert result["status"] == "blocked"
@@ -48,16 +48,15 @@ async def test_reply_without_thread_blocked_before_provider_call():
 
 
 @pytest.mark.asyncio
-async def test_unverified_price_blocked_for_outlook():
+async def test_reply_without_thread_blocked_for_outlook():
     svc = UniversalIntegrationService()
     reg = _FakeRegistry(service_instance=None)
     result = await svc._execute_communication(
         "outlook", "send_message",
-        {"to": "a@b.com", "subject": "Quote", "body": "It is $1,250."},
+        {"to": "a@b.com", "subject": "Re: quote", "body": "yo"},
         _ctx(reg),
     )
     assert result["status"] == "blocked"
-    assert result["violations"][0]["code"] == "unverified_price"
 
 
 @pytest.mark.asyncio
@@ -78,7 +77,7 @@ async def test_clean_new_email_passes_through_to_provider():
     reg = _FakeRegistry(service_instance=_FakeCommService())
     result = await svc._execute_communication(
         "gmail", "send_message",
-        {"to": "new@b.com", "subject": "Introducing Brennan Machinery", "body": "Hello"},
+        {"to": "new@b.com", "subject": "Introducing the company", "body": "Hello"},
         _ctx(reg),
     )
     assert result["status"] == "success"
@@ -86,18 +85,17 @@ async def test_clean_new_email_passes_through_to_provider():
 
 
 @pytest.mark.asyncio
-async def test_threaded_reply_with_verified_price_passes():
+async def test_threaded_reply_passes_regardless_of_business_content():
+    # Business content (a quoted price, an availability statement) is not the
+    # gate's business — only thread linkage is checked at this layer.
     svc = UniversalIntegrationService()
     reg = _FakeRegistry(service_instance=_FakeCommService())
     result = await svc._execute_communication(
         "gmail", "send_message",
         {
-            "subject": "Re: Quote for SR48P",
+            "subject": "Re: Quote",
             "thread_id": "t-123",
             "body": "Confirmed: $1,250.",
-            "price_verified": True,
-            "price_source": "price list",
-            "item_model": "SR48P",
         },
         _ctx(reg),
     )
@@ -136,7 +134,7 @@ async def test_master_switch_disabled_lets_violation_through(monkeypatch):
 @pytest.mark.asyncio
 async def test_rule_scoping_lets_unlisted_violation_through(monkeypatch):
     """ATOM_EMAIL_SEND_POLICY_RULES limits which violations block."""
-    monkeypatch.setenv("ATOM_EMAIL_SEND_POLICY_RULES", "quote_without_item")
+    monkeypatch.setenv("ATOM_EMAIL_SEND_POLICY_RULES", "some_future_rule")
     svc = UniversalIntegrationService()
     reg = _FakeRegistry(service_instance=_FakeCommService())
     result = await svc._execute_communication(
