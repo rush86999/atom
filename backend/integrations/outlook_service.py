@@ -985,15 +985,18 @@ class OutlookService(IntegrationService):
     ) -> Optional[str]:
         """Create a THREADED DRAFT reply (never sends).
 
-        POST /me/messages/{id}/reply returns a draft message object already
-        anchored in the original conversation (Graph wires In-Reply-To /
-        References itself); PATCH its body/subject and STOP — the draft stays
-        in the Drafts folder for human review/training. Returns the draft id
-        (or None on failure). Mirrors ``reply_to_email``'s HTML route but
-        skips the final /send.
+        POST /me/messages/{id}/createReply returns the new draft message
+        (201, object with id) already anchored in the original conversation
+        (Graph wires In-Reply-To / References itself); PATCH its body/subject
+        and STOP — the draft stays in the Drafts folder for human
+        review/training. Returns the draft id (or None on failure).
+
+        NB: the plain ``/reply`` action is a SEND — it returns 202 with an
+        empty body and lands in Sent Items (verified live 2026-09-09, when
+        three probe drafts went out). Drafts MUST go through createReply.
         """
         try:
-            action = "replyAll" if reply_all else "reply"
+            action = "createReplyAll" if reply_all else "createReply"
             draft = await self._make_graph_request(
                 user_id, f"/me/messages/{message_id}/{action}", "POST",
                 {}, access_token=token,

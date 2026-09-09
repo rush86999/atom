@@ -242,7 +242,7 @@ def test_outlook_draft_reply_creates_draft_without_send():
 
     async def fake_graph(user_id, url, method="GET", data=None, access_token=None):
         calls.append((url, method))
-        if url.endswith("/reply") or url.endswith("/replyAll"):
+        if url.endswith("/createReply") or url.endswith("/createReplyAll"):
             return {"id": "draft-42"}
         if url.endswith("/draft-42"):
             return {"id": "draft-42", "body": {}}
@@ -254,3 +254,8 @@ def test_outlook_draft_reply_creates_draft_without_send():
     methods = [m for _, m in calls]
     assert "POST" in methods and "PATCH" in methods
     assert not any("/send" in u for u, _ in calls), "draft must never call /send"
+    # Plain /reply is a SEND (202, empty body, lands in Sent Items) — the
+    # draft flow must use createReply/createReplyAll (returns the draft
+    # object). Assert the endpoint explicitly so this can't regress.
+    assert any(u.endswith("/createReply") for u, _ in calls), "expected createReply draft flow"
+    assert not any(u.endswith("/reply") or u.endswith("/replyAll") for u, _ in calls)
