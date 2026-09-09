@@ -1951,7 +1951,12 @@ class TestHallucinationFlags:
         assert is_skill_injection_enabled() is False
 
     def test_moa(self):
+        # Default flipped OFF 2026-09-09 (cost: 3-5x per call, ~4x latency —
+        # arXiv 2409.07487); chat-path structured calls must never silently
+        # 1→N+1 when a workspace adds a second provider.
         from core.hallucination_config import is_moa_enabled
+        assert is_moa_enabled() is False
+        os.environ["ATOM_MOA_ENABLED"] = "true"
         assert is_moa_enabled() is True
         os.environ["ATOM_MOA_ENABLED"] = "off"
         assert is_moa_enabled() is False

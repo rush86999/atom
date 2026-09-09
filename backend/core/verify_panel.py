@@ -21,7 +21,10 @@ from typing import Any, Dict
 
 from pydantic import BaseModel
 
-from core.hallucination_config import is_sc_fanout_enabled
+from core.hallucination_config import (
+    is_sc_fanout_enabled,
+    is_verify_adaptive_enabled,
+)
 from core.llm.self_consistency_voter import SelfConsistencyVoter
 
 logger = logging.getLogger(__name__)
@@ -136,6 +139,7 @@ async def verify_reply(
     tenant_id: str = "default",
     samples: int = 3,
     agent_id: str | None = None,
+    enforce: bool = False,
 ) -> Dict[str, Any]:
     """Judge an answer against its evidence with a VOTING panel.
 
@@ -148,7 +152,30 @@ async def verify_reply(
 
     ``{"ran": False, "error": ...}`` on any failure — callers must treat
     ran=False as "verification unavailable", never as "verified".
+
+    Cost discipline (2026-09-09 consolidation):
+    - ESC-adaptive (``ATOM_VERIFY_ADAPTIVE``, default on): ONE judge sample
+      first (arXiv 2401.10480); the full N-sample vote runs only when that
+      sample is NOT clearly grounded — compute lands on the suspicious
+      answers the panel exists to catch. A clean answer costs 1 call.
+    - ``enforce=False`` (shadow/auto) also disables the USC judge call on
+      all-distinct votes: the judge's pick is recorded but cannot change
+      the reply, and live it picked index 0 — the exact sample the free
+      lowest-temp fallback would have chosen.
     """
+    def _result_from(vote_result) -> Dict[str, Any]:
+        winner: VerifyVerdict = vote_result.winner
+        return {
+            "ran": True,
+            "grounded": bool(winner.grounded),
+            "claims": list(winner.unsupported_claims or []),
+            "note": winner.note,
+            "agreement": round(vote_result.agreement_ratio, 3),
+            "level": vote_result.level,
+            "samples": vote_result.valid_count,
+            "fanout": vote_result.fanout_targets,
+        }
+
     result: Dict[str, Any]
     if not answer or not evidence:
         result = {"ran": False, "error": "empty answer or evidence"}
@@ -161,31 +188,35 @@ async def verify_reply(
         # samples) — a judge that never reaches its verdict is vote noise.
         # The panel only runs on mission-critical/complex turns, so the
         # extra headroom is cheap; judges that finish early stop anyway.
-        vote_result = await voter.vote_with_consensus(
+        vote_kwargs = dict(
             prompt=JUDGE_PROMPT_TEMPLATE.format(
                 context=evidence[:6000], answer=answer[:4000]
             ),
             response_model=VerifyVerdict,
             temperature=0.0,
             max_tokens=1200,
-            sample_count=samples,
             agent_id=agent_id,
             system_instruction=JUDGE_SYSTEM,
         )
+        vote_result = None
+        if is_verify_adaptive_enabled():
+            try:
+                stage1 = await voter.vote_with_consensus(
+                    sample_count=1, allow_usc_judge=False, **vote_kwargs
+                )
+            except Exception:
+                stage1 = None
+            if (stage1 is not None and stage1.winner is not None
+                    and bool(stage1.winner.grounded)):
+                vote_result = stage1
+        if vote_result is None:
+            vote_result = await voter.vote_with_consensus(
+                sample_count=samples, allow_usc_judge=enforce, **vote_kwargs
+            )
         if vote_result is None or vote_result.winner is None:
             result = {"ran": False, "error": "panel produced no verdict"}
         else:
-            winner: VerifyVerdict = vote_result.winner
-            result = {
-                "ran": True,
-                "grounded": bool(winner.grounded),
-                "claims": list(winner.unsupported_claims or []),
-                "note": winner.note,
-                "agreement": round(vote_result.agreement_ratio, 3),
-                "level": vote_result.level,
-                "samples": vote_result.valid_count,
-                "fanout": vote_result.fanout_targets,
-            }
+            result = _result_from(vote_result)
     except Exception as e:
         result = {"ran": False, "error": str(e)}
     _schedule_run_record(result, agent_id=agent_id, tenant_id=tenant_id)

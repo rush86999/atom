@@ -22,6 +22,12 @@ Every leg is fault-isolated: a planner failure or executor error degrades
 to "no tool block" and the model answers from transcript/memory, never
 raising into the chat path.
 """
+# Deferred annotations: functions above reference ToolPlan in their
+# signatures before the class is defined; Python 3.14 (server) evaluates
+# annotations lazily (PEP 649) but 3.11 tooling evaluates eagerly and the
+# import died with NameError.
+from __future__ import annotations
+
 import asyncio
 import logging
 import re
@@ -29,7 +35,7 @@ from pathlib import Path
 import os
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -305,6 +311,17 @@ Rules:
   own the what-for ("check X for the price"), this message adds the where;
   planning search again just re-lists the file name the user already named.
   Never plan sends, writes, or deletes.
+- ALSO classify the turn for routing: suggested_intent is ONE of
+  search_request | message_send | task_management | workflow_creation |
+  scheduling | data_analysis | automation_trigger | integration_setup |
+  status_check | help_request | multi_step_process | business_health | crm
+  | agent_request — what the user wants DONE with the answer. Classify by
+  the turn's GOAL verb: search/find/read/summarize/check is search_request
+  EVEN WHEN the data lives in email ("search my email for X and summarize"
+  = search_request — reading mail, not sending it); message_send is ONLY
+  when the goal is to SEND/forward/reply/draft to a recipient. Give honest
+  routing_confidence 0.0–1.0 (a bare number, e.g. 0.9); below 0.6 the
+  consumer falls back to a deeper classifier, so don't pad it.
 - VALUE LOOKUPS WITHOUT A NAMED SOURCE ("what's the price of WG-350DSAV?",
   "find invoice 123", "look up policy 7.2"): plan service "datasets",
   intent "search", query = the exact code/value ALONE. The dataset catalog
@@ -440,6 +457,29 @@ class ToolPlan(BaseModel):
     intent: Optional[str] = "search"
     query: Optional[str] = None
     reason: str = ""
+    # Routing consolidation (2026-09-09): the same structured call also
+    # classifies the turn for feature routing, so the separate NLU LLM
+    # parse (ai/nlp_engine.parse_command — one completion per message) can
+    # be skipped when these are present and confident. Optional by
+    # contract: consumers fall back to the NLU parse when absent,
+    # low-confidence, or unrecognized.
+    suggested_intent: Optional[str] = None
+    routing_confidence: Optional[float] = None
+
+    @field_validator("routing_confidence", mode="before")
+    @classmethod
+    def _coerce_numeric_string(cls, v: Any) -> Any:
+        # Small models emit quoted numbers through tool-call arguments
+        # ("routing_confidence": "0.9"). Pydantic's strict float rejects
+        # strings, and one rejection sends instructor into a regeneration
+        # loop that outlives the planner's whole time budget (live
+        # 2026-09-09: 4+ identical generations, plan lost, 25s timeout).
+        if isinstance(v, str):
+            try:
+                return float(v.strip())
+            except ValueError:
+                return None
+        return v
 
 
 def get_connected_services(user_id: Optional[str]) -> List[str]:
