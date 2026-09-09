@@ -512,3 +512,76 @@ cleared the test-polluted top-level state file, restarted via
 `scripts/restart_backend.sh` (DB snapshotted first, pid 51504). Verified:
 initial sync walked the 90-day window, `atom_communications` repopulated to
 6561 rows, cursors now persist AWARE UTC (`+00:00`).
+
+## 2026-09-08 late — ZCode: role-journey trace (all 8 user roles) + gap closure
+
+Traced every role's journey end to end (backend gates, frontend UI, approval
+surfaces, bootstrap). Fixed gaps, TDD (2 new test files, 66 tests; RED first).
+
+**Severed journeys fixed:**
+- HITL approvals UI called `/api/agents/approvals/*` which NEVER existed
+  (main_api_app 8b comment claimed it did). New `api/approvals_routes.py`:
+  GET /pending (plain array, UI contract) + POST /{id} {decision,
+  modified_params} with supervisor gate; mounted eagerly. Modified params now
+  persist to the action row (previously dropped = "Modify" was a no-op).
+- Real user-management router (`core.enterprise_user_management`) was only
+  reachable via the on-demand loader, whose heuristic maps /api/enterprise/*
+  to the status-only `core.enterprise_endpoints` — /api/enterprise/users 404'd
+  live forever. Now mounted eagerly + gained POST /users (provision employee)
+  and GET /roles (catalog for the admin UI dropdown).
+- Frontend User Management rewired from the phantom AdminUser table
+  (/api/admin/users, unreachable super_admin gate) to the real User table.
+- /admin/settings (Runtime Settings) existed with no nav link; Sidebar now
+  links it (admin band).
+
+**Privilege inversions (H1-class) fixed via shared hierarchy
+(`core/security/rbac.py: role_level/user_meets_role`):** the 5
+_require_supervisor copies + agent-governance approve excluded admin/owner;
+trust-calibration + ontology-draft gates excluded admin/owner; feedback trust
+(admin/owner ratings adjudicated untrusted) in 3 sites; template featuring;
+recording-review cross-user read missing owner.
+
+**Ungated surfaces closed:** PATCH/DELETE /api/enterprise/users/{id} (any
+member could grant super_admin — router now workspace_admin+ with escalation
+cap: can't grant/modify above own level); reject_workflow (was any-user);
+messaging dispatcher proposals + interventions (was any-user, and
+`InterventionService(db)` construction TypeError'd on every real call — mock
+hid it); communication_service "APPROVE <id>" chat resolution; supervision
+live reads (sessions/active + execution stream); operational intervention
+execute (was router-auth only); supervised-queue process/cancel/mark-expired.
+Dead is_admin gates (User has no such column → denied EVERYONE incl.
+super_admin, forever): mini-app approve, integration schema registration,
+analytics cross-user patterns — all on the real hierarchy now.
+
+**HITL required_role is no longer write-only:** InterventionService
+approve/reject enforce context_snapshot.required_role (case-insensitive,
+fail-closed on unknown roles; approver must be a verified ACTIVE user);
+reject gained a PENDING guard; modified_params persist.
+
+**Bootstrap:** ADMIN_PASSWORD reset no longer downgrades admin@example.com's
+promoted role on every boot.
+
+**Frontend:** `lib/user-role.ts` (hierarchy mirror + useUserRole hook, fresh
+via /api/auth/me, cached in localStorage; fail-open on unknown role — backend
+enforces); Sidebar role filtering (members stop seeing guaranteed-403 admin
+links) + Admin Settings link; Approvals page shows a supervisor banner and
+read-only actions for members instead of post-click 403 prose.
+
+**Tests:** backend `tests/test_role_journey_rbac_gaps.py` +
+`tests/test_hitl_approvals_journey.py` (66); re-contracted stale suites
+(w39/w53/w69a/w71/w71-integration/w84/w86c/miniapp/round39/supervision-stream)
+— stash-compared, every other failure verified pre-existing on clean main.
+Frontend: `lib/__tests__/user-role.test.ts` +
+`components/layout/__tests__/Sidebar.gating.test.tsx` (11); full jest: only
+the 10 known pre-existing integration failures (9 verified identical on
+stashed tree; test_helpers flakes under worker contention, passes isolated).
+Live-verified on the restarted backend (pid from scripts/restart_backend.sh):
+alias approvals 200, enterprise users/roles/provision 200/201 as
+workspace_admin, member 403s on role grant + HITL decide.
+
+BEHAVIOR CHANGES for other callers: service approve_intervention gained an
+optional modified_params kwarg + approver verification (unknown approver now
+DENIED); messaging dispatcher consumers must mock the `intervention_service`
+singleton, not the InterventionService class; supervisor-gated routes now
+also admit admin/owner (intended); enterprise user endpoints require
+workspace_admin+ and cap grants at actor level.

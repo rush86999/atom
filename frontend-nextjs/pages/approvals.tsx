@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { getAuthToken, getCurrentUserId } from "@/lib/identity";
 import { SelfDirectedPathwayCard } from "@/components/Agents/SelfDirectedPathwayCard";
 import { SelfDirectedAgentProgress } from "@/lib/maturity-api";
+import { useUserRole } from "@/lib/user-role";
 
 /**
  * Approvals — the HITL queue (gap #4).
@@ -142,6 +143,15 @@ const TrainingGuide: React.FC = () => {
 };
 
 export default function ApprovalsPage() {
+  // 2026-09-08 role-journey pass: decisions are team_lead+ on the backend.
+  // Surface that BEFORE the click (members used to get raw 403 prose after
+  // pressing Approve), and skip the supervisor-only queues for them.
+  const { role, isSupervisor } = useUserRole();
+  // "known" = we actually hold a role (fetch succeeded). A failed role fetch
+  // fails OPEN — the backend enforces every gate; hiding actions on a
+  // transient error would strand supervisors.
+  const roleKnown = Boolean(role);
+  const canDecide = !roleKnown || isSupervisor;
   const [actions, setActions] = useState<PendingAction[]>([]);
   const [proposals, setProposals] = useState<TrainingProposal[]>([]);
   // Self-directed STUDENT -> INTERN graduation queue: the evidence cards
@@ -198,6 +208,7 @@ export default function ApprovalsPage() {
   }, [headers]);
 
   const loadProposals = useCallback(async () => {
+    if (roleKnown && !canDecide) return;
     try {
       const res = await fetch(`${API}/api/maturity/training/proposals`, { headers: headers() });
       if (res.ok) {
@@ -212,9 +223,10 @@ export default function ApprovalsPage() {
     } catch {
       // Non-critical: the HITL queue still works without this section.
     }
-  }, [headers, loadSessionCanvases]);
+  }, [headers, loadSessionCanvases, role, isSupervisor]);
 
   const loadSelfDirected = useCallback(async () => {
+    if (roleKnown && !canDecide) return;
     try {
       const res = await fetch(`${API}/api/maturity/training/self-directed`, { headers: headers() });
       if (res.ok) {
@@ -224,7 +236,7 @@ export default function ApprovalsPage() {
     } catch {
       // Non-critical: the HITL queue still works without this section.
     }
-  }, [headers]);
+  }, [headers, role, isSupervisor]);
 
   const promoteFromQueue = async (agentId: string) => {
     setNotice(null);
@@ -482,6 +494,13 @@ export default function ApprovalsPage() {
 
         <TrainingGuide />
 
+        {roleKnown && !canDecide && (
+          <div className="mb-4 p-3 rounded-lg bg-amber-900/30 border border-amber-700 text-sm text-amber-200">
+            Reviewing approvals requires a supervisor role (team_lead or higher). You can see the
+            queue below, but approve/reject is disabled — ask a team lead or admin to decide.
+          </div>
+        )}
+
         {error && <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-700 text-sm">{error}</div>}
         {notice && <div className="mb-4 p-3 rounded-lg bg-emerald-900/40 border border-emerald-700 text-sm">{notice}</div>}
 
@@ -522,8 +541,9 @@ export default function ApprovalsPage() {
                       />
                     </div>
                   )}
-                  <div className="flex gap-2 shrink-0">
-                    {editingAction === a.id ? (
+                  <div className="flex gap-2 shrink-0" title={canDecide ? undefined : "Supervisor (team_lead+) role required"}>
+                    {canDecide ? (
+                    editingAction === a.id ? (
                       <>
                         <button
                           onClick={() => {
@@ -573,6 +593,9 @@ export default function ApprovalsPage() {
                           Reject
                         </button>
                       </>
+                    )
+                    ) : (
+                      <span className="text-xs text-gray-500 self-center">Read-only</span>
                     )}
                   </div>
                 </div>
@@ -860,7 +883,7 @@ export default function ApprovalsPage() {
                     progress={progress}
                     compact
                     nextTierLabel="INTERN"
-                    onPromote={() => promoteFromQueue(progress.agent_id)}
+                    onPromote={canDecide ? () => promoteFromQueue(progress.agent_id) : undefined}
                     promoteBusy={promotingAgentId === progress.agent_id}
                   />
                 </div>
@@ -896,20 +919,24 @@ export default function ApprovalsPage() {
                         {p.created_at ? new Date(p.created_at).toLocaleString() : ""}
                       </div>
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        onClick={() => decideProposal(p.id, true)}
-                        className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => decideProposal(p.id, false)}
-                        className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-sm font-medium"
-                      >
-                        Reject
-                      </button>
-                    </div>
+                    {canDecide ? (
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => decideProposal(p.id, true)}
+                          className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => decideProposal(p.id, false)}
+                          className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-sm font-medium"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-500 shrink-0">Read-only</span>
+                    )}
                   </div>
                 </div>
               ))}

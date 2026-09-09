@@ -3420,6 +3420,30 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Agent Governance routes not found: {e}")
 
+    # 2026-09-08 role-journey pass: the Approvals page + chat widget call
+    # /api/agents/approvals/* — a surface that never existed (the docstring
+    # at 8b below claimed it did). Mount the UI-contract alias router.
+    try:
+        from api.approvals_routes import router as approvals_alias_router
+
+        app.include_router(approvals_alias_router)
+        logger.info("✓ HITL Approvals Alias Routes Loaded (/api/agents/approvals)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Approvals alias routes not found: {e}")
+
+    # 2026-09-08 role-journey pass: the REAL user/workspace/team management
+    # router was only reachable via the on-demand loader, whose name heuristic
+    # maps /api/enterprise/* to the status-only core.enterprise_endpoints —
+    # so /api/enterprise/users 404'd on the live server forever. User
+    # management is core, not an integration: mount eagerly.
+    try:
+        from core.enterprise_user_management import router as enterprise_user_mgmt_router
+
+        app.include_router(enterprise_user_mgmt_router)
+        logger.info("✓ Enterprise User Management Routes Loaded (/api/enterprise/users|roles|teams|workspaces)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Enterprise user management routes not found: {e}")
+
     # 8a. Agent Maturity Journey Routes (R81) — training proposals/sessions
     # (STUDENT→INTERN) + action-proposal review/execute (INTERN HITL). The
     # original /api/maturity surface was archived with zero replacements,
@@ -3432,7 +3456,8 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Agent Maturity Journey routes not found: {e}")
 
-    # 8b. HITL approvals / graduation exams: no dedicated routers exist.
+    # 8b. HITL approvals / graduation exams: the /api/agents/approvals/*
+    # UI surface lives in api/approvals_routes.py (mounted above).
     # R82: these blocks previously logged "✓ ... Loaded" while mounting
     # nothing (empty try bodies) — an audit trap during journey tracing.
     # Real surfaces: HITL approvals live under /api/agents/approvals/* and

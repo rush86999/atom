@@ -270,8 +270,10 @@ class ReasoningTracker:
                 if not user:
                     return False, None
                 
-                # Admins are always trusted
-                if user.role in [UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN]:
+                # Admins are always trusted. 2026-09-08 role-journey pass:
+                # hierarchy check — admin/owner were excluded by the old list.
+                from core.security.rbac import user_meets_role as _meets
+                if _meets(user, UserRole.WORKSPACE_ADMIN):
                     return True, user.specialty
                 
                 # Check specialty match with agent

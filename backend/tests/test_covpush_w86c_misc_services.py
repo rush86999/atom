@@ -2377,9 +2377,10 @@ class TestEnterpriseUsers:
         from core.enterprise_user_management import update_user
         db = _EUFakeDb()
         from core.models import User
-        db.stores[User] = {"rows": [_user()]}
+        db.stores[User] = {"rows": [_user(role="super_admin")]}
         out = await update_user("user-1", data=UserUpdate(
-            first_name="New", last_name="Name", role="admin", status="suspended"), db=db)
+            first_name="New", last_name="Name", role="admin", status="suspended"), db=db,
+            current_user=_user(role="super_admin"))
         assert out == {"message": "User updated successfully"}
         u = db.stores[User]["rows"][0]
         assert u.first_name == "New" and u.last_name == "Name"
@@ -2389,9 +2390,10 @@ class TestEnterpriseUsers:
         from core.enterprise_user_management import update_user
         db = _EUFakeDb()
         from core.models import User
-        db.stores[User] = {"rows": [_user()]}
+        db.stores[User] = {"rows": [_user(role="super_admin")]}
         with pytest.raises(Exception) as exc_info:
-            await update_user("user-1", data=UserUpdate(role="root"), db=db)
+            await update_user("user-1", data=UserUpdate(role="root"), db=db,
+                              current_user=_user(role="super_admin"))
         assert exc_info.value.status_code == 400
         assert "Invalid role" in str(exc_info.value.detail)
 
@@ -2399,8 +2401,9 @@ class TestEnterpriseUsers:
         from core.enterprise_user_management import update_user
         db = _EUFakeDb()
         from core.models import User
-        db.stores[User] = {"rows": [_user()]}
-        await update_user("user-1", data=UserUpdate(first_name="Only"), db=db)
+        db.stores[User] = {"rows": [_user(role="super_admin")]}
+        await update_user("user-1", data=UserUpdate(first_name="Only"), db=db,
+                          current_user=_user(role="super_admin"))
         u = db.stores[User]["rows"][0]
         assert u.first_name == "Only"
         assert u.last_name == "Bee"
@@ -2416,8 +2419,8 @@ class TestEnterpriseUsers:
         from core.enterprise_user_management import deactivate_user
         db = _EUFakeDb()
         from core.models import User, UserStatus
-        db.stores[User] = {"rows": [_user()]}
-        out = await deactivate_user("user-1", db=db)
+        db.stores[User] = {"rows": [_user(role="super_admin")]}
+        out = await deactivate_user("user-1", db=db, current_user=_user(role="super_admin"))
         assert out == {"message": "User deactivated successfully"}
         assert db.stores[User]["rows"][0].status == UserStatus.DELETED.value
         assert db.commits == 1

@@ -33,6 +33,7 @@ from core.models import (
     User as UserModel,
     UserRole,
 )
+from core.security.rbac import user_meets_role
 from core.proposal_service import ProposalService
 from core.student_training_service import (
     InsufficientTrainingEvidenceError,
@@ -48,11 +49,11 @@ router = BaseAPIRouter(prefix="/api/maturity", tags=["Agent Maturity"])
 
 # Mutations here change agent confidence/maturity or execute proposals —
 # supervisor-grade roles only (same gate as supervision routes, R65).
-_SUPERVISOR_ROLES = [
-    UserRole.TEAM_LEAD.value,
-    UserRole.WORKSPACE_ADMIN.value,
-    UserRole.SUPER_ADMIN.value,
-]
+# 2026-09-08 role-journey pass: the old 3-role allowlist excluded
+# admin/owner — a level-6 admin was denied what a level-4 team_lead
+# may do (privilege inversion, the H1 class of bug). Compare against
+# the shared hierarchy instead of a hand-maintained list.
+_SUPERVISOR_MIN = UserRole.TEAM_LEAD
 
 # Statuses under which a training session can still be worked (and completed
 # by the supervisor). Historical values kept for rows created before the
@@ -65,10 +66,10 @@ def _require_supervisor(db, current_user: User) -> None:
     user = db.query(UserModel).filter(UserModel.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if user.role not in _SUPERVISOR_ROLES:
+    if not user_meets_role(user, _SUPERVISOR_MIN):
         raise HTTPException(
             status_code=403,
-            detail="Insufficient permissions. Required role: TEAM_LEAD or ADMIN",
+            detail="Insufficient permissions. Required role: team_lead or higher",
         )
 
 

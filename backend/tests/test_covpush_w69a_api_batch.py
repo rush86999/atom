@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 """W69A — coverage push batch for 4 API modules.
 
 Targets (statement coverage >= 95% each):
@@ -665,9 +666,14 @@ class TestOperationalRoutes:
     def client(self):
         from api.operational_routes import router
 
+        # 2026-09-08 role-journey pass: intervention execution is supervisor-
+        # gated; the db mock must answer the role re-query with a supervisor.
+        supervisor = SimpleNamespace(id="op-1", role="super_admin", status="active")
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = supervisor
         return make_client(
             router,
-            {get_current_user: user_override(), get_db: lambda: MagicMock()},
+            {get_current_user: user_override(), get_db: lambda: db},
         )
 
     def test_requires_auth(self):

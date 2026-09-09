@@ -7246,3 +7246,31 @@ boundary, letting same-second unconsumed mail fall outside the inclusive le filt
 140 passed across the four key suites; py_compile clean.
 
 | 2026-09-08 | `core/intervention_service.py`, `integrations/atom_communication_ingestion_pipeline.py`, `tests/test_covpush_{mcp_svc,integrations_core}.py`, `tests/test_email_api_ingestion.py` | required_role kwarg fix (HITL intercepts were TypeError→blocked); UTC port into ingest rewrite; gmail attachment batch-drop fix; 19 stale tests re-contracted | covpush 389/389, intervention consumers 760/760, email_api_ingestion 34/34; live store repopulated 6561 rows, cursors aware UTC |
+
+## Session 2026-09-08 (late) — Role-journey trace: all-gap closure (RBAC + HITL + approvals UI)
+
+**Scope**: traced all 8 user roles end to end (backend gates, frontend nav,
+approval surfaces, bootstrap) and fixed every gap found. Backend: rbac
+hierarchy promoted to shared data (`core/security/rbac.py` role_level /
+user_meets_role) and adopted by every ad-hoc gate; new
+`api/approvals_routes.py` (the /api/agents/approvals/* UI contract that never
+existed); enterprise user management mounted eagerly + POST /users + GET
+/roles + escalation caps; HITL required_role enforced in
+`core/intervention_service.py` (fail-closed) + modified_params persistence;
+supervision/queue/operational/messaging/communication gates; dead is_admin
+gates (mini-app approve, integration schemas, analytics patterns); bootstrap
+no-downgrade. Frontend: `lib/user-role.ts`, Sidebar role gating + Admin
+Settings link, Approvals supervisor banner + read-only gating (fail-open on
+unknown role), `pages/admin/users.tsx` rewired to the real user table.
+
+**Evidence**: tests/test_role_journey_rbac_gaps.py (37) +
+tests/test_hitl_approvals_journey.py (29) — RED first, all GREEN; 234 passed
+across the re-contracted suites (w39/w53-reject/w69a-operational/w71-enterprise/
+w84/w104/round39/round65/round87/supervision/w103); stash-compared failure
+lists — all remaining failures identical on clean main. Frontend jest:
+user-role + Sidebar.gating (11); full run green except the 10 known
+pre-existing integration-component failures (9 verified identical on stashed
+tree, 1 flakes only under parallel contention). Live-verified via restart
+script: alias /api/agents/approvals/pending 200; /api/enterprise
+{users,roles} 200 + provision 201 as workspace_admin; member 403 on role
+grant and on HITL decide.

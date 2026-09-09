@@ -346,9 +346,18 @@ class TestAgentGovernanceAuth:
 
     def test_reject_uses_current_user_id(self):
         from api.agent_governance_routes import router
+
+        class FakeUser:
+            role = "super_admin"  # reject is supervisor-gated (approve parity)
+
+        fake_db = MagicMock()
+        fake_db.query.return_value.filter.return_value.first.return_value = FakeUser()
+
         with patch("api.agent_governance_routes.intervention_service") as svc:
             svc.reject_intervention = AsyncMock(return_value={"success": True})
-            client = make_client(router, current_user=MagicMock(id="u-42"))
+            client = make_client(
+                router, current_user=MagicMock(id="u-42"), db=fake_db
+            )
             resp = client.post(
                 "/api/agent-governance/reject/ap-1?approver_id=attacker&reason=no"
             )
