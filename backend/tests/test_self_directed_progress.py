@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.models import AgentEpisode, AgentRegistry, TrainingSession
+from core.models import AgentEpisode, AgentRegistry, BlockedTriggerContext, TrainingSession
 from core.self_directed_progress import maybe_notify_milestone, snapshot
 
 
@@ -68,7 +68,8 @@ class _FakeQuery:
         return self._rows[0] if self._rows else None
 
 
-def _db_with(episodes=4, successes=3, recent=None, agent=None, sessions=0):
+def _db_with(episodes=4, successes=3, recent=None, agent=None, sessions=0, triggers=0,
+             last_trigger=None):
     db = MagicMock()
     recent = recent if recent is not None else [_episode_row()]
     agent = agent if agent is not None else _agent()
@@ -83,6 +84,8 @@ def _db_with(episodes=4, successes=3, recent=None, agent=None, sessions=0):
             return _FakeQuery([sessions], [])
         if model is AgentRegistry:
             return _FakeQuery([], [agent])
+        if model is BlockedTriggerContext:
+            return _FakeQuery([triggers], [last_trigger] if last_trigger else [])
         return _FakeQuery([], [])
 
     db.query.side_effect = query
@@ -159,6 +162,34 @@ class TestSnapshot:
         snap = snapshot(_db_with(), _agent())
         assert snap["readiness"]["ready"] is False
         assert snap["readiness"]["pathway"] is None
+
+
+class TestTriggerHealthGuidance:
+    """The panel must distinguish "0/3 is expected — no automated trigger
+    has fired" from "the pipeline is alive, approve the proposal"."""
+
+    async def test_zero_triggers_flags_dead_pipeline(self):
+        db = _db_with(triggers=0)
+        snap = snapshot(db, _agent())
+        line = [g for g in snap["guidance"] if "automated trigger" in g["label"].lower()]
+        assert line and line[0]["done"] is False
+        assert "Manual chat and canvas work never" in line[0]["detail"]
+        assert snap["trigger_health"]["blocked_triggers"] == 0
+
+    async def test_fired_triggers_report_recency(self):
+        last = SimpleNamespace(
+            created_at=datetime(2026, 9, 9, 8, 30, 0),
+            trigger_type="workflow_execution",
+            trigger_source="WORKFLOW_ENGINE",
+        )
+        db = _db_with(triggers=2, last_trigger=last)
+        snap = snapshot(db, _agent())
+        line = [g for g in snap["guidance"] if "Automated triggers firing" in g["label"]]
+        assert line and line[0]["done"] is True
+        assert "2026-09-09" in line[0]["label"]
+        assert "2 total" in line[0]["label"]
+        assert snap["trigger_health"]["last_trigger_type"] == "workflow_execution"
+        assert snap["trigger_health"]["last_fired_at"] == "2026-09-09T08:30:00"
 
 
 class TestMaybeNotifyMilestone:

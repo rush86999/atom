@@ -4502,3 +4502,68 @@ class TestScenarioTemplateSelection:
 
         # Assert
         assert proposal.proposal_data.get("training_scenario_template") == "General Operations"
+
+
+class TestProposalOpenNotification:
+    """A training proposal that opens silently is a proposal nobody approves.
+    The owner must be notified (best-effort) when the STUDENT gate fires."""
+
+    def _agent_and_trigger(self, db_session: Session, **agent_kw):
+        agent = AgentRegistry(
+            id="student_agent_notify_1",
+            name="Student Agent",
+            category="testing",
+            module_path="test.module",
+            class_name="TestClass",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=0.3,
+            **agent_kw,
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        blocked_trigger = BlockedTriggerContext(
+            agent_id=agent.id,
+            agent_name=agent.name,
+            agent_maturity_at_block=AgentStatus.STUDENT.value,
+            confidence_score_at_block=0.3,
+            trigger_source=TriggerSource.WORKFLOW_ENGINE.value,
+            trigger_type="workflow_trigger",
+            trigger_context={"action": "automate_process"},
+            routing_decision="training",
+            block_reason="Test block",
+        )
+        db_session.add(blocked_trigger)
+        db_session.commit()
+        return agent, blocked_trigger
+
+    @pytest.mark.asyncio
+    async def test_notification_sent_to_owner_with_proposal_link(self, db_session: Session):
+        agent, blocked_trigger = self._agent_and_trigger(db_session, user_id="owner-1")
+        service = StudentTrainingService(db_session)
+
+        with patch("core.notification_service.NotificationService") as NS:
+            NS.return_value.send_notification = AsyncMock(return_value={"success": True})
+            proposal = await service.create_training_proposal(blocked_trigger)
+
+            NS.return_value.send_notification.assert_awaited_once()
+            call = NS.return_value.send_notification.await_args
+            assert call.kwargs["user_id"] == "owner-1"
+            assert call.kwargs["notification_type"] == "approval_needed"
+            data = call.kwargs["data"]
+            assert data["proposal_id"] == proposal.id
+            assert data["agent_id"] == agent.id
+            assert data["action_url"] == "/approvals"
+            assert "workflow_trigger" in data["message"]
+
+    @pytest.mark.asyncio
+    async def test_skipped_for_ownerless_agent(self, db_session: Session):
+        _, blocked_trigger = self._agent_and_trigger(db_session)  # no user_id
+        service = StudentTrainingService(db_session)
+
+        with patch("core.notification_service.NotificationService") as NS:
+            proposal = await service.create_training_proposal(blocked_trigger)
+
+            NS.return_value.send_notification.assert_not_called()
+            # The proposal itself is unaffected.
+            assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
