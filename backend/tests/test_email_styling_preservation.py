@@ -200,7 +200,7 @@ class TestHtmlReplyRoute:
 
         async def fake_request(user_id, endpoint, method="GET", data=None, access_token=None):
             calls.append((endpoint, method))
-            if endpoint.endswith("/reply"):
+            if endpoint.endswith("/createReply"):
                 return {"id": "draft-1"}
             if endpoint == "/me/messages/draft-1":
                 assert data["body"]["contentType"] == "HTML"
@@ -218,8 +218,10 @@ class TestHtmlReplyRoute:
         )
         assert ok is True
         endpoints = [c[0] for c in calls]
+        # Plain /reply is a SEND (202, empty body) — the styled route must go
+        # createReply → PATCH → /send so nothing fires before the PATCH.
         assert endpoints == [
-            "/me/messages/msg-9/reply",
+            "/me/messages/msg-9/createReply",
             "/me/messages/draft-1",
             "/me/messages/draft-1/send",
         ]
@@ -260,8 +262,8 @@ class TestHtmlReplyRoute:
             if endpoint.endswith("/reply") and data is not None and "comment" in data:
                 assert data["comment"]
                 return {}
-            if endpoint.endswith("/reply"):
-                return None  # createReply failed -> fallback
+            if endpoint.endswith("/createReply"):
+                return None  # createReply failed -> fallback to legacy /reply
             return {}
 
         svc._make_graph_request = fake_request
@@ -270,7 +272,8 @@ class TestHtmlReplyRoute:
             override_internal_quote=True,
         )
         assert ok is True
-        assert calls.count("/me/messages/msg-9/reply") == 2
+        assert calls.count("/me/messages/msg-9/createReply") == 1
+        assert calls.count("/me/messages/msg-9/reply") == 1
 
 
 class TestMinedSignaturePersistence:

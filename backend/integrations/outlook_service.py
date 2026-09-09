@@ -1035,7 +1035,13 @@ class OutlookService(IntegrationService):
         comment path" when any step fails; True/False when the reply was
         (not) sent via this route."""
         try:
-            action = "replyAll" if reply_all else "reply"
+            # NB: the plain ``reply``/``replyAll`` actions SEND immediately
+            # (202, empty body — verified live 2026-09-09). Using them here
+            # would fire an empty reply, return no draft id, fall back to the
+            # legacy path, and SEND TWICE. createReply/createReplyAll return
+            # the unsent draft object (201) — the only safe route to PATCH
+            # then /send.
+            action = "createReplyAll" if reply_all else "createReply"
             draft = await self._make_graph_request(
                 user_id, f"/me/messages/{message_id}/{action}", "POST",
                 {}, access_token=access_token,
