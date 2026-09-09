@@ -4282,14 +4282,23 @@ class BYOKHandler:
                         result = await _to_thread_safe(
                             instructor_client.chat.completions.create, **_create_kwargs
                         )
-                    except Exception as _toolchoice_reject:
-                        # Thinking-mode endpoints reject Mode.TOOLS'
-                        # tool_choice="required". Retry once with the JSON-mode
-                        # instructor client (no tools in the request) and
-                        # memoize the pair so later calls skip TOOLS mode.
-                        _err_txt = str(_toolchoice_reject).lower()
+                    except Exception as _reject:
+                        # Ordered recovery chain. These must live in ONE except
+                        # clause: sibling ``except Exception`` handlers are
+                        # dead code past the first (Python picks the first
+                        # type match), which silently orphaned the reasoning
+                        # and soft-SC retries below (observed live 2026-09-09:
+                        # a logprobs rejection reported "All structured
+                        # providers failed" after 3 wasted round trips because
+                        # the pop-logprobs retry never ran).
+                        _err_txt = str(_reject).lower()
                         if ("tool_choice" in _err_txt and "thinking" in _err_txt
                                 and not _json_mode):
+                            # Thinking-mode endpoints reject Mode.TOOLS'
+                            # tool_choice="required". Retry once with the
+                            # JSON-mode instructor client (no tools in the
+                            # request) and memoize the pair so later calls
+                            # skip TOOLS mode.
                             _TOOLCHOICE_UNSUPPORTED.add(_logprobs_key)
                             logger.warning(
                                 f"{provider_id}/{model} rejects tool_choice in "
@@ -4298,33 +4307,39 @@ class BYOKHandler:
                             )
                             instructor_client = instructor.from_openai(
                                 client, mode=instructor.Mode.JSON)
-                            result = await _to_thread_safe(
-                                instructor_client.chat.completions.create, **_create_kwargs
-                            )
-                        else:
-                            raise
-                    except Exception as _reasoning_reject:
-                        # Some endpoints run reasoning-mandatory models and
-                        # reject the disable switch with a 400 ("Reasoning is
-                        # mandatory for this endpoint"). Retry once WITHOUT
-                        # the extra_body rather than failing the stage.
-                        if "reasoning" in str(_reasoning_reject).lower() and _create_kwargs.get("extra_body"):
+                        elif "reasoning" in _err_txt and _create_kwargs.get("extra_body"):
+                            # Some endpoints run reasoning-mandatory models and
+                            # reject the disable switch with a 400 ("Reasoning
+                            # is mandatory for this endpoint"). Retry once
+                            # WITHOUT the extra_body rather than failing.
                             _create_kwargs.pop("extra_body", None)
-                            result = await _to_thread_safe(
-                                instructor_client.chat.completions.create, **_create_kwargs
+                            # "logprobs are not supported with reasoning
+                            # models" ALSO matches this reasoning branch (the
+                            # keyword overlaps). Drop logprobs on the same
+                            # retry and memoize the pair, or every structured
+                            # call to a provider/model that rejects BOTH burns
+                            # the logprobs retries then fails the stage
+                            # (observed live: gpt-5-mini via Azure/OpenAI
+                            # upstream).
+                            if ("logprobs" in _create_kwargs
+                                    and "logprobs are not supported" in _err_txt):
+                                _LOGPROBS_UNSUPPORTED.add(_logprobs_key)
+                                _create_kwargs.pop("logprobs", None)
+                        elif _soft_sc_on and "logprobs" in _create_kwargs:
+                            # R83 #6 soft self-consistency: a gateway that
+                            # rejects the ``logprobs`` kwarg gets ONE retry
+                            # without it (sample comes back unstamped → voter
+                            # weighs 1.0), so soft-SC can never fail a call
+                            # that would otherwise succeed.
+                            if "logprobs are not supported" in _err_txt:
+                                _LOGPROBS_UNSUPPORTED.add(_logprobs_key)
+                            logger.warning(
+                                f"soft-SC logprobs request failed for {provider_id}/{model} "
+                                f"({_reject}); retrying once without logprobs"
                             )
+                            _create_kwargs.pop("logprobs", None)
                         else:
                             raise
-                    except Exception as _soft_exc:
-                        if not _soft_sc_on or "logprobs" not in _create_kwargs:
-                            raise
-                        _create_kwargs.pop("logprobs", None)
-                        if "logprobs are not supported" in str(_soft_exc).lower():
-                            _LOGPROBS_UNSUPPORTED.add(_logprobs_key)
-                        logger.warning(
-                            f"soft-SC logprobs request failed for {provider_id}/{model} "
-                            f"({_soft_exc}); retrying once without logprobs"
-                        )
                         result = await _to_thread_safe(
                             instructor_client.chat.completions.create, **_create_kwargs
                         )

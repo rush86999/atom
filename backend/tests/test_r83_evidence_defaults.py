@@ -111,3 +111,61 @@ class TestSoftSCGatewayRejection:
         assert len(calls) == 2
         assert calls[0]["logprobs"] is True
         assert "logprobs" not in calls[1]
+
+    def test_dual_match_reasoning_plus_logprobs_rejection(self, monkeypatch):
+        """"logprobs are not supported with reasoning models" contains BOTH
+        keywords, so it lands in the reasoning-mandatory retry branch BEFORE
+        the soft-SC handler (sibling excepts). That retry must drop logprobs
+        too and memoize the pair — otherwise every structured call to the
+        provider/model burns retries and fails the stage (observed live:
+        gpt-5-mini via Azure/OpenAI upstream, 2026-09-09)."""
+        from types import SimpleNamespace as NS
+        from tests.test_covpush_byok_gen import make_handler, patch_session, pro_tenant_db
+
+        calls = []
+
+        class _FakeInstructorClient:
+            def __init__(self, client):
+                pass
+
+            class chat:
+                class completions:
+                    @staticmethod
+                    def create(**kwargs):
+                        calls.append(dict(kwargs))
+                        if kwargs.get("logprobs"):
+                            raise RuntimeError(
+                                "Error code: 400 - logprobs are not supported "
+                                "with reasoning models (Azure upstream)"
+                            )
+                        return NS(plan="ok")
+
+        import core.llm.byok_handler as mod
+
+        monkeypatch.setattr(mod.instructor, "from_openai", lambda c: _FakeInstructorClient(c))
+        handler = make_handler()
+        handler.clients = {"p1": object()}
+        handler.get_ranked_providers = __import__("unittest.mock", fromlist=["AsyncMock"]).AsyncMock(
+            return_value=[("p1", "m1")]
+        )
+
+        from unittest.mock import AsyncMock
+
+        monkeypatch.setenv("ATOM_SC_SOFT", "true")
+        with patch_session(pro_tenant_db()):
+            result = __import__("asyncio").run(handler.generate_structured_response(
+                prompt="p", system_instruction="s", response_model=dict,
+                disable_reasoning=True,
+            ))
+        assert result.plan == "ok"
+        assert len(calls) == 2
+        # First attempt carried both the reasoning-disable switch AND logprobs.
+        assert calls[0]["logprobs"] is True
+        assert calls[0].get("extra_body") == {"reasoning": {"enabled": False, "exclude": True}}
+        # The single retry dropped BOTH, and the pair is memoized so later
+        # calls skip logprobs for this provider/model.
+        assert "logprobs" not in calls[1]
+        assert "extra_body" not in calls[1]
+        assert ("p1/m1") in mod._LOGPROBS_UNSUPPORTED
+        # Cleanup the memoization so other tests start fresh.
+        mod._LOGPROBS_UNSUPPORTED.discard("p1/m1")
