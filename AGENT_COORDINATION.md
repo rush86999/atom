@@ -638,3 +638,48 @@ contracted + 403-fallback test added, MaturityApprovalPanel gating tests
 component suites. Live-verified after restart: workspace_admin daemon-stop
 passes the gate (400 not-running), cache stats 200, forensics root path
 200; member 403 on daemon stop.
+
+## 2026-09-09 — ZCode: workflows are now role dependent (the deferred RBAC gap closed)
+
+The e2e permission-matrix tripwire flagged workflow:view/run/manage as
+"granted but never enforced". Reality was worse: the MAIN router
+(core/workflow_endpoints.py) WAS fully gated (the tripwire greps api/ only —
+core/ enforcement was invisible to it), but every satellite workflow surface
+wasn't:
+
+- core/workflow_ui_endpoints.py (Workflow Builder, /api/v1/workflow-ui):
+  POST/PUT/DELETE /workflows and template import were ANONYMOUS — anyone
+  unauthenticated could create/edit/delete workflows.
+- core/workflow_marketplace.py (/api/marketplace/*): fully anonymous AND
+  never mounted (lazy-loader key mismatch: URL segment "marketplace" ≠
+  registry key "workflow_marketplace" — 404 forever; same class as the
+  enterprise user-mgmt bug). Now mounted eagerly with gates.
+- api/workflow_template_routes.py, api/mobile_workflows.py,
+  api/workflow_versioning_endpoints.py, api/workflow_debugging.py:
+  auth-only — any signed-in role (incl. guest/viewer) could
+  create/update/import/instantiate/execute/cancel/debug.
+
+Enforcement: `require_permission(Permission.WORKFLOW_VIEW/RUN/MANAGE)`
+added per-route (decorator-level deps; existing get_current_user params
+kept — the permission dep shares the cached auth resolution). Contract from
+core/rbac_service.py: view = guest+, run = member+, manage = team_lead+.
+Debug breakpoints = manage (persist to the definition); debug
+sessions/pause/resume/step/traces = run. Marketplace export = view.
+
+Test lock: backend/tests/test_workflow_rbac_matrix.py — offline 8-role ×
+45-endpoint matrix (361 cases) over all six routers, mirroring the e2e
+journey's methodology. e2e tripwire updated per its own instruction:
+WORKFLOW_* removed from UNENFORCED_PERMISSIONS + 3 live matrix cases added
+(USER_VIEW/USER_MANAGE remain documented gaps).
+
+BEHAVIOR CHANGES other callers must know: guest/viewer can no longer run or
+cancel workflows or trigger mobile executions; members can no longer
+create/update/delete workflows, templates, versions, or breakpoints
+(team_lead+ for manage). Reads stay open (view = everyone authenticated...
+plus the two formerly-anonymous surfaces now require auth). Five test
+suites re-contracted (w100_gaps_d, w10d, w10d_b, w92, template_routes_
+coverage) — their fixture users now carry workspace_admin. Stash-compared:
+all remaining failures identical on clean main (12 + 2 + 21 pre-existing
+in the touched suites). Live-verified post-restart: anon → 401/403,
+member view 200 / manage 403 / run 422-permission-passed, admin manage
+422-permission-passed, marketplace reachable (200/401/403/422 as expected).

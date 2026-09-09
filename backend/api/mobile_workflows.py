@@ -15,6 +15,8 @@ from core.auth import get_current_user, User
 from core.database import get_db
 from core.models import Workflow, WorkflowExecution, WorkflowExecutionLog
 from core.workflow_security import require_workflow_executor
+from core.security_dependencies import require_permission
+from core.rbac_service import Permission
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +69,11 @@ class TriggerResponse(BaseModel):
 
 # API Endpoints
 
-@router.get("", response_model=List[MobileWorkflowSummary])
+@router.get(
+    "",
+    response_model=List[MobileWorkflowSummary],
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_mobile_workflows(
     status: Optional[str] = None,
     category: Optional[str] = None,
@@ -175,7 +181,10 @@ async def get_mobile_workflows(
         )
 
 
-@router.get("/search")
+@router.get(
+    "/search",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def search_workflows_mobile(
     query: str,
     limit: int = Query(20, ge=1, le=50),
@@ -215,7 +224,10 @@ async def search_workflows_mobile(
         )
 
 
-@router.get("/{workflow_id}")
+@router.get(
+    "/{workflow_id}",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_mobile_workflow_details(
     workflow_id: str,
     current_user: User = Depends(get_current_user),
@@ -270,7 +282,11 @@ async def get_mobile_workflow_details(
         )
 
 
-@router.post("/trigger", response_model=TriggerResponse)
+@router.post(
+    "/trigger",
+    response_model=TriggerResponse,
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 async def trigger_workflow_mobile(
     request: TriggerRequest,
     background_tasks: BackgroundTasks,
@@ -396,7 +412,10 @@ async def trigger_workflow_mobile(
         )
 
 
-@router.get("/executions/{execution_id}")
+@router.get(
+    "/executions/{execution_id}",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_mobile_execution_details(
     execution_id: str,
     current_user: User = Depends(get_current_user),
@@ -462,7 +481,10 @@ async def get_mobile_execution_details(
         )
 
 
-@router.get("/{workflow_id}/executions")
+@router.get(
+    "/{workflow_id}/executions",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_workflow_executions_mobile(
     workflow_id: str,
     limit: int = Query(10, ge=1, le=50),
@@ -509,7 +531,10 @@ async def get_workflow_executions_mobile(
         )
 
 
-@router.get("/{workflow_id}/executions/{execution_id}/logs")
+@router.get(
+    "/{workflow_id}/executions/{execution_id}/logs",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_execution_logs_mobile(
     workflow_id: str,
     execution_id: str,
@@ -554,7 +579,10 @@ async def get_execution_logs_mobile(
         )
 
 
-@router.get("/{workflow_id}/executions/{execution_id}/steps")
+@router.get(
+    "/{workflow_id}/executions/{execution_id}/steps",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_execution_steps_mobile(
     workflow_id: str,
     execution_id: str,
@@ -609,7 +637,10 @@ async def get_execution_steps_mobile(
         )
 
 
-@router.post("/executions/{execution_id}/cancel")
+@router.post(
+    "/executions/{execution_id}/cancel",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 async def cancel_execution_mobile(
     execution_id: str,
     user_id: str = Query(..., description="User ID cancelling the execution"),

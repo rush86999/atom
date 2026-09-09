@@ -5,7 +5,9 @@ import logging
 import os
 from typing import Any, Dict, List, Optional, Union
 import uuid
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from core.security_dependencies import require_permission
+from core.rbac_service import Permission
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -820,7 +822,11 @@ class MarketplaceEngine:
 router = APIRouter(prefix="/api/marketplace", tags=["marketplace"])
 marketplace = MarketplaceEngine()
 
-@router.get("/templates", response_model=List[WorkflowTemplate])
+@router.get(
+    "/templates",
+    response_model=List[WorkflowTemplate],
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_templates(
     category: Optional[str] = None,
     template_type: Optional[TemplateType] = None,
@@ -835,7 +841,10 @@ async def get_templates(
         tags=tags
     )
 
-@router.get("/templates/types")
+@router.get(
+    "/templates/types",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_template_types():
     """Get available template types"""
     return {
@@ -849,7 +858,10 @@ async def get_template_types():
         ]
     }
 
-@router.get("/templates/featured")
+@router.get(
+    "/templates/featured",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_featured_templates(limit: int = Query(10, ge=1, le=50)):
     """Get featured templates"""
     all_templates = marketplace.list_templates()
@@ -859,7 +871,10 @@ async def get_featured_templates(limit: int = Query(10, ge=1, le=50)):
     featured.sort(key=lambda t: (t.rating, t.downloads), reverse=True)
     return featured[:limit]
 
-@router.get("/templates/statistics")
+@router.get(
+    "/templates/statistics",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_template_statistics():
     """Get marketplace statistics"""
     all_templates = marketplace.list_templates()
@@ -897,14 +912,21 @@ async def get_template_statistics():
 
     return stats
 
-@router.get("/templates/{template_id}", response_model=WorkflowTemplate)
+@router.get(
+    "/templates/{template_id}",
+    response_model=WorkflowTemplate,
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_template_details(template_id: str):
     template = marketplace.get_template(template_id)
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
     return template
 
-@router.post("/templates/{template_id}/import")
+@router.post(
+    "/templates/{template_id}/import",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def import_template_by_id(template_id: str):
     """Import a specific template from the marketplace into the user's workspace"""
     try:
@@ -921,7 +943,11 @@ async def import_template_by_id(template_id: str):
         raise HTTPException(status_code=500, detail="Internal error")
 
 # Advanced Template Endpoints
-@router.post("/templates/advanced", response_model=AdvancedWorkflowTemplate)
+@router.post(
+    "/templates/advanced",
+    response_model=AdvancedWorkflowTemplate,
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def create_advanced_template(template_data: Dict[str, Any]):
     """Create a new advanced workflow template"""
     try:
@@ -930,7 +956,10 @@ async def create_advanced_template(template_data: Dict[str, Any]):
     except Exception as e:
         raise HTTPException(status_code=400, detail="Internal error")
 
-@router.post("/templates/{template_id}/create-workflow")
+@router.post(
+    "/templates/{template_id}/create-workflow",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def create_workflow_from_advanced_template(
     template_id: str,
     workflow_name: str,
@@ -954,7 +983,10 @@ async def create_workflow_from_advanced_template(
         raise HTTPException(status_code=400, detail="Internal error")
 
 # Legacy Import/Export Endpoints
-@router.post("/import")
+@router.post(
+    "/import",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def import_workflow(file: UploadFile = File(...)):
     try:
         content = await file.read()
@@ -967,7 +999,10 @@ async def import_workflow(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal error")
 
-@router.post("/export")
+@router.post(
+    "/export",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def export_workflow(workflow_data: Dict[str, Any]):
     """Export a workflow as downloadable JSON"""
     try:

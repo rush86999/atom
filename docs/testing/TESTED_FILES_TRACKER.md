@@ -7296,3 +7296,22 @@ MaturityApprovalPanel 8/8 (+3 gating), full jest green except the 10 known
 pre-existing integration suites. Live: workspace_admin POST /api/agent/stop
 400-not-running (gate passed; was 403), /api/v1/admin/cache/stats 200,
 /api/forensics/subscription-waste 200, member stop 403.
+
+## Session 2026-09-09 — workflow role matrix (workflows are role dependent)
+
+**Scope**: `require_permission(WORKFLOW_VIEW/RUN/MANAGE)` wired onto every
+workflow satellite surface — workflow_ui_endpoints (was anonymous CRUD),
+workflow_marketplace (was anonymous + unmounted; now eagerly mounted),
+workflow_template_routes, mobile_workflows, workflow_versioning_endpoints,
+workflow_debugging. Contract: view=guest+, run=member+, manage=team_lead+
+(core/rbac_service.py). e2e journey tripwire updated (WORKFLOW_* enforced;
+USER_* remain the documented gap). New offline lock:
+tests/test_workflow_rbac_matrix.py.
+
+**Evidence**: test_workflow_rbac_matrix.py 361/361 (8 roles × 45 endpoints,
+RED first: 253 deny-cases failed pre-fix); 464 passed across the touched
+suites with only the 2 pre-existing template-coverage failures
+(stash-compared); 5 stale fixture suites re-contracted (role-less mock
+users → workspace_admin). Live after restart: anon workflow-ui create 403,
+anon marketplace 401, member templates 200 / create 403 / mobile-trigger
+422 (permission passed), admin create 422, marketplace view 200.

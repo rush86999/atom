@@ -21,6 +21,8 @@ from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User
 from core.workflow_debugger import WorkflowDebugger
+from core.security_dependencies import require_permission
+from core.rbac_service import Permission
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +76,10 @@ class CompleteTraceRequest(BaseModel):
 
 # ==================== Debug Session Endpoints ====================
 
-@router.post("/{workflow_id}/debug/sessions")
+@router.post(
+    "/{workflow_id}/debug/sessions",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 async def create_debug_session(
     workflow_id: str,
     request: CreateDebugSessionRequest,
@@ -112,7 +117,10 @@ async def create_debug_session(
         )
 
 
-@router.get("/{workflow_id}/debug/sessions")
+@router.get(
+    "/{workflow_id}/debug/sessions",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_debug_sessions(
     workflow_id: str,
     db: Session = Depends(get_db),
@@ -149,7 +157,10 @@ async def get_debug_sessions(
         )
 
 
-@router.post("/debug/sessions/{session_id}/pause")
+@router.post(
+    "/debug/sessions/{session_id}/pause",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 async def pause_debug_session(
     session_id: str,
     db: Session = Depends(get_db),
@@ -175,7 +186,10 @@ async def pause_debug_session(
         )
 
 
-@router.post("/debug/sessions/{session_id}/resume")
+@router.post(
+    "/debug/sessions/{session_id}/resume",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 async def resume_debug_session(
     session_id: str,
     db: Session = Depends(get_db),
@@ -201,7 +215,10 @@ async def resume_debug_session(
         )
 
 
-@router.post("/debug/sessions/{session_id}/complete")
+@router.post(
+    "/debug/sessions/{session_id}/complete",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 async def complete_debug_session(
     session_id: str,
     db: Session = Depends(get_db),
@@ -229,7 +246,10 @@ async def complete_debug_session(
 
 # ==================== Breakpoint Endpoints ====================
 
-@router.post("/{workflow_id}/debug/breakpoints")
+@router.post(
+    "/{workflow_id}/debug/breakpoints",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def add_breakpoint(
     workflow_id: str,
     request: AddBreakpointRequest,
@@ -276,7 +296,10 @@ async def add_breakpoint(
         )
 
 
-@router.get("/{workflow_id}/debug/breakpoints")
+@router.get(
+    "/{workflow_id}/debug/breakpoints",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_breakpoints(
     workflow_id: str,
     active_only: bool = Query(True, description="Only return active breakpoints"),
@@ -318,7 +341,10 @@ async def get_breakpoints(
         )
 
 
-@router.delete("/debug/breakpoints/{breakpoint_id}")
+@router.delete(
+    "/debug/breakpoints/{breakpoint_id}",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def remove_breakpoint(
     breakpoint_id: str,
     db: Session = Depends(get_db),
@@ -344,7 +370,10 @@ async def remove_breakpoint(
         )
 
 
-@router.put("/debug/breakpoints/{breakpoint_id}/toggle")
+@router.put(
+    "/debug/breakpoints/{breakpoint_id}/toggle",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def toggle_breakpoint(
     breakpoint_id: str,
     db: Session = Depends(get_db),
@@ -376,7 +405,10 @@ async def toggle_breakpoint(
 
 # ==================== Step Execution Endpoints ====================
 
-@router.post("/debug/step")
+@router.post(
+    "/debug/step",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 async def step_execution(
     request: StepExecutionRequest,
     db: Session = Depends(get_db),
@@ -420,7 +452,10 @@ async def step_execution(
 
 # ==================== Execution Trace Endpoints ====================
 
-@router.post("/debug/traces")
+@router.post(
+    "/debug/traces",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 async def create_trace(
     request: CreateTraceRequest,
     db: Session = Depends(get_db),
@@ -462,7 +497,10 @@ async def create_trace(
         )
 
 
-@router.put("/debug/traces/{trace_id}/complete")
+@router.put(
+    "/debug/traces/{trace_id}/complete",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 async def complete_trace(
     trace_id: str,
     request: CompleteTraceRequest,
@@ -494,7 +532,10 @@ async def complete_trace(
         )
 
 
-@router.get("/executions/{execution_id}/traces")
+@router.get(
+    "/executions/{execution_id}/traces",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_execution_traces(
     execution_id: str,
     debug_session_id: Optional[str] = Query(None, description="Filter by debug session"),
@@ -540,7 +581,10 @@ async def get_execution_traces(
 
 # ==================== Variable Inspection Endpoints ====================
 
-@router.get("/debug/sessions/{session_id}/variables")
+@router.get(
+    "/debug/sessions/{session_id}/variables",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_session_variables(
     session_id: str,
     db: Session = Depends(get_db),

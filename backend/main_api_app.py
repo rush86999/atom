@@ -3450,6 +3450,19 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Enterprise user management routes not found: {e}")
 
+    # 2026-09-09 workflow role matrix: same lazy-loader key mismatch — the
+    # URL segment "marketplace" never resolves to the registry key
+    # "workflow_marketplace", so /api/marketplace/* 404'd forever. Its
+    # workflow-template routes now carry workflow:view/manage gates; mount
+    # eagerly so those gates are real.
+    try:
+        from core.workflow_marketplace import router as workflow_marketplace_router
+
+        app.include_router(workflow_marketplace_router)
+        logger.info("✓ Workflow Marketplace Routes Loaded (/api/marketplace/*)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Workflow marketplace routes not found: {e}")
+
     # 8a. Agent Maturity Journey Routes (R81) — training proposals/sessions
     # (STUDENT→INTERN) + action-proposal review/execute (INTERN HITL). The
     # original /api/maturity surface was archived with zero replacements,

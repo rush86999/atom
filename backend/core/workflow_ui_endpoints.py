@@ -195,7 +195,10 @@ MOCK_SERVICES = {
 
 # --- Endpoints ---
 
-@router.get("/templates")
+@router.get(
+    "/templates",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_templates(
     category: Optional[str] = None,
     complexity: Optional[str] = None,
@@ -261,7 +264,10 @@ async def get_templates(
         "count": len(result)
     }
 
-@router.post("/templates/{template_id}/import")
+@router.post(
+    "/templates/{template_id}/import",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def import_template(template_id: str, db: Session = Depends(get_db)):
     """Import a template as a private copy"""
     # Use mock if feature flag is enabled
@@ -343,7 +349,10 @@ def _compute_readiness(dependencies: List[str], connected_providers: set) -> Dic
     }
 
 
-@router.get("/templates/{template_id}/readiness")
+@router.get(
+    "/templates/{template_id}/readiness",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_template_readiness(
     template_id: str,
     db: Session = Depends(get_db),
@@ -383,11 +392,17 @@ async def get_template_readiness(
         raise HTTPException(status_code=500, detail="Unable to compute template readiness")
 
 
-@router.get("/services")
+@router.get(
+    "/services",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_services():
     return {"success": True, "services": [s.dict() for s in MOCK_SERVICES.values()]}
 
-@router.get("/definitions")
+@router.get(
+    "/definitions",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_workflows(
     limit: int = 50,
     offset: int = 0,
@@ -431,7 +446,10 @@ async def get_workflows(
     }
 
 # Alias for /workflows to match common API patterns
-@router.get("/workflows")
+@router.get(
+    "/workflows",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def list_workflows(
     limit: int = 50,
     offset: int = 0,
@@ -440,7 +458,10 @@ async def list_workflows(
     """List all workflows (alias for /definitions)"""
     return await get_workflows(limit=limit, offset=offset, db=db)
 
-@router.get("/workflows/{workflow_id}")
+@router.get(
+    "/workflows/{workflow_id}",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_workflow_by_id(workflow_id: str, db: Session = Depends(get_db)):
     """Get a specific workflow by ID"""
     # Use mock data if feature flag is enabled
@@ -477,7 +498,10 @@ async def get_workflow_by_id(workflow_id: str, db: Session = Depends(get_db)):
         }
     }
 
-@router.post("/workflows")
+@router.post(
+    "/workflows",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def create_workflow(
     payload: Dict[str, Any],
     author_id: Optional[str] = None,
@@ -539,7 +563,10 @@ async def create_workflow(
         }
     }
 
-@router.put("/workflows/{workflow_id}")
+@router.put(
+    "/workflows/{workflow_id}",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def update_workflow(
     workflow_id: str,
     payload: Dict[str, Any],
@@ -608,7 +635,10 @@ async def update_workflow(
         }
     }
 
-@router.delete("/workflows/{workflow_id}")
+@router.delete(
+    "/workflows/{workflow_id}",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
     """Delete a workflow"""
     # Use mock if feature flag is enabled
@@ -635,7 +665,10 @@ async def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
         "message": f"Workflow '{workflow_id}' deleted"
     }
 
-@router.post("/workflows/{workflow_id}/execute")
+@router.post(
+    "/workflows/{workflow_id}/execute",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 async def execute_workflow_by_id(
     workflow_id: str,
     background_tasks: BackgroundTasks,
