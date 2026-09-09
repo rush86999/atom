@@ -49,6 +49,7 @@ Atom's agent system is built around **multi-agent coordination** with graduated 
 | Document | Description |
 |----------|-------------|
 | [marketplace.md](marketplace.md) | Agent marketplace integration |
+| [PRE_TRAINING_CHECKLIST.md](PRE_TRAINING_CHECKLIST.md) | Operational pre-training checklist — verify before the first supervised task |
 | [AGENT_MATURITY_GOVERNANCE.md](../guides/AGENT_MATURITY_GOVERNANCE.md) | Training workflow & maturity system |
 
 ## Agent Maturity Levels
