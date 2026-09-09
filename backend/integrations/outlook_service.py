@@ -968,6 +968,50 @@ class OutlookService(IntegrationService):
             logger.error(f"Error replying to email: {e}")
             return False
 
+    async def draft_reply_to_email(
+        self,
+        user_id: str,
+        message_id: str,
+        comment: str,
+        reply_all: bool = False,
+        subject: Optional[str] = None,
+        token: Optional[str] = None,
+    ) -> Optional[str]:
+        """Create a THREADED DRAFT reply (never sends).
+
+        POST /me/messages/{id}/reply returns a draft message object already
+        anchored in the original conversation (Graph wires In-Reply-To /
+        References itself); PATCH its body/subject and STOP — the draft stays
+        in the Drafts folder for human review/training. Returns the draft id
+        (or None on failure). Mirrors ``reply_to_email``'s HTML route but
+        skips the final /send.
+        """
+        try:
+            action = "replyAll" if reply_all else "reply"
+            draft = await self._make_graph_request(
+                user_id, f"/me/messages/{message_id}/{action}", "POST",
+                {}, access_token=token,
+            )
+            draft_id = (draft or {}).get("id")
+            if not draft_id:
+                return None
+            patch: Dict[str, Any] = {
+                "body": {
+                    "contentType": "HTML",
+                    "content": self._body_to_html(comment),
+                }
+            }
+            if subject:
+                patch["subject"] = subject
+            patched = await self._make_graph_request(
+                user_id, f"/me/messages/{draft_id}", "PATCH",
+                patch, access_token=token,
+            )
+            return draft_id if patched is not None else None
+        except Exception as e:
+            logger.error(f"Error creating Outlook draft reply: {e}")
+            return None
+
     async def _send_html_reply(
         self,
         user_id: str,

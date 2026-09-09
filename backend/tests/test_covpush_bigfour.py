@@ -3179,7 +3179,7 @@ class TestMCPLocalToolsExtra:
     async def test_collaboration_hub_tools(self, svc, monkeypatch):
         hub = MagicMock()
         hub.update_ai_analysis = MagicMock(return_value={"ok": True})
-        hub.save_draft_response = MagicMock(return_value={"ok": True})
+        hub.save_draft_response = AsyncMock(return_value={"ok": True})
         hub.approve_draft = AsyncMock(return_value={"ok": True})
         _fake_module(monkeypatch, "core.collaboration_hub_service",
                      get_collaboration_hub_service=lambda db: hub)

@@ -564,7 +564,7 @@ class TestExecuteToolLocalTools:
         svc = _svc()
         hub = MagicMock()
         hub.update_ai_analysis = MagicMock(return_value={"upd": 1})
-        hub.save_draft_response = MagicMock(return_value={"draft": 1})
+        hub.save_draft_response = AsyncMock(return_value={"draft": 1})
         hub.approve_draft = AsyncMock(return_value={"approved": 1})
         db = MagicMock()
         db.__enter__ = MagicMock(return_value=db)

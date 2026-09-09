@@ -1161,6 +1161,40 @@ class UniversalIntegrationService:
                     thread_id=thread_id,
                     token=token
                 )}
+            elif action == "create_draft":
+                # Threaded DRAFT (training/review surface — never sends):
+                # anchored to the original message's thread when one is given.
+                body = params.get("body") or params.get("content") or ""
+                reply_message_id = (
+                    params.get("reply_to_message_id") or params.get("message_id")
+                )
+                thread_id = params.get("thread_id")
+                to = params.get("to")
+                subject = params.get("subject")
+                if reply_message_id and not thread_id:
+                    msg = await asyncio.to_thread(
+                        comm_service.get_message, reply_message_id, token
+                    )
+                    thread_id = (msg or {}).get("threadId")
+                    to = to or (msg or {}).get("sender")
+                    orig_subject = str((msg or {}).get("subject") or "")
+                    if not subject and orig_subject and not orig_subject.lower().startswith("re:"):
+                        subject = f"Re: {orig_subject}"
+                    elif not subject:
+                        subject = orig_subject
+                if not thread_id:
+                    return {
+                        "status": "error",
+                        "message": "Message has no Gmail thread to draft into",
+                    }
+                draft = await asyncio.to_thread(
+                    comm_service.draft_message, to=to, subject=subject or "",
+                    body=body, thread_id=thread_id, token=token,
+                )
+                return {
+                    "status": "success" if draft is not None else "error",
+                    "data": draft if draft is not None else {"error": "Gmail draft failed"},
+                }
             elif action == "list_messages":
                 return {"status": "success", "data": await asyncio.to_thread(
                     comm_service.get_messages,
@@ -1243,6 +1277,51 @@ class UniversalIntegrationService:
                     bcc_recipients=params.get("bcc") or params.get("bcc_recipients"),
                     subject=params.get("subject", ""),
                     body=params.get("body") or params.get("content") or "",
+                    token=token,
+                )
+                return {"status": "success" if data is not None else "error", "data": data}
+            elif action == "create_draft":
+                # Threaded DRAFT reply (training/review surface — never sends).
+                body = params.get("body") or params.get("content") or ""
+                reply_message_id = (
+                    params.get("reply_to_message_id") or params.get("message_id")
+                )
+                reply_conversation = (
+                    params.get("thread_id") or params.get("conversation_id")
+                )
+                if reply_message_id or reply_conversation:
+                    if not reply_message_id:
+                        reply_message_id = await comm_service.get_latest_conversation_message_id(
+                            user_id, reply_conversation, token=token,
+                        )
+                        if not reply_message_id:
+                            return {
+                                "status": "error",
+                                "message": f"No message found in Outlook conversation {reply_conversation}",
+                            }
+                    draft_id = await comm_service.draft_reply_to_email(
+                        user_id=user_id,
+                        message_id=reply_message_id,
+                        comment=body,
+                        subject=params.get("subject"),
+                        token=token,
+                    )
+                    if not draft_id:
+                        return {"status": "error", "data": {"error": "Outlook draft reply failed"}}
+                    return {
+                        "status": "success",
+                        "data": {"draft_id": draft_id, "reply_to_message_id": reply_message_id},
+                    }
+                to = params.get("to") or params.get("to_recipients") or params.get("recipients")
+                if isinstance(to, str):
+                    to = [to]
+                if not to:
+                    return {"status": "error", "message": "to is required for create_draft"}
+                data = await comm_service.create_draft_email(
+                    user_id=user_id,
+                    to_recipients=to,
+                    subject=params.get("subject", ""),
+                    body=body,
                     token=token,
                 )
                 return {"status": "success" if data is not None else "error", "data": data}

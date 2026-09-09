@@ -339,17 +339,22 @@ class MCPService(IntegrationService):
                 },
                 {
                     "name": "draft_response",
-                    "description": "Save a draft response for a message in the Communication Hub",
+                    "description": "Save a threaded DRAFT reply for a message (goes to the mailbox Drafts folder — never sends; a human reviews/sends it). Pass the message_id from search_emails results.",
                     "parameters": {
-                        "message_id": "string", 
-                        "content": "string", 
-                        "confidence": "number (0.0 to 1.0)"
+                        "message_id": "string (from search_emails results)",
+                        "content": "string (the reply body)",
+                        "confidence": "number (0.0 to 1.0)",
+                        "platform": "string (gmail, outlook; optional — auto-detected)"
                     }
                 },
                 {
                     "name": "approve_draft",
-                    "description": "Approve and send a draft response",
-                    "parameters": {"message_id": "string", "edited_content": "string (optional)"}
+                    "description": "Approve and SEND a draft reply in its original thread (HITL-gated). Pass the message_id + the final edited content.",
+                    "parameters": {
+                        "message_id": "string",
+                        "edited_content": "string (the final content to send)",
+                        "platform": "string (gmail, outlook; optional — auto-detected)"
+                    }
                 },
                 {
                     "name": "send_message",
@@ -1656,10 +1661,13 @@ class MCPService(IntegrationService):
                 from core.database import SessionLocal
                 with SessionLocal() as db:
                     service = get_collaboration_hub_service(db)
-                    return service.save_draft_response(
+                    return await service.save_draft_response(
                         arguments.get("message_id"),
                         arguments.get("content"),
-                        arguments.get("confidence", 0.8)
+                        arguments.get("confidence", 0.8),
+                        platform=arguments.get("platform"),
+                        user_id=(context or {}).get("user_id"),
+                        workspace_id=(context or {}).get("workspace_id") or "default",
                     )
 
             elif tool_name == "approve_draft":
@@ -1672,7 +1680,10 @@ class MCPService(IntegrationService):
                     service = get_collaboration_hub_service(db)
                     return await service.approve_draft(
                         arguments.get("message_id"),
-                        arguments.get("edited_content")
+                        arguments.get("edited_content"),
+                        platform=arguments.get("platform"),
+                        user_id=(context or {}).get("user_id"),
+                        workspace_id=(context or {}).get("workspace_id") or "default",
                     )
 
             elif tool_name == "ingest_message_attachment":
