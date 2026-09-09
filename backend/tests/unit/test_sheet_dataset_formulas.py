@@ -189,6 +189,24 @@ def test_gc_evict_removes_sidecar_with_parquet(monkeypatch):
     assert not sidecar.exists()
 
 
+def test_identical_bytes_reverify_backfills_missing_sidecar():
+    """Datasets materialized before the sidecar existed heal on their next
+    re-download: the 'current' (identical-hash) path has the original bytes
+    in hand and writes the missing sidecars from them."""
+    result = _materialize(_formula_xlsx())
+    (ds,) = result["datasets"]
+    sidecar = _formula_sidecar_path(ds["parquet_path"])
+    sidecar.unlink()
+
+    again = _materialize(_formula_xlsx())
+    assert again["status"] == "current"
+    assert sidecar.exists()
+    assert load_formulas_for_parquet(str(ds["parquet_path"])) == {
+        "C2": "=B2+5000",
+        "D2": "=C2/0.74",
+    }
+
+
 def test_identical_bytes_reverify_refreshes_freshness_stamp():
     """A re-materialization whose bytes hash to the copy's own content_hash
     is a freshness PROOF — 'current' must re-stamp ingested_at. Without this

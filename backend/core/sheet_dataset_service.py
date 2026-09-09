@@ -730,6 +730,32 @@ def materialize_sheet_bytes_sync(
             # → status 'current') stayed stale forever and every read kept
             # paying the live download instead of ever trusting the copy.
             now = datetime.now(timezone.utc)
+            # Same proof backfills formula sidecars for datasets materialized
+            # before they existed — the bytes are in hand right here, so the
+            # natural re-download cycle (reverify / JIT pull / re-ingest)
+            # heals pre-fix datasets one touch at a time. The existence check
+            # makes this free after the first heal.
+            missing_sidecar = [
+                r
+                for r in existing
+                if not _formula_sidecar_path(r.parquet_path).exists()
+            ]
+            if missing_sidecar:
+                try:
+                    heal_map = _extract_formula_map(content, ext)
+                except Exception as heal_err:  # noqa: BLE001 — sidecar is additive
+                    logger.debug(f"formula sidecar backfill failed for {file_name}: {heal_err}")
+                    heal_map = {}
+                for row in missing_sidecar:
+                    _write_formula_sidecar(
+                        Path(row.parquet_path),
+                        row.entity_name,
+                        heal_map.get(row.entity_name, {}),
+                    )
+                logger.info(
+                    f"sheet datasets: backfilled {len(missing_sidecar)} formula "
+                    f"sidecar(s) for {file_name}"
+                )
             for row in existing:
                 row.ingested_at = now
             db.commit()
