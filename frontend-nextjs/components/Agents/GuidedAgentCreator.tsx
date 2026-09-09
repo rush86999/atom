@@ -172,7 +172,7 @@ export function GuidedAgentCreator({ open, onOpenChange, onAgentCreated, initial
             </DialogHeader>
             <div className="py-2 text-sm text-gray-600 dark:text-gray-300" data-testid="guided-pending">
               <p><span className="font-medium">Reason:</span> {(result as GuidedAgentPending).reason}</p>
-              <p className="mt-2">You can review it in the approvals panel. Nothing was created yet.</p>
+              <p className="mt-2">You can review it on the <a href="/approvals" className="text-sky-500 hover:underline">Approvals page</a> (a supervisor with team_lead or higher decides). Nothing was created yet.</p>
             </div>
             <DialogFooter>
               <Button onClick={() => handleClose(false)}>Got it</Button>

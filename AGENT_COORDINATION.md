@@ -585,3 +585,56 @@ DENIED); messaging dispatcher consumers must mock the `intervention_service`
 singleton, not the InterventionService class; supervisor-gated routes now
 also admit admin/owner (intended); enterprise user endpoints require
 workspace_admin+ and cap grants at actor level.
+
+## 2026-09-08 late (cont.) — ZCode: role-journey pass, batch 2 (operator band + orphaned surfaces)
+
+Follow-up pass on the same trace, closing the remaining findings:
+
+- **Operator admin band**: daemon control (`api/agent_control_routes.py` —
+  start/stop/restart/execute/status/fleet), admin cache/skill/budget/
+  system-health subroutes, and workspace-context admin routes were gated by
+  exact-super_admin (`core/admin_endpoints.get_super_admin`) — but no local
+  flow can produce a super_admin (registration pins member, bootstrap pins
+  workspace_admin, grants cap at actor level), so the operator could never
+  even stop their own daemon. New `get_platform_admin` (WORKSPACE_ADMIN+
+  via the shared hierarchy, same band as runtime settings/org politics/
+  ontology drafts/trust calibration) replaces it on those six routers.
+  `get_super_admin` itself is untouched for any true-super_admin surface.
+- **Forensics mount bug**: `include_router(forensics_router,
+  prefix="/api/v1/forensics")` double-prefixed the router's own
+  /api/forensics prefix — live path was the absurd
+  /api/v1/forensics/api/forensics/* while the Forensics dashboard calls
+  /api/forensics/* (404 forever). Second un-prefixed include added (legacy
+  mount kept). `/dashboard/risk` stays unlinked: its backend router was
+  deliberately left unmounted in round 80f — respected.
+- **GlobalChatWidget contract**: the alias decision response now carries
+  `success: true` — the widget threw "Failed to submit decision" on every
+  SUCCESSFUL approval because it checked data.success.
+- **AgentConsole Stop wired**: the Stop button only flipped local state
+  (daemon kept running; even super_admin had no working stop). Now calls
+  POST /api/agent/stop with 403-aware fallback messaging.
+- MaturityApprovalPanel (mounted on /agents Approvals tab) is read-only for
+  known non-supervisors (banner + hidden decision buttons; fail-open on
+  unknown role). GuidedAgentCreator's "approvals panel" pointer is now a
+  real link to /approvals. next-auth Session/JWT types declare `role`/
+  `permissions` (were set by lib/auth.ts but undeclarable).
+- Sidebar: Audit Trail (team_lead+), Skill Builder, Owner Cockpit,
+  Forensics (admin band) — orphaned pages now reachable. Owner Cockpit's
+  "endpoint never existed" comment is stale: /api/business-health/priorities
+  is live (verified 200).
+- `api/enterprise_auth_endpoints.require_role` renamed to
+  `require_enterprise_role` — two same-named gates (flat JWT-list vs
+  hierarchical UserRole) was a wrong-import foot-gun; it had zero external
+  consumers.
+
+Tests: +10 backend (TestPlatformAdminBand in test_role_journey_rbac_gaps.py;
+alias success assertion in test_hitl_approvals_journey.py) — 252 passed
+across affected suites; w76b fixture re-contracted (it overrides the gate
+dependency by object identity — now get_platform_admin); stash-compared,
+remaining failures identical on clean main (incl. the 21 pre-existing
+test_cli_agent_execution failures). Frontend: AgentConsole suite re-
+contracted + 403-fallback test added, MaturityApprovalPanel gating tests
+(3), full jest green except the 10 known pre-existing integration
+component suites. Live-verified after restart: workspace_admin daemon-stop
+passes the gate (400 not-running), cache stats 200, forensics root path
+200; member 403 on daemon stop.

@@ -7274,3 +7274,25 @@ tree, 1 flakes only under parallel contention). Live-verified via restart
 script: alias /api/agents/approvals/pending 200; /api/enterprise
 {users,roles} 200 + provision 201 as workspace_admin; member 403 on role
 grant and on HITL decide.
+
+## Session 2026-09-08 (late, batch 2) — role-journey: operator band + orphaned surfaces
+
+**Scope**: `core/admin_endpoints.get_platform_admin` (WORKSPACE_ADMIN+)
+replaces exact-super_admin on agent_control + admin {cache,skills,budget,
+system_health} + workspace_context routers; forensics double-prefix mount
+fixed (second un-prefixed include); approvals alias decision response gains
+`success`; enterprise require_role renamed require_enterprise_role; frontend
+AgentConsole stop wired to the daemon endpoint, MaturityApprovalPanel
+read-only for known non-supervisors, Sidebar links for Audit Trail / Skill
+Builder / Owner Cockpit / Forensics, next-auth role typing, creator copy
+link.
+
+**Evidence**: test_role_journey_rbac_gaps.py::TestPlatformAdminBand (10) +
+alias success assertion; 252 passed across affected suites (w76b re-
+contracted to the new dependency object; stash-compared — clean-main
+failures identical incl. 21 pre-existing in test_cli_agent_execution.py).
+Frontend: AgentConsole 9/9 (rewired + 403-fallback case),
+MaturityApprovalPanel 8/8 (+3 gating), full jest green except the 10 known
+pre-existing integration suites. Live: workspace_admin POST /api/agent/stop
+400-not-running (gate passed; was 403), /api/v1/admin/cache/stats 200,
+/api/forensics/subscription-waste 200, member stop 403.

@@ -130,7 +130,12 @@ describe('AgentConsole', () => {
     );
   });
 
-  it('stops the task locally and marks the status STOPPED', async () => {
+  it('stops the task and shuts down the daemon (2026-09-08b: wired to /api/agent/stop)', async () => {
+    server.use(
+      rest.post('*/api/agent/stop', (req, res, ctx) => {
+        return res(ctx.json({ success: true, status: 'stopped' }));
+      })
+    );
     render(<AgentConsole />);
 
     fireEvent.change(screen.getByPlaceholderText(/find the cheapest flight/i), {
@@ -147,7 +152,41 @@ describe('AgentConsole', () => {
     expect(screen.getByText('STOPPED')).toBeInTheDocument();
     expect(screen.getByText('[stopped by user]')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /run task/i })).toBeInTheDocument();
-    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Task Stopped' }));
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Agent Service Stopped' })
+      );
+    });
+  });
+
+  it('falls back to local-only stop with an admin-role hint on 403', async () => {
+    server.use(
+      rest.post('*/api/agent/stop', (req, res, ctx) => {
+        return res(ctx.status(403));
+      })
+    );
+    render(<AgentConsole />);
+
+    fireEvent.change(screen.getByPlaceholderText(/find the cheapest flight/i), {
+      target: { value: 'Stop me too' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /run task/i }));
+    await screen.findByText('STARTING');
+    await waitFor(() => {
+      expect(executeBodies).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /stop task/i }));
+
+    expect(screen.getByText('STOPPED')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Task Stopped (local only)',
+          description: expect.stringContaining('workspace_admin'),
+        })
+      );
+    });
   });
 
   it('shows an error toast when the execute request fails', async () => {

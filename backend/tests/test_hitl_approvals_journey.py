@@ -223,6 +223,9 @@ class TestApprovalsAliasSurface:
         client = make_alias_client(hitl_db)
         resp = client.post(f"/api/agents/approvals/{action.id}", json={"decision": "approved"})
         assert resp.status_code == 200, resp.text
+        # GlobalChatWidget contract: decisions are confirmed via data.success
+        body = resp.json()
+        assert body.get("success") is True
         hitl_db.refresh(action)
         assert action.status == HITLActionStatus.APPROVED.value
 

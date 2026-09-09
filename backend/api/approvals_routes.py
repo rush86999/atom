@@ -101,6 +101,8 @@ async def decide_approval(
         raise HTTPException(status_code=400, detail=result.get("message", "Decision failed"))
 
     return {
+        # `success` is the GlobalChatWidget's confirmation contract.
+        "success": True,
         "approval_id": approval_id,
         "status": decision,
         "decided_by": user.id,

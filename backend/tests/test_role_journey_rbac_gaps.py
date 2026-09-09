@@ -689,3 +689,85 @@ class TestOperationalAndQueueGates:
             svc.return_value.process_queue = AsyncMock(return_value={"processed": 0})
             resp = client.post("/api/supervised-queue/process")
         assert resp.status_code != 403, f"team_lead denied queue processing: {resp.text}"
+
+
+# ============================================================================
+# 8. Platform-admin band (2026-09-08b: daemon control, cache, skills,
+#    workspace context were exact-super_admin — unreachable locally since no
+#    flow grants super_admin; the operator (workspace_admin) could never
+#    stop their own daemon). WORKSPACE_ADMIN+ via the shared hierarchy.
+# ============================================================================
+
+
+class TestPlatformAdminBand:
+    def _client_for(self, router, role):
+        app = FastAPI()
+        app.include_router(router)
+        user = _user_mock(role=role)
+        app.dependency_overrides[auth_get_current_user] = lambda: user
+        return TestClient(app, raise_server_exceptions=False)
+
+    def test_agent_stop_workspace_admin_allowed(self):
+        from api.agent_control_routes import router
+
+        client = self._client_for(router, UserRole.WORKSPACE_ADMIN.value)
+        with patch("api.agent_control_routes.DaemonManager") as dm:
+            dm.is_running.return_value = True
+            dm.stop_daemon.return_value = 4242
+            resp = client.post("/api/agent/stop")
+        assert resp.status_code == 200, f"operator cannot stop own daemon: {resp.text}"
+        assert resp.json()["success"] is True
+
+    def test_agent_stop_member_denied(self):
+        from api.agent_control_routes import router
+
+        client = self._client_for(router, UserRole.MEMBER.value)
+        resp = client.post("/api/agent/stop")
+        assert resp.status_code == 403
+
+    @pytest.mark.parametrize("role", [UserRole.ADMIN.value, UserRole.OWNER.value, UserRole.SUPER_ADMIN.value])
+    def test_agent_stop_admin_band_allowed(self, role):
+        from api.agent_control_routes import router
+
+        client = self._client_for(router, role)
+        with patch("api.agent_control_routes.DaemonManager") as dm:
+            dm.is_running.return_value = True
+            dm.stop_daemon.return_value = 4242
+            resp = client.post("/api/agent/stop")
+        assert resp.status_code == 200, f"{role} denied daemon stop: {resp.text}"
+
+    def test_cache_stats_workspace_admin_not_denied(self):
+        from api.admin.cache_routes import router
+
+        client = self._client_for(router, UserRole.WORKSPACE_ADMIN.value)
+        # gate-only assertion: handler may 5xx on real singleton caches; the
+        # subject is that workspace_admin passes the (formerly exact-
+        # super_admin) gate.
+        resp = client.get("/api/v1/admin/cache/stats")
+        assert resp.status_code != 403, f"operator denied cache stats: {resp.text}"
+
+    def test_cache_stats_member_denied(self):
+        from api.admin.cache_routes import router
+
+        client = self._client_for(router, UserRole.MEMBER.value)
+        resp = client.get("/api/v1/admin/cache/stats")
+        assert resp.status_code == 403
+
+    def test_skill_create_workspace_admin_not_denied(self):
+        from api.admin.skill_routes import router
+
+        client = self._client_for(router, UserRole.WORKSPACE_ADMIN.value)
+        resp = client.post(
+            "/api/admin/skills/",
+            json={"name": "x", "instructions": "do x", "capabilities": [], "scripts": {}},
+        )
+        assert resp.status_code != 403, f"operator denied skill builder: {resp.text}"
+
+    def test_skill_create_member_denied(self):
+        from api.admin.skill_routes import router
+
+        client = self._client_for(router, UserRole.MEMBER.value)
+        resp = client.post("/api/admin/skills/", json={"name": "x"})
+        assert resp.status_code == 403
+
+

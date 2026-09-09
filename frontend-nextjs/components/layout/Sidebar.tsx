@@ -168,6 +168,15 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 // Was unreachable: the Runtime Settings page existed but no
                 // nav link pointed at it.
                 { label: "Admin Settings", icon: Settings, path: "/admin/settings", minLevel: ADMIN_MIN_LEVEL },
+                // 2026-09-08b: orphaned pages wired into the nav. Audit Trail
+                // reads are team_lead+ (/api/audit/*); the rest are the
+                // workspace_admin+ operator band. (/dashboard/risk stays
+                // unlinked: its backend router was deliberately left
+                // unmounted in round 80f.)
+                { label: "Audit Trail", icon: FileText, path: "/audit-trail", minLevel: SUPERVISOR_MIN_LEVEL },
+                { label: "Skill Builder", icon: Wrench, path: "/admin/skills/new", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Owner Cockpit", icon: BarChart3, path: "/dashboard/owner", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Forensics", icon: Search, path: "/dashboard/forensics", minLevel: ADMIN_MIN_LEVEL },
             ]
         },
         {

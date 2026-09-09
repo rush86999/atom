@@ -5,7 +5,7 @@ from atom_security.analyzers.static import StaticAnalyzer
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
-from core.admin_endpoints import get_super_admin
+from core.admin_endpoints import get_platform_admin  # was get_super_admin — see 2026-09-08b role-journey pass
 from core.base_routes import BaseAPIRouter
 from core.models import User
 from core.skill_builder_service import SkillMetadata, skill_builder_service
@@ -24,7 +24,7 @@ class CreateSkillRequest(BaseModel):
 @router.post("/")
 async def create_new_skill(
     request: CreateSkillRequest,
-    admin: User = Depends(get_super_admin)
+    admin: User = Depends(get_platform_admin)
 ):
     """
     Create a new standardized skill package (Skill Skill).

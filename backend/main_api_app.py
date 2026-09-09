@@ -1903,6 +1903,12 @@ app.include_router(supervised_queue_router)
 app.include_router(core_user_activity_router)
 app.include_router(operational_router)
 app.include_router(forensics_router, prefix="/api/v1/forensics", tags=["forensics"])
+# 2026-09-08b role-journey pass: the /v1 mount double-prefixes the router's
+# own /api/forensics prefix (live path was /api/v1/forensics/api/forensics/*),
+# so the Forensics dashboard's /api/forensics/* calls 404'd. Mount the
+# router at its declared root as well; the legacy mangled mount stays for
+# any existing consumer.
+app.include_router(forensics_router, tags=["forensics"])
 app.include_router(debug_router)
 # Agent status router: do NOT add a prefix — the router already declares its
 # own prefix="/api/agent-status" with internal routes /agent/status/{task_id}.

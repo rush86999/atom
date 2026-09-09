@@ -20,7 +20,7 @@ from fastapi import Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from core.admin_endpoints import get_super_admin
+from core.admin_endpoints import get_platform_admin  # was get_super_admin — see 2026-09-08b role-journey pass
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import Tenant, TenantSetting, User
@@ -134,7 +134,7 @@ def _resolve_budget_state(db: Session, tenant_id: str) -> Dict[str, Any]:
 @router.get("/{tenant_id}/budget")
 def get_tenant_budget(
     tenant_id: str,
-    admin: User = Depends(get_super_admin),
+    admin: User = Depends(get_platform_admin),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Get the tenant's budget limit, enforcement mode, and current spend."""
@@ -147,7 +147,7 @@ def get_tenant_budget(
 def update_tenant_budget(
     tenant_id: str,
     update: BudgetSettingUpdate,
-    admin: User = Depends(get_super_admin),
+    admin: User = Depends(get_platform_admin),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Update the tenant's budget limit and/or enforcement mode.

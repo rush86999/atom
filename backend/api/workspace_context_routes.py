@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.admin_endpoints import get_super_admin
+from core.admin_endpoints import get_platform_admin  # was get_super_admin — see 2026-09-08b role-journey pass
 from core.database import get_db
 from core.models import Skill, User, Workspace, workspace_skills
 
@@ -51,7 +51,7 @@ def _get_workspace_or_404(db: Session, workspace_id: str) -> Workspace:
 def get_workspace_context(
     workspace_id: str,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_super_admin),
+    admin: User = Depends(get_platform_admin),
 ):
     """Return the workspace's curated context blobs + assigned skill names."""
     workspace = _get_workspace_or_404(db, workspace_id)
@@ -76,7 +76,7 @@ def update_workspace_context(
     workspace_id: str,
     payload: CuratedContextUpdate,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_super_admin),
+    admin: User = Depends(get_platform_admin),
 ):
     """Set the workspace's curated context blobs in ``metadata_json``."""
     workspace = _get_workspace_or_404(db, workspace_id)
@@ -102,7 +102,7 @@ def assign_skill_to_workspace(
     workspace_id: str,
     skill_id: str,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_super_admin),
+    admin: User = Depends(get_platform_admin),
 ):
     """Assign a skill to the workspace (idempotent)."""
     _get_workspace_or_404(db, workspace_id)
@@ -137,7 +137,7 @@ def unassign_skill_from_workspace(
     workspace_id: str,
     skill_id: str,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_super_admin),
+    admin: User = Depends(get_platform_admin),
 ):
     """Unassign a skill from the workspace (idempotent)."""
     _get_workspace_or_404(db, workspace_id)
