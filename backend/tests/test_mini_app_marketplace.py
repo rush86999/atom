@@ -44,6 +44,7 @@ def _client(db_session, user_id="u1", is_admin=False):
 
     stub = type("U", (), {"id": user_id, "is_authenticated": True, "is_active": True,
                           "is_admin": is_admin, "is_staff": is_admin,
+                          "role": "super_admin" if is_admin else "member",
                           "tenant_id": "t_installer", "workspace_id": "w_installer"})()
 
     app = FastAPI()

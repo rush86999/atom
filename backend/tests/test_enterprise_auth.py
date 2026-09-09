@@ -267,7 +267,7 @@ class TestRBACMiddleware:
 
     def test_require_role_decorator_exists(self):
         """Test that require_role decorator is available"""
-        from api.enterprise_auth_endpoints import require_role
+        from api.enterprise_auth_endpoints import require_enterprise_role as require_role
 
         # The decorator should be callable
         assert callable(require_role)

@@ -22,7 +22,13 @@ interface UseWebSocketOptions {
     initialChannels?: string[];
     /** Enable automatic reconnection with exponential backoff (default: true). */
     reconnect?: boolean;
-    /** Max reconnect attempts before giving up (default: 3). */
+    /** Max reconnect attempts before giving up (default: unlimited —
+     *  capped-delay retries). Backend restarts (scripts/restart_backend.sh)
+     *  take 15–20s; the old cap of 3 fired its 1s/2s/4s retries while the
+     *  server was still down and then went silent FOREVER — the page kept
+     *  working via REST but every live update (agent replies, canvas
+     *  edits) needed a manual refresh. Non-terminal close codes are
+     *  transient by definition; auth closes are handled separately. */
     maxReconnectAttempts?: number;
     /** Initial reconnect delay in ms; doubles each attempt, capped at 10s (default: 1000). */
     reconnectDelay?: number;
@@ -45,7 +51,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
                     // resolveWsBase() and broke WebSocket in non-localhost deploys.
         autoConnect = true,
         reconnect = true,
-        maxReconnectAttempts = 3,
+        maxReconnectAttempts = Number.POSITIVE_INFINITY,
         reconnectDelay = 1000,
     } = options;
 
@@ -274,6 +280,33 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         }
         return () => disconnect();
     }, [autoConnect, connect, disconnect]);
+
+    // A page that regains visibility/focus/network after its socket died
+    // (laptop sleep, backend restart, proxy idle timeout) must not sit
+    // silently dead until the next manual refresh — probe and reconnect
+    // immediately (standard practice: socket.io reconnection + visibility
+    // rejoin). The OPEN/CONNECTING guard makes this a no-op when healthy.
+    useEffect(() => {
+        if (!autoConnect || !reconnect) return;
+        const probe = () => {
+            const ws = wsRef.current;
+            const healthy = !!ws && (
+                ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING
+            );
+            if (!healthy && !manualCloseRef.current) connect();
+        };
+        const onVisibility = () => {
+            if (document.visibilityState === "visible") probe();
+        };
+        document.addEventListener("visibilitychange", onVisibility);
+        window.addEventListener("focus", probe);
+        window.addEventListener("online", probe);
+        return () => {
+            document.removeEventListener("visibilitychange", onVisibility);
+            window.removeEventListener("focus", probe);
+            window.removeEventListener("online", probe);
+        };
+    }, [autoConnect, reconnect, connect]);
 
     return {
         isConnected,

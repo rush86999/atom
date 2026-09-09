@@ -127,8 +127,13 @@ async def register_schema(
     current_user: Any = Depends(get_current_user)
 ):
     """Register a new integration schema (requires authentication)"""
-    # Check user permissions - admin only for schema registration
-    if not getattr(current_user, 'is_admin', False):
+    # Check user permissions - admin only for schema registration.
+    # 2026-09-08 role-journey pass: this checked a nonexistent is_admin
+    # column, so registration 403'd for EVERYONE forever. Hierarchy check.
+    from core.models import UserRole
+    from core.security.rbac import user_meets_role
+
+    if not user_meets_role(current_user, UserRole.WORKSPACE_ADMIN):
         raise HTTPException(status_code=403, detail="Admin access required for schema registration")
 
     try:

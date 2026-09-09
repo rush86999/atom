@@ -1205,6 +1205,14 @@ class BYOKHandler:
     # a restarted Ollama rejoins the pool without a restart of the backend.
     _OLLAMA_PROBE_TTL_UP = 300
     _OLLAMA_PROBE_TTL_DOWN = 60
+    # DOWN verdicts are machine-level facts, but the probe cache lives per
+    # BYOKHandler instance and the chat path builds several handlers per
+    # message — observed 2026-09-09 as 7 blocking sync probes of a
+    # half-broken Ollama (500 on /api/tags) inside one request. DOWN results
+    # are memoized process-wide so all instances share one probe window;
+    # UP results stay per-instance (they carry the pulled-model set).
+    _OLLAMA_DOWN_MEMO_TTL = 300
+    _OLLAMA_DOWN_MEMO: Optional[float] = None
 
     def _ollama_runtime_state(self):
         """("up", pulled_model_names) when the local Ollama runtime answers
@@ -1222,6 +1230,9 @@ class BYOKHandler:
             )
             if now - checked_at < ttl:
                 return state, pulled
+        memo_at = BYOKHandler._OLLAMA_DOWN_MEMO
+        if memo_at is not None and now - memo_at < self._OLLAMA_DOWN_MEMO_TTL:
+            return "down", None
         base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1").rstrip("/")
         if base.endswith("/v1"):
             base = base[: -len("/v1")]
@@ -1237,7 +1248,9 @@ class BYOKHandler:
             }
         except Exception:
             self._ollama_probe_cache = (now, "down", None)
+            BYOKHandler._OLLAMA_DOWN_MEMO = now
             return "down", None
+        BYOKHandler._OLLAMA_DOWN_MEMO = None
         expanded = set(names)
         for n in names:
             expanded.add(n.split(":", 1)[0])

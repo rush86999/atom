@@ -594,7 +594,8 @@ async def publish_template(
         if request.featured:
             # Check if user is an admin (identity from token)
             user = db.query(User).filter(User.id == current_user.id).first()
-            if not user or user.role not in [UserRole.SUPER_ADMIN, UserRole.WORKSPACE_ADMIN]:
+            from core.security.rbac import user_meets_role as _meets
+            if not user or not _meets(user, UserRole.WORKSPACE_ADMIN):
                 raise router.permission_denied_error(
                     action="feature_template",
                     resource="Template",

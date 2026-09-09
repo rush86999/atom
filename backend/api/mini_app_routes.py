@@ -20,6 +20,8 @@ from core.database import get_db
 from core.mini_app_db_service import DEFAULT_MAX_RECORD_BYTES, db_store_enabled
 from core.mini_app_storage import get_max_object_bytes, get_mini_app_storage
 from core.models import Canvas, CanvasLogic, MiniApp, MiniAppAsset
+from core.models import UserRole
+from core.security.rbac import user_meets_role
 
 logger = logging.getLogger(__name__)
 
@@ -356,8 +358,14 @@ async def approve_mini_app(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Admin-only approval gate for public install (Gap D)."""
-    if not getattr(current_user, "is_admin", False) and not getattr(current_user, "is_staff", False):
+    """Admin-only approval gate for public install (Gap D).
+
+    2026-09-08 role-journey pass: this checked ``getattr(current_user,
+    "is_admin", False)`` — User has no such column, so the gate denied
+    EVERYONE including super_admin and public installs could never be
+    approved. Real hierarchy check instead.
+    """
+    if not user_meets_role(current_user, UserRole.WORKSPACE_ADMIN):
         raise HTTPException(status_code=403, detail="Admin access required")
     app = _get_app(db, app_id)
     app.is_approved = True

@@ -111,6 +111,37 @@ def _completed_sessions(db, agent_id: str) -> int:
     )
 
 
+def _trigger_health(db, agent_id: str) -> Dict[str, Any]:
+    """Has the automated-trigger pipeline ever reached this agent's STUDENT gate?
+
+    Zero blocked triggers means training proposals can never open on their
+    own — the supervisor is waiting on a pipeline that hasn't fired. Manual
+    chat/canvas work never trips the gate (by design), so this is the only
+    way to tell "0/3 is expected" from "the pipeline is dead".
+    """
+    from core.models import BlockedTriggerContext
+
+    total = (
+        db.query(BlockedTriggerContext)
+        .filter(BlockedTriggerContext.agent_id == agent_id)
+        .count()
+    )
+    last = (
+        db.query(BlockedTriggerContext)
+        .filter(BlockedTriggerContext.agent_id == agent_id)
+        .order_by(BlockedTriggerContext.created_at.desc())
+        .first()
+    )
+    return {
+        "blocked_triggers": total,
+        "last_fired_at": (
+            last.created_at.isoformat() if last is not None and last.created_at else None
+        ),
+        "last_trigger_type": getattr(last, "trigger_type", None) if last is not None else None,
+        "last_trigger_source": getattr(last, "trigger_source", None) if last is not None else None,
+    }
+
+
 def snapshot(db, agent) -> Dict[str, Any]:
     """Everything the validation UI needs for one STUDENT agent.
 
@@ -175,6 +206,41 @@ def snapshot(db, agent) -> Dict[str, Any]:
             ),
         }
     )
+    # The sessions above are born from blocked automated triggers. Surface
+    # whether that pipeline has ever fired so "0/3" is diagnosable: none yet
+    # → expected, nothing to approve; none AND no open proposal → the user
+    # needs to run an automated task that targets this agent.
+    triggers = _trigger_health(db, agent.id)
+    if triggers["blocked_triggers"] > 0:
+        guidance.append(
+            {
+                "label": (
+                    f"Automated triggers firing — last "
+                    f"{(triggers['last_fired_at'] or 'unknown')[:10]} "
+                    f"({triggers['blocked_triggers']} total)"
+                ),
+                "done": True,
+                "detail": (
+                    "Each blocked automated task auto-creates a training "
+                    "proposal and notifies you — approve it under Approvals "
+                    "to open the next session."
+                ),
+            }
+        )
+    else:
+        guidance.append(
+            {
+                "label": "No automated trigger has fired yet",
+                "done": False,
+                "detail": (
+                    "Training proposals are created when an AUTOMATED task "
+                    "(workflow, AI coordinator, data ingestion) is blocked by "
+                    "the STUDENT gate. Manual chat and canvas work never "
+                    "trigger it — run an automated workflow that targets this "
+                    "agent to open a proposal."
+                ),
+            }
+        )
     if pathway.get("ready"):
         guidance.append(
             {
@@ -208,6 +274,7 @@ def snapshot(db, agent) -> Dict[str, Any]:
         "evidence_floor_met": evidence_ready,
         "ready_for_review": ready_for_review,
         "completed_sessions": sessions,
+        "trigger_health": triggers,
         "readiness": {
             "ready": bool(pathway.get("ready")),
             "pathway": pathway.get("pathway"),

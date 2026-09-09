@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -230,8 +230,24 @@ export default function CanvasDetailPage() {
         ));
     }, [restoredFeedback]);
 
-    // WebSocket — page-agnostic, auto-subscribes to user:{userId}
-    const { lastMessage, isConnected, onMessage } = useWebSocket({});
+    // WebSocket — this page consumes USER-scoped broadcasts: every canvas
+    // write arrives as `canvas:update` on `user:{userId}` (canvas_crud_tool
+    // / canvas_tool), streaming tokens as `chat_token*`, plus the
+    // session-scoped fan-out variant the orchestrator uses when a chat
+    // session is bound; `workspace:default` carries the agent reasoning
+    // steps. The hook does NOT auto-subscribe to anything (a stale comment
+    // here claimed it did): with no channels passed, every user:* broadcast
+    // found zero subscribers and the page only showed the agent's response
+    // after a manual refresh (backend logged 9k "EMPTY channel" warnings).
+    const wsChannels = useMemo(
+        () => [
+            ...(userId ? [`user:${userId}`] : []),
+            ...(userId && chatSessionId ? [`user:${userId}:session:${chatSessionId}`] : []),
+            "workspace:default",
+        ],
+        [userId, chatSessionId]
+    );
+    const { lastMessage, isConnected, onMessage } = useWebSocket({ initialChannels: wsChannels });
 
     // Training panel state: the sidebar hosts the co-editor chat and the
     // agent training panel (approve, teach, score, graduate) side by side.

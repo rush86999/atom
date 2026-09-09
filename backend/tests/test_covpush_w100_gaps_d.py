@@ -526,7 +526,9 @@ def _make_client(db, user=None):
 
     app = FastAPI()
     app.include_router(router)
-    app.dependency_overrides[auth_get_user] = lambda: (user or NS(id="u1"))
+    # 2026-09-09 workflow role matrix: routes require workflow:view/run/manage —
+    # default fixture user carries workspace_admin (superset).
+    app.dependency_overrides[auth_get_user] = lambda: (user or NS(id="u1", role="workspace_admin"))
     app.dependency_overrides[get_db] = lambda: db
     return TestClient(app), mw
 

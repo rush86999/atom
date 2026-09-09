@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useUserRole } from '@/lib/user-role';
 import {
   approveActionProposal,
   approveTrainingProposal,
@@ -53,6 +54,12 @@ export function MaturityApprovalPanel({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  // 2026-09-08b role-journey pass: every mutation here is team_lead+ on the
+  // backend. Known non-supervisors get a read-only panel instead of
+  // post-click 403 prose. Unknown role (fetch failed) fails open.
+  const { role, isSupervisor } = useUserRole();
+  const roleKnown = Boolean(role);
+  const canDecide = !roleKnown || isSupervisor;
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [evidence, setEvidence] = useState<SessionEvidence | null>(null);
   const [feedback, setFeedback] = useState('Completed via supervisor panel');
@@ -159,7 +166,13 @@ export function MaturityApprovalPanel({
       )}
 
       {/* Completing a just-approved training session */}
-      {completingId && (
+      {roleKnown && !canDecide && (
+        <p className="text-xs text-amber-700 border border-amber-200 bg-amber-50 rounded px-2 py-1">
+          Supervisor role (team_lead or higher) required to decide trainings and
+          proposals — this list is read-only for you.
+        </p>
+      )}
+      {canDecide && completingId && (
         <div
           data-testid="complete-training-form"
           className="border rounded p-2 my-2 text-xs space-y-2"
@@ -245,7 +258,7 @@ export function MaturityApprovalPanel({
                   Gaps: {p.capability_gaps.join(', ')}
                 </div>
               )}
-            {p.status === PENDING && (
+            {p.status === PENDING && canDecide && (
               <div className="mt-1 flex gap-1">
                 <button
                   onClick={() => handleApproveTraining(p)}
@@ -319,7 +332,7 @@ export function MaturityApprovalPanel({
                 {p.status ?? 'unknown'}
               </span>
             </div>
-            {p.status === PENDING && (
+            {p.status === PENDING && canDecide && (
               <div className="mt-1 flex gap-1">
                 <button
                   onClick={() =>
