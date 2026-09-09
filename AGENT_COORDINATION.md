@@ -512,3 +512,46 @@ cleared the test-polluted top-level state file, restarted via
 `scripts/restart_backend.sh` (DB snapshotted first, pid 51504). Verified:
 initial sync walked the 90-day window, `atom_communications` repopulated to
 6561 rows, cursors now persist AWARE UTC (`+00:00`).
+
+## 2026-09-09 — ZCode (Rish): live email-agent training run — 3 real fixes
+
+Ran the STUDENT email_agent headless against the live Forrester task (Outlook
+search → draft reply) on `feat/email-agent-draft-hub`. Three real bugs found
+and fixed (all committed/pushed to the branch):
+
+- `6f8ed896f` **Outlook search 400 InefficientFilter**: `$orderby` +
+  `$filter contains` is rejected by Graph — drop the sort when a query
+  filter is present (live-verified 200).
+- `ed3004ca8` **byok_handler sibling-except dead code**: three sibling
+  `except Exception` clauses meant only the first (tool_choice) ever ran;
+  the reasoning-disable and soft-SC pop-logprobs retries were unreachable.
+  Collapsed into one ordered recovery chain + drop logprobs on the
+  reasoning-branch retry too ("logprobs are not supported with reasoning
+  models" matches both keywords). Soft-SC regression test re-green.
+- `929d8dd24` **draft_reply_to_email used `/reply` = SEND**: POST
+  `/me/messages/{id}/reply` returns 202 + empty body and lands in Sent
+  Items — every agent draft failed (`draft_id` None) because the code read
+  a draft object that never comes back. Switched to `/createReply` /
+  `/createReplyAll` (returns the draft object, 201, never sends).
+
+**Live-verified end-to-end:** agent searched Outlook (mail found), the
+approval loop paused/approved, and the threaded draft now lands in the
+mailbox Drafts folder (Sent untouched). Env: `OPENROUTER_API_KEY` in
+`backend/.env` is the working key; `OPENCODE_API_KEY` blanked (dead key was
+burning the ranking cascade).
+
+**⚠ INCIDENT — 3 emails sent to aforrest@cbnco.com (2026-09-09 ~17:25-17:26
+UTC)**: probe/verification scripts that POSTed to Graph `/reply` (the
+pre-fix draft path, which is really a send) sent three "RE: Quote for SR48P
+and for shear" replies from vishal@brennan.ca to Andrew Forrester. My
+verification mistake, not the agent's — the agent path never reached Graph
+(the empty 202 short-circuited it). Cannot be unsent; noted here so the
+next session can flag it with the user if needed.
+
+**Operational notes:** live server restarted with the fixes (PID changed);
+the agent's own earlier HITL draft actions marked expired in the dev DB;
+`probe_agent.py` (untracked scratch) reproduces the task headless.
+Outstanding: `_send_html_reply` and its styling tests still model `/reply`
+as returning a draft object — real sends via that route would double-send
+(/reply sends immediately + legacy fallback). Needs the same createReply
+rework before the send path is trusted.
