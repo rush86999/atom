@@ -17,6 +17,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from fastapi import HTTPException
+
 
 @pytest.fixture
 def svc():
@@ -76,7 +78,8 @@ class TestSurface:
     def test_get_capabilities(self, svc):
         caps = svc.get_capabilities()
         assert caps["supports_webhooks"] is False
-        assert len(caps["operations"]) == 5
+        assert len(caps["operations"]) == 6
+        assert "web_fetch" in [op["id"] for op in caps["operations"]]
 
     def test_health_check_healthy(self, svc):
         result = svc.health_check()
@@ -951,20 +954,14 @@ class TestExecuteToolLocalTools:
         service._get_base_url = lambda shop: f"https://{shop}/admin"
         service._get_headers = lambda token: {"X": token}
         service.get_orders = AsyncMock(return_value=[])
+        # shopify_create_product now goes through ShopifyService.create_product
+        # (the handler no longer builds the httpx request itself).
+        service.create_product = AsyncMock(
+            return_value={"id": "123", "title": "p", "handle": "p"}
+        )
         monkeypatch.setattr(
             "integrations.shopify_service.ShopifyService", lambda: service
         )
-
-        resp = MagicMock()
-        resp.status_code = 201
-        resp.json.return_value = {"product": {"id": "123"}}
-        client = MagicMock()
-        client.post = AsyncMock(return_value=resp)
-        client.get = AsyncMock(return_value=resp)
-        http_cls = MagicMock()
-        http_cls.return_value.__aenter__ = AsyncMock(return_value=client)
-        http_cls.return_value.__aexit__ = AsyncMock(return_value=False)
-        monkeypatch.setattr("integrations.mcp_service.httpx.AsyncClient", http_cls)
 
         result = await svc.execute_tool(
             "local-tools",
@@ -972,7 +969,7 @@ class TestExecuteToolLocalTools:
             {"title": "p"},
             {"workspace_id": "ws"},
         )
-        assert "Product created successfully: 123" in result
+        assert "Product created successfully. id=123" in result
 
     @pytest.mark.asyncio
     async def test_shopify_create_product_failed(self, svc, monkeypatch):
@@ -987,22 +984,18 @@ class TestExecuteToolLocalTools:
         service = MagicMock()
         service._get_base_url = lambda shop: "u"
         service._get_headers = lambda token: {}
+        # ShopifyService.create_product raises HTTPException on upstream
+        # failure (logged server-side); the handler lets it propagate.
+        service.create_product = AsyncMock(
+            side_effect=HTTPException(status_code=502, detail="Shopify create product failed")
+        )
         monkeypatch.setattr(
             "integrations.shopify_service.ShopifyService", lambda: service
         )
-        resp = MagicMock()
-        resp.status_code = 400
-        resp.text = "bad"
-        client = MagicMock()
-        client.post = AsyncMock(return_value=resp)
-        http_cls = MagicMock()
-        http_cls.return_value.__aenter__ = AsyncMock(return_value=client)
-        http_cls.return_value.__aexit__ = AsyncMock(return_value=False)
-        monkeypatch.setattr("integrations.mcp_service.httpx.AsyncClient", http_cls)
-        result = await svc.execute_tool(
-            "local-tools", "shopify_create_product", {}, {"workspace_id": "ws"}
-        )
-        assert "Failed to create product: bad" in result
+        with pytest.raises(HTTPException):
+            await svc.execute_tool(
+                "local-tools", "shopify_create_product", {}, {"workspace_id": "ws"}
+            )
 
     @pytest.mark.asyncio
     async def test_shopify_update_inventory(self, svc, monkeypatch):
@@ -1611,13 +1604,32 @@ class TestExecuteToolUniversal:
         assert result == {"status": "success"}
 
     @pytest.mark.asyncio
-    async def test_search_emails_default_gmail(self, svc, monkeypatch):
+    async def test_search_emails_default_all_mail_providers(self, svc, monkeypatch):
+        """No platform => every mail provider is searched (description says
+        'across Gmail, Outlook, and Zoho Mail'); gmail-only silently missed
+        mail that lived in Outlook."""
         cls, inst = _fake_universal_cls(execute_result={"status": "success"})
         monkeypatch.setattr("integrations.universal_integration_service.UniversalIntegrationService", cls)
         result = await svc.execute_tool(
             "local-tools", "search_emails", {"query": "q"}, {}
         )
-        assert result == {"gmail": {"status": "success"}}
+        assert result == {
+            "gmail": {"status": "success"},
+            "outlook": {"status": "success"},
+            "zoho_mail": {"status": "success"},
+        }
+
+    @pytest.mark.asyncio
+    async def test_search_emails_surfaces_provider_failures(self, svc, monkeypatch):
+        """Per-provider failures are surfaced (not swallowed) so the agent can
+        tell 'no results' apart from 'not connected'."""
+        cls, inst = _fake_universal_cls(execute_raises=Exception("boom"))
+        monkeypatch.setattr("integrations.universal_integration_service.UniversalIntegrationService", cls)
+        result = await svc.execute_tool(
+            "local-tools", "search_emails", {"query": "q"}, {}
+        )
+        assert set(result) == {"gmail", "outlook", "zoho_mail"}
+        assert all(v["status"] == "error" and v["error"] == "boom" for v in result.values())
 
     @pytest.mark.asyncio
     async def test_unified_communication_search_all_fail(self, svc, monkeypatch):
@@ -1762,13 +1774,18 @@ class TestExecuteToolUniversal:
 
     @pytest.mark.asyncio
     async def test_create_zoom_meeting_no_connection(self, svc, monkeypatch):
+        zoom = MagicMock()
+        zoom.create_meeting = AsyncMock(return_value={"id": "m1"})
+        monkeypatch.setattr("integrations.zoom_service.ZoomService", lambda **kw: zoom)
         conn_cls = MagicMock()
         conn_cls.return_value.list_connections = AsyncMock(return_value=[])
         monkeypatch.setattr("core.connection_service.ConnectionService", conn_cls)
-        with pytest.raises(ImportError):
-            await svc.execute_tool(
-                "local-tools", "create_zoom_meeting", {}, {"user_id": "u"}
-            )
+        # No zoom connection => explicit error payload (the zoom_service module
+        # exists, so no ImportError is raised anymore).
+        result = await svc.execute_tool(
+            "local-tools", "create_zoom_meeting", {}, {"user_id": "u"}
+        )
+        assert result == {"error": "Zoom not connected"}
 
     @pytest.mark.asyncio
     async def test_create_zoom_meeting_with_connection(self, svc, monkeypatch):
@@ -2083,8 +2100,10 @@ class TestExecuteToolUniversal:
 
     @pytest.mark.asyncio
     async def test_search_formulas_no_query(self, svc):
-        with pytest.raises(TypeError):
-            await svc.execute_tool("local-tools", "search_formulas", {}, {})
+        # Missing query returns an error payload (the handler guards the
+        # required param instead of raising).
+        result = await svc.execute_tool("local-tools", "search_formulas", {}, {})
+        assert result == {"error": "Search query is required"}
 
     @pytest.mark.asyncio
     async def test_search_formulas_success(self, svc, monkeypatch):
@@ -2469,7 +2488,11 @@ class TestCheckHITLPolicy:
         workspace = MagicMock()
         workspace.tenant_id = "t1"
         self._patch_db(monkeypatch, self._db_with(workspace=workspace, tenant=tenant))
-        result = await svc._check_hitl_policy("ws1", "send_email", {"to": "x"})
+        # Non-email tool: the deterministic email policy deliberately forces
+        # approval for send_email to any non-allowlisted recipient REGARDLESS
+        # of require_hitl_external, so a send_email case can never be "no
+        # HITL". A non-risky tool still exercises the plain no-HITL path.
+        result = await svc._check_hitl_policy("ws1", "calendar_create", {"x": 1})
         assert result is None
 
     @pytest.mark.asyncio

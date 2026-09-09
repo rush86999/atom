@@ -423,6 +423,10 @@ class ToolRegistry:
         # email attachments (governed by the email_attachment autonomy topic;
         # sending WITH attachments stays on the send_email circuit).
         self._register_email_attachment_tools()
+        # On-demand mailbox email ingestion ("ingest this email"): fetch the
+        # full email + attachments from the owner's account and push it
+        # through the poller's ingestion path (same email_attachment topic).
+        self._register_email_ingest_tool()
         # PDF canvas tools: reads are STUDENT; draft mutations (page ops,
         # merge, submit-review) are INTERN under the pdf_canvas autonomy
         # topic; APPROVE and attach-to-email are SUPERVISED — review and
@@ -879,6 +883,45 @@ class ToolRegistry:
                 )
             except Exception as e:
                 logger.warning(f"Could not register email attachment tool {name}: {e}")
+
+    def _register_email_ingest_tool(self):
+        """Register the on-demand mailbox email ingestion tool.
+
+        INTERN/complexity 2 like email_attachment_ingest: a memory write,
+        not a send, and idempotent (seen-id + store-level dedup), so a
+        repeated ask is a truthful no-op. Same email_attachment autonomy
+        topic — one knob for agent-touched email content in memory.
+        """
+        try:
+            func = self._get_function("tools.email_ingest_tool", "email_ingest_message")
+            if not func:
+                return
+            self.register(
+                name="email_ingest_message",
+                function=func,
+                version="1.0.0",
+                description=(
+                    "Actively ingest one mailbox email (body + attachments) into "
+                    "memory so it is recallable across chats, even if the "
+                    "background poller hasn't indexed it yet. Idempotent — "
+                    "already-ingested mail is a no-op."
+                ),
+                category="email",
+                complexity=2,
+                maturity_required="INTERN",
+                dependencies=[],
+                parameters={
+                    "user_id": {"type": "str", "description": "Owning user id (mailbox owner)"},
+                    "provider": {"type": "str", "description": "Mail provider: 'outlook' or 'gmail'"},
+                    "message_id": {"type": "str", "description": "Provider message id (e.g. from outlook_search_emails / outlook_read_email)"},
+                    "agent_id": {"type": "str", "optional": True, "description": "Calling agent id (for audit attribution)"},
+                },
+                author="Atom Team",
+                tags=["email", "ingestion", "memory"],
+                cacheable=False,
+            )
+        except Exception as e:
+            logger.warning(f"Could not register email ingest tool: {e}")
 
     def _register_browser_tools(self):
         """Register browser automation tools with metadata."""

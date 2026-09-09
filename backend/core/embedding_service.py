@@ -132,13 +132,22 @@ class EmbeddingService:
             f"Initialized EmbeddingService: provider={self.provider}, model={self.model}, workspace={self.workspace_id}"
         )
 
+    @staticmethod
+    def default_fastembed_model() -> str:
+        """The default local embedding model, env-overridable. Kept next to
+        _get_default_model as the single source of truth; consumers that must
+        NOT construct an EmbeddingService instance (its __init__ also builds
+        an LLMService) read this directly — e.g. the playbook dense-recall
+        embedder."""
+        return os.getenv(
+            "FASTEMBED_MODEL",
+            "BAAI/bge-small-en-v1.5"  # Fast, good quality, 384 dimensions
+        )
+
     def _get_default_model(self) -> str:
         """Get default model for provider"""
         defaults = {
-            EmbeddingProvider.FASTEMBED: os.getenv(
-                "FASTEMBED_MODEL",
-                "BAAI/bge-small-en-v1.5"  # Fast, good quality, 384 dimensions
-            ),
+            EmbeddingProvider.FASTEMBED: self.default_fastembed_model(),
             EmbeddingProvider.OPENAI: os.getenv(
                 "OPENAI_EMBEDDING_MODEL",
                 "text-embedding-3-small"  # 1536 dimensions

@@ -314,6 +314,7 @@ class CognitiveClassifier:
                 "glm-5.2",
                 "gpt-5",
                 "gpt-5.6-sol",
+                "gpt-6-astra",
                 "o3",
                 "claude-4-opus",
                 "claude-mythos-5",

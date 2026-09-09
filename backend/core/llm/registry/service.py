@@ -631,6 +631,64 @@ class LLMRegistryService:
             logger.error(f"Failed to register LUX model for tenant {tenant_id}: {e}")
             return None
 
+    def register_computer_use_models(
+        self,
+        tenant_id: str,
+        enabled: bool = True
+    ) -> List[LLMModel]:
+        """
+        Register the computer-use model pool for a tenant.
+
+        Upserts gpt-6-astra (the default computer-use brain — see
+        core/lux_config.py) with the computer_use capability alongside the
+        LUX/Claude entry (register_lux_model), so capability-based routing
+        (get_computer_use_models / required_capability="computer_use") can
+        discover a frontier option and not only the specialized LUX model.
+
+        Args:
+            tenant_id: Tenant identifier for multi-tenancy
+            enabled: Whether registration is enabled (no-op when False)
+
+        Returns:
+            List of upserted LLMModel instances (may be partial on failure)
+        """
+        if not enabled:
+            logger.debug(f"Computer-use model registration disabled for tenant {tenant_id}")
+            return []
+
+        registered: List[LLMModel] = []
+
+        astra_model_data = {
+            'provider': 'openai',
+            'model_name': 'gpt-6-astra',
+            'context_window': 1050000,
+            'input_price_per_token': 0.00001,   # $10 / MTok (≤272K prompt tier)
+            'output_price_per_token': 0.00005,  # $50 / MTok
+            'capabilities': ['vision', 'tools', 'computer_use', 'agentic'],
+            'provider_metadata': {
+                'source': 'registry',
+                'specialization': 'computer_use',
+                'description': 'Frontier computer-use model (vision + reasoning flagship)',
+            },
+        }
+
+        try:
+            model = self.upsert_model(tenant_id, astra_model_data)
+            if 'computer_use' not in model.capabilities:
+                model.capabilities.append('computer_use')
+            model.sync_capabilities()
+            self.db.flush()
+            registered.append(model)
+            logger.info(f"gpt-6-astra registered for computer use for tenant {tenant_id}")
+        except Exception as e:
+            logger.error(f"Failed to register gpt-6-astra for tenant {tenant_id}: {e}")
+
+        lux = self.register_lux_model(tenant_id, enabled=enabled)
+        if lux is not None:
+            registered.append(lux)
+
+        return registered
+
     def get_computer_use_models(
         self,
         tenant_id: str,

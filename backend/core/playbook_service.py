@@ -20,12 +20,111 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import math
+import os
 import re
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 _MODE_OFF, _MODE_SHADOW, _MODE_ENFORCE = "off", "shadow", "enforce"
+
+
+# ── dense recall (hybrid retrieval) ────────────────────────────────────────
+# Calibration (BAAI/bge-small-en-v1.5, measured 2026-09-08 over playbook-
+# shaped docs vs message-shaped queries): related cosines 0.58–0.77,
+# unrelated 0.40–0.63 — the ranges overlap, so the floor favors RECALL and
+# ranking separates: a true paraphrase (≈0.7+) scores well above a stray
+# near-miss (≈0.5–0.63), and the prompt leg is advisory + capped at 2
+# either way. Weight 1.5 keeps a literal keyword hit (1.0) roughly equal to
+# a strong dense match instead of letting weak-moderate similarity (0.55–
+# 0.6 → 0.83–0.9) outrank the user having actually said the word.
+_DENSE_FLOOR = 0.55
+_DENSE_WEIGHT = 1.5
+
+
+class _LocalEmbedder:
+    """Sync local embeddings for playbook dense recall — fastembed ONLY.
+
+    Deliberately no EmbeddingService instance: its __init__ also builds an
+    LLMService, and a paid/cloud call would put latency and cost on the
+    prompt-assembly hot path. When the configured provider isn't fastembed
+    (or fastembed isn't installed) the backend reports unavailable and
+    retrieval degrades to trigger keywords / canvas type — never fails the
+    turn. Model load (seconds, ONNX) and embed are blocking, so async
+    callers wrap them in to_thread; the ONNX client itself is process-cached
+    per model inside EmbeddingService."""
+
+    def __init__(self) -> None:
+        self.model: Optional[str] = None
+        self._client: Any = None
+        try:
+            provider = (os.getenv("EMBEDDING_PROVIDER", "fastembed")
+                        or "fastembed").strip().lower()
+            if provider == "local":  # same alias EmbeddingService honors
+                provider = "fastembed"
+            if provider != "fastembed":
+                return
+            try:
+                import fastembed  # noqa: F401
+            except Exception:
+                return
+            from core.embedding_service import EmbeddingService
+            self.model = EmbeddingService.default_fastembed_model()
+        except Exception as e:  # never raise from embedder construction
+            logger.debug(f"playbook embedder unavailable: {e}")
+            self.model = None
+
+    @property
+    def available(self) -> bool:
+        return bool(self.model)
+
+    def embed(self, texts: List[str]) -> List[List[float]]:
+        if not self.model:
+            raise RuntimeError("playbook embedder unavailable")
+        if self._client is None:
+            from core.embedding_service import EmbeddingService
+            self._client = EmbeddingService._load_fastembed_client(self.model)
+        return [v.tolist() for v in self._client.embed(list(texts))]
+
+
+_EMBEDDING_BACKEND: Optional[_LocalEmbedder] = None
+
+
+def _shared_embedding_backend() -> _LocalEmbedder:
+    """Process-wide embedder: PlaybookService is constructed per call site
+    (every turn), but the embedder holds no per-tenant state — one is
+    enough, and this keeps the INFO/LLMService-free construction to once."""
+    global _EMBEDDING_BACKEND
+    if _EMBEDDING_BACKEND is None:
+        _EMBEDDING_BACKEND = _LocalEmbedder()
+    return _EMBEDDING_BACKEND
+
+
+def _playbook_document(row: Any) -> str:
+    """The canonical text embedded for a playbook: everything a matching
+    request could semantically resemble — name, description, steps,
+    template questions, and the trigger keywords themselves."""
+    parts = [getattr(row, "name", "") or "", getattr(row, "description", "") or ""]
+    parts += [str(s) for s in (getattr(row, "steps", None) or [])]
+    parts += [str(q) for q in (getattr(row, "template_questions", None) or [])]
+    parts += [str(k) for k in (getattr(row, "trigger_keywords", None) or [])]
+    return "\n".join(p for p in parts if p)
+
+
+def _cosine(a: Optional[List[float]], b: Optional[List[float]]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
+    for x, y in zip(a, b):
+        dot += x * y
+        na += x * x
+        nb += y * y
+    if na == 0.0 or nb == 0.0:
+        return 0.0
+    return dot / math.sqrt(na * nb)
 
 
 def playbook_mode() -> str:
@@ -53,10 +152,65 @@ def eval_gate_mode(db=None) -> str:
 
 class PlaybookService:
     def __init__(self, db, tenant_id: str = "default",
-                 workspace_id: str = "default"):
+                 workspace_id: str = "default",
+                 embedding_backend: Optional[Any] = None):
         self.db = db
         self.tenant_id = tenant_id
         self.workspace_id = workspace_id or "default"
+        # Tests inject a fake; production lazily builds the shared local
+        # embedder on first use (see embedding_backend property).
+        self._injected_backend = embedding_backend
+        self._embedding_backend: Optional[Any] = embedding_backend
+
+    @property
+    def embedding_backend(self) -> Optional[Any]:
+        if self._embedding_backend is None:
+            self._embedding_backend = _shared_embedding_backend()
+        return self._embedding_backend
+
+    # ── embeddings ──
+    def _refresh_embedding(self, row: Any) -> None:
+        """Best-effort: embed the playbook document at write time so reads
+        don't pay for it. Failure leaves the columns NULL — retrieval falls
+        back to trigger keywords / canvas type, and the next read backfills.
+        A backend that is merely unavailable (no fastembed, cloud provider)
+        is a no-op, not an error."""
+        backend = self.embedding_backend
+        if backend is None or not getattr(backend, "available", False):
+            return
+        try:
+            vec = backend.embed([_playbook_document(row)])[0]
+            row.embedding = vec
+            row.embedding_model = getattr(backend, "model", None)
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            logger.debug(f"playbook embedding refresh skipped: {e}")
+
+    def _row_embedding(self, row: Any) -> Optional[List[float]]:
+        """Stored embedding for a playbook, backfilling when missing or
+        computed by a different model than the current backend (cross-model
+        cosine is meaningless). Returns None when unavailable: the row
+        still competes on keywords / canvas triggers alone."""
+        backend = self.embedding_backend
+        if backend is None or not getattr(backend, "available", False):
+            return None
+        model_name = getattr(backend, "model", None)
+        if row.embedding and row.embedding_model == model_name:
+            return row.embedding
+        try:
+            vec = backend.embed([_playbook_document(row)])[0]
+        except Exception as e:
+            logger.debug(f"playbook embedding backfill skipped: {e}")
+            return None
+        try:
+            row.embedding = vec
+            row.embedding_model = model_name
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()  # usable this turn even if persistence failed
+            logger.debug(f"playbook embedding backfill persist skipped: {e}")
+        return vec
 
     # ── CRUD ──
     def create(self, name: str, *, description: str = "",
@@ -91,6 +245,7 @@ class PlaybookService:
         self.db.add(row)
         self.db.commit()
         self.db.refresh(row)
+        self._refresh_embedding(row)
         return row
 
     def list(self, include_drafts: bool = False) -> List[Any]:
@@ -254,33 +409,61 @@ class PlaybookService:
     # ── retrieval into prompts ──
     def get_relevant(self, message: str, canvas_type: Optional[str] = None,
                      limit: int = 2) -> List[Dict[str, Any]]:
-        """Approved playbooks whose trigger matches the turn, keyword-scored.
-        Keyword scoring (not embeddings) keeps this leg deterministic and
-        cheap; the assembler reranker can reorder later if needed."""
+        """Approved playbooks whose trigger matches the turn — HYBRID
+        retrieval: trigger keywords/canvas type PLUS dense (embedding)
+        recall. Gating keyworded playbooks on a literal keyword hit silently
+        skipped approved processes whenever the request paraphrased them
+        ("chase the supplier about the unpaid one" vs keyword "invoice"), so
+        keywords are now a BOOST, not a gate: a playbook is considered on a
+        keyword hit, a canvas-type match, or strong semantic similarity
+        (_DENSE_FLOOR). Embedding is local fastembed, computed/stored at
+        write time and lazily backfilled on read; any embedding failure
+        degrades to triggers-only scoring, never fails the turn. Keyword
+        scoring stays deterministic and cheap."""
         if playbook_mode() == _MODE_OFF:
             return []
         rows = self.list(include_drafts=False)
-        scored: List[tuple] = []
+        if not rows:
+            return []
+        backend = self.embedding_backend
+        msg_vec: Optional[List[float]] = None
+        if backend is not None and getattr(backend, "available", False) \
+                and (message or "").strip():
+            try:
+                msg_vec = backend.embed([message])[0]
+            except Exception as e:
+                logger.debug(f"playbook query embedding skipped: {e}")
+                msg_vec = None
         msg_norm = re.sub(r"[^a-z0-9\s]", " ", (message or "").lower())
         msg_l = f" {msg_norm} "
+        scored: List[tuple] = []
+        best_dense = 0.0
         for row in rows:
+            dense = _cosine(msg_vec, self._row_embedding(row))
+            best_dense = max(best_dense, dense)
             keywords = [str(kw).lower().strip()
                         for kw in row.trigger_keywords or [] if str(kw).strip()]
             hits = sum(1 for kw in keywords if kw in msg_l)
-            # A playbook with keywords needs at least one hit; a playbook
-            # with NO keywords matches its canvas type alone. Canvas-type
-            # match alone never justifies a keyworded playbook.
-            if keywords and hits == 0:
+            canvas_match = bool(
+                canvas_type and row.trigger_canvas_type
+                and row.trigger_canvas_type.lower() == canvas_type.lower())
+            # Recall: keyword hit OR canvas-type match OR strong dense
+            # similarity. A keyworded playbook with zero hits AND weak
+            # similarity still stays out — keywords keep excluding noise.
+            if hits == 0 and not canvas_match and dense < _DENSE_FLOOR:
                 continue
-            if not keywords and not (canvas_type and row.trigger_canvas_type
-                                     and row.trigger_canvas_type.lower() == canvas_type.lower()):
-                continue
-            score = 1.0 * hits
-            if canvas_type and row.trigger_canvas_type and \
-                    row.trigger_canvas_type.lower() == canvas_type.lower():
+            score = 1.0 * hits + _DENSE_WEIGHT * dense
+            if canvas_match:
                 score += 2.0
             scored.append((score, row))
         scored.sort(key=lambda t: (-t[0], t[1].name))
+        if logger.isEnabledFor(logging.DEBUG):
+            top = [(round(s, 2), r.name) for s, r in scored[:limit]]
+            logger.debug(
+                "playbook retrieval: approved=%d matched=%d dense_best=%.2f "
+                "canvas_type=%s top=%s",
+                len(rows), len(scored), best_dense, canvas_type, top,
+            )
         return [
             {
                 # id rides along so the co-editor result can surface
@@ -321,4 +504,5 @@ class PlaybookService:
             row.template_questions = template_questions
         self.db.commit()
         self.db.refresh(row)
+        self._refresh_embedding(row)  # content changed → refresh the vector
         return row

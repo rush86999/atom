@@ -5,6 +5,57 @@ import { apiClient } from './api-client';
 // sessions (confidence boost -> promotion), and approve/reject INTERN
 // action proposals.
 
+// Self-directed STUDENT -> INTERN validation (GET
+// /api/maturity/training/self-directed; backend core/self_directed_progress.py
+// snapshot() is the payload source of truth).
+export interface SelfDirectedEpisode {
+  id: string;
+  task: string;
+  outcome: string;
+  success: boolean;
+  started_at: string | null;
+  human_interventions: number;
+  maturity_at_time: string | null;
+  canvas_ids: string[];
+}
+
+export interface SelfDirectedGuidanceStep {
+  label: string;
+  done: boolean;
+  detail?: string;
+}
+
+export interface SelfDirectedReadiness {
+  ready: boolean;
+  pathway?: string | null;
+  reason?: string | null;
+  required_training_sessions?: number | null;
+  required_episodes?: number | null;
+  success_ratio?: number | null;
+}
+
+export interface SelfDirectedEvidence {
+  episodes: number;
+  successes: number;
+  success_ratio: number;
+  required_episodes?: number;
+}
+
+export interface SelfDirectedAgentProgress {
+  agent_id: string;
+  agent_name: string;
+  category?: string | null;
+  tier: string;
+  confidence: number;
+  episode_progress: number;
+  ready_for_review: boolean;
+  completed_sessions?: number;
+  evidence: SelfDirectedEvidence;
+  readiness: SelfDirectedReadiness;
+  recent_episodes: SelfDirectedEpisode[];
+  guidance: SelfDirectedGuidanceStep[];
+}
+
 export interface TrainingProposal {
   id: string;
   agent_id: string;
@@ -384,6 +435,25 @@ export async function getAgentGraduationProgress(
   const res = await fetchJson(`/api/agents/${agentId}/graduation-progress`);
   if (!res.ok) throw new Error(`Progress fetch failed (${res.status})`);
   return res.json();
+}
+
+// ── Self-directed STUDENT -> INTERN validation ──────────────────────────────
+// GET /api/maturity/training/self-directed — evidence vs graduation floors
+// for one agent (canvas panel card) or the whole STUDENT queue.
+
+export async function fetchSelfDirectedProgress(
+  agentId: string
+): Promise<SelfDirectedAgentProgress> {
+  const res = await fetchJson(
+    `/api/maturity/training/self-directed${query({ agent_id: agentId })}`
+  );
+  if (!res.ok) throw new Error(`Self-directed progress fetch failed (${res.status})`);
+  const payload = await res.json();
+  const agents: SelfDirectedAgentProgress[] = payload?.agents ?? [];
+  if (!agents.length) {
+    throw new Error("No self-directed progress recorded for this agent");
+  }
+  return agents[0];
 }
 
 // ── Action proposals (INTERN journey) ───────────────────────────────────────

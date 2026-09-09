@@ -171,6 +171,7 @@ class ContextValidator:
         # 2026 frontier models
         "kimi-k3": 1000000,
         "gpt-5.6-sol": 1050000,
+        "gpt-6-astra": 1050000,
         "claude-mythos-5": 1000000,
     }
 

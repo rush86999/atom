@@ -12,6 +12,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import ChatMarkdown from "@/components/canvas/ChatMarkdown";
 
 export interface ReasoningStep {
     type?: 'thought' | 'action' | 'observation' | 'error' | string;
@@ -95,9 +96,21 @@ const ReasoningStepItem = ({ step, idx, localFeedback, onFeedback }: { step: Rea
                 </div>
             </div>
 
-            <div className="pl-6 text-muted-foreground font-mono text-xs bg-muted/20 p-2 rounded overflow-x-auto whitespace-pre-wrap">
-                {displayContent}
-            </div>
+            {displayType === 'action' ? (
+                // Tool invocations are JSON — monospace pre-formatted is the
+                // readable form; markdown would mangle the structure.
+                <div className="pl-6 text-muted-foreground font-mono text-xs bg-muted/20 p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                    {displayContent}
+                </div>
+            ) : (
+                // Thoughts and tool observations are prose — often markdown
+                // (research evidence carries spec tables and headings).
+                // Rendered through the same sanitized pipeline as replies;
+                // raw pipe-table text was unreadable (user report 2026-09-08).
+                <div className="pl-6 text-muted-foreground text-xs bg-muted/20 p-2 rounded">
+                    <ChatMarkdown content={displayContent} />
+                </div>
+            )}
 
             {/* Inline Comment Box */}
             {showComment && (

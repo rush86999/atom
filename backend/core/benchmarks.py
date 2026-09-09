@@ -81,6 +81,11 @@ MODEL_QUALITY_SCORES = {
     "gpt-5.2": 100,
     "gpt-5": 99,
     "gpt-5.6-sol": 98,
+    # OpenAI's current SOTA (released 2026-09-03): "most capable model",
+    # "best model for software engineering to date" (OpenAI model guide) —
+    # anchored at the same 100 as the other frontier flagships pending a
+    # battery re-run (see flash-tier note above).
+    "gpt-6-astra": 100,
     "claude-mythos-5": 99,
     "o3": 99,
     "claude-4-opus": 99,
@@ -225,6 +230,10 @@ def get_quality_score(model_id: str) -> int:
 # Used for specialized routing when models excel at specific tasks
 MODEL_CAPABILITY_SCORES = {
     "computer_use": {
+        "gpt-6-astra": 97,  # Frontier vision+reasoning flagship; unmeasured
+        # estimate pending an OSWorld-style battery — anchored just above
+        # specialized lux-1.0 per the Sept-2026 user directive to make
+        # astra the computer-use brain.
         "lux-1.0": 95,  # Specialized for computer use
         "claude-3.5-sonnet": 85,  # Good but not specialized
         "gpt-4o": 80,

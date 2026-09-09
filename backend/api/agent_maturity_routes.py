@@ -854,3 +854,26 @@ async def get_agent_proposal_history(
         agent_id=agent_id, limit=limit
     )
     return {"agent_id": agent_id, "proposal_history": history}
+
+
+@router.get("/training/self-directed")
+async def self_directed_progress_queue(
+    agent_id: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Self-directed STUDENT -> INTERN validation queue.
+
+    Powers the Training panel's graduation card (and the approvals queue):
+    for each STUDENT agent, the evidence vs the graduation floors
+    (episodes, success ratio, confidence, supervised sessions), the
+    multi-pathway readiness verdict, per-step guidance, and the recent
+    outcome-tracked work the supervisor is validating. ``agent_id``
+    narrows to one agent (the canvas panel's single-card view); omit it
+    for the full queue.
+    """
+    from core.self_directed_progress import snapshot, student_agents
+
+    agents = student_agents(db, agent_id=agent_id)
+    snapshots = [snapshot(db, a) for a in agents]
+    return {"agents": snapshots, "count": len(snapshots)}

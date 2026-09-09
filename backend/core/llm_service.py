@@ -272,7 +272,7 @@ class LLMService:
         messages: List[Dict[str, str]],
         model: str = "auto",
         temperature: float = 0.7,
-        max_tokens: int = 1000,
+        max_tokens: Optional[int] = None,
         workspace_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
         **kwargs
@@ -280,18 +280,64 @@ class LLMService:
         """
         Generate completion with OpenAI-style messages.
         Maps messages to prompt/system for BYOKHandler.
+
+        Multimodal content (OpenAI-style content-part lists with "image_url"
+        blocks) is normalized here: text parts stay in the message, the last
+        embedded image is lifted into the handler's `image_payload` param so
+        vision-based routing sees it. `max_tokens` (when explicitly given)
+        is forwarded to the provider request; None keeps the handler default
+        (ATOM_COMPLETION_MAX_TOKENS).
         """
         target_ws = workspace_id or tenant_id or self._workspace_id
-        
+
         # Apply Governance De-escalation
         model = self._resolve_governance_model(target_ws, model, **kwargs)
 
         handler = self._get_handler(workspace_id=target_ws)
-        
+
+        # Multimodal normalization: callers may embed image content-parts
+        # inside message content lists. The routing layer keys vision
+        # routing off the `image_payload` param — embedded parts were
+        # invisible to it (a vision-blind model could win the turn and then
+        # 400 or hallucinate), and the prompt-extraction loop below treated
+        # a content LIST as the prompt string, corrupting the complexity
+        # heuristic (len(list)/4 tokens). Pull the parts apart once, here:
+        # every downstream consumer (vision filtering, request assembly)
+        # then sees a uniform contract. The LAST image wins — for
+        # screenshot loops that is the most recent observation.
+        normalized_messages: List[Dict[str, Any]] = []
+        extracted_image: Optional[str] = None
+        for msg in messages:
+            content = msg.get("content")
+            if not isinstance(content, list):
+                normalized_messages.append(msg)
+                continue
+            text_parts: List[str] = []
+            for part in content:
+                if not isinstance(part, dict):
+                    text_parts.append(str(part))
+                    continue
+                if part.get("type") == "text":
+                    text_parts.append(part.get("text", ""))
+                elif part.get("type") == "image_url":
+                    url = (part.get("image_url") or {}).get("url", "") or ""
+                    if url.startswith("data:"):
+                        # Strip the "data:<mime>;base64," prefix — the
+                        # handler re-wraps raw base64 itself.
+                        extracted_image = url.split(",", 1)[-1]
+                    elif url:
+                        extracted_image = url
+            new_msg = dict(msg)
+            new_msg["content"] = "\n".join(p for p in text_parts if p)
+            normalized_messages.append(new_msg)
+        if extracted_image and "image_payload" not in kwargs:
+            kwargs["image_payload"] = extracted_image
+        messages = normalized_messages
+
         # Extract prompt and system from messages
         prompt = ""
         system_instruction = "You are a helpful assistant."
-        
+
         for msg in messages:
             role = msg.get("role")
             content = msg.get("content", "")
@@ -304,6 +350,14 @@ class LLMService:
         # turn_index is passed positionally below; pop it from kwargs to avoid
         # a duplicate-keyword TypeError when callers pass it explicitly.
         turn_index = kwargs.pop("turn_index", 0)
+        # max_tokens: previously swallowed here (signature default 1000) and
+        # NEVER forwarded — every caller silently got the handler-wide
+        # ATOM_COMPLETION_MAX_TOKENS instead of the value it asked for.
+        # Forward only when the caller set it explicitly, so the old default
+        # keeps today's behavior (handler default) instead of clamping every
+        # request down to 1000.
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
         response_text = await handler.generate_response(
             prompt=prompt,
             system_instruction=system_instruction,

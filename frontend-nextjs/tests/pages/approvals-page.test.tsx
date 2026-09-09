@@ -23,6 +23,20 @@ const pendingActions = {
   created_at: "2026-01-01T10:00:00Z",
 };
 
+const selfDirectedAgent = {
+  agent_id: "sd-1",
+  agent_name: "Student Hire",
+  tier: "student",
+  confidence: 0.6,
+  episode_progress: 1,
+  ready_for_review: true,
+  completed_sessions: 1,
+  evidence: { episodes: 3, successes: 3, success_ratio: 1, required_episodes: 3 },
+  readiness: { ready: true, pathway: "mentor_taught", reason: null },
+  recent_episodes: [],
+  guidance: [{ label: "Real work recorded: 3/3 episodes", done: true }],
+};
+
 const trainingProposal = {
   id: "tp-1",
   agent_id: "a2",
@@ -43,8 +57,14 @@ describe("ApprovalsPage", () => {
     localStorage.setItem("auth_token", "tok");
     mockFetch.mockImplementation((url: any) => {
       const u = String(url);
+      if (u.includes("/maturity/training/self-directed")) {
+        return Promise.resolve(okJson({ agents: [selfDirectedAgent], count: 1 }));
+      }
       if (u.includes("/maturity/training/proposals")) {
         return Promise.resolve(okJson({ proposals: [trainingProposal] }));
+      }
+      if (u.includes("/episodes/graduation/promote")) {
+        return Promise.resolve(okJson({ agent_id: "sd-1", new_maturity: "intern", promoted: true }));
       }
       return Promise.resolve(okJson([pendingActions]));
     });
@@ -119,5 +139,50 @@ describe("ApprovalsPage", () => {
     render(<ApprovalsPage />);
     await waitFor(() => expect(screen.getByText(/Nothing waiting for approval/)).toBeInTheDocument());
     expect(screen.getByText(/No training proposals waiting/)).toBeInTheDocument();
+  });
+});
+
+
+describe("Self-directed graduation queue", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    localStorage.setItem("auth_token", "tok");
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.includes("/maturity/training/self-directed")) {
+        return Promise.resolve(okJson({ agents: [selfDirectedAgent], count: 1 }));
+      }
+      if (u.includes("/maturity/training/proposals")) {
+        return Promise.resolve(okJson({ proposals: [trainingProposal] }));
+      }
+      if (u.includes("/episodes/graduation/promote")) {
+        return Promise.resolve(okJson({ agent_id: "sd-1", new_maturity: "intern", promoted: true }));
+      }
+      return Promise.resolve(okJson([pendingActions]));
+    });
+    global.fetch = mockFetch as any;
+  });
+
+  it("renders STUDENT evidence cards from the queue endpoint", async () => {
+    render(<ApprovalsPage />);
+    await waitFor(() =>
+      expect(screen.getByTestId("self-directed-pathway-card")).toBeInTheDocument()
+    );
+    expect(screen.getByText("Student Hire")).toBeInTheDocument();
+    expect(screen.getByText("Verified episodes 3/3")).toBeInTheDocument();
+  });
+
+  it("promotes from the queue via the graduation endpoint and refreshes", async () => {
+    render(<ApprovalsPage />);
+    const btn = await screen.findByTestId("self-directed-promote-button");
+    fireEvent.click(btn);
+    await waitFor(() => {
+      const promoteCalls = mockFetch.mock.calls.filter((c: any[]) =>
+        String(c[0]).includes("/episodes/graduation/promote")
+      );
+      expect(promoteCalls.length).toBeGreaterThan(0);
+      expect(String(promoteCalls[0][0])).toContain("new_maturity=INTERN");
+      expect(promoteCalls[0][1]?.method).toBe("POST");
+    });
   });
 });

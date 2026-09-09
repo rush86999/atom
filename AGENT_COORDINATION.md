@@ -434,3 +434,81 @@ copy the markup as the canvas body and edit the wording; canvas + send preserve 
 (funnel `normalize_email_content` passes HTML through; composer sanitizer allows style).
 Block cap 6000 chars. Tests: tests/test_tool_planner_styled_base.py (5) + the 3 existing
 planner suites 28 green. Backend restarted.
+
+## 2026-09-08 — ZCode (Rish): PRs #606/#607/#608 review outcome — curated merge
+
+Reviewed the three stacked email PRs by visak14 against AGENTS.md/CLAUDE.md.
+**Merged (curated branch, cherry-picked with authorship kept):**
+
+- `294851b2` **Outlook poller cursor UTC fix** (+10 regression tests). Root cause:
+  naive local `datetime.now()` cursors formatted with a blind `Z` shifted the
+  watermark ~5.5h into the future — incremental polls returned empty windows
+  while cursors advanced; new mail never reached the comms store. Now aware
+  UTC end-to-end; naive legacy values assumed UTC.
+  **OPERATIONAL (carried from the original entry, still outstanding):** the live
+  server runs the old code and its legacy cursor is ambiguous — after deploying,
+  restart via `scripts/restart_backend.sh` and clear the poller cursors once so
+  the 90-day window initial-syncs (125 msgs).
+- `1ce0431` **search_emails defaults to every connected mail provider** (+2
+  tests, 1 updated). With no `platform` arg it queried ONLY gmail — Outlook mail
+  was silently invisible to agents (live 2026-09-08: Forrester thread found
+  nothing, no reply draft). Per-provider failures surfaced, not swallowed.
+
+**Discarded, with reasons (do NOT reintroduce as-is):**
+
+- `bad832fb` X-Session-Id + browser Origin/Referer/UA headers on the Zen gateway
+  clients: this masquerades as the OpenCode web client specifically to defeat the
+  gateway's free-tier client gate ("OpenCode's free tier can only be used in
+  OpenCode") — ToS circumvention + account-ban risk for the subscription key.
+  `-free` models are therefore effectively unusable via the API from Atom; the
+  paid-fallback machinery (CreditsError retry) already covers that path.
+- `65bd1b8`/`7f7c874`/`9420785` email send-policy gate (`core/email_policy_gate.py`
+  + hook + tool params + seed script): the deterministic Level B idea is
+  vision-aligned, but as written it (a) duplicates the existing general mechanism
+  `core/email_policy.py` (ALLOW/APPROVE/BLOCK, wired at mcp/canvas/chat) with a
+  second module, different vocabulary, different layer, no documented precedence;
+  (b) ships default-on blocking with NO kill switch / shadow mode / audit, against
+  the repo convention every other policy layer follows (ATOM_* flag +
+  settings-catalog + shadow-first); (c) hardcodes one business's machinery-sales
+  rules in core for all workspaces; (d) `price_verified` is agent self-attestation,
+  not verification. If Level B is wanted, rebuild ON `core/email_policy.py` with a
+  flag + per-workspace rule config. Seed script also wrote demo rows (real
+  counterparties' names/emails) into the live dev DB.
+
+Verified: 56/56 new tests green; covpush suites show the same 15 pre-existing
+main failures before/after (InterventionService signature drift — separate issue).
+
+## 2026-09-08 ~22:00 — ZCode (Rish): fix-all pass — UTC port into rewrite, HITL required_role, covpush repair, outlook state reset + redeploy
+
+**Rebase:** local main (3 unpushed commits) rebased onto #609's merge; the
+on-demand-ingest rewrite (`b5562c4e3`) conflicted with the cursor UTC fix and
+had dropped its hunks — re-ported the six-site UTC fix into the rewritten
+shape (`1d669f611`). Tests: cursor tz + ingest-tool 25/25.
+
+**Real bug found in the 15 pre-existing covpush failures** (`03b4aed9d`):
+`InterventionService.request_intervention` never accepted the `required_role`
+kwarg that `mcp_service._check_hitl_policy` has passed since `d99541d82` —
+every governed intercept raised TypeError and failed closed into "policy
+check unavailable; action blocked pending approval" instead of creating the
+HITL action. Service now accepts + persists it in `context_snapshot`. The
+other 14 were stale test contracts vs phase-253 service changes —
+re-contracted (details in the commit). covpush suites 389/389; intervention
+consumers 760/760.
+
+**Gmail batch-drop bug** (`359c40b58`): `base64.b64encode(content)` outside
+the per-attachment try in both `_expand_gmail_attachments` passes — one
+non-bytes payload zeroed the whole fetch (docstring promised otherwise).
+Also isolated `test_email_api_ingestion.py`'s fixture state file to tmp_path
+(it was persisting user-a/user-trunc test cursors into the LIVE
+`atom_memory/poll_fetch_state.json`). 34/34 green.
+
+**Live outlook redeploy (state reset + restart, backups kept as
+`.bak-20260908`):** the live poller was stuck re-fetching the same 250
+messages and dedup-skipping them forever — the Sep-5 store purge left 6551
+"already-ingested" seen ids that blocked re-ingestion while the walk held
+its cursor. With the server STOPPED (the running process re-writes state),
+reset outlook cursors + outlook seen ids in `default/poll_fetch_state.json`,
+cleared the test-polluted top-level state file, restarted via
+`scripts/restart_backend.sh` (DB snapshotted first, pid 51504). Verified:
+initial sync walked the 90-day window, `atom_communications` repopulated to
+6561 rows, cursors now persist AWARE UTC (`+00:00`).

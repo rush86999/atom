@@ -92,7 +92,8 @@ class TestMCPServiceBasics:
         svc = _svc()
         caps = svc.get_capabilities()
         assert caps["supports_webhooks"] is False
-        assert len(caps["operations"]) == 5
+        assert len(caps["operations"]) == 6
+        assert "web_fetch" in [op["id"] for op in caps["operations"]]
 
     def test_health_check(self):
         svc = _svc()
@@ -613,11 +614,22 @@ class TestExecuteToolLocalTools:
                 resp.text = "err"
                 client.post.return_value = resp
                 client_cls.return_value = client
+                # shopify_create_product routes through ShopifyService.
+                # create_product (success dict / HTTPException on failure);
+                # the inline httpx client below only serves update_inventory.
+                shopify.create_product = AsyncMock(
+                    return_value={"id": 7, "title": "p", "handle": "p"}
+                )
                 r = await _run_local(svc, "shopify_create_product", {"title": "p"})
                 assert "created" in r
-                resp.status_code = 400
-                r = await _run_local(svc, "shopify_create_product", {"title": "p"})
-                assert "Failed" in r
+                shopify.create_product = AsyncMock(
+                    side_effect=HTTPException(status_code=502, detail="Shopify create product failed")
+                )
+                with pytest.raises(HTTPException):
+                    await _run_local(svc, "shopify_create_product", {"title": "p"})
+                shopify.create_product = AsyncMock(
+                    return_value={"id": 7, "title": "p", "handle": "p"}
+                )
                 resp.status_code = 200
                 r = await _run_local(svc, "shopify_update_inventory", {"inventory_item_id": "i", "location_id": "l", "available": 3})
                 assert r == "Inventory updated successfully."
@@ -836,7 +848,7 @@ class TestExecuteToolLocalTools:
             r = await _run_local(svc, "search_emails", {"query": "q", "platform": "gmail"}, {"user_id": "u"})
             assert r == {"ok": 1}
             r = await _run_local(svc, "search_emails", {"query": "q"})
-            assert "gmail" in r
+            assert set(r) == {"gmail", "outlook", "zoho_mail"}
             r = await _run_local(svc, "unified_communication_search", {"query": "q"}, {"user_id": "u"})
             assert "slack" in r
             r = await _run_local(svc, "list_calendar_events", {"calendar_id": "c"}, {"user_id": "u"})
@@ -1982,6 +1994,10 @@ class TestUniversalExecuteBranches:
             send_unified_message=marker, list_spaces=marker,
             send_intelligent_message=marker, get_messages=marker, get_message=marker,
             get_recent_inbox=marker,
+            # Outlook standalone sends go through OutlookService.send_email
+            # (reply_to_email for threaded replies).
+            send_email=marker, reply_to_email=marker,
+            get_latest_conversation_message_id=marker,
         )
         service = mod.UniversalIntegrationService()
         ctx = {"user_id": "u", "tenant_id": "t"}
@@ -2005,7 +2021,7 @@ class TestUniversalExecuteBranches:
                 ("gmail", "send_message", {"to": "x", "subject": "s", "body": "b"}),
                 ("gmail", "list_messages", {"query": "q"}),
                 ("gmail", "get_message", {"id": "1"}),
-                ("outlook", "send_message", {}),
+                ("outlook", "send_message", {"to": "x", "subject": "s", "body": "b"}),
                 ("zoho_mail", "list", {"limit": 5}),
                 ("zoho_mail", "send_message", {}),
             ]
@@ -2056,7 +2072,13 @@ class TestUniversalExecuteBranches:
             with patch("core.database.SessionLocal") as sl, \
                  patch("core.integration_registry.IntegrationRegistry") as reg_cls:
                 sl.return_value.__enter__.return_value = MagicMock()
-                reg_cls.return_value.get_service_instance = AsyncMock(return_value=MagicMock())
+                # Teams search is registry-based now (TeamsEnhancedService.
+                # search_messages); outlook search goes through the module
+                # outlook_service.search_emails.
+                teams_inst = MagicMock()
+                teams_inst.search_messages = AsyncMock(return_value=[{"tm": 1}])
+                reg_cls.return_value.get_service_instance = AsyncMock(return_value=teams_inst)
+                ctx["registry"] = reg_cls.return_value
                 with _mock_imports({
                     "integrations.slack_service_unified": MagicMock(slack_unified_service=MagicMock(
                         make_request=AsyncMock(return_value={"r": 1}))),
@@ -2068,8 +2090,10 @@ class TestUniversalExecuteBranches:
                         perform_intelligent_search=AsyncMock(return_value=[{"w": 1}]))),
                     "integrations.gmail_service": MagicMock(GmailService=MagicMock(return_value=MagicMock(
                         search_messages=MagicMock(return_value=[{"m": 1}])))),
-                    "integrations.teams_service": MagicMock(TeamsService=MagicMock(return_value=MagicMock(
-                        get_teams=MagicMock(return_value=[{"tm": 1}])))),
+                    "integrations.outlook_service": MagicMock(
+                        sanitize_graph_kql=lambda q: q,
+                        outlook_service=MagicMock(search_emails=AsyncMock(return_value=[{"o": 1}])),
+                    ),
                 }):
                     r = await service.search("slack", "q", None, ctx)
                     assert r["status"] == "success"
@@ -2114,7 +2138,10 @@ class TestUniversalExecuteBranches:
         svc_inst = _ui_service(
             get_issues=marker, create_issue=marker, get_teams=marker, get_projects=marker,
             get_boards=marker, create_item=marker, search_items=marker,
-            get_tasks=marker, create_task=marker, get_cards=marker, create_card=marker,
+            # asana get_tasks returns {"ok": bool, "tasks": [...]} (never
+            # raises); the universal asana branch reads .get("tasks").
+            get_tasks={"ok": True, "tasks": [{"gid": "1", "name": "T"}]},
+            create_task=marker, get_cards=marker, create_card=marker,
         )
         service = mod.UniversalIntegrationService()
         ctx = {"user_id": "u", "tenant_id": "t"}
@@ -2163,7 +2190,11 @@ class TestUniversalExecuteBranches:
                 pm.get_issues = AsyncMock(return_value=[{"title": "Fix bug", "description": "d"}])
                 pm.search_items = AsyncMock(return_value=[{"name": "x"}])
                 pm.get_tasks = AsyncMock(return_value=[{"name": "Task A"}])
-                pm.search_issues = AsyncMock(return_value=[{"key": "1"}])
+                # jira/trello search are synchronous (requests-based) — the
+                # universal handlers call them WITHOUT await and read dict
+                # shapes: search_issues -> {"issues": [...]}, search -> list.
+                pm.search_issues = MagicMock(return_value={"issues": [{"key": "1"}]})
+                pm.search = MagicMock(return_value=[])
                 reg_cls.return_value.get_service_instance = AsyncMock(return_value=pm)
                 r = await service.search("linear", "fix", None, ctx)
                 assert len(r) == 1
@@ -2181,10 +2212,15 @@ class TestUniversalExecuteBranches:
 
         marker = _ui_ret()
         svc_inst = _ui_service(
-            list_files=marker, search_files=marker, get_file_metadata=marker,
-            list_folder=marker, search=marker, create_folder=marker,
+            list_files=marker, get_file_metadata=marker,
+            list_folder=marker, create_folder=marker,
             list_drive_items=marker, list_folder_items=marker,
             create_page=marker, search_pages_in_workspace=marker,
+            # google_drive/onedrive search return {"status": "success",
+            # "data": {"files": [...]}}; notion search returns {"results":
+            # [...]} — the _search_storage branches read dict shapes.
+            search_files={"status": "success", "data": {"files": [{"id": "f1"}]}},
+            search={"results": [{"id": "n1"}]},
         )
         service = mod.UniversalIntegrationService()
         ctx = {"user_id": "u", "tenant_id": "t"}
@@ -2257,6 +2293,8 @@ class TestUniversalExecuteBranches:
             get_team_projects=marker, get_file=marker, get_comments=marker,
             get_campaigns=marker, get_audiences=marker,
             list_payments=marker, get_balance=marker, get_invoices=marker,
+            # stripe list_payments maps to StripeAdapter.get_charges.
+            get_charges=marker,
             create_customer=marker, create_invoice=marker, get_items=marker,
             send_email=marker, get_send_quota=marker,
             get_recent_inbox=marker,
@@ -2268,6 +2306,18 @@ class TestUniversalExecuteBranches:
         ctx = {"user_id": "u", "tenant_id": "t"}
         p1, p2 = _ui_patch(svc_inst)
         with p1, p2, patch.object(mod, "circuit_breaker") as cb, _mock_imports({
+            # freshdesk SEARCH instantiates FreshdeskService directly (fresh
+            # from-import inside _search_support), so the module mock must be
+            # in sys.modules for it — the registry mock only covers the
+            # execute path.
+            "integrations.freshdesk_service": MagicMock(FreshdeskService=MagicMock(return_value=MagicMock(
+                search_tickets=AsyncMock(return_value=[{"id": 1}]),
+                get_tickets=AsyncMock(return_value=[{"id": 1}]),
+                create_ticket=AsyncMock(return_value={"id": 1})))),
+            # gitlab SEARCH instantiates GitLabService directly (fresh
+            # from-import inside _search_dev) — same sys.modules treatment.
+            "integrations.gitlab_service": MagicMock(GitLabService=MagicMock(return_value=MagicMock(
+                search_projects=AsyncMock(return_value=[{"id": 1}])))),
             "integrations.zoho_crm_service": MagicMock(ZohoCRMService=MagicMock(return_value=MagicMock(
                 get_leads=AsyncMock(return_value=_ui_ret()),
                 get_deals=AsyncMock(return_value=_ui_ret()),
@@ -2687,6 +2737,11 @@ class TestUniversalCoverageWave3:
                 get_user_repositories=MagicMock(return_value=[{"name": "R"}])))),
             "integrations.gitlab_service": MagicMock(GitLabService=MagicMock(return_value=MagicMock(
                 search_projects=AsyncMock(return_value=[{"id": 1}])))),
+            # _search_communication outlook leg imports the module singleton.
+            "integrations.outlook_service": MagicMock(
+                sanitize_graph_kql=lambda q: q,
+                outlook_service=MagicMock(search_emails=AsyncMock(return_value=[{"o": 1}])),
+            ),
             "integrations.zoho_crm_service": MagicMock(ZohoCRMService=MagicMock(return_value=MagicMock(
                 get_leads=AsyncMock(return_value=[{"Last_Name": "X"}])))),
             "integrations.zoho_mail_service": MagicMock(ZohoMailService=MagicMock(return_value=MagicMock(
@@ -2710,6 +2765,16 @@ class TestUniversalCoverageWave3:
             inst = MagicMock()
             inst.access_token = "tok"
             inst.search_contacts = AsyncMock(return_value=[{"id": 1}])
+            # salesforce search runs SOQL via execute_query (returns
+            # {"records": [...]}) — an auto-MagicMock attr can't be awaited.
+            inst.execute_query = AsyncMock(return_value={"records": [{"id": 1}]})
+            # hubspot search awaits search_content (returns {"results": [...]}).
+            inst.search_content = AsyncMock(return_value={"results": [{"id": 1}]})
+            # storage search (onedrive leg) awaits search_files and reads
+            # the {"status", "data": {"files": [...]}} envelope.
+            inst.search_files = AsyncMock(
+                return_value={"status": "success", "data": {"files": []}}
+            )
             reg = MagicMock()
             reg.get_service_instance = AsyncMock(return_value=inst)
             with patch("core.database.SessionLocal", return_value=session), \
@@ -2742,12 +2807,14 @@ class TestUniversalCoverageWave3:
                 assert r["status"] == "success"
                 r = await service._execute_zoho("zoho_crm", "nope", {}, ctx)
                 assert "default zoho" in r["message"]
-                # search default fallbacks
+                # search default fallbacks — the _search_* helpers return raw
+                # lists (the search() ENTRY wraps them in {status, data}).
                 r = await service._search_crm("salesforce", "q", ctx)
-                assert r["status"] == "success"
+                assert r == [{"id": 1}]
                 r = await service._search_crm("hubspot", "q", ctx)
-                assert r["status"] == "success"
+                assert r == [{"id": 1}]
                 r = await service._search_crm("zoho_crm", "x", ctx)
+                # zoho_crm search wraps list-and-filter in a status envelope.
                 assert r["status"] == "success"
                 r = await service._search_dev("figma", "q", ctx)
                 assert r == []
@@ -2759,7 +2826,9 @@ class TestUniversalCoverageWave3:
                 assert r["status"] == "success"
                 r = await service._search_calendar("outlook_calendar", "q", ctx)
                 assert r == []
-                r = await service._search_communication("outlook", "q", None, ctx)
+                # _search_communication lost its entity_type param (it now
+                # mirrors search()'s 3-arg dispatch shape).
+                r = await service._search_communication("outlook", "q", ctx)
                 assert r["status"] == "success"
                 r = await service._search_storage("onedrive", "q", ctx)
                 assert r == []

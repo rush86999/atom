@@ -90,6 +90,186 @@ async def test_plan_gate_rejects_platform_service_without_key(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_web_search_deep_fetches_authoritative_page_for_model_codes():
+    """Machinery research needs the spec PAGE, not just snippets (live
+    2026-09-08: a bandsaw comparison answered from snippets missed every
+    capacity figure). When the query carries a model code, the search leg
+    fetches the ONE best result — preferring a site named in the query —
+    and appends its full text."""
+    from core.chat_tool_planner import ToolPlan, execute_tool_plan
+
+    plan = ToolPlan(use_tool=True, service="web_search", intent="search",
+                    query="Hydmech DM10 Linmac WG-350DSAV bandsaw specifications")
+    searches = []
+
+    async def fake_search(query, tenant_id):
+        searches.append(query)
+        return {
+            "answer": "Two industrial band saws.",
+            "results": [
+                {"title": "Consumer woodworking saws blog", "url":
+                 "https://woodworking-blog.com/bandsaws", "content": "Wen Ryobi"},
+                {"title": "HYDMECH DM-10 | Double Miter Band Saw", "url":
+                 "https://www.hydmech.com/products/band-saw-double-miter-dm-10/",
+                 "content": "Capacity 10 in round"},
+            ],
+        }
+
+    fetched = []
+
+    async def fake_fetch(url, tenant_id):
+        fetched.append(url)
+        return {"content": "DM-10: 10\" round @90°, 9½\"×11\" rect, 45°L–45°R, "
+                           "1\"×9'8\" blade, 2/2.4 HP VFD, 440 kg."}
+
+    with patch("integrations.mcp_service.mcp_service") as mcp:
+        mcp.web_search = AsyncMock(side_effect=fake_search)
+        mcp.web_fetch = AsyncMock(side_effect=fake_fetch)
+        block = await execute_tool_plan(plan, "user-1", "default", context={})
+    assert "LIVE TOOL RESULTS" in block
+    # the query-named site won over Tavily's top hit
+    assert fetched == ["https://www.hydmech.com/products/band-saw-double-miter-dm-10/"]
+    assert "FULL SPEC PAGE" in block and "2/2.4 HP VFD" in block
+
+
+@pytest.mark.asyncio
+async def test_comparison_fetches_one_page_per_product():
+    """A quote comparison naming TWO identifiers fetches one authoritative
+    page per side (max 2) — theirs AND ours (live 2026-09-08: hydmech.com
+    answered the DM-10 fully while the WG-350DSAV side stayed snippet-less
+    and the reply had to ask for our own spec sheet). When the combined
+    query's results cover only ONE side, a targeted per-product search
+    finds the other."""
+    from core.chat_tool_planner import ToolPlan, execute_tool_plan
+
+    plan = ToolPlan(use_tool=True, service="web_search", intent="search",
+                    query="Hydmech DM10 Linmac WG-350DSAV bandsaw compare")
+    fetched = []
+    searches = []
+
+    async def fake_fetch(url, tenant_id):
+        fetched.append(url)
+        return {"content": f"specs: 10 in round, 2 HP ({url.split('/')[2]})"}
+
+    async def fake_search(query, tenant_id):
+        searches.append(query)
+        if "WG-350DSAV specifications" in query:
+            return {"answer": "", "results": [
+                {"title": "Linmac WG-350DSAV — Brennan",
+                 "url": "https://brennan.ca/products/linmac-wg-350dsav",
+                 "content": "our page"},
+            ]}
+        return {"answer": "Two industrial band saws.", "results": [
+            {"title": "HYDMECH DM-10", "url": "https://www.hydmech.com/dm-10",
+             "content": "c1"},
+            {"title": "blog", "url": "https://blog.com/bandsaws", "content": "c3"},
+        ]}
+
+    with patch("integrations.mcp_service.mcp_service") as mcp:
+        mcp.web_search = AsyncMock(side_effect=fake_search)
+        mcp.web_fetch = AsyncMock(side_effect=fake_fetch)
+        block = await execute_tool_plan(plan, "user-1", "default", context={})
+    assert sorted(fetched) == [
+        "https://brennan.ca/products/linmac-wg-350dsav",
+        "https://www.hydmech.com/dm-10",
+    ]
+    assert "WG-350DSAV specifications" in searches  # supplemental ran
+    assert block.count("FULL SPEC PAGE") == 2
+    assert "for DM10" in block
+    assert "for WG-350DSAV (via targeted per-product search)" in block
+
+
+@pytest.mark.asyncio
+async def test_branded_product_research_fetches_without_model_codes():
+    """Quote research for products WITHOUT alphanumeric codes (branded
+    goods, services): research intent (specs/price/compare) + a named
+    brand still earns the authoritative-page fetch — host matching the
+    brand beats an unranked blog."""
+    from core.chat_tool_planner import ToolPlan, execute_tool_plan
+
+    plan = ToolPlan(use_tool=True, service="web_search", intent="search",
+                    query="Weber Genesis grill specifications price")
+    fetched = []
+
+    async def fake_fetch(url, tenant_id):
+        fetched.append(url)
+        return {"content": "Genesis E-325s: 513 sq in, 39k BTU, $1,099"}
+
+    async def fake_search(query, tenant_id):
+        return {"answer": "a", "results": [
+            {"title": "best grills 2026", "url": "https://grillblog.io/top",
+             "content": "c1"},
+            {"title": "Genesis Series | Weber", "url": "https://www.weber.com/genesis",
+             "content": "c2"},
+        ]}
+
+    with patch("integrations.mcp_service.mcp_service") as mcp:
+        mcp.web_search = AsyncMock(side_effect=fake_search)
+        mcp.web_fetch = AsyncMock(side_effect=fake_fetch)
+        block = await execute_tool_plan(plan, "user-1", "default", context={})
+    assert fetched == ["https://www.weber.com/genesis"]
+    assert "FULL SPEC PAGE" in block and "1,099" in block
+
+
+@pytest.mark.asyncio
+async def test_no_authoritative_host_no_fetch():
+    """No code, and no result host matches the query tokens: nothing scores,
+    nothing fetched — the snippets stand (bounded cost, no random reads)."""
+    from core.chat_tool_planner import ToolPlan, execute_tool_plan
+
+    plan = ToolPlan(use_tool=True, service="web_search", intent="search",
+                    query="Weber Genesis grill specifications price")
+    async def fake_search(query, tenant_id):
+        return {"answer": "a", "results": [
+            {"title": "rando", "url": "https://somewhere-else.net/x", "content": "c"}]}
+    with patch("integrations.mcp_service.mcp_service") as mcp:
+        mcp.web_search = AsyncMock(side_effect=fake_search)
+        mcp.web_fetch = AsyncMock()
+        block = await execute_tool_plan(plan, "user-1", "default", context={})
+    mcp.web_fetch.assert_not_awaited()
+    assert "FULL SPEC PAGE" not in block
+
+
+@pytest.mark.asyncio
+async def test_web_search_no_deep_fetch_without_model_codes():
+    from core.chat_tool_planner import ToolPlan, execute_tool_plan
+
+    plan = ToolPlan(use_tool=True, service="web_search", intent="search",
+                    query="Blumetric end user or dealer")
+
+    async def fake_search(query, tenant_id):
+        return {"answer": "BluMetric is an environmental firm.",
+                "results": [{"title": "t", "url": "https://x.com/a", "content": "c"}]}
+
+    with patch("integrations.mcp_service.mcp_service") as mcp:
+        mcp.web_search = AsyncMock(side_effect=fake_search)
+        mcp.web_fetch = AsyncMock()
+        block = await execute_tool_plan(plan, "user-1", "default", context={})
+    mcp.web_fetch.assert_not_awaited()
+    assert "FULL SPEC PAGE" not in block
+
+
+@pytest.mark.asyncio
+async def test_deep_fetch_failure_never_breaks_the_search_block():
+    from core.chat_tool_planner import ToolPlan, execute_tool_plan
+
+    plan = ToolPlan(use_tool=True, service="web_search", intent="search",
+                    query="Hydmech DM10 specifications")
+
+    async def fake_search(query, tenant_id):
+        return {"answer": "a", "results": [{"title": "t", "url": "https://h.com/x", "content": "c"}]}
+
+    async def boom(url, tenant_id):
+        raise RuntimeError("site down")
+
+    with patch("integrations.mcp_service.mcp_service") as mcp:
+        mcp.web_search = AsyncMock(side_effect=fake_search)
+        mcp.web_fetch = AsyncMock(side_effect=boom)
+        block = await execute_tool_plan(plan, "user-1", "default", context={})
+    assert "LIVE TOOL RESULTS" in block and "FULL SPEC PAGE" not in block
+
+
+@pytest.mark.asyncio
 async def test_execute_web_search_formats_results():
     payload = {
         "answer": "WFS Ltd is a welding supply store.",

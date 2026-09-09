@@ -401,7 +401,9 @@ class TestBpcInternals:
         handler = self._bpc(_make_handler()[0])
         fetcher = self._fetcher()  # empty cache -> static fallback
         result = self._rank(handler, fetcher, complexity=QueryComplexity.ADVANCED)
-        assert result[0] == ("openai", "gpt-5.6-sol")
+        # openai ADVANCED carries the provider flagship slot — gpt-6-astra
+        # since the 2026-09-03 release (was gpt-5.6-sol).
+        assert result[0] == ("openai", "gpt-6-astra")
 
     def test_static_byok_speciale_downgrades_to_r2(self):
         handler = self._bpc(_make_handler()[0])

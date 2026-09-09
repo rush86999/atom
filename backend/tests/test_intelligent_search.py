@@ -8,10 +8,12 @@ to the actual names from the conversation or the open canvas.
 """
 import pytest
 
-from core.intelligent_search import build_search_query, _entities
+from core.intelligent_search import build_search_query, _entities, _strong_entities
 
 HISTORY = [
-    {"message": "check if end user or dealer and then confirm my corrections",
+    # Subject named in the USER's words — assistant reply prose ("DONE",
+    # "Notes", boilerplate) is deliberately not an entity source.
+    {"message": "check if Jacob Schulz is end user or dealer and then confirm my corrections",
      "response": {"message": "I can see you're drafting an initial contact to Jacob at Blumetric."}},
     {"message": "how did the contact form submission help you determine it's an end user?",
      "response": {"message": "I was inferring based on the email address (@blumetric.ca)."}},
@@ -96,6 +98,161 @@ def test_query_length_capped_on_word_boundary():
         max_length=120,
     )
     assert len(q) <= 120
+
+
+# ───────────── 2026-09-08 live incident: specific query corrupted ─────────────
+# Canvas chat asked to "web research lead's bandsaw … compare it o our bandsaw".
+# The planner's query was already specific: "brennan.ca bandsaw model". The
+# rewrite saw no entity (lowercase domain, no caps sequence), pulled
+# "brennan" + "DONE" + "Notes" out of prior ASSISTANT replies, and prepended
+# them — Tavily got "brennan Done Notes brennan.ca bandsaw model" and the
+# agent answered "no web research results have come through".
+
+LIVE_HISTORY = [
+    {"message": "Do not edit anything. Reply with just: DONE",
+     "response": {"message": "DONE"}},
+    {"message": ("find the url link on brennan.ca for this model and add "
+                 "this as a link under notes column"),
+     "response": {"message": ('Done — I found the current product page on '
+                              'brennan.ca and added it as a hyperlink in the '
+                              'Notes column, replacing the dead link:\n\n'
+                              '**Notes cell now reads:**\n> Product page: '
+                              '[10.5" Semi-Automatic Double Miter Band Saw]'
+                              '(https://brennan.ca/en-us/products/linmac-'
+                              'wg-350dsav)')}},
+]
+
+LIVE_CANVAS = {
+    "to": "jschulz@blumetric.ca",
+    "subject": "Re: Equivalent to Hydmech DM10 Bandsaw – Linmac WG-350DSAV",
+    "body": "Hi Jacob, details for the Linmac WG-350DSAV, per brennan.ca.",
+}
+
+
+def test_specific_domain_query_is_never_prepended():
+    q = build_search_query(
+        "brennan.ca bandsaw model",
+        history_turns=LIVE_HISTORY,
+        canvas_content=LIVE_CANVAS,
+    )
+    # Model codes from the canvas ENRICH the head (strongest identifiers),
+    # but the already-specific message survives verbatim — no prose prepended.
+    assert "brennan.ca bandsaw model" in q
+    assert "Hydmech DM10" in q or "WG-350DSAV" in q
+    assert "Done" not in q and "Notes" not in q
+
+
+def test_web_research_scaffold_stripped_from_floor_query():
+    """The floor's de-scaffolded query: 'web research …' must not reach
+    Tavily as the whole instruction sentence (live 2026-09-08, third
+    iteration: the floor query carried 'web research' + 'don't update the
+    draft' verbatim)."""
+    q = build_search_query(
+        "web research lead's bandsaw that was mentioned and compare it o "
+        "our bandsaw. give me a response but don't update the draft",
+        history_turns=[],
+        canvas_content=None,
+    )
+    ql = q.lower()
+    assert not ql.startswith("web research")
+    assert "update the draft" not in ql  # pure-instruction sentence dropped
+    assert "bandsaw" in ql
+
+
+def test_assistant_reply_prose_never_becomes_context_entity():
+    q = build_search_query(
+        "research the lead's bandsaw and compare it to ours",
+        history_turns=LIVE_HISTORY,
+        canvas_content={"to": "", "subject": "", "body": ""},
+    )
+    words = q.lower().split()
+    assert "done" not in words
+    assert "notes" not in words
+
+
+def test_strong_entities_ignore_prose_but_keep_identifiers():
+    text = ("DONE — added the link in the Notes column, see "
+            "https://brennan.ca/en-us/products/linmac-wg-350dsav "
+            "or mail jacob@blumetric.ca")
+    strong = [e.lower() for e in _strong_entities(text)]
+    assert "brennan" in strong and "brennan.ca" in strong
+    assert "blumetric" in strong
+    assert "done" not in strong and "notes" not in strong
+    assert _strong_entities("Notes and DONE only") == []
+
+
+def test_bare_domain_counts_as_entity_in_query():
+    assert _entities("see brennan.ca for the model") == ["brennan.ca"]
+    # …so the query is treated as already-specific (no prose prepended) —
+    # model codes may enrich the head, the message itself survives intact.
+    q = build_search_query(
+        "see brennan.ca for the model",
+        history_turns=LIVE_HISTORY,
+        canvas_content=LIVE_CANVAS,
+    )
+    assert "see brennan.ca for the model" in q
+    assert "Done" not in q and "Notes" not in q
+
+
+# ───────────── 2026-09-08 live incident (machinery research): model codes ─────────────
+# The canvas research turn searched "blumetric Re Equivalent lead's bandsaw
+# that was mentioned and compare it o our bandsaw. give me a response but
+# don't update the draft" — recipient-domain + subject prose took the head,
+# the 160-char cut dropped both machines, and Tavily returned consumer
+# woodworking saws for an industrial comparison. Model codes (WG-350DSAV,
+# DM10) are the strongest identifiers and the caps-sequence regex could not
+# even capture them (digit-led segments break it).
+
+def test_model_code_extraction_with_brand():
+    from core.intelligent_search import _model_refs
+    refs = _model_refs(
+        "details for the Linmac WG-350DSAV, our closest equivalent to the "
+        "Hydmech DM10 bandsaw (also 330B and BS-350M and SU-280)")
+    codes = [r.split()[-1].upper() for r in refs]
+    assert "WG-350DSAV" in codes and "DM10" in codes
+    assert "330B" in codes and "BS-350M" in codes and "SU-280" in codes
+    joined = " | ".join(refs)
+    assert "Linmac WG-350DSAV" in joined and "Hydmech DM10" in joined
+    # pure numbers are never model codes
+    assert _model_refs("serial 2026 price 14,150 qty 50") == []
+
+
+def test_machinery_query_puts_model_codes_first_and_drops_instructions():
+    q = build_search_query(
+        "lead's bandsaw that was mentioned and compare it o our bandsaw. "
+        "give me a response but don't update the draft",
+        history_turns=[{"message": "check the contact form submission",
+                        "response": {"message": "the inquiry came via forms"}}],
+        canvas_content={"to": "jschulz@blumetric.ca",
+                        "subject": "Re: Equivalent to Hydmech DM10 Bandsaw - Linmac WG-350DSAV",
+                        "body": "details for the Linmac WG-350DSAV vs Hydmech DM10"},
+    )
+    assert q.startswith("Hydmech DM10")
+    assert "WG-350DSAV" in q
+    assert "update the draft" not in q
+    assert "blumetric" not in q and "Re Equivalent" not in q
+    assert len(q) <= 160
+
+
+def test_instruction_sentence_survives_when_it_names_the_subject():
+    # A sentence carrying entities is NOT dropped as scaffolding.
+    q = build_search_query(
+        "research Acme Industrial. don't web research the pricing.",
+        history_turns=[], canvas_content=None,
+    )
+    assert "acme industrial" in q.lower()
+
+
+def test_no_code_paths_unchanged():
+    # The generic-lead resolution still works when no model codes exist.
+    q = build_search_query(
+        "research the lead over the web to determine if end user or dealer",
+        history_turns=[{"message": "check if Jacob Schulz is end user or dealer",
+                        "response": {"message": "contact at Blumetric"}}],
+        canvas_content={"to": "jschulz@blumetric.ca", "subject": "", "body": ""},
+    )
+    assert "jacob" in q.lower() or "schulz" in q.lower()
+    assert "end user" in q.lower()
 
 
 # ───────────────────────── execution-path wiring ─────────────────────────

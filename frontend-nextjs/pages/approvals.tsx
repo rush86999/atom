@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { getAuthToken, getCurrentUserId } from "@/lib/identity";
+import { SelfDirectedPathwayCard } from "@/components/Agents/SelfDirectedPathwayCard";
+import { SelfDirectedAgentProgress } from "@/lib/maturity-api";
 
 /**
  * Approvals — the HITL queue (gap #4).
@@ -142,6 +144,10 @@ const TrainingGuide: React.FC = () => {
 export default function ApprovalsPage() {
   const [actions, setActions] = useState<PendingAction[]>([]);
   const [proposals, setProposals] = useState<TrainingProposal[]>([]);
+  // Self-directed STUDENT -> INTERN graduation queue: the evidence cards
+  // for every STUDENT agent, so promotion is a one-visit review.
+  const [selfDirectedQueue, setSelfDirectedQueue] = useState<SelfDirectedAgentProgress[]>([]);
+  const [promotingAgentId, setPromotingAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -208,12 +214,48 @@ export default function ApprovalsPage() {
     }
   }, [headers, loadSessionCanvases]);
 
+  const loadSelfDirected = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/maturity/training/self-directed`, { headers: headers() });
+      if (res.ok) {
+        const json = await res.json();
+        setSelfDirectedQueue(Array.isArray(json.agents) ? json.agents : []);
+      }
+    } catch {
+      // Non-critical: the HITL queue still works without this section.
+    }
+  }, [headers]);
+
+  const promoteFromQueue = async (agentId: string) => {
+    setNotice(null);
+    setPromotingAgentId(agentId);
+    try {
+      // Raw fetch (page convention — matches decideProposal) so the call
+      // carries the stored JWT via headers().
+      const res = await fetch(
+        `${API}/api/episodes/graduation/promote?agent_id=${agentId}&new_maturity=INTERN`,
+        { method: "POST", headers: headers() }
+      );
+      if (!res.ok) {
+        setError(`Promotion failed (${res.status}). Supervisor permission required.`);
+        return;
+      }
+      setNotice("Agent promoted to INTERN.");
+      await loadSelfDirected();
+    } catch (e) {
+      setError(`Promotion failed: ${String(e)}`);
+    } finally {
+      setPromotingAgentId(null);
+    }
+  };
+
   useEffect(() => {
     load();
     loadProposals();
-    const t = setInterval(() => { load(); loadProposals(); }, 15000); // auto-refresh; approvals can be time-sensitive
+    loadSelfDirected();
+    const t = setInterval(() => { load(); loadProposals(); loadSelfDirected(); }, 15000); // auto-refresh; approvals can be time-sensitive
     return () => clearInterval(t);
-  }, [load, loadProposals]);
+  }, [load, loadProposals, loadSelfDirected]);
 
   const decideProposal = async (id: string, approve: boolean) => {
     setNotice(null);
@@ -796,6 +838,33 @@ export default function ApprovalsPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold">Self-Directed Graduation Queue (STUDENT → INTERN)</h2>
+          <p className="text-sm text-gray-400 mb-4">
+            STUDENT agents working toward graduation on real outcome-tracked work.
+            Open the work, review the evidence, then promote when it holds up.
+          </p>
+          {selfDirectedQueue.length === 0 ? (
+            <div className="rounded-xl border border-gray-800 p-6 text-center text-gray-500">
+              No STUDENT agents awaiting graduation review.
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {selfDirectedQueue.map((progress) => (
+                <div key={progress.agent_id} className="rounded-xl border border-emerald-800/50 bg-gray-900 p-4">
+                  <SelfDirectedPathwayCard
+                    progress={progress}
+                    compact
+                    nextTierLabel="INTERN"
+                    onPromote={() => promoteFromQueue(progress.agent_id)}
+                    promoteBusy={promotingAgentId === progress.agent_id}
+                  />
+                </div>
+              ))}
             </div>
           )}
         </div>

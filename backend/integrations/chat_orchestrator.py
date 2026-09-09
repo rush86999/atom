@@ -295,6 +295,24 @@ def _reply_claims_inability(text: str) -> bool:
     return bool(_INABILITY_RE.search(text))
 
 
+def _reply_is_generic_non_answer(reply: str, message: str) -> bool:
+    """True when a reply is so short AND shares no content word with the
+    request that it cannot be answering it (live 2026-09-08: "web research
+    lead's bandsaw … compare" got back "I've processed your request across
+    all connected platforms." — 55 chars, zero overlap, while search
+    evidence sat in the prompt). Conservative by construction: requires a
+    tool block (checked by the caller), a short reply, and no overlap of
+    any 3+ char word; a substantive answer to a research ask names the
+    subject, so healthy replies never trip this."""
+    if not reply or len(reply) > 200:
+        return False
+    reply_words = set(re.findall(r"[a-z0-9]{3,}", reply.lower()))
+    if not reply_words:
+        return True
+    message_words = set(re.findall(r"[a-z0-9]{3,}", (message or "").lower()))
+    return not reply_words.intersection(message_words)
+
+
 def _tool_failure_block(planned: str) -> str:
     """Prompt block injected when a PLANNED live lookup failed or timed out.
 
@@ -790,12 +808,20 @@ class ChatOrchestrator:
                     _tool_plan_task.cancel()
                 return _mini_app_response
             _turn_t0 = time.monotonic()
+            # Turn-scoped tool blackboard: the shared plan task goes in, the
+            # executed LIVE TOOL RESULTS block comes out — whichever leg runs
+            # it first (canvas-edit evidence or the chat tool path) leaves it
+            # here and the other reuses it. Without this, a canvas turn paid
+            # for TWO planner LLM calls and TWO identical searches.
+            _shared_tool: Dict[str, Any] = {"plan_task": _tool_plan_task,
+                                            "block": None}
             try:
                 if _canvas_ctx:
                     _edit_response = await self._try_canvas_edit(
                         message, history, _canvas_ctx, user_id, session_id,
                         _execution_id, (context or {}).get("agent_id"),
                         provenance=(context or {}).get("canvas_provenance"),
+                        shared_tool_state=_shared_tool,
                     )
                     logger.info(
                         f"[stage-timing] canvas-edit plan: {time.monotonic() - _turn_t0:.1f}s")
@@ -819,6 +845,7 @@ class ChatOrchestrator:
                     _action_response = await self._try_canvas_action(
                         message, history, _canvas_ctx, user_id, session_id,
                         _execution_id, (context or {}).get("agent_id"),
+                        shared_tool_state=_shared_tool,
                     )
                     if _action_response:
                         self._update_session(
@@ -840,6 +867,7 @@ class ChatOrchestrator:
                     execution_id=_execution_id,
                     canvas_context=_canvas_ctx,
                     tool_plan_task=_tool_plan_task,
+                    prefetched_tool_block=_shared_tool.get("block"),
                     mission_critical=bool((context or {}).get("mission_critical")),
                     canvas_provenance=(context or {}).get("canvas_provenance"),
                     images=images,
@@ -1194,6 +1222,7 @@ class ChatOrchestrator:
         mission_critical: bool = False,
         canvas_provenance: Optional[Dict[str, Any]] = None,
         images: Optional[List[str]] = None,
+        prefetched_tool_block: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -1201,6 +1230,12 @@ class ChatOrchestrator:
         vision-capable models via the handler's image_payload path (streaming
         is bypassed on image turns: the stream request has no vision
         coordination).
+
+        ``prefetched_tool_block``: a LIVE TOOL RESULTS block already planned
+        AND executed earlier in THIS turn (by the canvas-edit fresh-data
+        leg, shared through the turn's tool blackboard). When present, the
+        planner/executor here are skipped entirely — re-running them would
+        double latency and provider calls for identical results.
 
         Returns ``{"content": str, "model": str, "provider": str}`` on success
         (so model identity can be surfaced to the UI and tied to feedback), or
@@ -1362,6 +1397,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         # mailbox-ownership boundary: comms recall only
                         # surfaces this account's own ingested mail
                         user_id=user_id,
+                        # canvas-scoped turns feed playbook retrieval —
+                        # keyword-less playbooks trigger on canvas type
+                        canvas_type=(canvas_context or {}).get("canvas_type"),
                     )
                     if memory_block:
                         messages.append({"role": "system", "content": memory_block})
@@ -1437,6 +1475,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # failed attempts — results placed before them lost to recency.
             _tool_block: Optional[str] = None
             _planned: Optional[str] = None
+            # Timer for the "[stage-timing] reply generation" log. The plan
+            # branch re-anchors it; the prefetched path (blackboard reuse)
+            # never enters that branch, so it needs a value up front — the
+            # unbound-variable crash here took down the whole reply path
+            # and pushed the turn into the legacy intent-router fallback
+            # (live 2026-09-08: "I've processed your request across all
+            # connected platforms.").
+            _plan_t0 = time.monotonic()
             _step_n = 0
 
             async def _trace(step_type: str, action: Optional[Dict[str, Any]], observation: str,
@@ -1453,51 +1499,62 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 from core.hallucination_config import get_verify_panel_mode
                 from core.verify_panel import verify_reply
 
-                # Full hydrated history for the planner (not the [-6:] main-
-                # model window): in retry-heavy sessions the original request
-                # sits several turns back, and user-only lines are tiny.
-                # A pre-started plan task means the caller overlapped this
-                # plan with the canvas-edit plan — just await it.
-                _plan_t0 = time.monotonic()
-                if tool_plan_task is not None:
-                    _plan = await asyncio.wait_for(tool_plan_task, timeout=25)
-                else:
-                    _plan = await asyncio.wait_for(
-                        plan_tool_use(message, planner_history or history, user_id, self.llm_service),
-                        timeout=25,
-                    )
-                logger.info(
-                    f"[stage-timing] tool plan (overlapped={tool_plan_task is not None}): "
-                    f"{time.monotonic() - _plan_t0:.1f}s")
-                if _plan and _plan.use_tool:
-                    _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
-                    await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
-                                 f"Planned live lookup: {_planned}")
-                    _exec_t0 = time.monotonic()
-                    _tool_block = await asyncio.wait_for(
-                        execute_tool_plan(
-                            _plan, user_id, self.tenant_id,
-                            context={
-                                "agent_id": agent_id,
-                                "history": (planner_history or history or [])[-6:],
-                                "canvas": {
-                                    "title": canvas_context.get("title"),
-                                    **((canvas_context.get("content") or {})
-                                       if isinstance(canvas_context, dict) else {}),
-                                } if isinstance(canvas_context, dict) else None,
-                            },
-                            llm_service=self.llm_service,
-                        ),
-                        timeout=45,
-                    )
-                    _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
-                    await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
-                                 _first_line or "no results")
+                if prefetched_tool_block:
+                    # SINGLEFLIGHT/BLACKBOARD: the canvas-edit fresh-data leg
+                    # already joined this turn's shared plan task AND executed
+                    # the lookup (its steps are already on the trace trail).
+                    # Re-planning or re-executing would pay twice for
+                    # identical results — reuse the block as-is.
+                    _tool_block = prefetched_tool_block
                     logger.info(
-                        f"[stage-timing] tool exec: {time.monotonic() - _exec_t0:.1f}s")
-                elif _plan is not None:
-                    await _trace("thought", {"tool": "tool_planner", "params": {}},
-                                 f"No live lookup needed: {(_plan.reason or 'conversation suffices')[:160]}")
+                        "[stage-timing] tool exec: reused canvas-edit leg "
+                        "block (singleflight) — no second plan/execute")
+                else:
+                    # Full hydrated history for the planner (not the [-6:] main-
+                    # model window): in retry-heavy sessions the original request
+                    # sits several turns back, and user-only lines are tiny.
+                    # A pre-started plan task means the caller overlapped this
+                    # plan with the canvas-edit plan — just await it.
+                    _plan_t0 = time.monotonic()
+                    if tool_plan_task is not None:
+                        _plan = await asyncio.wait_for(tool_plan_task, timeout=25)
+                    else:
+                        _plan = await asyncio.wait_for(
+                            plan_tool_use(message, planner_history or history, user_id, self.llm_service),
+                            timeout=25,
+                        )
+                    logger.info(
+                        f"[stage-timing] tool plan (overlapped={tool_plan_task is not None}): "
+                        f"{time.monotonic() - _plan_t0:.1f}s")
+                    if _plan and _plan.use_tool:
+                        _planned = f"{_plan.service}.{_plan.intent}:{(_plan.query or '')[:80]}"
+                        await _trace("thought", {"tool": "tool_planner", "params": {"service": _plan.service, "intent": _plan.intent, "query": _plan.query or ""}},
+                                     f"Planned live lookup: {_planned}")
+                        _exec_t0 = time.monotonic()
+                        _tool_block = await asyncio.wait_for(
+                            execute_tool_plan(
+                                _plan, user_id, self.tenant_id,
+                                context={
+                                    "agent_id": agent_id,
+                                    "history": (planner_history or history or [])[-6:],
+                                    "canvas": {
+                                        "title": canvas_context.get("title"),
+                                        **((canvas_context.get("content") or {})
+                                           if isinstance(canvas_context, dict) else {}),
+                                    } if isinstance(canvas_context, dict) else None,
+                                },
+                                llm_service=self.llm_service,
+                            ),
+                            timeout=45,
+                        )
+                        _first_line = (_tool_block or "").split("\n", 1)[1 if _tool_block and _tool_block.startswith("LIVE TOOL") else 0][:200]
+                        await _trace("observation", {"tool": _plan.service, "params": {"query": _plan.query or ""}},
+                                     _first_line or "no results")
+                        logger.info(
+                            f"[stage-timing] tool exec: {time.monotonic() - _exec_t0:.1f}s")
+                    elif _plan is not None:
+                        await _trace("thought", {"tool": "tool_planner", "params": {}},
+                                     f"No live lookup needed: {(_plan.reason or 'conversation suffices')[:160]}")
             except Exception as tool_err:
                 # !r, not str: a bare asyncio.TimeoutError() stringifies to
                 # "" — the old warning printed "tool planning skipped: " and
@@ -1639,12 +1696,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "type": "chat_token",
                             "data": {
                                 "session_id": session_id,
-                                "execution_id": _execution_id,
+                                "execution_id": execution_id,
                                 "delta": _tok,
                             },
                         })
                     _full = "".join(_buf).strip()
                     if _full:
+                        from core.chat_tool_planner import (
+                            _explicit_web_research_requested,
+                        )
                         _streamed = _strip_protocol_tags(_full, captured=_reasoning_parts)
                         # GROUNDING GUARD: a streamed reply that denies having
                         # data contradicts the LIVE TOOL RESULT injected above
@@ -1669,6 +1729,73 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             )
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not _reply_claims_inability(_fixed):
+                                _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
+                        # CAPABILITY-HONESTY GUARD: an inability claim with NO
+                        # tool block on a message that EXPLICITLY asked for web
+                        # research (live 2026-09-08: "web research lead's
+                        # bandsaw…" planned no tool, and the reply claimed "I
+                        # don't have a web-search tool" — false whenever Tavily
+                        # is configured). The planner floor now runs the lookup,
+                        # so this branch is the residual: the plan still
+                        # declined or the block was lost. Regeneration cannot
+                        # conjure data — it keeps the reply TRUE about what
+                        # exists instead of denying the capability.
+                        elif (not _tool_block and _reply_claims_inability(_streamed)
+                              and _explicit_web_research_requested(message)):
+                            logger.warning(
+                                "streamed reply claims research inability with no "
+                                "tool results on an explicit web-research ask — "
+                                "capability-honest regeneration")
+                            messages.append({"role": "system", "content": (
+                                "Your previous reply claimed you lack web research "
+                                "ability. That is FALSE: a web_search tool is "
+                                "configured in this workspace; this turn's lookup "
+                                "simply did not produce results. Regenerate with "
+                                "no capability disclaimers: answer from the "
+                                "conversation where you can, state plainly what "
+                                "you could not verify this turn, and offer to "
+                                "retry — never claim the tool does not exist."
+                            )})
+                            _fix = await self.llm_service.generate_completion(
+                                messages=messages,
+                                model=forced_model,
+                                tenant_id=self.tenant_id,
+                                **extra_kwargs,
+                            )
+                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            if _fixed and not _reply_claims_inability(_fixed):
+                                _streamed = _fixed
+                                _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
+                        # NON-RESPONSIVE GUARD: a reply this short that shares
+                        # NO content word with the request cannot be answering
+                        # it (live 2026-09-08: "web research lead's bandsaw …
+                        # compare" got back "I've processed your request
+                        # across all connected platforms.") — especially with
+                        # search evidence sitting in the prompt. One
+                        # regeneration anchored on the user's actual ask.
+                        elif (_tool_block
+                              and _reply_is_generic_non_answer(_streamed, message)):
+                            logger.warning(
+                                "streamed reply is a generic non-answer despite "
+                                "tool results — grounded regeneration")
+                            messages.append({"role": "system", "content": (
+                                "Your previous reply was a generic non-answer "
+                                "(it did not address what the user asked and "
+                                "ignored the research evidence above it). "
+                                "Regenerate: answer the user's ACTUAL request "
+                                "in full, grounded in the LIVE TOOL RESULTS "
+                                "where relevant — real findings, real numbers, "
+                                "no platform-status filler."
+                            )})
+                            _fix = await self.llm_service.generate_completion(
+                                messages=messages,
+                                model=forced_model,
+                                tenant_id=self.tenant_id,
+                                **extra_kwargs,
+                            )
+                            _fixed = _strip_protocol_tags((_fix or {}).get("content"))
+                            if _fixed and not _reply_is_generic_non_answer(_fixed, message):
                                 _streamed = _fixed
                                 _turn_reasoning = (_fix or {}).get("reasoning") or _turn_reasoning
                         # EVIDENCE GUARD: the request asked to confirm/verify
@@ -1771,7 +1898,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             "type": "chat_token_done",
                             "data": {
                                 "session_id": session_id,
-                                "execution_id": _execution_id,
+                                "execution_id": execution_id,
                                 "content": _streamed,
                                 "elapsed_s": round(_time.monotonic() - _t0, 1),
                             },
@@ -1820,6 +1947,9 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 # reply is stored or displayed — otherwise they persist into
                 # the transcript and the next turn's context.
                 _content = _strip_protocol_tags(response_data.get("content"))
+                from core.chat_tool_planner import (
+                    _explicit_web_research_requested,
+                )
                 # GROUNDING GUARD (non-streaming path): same wobble guard as
                 # the streaming path — one grounded regeneration when the
                 # reply denies having data that a LIVE TOOL RESULT provided.
@@ -1832,6 +1962,57 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         "ability. A LIVE TOOL RESULT block IS present above — "
                         "answer the user's current message from it now, in plain "
                         "language, with no capability disclaimers."
+                    )})
+                    response_data = await self.llm_service.generate_completion(
+                        messages=messages,
+                        model=forced_model,
+                        tenant_id=self.tenant_id,
+                        **extra_kwargs,
+                    )
+                    _content = _strip_protocol_tags(
+                        (response_data or {}).get("content"))
+                # CAPABILITY-HONESTY GUARD (non-streaming path): same residual
+                # as the streaming path — inability claim, no tool block, on
+                # an explicit web-research ask. Keeps the reply TRUE about the
+                # workspace's capabilities without inventing data.
+                elif (not _tool_block and _reply_claims_inability(_content)
+                      and _explicit_web_research_requested(message)):
+                    logger.warning(
+                        "reply claims research inability with no tool results "
+                        "on an explicit web-research ask — capability-honest "
+                        "regeneration")
+                    messages.append({"role": "system", "content": (
+                        "Your previous reply claimed you lack web research "
+                        "ability. That is FALSE: a web_search tool is "
+                        "configured in this workspace; this turn's lookup "
+                        "simply did not produce results. Regenerate with "
+                        "no capability disclaimers: answer from the "
+                        "conversation where you can, state plainly what "
+                        "you could not verify this turn, and offer to "
+                        "retry — never claim the tool does not exist."
+                    )})
+                    response_data = await self.llm_service.generate_completion(
+                        messages=messages,
+                        model=forced_model,
+                        tenant_id=self.tenant_id,
+                        **extra_kwargs,
+                    )
+                    _content = _strip_protocol_tags(
+                        (response_data or {}).get("content"))
+                # NON-RESPONSIVE GUARD (non-streaming path): same short
+                # zero-overlap reply detection as the streaming path.
+                elif (_tool_block
+                      and _reply_is_generic_non_answer(_content, message)):
+                    logger.warning(
+                        "reply is a generic non-answer despite tool results — "
+                        "grounded regeneration")
+                    messages.append({"role": "system", "content": (
+                        "Your previous reply was a generic non-answer "
+                        "(it did not address what the user asked and ignored "
+                        "the research evidence above it). Regenerate: answer "
+                        "the user's ACTUAL request in full, grounded in the "
+                        "LIVE TOOL RESULTS where relevant — real findings, "
+                        "real numbers, no platform-status filler."
                     )})
                     response_data = await self.llm_service.generate_completion(
                         messages=messages,
@@ -2420,11 +2601,17 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         execution_id: Optional[str],
         agent_id: Optional[str],
         provenance: Optional[Dict[str, Any]] = None,
+        shared_tool_state: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Canvas co-editor edit step: plan the edit via the canvas editor
         module, persist it through canvas_crud_tool, and return the chat
         response. Returns None when the turn is NOT a canvas edit (or
-        anything fails) — the normal conversational path then runs."""
+        anything fails) — the normal conversational path then runs.
+
+        ``shared_tool_state`` is the turn's blackboard: ``plan_task`` (the
+        chat leg's pre-started plan_tool_use task — joined instead of
+        planning a second time) in, ``block`` (the executed LIVE TOOL
+        RESULTS) out for the chat leg to reuse when this leg declines."""
         from core.chat_canvas_editor import (
             CanvasPlanUnavailable,
             apply_canvas_edit,
@@ -2494,7 +2681,15 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             message, history, self.llm_service, user_id,
             canvas_id=canvas.get("canvas_id"),
             step_recorder=_record_fresh_data_step,
+            canvas=canvas,
+            plan_task=(shared_tool_state or {}).get("plan_task"),
+            existing_block=(shared_tool_state or {}).get("block"),
         )
+        if shared_tool_state is not None:
+            # Blackboard hand-back: whatever this leg executed belongs to
+            # the whole turn. When the edit declines below, the chat leg
+            # reuses this block instead of re-planning and re-executing.
+            shared_tool_state["block"] = fresh.block or None
         if fresh.needed and not fresh.ok:
             logger.info(
                 "canvas edit declined: the turn needs live data and the "
@@ -2811,6 +3006,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         session_id: Optional[str],
         execution_id: Optional[str],
         agent_id: Optional[str],
+        shared_tool_state: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """DOING something with the canvas (send the draft as email) — the
         counterpart of the edit step. Two gates, in order:
@@ -2839,7 +3035,12 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         from core.chat_canvas_editor import fetch_fresh_data_section
         fresh = await fetch_fresh_data_section(
             message, history, self.llm_service, user_id,
+            canvas=canvas,
+            plan_task=(shared_tool_state or {}).get("plan_task"),
+            existing_block=(shared_tool_state or {}).get("block"),
         )
+        if shared_tool_state is not None:
+            shared_tool_state["block"] = fresh.block or None
         if fresh.needed and not fresh.ok:
             logger.info(
                 "canvas action declined: the turn needs live data and the "

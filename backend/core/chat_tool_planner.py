@@ -332,6 +332,108 @@ Rules:
 PLANNER_MODEL = os.getenv("ATOM_TOOL_PLANNER_MODEL", "qwen/qwen3.7-flash")
 
 
+# Explicit web-research phrasings. DETECTOR ONLY — it never chooses the
+# service or the query (that stays with the LLM, per the repo standard of
+# LLM routing over intent regexes); it only decides whether a DECLINED plan
+# earns one corrective pass plus a deterministic floor. Live 2026-09-08:
+# "web research lead's bandsaw … compare it to our bandsaw" got use_tool=false
+# from the planner and the reply claimed the agent had no research ability.
+_NEGATED_WEB_RESEARCH_RE = re.compile(
+    r"\b(?:no|not|don'?t|do\s*not|doesn'?t|never|without|skip(?:ping)?|"
+    r"avoid|stop|except|instead\s+of)\b[^.!?;]{0,30}$",
+    re.IGNORECASE,
+)
+_EXPLICIT_WEB_RESEARCH_RE = re.compile(
+    r"\bweb\s+research(?:ing|ed)?\b"
+    r"|\bsearch(?:ing)?\s+the\s+(?:web|internet)\b"
+    r"|\bgoogle\b\s+(?:it|this|that|them|him|her|the|for)\b"
+    r"|\b(?:research|look|find|check|search)\b[^!?;\n]{0,40}?\bonline\b"
+    r"|\b(?:research|look)\b[^!?;\n]{0,40}?\bover\s+the\s+web\b"
+    r"|\bonline\s+research\b",
+    re.IGNORECASE,
+)
+
+
+def _explicit_web_research_requested(message: str) -> bool:
+    """True when the user's message itself instructs web research, and the
+    mention is not negated ("don't web research" / "no web research" must
+    NOT trigger the floor)."""
+    if not message:
+        return False
+    for m in _EXPLICIT_WEB_RESEARCH_RE.finditer(message):
+        before = message[max(0, m.start() - 40):m.start()]
+        if _NEGATED_WEB_RESEARCH_RE.search(before):
+            continue
+        return True
+    return False
+
+
+async def _escalate_declined_web_research(
+    llm_service: Any,
+    declined: Optional[ToolPlan],
+    connected: List[str],
+    catalog: str,
+    history: List[Dict[str, Any]],
+    message: str,
+) -> Optional[ToolPlan]:
+    """Force the web question back onto web tools. Covers every non-web
+    outcome of the first pass on a message that EXPLICITLY asks for web
+    research: a declined plan, a failed plan, or a valid plan that routed
+    elsewhere (memory/CRM — live 2026-09-08: pass 1 returned a legitimate
+    memory.search plan and the reply STILL claimed no web-search tool
+    exists). Hybrid per repo standards: the regex detector only flags the
+    instruction; one corrective structured pass still owns HOW to search
+    the web (web_search vs web_fetch); only when that pass fails to name a
+    WEB tool does a deterministic web_search rung fire, with the query
+    built by build_search_query from the conversation — not from
+    pattern-matched nouns. The user's words name the source, and they said
+    the web."""
+    allowed = set(connected) | set(_available_platform_services())
+    if "web_search" not in allowed:
+        # Honestly unavailable in this workspace — keep the decline.
+        return declined
+    if declined is None:
+        # NO decision at all (provider outage / unparseable output). A
+        # corrective LLM call into the same degraded provider just
+        # multiplies latency — the deterministic rung answers immediately
+        # (live 2026-09-08: 429 storms made each planner attempt cost
+        # 25s+; the repair pass doubled that before failing too).
+        from core.intelligent_search import build_search_query
+
+        query = build_search_query(message, history_turns=history) or message[:120]
+        logger.info(
+            f"tool planner: explicit-web-research floor (no plan from "
+            f"provider) -> web_search {query!r}")
+        return ToolPlan(
+            use_tool=True, service="web_search", intent="search", query=query,
+            reason="explicit web research instruction",
+        )
+    defect = (
+        "the user EXPLICITLY asked for web research in their latest message, "
+        "but the plan declined to use any tool "
+        f"({(declined.reason if declined else '') or 'no reason given'}). "
+        "The corrected plan MUST use web_search (or web_fetch when the "
+        "message names a specific page to read)"
+    )
+    repaired = await _repair_plan_via_llm(
+        llm_service, defect, connected, catalog, history, message)
+    if (repaired and repaired.use_tool
+            and repaired.service in ("web_search", "web_fetch")):
+        logger.info(
+            f"tool planner: explicit-web-research repair -> "
+            f"{repaired.service}.{repaired.intent}")
+        return repaired
+    from core.intelligent_search import build_search_query
+
+    query = build_search_query(message, history_turns=history) or message[:120]
+    logger.info(
+        f"tool planner: explicit-web-research floor -> web_search {query!r}")
+    return ToolPlan(
+        use_tool=True, service="web_search", intent="search", query=query,
+        reason="explicit web research instruction",
+    )
+
+
 class ToolPlan(BaseModel):
     use_tool: bool = False
     service: Optional[str] = None
@@ -543,6 +645,18 @@ async def plan_tool_use(
         response_model=ToolPlan,
         system_instruction="You return only the requested JSON object.",
     )
+    # EXPLICIT-RESEARCH FLOOR: a message that explicitly instructs web
+    # research must END in a web tool whenever web is configured — whether
+    # the first pass declined, failed, or validly routed somewhere else
+    # (live 2026-09-08: pass 1 returned a legitimate memory.search plan and
+    # the reply still claimed no web-search tool exists). The escalation
+    # lets the LLM re-route among web tools and falls to a deterministic
+    # web_search rung only when it won't.
+    if _explicit_web_research_requested(message) and (
+            plan is None or not plan.use_tool
+            or (plan.service or "") not in ("web_search", "web_fetch")):
+        plan = await _escalate_declined_web_research(
+            llm_service, plan, connected, catalog, history, message)
     if plan is None:
         return None
     if plan.use_tool:
@@ -1581,6 +1695,15 @@ async def execute_tool_plan(
             if rewritten and rewritten != query:
                 logger.info(f"search query rewritten: {query!r} -> {rewritten!r}")
                 query = rewritten
+            else:
+                # Rewrite skipped — make the reason visible at the default
+                # log level: an un-rewritten generic query on a canvas turn
+                # is how the 2026-09-08 research misses started.
+                logger.info(
+                    f"tool exec query kept as planned: {query!r} "
+                    f"(canvas={'present' if ctx.get('canvas') else 'MISSING'}, "
+                    f"history_turns={len(ctx.get('history') or [])})"
+                )
         except Exception as query_err:
             logger.debug(f"intelligent query rewrite skipped: {query_err}")
 
@@ -1641,6 +1764,126 @@ async def execute_tool_plan(
                         f"- {str(r.get('title') or '(untitled)')[:120]} | {str(r.get('url') or '')[:160]}\n"
                         f"  {str(r.get('content') or '')[:400]}"
                     )
+                # DEEP FETCH for quote/product research: snippets carry a
+                # fragment of the spec/pricing table; the manufacturer's or
+                # primary listing's page carries the whole thing — the
+                # authoritative-source-first rule quoting research uses.
+                # Generalized beyond machinery model codes: fires when the
+                # query carries a product identifier (WG-350DSAV, DM-10,
+                # SKU/part shapes) OR research intent (specs/price/compare)
+                # plus a named brand. A comparison naming TWO identifiers
+                # fetches one authoritative page per side (max 2) — theirs
+                # AND ours (live 2026-09-08: hydmech.com answered the DM-10
+                # side fully while the WG-350DSAV side stayed snippet-less;
+                # the reply had to ask for our own spec sheet).
+                from core.intelligent_search import (
+                    _MODEL_CODE_RE, _research_intent,
+                )
+
+                try:
+                    codes = []
+                    seen_codes = set()
+                    for m in _MODEL_CODE_RE.finditer(query):
+                        key = m.group(0).upper().replace("-", "")
+                        if key not in seen_codes:
+                            seen_codes.add(key)
+                            codes.append(m.group(0))
+                    brand_named = bool(re.search(
+                        r"\b[A-Z][a-zA-Z]+[ -][A-Z][a-zA-Z0-9-]*\b", query))
+                    if codes or (_research_intent(query) and brand_named):
+                        # ordered tokens from the query that can identify a
+                        # host (brands, site names: "hydmech", "brennan").
+                        # ORDER MATTERS: our query builder puts identifiers
+                        # first, so an early token matching the host (the
+                        # brand) outranks a late category noun ("grill")
+                        # that any blog domain contains.
+                        query_tokens = [
+                            t for t in dict.fromkeys(
+                                re.split(r"[^a-z0-9]+", query.lower()))
+                            if len(t) > 3
+                        ]
+
+                        def _host(url: str) -> str:
+                            return re.sub(
+                                r"^https?://(?:www\.)?", "", url).split("/")[0]
+
+                        def _pick(target_code: Optional[str],
+                                  pool: Optional[List[Any]] = None,
+                                  require_code: bool = False,
+                                  ) -> Optional[Dict[str, Any]]:
+                            """Best unused result for this target: code-in-
+                            URL/title, then host tokens weighted by query
+                            position. None when no candidate scores.
+                            ``require_code``: only results whose URL/title
+                            carry the code count (used to decide whether a
+                            side of the comparison is covered at all)."""
+                            best, best_score = None, 0
+                            for r in (pool if pool is not None else results)[:5]:
+                                url = str(r.get("url") or "")
+                                if not url or url in picked_urls:
+                                    continue
+                                blob = f"{url} {r.get('title') or ''}".lower()
+                                score = 0
+                                if target_code and target_code.lower() in blob:
+                                    score += 2 + len(query_tokens)
+                                elif require_code:
+                                    continue
+                                host = _host(url)
+                                for idx, tok in enumerate(query_tokens):
+                                    if tok in host:
+                                        score += len(query_tokens) - idx
+                                        break
+                                if score > best_score:
+                                    best, best_score = r, score
+                            return best
+
+                        picked_urls: List[str] = []
+                        targets: List[Optional[str]] = codes[:2] if codes else [None]
+                        for target_code in targets:
+                            best = (_pick(target_code, require_code=True)
+                                    if target_code else _pick(None))
+                            via = ""
+                            if target_code and best is None:
+                                # UNCOVERED SIDE of the comparison: the
+                                # combined query's results never mention
+                                # this product (live 2026-09-08: brennan.ca
+                                # didn't rank for "Hydmech DM10 Linmac
+                                # WG-350DSAV …", so our own machine stayed
+                                # snippet-less). A human researcher runs a
+                                # SEPARATE search per product — "<code>
+                                # specifications" — and reads its top page.
+                                supp = await asyncio.wait_for(
+                                    _mcp.web_search(
+                                        f"{target_code} specifications",
+                                        tenant_id),
+                                    timeout=20,
+                                )
+                                spool = (supp or {}).get("results") or []
+                                best = (_pick(target_code, pool=spool,
+                                              require_code=True)
+                                        or _pick(target_code, pool=spool))
+                                via = " (via targeted per-product search)"
+                            if best is None:
+                                continue
+                            fetch_url = str(best.get("url") or "")
+                            picked_urls.append(fetch_url)
+                            fres = await asyncio.wait_for(
+                                _mcp.web_fetch(fetch_url, tenant_id),
+                                timeout=20,
+                            )
+                            fcontent = str((fres or {}).get("content") or "").strip()
+                            if fcontent:
+                                label = (
+                                    f" (authoritative page for {target_code}{via})"
+                                    if target_code else ""
+                                )
+                                lines.append(
+                                    f"FULL SPEC PAGE{label} ({fetch_url[:160]}) — "
+                                    f"primary-source detail, prefer over snippets:\n"
+                                    f"{fcontent[:4500]}"
+                                )
+                except Exception as deep_err:  # noqa: BLE001 — enhancement only
+                    logger.debug(f"deep spec fetch skipped: {deep_err}")
                 return _with_grounding(
                     f"{graph_block}"
                     f"LIVE TOOL RESULTS (web_search, query='{query}') — "

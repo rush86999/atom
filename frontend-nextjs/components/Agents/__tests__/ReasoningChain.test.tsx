@@ -310,3 +310,44 @@ describe('ReasoningChain Component', () => {
     });
   });
 });
+
+describe('ReasoningChain markdown rendering', () => {
+  // Research observations carry GFM tables and headings (the deep-fetch
+  // spec pages); thoughts carry prose with bold. Raw text rendering made
+  // both unreadable pipe-soup (user report 2026-09-08).
+  it('renders an observation table as a real table', () => {
+    render(<ReasoningChain steps={[{
+      type: 'observation',
+      observation: [
+        'Spec page retrieved:',
+        '',
+        '| Spec | DM-10 | WG-350DSAV |',
+        '|---|---|---|',
+        '| Round @ 90° | 254 mm | 270 mm |',
+      ].join('\n'),
+    }]} />);
+    fireEvent.click(screen.getByText(/Reasoning Process/));
+    const table = document.querySelector('table');
+    expect(table).not.toBeNull();
+    expect(screen.getByText('WG-350DSAV')).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain('|---');
+  });
+
+  it('renders bold in a thought as emphasis, not asterisks', () => {
+    render(<ReasoningChain steps={[
+      { type: 'thought', thought: 'Compare **capacity** and **miter range** first' },
+    ]} />);
+    fireEvent.click(screen.getByText(/Reasoning Process/));
+    expect(document.querySelector('strong')?.textContent).toBe('capacity');
+  });
+
+  it('keeps action steps as monospace JSON, not markdown', () => {
+    render(<ReasoningChain steps={[
+      { type: 'action', action: { tool: 'web_search', params: { query: 'dm10' } } },
+    ]} />);
+    fireEvent.click(screen.getByText(/Reasoning Process/));
+    const mono = document.querySelector('.font-mono');
+    expect(mono?.textContent).toContain('"tool":"web_search"');
+    expect(document.querySelector('table')).toBeNull();
+  });
+});

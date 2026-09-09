@@ -303,6 +303,124 @@ def _benchmark_fetcher(tmp_path):
         return DynamicBenchmarkFetcher(cache_service=Mock())
 
 
+class TestThroughputSpeedTiebreak:
+    """Speed is ALWAYS secondary (operator direction, 2026-09-08):
+    measured throughput only breaks ties between candidates that
+    price/quality rank equally, capped at SPEED_TIEBREAK_MAX so it can
+    never override a cost/quality decision."""
+
+    @staticmethod
+    def _vet(monkeypatch):
+        from core.benchmarks import MODEL_QUALITY_SCORES as _MQS
+        _vet_fake_models(monkeypatch)
+        monkeypatch.setitem(_MQS, "alpha/model-fast", 90)
+        monkeypatch.setitem(_MQS, "beta/model-slow", 90)
+
+    @staticmethod
+    def _pair_pool(byok_handler, fast_in, fast_out, slow_in, slow_out):
+        """A TWO-MODEL ranking pool + matching prices.
+
+        calculate_effective_cost reads the CACHE ROUTER's own fetcher, not
+        the patched ranking one — fake models without prices there get inf
+        cost and score ~0. And the pool-relative cost floor (0.5 * median
+        paid) clamps any candidate priced below half the pool median,
+        erasing cost differences; a two-model pool with both prices well
+        above the floor keeps the comparison exact."""
+        entry = {
+            "litellm_provider": "openrouter",
+            "max_input_tokens": 200000, "supports_tools": True,
+            "supports_vision": False, "supports_reasoning": False,
+        }
+        fetcher = _fetcher_with_openrouter_models()
+        fetcher.pricing_cache = {
+            "alpha/model-fast": {**entry, "input_cost_per_token": fast_in,
+                                 "output_cost_per_token": fast_out},
+            "beta/model-slow": {**entry, "input_cost_per_token": slow_in,
+                                "output_cost_per_token": slow_out},
+        }
+        prices = {
+            "alpha/model-fast": {"input_cost_per_token": fast_in,
+                                 "output_cost_per_token": fast_out},
+            "beta/model-slow": {"input_cost_per_token": slow_in,
+                                "output_cost_per_token": slow_out},
+        }
+        real = byok_handler.cache_router.pricing_fetcher.get_model_price
+
+        def fake_get_price(model):
+            if model in prices:
+                return prices[model]
+            return real(model)
+
+        return fetcher, patch.object(byok_handler.cache_router.pricing_fetcher,
+                                     "get_model_price",
+                                     side_effect=fake_get_price)
+
+    def test_unit_fast_scores_full_slow_capped(self, clean_env):
+        from core.llm.openrouter_endpoints import (
+            EndpointHealth, throughput_speed_factor, SPEED_TIEBREAK_MAX,
+        )
+        fast = EndpointHealth("a/fast", "A", 99.9, 400, 150.0, 0)
+        slow = EndpointHealth("a/slow", "A", 99.9, 400, 49.0, 0)
+        no_data = EndpointHealth("a/none", "A", 99.9, 400, 0.0, 0)
+        assert throughput_speed_factor(fast) == 1.0
+        slow_factor = throughput_speed_factor(slow)
+        assert 1.0 - SPEED_TIEBREAK_MAX <= slow_factor < 1.0
+        assert throughput_speed_factor(no_data) == 1.0  # fail-open
+
+    def test_unit_cap_never_exceeds_tiebreak_max(self, clean_env, monkeypatch):
+        from core.llm.openrouter_endpoints import (
+            EndpointHealth, throughput_speed_factor, SPEED_TIEBREAK_MAX,
+        )
+        monkeypatch.setenv("ATOM_OPENROUTER_FAST_TPS", "1000")
+        very_slow = EndpointHealth("a/slow", "A", 99.9, 400, 5.0, 0)
+        assert throughput_speed_factor(very_slow) >= 1.0 - SPEED_TIEBREAK_MAX
+
+    def test_equal_quality_cost_faster_endpoint_wins(self, byok_handler, clean_env, monkeypatch):
+        """Tiebreak-in-action: fast and slow are priced within ~3% of each
+        other (a small gap); the ≤15% speed term flips ranking toward the
+        fast endpoint. Both underprice the base-cache fillers outright."""
+        from core.llm.openrouter_endpoints import EndpointHealth
+        self._vet(monkeypatch)
+        _seed_monitor(monkeypatch, {
+            # identical quality/uptime/latency — ONLY throughput differs
+            "alpha/model-fast": EndpointHealth("alpha/model-fast", "A", 99.9, 400, 150.0, 0),
+            "beta/model-slow": EndpointHealth("beta/model-slow", "B", 99.9, 400, 45.0, 0),
+        })
+        byok_handler.clients = {"openrouter": Mock()}
+        fetcher, price_patch = self._pair_pool(
+            byok_handler, fast_in=2.0e-07, fast_out=6.0e-07,
+            slow_in=1.95e-07, slow_out=5.85e-07)
+        with patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync",
+                   return_value=fetcher), \
+             patch("core.llm.byok_handler.get_quality_score", return_value=90), \
+             price_patch:
+            ranked = byok_handler.get_ranked_providers(
+                QueryComplexity.SIMPLE, is_managed_service=False)
+        assert [m for _, m in ranked][0] == "alpha/model-fast"
+
+    def test_speed_never_overrides_price(self, byok_handler, clean_env, monkeypatch):
+        """The cap in action: a slow but 2x-cheaper model still outranks a
+        fast expensive one — the ≤15% speed term cannot flip a 2x cost gap
+        (quality identical, so cost decides)."""
+        from core.llm.openrouter_endpoints import EndpointHealth
+        self._vet(monkeypatch)
+        _seed_monitor(monkeypatch, {
+            "alpha/model-fast": EndpointHealth("alpha/model-fast", "A", 99.9, 400, 150.0, 0),
+            "beta/model-slow": EndpointHealth("beta/model-slow", "B", 99.9, 400, 45.0, 0),
+        })
+        byok_handler.clients = {"openrouter": Mock()}
+        fetcher, price_patch = self._pair_pool(
+            byok_handler, fast_in=2e-07, fast_out=6e-07,
+            slow_in=1e-07, slow_out=3e-07)
+        with patch("core.llm.byok_handler.get_pricing_fetcher_initialized_sync",
+                   return_value=fetcher), \
+             patch("core.llm.byok_handler.get_quality_score", return_value=90), \
+             price_patch:
+            ranked = byok_handler.get_ranked_providers(
+                QueryComplexity.SIMPLE, is_managed_service=False)
+        assert [m for _, m in ranked][0] == "beta/model-slow"
+
+
 class TestOpenRouterBenchmarkSource:
     @pytest.mark.asyncio
     async def test_parses_artificial_analysis_indices(self, tmp_path):
