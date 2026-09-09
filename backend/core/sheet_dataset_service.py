@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import logging
 import os
 import re
@@ -479,6 +480,168 @@ def _write_parquet_atomic(df, target: Path) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Per-cell formula sidecar — pandas/Parquet carry only computed values, so a
+# dataset answer could show WHAT a cell equals but never WHY (live 2026-09-09:
+# the Trumatic-L3030S quote conversation had to reverse-engineer '=I11/0.95'
+# from the numbers and missed three formula columns entirely). The ORIGINAL
+# bytes are in hand at materialization time — the only moment they exist,
+# because received mailbox attachments are never persisted — so the formula
+# map is extracted then and stored as a sibling JSON beside each Parquet.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_FORMULA_SIDECAR_SUFFIX = ".formulas.json"
+# Noise bound for pathological workbooks (a full-column-fill price book can
+# carry tens of thousands of shared-formula cells).
+_MAX_FORMULA_CELLS = 5000
+
+
+def _formula_sidecar_path(parquet_path) -> Path:
+    p = Path(parquet_path)
+    return p.with_name(p.name + _FORMULA_SIDECAR_SUFFIX)
+
+
+def _write_formula_sidecar(target: Path, sheet_name: str, formulas: Dict[str, str]) -> None:
+    sidecar = _formula_sidecar_path(target)
+    try:
+        tmp = sidecar.with_name(f"{sidecar.name}.{uuid.uuid4().hex}.tmp")
+        tmp.write_text(
+            json.dumps({"sheet": sheet_name, "formulas": formulas}, ensure_ascii=False)
+        )
+        os.replace(tmp, sidecar)
+    except OSError as err:
+        logger.debug(f"formula sidecar write failed for {target.name}: {err}")
+
+
+def load_formulas_for_parquet(parquet_path: str, max_cells: int = 60) -> Dict[str, str]:
+    """cell -> formula for one dataset Parquet's sheet ([] when no sidecar)."""
+    try:
+        sidecar = _formula_sidecar_path(parquet_path)
+        if not sidecar.exists():
+            return {}
+        data = json.loads(sidecar.read_text())
+        formulas = data.get("formulas") or {}
+        return dict(list(formulas.items())[:max_cells])
+    except Exception as err:  # noqa: BLE001 — sidecar is additive, never fatal
+        logger.debug(f"formula sidecar read failed for {parquet_path}: {err}")
+        return {}
+
+
+def _extract_formula_map(content: bytes, file_ext: str) -> Dict[str, Dict[str, str]]:
+    """sheet -> {cell_ref: '=formula'} straight from the original workbook.
+
+    xlsx/xlsm only (xls has no XML package; csv cannot carry formulas).
+    openpyxl first, then the same raw-XML fallback the text extractor uses
+    for openpyxl-hostile workbooks (Zoho Sheet exports)."""
+    ext = (file_ext or "").lower().lstrip(".")
+    if ext not in ("xlsx", "xlsm"):
+        return {}
+    out: Dict[str, Dict[str, str]] = {}
+    try:
+        from openpyxl import load_workbook
+
+        wb = load_workbook(io.BytesIO(content), read_only=True, data_only=False)
+        try:
+            for sheet_name in wb.sheetnames:
+                cells: Dict[str, str] = {}
+                for row in wb[sheet_name].iter_rows():
+                    for cell in row:
+                        v = cell.value
+                        if isinstance(v, str) and v.startswith("="):
+                            cells[cell.coordinate] = v
+                            if len(cells) >= _MAX_FORMULA_CELLS:
+                                break
+                    if len(cells) >= _MAX_FORMULA_CELLS:
+                        break
+                if cells:
+                    out[str(sheet_name)] = cells
+        finally:
+            wb.close()
+        if out:
+            return out
+    except Exception as exc:  # noqa: BLE001 — fall through to raw XML
+        logger.debug(
+            f"formula map: openpyxl scan failed ({type(exc).__name__}); raw-XML fallback"
+        )
+    return _formula_map_raw_xml(content)
+
+
+def _formula_map_raw_xml(content: bytes) -> Dict[str, Dict[str, str]]:
+    """Stdlib-XML formula scan (namespace-agnostic) for openpyxl-hostile
+    workbooks. Shared-formula DEPENDENT cells carry no <f> body in the
+    package — the master cell's formula is captured; expanding shared ranges
+    per dependent is deliberately skipped (the master is what an agent cites)."""
+    import xml.etree.ElementTree as ET
+    import zipfile
+
+    def _local(tag: str) -> str:
+        return tag.rsplit("}", 1)[-1]
+
+    out: Dict[str, Dict[str, str]] = {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+            sheet_display: Dict[str, str] = {}
+            try:
+                wb = ET.fromstring(zf.read("xl/workbook.xml"))
+                rels = ET.fromstring(zf.read("xl/_rels/workbook.xml.rels"))
+                rid_target = {
+                    rel.get("Id"): rel.get("Target", "")
+                    for rel in rels
+                    if _local(rel.tag) == "Relationship"
+                }
+                for sh in wb.iter():
+                    if _local(sh.tag) != "sheet":
+                        continue
+                    rid = sh.get(
+                        "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+                    )
+                    target = (rid_target.get(rid) or "").lstrip("/")
+                    if target and not target.startswith("xl/"):
+                        target = f"xl/{target}"
+                    if target:
+                        sheet_display[target] = sh.get("name") or target
+            except Exception:
+                pass  # part filenames still work as sheet keys
+
+            total = 0
+            for sheet_path in sorted(
+                n for n in zf.namelist()
+                if n.startswith("xl/worksheets/") and n.endswith(".xml")
+            ):
+                sheet_name = sheet_display.get(
+                    sheet_path, sheet_path.rsplit("/", 1)[-1]
+                )
+                cells: Dict[str, str] = {}
+                root = ET.fromstring(zf.read(sheet_path))
+                for row in root.iter():
+                    if _local(row.tag) != "row":
+                        continue
+                    for c in row:
+                        if _local(c.tag) != "c":
+                            continue
+                        f_el = next(
+                            (ch for ch in c if _local(ch.tag) == "f"), None
+                        )
+                        ftext = (f_el.text or "").strip() if f_el is not None else ""
+                        if not ftext:
+                            continue
+                        cells[c.get("r") or ""] = (
+                            ftext if ftext.startswith("=") else f"={ftext}"
+                        )
+                        total += 1
+                        if total >= _MAX_FORMULA_CELLS:
+                            break
+                    if total >= _MAX_FORMULA_CELLS:
+                        break
+                if cells:
+                    out[sheet_name] = cells
+                if total >= _MAX_FORMULA_CELLS:
+                    break
+    except Exception as err:  # noqa: BLE001 — best-effort by contract
+        logger.debug(f"formula map: raw-XML scan failed: {err}")
+    return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Catalog operations (sync; async wrappers below)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -560,6 +723,16 @@ def materialize_sheet_bytes_sync(
             .all()
         )
         if existing:
+            # The bytes just hashed to this copy's own content_hash — the
+            # source is PROVEN unchanged. Re-stamp ingested_at so the
+            # freshness TTL reflects THIS verification. Without this, a copy
+            # that went stale-by-TTL (reverify re-downloads identical bytes
+            # → status 'current') stayed stale forever and every read kept
+            # paying the live download instead of ever trusting the copy.
+            now = datetime.now(timezone.utc)
+            for row in existing:
+                row.ingested_at = now
+            db.commit()
             return {
                 "status": "current",
                 "content_hash": content_hash,
@@ -579,6 +752,14 @@ def materialize_sheet_bytes_sync(
     frames = _redact_frames_if_needed(frames, file_name)
     if not frames:
         return {"status": "skipped", "reason": "secrets_unredactable"}
+
+    # One formula-map extraction per file (the original bytes leave scope
+    # after this call — attachments are never persisted).
+    try:
+        formula_map = _extract_formula_map(content, ext)
+    except Exception as fm_err:  # noqa: BLE001 — sidecar is additive
+        logger.debug(f"formula map extraction failed for {file_name}: {fm_err}")
+        formula_map = {}
 
     taken_names: set = set()
     version_dir = _version_dir(ws_id, content_hash)
@@ -625,6 +806,15 @@ def materialize_sheet_bytes_sync(
             )
             if already:
                 registered.append(_entry_to_dict(already))
+                # Self-heal: a dataset materialized before the formula sidecar
+                # existed (or crashed between Parquet and sidecar) picks its
+                # sidecar up on the next materialization of the same bytes.
+                if not _formula_sidecar_path(already.parquet_path).exists():
+                    _write_formula_sidecar(
+                        Path(already.parquet_path),
+                        sheet_name,
+                        formula_map.get(sheet_name, {}),
+                    )
                 continue
             ds_name = _dataset_name(source, file_name, sheet_name, taken_names)
             target = version_dir / f"{_PARQUET_NAME_SAFE_RE.sub('_', ds_name)}.parquet"
@@ -633,6 +823,11 @@ def materialize_sheet_bytes_sync(
             except Exception as write_err:  # noqa: BLE001 — Arrow can reject exotic frames
                 logger.warning(f"sheet datasets: parquet write failed for '{sheet_name}': {write_err}")
                 continue
+            # Always written (empty when the sheet has no formulas) so the
+            # sidecar's existence means "formulas extracted at this version".
+            _write_formula_sidecar(
+                target, sheet_name, formula_map.get(sheet_name, {})
+            )
             row = DatasetEntry(
                 workspace_id=ws_id,
                 created_by=user_id,
@@ -700,6 +895,10 @@ def materialize_sheet_bytes_sync(
     for path in stale_paths:
         try:
             os.unlink(path)
+        except OSError:
+            pass
+        try:
+            os.unlink(str(_formula_sidecar_path(path)))
         except OSError:
             pass
 
@@ -1261,6 +1460,10 @@ async def answer_from_datasets(
                 "row_count": len(rows),
                 "columns": [str(c) for c in out.columns],
                 "rows": rows[:max_rows],
+                # Cell->formula from the original workbook (sidecar written at
+                # materialization). Rendered as a FORMULAS footer so a "how is
+                # this computed?" turn cites real cells instead of guessing.
+                "formulas": load_formulas_for_parquet(chosen_entry["parquet_path"]),
                 "note": getattr(plan, "note", "") or "",
             }
 
@@ -1316,6 +1519,13 @@ def render_dataset_answer(result: Dict[str, Any]) -> str:
     shown = len(result.get("rows", []))
     if result.get("row_count", 0) > shown:
         lines.append(f"... {result['row_count'] - shown} more rows matched")
+    formulas = result.get("formulas") or {}
+    if formulas:
+        cells = [
+            f"{cell}={_fmt(f)}"
+            for cell, f in list(formulas.items())[:40]
+        ]
+        lines.append("FORMULAS (original workbook): " + " | ".join(cells))
     return "\n".join(lines)
 
 
@@ -1435,6 +1645,10 @@ def gc_workspace_datasets_sync(workspace_id: str, max_store_bytes: Optional[floa
             total -= _size(r)
             try:
                 os.unlink(r.parquet_path)
+            except OSError:
+                pass
+            try:
+                os.unlink(str(_formula_sidecar_path(r.parquet_path)))
             except OSError:
                 pass
             db.delete(r)
