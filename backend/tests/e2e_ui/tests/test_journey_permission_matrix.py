@@ -78,6 +78,15 @@ PERMISSION_ENDPOINTS = [
     (Permission.SYSTEM_ADMIN, "GET", "/api/gatekeeper/config", {}),
     (Permission.SYSTEM_ADMIN, "GET", "/api/mcp/servers", {}),
     (Permission.SYSTEM_ADMIN, "DELETE", "/api/mcp/servers/00000000-0000-0000-0000-000000000000", {}),
+    # WORKFLOW_VIEW — template list (2026-09-09: workflow role matrix landed;
+    # every role carries workflow:view, so no deny rows exist for this case).
+    (Permission.WORKFLOW_VIEW, "GET", "/api/workflow-templates/", {}),
+    # WORKFLOW_RUN — mobile trigger (member+; guest/viewer → 403). Permission
+    # dependency runs before body validation, so an empty body is fine.
+    (Permission.WORKFLOW_RUN, "POST", "/api/mobile/workflows/trigger", {"json": {}}),
+    # WORKFLOW_MANAGE — version rollback (team_lead+; bogus id → 404 for
+    # permitted roles, 403 for the rest).
+    (Permission.WORKFLOW_MANAGE, "POST", "/api/v1/workflows/00000000-0000-0000-0000-000000000000/rollback", {"json": {}}),
 ]
 
 
@@ -86,10 +95,12 @@ PERMISSION_ENDPOINTS = [
 # them). This is a real security gap: roles are "granted" these permissions in
 # the RBAC table, but no endpoint actually checks them, so every authenticated
 # user can perform these actions regardless of role.
+# 2026-09-09: workflow:* are now enforced (core/workflow_endpoints.py since
+# its inception, plus workflow_ui/marketplace/template/mobile/versioning/
+# debugging routers in the workflow-role-matrix pass — see
+# backend/tests/test_workflow_rbac_matrix.py for the offline 8-role × 45-
+# endpoint lock). USER_VIEW/USER_MANAGE remain granted-but-unenforced.
 UNENFORCED_PERMISSIONS = [
-    Permission.WORKFLOW_VIEW,
-    Permission.WORKFLOW_RUN,
-    Permission.WORKFLOW_MANAGE,
     Permission.USER_VIEW,
     Permission.USER_MANAGE,
 ]

@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.auth import get_current_user, User
 from core.models import AgentExecution, SupervisionSession, UserRole
+from core.security.rbac import user_meets_role
 from core.supervision_service import SupervisionService, SupervisionEvent
 
 logger = logging.getLogger(__name__)
@@ -26,11 +27,11 @@ logger = logging.getLogger(__name__)
 # governance operations — any authenticated user could otherwise pause/terminate
 # executions, manipulate agent confidence (maturity), or trigger autonomous
 # approval+execution of proposals. Mirror the approve_workflow role gate (R39).
-_SUPERVISOR_ROLES = [
-    UserRole.TEAM_LEAD.value,
-    UserRole.WORKSPACE_ADMIN.value,
-    UserRole.SUPER_ADMIN.value,
-]
+# 2026-09-08 role-journey pass: the old 3-role allowlist excluded
+# admin/owner — a level-6 admin was denied what a level-4 team_lead
+# may do (privilege inversion, the H1 class of bug). Compare against
+# the shared hierarchy instead of a hand-maintained list.
+_SUPERVISOR_MIN = UserRole.TEAM_LEAD
 
 
 def _require_supervisor(db, current_user: User) -> None:
@@ -38,10 +39,10 @@ def _require_supervisor(db, current_user: User) -> None:
     user = db.query(User).filter(User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if user.role not in _SUPERVISOR_ROLES:
+    if not user_meets_role(user, _SUPERVISOR_MIN):
         raise HTTPException(
             status_code=403,
-            detail="Insufficient permissions. Required role: TEAM_LEAD or ADMIN",
+            detail="Insufficient permissions. Required role: team_lead or higher",
         )
 
 router = APIRouter(prefix="/api/supervision", tags=["supervision"])
@@ -112,6 +113,11 @@ async def stream_supervision_logs(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Internal error"
         )
+
+    # 2026-09-08 role-journey pass: this streams an execution's live logs —
+    # previously any authenticated user could tail ANY execution. Supervisor
+    # surface, same band as intervene/complete above.
+    _require_supervisor(db, current_user)
 
     # Get supervision session
     session = db.query(SupervisionSession).filter(
@@ -283,7 +289,13 @@ async def get_active_sessions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get currently active supervision sessions."""
+    """Get currently active supervision sessions.
+
+    2026-09-08 role-journey pass: live supervision state across ALL users'
+    agents is a supervisor surface — the mutation endpoints 20 lines below
+    required TEAM_LEAD+ while this read was any-authenticated-user.
+    """
+    _require_supervisor(db, current_user)
     supervision_service = SupervisionService(db)
 
     try:

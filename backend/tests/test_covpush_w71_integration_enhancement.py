@@ -70,7 +70,7 @@ def client(mapper, processor):
     app.include_router(router)
     app.dependency_overrides[get_data_mapper] = lambda: mapper
     app.dependency_overrides[get_bulk_processor] = lambda: processor
-    app.dependency_overrides[iee.get_current_user] = lambda: Mock(id="u1", is_admin=True)
+    app.dependency_overrides[iee.get_current_user] = lambda: Mock(id="u1", is_admin=True, role="super_admin")
     with TestClient(app) as c:
         yield c
 

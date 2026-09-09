@@ -455,6 +455,7 @@ class TestUserManagement:
             role=UserRole.ADMIN.value
         )
 
+        sample_user.role = UserRole.SUPER_ADMIN.value  # actor == target mock; grant cap needs headroom
         mock_query = Mock()
         mock_filter = Mock()
         mock_filter.first = Mock(return_value=sample_user)
@@ -463,7 +464,7 @@ class TestUserManagement:
         mock_db.commit = Mock()
         mock_db.refresh = Mock()
 
-        result = await update_user("user-123", update_data, mock_db)
+        result = await update_user("user-123", update_data, mock_db, current_user=sample_user)
 
         assert sample_user.first_name == "Jane"
         assert sample_user.role == UserRole.ADMIN.value
@@ -480,7 +481,7 @@ class TestUserManagement:
         mock_db.query = Mock(return_value=mock_query)
         mock_db.commit = Mock()
 
-        result = await deactivate_user("user-123", mock_db)
+        result = await deactivate_user("user-123", mock_db, current_user=sample_user)
 
         assert sample_user.status == UserStatus.DELETED.value
         mock_db.commit.assert_called_once()

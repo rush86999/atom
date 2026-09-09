@@ -100,7 +100,15 @@ def ensure_admin_user():
                     logger.info(f"BOOTSTRAP: User {email} found. Resetting password (ADMIN_PASSWORD set)...")
                     user.hashed_password = get_password_hash(password)
                     user.status = UserStatus.ACTIVE
-                    user.role = "workspace_admin"
+                    # 2026-09-08 role-journey pass: never DOWNGRADE a role an
+                    # operator was promoted to (this used to reset
+                    # admin@example.com to workspace_admin on every boot,
+                    # silently revoking owner/super_admin/admin). Only raise
+                    # the role when the existing one is below workspace_admin.
+                    from core.models import UserRole as _UserRole
+                    from core.security.rbac import user_meets_role as _meets
+                    if not _meets(user, _UserRole.WORKSPACE_ADMIN):
+                        user.role = "workspace_admin"
                     db.commit()
                     logger.info(f"BOOTSTRAP: Password for {email} has been reset")
                 else:

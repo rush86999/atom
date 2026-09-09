@@ -85,12 +85,16 @@ def _make_proposal(db, proposal_id="prop-1", tenant_id="t1", agent_id="agent-1")
 
 @pytest.fixture(autouse=True)
 def _patch_services():
+    # 2026-09-08 role-journey pass: the dispatcher uses the shared
+    # intervention_service singleton (it constructed InterventionService(db)
+    # against a class with no __init__ — TypeError on every real call, hidden
+    # by this fixture's old class mock).
     with patch("core.messaging_action_dispatcher.AgentGovernanceService") as gov_cls, \
-            patch("core.messaging_action_dispatcher.InterventionService") as int_cls:
+            patch("core.messaging_action_dispatcher.intervention_service") as int_svc:
         gov = gov_cls.return_value
         gov.submit_thumbs_feedback = AsyncMock()
-        int_cls.return_value.approve_intervention = AsyncMock(return_value=True)
-        yield {"gov": gov, "gov_cls": gov_cls, "int_cls": int_cls}
+        int_svc.approve_intervention = AsyncMock(return_value={"success": True})
+        yield {"gov": gov, "gov_cls": gov_cls, "int_cls": int_svc}
 
 
 # ============================================================================
@@ -197,13 +201,13 @@ class TestExecuteDispatch:
         result = await dispatcher.dispatch_action(
             "slack", "t1", "user-1", "intervention_approve:act-1", {})
         assert result == {"success": True, "message": "Intervention approved"}
-        _patch_services["int_cls"].return_value.approve_intervention.assert_awaited_once_with(
+        _patch_services["int_cls"].approve_intervention.assert_awaited_once_with(
             "act-1", "user-1")
 
     async def test_intervention_approve_failure(self, db, _patch_services):
         _make_user(db)
-        _patch_services["int_cls"].return_value.approve_intervention = \
-            AsyncMock(return_value=False)
+        _patch_services["int_cls"].approve_intervention = \
+            AsyncMock(return_value={"success": False})
         dispatcher = MessagingActionDispatcher(db=db)
         result = await dispatcher.dispatch_action(
             "slack", "t1", "user-1", "intervention_approve:act-1", {})

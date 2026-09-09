@@ -104,6 +104,24 @@ def lead_user(db):
 
 
 @pytest.fixture
+def supervisor_client(db, lead_user):
+    """Client authenticated as a team_lead — reject/approve are
+    supervisor-gated (2026-09-08 role-journey pass)."""
+    app = FastAPI()
+    app.include_router(router)
+
+    from core.auth import get_current_user
+    from core.database import get_db
+
+    def _get_db():
+        yield db
+
+    app.dependency_overrides[get_db] = _get_db
+    app.dependency_overrides[get_current_user] = lambda: lead_user
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
 def ws_request():
     return {
         "agent_id": "sales-agent",
@@ -237,37 +255,37 @@ class TestApproveWorkflow:
 
 
 class TestRejectWorkflow:
-    def test_reject_success(self, client, user):
+    def test_reject_success(self, supervisor_client, lead_user):
         svc = MagicMock()
         svc.reject_intervention = AsyncMock(
             return_value={"success": True, "message": "ok"})
         with patch("api.agent_governance_routes.intervention_service", svc):
-            response = client.post(
+            response = supervisor_client.post(
                 "/api/agent-governance/reject/apr_1?reason=not+needed")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["status"] == "rejected"
         assert data["reason"] == "not needed"
         svc.reject_intervention.assert_awaited_once_with(
-            "apr_1", user.id, "not needed")
+            "apr_1", lead_user.id, "not needed")
 
     def test_reject_missing_reason_422(self, client):
         assert client.post("/api/agent-governance/reject/apr_1").status_code == 422
 
-    def test_reject_failure_400(self, client, user):
+    def test_reject_failure_400(self, supervisor_client, user):
         svc = MagicMock()
         svc.reject_intervention = AsyncMock(
             return_value={"success": False, "message": "nope"})
         with patch("api.agent_governance_routes.intervention_service", svc):
-            response = client.post(
+            response = supervisor_client.post(
                 "/api/agent-governance/reject/apr_1?reason=x")
         assert response.status_code == 400
 
-    def test_reject_exception_500(self, client, user):
+    def test_reject_exception_500(self, supervisor_client, user):
         svc = MagicMock()
         svc.reject_intervention = AsyncMock(side_effect=RuntimeError("boom"))
         with patch("api.agent_governance_routes.intervention_service", svc):
-            response = client.post(
+            response = supervisor_client.post(
                 "/api/agent-governance/reject/apr_1?reason=x")
         assert response.status_code == 500
 

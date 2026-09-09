@@ -1233,8 +1233,10 @@ class TestRoutesPublishShareApproveInstall:
 
     def test_approve_admin_gate(self, client, db_session, user_store):
         app, _ = _route_app(db_session)
+        # non-admin first (role-based gate, 2026-09-08 role-journey pass)
+        user_store["user"] = SimpleNamespace(id="member", tenant_id="t1", is_admin=False, is_staff=False, role="member")
         assert client.post(f"/api/mini-apps/{app.id}/approve").status_code == 403
-        user_store["user"] = SimpleNamespace(id="admin", tenant_id="t1", is_admin=True, is_staff=True)
+        user_store["user"] = SimpleNamespace(id="admin", tenant_id="t1", is_admin=True, is_staff=True, role="super_admin")
         res = client.post(f"/api/mini-apps/{app.id}/approve")
         assert res.status_code == 200 and app.is_approved is True
 

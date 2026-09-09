@@ -317,6 +317,41 @@ After completing this training, the agent will be able to handle similar tasks a
         blocked_trigger.proposal_id = proposal.id
         self.db.commit()
 
+        # Tell the owner the proposal is waiting. Without this the proposal
+        # sits silently on /approvals until someone happens to look — the
+        # supervisor had no way to know the STUDENT gate had fired.
+        # Best-effort by contract: send_notification never raises, and the
+        # whole block is guarded so a notification problem can't fail
+        # proposal creation.
+        if getattr(agent, "user_id", None):
+            try:
+                from core.notification_service import NotificationService
+
+                await NotificationService(self.db).send_notification(
+                    user_id=str(agent.user_id),
+                    notification_type="approval_needed",
+                    data={
+                        "title": f"{agent.name} is blocked and needs training approval",
+                        "message": (
+                            f"An automated task ({blocked_trigger.trigger_type}) hit "
+                            f"the STUDENT trust gate. A training proposal is waiting "
+                            "for your approval — approving it opens a supervised "
+                            "training session."
+                        ),
+                        "workspace_id": getattr(agent, "workspace_id", None) or "default",
+                        "tenant_id": agent.tenant_id or "default",
+                        "action_url": "/approvals",
+                        "action_label": "Review proposal",
+                        "agent_id": agent.id,
+                        "proposal_id": proposal.id,
+                    },
+                )
+            except Exception as notif_err:
+                logger.warning(
+                    "training-proposal notification failed for %s (non-fatal): %s",
+                    agent.id, notif_err,
+                )
+
         logger.info(
             f"Created training proposal {proposal.id} for agent {agent.id} "
             f"with {len(capability_gaps)} capability gaps, "
@@ -408,6 +443,11 @@ After completing this training, the agent will be able to handle similar tasks a
         # can modify — built from the blocked task, the mentor playbook and
         # the hire's live ingested data. Without this the supervisor faced a
         # bare completion form with no idea what the session should be.
+        # The agent is resolved once up front — the lesson-plan build reads
+        # its category/playbook and the canvas step below reuses the row.
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == proposal.agent_id
+        ).first()
         try:
             session.supervisor_guidance = await self._build_lesson_plan(
                 agent, proposal
@@ -421,11 +461,8 @@ After completing this training, the agent will be able to handle similar tasks a
         self.db.flush()  # materialize session.id before the canvas references it
 
         # Mini-canvas: the visual review surface for this supervised pass
-        _canvas_agent = self.db.query(AgentRegistry).filter(
-            AgentRegistry.id == proposal.agent_id
-        ).first()
-        if _canvas_agent is not None:
-            self.ensure_session_canvas(session, _canvas_agent, proposal)
+        if agent is not None:
+            self.ensure_session_canvas(session, agent, proposal)
 
         self.db.commit()
         self.db.refresh(session)

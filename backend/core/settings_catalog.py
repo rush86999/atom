@@ -145,7 +145,10 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     B("ATOM_SELF_CONSISTENCY_FORCE_PROPOSAL", False, C_HALL, "Route partial/ambiguous votes to proposals"),
     F("ATOM_SELF_CONSISTENCY_HIGH_THRESHOLD", 0.85, C_HALL, "Agreement ≥ this is 'high'"),
     F("ATOM_SELF_CONSISTENCY_PARTIAL_THRESHOLD", 0.50, C_HALL, "Agreement ≥ this is 'partial'"),
-    B("ATOM_MOA_ENABLED", True, C_HALL, "Mixture-of-Agents on hard structured tasks"),
+    # Default OFF (2026-09-09): MoA costs 3-5x per call at ~4x latency
+    # (arXiv 2409.07487) — chat-path structured calls must never silently
+    # 1→N+1 when a workspace adds a second provider. Explicit opt-in.
+    B("ATOM_MOA_ENABLED", False, C_HALL, "Mixture-of-Agents on hard structured tasks"),
     I("ATOM_MOA_SAMPLES", 3, C_HALL, "MoA samples (min 2)"),
     B("ATOM_MOA_DIVERSITY_ENABLED", False, C_HALL, "Per-sample perspective overlays"),
     B("ATOM_PARALLEL_TOOLS", True, C_HALL, "In-loop parallel tool execution"),
@@ -157,6 +160,7 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
     B("ATOM_SC_USC_FALLBACK", True, C_HALL, "USC judge on all-distinct votes"),
     B("ATOM_SC_FANOUT", True, C_HALL, "Spread vote samples across providers"),
     B("ATOM_SC_SOFT", True, C_HALL, "Soft (logprob-weighted) SC shadow"),
+    B("ATOM_VERIFY_ADAPTIVE", True, C_HALL, "Verify panel: 1 judge first, full vote only when suspicious (ESC)"),
     # Test/spec fixtures exercising every coercer (documented pattern).
     B("ATOM_SC_TEST_FLAG", False, C_HALL, "Resolver test fixture (bool)"),
     B("ATOM_SC_TEST_BOOL", False, C_HALL, "Resolver test fixture (bool)"),

@@ -31,6 +31,8 @@ from core.workflow_versioning_system import (
 from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.models import User
+from core.security_dependencies import require_permission
+from core.rbac_service import Permission
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +193,11 @@ async def get_workflow_data(workflow_id: str) -> Dict[str, Any]:
 
 # Version Management Endpoints
 
-@router.post("/{workflow_id}/versions", response_model=VersionResponse)
+@router.post(
+    "/{workflow_id}/versions",
+    response_model=VersionResponse,
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def create_workflow_version(
     workflow_id: str = Path(..., description="ID of the workflow"),
     request: VersionCreateRequest = ...,
@@ -240,7 +246,11 @@ async def create_workflow_version(
         logger.error(f"Error creating version for workflow {workflow_id}: {str(e)}")
         raise router.internal_error("Internal error")
 
-@router.get("/{workflow_id}/versions", response_model=List[VersionResponse])
+@router.get(
+    "/{workflow_id}/versions",
+    response_model=List[VersionResponse],
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_workflow_versions(
     workflow_id: str = Path(..., description="ID of the workflow"),
     branch_name: str = Query("main", description="Branch name"),
@@ -282,7 +292,11 @@ async def get_workflow_versions(
         logger.error(f"Error getting versions for workflow {workflow_id}: {str(e)}")
         raise router.internal_error("Internal error")
 
-@router.get("/{workflow_id}/versions/compare", response_model=VersionDiffResponse)
+@router.get(
+    "/{workflow_id}/versions/compare",
+    response_model=VersionDiffResponse,
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def compare_workflow_versions(
     workflow_id: str = Path(..., description="ID of the workflow"),
     from_version: str = Query(..., description="Source version"),
@@ -332,7 +346,10 @@ async def compare_workflow_versions(
             raise
         raise router.internal_error("Internal error")
 
-@router.get("/{workflow_id}/versions/latest")
+@router.get(
+    "/{workflow_id}/versions/latest",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_latest_version(
     workflow_id: str = Path(..., description="ID of the workflow"),
     branch_name: str = Query("main", description="Branch name"),
@@ -372,7 +389,10 @@ async def get_latest_version(
             raise
         raise router.internal_error("Internal error")
 
-@router.get("/{workflow_id}/versions/summary")
+@router.get(
+    "/{workflow_id}/versions/summary",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_version_summary(
     workflow_id: str = Path(..., description="ID of the workflow"),
     branch_name: str = Query("main", description="Branch name"),
@@ -425,7 +445,11 @@ async def get_version_summary(
         logger.error(f"Error getting version summary for workflow {workflow_id}: {str(e)}")
         raise router.internal_error("Internal error")
 
-@router.get("/{workflow_id}/versions/{version}", response_model=VersionResponse)
+@router.get(
+    "/{workflow_id}/versions/{version}",
+    response_model=VersionResponse,
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_workflow_version(
     workflow_id: str = Path(..., description="ID of the workflow"),
     version: str = Path(..., description="Version number"),
@@ -458,7 +482,10 @@ async def get_workflow_version(
             raise router.not_found_error("Version", version)
         raise router.internal_error("Internal error")
 
-@router.get("/{workflow_id}/versions/{version}/data")
+@router.get(
+    "/{workflow_id}/versions/{version}/data",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_workflow_version_data(
     workflow_id: str = Path(..., description="ID of the workflow"),
     version: str = Path(..., description="Version number"),
@@ -486,7 +513,10 @@ async def get_workflow_version_data(
             raise
         raise router.internal_error("Internal error")
 
-@router.post("/{workflow_id}/rollback")
+@router.post(
+    "/{workflow_id}/rollback",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def rollback_workflow(
     workflow_id: str = Path(..., description="ID of the workflow"),
     request: RollbackRequest = ...,
@@ -528,7 +558,10 @@ async def rollback_workflow(
         raise router.internal_error("Internal error")
 
 
-@router.delete("/{workflow_id}/versions/{version}")
+@router.delete(
+    "/{workflow_id}/versions/{version}",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def delete_workflow_version(
     workflow_id: str = Path(..., description="ID of the workflow"),
     version: str = Path(..., description="Version to delete"),
@@ -565,7 +598,11 @@ async def delete_workflow_version(
 
 # Branch Management Endpoints
 
-@router.post("/{workflow_id}/branches", response_model=BranchResponse)
+@router.post(
+    "/{workflow_id}/branches",
+    response_model=BranchResponse,
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def create_workflow_branch(
     workflow_id: str = Path(..., description="ID of the workflow"),
     request: BranchCreateRequest = ...,
@@ -596,7 +633,11 @@ async def create_workflow_branch(
         logger.error(f"Error creating branch for workflow {workflow_id}: {str(e)}")
         raise router.internal_error("Internal error")
 
-@router.get("/{workflow_id}/branches", response_model=List[BranchResponse])
+@router.get(
+    "/{workflow_id}/branches",
+    response_model=List[BranchResponse],
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_workflow_branches(
     workflow_id: str = Path(..., description="ID of the workflow"),
     user: User = Depends(get_current_user)
@@ -623,7 +664,10 @@ async def get_workflow_branches(
         logger.error(f"Error getting branches for workflow {workflow_id}: {str(e)}")
         raise router.internal_error("Internal error")
 
-@router.post("/{workflow_id}/branches/merge")
+@router.post(
+    "/{workflow_id}/branches/merge",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def merge_workflow_branch(
     workflow_id: str = Path(..., description="ID of the workflow"),
     request: MergeRequest = ...,
@@ -658,7 +702,10 @@ async def merge_workflow_branch(
 
 # Version Metrics and Analytics Endpoints
 
-@router.get("/{workflow_id}/versions/{version}/metrics")
+@router.get(
+    "/{workflow_id}/versions/{version}/metrics",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_version_metrics(
     workflow_id: str = Path(..., description="ID of the workflow"),
     version: str = Path(..., description="Version number"),
@@ -689,7 +736,10 @@ async def get_version_metrics(
         logger.error(f"Error getting metrics for version {version}: {str(e)}")
         raise router.internal_error("Internal error")
 
-@router.post("/{workflow_id}/versions/{version}/metrics")
+@router.post(
+    "/{workflow_id}/versions/{version}/metrics",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def update_version_metrics(
     workflow_id: str = Path(..., description="ID of the workflow"),
     version: str = Path(..., description="Version number"),

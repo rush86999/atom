@@ -142,12 +142,21 @@ def test_stream_supervision_logs_success(client, db_session, sample_execution):
     mock_session_filter.order_by = Mock(return_value=mock_session_filter)
     mock_session_query.filter = Mock(return_value=mock_session_filter)
 
-    # Return different mock for session query
+    # Return different mocks per query: (1) AgentExecution lookup, (2) the
+    # supervisor role re-query added by the 2026-09-08 role-journey pass
+    # (_require_supervisor on the stream), (3+) SupervisionSession.
+    user_query = Mock()
+    user_filter2 = Mock()
+    user_filter2.first = Mock(return_value=Mock(spec=User, id="supervision-test-user", role="super_admin", status="active"))
+    user_query.filter = Mock(return_value=user_filter2)
+
     query_count = [0]
     def mock_query_impl(model):
         query_count[0] += 1
         if query_count[0] == 1:
             return mock_query
+        elif query_count[0] == 2:
+            return user_query
         else:
             return mock_session_query
 

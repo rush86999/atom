@@ -30,6 +30,24 @@ from core.websockets import manager as ws_manager
 logger = get_logger(__name__)
 
 
+def _user_broadcast_channels(user_id: Any, session_id: Any) -> List[str]:
+    """Channels a canvas event must reach (2026-09-09 consolidation).
+
+    EVERY canvas present/update fans out to BOTH the plain user channel
+    and the session-scoped variant: the main chat pane's socket auto-joins
+    ``user:{user_id}`` server-side (api/websocket_routes.py), while the
+    ``/canvas/{id}`` page additionally subscribes the session channel (the
+    session binding is that page's own state). Session-scoped-only
+    delivery left the chat pane blind; user-only delivery left the canvas
+    page blind (pre-fix). Mirrors the fan-out chat_orchestrator already
+    does for document presents."""
+    channels = [f"user:{user_id or 'default'}"]
+    if session_id and user_id:
+        channels.append(f"user:{user_id}:session:{session_id}")
+    return channels
+
+
+
 async def _create_canvas_audit(
     db: Session,
     agent_id: Optional[str],
@@ -167,13 +185,12 @@ async def present_chart(
                     logger.info(f"Agent execution {agent_execution.id} for chart presentation")
 
         # Present the chart via WebSocket
-        user_channel = f"user:{user_id}"
-        if session_id:
-            user_channel = f"user:{user_id}:session:{session_id}"
+        user_channels = _user_broadcast_channels(user_id, session_id)
 
         canvas_id = str(uuid.uuid4())
-        await ws_manager.broadcast(
-            user_channel,
+        for _user_channel in user_channels:
+            await ws_manager.broadcast(
+                _user_channel,
             {
                 "type": "canvas:update",
                 "data": {
@@ -313,12 +330,11 @@ async def present_status_panel(
                         }
 
         # Present the panel
-        user_channel = f"user:{user_id}"
-        if session_id:
-            user_channel = f"user:{user_id}:session:{session_id}"
+        user_channels = _user_broadcast_channels(user_id, session_id)
 
-        await ws_manager.broadcast(
-            user_channel,
+        for _user_channel in user_channels:
+            await ws_manager.broadcast(
+                _user_channel,
             {
                 "type": "canvas:update",
                 "data": {
@@ -401,13 +417,12 @@ async def present_markdown(
                     db.refresh(agent_execution)
 
         # Present the markdown
-        user_channel = f"user:{user_id}"
-        if session_id:
-            user_channel = f"user:{user_id}:session:{session_id}"
+        user_channels = _user_broadcast_channels(user_id, session_id)
 
         canvas_id = str(uuid.uuid4())
-        await ws_manager.broadcast(
-            user_channel,
+        for _user_channel in user_channels:
+            await ws_manager.broadcast(
+                _user_channel,
             {
                 "type": "canvas:update",
                 "data": {
@@ -529,13 +544,12 @@ async def present_form(
                     db.refresh(agent_execution)
 
         # Present the form
-        user_channel = f"user:{user_id}"
-        if session_id:
-            user_channel = f"user:{user_id}:session:{session_id}"
+        user_channels = _user_broadcast_channels(user_id, session_id)
 
         canvas_id = str(uuid.uuid4())
-        await ws_manager.broadcast(
-            user_channel,
+        for _user_channel in user_channels:
+            await ws_manager.broadcast(
+                _user_channel,
             {
                 "type": "canvas:update",
                 "data": {
@@ -681,12 +695,11 @@ async def update_canvas(
                     logger.info(f"Agent execution {agent_execution.id} for canvas update")
 
         # Send update via WebSocket
-        user_channel = f"user:{user_id}"
-        if session_id:
-            user_channel = f"user:{user_id}:session:{session_id}"
+        user_channels = _user_broadcast_channels(user_id, session_id)
 
-        await ws_manager.broadcast(
-            user_channel,
+        for _user_channel in user_channels:
+            await ws_manager.broadcast(
+                _user_channel,
             {
                 "type": "canvas:update",
                 "data": {
@@ -887,12 +900,11 @@ async def close_canvas(user_id: str, session_id: Optional[str] = None):
         session_id: Optional session ID for session isolation
     """
     try:
-        user_channel = f"user:{user_id}"
-        if session_id:
-            user_channel = f"user:{user_id}:session:{session_id}"
+        user_channels = _user_broadcast_channels(user_id, session_id)
 
-        await ws_manager.broadcast(
-            user_channel,
+        for _user_channel in user_channels:
+            await ws_manager.broadcast(
+                _user_channel,
             {
                 "type": "canvas:update",
                 "data": {
@@ -1100,12 +1112,11 @@ async def canvas_execute_javascript(
                 }
 
         # Send JavaScript execution request via WebSocket
-        user_channel = f"user:{user_id}"
-        if session_id:
-            user_channel = f"user:{user_id}:session:{session_id}"
+        user_channels = _user_broadcast_channels(user_id, session_id)
 
-        await ws_manager.broadcast(
-            user_channel,
+        for _user_channel in user_channels:
+            await ws_manager.broadcast(
+                _user_channel,
             {
                 "type": "canvas:execute",
                 "data": {
@@ -1344,13 +1355,12 @@ async def present_specialized_canvas(
                     logger.info(f"Agent execution {agent_execution.id} for {canvas_type} canvas")
 
         # Present the specialized canvas via WebSocket
-        user_channel = f"user:{user_id}"
-        if session_id:
-            user_channel = f"user:{user_id}:session:{session_id}"
+        user_channels = _user_broadcast_channels(user_id, session_id)
 
         canvas_id = str(uuid.uuid4())
-        await ws_manager.broadcast(
-            user_channel,
+        for _user_channel in user_channels:
+            await ws_manager.broadcast(
+                _user_channel,
             {
                 "type": "canvas:update",
                 "data": {

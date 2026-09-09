@@ -7246,3 +7246,72 @@ boundary, letting same-second unconsumed mail fall outside the inclusive le filt
 140 passed across the four key suites; py_compile clean.
 
 | 2026-09-08 | `core/intervention_service.py`, `integrations/atom_communication_ingestion_pipeline.py`, `tests/test_covpush_{mcp_svc,integrations_core}.py`, `tests/test_email_api_ingestion.py` | required_role kwarg fix (HITL intercepts were TypeError→blocked); UTC port into ingest rewrite; gmail attachment batch-drop fix; 19 stale tests re-contracted | covpush 389/389, intervention consumers 760/760, email_api_ingestion 34/34; live store repopulated 6561 rows, cursors aware UTC |
+
+## Session 2026-09-08 (late) — Role-journey trace: all-gap closure (RBAC + HITL + approvals UI)
+
+**Scope**: traced all 8 user roles end to end (backend gates, frontend nav,
+approval surfaces, bootstrap) and fixed every gap found. Backend: rbac
+hierarchy promoted to shared data (`core/security/rbac.py` role_level /
+user_meets_role) and adopted by every ad-hoc gate; new
+`api/approvals_routes.py` (the /api/agents/approvals/* UI contract that never
+existed); enterprise user management mounted eagerly + POST /users + GET
+/roles + escalation caps; HITL required_role enforced in
+`core/intervention_service.py` (fail-closed) + modified_params persistence;
+supervision/queue/operational/messaging/communication gates; dead is_admin
+gates (mini-app approve, integration schemas, analytics patterns); bootstrap
+no-downgrade. Frontend: `lib/user-role.ts`, Sidebar role gating + Admin
+Settings link, Approvals supervisor banner + read-only gating (fail-open on
+unknown role), `pages/admin/users.tsx` rewired to the real user table.
+
+**Evidence**: tests/test_role_journey_rbac_gaps.py (37) +
+tests/test_hitl_approvals_journey.py (29) — RED first, all GREEN; 234 passed
+across the re-contracted suites (w39/w53-reject/w69a-operational/w71-enterprise/
+w84/w104/round39/round65/round87/supervision/w103); stash-compared failure
+lists — all remaining failures identical on clean main. Frontend jest:
+user-role + Sidebar.gating (11); full run green except the 10 known
+pre-existing integration-component failures (9 verified identical on stashed
+tree, 1 flakes only under parallel contention). Live-verified via restart
+script: alias /api/agents/approvals/pending 200; /api/enterprise
+{users,roles} 200 + provision 201 as workspace_admin; member 403 on role
+grant and on HITL decide.
+
+## Session 2026-09-08 (late, batch 2) — role-journey: operator band + orphaned surfaces
+
+**Scope**: `core/admin_endpoints.get_platform_admin` (WORKSPACE_ADMIN+)
+replaces exact-super_admin on agent_control + admin {cache,skills,budget,
+system_health} + workspace_context routers; forensics double-prefix mount
+fixed (second un-prefixed include); approvals alias decision response gains
+`success`; enterprise require_role renamed require_enterprise_role; frontend
+AgentConsole stop wired to the daemon endpoint, MaturityApprovalPanel
+read-only for known non-supervisors, Sidebar links for Audit Trail / Skill
+Builder / Owner Cockpit / Forensics, next-auth role typing, creator copy
+link.
+
+**Evidence**: test_role_journey_rbac_gaps.py::TestPlatformAdminBand (10) +
+alias success assertion; 252 passed across affected suites (w76b re-
+contracted to the new dependency object; stash-compared — clean-main
+failures identical incl. 21 pre-existing in test_cli_agent_execution.py).
+Frontend: AgentConsole 9/9 (rewired + 403-fallback case),
+MaturityApprovalPanel 8/8 (+3 gating), full jest green except the 10 known
+pre-existing integration suites. Live: workspace_admin POST /api/agent/stop
+400-not-running (gate passed; was 403), /api/v1/admin/cache/stats 200,
+/api/forensics/subscription-waste 200, member stop 403.
+
+## Session 2026-09-09 — workflow role matrix (workflows are role dependent)
+
+**Scope**: `require_permission(WORKFLOW_VIEW/RUN/MANAGE)` wired onto every
+workflow satellite surface — workflow_ui_endpoints (was anonymous CRUD),
+workflow_marketplace (was anonymous + unmounted; now eagerly mounted),
+workflow_template_routes, mobile_workflows, workflow_versioning_endpoints,
+workflow_debugging. Contract: view=guest+, run=member+, manage=team_lead+
+(core/rbac_service.py). e2e journey tripwire updated (WORKFLOW_* enforced;
+USER_* remain the documented gap). New offline lock:
+tests/test_workflow_rbac_matrix.py.
+
+**Evidence**: test_workflow_rbac_matrix.py 361/361 (8 roles × 45 endpoints,
+RED first: 253 deny-cases failed pre-fix); 464 passed across the touched
+suites with only the 2 pre-existing template-coverage failures
+(stash-compared); 5 stale fixture suites re-contracted (role-less mock
+users → workspace_admin). Live after restart: anon workflow-ui create 403,
+anon marketplace 401, member templates 200 / create 403 / mobile-trigger
+422 (permission passed), admin create 422, marketplace view 200.

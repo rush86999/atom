@@ -496,8 +496,12 @@ async def get_current_user_dependency(token: str = Depends(oauth2_scheme)) -> Di
     return claims
 
 
-# RBAC Middleware
-def require_role(required_roles: List[str]):
+# RBAC Middleware. NOTE: intentionally named `require_enterprise_role` —
+# unlike core.security.rbac.require_role (hierarchical, UserRole-based),
+# this is a flat JWT-claims list check on the enterprise token source.
+# 2026-09-08b rename: two same-named gates with different semantics was a
+# wrong-import foot-gun.
+def require_enterprise_role(required_roles: List[str]):
     """Decorator to require specific roles"""
     def decorator(func):
         async def wrapper(current_user: Dict[str, Any] = Depends(get_current_user_dependency)):

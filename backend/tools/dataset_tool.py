@@ -83,7 +83,11 @@ async def load_registered_dataset(
     session_id = kwargs.get("session_id", "default")
     try:
         from core.data.dataset_manager import get_dataset_manager, _validate_dataset_source
-        from core.sheet_dataset_service import get_entry_by_name_sync, sheet_datasets_enabled
+        from core.sheet_dataset_service import (
+            get_entry_by_name_sync,
+            load_formulas_for_parquet,
+            sheet_datasets_enabled,
+        )
 
         if not sheet_datasets_enabled():
             return {"success": False, "error": "Dataset catalog is disabled"}
@@ -101,6 +105,8 @@ async def load_registered_dataset(
         # Defense in depth: only catalog-registered paths under the data root.
         _validate_dataset_source(path)
 
+        formulas = await __import__("asyncio").to_thread(load_formulas_for_parquet, path)
+
         handle = get_dataset_manager().load(
             source=path,
             name=entry["dataset_name"],
@@ -110,6 +116,9 @@ async def load_registered_dataset(
         return {
             "success": True,
             "dataset": handle.to_dict(),
+            # Cell->formula map from the ORIGINAL ingested workbook (Parquet
+            # itself carries only computed values).
+            "formulas": formulas,
             "freshness": {
                 "source_file": entry.get("file_name"),
                 "content_hash": entry.get("content_hash"),
@@ -120,6 +129,12 @@ async def load_registered_dataset(
                 f"Loaded '{entry['dataset_name']}' ({handle.row_count} rows, sheet "
                 f"'{entry['entity_name']}' of '{entry.get('file_name')}'). Query it with "
                 f"query_data(dataset_name='{entry['dataset_name']}', query='SELECT * FROM df ...')."
+                + (
+                    f" The formulas field maps original spreadsheet cells to their"
+                    f" formulas ({len(formulas)} formula cells)."
+                    if formulas
+                    else ""
+                )
             ),
         }
     except Exception as e:  # noqa: BLE001

@@ -21,7 +21,7 @@ from sqlalchemy.orm import sessionmaker
 
 from core.database import Base
 from core.intervention_service import InterventionService, intervention_service
-from core.models import AgentRegistry, HITLAction, HITLActionStatus  # noqa: F401
+from core.models import AgentRegistry, HITLAction, HITLActionStatus, User  # noqa: F401
 
 
 @pytest.fixture()
@@ -45,6 +45,25 @@ def svc(db_session, monkeypatch):
         "core.intervention_service.get_db_session", _session
     )
     return InterventionService()
+
+
+@pytest.fixture()
+def approvers(db_session):
+    """2026-09-08 role-journey pass: approve/reject verify the approver is a
+    real ACTIVE user (fail closed on unknown approvers)."""
+    u = User(
+        id="approver-1",
+        email="approver-1@example.com",
+        hashed_password="x",
+        first_name="A",
+        last_name="P",
+        role="team_lead",
+        status="active",
+        is_active=True,
+    )
+    db_session.add(u)
+    db_session.commit()
+    return u
 
 
 @pytest.fixture()
@@ -168,7 +187,7 @@ class TestApproveIntervention:
         assert result["success"] is False
         assert "cannot approve" in result["message"]
 
-    def test_success(self, svc, db_session):
+    def test_success(self, svc, db_session, approvers):
         action = _make_action(db_session)
         result = _approve(svc, action.id, "approver-1")
         assert result["success"] is True
@@ -189,7 +208,7 @@ class TestRejectIntervention:
         )
         assert result == {"success": False, "message": "Action not found"}
 
-    def test_success(self, svc, db_session):
+    def test_success(self, svc, db_session, approvers):
         action = _make_action(db_session)
         import asyncio
 
