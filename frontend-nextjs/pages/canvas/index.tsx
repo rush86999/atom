@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Layout as LayoutIcon, FileText, FilePlus, Loader2, Mail, Table, Code, Terminal, Plus, Search, X, Trash2, RotateCcw } from "lucide-react";
+import { Layout as LayoutIcon, FileText, FilePlus, Loader2, Mail, Table, Code, Terminal, Plus, Search, X, Trash2, RotateCcw, Target } from "lucide-react";
 import { useRouter } from "next/router";
 
 interface CanvasSummary {
@@ -22,6 +22,10 @@ interface CanvasSummary {
     snippet?: string | null;
     deleted: boolean;
     last_updated: string | null;
+    // Present when the canvas was produced as a step of a GoalRun
+    // (docs/architecture/GOAL_RUN_ORCHESTRATION.md) — the gallery groups a
+    // goal's touch points by it.
+    goal_run_id?: string;
 }
 
 const CANVAS_TYPE_ICONS: Record<string, React.ReactNode> = {
@@ -281,6 +285,33 @@ export default function CanvasIndexPage() {
                     ))}
                 </div>
 
+                {/* Goal-run grouping: a goal's touch-point canvases (research
+                    doc, quote sheet, sent email…) belong to one run — link
+                    to the run timeline where they group per step. */}
+                {(() => {
+                    const runIds = [...new Set(allCanvases
+                        .map((c) => c.goal_run_id)
+                        .filter((gid): gid is string => Boolean(gid)))];
+                    if (runIds.length === 0) return null;
+                    return (
+                        <div className="mb-4" data-testid="goal-runs-strip">
+                            <p className="text-xs text-muted-foreground mb-1.5">
+                                Produced by goal runs
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {runIds.map((gid) => (
+                                    <Link key={gid} href={`/goal-runs/${gid}`}>
+                                        <Badge variant="outline" className="cursor-pointer hover:border-primary/60">
+                                            <Target className="h-3 w-3 mr-1" />
+                                            Goal run {gid.slice(0, 8)}…
+                                        </Badge>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })()}
+
                 {/* Canvas grid */}
                 {loading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -381,6 +412,11 @@ export default function CanvasIndexPage() {
                                             <Badge variant="secondary" className="text-[10px]">
                                                 {c.canvas_type}
                                             </Badge>
+                                            {c.goal_run_id && (
+                                                <Link href={`/goal-runs/${c.goal_run_id}`}>
+                                                    <Badge variant="outline" className="text-[10px]">Goal</Badge>
+                                                </Link>
+                                            )}
                                             {c.action_type === "update" && (
                                                 <Badge variant="outline" className="text-[10px]">Edited</Badge>
                                             )}

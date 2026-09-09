@@ -4013,6 +4013,14 @@ class Canvas(Base):
     # controller = CanvasLogic; view = this Canvas.)
     mini_app_id = Column(String, ForeignKey("mini_apps.id"), nullable=True, index=True)
 
+    # Goal-run linkage (docs/architecture/GOAL_RUN_ORCHESTRATION.md §3.1):
+    # set when this canvas is produced as a step of a role agent's GoalRun,
+    # so a goal's touch points group as one unit. Null for ordinary
+    # canvases. Logical FK (no constraint) — sqlite-safe ALTER; ordinary
+    # canvas flows never set these (additive).
+    goal_run_id = Column(String, nullable=True, index=True)
+    goal_run_step_id = Column(String, nullable=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -10353,6 +10361,64 @@ class GoalObjective(Base):
     source = Column(String(20), default="api")  # api | chat | agent | decomposition
     target_date = Column(DateTime(timezone=True), nullable=True)
 
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class GoalRun(Base):
+    """Long-lived, event-resumable execution of a role-bound goal
+    (docs/architecture/GOAL_RUN_ORCHESTRATION.md).
+
+    A role agent pursues a goal through multiple steps and multiple canvases,
+    re-deciding its direction after every step from the canvas data and the
+    evolving ``parameters`` (the deal/project state) — like a person working
+    an informal process across touch points spread over days, not a pre-authored
+    DAG. The ``plan`` is a soft prior (seeded from the role's playbooks and
+    experiences); the router (core/goals/goal_run_router.py) may rewrite it at
+    every boundary. Every decision is persisted with its rationale in
+    ``decision_log`` — the informal process made visible and auditable.
+
+    Maturity/training integration (§3.7): ``supervision_mode`` —
+    training (every router decision becomes a HITL checkpoint before it
+    executes), shadow (default; decisions execute and log), autonomous
+    (guardrails only). Promotion between modes is earned via the graduation
+    service, never toggled ad hoc.
+    """
+    __tablename__ = "goal_runs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, nullable=True, index=True)
+    workspace_id = Column(String, nullable=False, index=True)
+
+    goal_id = Column(String, nullable=False, index=True)   # GoalObjective.id
+    agent_id = Column(String, nullable=True, index=True)   # owning role agent
+    role = Column(String(64), nullable=True)               # e.g. "sales"
+
+    # planning → active ⇄ waiting / paused_hitl → achieved | failed | cancelled
+    status = Column(String(20), nullable=False, default="planning", index=True)
+    supervision_mode = Column(String(20), nullable=False, default="shadow")
+
+    # Soft plan: [{id, kind, title, canvas_type?, note?, parameters?}] — a
+    # familiar path, not a schedule; the router rewrites it freely.
+    plan = Column(JSONBColumn, default=list)
+    cursor = Column(String(64), nullable=True)          # current step id
+    parameters = Column(JSONBColumn, default=dict)      # mutational state
+    # Active wait spec while status=waiting:
+    # {event, match, deadline, created_at} — consumed once on wake.
+    waiting_on = Column(JSONBColumn, nullable=True)
+    # Decision approved but held for HITL while status=paused_hitl.
+    pending_decision = Column(JSONBColumn, nullable=True)
+    # Append-only [{ts, kind, decision?, rationale?, parameter_diff?,
+    # canvas_id?, event?, model?}] — router decisions, wakes, overrides.
+    decision_log = Column(JSONBColumn, default=list)
+
+    # Guardrail counters (replan budget, stuck detector inputs, promotion
+    # evidence).
+    replan_count = Column(Integer, nullable=False, default=0)
+    steps_executed = Column(Integer, nullable=False, default=0)
+    human_interventions = Column(Integer, nullable=False, default=0)
+
+    created_by = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

@@ -645,6 +645,15 @@ async def run_maintenance_cycle(db) -> Dict[str, Any]:
     except Exception as e:
         logger.debug("import validation step failed: %s", e)
     try:
+        # GoalRun timer wakes (GOAL_RUN_ORCHESTRATION.md §3.4): waiting runs
+        # whose wait deadline passed (e.g. the 3-day follow-up) re-enter
+        # their decision loop. Scans every workspace with waiting runs.
+        from core.goals.goal_run_events import wake_due_runs_all_workspaces
+
+        summary["goal_run_timer_wakes"] = await wake_due_runs_all_workspaces()
+    except Exception as e:
+        logger.debug("goal run timer wake step failed: %s", e)
+    try:
         from core.db_safety import maintenance_db_safety_step
 
         # OFF-LOOP: the sqlite snapshot copies the whole DB file; on the

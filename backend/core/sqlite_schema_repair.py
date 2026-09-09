@@ -79,7 +79,9 @@ def repair_known_drift() -> None:
         from core.database import get_db_session
         from core.models import (
             AgentReasoningStep,
+            Canvas,
             ExperienceItem,
+            GoalRun,
             Playbook,
         )
 
@@ -91,5 +93,11 @@ def repair_known_drift() -> None:
             # validation_state — see 20260902_wikiskill_adaptation.
             ensure_sqlite_columns(engine, Playbook)
             ensure_sqlite_columns(engine, ExperienceItem)
+            # Goal-run back-links on the pre-existing canvases table, and the
+            # goal_runs table itself (create_all makes the table; this makes
+            # its columns safe on drifted files) — see
+            # docs/architecture/GOAL_RUN_ORCHESTRATION.md.
+            ensure_sqlite_columns(engine, Canvas)
+            ensure_sqlite_columns(engine, GoalRun)
     except Exception as e:
         logger.warning(f"known-drift repair skipped: {e}")

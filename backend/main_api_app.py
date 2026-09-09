@@ -3638,6 +3638,14 @@ try:
         logger.warning(f"Playbook routes not found: {e}")
 
     try:
+        from api.goal_run_routes import router as goal_run_router
+
+        app.include_router(goal_run_router)
+        logger.info("✓ Goal Run Routes Loaded (/api/goal-runs)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Goal run routes not found: {e}")
+
+    try:
         from api.agent_control_routes import router as agent_control_router
 
         app.include_router(agent_control_router)

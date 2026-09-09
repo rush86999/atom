@@ -2915,6 +2915,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             result, apply_reason = applied
         else:
             result, apply_reason = applied, None
+        # GoalRun integration (docs/architecture/GOAL_RUN_ORCHESTRATION.md
+        # §3.3): a finished canvas edit is a step boundary — the owning run
+        # re-decides its next direction from the canvas state. Fire-and-
+        # forget: the chat reply NEVER waits on the run's router, and a run
+        # failure must not fail the turn. `no_change` ("already reflects
+        # the goal") is a done-signal like any other.
+        if canvas.get("canvas_id"):
+            try:
+                from core.goals.goal_run_events import notify_canvas_done
+
+                asyncio.get_running_loop().create_task(notify_canvas_done(
+                    str(canvas.get("canvas_id")), reason=apply_reason))
+            except Exception as gr_err:
+                logger.debug(f"goal-run advance hook skipped: {gr_err}")
         if result is None and apply_reason == "no_change":
             # The planned edit reproduced the current content byte-for-byte.
             # Writing it anyway (audit row + "updated!" reply) was the live

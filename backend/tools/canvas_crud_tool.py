@@ -968,6 +968,18 @@ async def list_canvases(
                 for row in db.query(Canvas).filter(Canvas.id.in_(fallback_ids)).all():
                     canvas_content[row.id] = row.content
 
+            # Goal-run back-links (GOAL_RUN_ORCHESTRATION.md): only canvases
+            # that carry one — the gallery groups a goal's touch points by it.
+            goal_run_links: Dict[str, str] = {}
+            linked_ids = [cid for cid in all_ids]
+            if linked_ids:
+                for cid, grid in (
+                    db.query(Canvas.id, Canvas.goal_run_id)
+                    .filter(Canvas.id.in_(linked_ids), Canvas.goal_run_id.isnot(None))
+                    .all()
+                ):
+                    goal_run_links[cid] = grid
+
             needle = (q or "").strip().lower()
             matches: list = []
             for row, version_count in latest:
@@ -1009,6 +1021,10 @@ async def list_canvases(
                     "deleted": row.action_type == "delete",
                     "last_updated": row.created_at.isoformat() if row.created_at else None,
                     "version": int(version_count or 1),
+                    # Additive (GOAL_RUN_ORCHESTRATION.md §5): present only
+                    # when the canvas was produced as a goal-run step.
+                    **({"goal_run_id": goal_run_links[row.canvas_id]}
+                       if row.canvas_id in goal_run_links else {}),
                 })
 
             total = len(matches)
