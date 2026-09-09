@@ -439,6 +439,12 @@ class OutlookService(IntegrationService):
             }
 
             if query:
+                # Graph raises 400 InefficientFilter when $orderby is combined
+                # with a $filter that uses functions (contains) — same known
+                # limitation search_emails documents for $search. Drop the
+                # sort for query searches (relevance/recency trade is fine for
+                # a search result list).
+                params.pop("$orderby", None)
                 # OData string literals escape a single quote by doubling it —
                 # a raw query like "O'Brien bandsaw" would otherwise terminate
                 # the literal early and 400 the whole filter.
