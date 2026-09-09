@@ -205,8 +205,15 @@ class TestRecalculate:
         assert await rt._recalc_with_soffice(workbook) == workbook
 
     @pytest.mark.asyncio
-    async def test_formulas_recalc(self, workbook, monkeypatch):
+    async def test_formulas_recalc_caches_values_and_keeps_formulas(self, workbook, monkeypatch):
+        """Recalc caches computed values WITHOUT destroying the '=...' source.
+
+        The old implementation overwrote cell.value with the result, so every
+        recalc erased the formula it had just evaluated — and when the lookup
+        key missed (sheet name case), no value was cached at all.
+        """
         from core import workbook_runtime as wb
+        from openpyxl import load_workbook
 
         rt = wb.WorkbookRuntime()
         rt._soffice = None
@@ -217,30 +224,18 @@ class TestRecalculate:
         solution = {"'[book.xlsx]Sheet1'!A3": 3}
         fake_formulas.ExcelModel.return_value.loads.return_value.finish.return_value = model
         model.calculate.return_value = solution
-
-        fake_openpyxl = MagicMock()
-        fake_ws = MagicMock()
-        cell = MagicMock()
-        cell.value = "=SUM(A1:A2)"
-        cell.coordinate = "A3"
-        fake_ws.iter_rows.return_value = [[cell]]
-        fake_wb = MagicMock()
-        fake_wb.sheetnames = ["Sheet1"]
-        fake_wb.__getitem__.return_value = fake_ws
-        fake_openpyxl.load_workbook.return_value = fake_wb
-
         monkeypatch.setitem(sys.modules, "formulas", fake_formulas)
-        monkeypatch.setitem(sys.modules, "openpyxl", fake_openpyxl)
 
-        result = await rt._recalc_with_formulas(workbook)
-        assert result == workbook
-        assert cell.value == 3
-        fake_wb.save.assert_called_once_with(workbook)
+        assert await rt._recalc_with_formulas(workbook) == workbook
+
+        assert load_workbook(workbook, data_only=False)["Sheet1"]["A3"].value == "=SUM(A1:A2)"
+        assert load_workbook(workbook, data_only=True)["Sheet1"]["A3"].value == 3
 
     @pytest.mark.asyncio
     async def test_formulas_recalc_value_object(self, workbook, monkeypatch):
         """Solution entries with a .value attribute take that value."""
         from core import workbook_runtime as wb
+        from openpyxl import load_workbook
 
         rt = wb.WorkbookRuntime()
         rt._soffice = None
@@ -251,23 +246,57 @@ class TestRecalculate:
         solution = {"'[book.xlsx]Sheet1'!A3": Mock(value=9)}
         fake_formulas.ExcelModel.return_value.loads.return_value.finish.return_value = model
         model.calculate.return_value = solution
-
-        fake_openpyxl = MagicMock()
-        fake_ws = MagicMock()
-        cell = MagicMock()
-        cell.value = "=SUM(A1:A2)"
-        cell.coordinate = "A3"
-        fake_ws.iter_rows.return_value = [[cell]]
-        fake_wb = MagicMock()
-        fake_wb.sheetnames = ["Sheet1"]
-        fake_wb.__getitem__.return_value = fake_ws
-        fake_openpyxl.load_workbook.return_value = fake_wb
-
         monkeypatch.setitem(sys.modules, "formulas", fake_formulas)
-        monkeypatch.setitem(sys.modules, "openpyxl", fake_openpyxl)
 
-        await rt._recalc_with_formulas(workbook)
-        assert cell.value == 9
+        assert await rt._recalc_with_formulas(workbook) == workbook
+
+        assert load_workbook(workbook, data_only=False)["Sheet1"]["A3"].value == "=SUM(A1:A2)"
+        assert load_workbook(workbook, data_only=True)["Sheet1"]["A3"].value == 9
+
+    @pytest.mark.asyncio
+    async def test_formulas_recalc_unmatched_refs_keep_file(self, workbook, monkeypatch):
+        """No solution match → no injection attempt; the plain save with
+        intact formulas is kept (file never half-patched)."""
+        from core import workbook_runtime as wb
+        from openpyxl import load_workbook
+
+        rt = wb.WorkbookRuntime()
+        rt._soffice = None
+        rt._has_formulas = True
+
+        fake_formulas = MagicMock()
+        model = MagicMock()
+        solution = {"'[book.xlsx]OTHER'!A3": 3}
+        fake_formulas.ExcelModel.return_value.loads.return_value.finish.return_value = model
+        model.calculate.return_value = solution
+        monkeypatch.setitem(sys.modules, "formulas", fake_formulas)
+
+        assert await rt._recalc_with_formulas(workbook) == workbook
+        assert load_workbook(workbook, data_only=False)["Sheet1"]["A3"].value == "=SUM(A1:A2)"
+
+    @pytest.mark.asyncio
+    async def test_formulas_recalc_nested_grid_result(self, workbook, monkeypatch):
+        """The formulas lib wraps single-cell results in a 1x1 grid (numpy
+        array or nested list) — it must collapse to the scalar, not cache a
+        repr() string like '[[3]]'."""
+        from core import workbook_runtime as wb
+        from openpyxl import load_workbook
+
+        rt = wb.WorkbookRuntime()
+        rt._soffice = None
+        rt._has_formulas = True
+
+        fake_formulas = MagicMock()
+        model = MagicMock()
+        solution = {"'[book.xlsx]Sheet1'!A3": Mock(value=[[3]])}
+        fake_formulas.ExcelModel.return_value.loads.return_value.finish.return_value = model
+        model.calculate.return_value = solution
+        monkeypatch.setitem(sys.modules, "formulas", fake_formulas)
+
+        assert await rt._recalc_with_formulas(workbook) == workbook
+
+        assert load_workbook(workbook, data_only=False)["Sheet1"]["A3"].value == "=SUM(A1:A2)"
+        assert load_workbook(workbook, data_only=True)["Sheet1"]["A3"].value == 3
 
     @pytest.mark.asyncio
     async def test_formulas_recalc_exception(self, workbook, monkeypatch):

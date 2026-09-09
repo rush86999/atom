@@ -161,9 +161,14 @@ class TestRecalculate:
             wb.__getitem__.return_value = ws
             wb.sheetnames = ["Data"]
             lw.return_value = wb
-            result = await runtime._recalc_with_formulas(Path(xlsx))
+            with patch.object(WorkbookRuntime, "_write_cached_values", return_value=True) as inject:
+                result = await runtime._recalc_with_formulas(Path(xlsx))
         assert result == Path(xlsx)
-        assert cell.value == 30
+        # The formula survives the recalc; the computed value goes to the
+        # cached-value injector instead of overwriting cell.value (the old
+        # behavior erased every formula it evaluated).
+        assert cell.value == "=A1+A2"
+        inject.assert_called_once_with(Path(xlsx), {("Data", "A3"): 30})
         wb.save.assert_called_once()
 
 
