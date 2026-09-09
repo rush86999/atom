@@ -439,6 +439,12 @@ class AtomMetaAgent:
         "list_integrations",
         "call_integration",  # Fallback
         "canvas_tool",
+        # Canvas presentation (2026-09-09): the present_* tools existed in
+        # canvas_tool.py but were never reachable from this loop — not in
+        # the unified action registry, so chart/markdown asks degraded to
+        # text descriptions.
+        "canvas.present_chart",
+        "canvas.present_markdown",
         # Platform & Management Tools
         "get_platform_settings",
         "update_platform_setting",
