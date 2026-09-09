@@ -555,3 +555,10 @@ Outstanding: `_send_html_reply` and its styling tests still model `/reply`
 as returning a draft object — real sends via that route would double-send
 (/reply sends immediately + legacy fallback). Needs the same createReply
 rework before the send path is trusted.
+
+**CLOSED 2026-09-09 (later same session):** `_send_html_reply` switched to
+`createReply`/`createReplyAll` → PATCH → `/send` (`743531604`). A styled
+reply previously fired an empty send on `/reply`, got no draft id, fell
+back to the legacy path, and sent TWICE. Styling tests re-pinned to the
+createReply flow + one-shot fallback. Send path now safe for the live
+training loop.
