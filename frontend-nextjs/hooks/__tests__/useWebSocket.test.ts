@@ -935,17 +935,29 @@ describe('useWebSocket Hook', () => {
       act(() => { jest.advanceTimersByTime(4000); });
       expect(callCount()).toBe(3);
 
-      // 3rd socket closes -> schedules 3rd retry (~4s) — last allowed attempt.
+      // 3rd socket closes -> schedules 3rd retry (~4s).
       const ws2 = getInstance(2);
       simulateCloseWithCode(ws2, 1006);
       act(() => { jest.advanceTimersByTime(8000); });
       expect(callCount()).toBe(4); // 1 initial + 3 retries
 
-      // 4th socket closes -> maxAttempts (3) reached, NO further retry.
+      // 4th socket closes -> retries CONTINUE (attempts are unlimited by
+      // default since 2026-09-09: the old cap of 3 fired its 1s/2s/4s
+      // retries during a backend restart (15-20s downtime) and then went
+      // permanently silent — the page kept working over REST but every
+      // live update needed a manual refresh). Delay is capped at 10s.
       const ws3 = getInstance(3);
       simulateCloseWithCode(ws3, 1006);
-      act(() => { jest.advanceTimersByTime(30000); });
-      expect(callCount()).toBe(4);
+      act(() => { jest.advanceTimersByTime(10000); });
+      expect(callCount()).toBe(5);
+      const ws4 = getInstance(4);
+      simulateCloseWithCode(ws4, 1006);
+      act(() => { jest.advanceTimersByTime(60000); });
+      // Retries continue indefinitely at the ~10s cap (plus ≤250ms jitter
+      // per attempt): 60s fits exactly 5-6 of them — versus the old cap
+      // of 3 that left pages permanently dead after backend restarts.
+      expect(callCount()).toBeGreaterThanOrEqual(5);
+      expect(callCount()).toBeLessThanOrEqual(6);
     });
 
     test('resets the backoff counter after a successful reconnect', () => {
