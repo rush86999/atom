@@ -512,3 +512,27 @@ cleared the test-polluted top-level state file, restarted via
 `scripts/restart_backend.sh` (DB snapshotted first, pid 51504). Verified:
 initial sync walked the 90-day window, `atom_communications` repopulated to
 6561 rows, cursors now persist AWARE UTC (`+00:00`).
+
+---
+
+## 2026-09-08 evening — email send-policy gate (PRs 607/608, stacked on 606)
+
+Author session: feat/email-send-policy-gate + feat/email-policy-db-backed-rules.
+
+- **What:** Level B deterministic email business-quality gate at the universal
+  send boundary (`core/email_policy_gate.py` + hook in
+  `integrations/universal_integration_service.py`), layered BELOW the existing
+  safety gate `core/email_policy.py` (dispatch/HITL layer). Rules: same-thread
+  linkage, verified price, item_model (specs), alternatives (+catalog
+  verification), customer intro (+known-customer verification via
+  `core/email_policy_data.py`). `search_emails` no longer defaults to gmail-only.
+- **Review fixes applied (external review of the stacked PRs):** added
+  ATOM_EMAIL_SEND_POLICY_ENABLED master switch + ATOM_EMAIL_SEND_POLICY_RULES
+  per-code scoping; separated tenant/workspace ids in the data loader; seed
+  script uses SYNTHETIC placeholder customers (real mailbox PII scrubbed from
+  branch history via amended commit). NOTE: pre-existing demo PII in
+  canvas/planner files is NOT part of this work.
+- **Outstanding:** live server (port 8000) predates these fixes — restart
+  needed; demo catalog synthetic until the real consolidated price sheet is
+  reachable (WorkDrive team search 500s).
+- **Verified:** 50 unit + hook tests pass for the gate suites.
