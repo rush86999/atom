@@ -21,6 +21,7 @@ from core.episode_lifecycle_service import EpisodeLifecycleService
 from core.episode_retrieval_service import EpisodeRetrievalService
 from core.episode_segmentation_service import EpisodeSegmentationService
 from core.models import AgentFeedback, Episode, User, UserRole
+from core.security.rbac import user_meets_role
 from core.security_dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -35,11 +36,11 @@ EMERGENCY_GOVERNANCE_BYPASS = os.getenv("EMERGENCY_GOVERNANCE_BYPASS", "false").
 # operations. promote/exam hand out maturity levels (the platform's entire
 # permission model) and decay/consolidate mutate fleet-wide episode state —
 # none may be driven by an ordinary member JWT.
-_SUPERVISOR_ROLES = [
-    UserRole.TEAM_LEAD.value,
-    UserRole.WORKSPACE_ADMIN.value,
-    UserRole.SUPER_ADMIN.value,
-]
+# 2026-09-08 role-journey pass: the old 3-role allowlist excluded
+# admin/owner — a level-6 admin was denied what a level-4 team_lead
+# may do (privilege inversion, the H1 class of bug). Compare against
+# the shared hierarchy instead of a hand-maintained list.
+_SUPERVISOR_MIN = UserRole.TEAM_LEAD
 
 
 def _require_supervisor(db: Session, current_user: User) -> None:
@@ -47,10 +48,10 @@ def _require_supervisor(db: Session, current_user: User) -> None:
     user = db.query(User).filter(User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if user.role not in _SUPERVISOR_ROLES:
+    if not user_meets_role(user, _SUPERVISOR_MIN):
         raise HTTPException(
             status_code=403,
-            detail="Insufficient permissions. Required role: TEAM_LEAD or ADMIN",
+            detail="Insufficient permissions. Required role: team_lead or higher",
         )
 
 

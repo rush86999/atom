@@ -112,28 +112,54 @@ export function OfficeFileCanvas({ canvasId, data, showPreview, onDirtyChange }:
                         // "/A1:Z500" would parse as a sheet named "A1:Z500".
                         params: { file_path: filePath, cell_path: "A1:Z500" },
                     });
-                    const cells = res.data?.cells;
-                    const name = res.data?.sheet_name || "Sheet1";
-                    if (!cancelled && Array.isArray(cells)) {
-                        // Trim the requested range to the used rectangle —
-                        // otherwise the grid renders hundreds of empty rows.
-                        const rows = cells.map((r: any[]) =>
-                            (r || []).map((c: any) => (c?.value == null ? "" : c.value))
+                    const first = res.data;
+                    if (!cancelled && first?.sheet_name) {
+                        // Hydrate EVERY sheet (the WS snapshot carries all of
+                        // them; REST reload must match or the tabs are dead)
+                        // plus the formulas map the formula bar renders.
+                        const names: string[] = first.sheet_names?.length ? first.sheet_names : [first.sheet_name];
+                        const readSheet = async (name: string, payload: any) => {
+                            if (payload) return payload;
+                            const r = await apiClient.get("/api/v1/office/excel", {
+                                params: { file_path: filePath, cell_path: `/${name}/A1:Z500` },
+                            });
+                            return r.data;
+                        };
+                        const results = await Promise.all(
+                            names.map((name) => readSheet(name, name === first.sheet_name ? first : null))
                         );
-                        // Trim only TRAILING empty rows/cols — blank separator
-                        // rows inside the data must survive (1:1 row mapping).
-                        let lastUsed = -1;
-                        let lastCol = -1;
-                        rows.forEach((r: any[], i: number) => {
-                            r.forEach((v: any, j: number) => { if (v !== "") { lastUsed = Math.max(lastUsed, i); lastCol = Math.max(lastCol, j); } });
+                        // Trim each requested range to the used rectangle —
+                        // otherwise the grid renders hundreds of empty rows.
+                        // Only TRAILING empty rows/cols are trimmed — blank
+                        // separator rows inside the data must survive.
+                        const sheets = results.map((payload: any, i: number) => {
+                            const rows = (payload?.cells || []).map((r: any[]) =>
+                                (r || []).map((c: any) => (c?.value == null ? "" : c.value))
+                            );
+                            let lastUsed = -1;
+                            let lastCol = -1;
+                            rows.forEach((r: any[], i: number) => {
+                                r.forEach((v: any, j: number) => { if (v !== "") { lastUsed = Math.max(lastUsed, i); lastCol = Math.max(lastCol, j); } });
+                            });
+                            const used = rows.slice(0, lastUsed + 1);
+                            const colCount = lastCol + 1;
+                            return {
+                                name: payload?.sheet_name || names[i],
+                                rows: used.map((r: any[]) => Array.from({ length: colCount }, (_, i) => r[i] ?? "")),
+                            };
                         });
-                        const used = rows.slice(0, lastUsed + 1);
-                        const colCount = lastCol + 1;
-                        const trimmed = used.map((r: any[]) => Array.from({ length: colCount }, (_, i) => r[i] ?? ""));
+                        const formulas: Record<string, Record<string, string>> = {};
+                        for (const payload of results) {
+                            if (payload?.formulas && Object.keys(payload.formulas).length) {
+                                formulas[payload.sheet_name] = payload.formulas;
+                            }
+                        }
                         setContent((prev) => ({
                             ...prev,
-                            sheets: [{ name, rows: trimmed }],
-                            active_sheet: name,
+                            sheets,
+                            active_sheet: first.sheet_name,
+                            sheet_names: first.sheet_names?.length ? first.sheet_names : names,
+                            formulas,
                         }));
                     }
                 } else if (format === "docx") {
@@ -367,6 +393,20 @@ function ExcelEditor({
     const colCount = rows.reduce((m, r) => Math.max(m, r?.length || 0), 0);
     const padded = rows.map((r) => Array.from({ length: colCount }, (_, i) => r?.[i] ?? ""));
 
+    // Selected cell drives the formula bar (kept on blur, like Excel).
+    const [selected, setSelected] = useState<{ row: number; col: number } | null>(null);
+    // Sheet switch invalidates the selection — coordinates are per-sheet.
+    useEffect(() => { setSelected(null); }, [activeSheet]);
+
+    // The backend snapshot keeps computed values in `rows` and the '=...'
+    // source in `formulas[Sheet][coord]` — a cell can only be a formula via
+    // that map, never via its (computed) display value.
+    const formulaFor = useCallback(
+        (rowIdx: number, colIdx: number): string | undefined =>
+            content.formulas?.[sheet?.name || ""]?.[`${colLetter(colIdx)}${rowIdx + 1}`],
+        [content.formulas, sheet?.name]
+    );
+
     const commitCell = (rowIdx: number, colIdx: number, raw: string) => {
         const original = padded[rowIdx]?.[colIdx];
         const originalStr = original == null ? "" : String(original);
@@ -395,6 +435,27 @@ function ExcelEditor({
 
     return (
         <div className="p-1">
+            {/* Formula bar: source ('=...') of the selected cell — computed
+                values live in the grid, formulas here and on focus. */}
+            <div className="flex items-center gap-2 mb-1">
+                <span className="min-w-[44px] text-center text-[10px] font-mono text-zinc-400 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 rounded px-1 py-0.5">
+                    {selected ? `${colLetter(selected.col)}${selected.row + 1}` : "—"}
+                </span>
+                <span className="text-[11px] italic font-serif text-zinc-400 select-none">fx</span>
+                <input
+                    readOnly
+                    aria-label="Formula bar"
+                    value={
+                        selected
+                            ? (formulaFor(selected.row, selected.col) ??
+                              String(padded[selected.row]?.[selected.col] ?? ""))
+                            : ""
+                    }
+                    placeholder="Select a cell"
+                    className="flex-1 min-w-0 text-[12px] font-mono bg-transparent border border-zinc-100 dark:border-white/10 rounded px-2 py-0.5 text-zinc-700 dark:text-zinc-200 outline-none focus:border-indigo-500/50"
+                />
+            </div>
+
             {/* Sheet tabs */}
             {(content.sheet_names?.length || 0) > 1 && (
                 <div className="flex gap-1 mb-1 border-b border-zinc-100 dark:border-white/5">
@@ -433,24 +494,34 @@ function ExcelEditor({
                             </td>
                             {row.map((cell, colIdx) => {
                                 const cellPath = `/${sheet?.name}/${colLetter(colIdx)}${rowIdx + 1}`;
-                                const isFormulaCell =
-                                    typeof cell === "string" && cell.startsWith("=") &&
-                                    content.formulas?.[sheet?.name || ""]?.[`${colLetter(colIdx)}${rowIdx + 1}`];
+                                const formulaStr = formulaFor(rowIdx, colIdx);
                                 return (
                                     <td
                                         key={colIdx}
                                         className={`border border-zinc-100 dark:border-white/10 p-1 min-w-[80px] hover:bg-zinc-50 dark:hover:bg-black/5 focus-within:bg-indigo-500/10 focus-within:border-indigo-500/50 transition-colors ${
-                                            isFormulaCell ? "bg-emerald-500/5" : ""
+                                            formulaStr ? "bg-emerald-500/5" : ""
                                         }`}
-                                        title={isFormulaCell ? "Formula cell" : undefined}
+                                        title={formulaStr ?? undefined}
                                     >
                                         <input
                                             type="text"
                                             defaultValue={cell == null ? "" : String(cell)}
                                             key={`${cellPath}:${String(cell)}`}
-                                            onFocus={() => onFocusKey(cellPath)}
+                                            onFocus={(e) => {
+                                                onFocusKey(cellPath);
+                                                setSelected({ row: rowIdx, col: colIdx });
+                                                // Excel behavior: the cell shows
+                                                // the '=...' source while editing.
+                                                if (formulaStr) e.currentTarget.value = formulaStr;
+                                            }}
                                             onBlur={(e) => {
-                                                commitCell(rowIdx, colIdx, e.target.value);
+                                                const typed = e.target.value;
+                                                // Focus swapped the display to the
+                                                // formula — an untouched blur must
+                                                // not commit the formula back as an
+                                                // edit; only real text changes do.
+                                                if (typed !== formulaStr) commitCell(rowIdx, colIdx, typed);
+                                                if (formulaStr) e.target.value = String(cell ?? "");
                                                 onBlur();
                                             }}
                                             className="w-full bg-transparent border-none p-0 focus:ring-0 outline-none"

@@ -19,6 +19,17 @@ def handler():
     return BYOKHandler()
 
 
+@pytest.fixture(autouse=True)
+def _reset_shared_down_memo():
+    """Each test starts with no process-wide DOWN memo (see
+    BYOKHandler._OLLAMA_DOWN_MEMO) — otherwise verdicts leak between tests."""
+    from core.llm.byok_handler import BYOKHandler
+
+    BYOKHandler._OLLAMA_DOWN_MEMO = None
+    yield
+    BYOKHandler._OLLAMA_DOWN_MEMO = None
+
+
 def _fake_tags_response(models):
     resp = MagicMock()
     resp.raise_for_status = MagicMock()
@@ -67,6 +78,8 @@ class TestRuntimeState:
         assert len(calls) == 1
 
     def test_down_cache_expires_and_reprobes(self, handler, monkeypatch):
+        from core.llm.byok_handler import BYOKHandler
+
         def refused(url, **kw):
             raise httpx.ConnectError("connection refused")
 
@@ -74,11 +87,16 @@ class TestRuntimeState:
         handler._ollama_runtime_state()
         # Age the cached probe past the down TTL — the runtime must be
         # re-checked (a restarted Ollama rejoins without a backend restart).
+        # The shared DOWN memo must be aged too, or it answers before the
+        # probe can re-run.
         checked_at, _, _ = handler._ollama_probe_cache
         handler._ollama_probe_cache = (
             checked_at - (handler._OLLAMA_PROBE_TTL_DOWN + 1),
             "down",
             None,
+        )
+        BYOKHandler._OLLAMA_DOWN_MEMO = (
+            time.time() - (handler._OLLAMA_DOWN_MEMO_TTL + 1)
         )
         monkeypatch.setattr(
             httpx, "get", lambda url, **kw: _fake_tags_response(["llama3.1:8b"])
@@ -86,6 +104,28 @@ class TestRuntimeState:
         state, pulled = handler._ollama_runtime_state()
         assert state == "up"
         assert "llama3.1:8b" in pulled
+        assert BYOKHandler._OLLAMA_DOWN_MEMO is None
+
+    def test_down_memo_shared_across_instances(self, monkeypatch):
+        """The chat path builds several BYOKHandlers per message; a dead
+        Ollama must be probed once for all of them, not once per handler
+        (each probe is blocking sync httpx inside the request path)."""
+        from core.llm.byok_handler import BYOKHandler
+
+        calls = []
+
+        def refused(url, **kw):
+            calls.append(url)
+            raise httpx.ConnectError("connection refused")
+
+        monkeypatch.setattr(httpx, "get", refused)
+        first = BYOKHandler()
+        first._ollama_runtime_state()
+        second = BYOKHandler()
+        state, pulled = second._ollama_runtime_state()
+        assert state == "down"
+        assert pulled is None
+        assert len(calls) == 1
 
     def test_unreachable_runtime_excluded_from_fallback_order(self, handler, monkeypatch):
         handler.clients = {"openai": MagicMock(), "ollama": MagicMock()}

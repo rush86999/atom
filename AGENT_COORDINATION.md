@@ -513,6 +513,237 @@ cleared the test-polluted top-level state file, restarted via
 initial sync walked the 90-day window, `atom_communications` repopulated to
 6561 rows, cursors now persist AWARE UTC (`+00:00`).
 
+## 2026-09-08 late — ZCode: role-journey trace (all 8 user roles) + gap closure
+
+Traced every role's journey end to end (backend gates, frontend UI, approval
+surfaces, bootstrap). Fixed gaps, TDD (2 new test files, 66 tests; RED first).
+
+**Severed journeys fixed:**
+- HITL approvals UI called `/api/agents/approvals/*` which NEVER existed
+  (main_api_app 8b comment claimed it did). New `api/approvals_routes.py`:
+  GET /pending (plain array, UI contract) + POST /{id} {decision,
+  modified_params} with supervisor gate; mounted eagerly. Modified params now
+  persist to the action row (previously dropped = "Modify" was a no-op).
+- Real user-management router (`core.enterprise_user_management`) was only
+  reachable via the on-demand loader, whose heuristic maps /api/enterprise/*
+  to the status-only `core.enterprise_endpoints` — /api/enterprise/users 404'd
+  live forever. Now mounted eagerly + gained POST /users (provision employee)
+  and GET /roles (catalog for the admin UI dropdown).
+- Frontend User Management rewired from the phantom AdminUser table
+  (/api/admin/users, unreachable super_admin gate) to the real User table.
+- /admin/settings (Runtime Settings) existed with no nav link; Sidebar now
+  links it (admin band).
+
+**Privilege inversions (H1-class) fixed via shared hierarchy
+(`core/security/rbac.py: role_level/user_meets_role`):** the 5
+_require_supervisor copies + agent-governance approve excluded admin/owner;
+trust-calibration + ontology-draft gates excluded admin/owner; feedback trust
+(admin/owner ratings adjudicated untrusted) in 3 sites; template featuring;
+recording-review cross-user read missing owner.
+
+**Ungated surfaces closed:** PATCH/DELETE /api/enterprise/users/{id} (any
+member could grant super_admin — router now workspace_admin+ with escalation
+cap: can't grant/modify above own level); reject_workflow (was any-user);
+messaging dispatcher proposals + interventions (was any-user, and
+`InterventionService(db)` construction TypeError'd on every real call — mock
+hid it); communication_service "APPROVE <id>" chat resolution; supervision
+live reads (sessions/active + execution stream); operational intervention
+execute (was router-auth only); supervised-queue process/cancel/mark-expired.
+Dead is_admin gates (User has no such column → denied EVERYONE incl.
+super_admin, forever): mini-app approve, integration schema registration,
+analytics cross-user patterns — all on the real hierarchy now.
+
+**HITL required_role is no longer write-only:** InterventionService
+approve/reject enforce context_snapshot.required_role (case-insensitive,
+fail-closed on unknown roles; approver must be a verified ACTIVE user);
+reject gained a PENDING guard; modified_params persist.
+
+**Bootstrap:** ADMIN_PASSWORD reset no longer downgrades admin@example.com's
+promoted role on every boot.
+
+**Frontend:** `lib/user-role.ts` (hierarchy mirror + useUserRole hook, fresh
+via /api/auth/me, cached in localStorage; fail-open on unknown role — backend
+enforces); Sidebar role filtering (members stop seeing guaranteed-403 admin
+links) + Admin Settings link; Approvals page shows a supervisor banner and
+read-only actions for members instead of post-click 403 prose.
+
+**Tests:** backend `tests/test_role_journey_rbac_gaps.py` +
+`tests/test_hitl_approvals_journey.py` (66); re-contracted stale suites
+(w39/w53/w69a/w71/w71-integration/w84/w86c/miniapp/round39/supervision-stream)
+— stash-compared, every other failure verified pre-existing on clean main.
+Frontend: `lib/__tests__/user-role.test.ts` +
+`components/layout/__tests__/Sidebar.gating.test.tsx` (11); full jest: only
+the 10 known pre-existing integration failures (9 verified identical on
+stashed tree; test_helpers flakes under worker contention, passes isolated).
+Live-verified on the restarted backend (pid from scripts/restart_backend.sh):
+alias approvals 200, enterprise users/roles/provision 200/201 as
+workspace_admin, member 403s on role grant + HITL decide.
+
+BEHAVIOR CHANGES for other callers: service approve_intervention gained an
+optional modified_params kwarg + approver verification (unknown approver now
+DENIED); messaging dispatcher consumers must mock the `intervention_service`
+singleton, not the InterventionService class; supervisor-gated routes now
+also admit admin/owner (intended); enterprise user endpoints require
+workspace_admin+ and cap grants at actor level.
+
+## 2026-09-08 late (cont.) — ZCode: role-journey pass, batch 2 (operator band + orphaned surfaces)
+
+Follow-up pass on the same trace, closing the remaining findings:
+
+- **Operator admin band**: daemon control (`api/agent_control_routes.py` —
+  start/stop/restart/execute/status/fleet), admin cache/skill/budget/
+  system-health subroutes, and workspace-context admin routes were gated by
+  exact-super_admin (`core/admin_endpoints.get_super_admin`) — but no local
+  flow can produce a super_admin (registration pins member, bootstrap pins
+  workspace_admin, grants cap at actor level), so the operator could never
+  even stop their own daemon. New `get_platform_admin` (WORKSPACE_ADMIN+
+  via the shared hierarchy, same band as runtime settings/org politics/
+  ontology drafts/trust calibration) replaces it on those six routers.
+  `get_super_admin` itself is untouched for any true-super_admin surface.
+- **Forensics mount bug**: `include_router(forensics_router,
+  prefix="/api/v1/forensics")` double-prefixed the router's own
+  /api/forensics prefix — live path was the absurd
+  /api/v1/forensics/api/forensics/* while the Forensics dashboard calls
+  /api/forensics/* (404 forever). Second un-prefixed include added (legacy
+  mount kept). `/dashboard/risk` stays unlinked: its backend router was
+  deliberately left unmounted in round 80f — respected.
+- **GlobalChatWidget contract**: the alias decision response now carries
+  `success: true` — the widget threw "Failed to submit decision" on every
+  SUCCESSFUL approval because it checked data.success.
+- **AgentConsole Stop wired**: the Stop button only flipped local state
+  (daemon kept running; even super_admin had no working stop). Now calls
+  POST /api/agent/stop with 403-aware fallback messaging.
+- MaturityApprovalPanel (mounted on /agents Approvals tab) is read-only for
+  known non-supervisors (banner + hidden decision buttons; fail-open on
+  unknown role). GuidedAgentCreator's "approvals panel" pointer is now a
+  real link to /approvals. next-auth Session/JWT types declare `role`/
+  `permissions` (were set by lib/auth.ts but undeclarable).
+- Sidebar: Audit Trail (team_lead+), Skill Builder, Owner Cockpit,
+  Forensics (admin band) — orphaned pages now reachable. Owner Cockpit's
+  "endpoint never existed" comment is stale: /api/business-health/priorities
+  is live (verified 200).
+- `api/enterprise_auth_endpoints.require_role` renamed to
+  `require_enterprise_role` — two same-named gates (flat JWT-list vs
+  hierarchical UserRole) was a wrong-import foot-gun; it had zero external
+  consumers.
+
+Tests: +10 backend (TestPlatformAdminBand in test_role_journey_rbac_gaps.py;
+alias success assertion in test_hitl_approvals_journey.py) — 252 passed
+across affected suites; w76b fixture re-contracted (it overrides the gate
+dependency by object identity — now get_platform_admin); stash-compared,
+remaining failures identical on clean main (incl. the 21 pre-existing
+test_cli_agent_execution failures). Frontend: AgentConsole suite re-
+contracted + 403-fallback test added, MaturityApprovalPanel gating tests
+(3), full jest green except the 10 known pre-existing integration
+component suites. Live-verified after restart: workspace_admin daemon-stop
+passes the gate (400 not-running), cache stats 200, forensics root path
+200; member 403 on daemon stop.
+
+## 2026-09-09 — ZCode: workflows are now role dependent (the deferred RBAC gap closed)
+
+The e2e permission-matrix tripwire flagged workflow:view/run/manage as
+"granted but never enforced". Reality was worse: the MAIN router
+(core/workflow_endpoints.py) WAS fully gated (the tripwire greps api/ only —
+core/ enforcement was invisible to it), but every satellite workflow surface
+wasn't:
+
+- core/workflow_ui_endpoints.py (Workflow Builder, /api/v1/workflow-ui):
+  POST/PUT/DELETE /workflows and template import were ANONYMOUS — anyone
+  unauthenticated could create/edit/delete workflows.
+- core/workflow_marketplace.py (/api/marketplace/*): fully anonymous AND
+  never mounted (lazy-loader key mismatch: URL segment "marketplace" ≠
+  registry key "workflow_marketplace" — 404 forever; same class as the
+  enterprise user-mgmt bug). Now mounted eagerly with gates.
+- api/workflow_template_routes.py, api/mobile_workflows.py,
+  api/workflow_versioning_endpoints.py, api/workflow_debugging.py:
+  auth-only — any signed-in role (incl. guest/viewer) could
+  create/update/import/instantiate/execute/cancel/debug.
+
+Enforcement: `require_permission(Permission.WORKFLOW_VIEW/RUN/MANAGE)`
+added per-route (decorator-level deps; existing get_current_user params
+kept — the permission dep shares the cached auth resolution). Contract from
+core/rbac_service.py: view = guest+, run = member+, manage = team_lead+.
+Debug breakpoints = manage (persist to the definition); debug
+sessions/pause/resume/step/traces = run. Marketplace export = view.
+
+Test lock: backend/tests/test_workflow_rbac_matrix.py — offline 8-role ×
+45-endpoint matrix (361 cases) over all six routers, mirroring the e2e
+journey's methodology. e2e tripwire updated per its own instruction:
+WORKFLOW_* removed from UNENFORCED_PERMISSIONS + 3 live matrix cases added
+(USER_VIEW/USER_MANAGE remain documented gaps).
+
+BEHAVIOR CHANGES other callers must know: guest/viewer can no longer run or
+cancel workflows or trigger mobile executions; members can no longer
+create/update/delete workflows, templates, versions, or breakpoints
+(team_lead+ for manage). Reads stay open (view = everyone authenticated...
+plus the two formerly-anonymous surfaces now require auth). Five test
+suites re-contracted (w100_gaps_d, w10d, w10d_b, w92, template_routes_
+coverage) — their fixture users now carry workspace_admin. Stash-compared:
+all remaining failures identical on clean main (12 + 2 + 21 pre-existing
+in the touched suites). Live-verified post-restart: anon → 401/403,
+member view 200 / manage 403 / run 422-permission-passed, admin manage
+422-permission-passed, marketplace reachable (200/401/403/422 as expected).
+
+## 2026-09-09 (c) — ZCode: role-journey batch 4 — GoalRun surface, WS eavesdrop, notify fan-out, USER_VIEW/USER_MANAGE
+
+Re-traced every role's journey against the current tree (after GoalRun
+orchestration, HITL owner-notify, and LLM-spend consolidation landed on top
+of batches 1–3). Fixed:
+
+- **WS eavesdrop (P0)**: `api/websocket_routes.py` accepted ANY subscribe
+  channel — any authenticated client could join `user:{other-id}` and watch
+  their live canvas traffic (charts, office snapshots, attachment strips).
+  New `channel_allowed_for_user`: `user:{id}*` channels are owner-only
+  (denials send an error frame); shared channels (workspace/team/agent/
+  projects) unchanged. Verified live over a real socket.
+- **HITL training-proposal notify was severed**: it notified ONLY the agent
+  owner — usually a member who cannot act (buttons disabled on /approvals)
+  — while the supervisors who can act never heard anything. Owner copy is
+  now role-aware ("a supervisor must approve"), and
+  `notification_service.workspace_supervisor_ids` fans out to ACTIVE
+  team_lead+ users in the agent's workspace (capped 25, owner excluded).
+- **Goal Runs UI gaps**: pages were Sidebar-orphans (reachable only via
+  canvas badges + notification bell); every coaching action rendered for
+  any signed-in user (post-click 403). Sidebar gains "Goal Runs" (reads
+  are any-signed-in, mirroring playbook_routes); the detail page gates
+  actions/banner on the role (fail-open unknown), and now surfaces the
+  supervision-mode switcher + promotion evidence (both were dead exports).
+- **Tenant/telemetry leaks**: `/api/maturity/training/self-directed` never
+  passed tenant scoping (cross-tenant STUDENT queue); `/api/chat/
+  routing-stats` served installation-wide model telemetry to any member —
+  now workspace_admin+ (settings links gated to match).
+- **user_activity routes**: heartbeat/override/sessions for ARBITRARY
+  user_ids were auth-only — presence forgery, cross-user session TOKEN
+  reads, and session-killing. Now owner-scoped (sessions list owner-only;
+  terminate allows owner or team_lead+). w76c suite re-contracted.
+- **USER_VIEW/USER_MANAGE enforced** (tripwire's last granted-but-
+  unenforced pair): available-supervisors = USER_VIEW (viewer+);
+  enterprise user mutations = USER_MANAGE (workspace_admin+/owner — a
+  plain domain `admin` is now denied per the permission contract; zero
+  live users have role=admin). Tripwire: UNENFORCED_PERMISSIONS now empty,
+  live matrix cases added for both.
+
+**Deferred (flagged, not fixed)**: office files (`api/office_routes.py`)
+have no per-user ownership inside ATOM_OFFICE_DIR — any signed-in user can
+read/write/recalc any workbook. Fixing requires namespacing file paths at
+creation + migrating existing canvas payload references; single-tenant is
+the deployment model so this is SaaS-parity work, tracked here for the
+next pass.
+
+**BEHAVIOR CHANGES**: WS subscribe to another user's personal channels now
+denied; member/notification fan-out adds supervisor rows; routing-stats
+403 for member/team_lead; activity heartbeat/override/sessions/terminate
+403 cross-user; enterprise user create/update/delete 403 for plain
+`admin`; self-directed queue tenant-filtered (legacy NULL-tenant rows
+still included by design).
+
+**Tests**: backend test_role_journey_batch4_gaps.py (53), governance +4
+fan-out, w76c re-contracted; affected suites green except stash-verified
+pre-existing failures (22 governance, 11 covpush). Frontend detail.test
+(4) + Sidebar gating; tsc clean. Live-verified on restarted backend — see
+docs/testing/TESTED_FILES_TRACKER.md for the full evidence list.
+
+
 ## 2026-09-09 — ZCode (Rish): live email-agent training run — 3 real fixes
 
 Ran the STUDENT email_agent headless against the live Forrester task (Outlook
@@ -562,3 +793,4 @@ reply previously fired an empty send on `/reply`, got no draft id, fell
 back to the legacy path, and sent TWICE. Styling tests re-pinned to the
 createReply flow + one-shot fallback. Send path now safe for the live
 training loop.
+

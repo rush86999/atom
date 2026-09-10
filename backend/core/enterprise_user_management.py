@@ -23,13 +23,71 @@ import logging
 from core.auth import get_password_hash, get_current_user
 from core.database import get_db
 from core.models import Team, User, UserRole, UserStatus, Workspace, WorkspaceStatus
+from core.rbac_service import Permission
+from core.security.rbac import role_level, user_meets_role
+from core.security_dependencies import require_permission
 
 # SECURITY: every endpoint in this router manages users/workspaces/teams —
 # create, update, delete, role changes. ALL require admin auth. Previously
 # the entire router had zero auth dependencies, so any anonymous caller could
 # PATCH /api/enterprise/users/{id} {"role":"super_admin"} for full takeover.
-router = APIRouter(dependencies=[Depends(get_current_user)])
+# 2026-09-08 role-journey pass: `get_current_user` alone still let ANY
+# authenticated member drive the whole surface (self-serve super_admin).
+# This is the workspace-administration plane — WORKSPACE_ADMIN+ (hierarchy
+# via core.security.rbac, so admin/owner/super_admin all pass).
+async def require_workspace_admin(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    """Router-wide gate: the re-queried user must hold WORKSPACE_ADMIN or higher."""
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user or not user_meets_role(user, UserRole.WORKSPACE_ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Required role: workspace_admin or higher",
+        )
+    return user
+
+
+router = APIRouter(
+    dependencies=[Depends(get_current_user), Depends(require_workspace_admin)]
+)
 logger = logging.getLogger(__name__)
+
+
+def _ensure_can_manage(db: Session, actor_id: str, target: User) -> None:
+    """An admin may not act on a user ranked above them (a workspace_admin
+    cannot disable/promote an owner)."""
+    actor = db.query(User).filter(User.id == actor_id).first()
+    if actor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if role_level(target.role) > role_level(actor.role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot manage a user with a higher role than your own",
+        )
+
+
+def _ensure_grantable_role(actor_id: str, new_role: str, db: Session) -> str:
+    """Validate a role assignment target: must be a UserRole value and may
+    not exceed the actor's own level (no self-serve escalation)."""
+    normalized = (new_role or "").strip().lower()
+    try:
+        target_role = UserRole(normalized)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid role. Must be one of: {', '.join(r.value for r in UserRole)}",
+        )
+    actor = db.query(User).filter(User.id == actor_id).first()
+    if actor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if role_level(target_role) > role_level(actor.role):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot grant a role higher than your own",
+        )
+    return target_role.value
 
 # ==================== Pydantic Models ====================
 
@@ -56,10 +114,22 @@ class TeamUpdate(BaseModel):
 class UserCreate(BaseModel):
     email: str  # Using str instead of EmailStr to avoid email-validator dependency
     password: str
-    first_name: str
-    last_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    full_name: Optional[str] = None  # admin UI convenience — split into first/last
     role: str = UserRole.MEMBER.value
     workspace_id: Optional[str] = None
+
+    def names(self) -> tuple:
+        """(first_name, last_name) from explicit fields or full_name."""
+        if self.first_name or self.last_name:
+            return self.first_name or "", self.last_name or ""
+        parts = (self.full_name or "").strip().split()
+        if not parts:
+            return "", ""
+        if len(parts) == 1:
+            return parts[0], ""
+        return parts[0], " ".join(parts[1:])
 
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -418,6 +488,65 @@ async def remove_team_member(
 
 # ==================== User Endpoints ====================
 
+@router.get("/api/enterprise/roles")
+async def list_roles():
+    """Role catalog for the admin user-management UI (dropdowns, caps)."""
+    return [
+        {"name": r.value, "level": role_level(r)}
+        for r in sorted(UserRole, key=role_level)
+    ]
+
+
+@router.post(
+    "/api/enterprise/users",
+    status_code=201,
+    # user:manage per the permission matrix (workspace_admin+/owner; a
+    # plain domain admin deliberately does not provision accounts). This
+    # is the enforcement the journey tripwire flagged as granted-but-never-
+    # checked; the router-level workspace_admin+ gate stays as defense in
+    # depth.
+    dependencies=[Depends(require_permission(Permission.USER_MANAGE))],
+)
+async def create_user(
+    data: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Provision a user account (admin UI 'Add employee'). The granted role
+    may not exceed the creating admin's own level."""
+    existing = db.query(User).filter(User.email == data.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user with this email already exists",
+        )
+
+    role_value = _ensure_grantable_role(current_user.id, data.role, db)
+    first_name, last_name = data.names()
+    if not first_name:
+        first_name = data.email.split("@")[0]
+
+    import uuid as _uuid
+
+    user = User(
+        id=str(_uuid.uuid4()),
+        email=data.email,
+        hashed_password=get_password_hash(data.password),
+        first_name=first_name,
+        last_name=last_name,
+        role=role_value,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
+        workspace_id=data.workspace_id,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    logger.info(f"Created user {user.email} with role {role_value}")
+    return {"user_id": user.id, "email": user.email, "role": user.role}
+
+
 @router.get("/api/enterprise/users")
 async def list_users(
     workspace_id: Optional[str] = None,
@@ -475,35 +604,34 @@ async def get_user(
     }
 
 
-@router.patch("/api/enterprise/users/{user_id}")
+@router.patch(
+    "/api/enterprise/users/{user_id}",
+    dependencies=[Depends(require_permission(Permission.USER_MANAGE))],
+)
 async def update_user(
     user_id: str,
     data: UserUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    """Update user"""
+    """Update user. Role/status changes are capped: an admin may not modify
+    a higher-ranked user nor grant a role above their own level."""
     user = db.query(User).filter(User.id == user_id).first()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
+    _ensure_can_manage(db, current_user.id, user)
+
     if data.first_name is not None:
         user.first_name = data.first_name
     if data.last_name is not None:
         user.last_name = data.last_name
     if data.role is not None:
-        # Allowlist: only valid roles can be set (prevents injecting arbitrary
-        # role strings even by an authenticated admin).
-        allowed_roles = {"member", "admin", "super_admin"}
-        if data.role not in allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid role. Must be one of: {', '.join(allowed_roles)}"
-            )
-        user.role = data.role
+        user.role = _ensure_grantable_role(current_user.id, data.role, db)
     if data.status is not None:
         user.status = data.status
     
@@ -514,20 +642,26 @@ async def update_user(
     return {"message": "User updated successfully"}
 
 
-@router.delete("/api/enterprise/users/{user_id}")
+@router.delete(
+    "/api/enterprise/users/{user_id}",
+    dependencies=[Depends(require_permission(Permission.USER_MANAGE))],
+)
 async def deactivate_user(
     user_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    """Deactivate user (soft delete)"""
+    """Deactivate user (soft delete). May not target a higher-ranked user."""
     user = db.query(User).filter(User.id == user_id).first()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
+    _ensure_can_manage(db, current_user.id, user)
+
     user.status = UserStatus.DELETED.value
     db.commit()
     

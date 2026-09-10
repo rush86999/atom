@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import ChatMarkdown from "@/components/canvas/ChatMarkdown";
 import { AGENT_CHAT } from "@/src/lib/testIds";
 import {
     User,
@@ -175,7 +176,7 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, 
                     )}
                     data-testid={isUser ? undefined : AGENT_CHAT.RESPONSE}
                 >
-                    <CardContent className="p-3 text-sm whitespace-pre-wrap">
+                    <CardContent className={cn("p-3 text-sm", isUser && "whitespace-pre-wrap")}>
                         {message.images && message.images.length > 0 && (
                             <div className="flex gap-2 flex-wrap mb-2">
                                 {message.images.map((img, i) => (
@@ -189,7 +190,10 @@ export function ChatMessage({ message, onActionClick, onFeedback, onRegenerate, 
                                 ))}
                             </div>
                         )}
-                        {message.content}
+                        {/* Assistant/system replies are markdown (headings, lists,
+                            GFM tables) rendered through the shared sanitized
+                            pipeline; user bubbles stay plain pre-wrapped text. */}
+                        {isUser ? message.content : <ChatMarkdown content={message.content} />}
 
                         {message.workflowData && (
                             <div className={cn(

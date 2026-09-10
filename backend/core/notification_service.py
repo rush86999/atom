@@ -29,6 +29,37 @@ from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID
 logger = logging.getLogger(__name__)
 
 
+def workspace_supervisor_ids(
+    db: Session,
+    workspace_id: Optional[str] = None,
+    exclude_user_id: Optional[str] = None,
+    limit: int = 25,
+) -> list[str]:
+    """ACTIVE users who can decide supervisor-gated actions (TEAM_LEAD+).
+
+    For notification fan-out when the person an event would naturally
+    notify (e.g. an agent's owner) is below the gate that decides it.
+    Scoped to the workspace when given; capped to keep large user tables
+    from turning one proposal into a mailing list.
+    """
+    from core.models import User, UserStatus
+    from core.security.rbac import _ROLE_LEVELS, UserRole
+
+    supervisor_roles = [
+        role.value for role, level in _ROLE_LEVELS.items()
+        if level >= _ROLE_LEVELS[UserRole.TEAM_LEAD]
+    ]
+    q = db.query(User).filter(
+        User.role.in_(supervisor_roles),
+        User.status == UserStatus.ACTIVE.value,
+    )
+    if workspace_id:
+        q = q.filter(User.workspace_id == workspace_id)
+    if exclude_user_id:
+        q = q.filter(User.id != exclude_user_id)
+    return [str(u.id) for u in q.limit(limit).all()]
+
+
 # Notification types that warrant an email in addition to the in-app row.
 # Kept conservative on purpose — only things a user would actually want mailed.
 HIGH_PRIORITY_TYPES = {

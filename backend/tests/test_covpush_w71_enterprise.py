@@ -312,8 +312,9 @@ class TestUserEndpoints:
 
     async def test_update_user_all_fields(self, db, user):
         db.query.return_value.filter.return_value.first.return_value = user
+        user.role = UserRole.SUPER_ADMIN.value  # grant cap: actor must outrank "admin"
         result = await update_user("user-1", UserUpdate(
-            first_name="X", last_name="Y", role="admin", status="suspended"), db)
+            first_name="X", last_name="Y", role="admin", status="suspended"), db, current_user=user)
         assert user.first_name == "X"
         assert user.last_name == "Y"
         assert user.role == "admin"
@@ -323,7 +324,7 @@ class TestUserEndpoints:
     async def test_update_user_invalid_role_400(self, db, user):
         db.query.return_value.filter.return_value.first.return_value = user
         with pytest.raises(HTTPException) as e:
-            await update_user("user-1", UserUpdate(role="root"), db)
+            await update_user("user-1", UserUpdate(role="root"), db, current_user=user)
         assert e.value.status_code == 400
         assert "Invalid role" in e.value.detail
 
@@ -335,7 +336,7 @@ class TestUserEndpoints:
 
     async def test_deactivate_user(self, db, user):
         db.query.return_value.filter.return_value.first.return_value = user
-        result = await deactivate_user("user-1", db)
+        result = await deactivate_user("user-1", db, current_user=user)
         assert user.status == UserStatus.DELETED.value
         assert result["message"] == "User deactivated successfully"
 

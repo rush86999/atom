@@ -184,6 +184,61 @@ describe('ChatMessage actions', () => {
   });
 });
 
+describe('ChatMessage markdown rendering', () => {
+  it('renders assistant markdown as HTML (headings, lists, GFM tables)', () => {
+    const { container } = render(
+      <ChatMessage
+        message={baseMsg({
+          content: '# Title\n\n| Name | Qty |\n| --- | --- |\n| Widget | 3 |\n\n- item one',
+        })}
+        onActionClick={jest.fn()}
+      />
+    );
+
+    expect(container.querySelector('h1')?.textContent).toBe('Title');
+    expect(container.querySelector('table')).toBeInTheDocument();
+    expect(container.querySelector('td')?.textContent).toBe('Widget');
+    expect(container.querySelector('li')?.textContent).toBe('item one');
+  });
+
+  it('strips scripts from assistant markdown (sanitized pipeline)', () => {
+    const { container } = render(
+      <ChatMessage
+        message={baseMsg({ content: 'hello <script>alert(1)</script> world' })}
+        onActionClick={jest.fn()}
+      />
+    );
+
+    expect(container.querySelector('script')).toBeNull();
+    expect(screen.getByText(/hello.*world/)).toBeInTheDocument();
+  });
+
+  it('keeps user message content as plain text (no markdown parsing)', () => {
+    const { container } = render(
+      <ChatMessage
+        message={baseMsg({ type: 'user', content: '# not a heading\n| a | b |' })}
+        onActionClick={jest.fn()}
+      />
+    );
+
+    expect(container.querySelector('h1')).toBeNull();
+    expect(container.querySelector('table')).toBeNull();
+    expect(screen.getByText(/not a heading/)).toBeInTheDocument();
+  });
+
+  it('leaves error messages as plain pre-wrapped text', () => {
+    const { container } = render(
+      <ChatMessage
+        message={baseMsg({ type: 'error', content: '**boom** failed' })}
+        onActionClick={jest.fn()}
+      />
+    );
+
+    expect(container.querySelector('strong')).toBeNull();
+    expect(screen.getByText(/\*\*boom\*\* failed/)).toBeInTheDocument();
+  });
+});
+
 describe('ChatMessage reasoning trace', () => {
   it('renders the ReasoningChain with a collapsed step list', () => {
     render(

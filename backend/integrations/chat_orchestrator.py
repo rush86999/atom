@@ -216,6 +216,29 @@ class ChatIntent(Enum):
     AGENT_REQUEST = "agent_request"  # Phase 30: Request that needs Atom Meta-Agent
 
 
+# Tool-plan routing consolidation: ChatIntent + NLU command_type per
+# suggested_intent label the tool planner may emit (ToolPlan.suggested_intent).
+# Labels without a CommandType equivalent carry command_type "search" — the
+# same value _fallback_intent_analysis has always used for every intent, so
+# handlers already tolerate it.
+_TOOL_PLAN_INTENT_MAP: Dict[str, Any] = {
+    "search_request": (ChatIntent.SEARCH_REQUEST, "search"),
+    "message_send": (ChatIntent.MESSAGE_SEND, "notify"),
+    "task_management": (ChatIntent.TASK_MANAGEMENT, "create"),
+    "workflow_creation": (ChatIntent.WORKFLOW_CREATION, "workflow_creation"),
+    "scheduling": (ChatIntent.SCHEDULING, "schedule"),
+    "data_analysis": (ChatIntent.DATA_ANALYSIS, "analyze"),
+    "automation_trigger": (ChatIntent.AUTOMATION_TRIGGER, "trigger"),
+    "integration_setup": (ChatIntent.INTEGRATION_SETUP, "search"),
+    "status_check": (ChatIntent.STATUS_CHECK, "search"),
+    "help_request": (ChatIntent.HELP_REQUEST, "search"),
+    "multi_step_process": (ChatIntent.MULTI_STEP_PROCESS, "search"),
+    "business_health": (ChatIntent.BUSINESS_HEALTH, "business_health"),
+    "crm": (ChatIntent.CRM, "search"),
+    "agent_request": (ChatIntent.AGENT_REQUEST, "search"),
+}
+
+
 
 
 _CONVERSATION_REF_RE = re.compile(
@@ -899,8 +922,23 @@ class ChatOrchestrator:
                         "session_id": session_id,
                     }
 
-            # 2. Analyze intent using AI NLP (for routing)
-            intent_analysis = await self._analyze_intent(message, session)
+            # 2. Analyze intent using AI NLP (for routing). Consolidation
+            # (2026-09-09): the tool planner already classified this turn
+            # in its own structured output — when that plan has finished
+            # (it is awaited inside the reply path, so it nearly always
+            # has) and its routing fields are usable, skip the separate
+            # NLU LLM completion entirely. Awaiting a done task returns
+            # instantly; a task that was cancelled (planner timeout) or
+            # raised just sends us down the NLU path unchanged.
+            intent_analysis = None
+            if _tool_plan_task is not None and _tool_plan_task.done():
+                try:
+                    intent_analysis = self._intent_from_tool_plan(
+                        _tool_plan_task.result())
+                except (asyncio.CancelledError, Exception):
+                    intent_analysis = None
+            if intent_analysis is None:
+                intent_analysis = await self._analyze_intent(message, session)
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
@@ -2117,19 +2155,49 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                             _content = _rc
                 if not _content:
                     return None
-                # VERIFICATION PANEL — mission-critical / high-complexity turns only
-                # (PoLL pattern: diverse-provider judge VOTE via the R83 voter).
+                # VERIFICATION PANEL — mission-critical / high-complexity turns
+                # only (PoLL pattern: diverse-provider judge VOTE via the R83
+                # voter). The scope rule below IS the module's documented
+                # contract (core/verify_panel.py: "runs ONLY on mission-
+                # critical or COMPLEX/ADVANCED turns ... must never sit on
+                # ordinary chat latency") — the code just never implemented
+                # it: every tool turn paid 3 judge samples + a USC judge
+                # (~4 completions, ~5.5s) even in shadow mode where the
+                # verdict cannot change the reply. enforce mode stays scoped
+                # to high-stakes turns too, per that same contract.
                 _vpm = get_verify_panel_mode()
+                _vp_run = False
+                if _vpm != "off" and _tool_block and _content:
+                    try:
+                        from core.verify_panel import is_high_stakes_turn
+                        _vp_cx = self.llm_service.handler.analyze_query_complexity(
+                            " ".join(
+                                str(m.get("content") or "") for m in messages[-6:]
+                            )
+                        )
+                        _vp_high_stakes = is_high_stakes_turn(
+                            getattr(_vp_cx, "value", _vp_cx), mission_critical
+                        )
+                    except Exception as _vp_cx_err:
+                        logger.debug(f"verify-panel complexity probe failed: {_vp_cx_err}")
+                        _vp_high_stakes = bool(mission_critical)
+                    if _vp_high_stakes:
+                        _vp_run = True
+                    else:
+                        logger.info(
+                            f"[verify-panel] skipped: mode={_vpm} "
+                            f"high_stakes=False mission={mission_critical}")
                 logger.info(
                     f"[verify-panel] state: mode={_vpm} tool_block={bool(_tool_block)} "
                     f"content={bool(_content)} mission={mission_critical}")
-                if _vpm != "off" and _tool_block and _content:
+                if _vp_run:
                     _vp_t0 = time.monotonic()
                     _verdict = await verify_reply(
                         _content, _tool_block,
                         handler=self.llm_service.handler,
                         tenant_id=self.tenant_id,
                         agent_id=agent_id,
+                        enforce=(_vpm == "enforce"),
                     )
                     if _verdict.get("ran"):
                         logger.info(
@@ -2166,6 +2234,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 handler=self.llm_service.handler,
                                 tenant_id=self.tenant_id,
                                 agent_id=agent_id,
+                                enforce=True,
                             )
                             if not _verdict2.get("ran") or not _verdict2.get("grounded"):
                                 _content += (
@@ -2846,6 +2915,20 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             result, apply_reason = applied
         else:
             result, apply_reason = applied, None
+        # GoalRun integration (docs/architecture/GOAL_RUN_ORCHESTRATION.md
+        # §3.3): a finished canvas edit is a step boundary — the owning run
+        # re-decides its next direction from the canvas state. Fire-and-
+        # forget: the chat reply NEVER waits on the run's router, and a run
+        # failure must not fail the turn. `no_change` ("already reflects
+        # the goal") is a done-signal like any other.
+        if canvas.get("canvas_id"):
+            try:
+                from core.goals.goal_run_events import notify_canvas_done
+
+                asyncio.get_running_loop().create_task(notify_canvas_done(
+                    str(canvas.get("canvas_id")), reason=apply_reason))
+            except Exception as gr_err:
+                logger.debug(f"goal-run advance hook skipped: {gr_err}")
         if result is None and apply_reason == "no_change":
             # The planned edit reproduced the current content byte-for-byte.
             # Writing it anyway (audit row + "updated!" reply) was the live
@@ -3327,6 +3410,42 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         except Exception as e:
             logger.warning(f"canvas action proposal creation failed: {e}")
             return None
+
+    def _intent_from_tool_plan(self, plan: Any) -> Optional[Dict[str, Any]]:
+        """Routing consolidation (2026-09-09): the tool planner's structured
+        output already classifies this turn (ToolPlan.suggested_intent /
+        routing_confidence) — when usable, the separate NLU LLM completion
+        (nlp_engine.parse_command) is skipped entirely. Returns None when
+        the fields are absent, low-confidence (<0.6), or unrecognized, and
+        the caller falls back to the NLU parse exactly as before. The
+        synthesized dict mirrors _fallback_intent_analysis (empty
+        entities/platforms) — the shape handlers already tolerate."""
+        if plan is None:
+            return None
+        label = str(getattr(plan, "suggested_intent", None) or "").strip().lower()
+        if not label:
+            return None
+        try:
+            conf = float(getattr(plan, "routing_confidence", None) or 0.0)
+        except (TypeError, ValueError):
+            conf = 0.0
+        if conf < 0.6:
+            return None
+        mapped = _TOOL_PLAN_INTENT_MAP.get(label)
+        if mapped is None:
+            return None
+        intent, command_type = mapped
+        logger.info(
+            f"[intent] using tool-plan routing fields: {label} (conf={conf:.2f})")
+        return {
+            "primary_intent": intent,
+            "confidence": conf,
+            "entities": [],
+            "platforms": [],
+            "command_type": command_type,
+            "raw_nlp": None,
+            "source": "tool_plan",
+        }
 
     async def _analyze_intent(self, message: str, session: Dict) -> Dict[str, Any]:
         """Analyze user intent using AI NLP engine"""

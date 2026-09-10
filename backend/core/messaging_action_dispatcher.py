@@ -5,8 +5,10 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db_session
 from core.proposal_service import ProposalService
-from core.intervention_service import InterventionService
+from core.intervention_service import intervention_service
 from core.agent_governance_service import AgentGovernanceService
+from core.models import User, UserRole
+from core.security.rbac import user_meets_role
 import threading
 
 logger = logging.getLogger(__name__)
@@ -96,7 +98,15 @@ class MessagingActionDispatcher:
     async def _handle_proposal(
         self, db: Session, tenant_id: str, user: Any, action_type: str, proposal_id: str, payload: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Unified handler for proposal actions."""
+        """Unified handler for proposal actions.
+
+        2026-09-08 role-journey pass: approving/rejecting a proposal is a
+        governance decision — it previously required only authentication, so
+        any messaging-linked member could fast-track agent proposals.
+        """
+        if not user_meets_role(user, UserRole.TEAM_LEAD):
+            return {"success": False, "error": "Supervisor role (team_lead or higher) required"}
+
         from core.models import AgentProposal
         proposal = db.query(AgentProposal).filter(
             AgentProposal.id == proposal_id,
@@ -117,8 +127,21 @@ class MessagingActionDispatcher:
         return {"success": True, "message": f"Proposal {'approved' if is_approval else 'rejected'}"}
 
     async def _handle_intervention(self, db: Session, tenant_id: str, user_id: str, intervention_id: str) -> Dict[str, Any]:
-        service = InterventionService(db)
-        success = await service.approve_intervention(intervention_id, user_id)
+        """Approve a HITL intervention from messaging.
+
+        2026-09-08 role-journey pass: (1) this constructed
+        ``InterventionService(db)`` — the class has no ``__init__``, so the
+        call raised TypeError on every real invocation (the unit suite's mock
+        hid it); use the shared singleton. (2) Approvals are supervisor-gated
+        here as on the HTTP surface; the per-action ``required_role`` is
+        enforced inside the service.
+        """
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user_meets_role(user, UserRole.TEAM_LEAD):
+            return {"success": False, "message": "Approval failed"}
+
+        result = await intervention_service.approve_intervention(intervention_id, user_id)
+        success = bool(result.get("success"))
         return {"success": success, "message": "Intervention approved" if success else "Approval failed"}
 
     async def _handle_feedback(

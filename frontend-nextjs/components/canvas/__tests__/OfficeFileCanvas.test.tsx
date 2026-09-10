@@ -20,7 +20,7 @@
  * - preview mode renders sanitized backend HTML
  */
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import { OfficeFileCanvas, OfficeFileContent } from "../OfficeFileCanvas";
@@ -28,11 +28,12 @@ import { OfficeFileCanvas, OfficeFileContent } from "../OfficeFileCanvas";
 // The component talks through the shared axios client (absolute backend
 // baseURL). Mock it directly so tests capture the exact sync payloads.
 jest.mock("@/lib/api", () => ({
-  apiClient: { post: jest.fn().mockResolvedValue({ data: {} }) },
+  apiClient: { post: jest.fn().mockResolvedValue({ data: {} }), get: jest.fn() },
 }));
 
 import { apiClient } from "@/lib/api";
 const postMock = apiClient.post as jest.Mock;
+const getMock = apiClient.get as jest.Mock;
 
 const XLSX_SNAPSHOT: OfficeFileContent = {
   format: "xlsx",
@@ -47,6 +48,7 @@ describe("OfficeFileCanvas", () => {
   beforeEach(() => {
     postMock.mockReset();
     postMock.mockResolvedValue({ data: {} });
+    getMock.mockReset();
   });
 
   const xlsxData = (over: Partial<OfficeFileContent> = {}): OfficeFileContent => ({
@@ -103,6 +105,113 @@ describe("OfficeFileCanvas", () => {
     expect(screen.getByText("Synced to file")).toBeInTheDocument();
   });
 
+  describe("formulas", () => {
+    const formulaData = () =>
+      xlsxData({
+        sheets: [{ name: "Sheet1", rows: [["Item", "Qty"], ["a", 1], ["b", 2], ["total", 3]] }],
+        formulas: { Sheet1: { B4: "=SUM(B2:B3)" } },
+      });
+
+    it("shows the selected cell's formula in the formula bar", () => {
+      render(<OfficeFileCanvas data={formulaData()} />);
+      const bar = screen.getByLabelText("Formula bar");
+      const gridCell = (text: string) =>
+        within(screen.getByRole("table")).getByDisplayValue(text);
+
+      // Formula cell: bar shows the '=...' source, not the computed value.
+      fireEvent.focus(gridCell("3"));
+      expect(bar).toHaveDisplayValue("=SUM(B2:B3)");
+
+      // Plain cell: bar falls back to the cell value.
+      fireEvent.focus(gridCell("a"));
+      expect(bar).toHaveDisplayValue("a");
+    });
+
+    it("shows the formula in the cell on focus and restores the value on blur", () => {
+      render(<OfficeFileCanvas data={formulaData()} />);
+
+      const cell = screen.getByDisplayValue("3");
+      fireEvent.focus(cell);
+      expect(cell).toHaveDisplayValue("=SUM(B2:B3)");
+
+      fireEvent.blur(cell);
+      expect(cell).toHaveDisplayValue("3");
+      // A formula shown on focus + untouched blur is NOT a user edit.
+      expect(postMock).not.toHaveBeenCalled();
+    });
+
+    it("commits when the user edits the formula text", async () => {
+      render(<OfficeFileCanvas data={formulaData()} />);
+
+      const cell = screen.getByDisplayValue("3");
+      fireEvent.focus(cell);
+      expect(cell).toHaveDisplayValue("=SUM(B2:B3)");
+      fireEvent.change(cell, { target: { value: "=SUM(B2:B3)*2" } });
+      fireEvent.blur(cell);
+
+      await waitFor(() => expect(postMock).toHaveBeenCalledTimes(1));
+      expect(lastBody().data).toMatchObject({
+        cell_path: "/Sheet1/B4",
+        value: "=SUM(B2:B3)*2",
+        is_formula: true,
+      });
+    });
+
+    it("flags a new '=' entry as a formula even when the cell shows a computed value", async () => {
+      render(<OfficeFileCanvas data={formulaData()} />);
+
+      const total = screen.getByDisplayValue("3");
+      fireEvent.change(total, { target: { value: "=B2+B3" } });
+      fireEvent.blur(total);
+
+      await waitFor(() => expect(postMock).toHaveBeenCalledTimes(1));
+      expect(lastBody().data.is_formula).toBe(true);
+    });
+  });
+
+  describe("hydration (REST reload with no structured snapshot)", () => {
+    it("fetches every sheet plus the formulas map for the formula bar", async () => {
+      getMock.mockImplementation((_url: string, params: { params: { cell_path: string } }) => {
+        if (params.params.cell_path === "A1:Z500") {
+          return Promise.resolve({
+            data: {
+              success: true,
+              sheet_name: "Sheet1",
+              sheet_names: ["Sheet1", "Summary"],
+              cells: [[{ cell_ref: "A1", value: "Widget", cell_type: "text" }]],
+            },
+          });
+        }
+        if (params.params.cell_path === "/Summary/A1:Z500") {
+          return Promise.resolve({
+            data: {
+              success: true,
+              sheet_name: "Summary",
+              cells: [[{ cell_ref: "A1", value: 42, cell_type: "text" }]],
+              formulas: { A1: "=SUM(Sheet1!A1)" },
+            },
+          });
+        }
+        return Promise.resolve({ data: { success: true, sheet_name: "?", cells: [] } });
+      });
+
+      render(<OfficeFileCanvas data={{ format: "xlsx", file_path: "/data/office/book.xlsx" }} />);
+
+      // Active sheet hydrated from the response…
+      expect(await screen.findByDisplayValue("Widget")).toBeInTheDocument();
+      // …the second sheet's rows are hydrated too (tabs functional)…
+      fireEvent.click(screen.getByRole("button", { name: "Summary" }));
+      const summaryCell = await within(screen.getByRole("table")).findByDisplayValue("42");
+      // …and the formula bar shows the hydrated formula on selection.
+      fireEvent.focus(summaryCell);
+      expect(screen.getByLabelText("Formula bar")).toHaveDisplayValue("=SUM(Sheet1!A1)");
+
+      expect(getMock).toHaveBeenCalledWith("/api/v1/office/excel", {
+        params: { file_path: "/data/office/book.xlsx", cell_path: "A1:Z500" },
+      });
+    });
+  });
+
   it("switches sheets via tabs", () => {
     render(
       <OfficeFileCanvas
@@ -145,28 +254,30 @@ describe("OfficeFileCanvas", () => {
     await waitFor(() => expect(screen.getByDisplayValue("90")).toBeInTheDocument());
   });
 
-  it("queues an agent snapshot while the user is mid-edit", () => {
-    const { rerender } = render(<OfficeFileCanvas data={xlsxData()} />);
+    it("queues an agent snapshot while the user is mid-edit", () => {
+      const { rerender } = render(<OfficeFileCanvas data={xlsxData()} />);
+      const gridCell = (text: string) =>
+        within(screen.getByRole("table")).getByDisplayValue(text);
 
-    // User focuses a cell (mid-edit), then an agent edit broadcast arrives.
-    fireEvent.focus(screen.getByDisplayValue("4"));
-    rerender(
-      <OfficeFileCanvas
-        data={xlsxData({
-          sheets: [{ name: "Sheet1", rows: [["Item", "Qty"], ["Widget", "AGENT"]] }],
-        })}
-      />
-    );
+      // User focuses a cell (mid-edit), then an agent edit broadcast arrives.
+      fireEvent.focus(gridCell("4"));
+      rerender(
+        <OfficeFileCanvas
+          data={xlsxData({
+            sheets: [{ name: "Sheet1", rows: [["Item", "Qty"], ["Widget", "AGENT"]] }],
+          })}
+        />
+      );
 
-    // User's view is NOT clobbered; a notice appears instead.
-    expect(screen.getByDisplayValue("4")).toBeInTheDocument();
-    const notice = screen.getByRole("button", { name: /agent updated this file/i });
-    expect(notice).toBeInTheDocument();
+      // User's view is NOT clobbered; a notice appears instead.
+      expect(gridCell("4")).toBeInTheDocument();
+      const notice = screen.getByRole("button", { name: /agent updated this file/i });
+      expect(notice).toBeInTheDocument();
 
-    // Clicking loads the agent's version once the user is ready.
-    fireEvent.click(notice);
-    expect(screen.getByDisplayValue("AGENT")).toBeInTheDocument();
-  });
+      // Clicking loads the agent's version once the user is ready.
+      fireEvent.click(notice);
+      expect(gridCell("AGENT")).toBeInTheDocument();
+    });
 
   describe("docx", () => {
     it("commits the document text as one edit", async () => {

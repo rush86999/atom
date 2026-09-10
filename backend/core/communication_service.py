@@ -371,7 +371,32 @@ class CommunicationService:
             
         action_type = parts[0].upper() # APPROVE or REJECT
         action_id = parts[1]
-        
+
+        # 2026-09-08 role-journey pass: "APPROVE <id>" from a chat message
+        # resolved ANY pending HITL action with no role check — the same
+        # bypass the dispatcher had. Decisions are supervisor-band, and the
+        # action's governance required_role (if any) is enforced too.
+        from core.database import get_db_session
+        from core.models import HITLAction as _HITLAction, UserRole as _UserRole
+        from core.security.rbac import user_meets_role
+        from core.intervention_service import intervention_service as _isvc
+
+        with get_db_session() as _db:
+            if not user_meets_role(user, _UserRole.TEAM_LEAD):
+                adapter = self.get_adapter(source)
+                await adapter.send_message(
+                    payload.get("channel_id"),
+                    "⚠️ Approvals require a supervisor role (team_lead or higher).",
+                )
+                return {"status": "error", "message": "Supervisor role (team_lead or higher) required"}
+            _action = _db.query(_HITLAction).filter(_HITLAction.id == action_id).first()
+            if _action:
+                _denial = _isvc._required_role_denial(_db, _action, user.id)
+                if _denial:
+                    adapter = self.get_adapter(source)
+                    await adapter.send_message(payload.get("channel_id"), f"⚠️ {_denial}")
+                    return {"status": "error", "message": _denial}
+
         # Route to HITL Service (Phase 4)
         from core.hitl_service import hitl_service
         try:

@@ -17,7 +17,7 @@ from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from core.admin_endpoints import get_super_admin
+from core.admin_endpoints import get_platform_admin  # was get_super_admin — see 2026-09-08b role-journey pass
 from core.models import User
 from pydantic import BaseModel
 
@@ -45,7 +45,7 @@ class CachePreseedRequest(BaseModel):
 
 
 @router.post("/preseed")
-async def preseed_cache(req: CachePreseedRequest, admin: User = Depends(get_super_admin)) -> Dict[str, Any]:
+async def preseed_cache(req: CachePreseedRequest, admin: User = Depends(get_platform_admin)) -> Dict[str, Any]:
     """Pre-seed BYOK caches. Returns per-cache results keyed by cache type."""
     if req.cache_type == "all":
         return await preseed_all_caches(workspace_id=req.workspace_id, verbose=False)
@@ -61,7 +61,7 @@ async def preseed_cache(req: CachePreseedRequest, admin: User = Depends(get_supe
 
 
 @router.get("/stats")
-async def cache_stats(admin: User = Depends(get_super_admin)) -> Dict[str, Any]:
+async def cache_stats(admin: User = Depends(get_platform_admin)) -> Dict[str, Any]:
     """Return current statistics for governance, pricing, and router caches."""
     governance_cache = get_governance_cache()
     pricing = get_pricing_fetcher()
@@ -79,7 +79,7 @@ async def cache_stats(admin: User = Depends(get_super_admin)) -> Dict[str, Any]:
 
 
 @router.get("/health")
-async def cache_health(admin: User = Depends(get_super_admin)) -> Dict[str, Any]:
+async def cache_health(admin: User = Depends(get_platform_admin)) -> Dict[str, Any]:
     """Return overall cache health status."""
     overall_status = "OK"
     details: Dict[str, Any] = {}

@@ -127,7 +127,8 @@ def _apply_positive_rating_signal(
         if not user:
             return
         specialty = getattr(user, "specialty", None)
-        trusted = user.role in [UserRole.WORKSPACE_ADMIN.value, UserRole.SUPER_ADMIN.value] or (
+        from core.security.rbac import user_meets_role as _meets
+        trusted = _meets(user, UserRole.WORKSPACE_ADMIN) or (
             bool(specialty)
             and bool(agent.category)
             and str(specialty).lower() == str(agent.category).lower()

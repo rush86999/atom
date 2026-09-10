@@ -160,6 +160,58 @@ class TestEndpointSelection:
         await fresh_monitor.refresh(["anthropic/a"], force=True)
         assert fresh_monitor.get_health("anthropic/a") is None
 
+    @pytest.mark.asyncio
+    async def test_no_data_answer_is_negatively_cached(self, fresh_monitor):
+        """A 200 with an empty endpoints array is a DEFINITIVE no-telemetry
+        answer and must mark the slug fresh. Regression: slugs without
+        endpoint data never entered _fetched_at, so every BPC ranking call
+        re-fetched all of them — observed live 2026-09-09 as 37 slugs × 10
+        fetches (370 HTTP calls) inside a single chat request, a large
+        contributor to that request blowing the frontend's 120s timeout."""
+        count = {"n": 0}
+
+        def handler(request):
+            count["n"] += 1
+            return httpx.Response(200, json=_endpoint_payload([]))
+
+        fresh_monitor._make_client = lambda: httpx.AsyncClient(
+            transport=httpx.MockTransport(handler))
+        await fresh_monitor.refresh(["anthropic/a"], force=True)
+        await fresh_monitor.refresh(["anthropic/a"])
+        assert count["n"] == 1
+        # Fail-open contract intact: no data ⇒ untouched candidate.
+        assert fresh_monitor.get_health("anthropic/a") is None
+
+    @pytest.mark.asyncio
+    async def test_404_is_negatively_cached(self, fresh_monitor):
+        count = {"n": 0}
+
+        def handler(request):
+            count["n"] += 1
+            return httpx.Response(404)
+
+        fresh_monitor._make_client = lambda: httpx.AsyncClient(
+            transport=httpx.MockTransport(handler))
+        await fresh_monitor.refresh(["anthropic/a"], force=True)
+        await fresh_monitor.refresh(["anthropic/a"])
+        assert count["n"] == 1
+
+    @pytest.mark.asyncio
+    async def test_transient_errors_stay_stale_and_retry(self, fresh_monitor):
+        """429/5xx/transport failures are transient, never negative-cached:
+        the next refresh must retry the slug."""
+        count = {"n": 0}
+
+        def handler(request):
+            count["n"] += 1
+            return httpx.Response(429)
+
+        fresh_monitor._make_client = lambda: httpx.AsyncClient(
+            transport=httpx.MockTransport(handler))
+        await fresh_monitor.refresh(["anthropic/a"], force=True)
+        await fresh_monitor.refresh(["anthropic/a"])
+        assert count["n"] == 2
+
 
 class TestKillSwitch:
     def test_telemetry_disabled(self, monkeypatch):

@@ -250,3 +250,56 @@ class CriterionEvaluator:
 
     def _check_manual(self, c: Dict[str, Any], state: Dict[str, Any]):
         return False, f"manual sign-off required: {c.get('note', '')}"
+
+    # ------------------------------------------------- goal-run leg (§3.4)
+
+    def _check_canvas_state(self, c: Dict[str, Any], state: Dict[str, Any]):
+        """A goal-run canvas exists and satisfies an expected property —
+        e.g. {"type": "canvas_state", "goal_run_id": .., "canvas_type":
+        "spreadsheet", "expected": {"name_contains": "quote"}}. Reuses the
+        IncidentEval property-check idea (includes-style) on the newest
+        matching canvas."""
+        from core.models import Canvas
+        with self._graph_session() as session:
+            q = session.query(Canvas).filter(
+                Canvas.workspace_id == self.workspace_id,
+                Canvas.status != "deleted")
+            if c.get("goal_run_id"):
+                q = q.filter(Canvas.goal_run_id == str(c["goal_run_id"]))
+            if c.get("canvas_type"):
+                q = q.filter(Canvas.canvas_type == str(c["canvas_type"]))
+            canvas = q.order_by(Canvas.updated_at.desc()).first()
+        if canvas is None:
+            return False, "no matching canvas for goal run"
+        expected = c.get("expected") or {}
+        if not expected:
+            return True, f"canvas '{canvas.name}' exists ({canvas.canvas_type})"
+        if "name_contains" in expected:
+            needle = str(expected["name_contains"]).lower()
+            if needle not in (canvas.name or "").lower():
+                return False, f"canvas '{canvas.name}' lacks {needle!r} in name"
+        if "content_contains" in expected:
+            needle = str(expected["content_contains"]).lower()
+            import json as _json
+            blob = _json.dumps(canvas.content or {}, default=str).lower()
+            if needle not in blob:
+                return False, f"canvas '{canvas.name}' content lacks {needle!r}"
+        return True, f"canvas '{canvas.name}' matches expectation"
+
+    def _check_action_dispatched(self, c: Dict[str, Any], state: Dict[str, Any]):
+        """The goal run's terminal action executed (e.g. the quote email was
+        sent). The dispatch path records a `goal_run_action_dispatched`
+        CanvasAudit row keyed by goal_run_id (JSON-dialect-portable check in
+        Python over capped rows, like verified_edge_count)."""
+        from core.models import CanvasAudit
+        want_run = str(c.get("goal_run_id") or "")
+        with self._graph_session() as session:
+            q = session.query(CanvasAudit.id, CanvasAudit.details_json).filter(
+                CanvasAudit.action_type == "goal_run_action_dispatched")
+            if c.get("canvas_id"):
+                q = q.filter(CanvasAudit.canvas_id == str(c["canvas_id"]))
+            rows = q.order_by(CanvasAudit.id.desc()).limit(1000).all()
+        for _, details in rows:
+            if not want_run or (details or {}).get("goal_run_id") == want_run:
+                return True, "goal-run action dispatched"
+        return False, "no dispatched action recorded for this goal run"

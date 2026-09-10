@@ -818,11 +818,13 @@ async def approve_workflow(
 
 
 
-        # Require at least Team Lead
+        # Require at least Team Lead. 2026-09-08 role-journey pass: the
+        # old 3-role list denied admin/owner (privilege inversion) —
+        # compare against the shared hierarchy instead.
+        from core.security.rbac import user_meets_role
 
-        allowed_roles = [UserRole.TEAM_LEAD.value, UserRole.WORKSPACE_ADMIN.value, UserRole.SUPER_ADMIN.value]
 
-        if user.role not in allowed_roles:
+        if not user_meets_role(user, UserRole.TEAM_LEAD):
 
             raise router.permission_denied_error(
 
@@ -900,6 +902,8 @@ async def reject_workflow(
 
     current_user: User = Depends(get_current_user),
 
+    db: Session = Depends(get_db),
+
 ):
 
     """
@@ -909,6 +913,32 @@ async def reject_workflow(
     """
 
     try:
+
+        # 2026-09-08 role-journey pass: rejection is a governance decision —
+
+        # it previously had NO role gate (any viewer/guest could kill pending
+
+        # interventions) while approve did. Mirror the approve gate.
+
+        from core.security.rbac import user_meets_role
+
+        user = db.query(User).filter(User.id == current_user.id).first()
+
+        if not user:
+
+            raise router.not_found_error("User", current_user.id)
+
+        if not user_meets_role(user, UserRole.TEAM_LEAD):
+
+            raise router.permission_denied_error(
+
+                action="reject_workflow",
+
+                resource="Workflow Approval",
+
+                details={"required_role": "team_lead or higher", "user_role": user.role}
+
+            )
 
         # Use intervention service. Identity comes from the token, never from
 

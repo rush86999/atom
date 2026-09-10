@@ -11,6 +11,28 @@ from core.websockets import manager as channel_manager
 router = BaseAPIRouter(tags=["WebSockets"])
 logger = logging.getLogger(__name__)
 
+
+def channel_allowed_for_user(channel: str, user_id) -> bool:
+    """ACL for client-requested channel subscriptions.
+
+    ``user:{id}`` and ``user:{id}:session:{sid}`` are PERSONAL channels —
+    canvas presents/updates, office-file snapshots and attachment strips
+    fan out on them. Only the owner may join; before this check any
+    authenticated client could subscribe to ``user:{other-id}`` and watch
+    another user's live canvas traffic. Shared-surface channels
+    (``workspace:*``, ``team:*``, ``agent:*``, ``projects``, …) stay open
+    to any authenticated subscriber by design.
+    """
+    if not isinstance(channel, str) or not channel:
+        return False
+    if channel.startswith("user:"):
+        owner = channel.split(":", 2)[1]
+        # Fail closed: an empty/malformed owner segment never matches (an
+        # empty user id would otherwise compare equal to "user:").
+        return bool(owner) and owner == str(user_id)
+    return True
+
+
 @router.websocket("/ws/{workspace_id}")
 async def websocket_endpoint(websocket: WebSocket, workspace_id: str):
     """Authenticated WebSocket endpoint with workspace routing.
@@ -71,7 +93,17 @@ async def websocket_endpoint(websocket: WebSocket, workspace_id: str):
                 continue
             mtype = msg.get("type")
             if mtype == "subscribe" and msg.get("channel"):
-                channel_manager.subscribe(websocket, msg["channel"])
+                channel = msg["channel"]
+                if channel_allowed_for_user(channel, user.id):
+                    channel_manager.subscribe(websocket, channel)
+                else:
+                    # Personal channel of another user — refuse, and say so
+                    # so a misconfigured client surfaces instead of hanging
+                    # silently on a channel that never delivers.
+                    await websocket.send_text(json.dumps({
+                        "type": "error",
+                        "detail": f"subscription to '{channel}' denied: personal channels are owner-only",
+                    }))
             elif mtype == "unsubscribe" and msg.get("channel"):
                 channel_manager.unsubscribe(websocket, msg["channel"])
     except WebSocketDisconnect:

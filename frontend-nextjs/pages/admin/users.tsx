@@ -8,27 +8,33 @@ import { getAuthToken } from "@/lib/identity";
  * Employees are provisioned HERE, not by self-registration: an admin
  * creates accounts with a role; self-registration stays available for
  * dev but the pilot disables it (see gap analysis).
- * Backend: /api/admin/users (GET/POST/PATCH/DELETE) + /api/admin/roles.
+ *
+ * 2026-09-08 role-journey pass: this page used to call /api/admin/users —
+ * the phantom AdminUser table behind an exact-super_admin gate nobody could
+ * pass. It now drives the REAL user table via /api/enterprise/users
+ * (workspace_admin+) and /api/enterprise/roles for the role dropdown.
  */
 
-type AdminUser = {
-  id: string;
+type EnterpriseUser = {
+  user_id: string;
   email: string;
-  username?: string;
-  full_name?: string;
-  is_active: boolean;
-  role?: string | { name?: string };
+  first_name?: string;
+  last_name?: string;
+  role: string;
+  status: string;
+  workspace_id?: string | null;
   created_at?: string;
+  last_login?: string | null;
 };
 
-type AdminRole = { id: string; name: string; description?: string };
+type RoleOption = { name: string; level: number };
 
 const API = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function AdminUsersPage() {
   const router = useRouter();
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [roles, setRoles] = useState<AdminRole[]>([]);
+  const [users, setUsers] = useState<EnterpriseUser[]>([]);
+  const [roles, setRoles] = useState<RoleOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,11 +51,11 @@ export default function AdminUsersPage() {
     setError(null);
     try {
       const [uRes, rRes] = await Promise.all([
-        authFetch(`${API}/api/admin/users`, { headers: authHeaders() }),
-        authFetch(`${API}/api/admin/roles`, { headers: authHeaders() }),
+        authFetch(`${API}/api/enterprise/users`, { headers: authHeaders() }),
+        authFetch(`${API}/api/enterprise/roles`, { headers: authHeaders() }),
       ]);
       if (uRes.status === 401 || uRes.status === 403) {
-        setError("Admin access required. Sign in with an admin account.");
+        setError("Admin access required (workspace_admin or higher). Sign in with an admin account.");
         return;
       }
       const userData = await uRes.json();
@@ -75,14 +81,14 @@ export default function AdminUsersPage() {
       return;
     }
     try {
-      const res = await authFetch(`${API}/api/admin/users`, {
+      const res = await authFetch(`${API}/api/enterprise/users`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
           email: form.email,
           password: form.password,
           full_name: form.full_name || undefined,
-          role_name: form.role || undefined,
+          role: form.role || "member",
         }),
       });
       if (!res.ok) {
@@ -99,15 +105,16 @@ export default function AdminUsersPage() {
     }
   };
 
-  const toggleActive = async (u: AdminUser, makeActive: boolean) => {
+  const toggleActive = async (u: EnterpriseUser, makeActive: boolean) => {
     try {
-      const res = await authFetch(`${API}/api/admin/users/${u.id}`, {
+      const res = await authFetch(`${API}/api/enterprise/users/${u.user_id}`, {
         method: "PATCH",
         headers: authHeaders(),
-        body: JSON.stringify({ is_active: makeActive }),
+        body: JSON.stringify({ status: makeActive ? "active" : "suspended" }),
       });
       if (!res.ok) {
-        setError(`Update failed (${res.status})`);
+        const body = await res.text().catch(() => "");
+        setError(`Update failed (${res.status})${body ? `: ${body.slice(0, 160)}` : ""}`);
         return;
       }
       load();
@@ -116,8 +123,8 @@ export default function AdminUsersPage() {
     }
   };
 
-  const roleName = (r: AdminUser["role"]) =>
-    typeof r === "string" ? r : r?.name || "—";
+  const displayName = (u: EnterpriseUser) =>
+    [u.first_name, u.last_name].filter(Boolean).join(" ") || u.email;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 p-6 lg:p-10">
@@ -174,9 +181,9 @@ export default function AdminUsersPage() {
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
             >
-              <option value="">Role (default)</option>
+              <option value="">Role (member)</option>
               {roles.map((r) => (
-                <option key={r.id} value={r.name}>{r.name}</option>
+                <option key={r.name} value={r.name}>{r.name}</option>
               ))}
             </select>
             <div className="sm:col-span-2">
@@ -204,30 +211,33 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} className="border-t border-gray-800 bg-gray-950">
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{u.full_name || u.username || u.email}</div>
-                      <div className="text-xs text-gray-500">{u.email}</div>
-                    </td>
-                    <td className="px-4 py-3">{roleName(u.role)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${
-                        u.is_active ? "bg-emerald-900/50 text-emerald-300" : "bg-gray-800 text-gray-400"
-                      }`}>
-                        {u.is_active ? "Active" : "Disabled"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => toggleActive(u, !u.is_active)}
-                        className="px-3 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs"
-                      >
-                        {u.is_active ? "Disable" : "Enable"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {users.map((u) => {
+                  const active = u.status === "active";
+                  return (
+                    <tr key={u.user_id} className="border-t border-gray-800 bg-gray-950">
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{displayName(u)}</div>
+                        <div className="text-xs text-gray-500">{u.email}</div>
+                      </td>
+                      <td className="px-4 py-3">{u.role}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${
+                          active ? "bg-emerald-900/50 text-emerald-300" : "bg-gray-800 text-gray-400"
+                        }`}>
+                          {active ? "Active" : "Disabled"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => toggleActive(u, !active)}
+                          className="px-3 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs"
+                        >
+                          {active ? "Disable" : "Enable"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {users.length === 0 && (
                   <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">No users found.</td></tr>
                 )}

@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 from core.auth import get_current_user
 from core.database import get_db
 from core.models import AgentExecution, AuditLog, User, UserRole
+from core.security.rbac import user_meets_role
 
 logger = logging.getLogger(__name__)
 
@@ -85,21 +86,21 @@ def _base_event_query(db: Session):
 # agent_maturity_routes._require_supervisor.
 # ---------------------------------------------------------------------------
 
-_SUPERVISOR_ROLES = [
-    UserRole.TEAM_LEAD.value,
-    UserRole.WORKSPACE_ADMIN.value,
-    UserRole.SUPER_ADMIN.value,
-]
+# 2026-09-08 role-journey pass: the old 3-role allowlist excluded
+# admin/owner — a level-6 admin was denied what a level-4 team_lead
+# may do (privilege inversion, the H1 class of bug). Compare against
+# the shared hierarchy instead of a hand-maintained list.
+_SUPERVISOR_MIN = UserRole.TEAM_LEAD
 
 
 def _require_supervisor(db: Session, current_user: User) -> None:
     user = db.query(User).filter(User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if user.role not in _SUPERVISOR_ROLES:
+    if not user_meets_role(user, _SUPERVISOR_MIN):
         raise HTTPException(
             status_code=403,
-            detail="Insufficient permissions. Required role: TEAM_LEAD or ADMIN",
+            detail="Insufficient permissions. Required role: team_lead or higher",
         )
 
 

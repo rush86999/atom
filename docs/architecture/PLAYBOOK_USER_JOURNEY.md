@@ -210,3 +210,26 @@ flag alone changes nothing without a mature crew (the gate holds it);
 with one, review queues stop growing without giving up the evidence
 gate. This supersedes the earlier "default answer: no" framing: the
 answer is now **"humans approve until maturity doesn't need them to."**
+
+---
+
+## 8. Playbooks ⇄ GoalRuns — the process learning loop
+
+Playbooks are no longer only per-turn advisory text. GoalRuns
+(docs/architecture/GOAL_RUN_ORCHESTRATION.md) close a loop with them:
+
+- **Seeding (playbook → run):** a new goal run's initial plan is seeded
+  from this role's approved playbooks (keyword/dense hybrid match) — the
+  familiar path prior. Seeding is advisory; the run's router deviates
+  freely.
+- **Distillation (run → playbook):** a finished run's decision log — the
+  path the agent ACTUALLY took, pivots and all — distills into a playbook
+  DRAFT (source=`learned`, fingerprint-deduped per role+goal shape) that
+  lands in the **same Drafts queue** documented above. Supervisor
+  approval flow, eval gate, and retirement are unchanged; the run page's
+  "Distill to playbook" button and the achieved-run notification both
+  point here.
+
+Net effect: the informal process a salesperson follows gets written down
+by observing real runs, and each approved playbook makes the next run's
+starting path better.

@@ -121,11 +121,23 @@ class ExcelManager:
                             "cell_type": "formula" if cell.value and str(cell.value).startswith('=') else "text"
                         })
                     data.append(row_data)
+                # data_only=True strips formulas — read raw so range consumers
+                # (the canvas hydration path) get the Sheet→coord→'=...'' map
+                # the formula bar renders, same shape as the WS snapshot.
+                raw_wb = openpyxl.load_workbook(file_path, data_only=False)
+                raw_ws = raw_wb[sheet_name] if sheet_name in raw_wb.sheetnames else raw_wb.active
+                formulas: Dict[str, str] = {}
+                for raw_row in raw_ws[coordinate]:
+                    for raw_cell in raw_row:
+                        if isinstance(raw_cell.value, str) and raw_cell.value.startswith('='):
+                            formulas[raw_cell.coordinate] = raw_cell.value
                 return {
                     "success": True,
                     "sheet_name": sheet_name,
                     "coordinate": coordinate,
-                    "cells": data
+                    "cells": data,
+                    "formulas": formulas,
+                    "sheet_names": wb.sheetnames
                 }
             else:
                 cell = ws[coordinate]

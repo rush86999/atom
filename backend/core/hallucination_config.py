@@ -85,8 +85,15 @@ def is_skill_injection_enabled() -> bool:
 
 
 def is_moa_enabled() -> bool:
-    """Mixture-of-Agents for complex/irreversible tasks (Workstream F). Default ON."""
-    return _flag_default_true("ATOM_MOA_ENABLED")
+    """Mixture-of-Agents for complex/irreversible tasks (Workstream F).
+
+    Default OFF (changed 2026-09-09, cost research: MoA costs 3–5x per call
+    with ~4x latency — arXiv 2409.07487 measured 4.07x). It was default-ON
+    and complexity-eligible, so the moment a workspace configures a second
+    provider every chat-path structured call tagged code/analysis/reasoning
+    (incl. ReAct agent steps) would silently 1→4x into N+1 completions.
+    High-stakes flows should opt in explicitly: set ATOM_MOA_ENABLED=true."""
+    return get_bool_setting("ATOM_MOA_ENABLED", False)
 
 
 def get_moa_samples() -> int:
@@ -160,6 +167,24 @@ def is_usc_fallback_enabled() -> bool:
     ``ATOM_SC_USC_FALLBACK=false``.
     """
     return _flag_default_true("ATOM_SC_USC_FALLBACK")
+
+
+def is_verify_adaptive_enabled() -> bool:
+    """ESC-style adaptive verification panel (arXiv 2401.10480, Early-
+    Stopping Self-Consistency; difficulty-adaptive variant: NAACL 2025
+    Findings).
+
+    When ON, the verify panel draws ONE judge sample first and runs the
+    full N-sample vote only when that sample is NOT clearly grounded —
+    i.e. compute is spent on the suspicious answers, the ones the panel
+    exists to catch. The live 2026-09-09 run: clean tool answers still
+    paid 3 samples + a USC judge (4 calls, ~5.5s) in shadow mode where the
+    verdict cannot change the reply anyway. ESC reports 34–84% fewer
+    samples across six benchmarks at comparable accuracy.
+
+    Kill switch: ``ATOM_VERIFY_ADAPTIVE=false`` restores the fixed
+    N-sample panel."""
+    return _flag_default_true("ATOM_VERIFY_ADAPTIVE")
 
 
 def is_sc_fanout_enabled() -> bool:

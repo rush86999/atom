@@ -3,8 +3,16 @@ import Head from 'next/head';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PreferencesTab } from "@/components/Settings/PreferencesTab";
 import { DataPipelinesTab } from "@/components/Settings/DataPipelinesTab"; // Import
+import { useUserRole } from "@/lib/user-role";
 
 export default function SettingsPage() {
+    // Admin-band links: LLM Routing reads workspace-wide model telemetry
+    // (/api/chat/routing-stats is workspace_admin+) and Learning &
+    // Verification is the admin verification panel. Unknown role → show
+    // (backend enforces); a transient /api/auth/me failure must not hide nav.
+    const { role, isAdmin } = useUserRole();
+    const showAdminLinks = !role || isAdmin;
+
     return (
         <>
             <Head>
@@ -45,11 +53,15 @@ export default function SettingsPage() {
                         <div className="flex flex-wrap gap-3 text-sm">
                             <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/ai">AI Providers</a>
                             <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/account">Account, Password & 2FA</a>
-                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/routing">LLM Routing</a>
+                            {showAdminLinks && (
+                                <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/routing">LLM Routing</a>
+                            )}
                             <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/local-models">Local Models (Ollama)</a>
                             <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/sessions">Sessions</a>
                             <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/bpe">BPE Workspace</a>
-                            <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/admin/learning-verification">Learning &amp; Verification</a>
+                            {showAdminLinks && (
+                                <a className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/admin/learning-verification">Learning &amp; Verification</a>
+                            )}
                         </div>
                     </div>
                 </Tabs>

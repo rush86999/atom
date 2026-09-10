@@ -9,6 +9,8 @@ from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.workflow_security import require_workflow_executor_definition
+from core.security_dependencies import require_permission
+from core.rbac_service import Permission
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,10 @@ class UpdateTemplateRequest(BaseModel):
     inputs: Optional[List[Dict[str, Any]]] = None
     tags: Optional[List[str]] = None
 
-@router.post("/")
+@router.post(
+    "/",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 @require_governance(
     action_complexity=ActionComplexity.MODERATE,
     action_name="create_template",
@@ -123,7 +128,12 @@ async def create_template(
             message="Failed to create template"
         )
 
-@router.get("/", response_model=List[Dict[str, Any]])
+@router.get(
+    "/",
+    response_model=List[Dict[str,
+    Any]],
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def list_templates(category: Optional[str] = None, limit: int = 50, current_user: User = Depends(get_current_user)):
     """List all available workflow templates"""
     try:
@@ -170,7 +180,10 @@ async def list_templates(category: Optional[str] = None, limit: int = 50, curren
             message="Failed to list templates"
         )
 
-@router.get("/search")
+@router.get(
+    "/search",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def search_templates(
     query: str,
     limit: int = 20,
@@ -197,7 +210,10 @@ async def search_templates(
         for t in templates
     ]
 
-@router.get("/{template_id}")
+@router.get(
+    "/{template_id}",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_template(template_id: str, current_user: User = Depends(get_current_user)):
     """Get a specific template by ID"""
     manager = get_template_manager()
@@ -208,7 +224,10 @@ async def get_template(template_id: str, current_user: User = Depends(get_curren
     
     return template.dict()
 
-@router.get("/{template_id}/readiness")
+@router.get(
+    "/{template_id}/readiness",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_template_readiness(
     template_id: str,
     current_user: User = Depends(get_current_user),
@@ -242,7 +261,10 @@ async def get_template_readiness(
     return {"success": True, **_compute_readiness(dependencies, connected)}
 
 
-@router.put("/{template_id}")
+@router.put(
+    "/{template_id}",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def update_template_endpoint(template_id: str, request: UpdateTemplateRequest, current_user: User = Depends(get_current_user)):
     """Update an existing workflow template"""
     try:
@@ -317,7 +339,10 @@ async def update_template_endpoint(template_id: str, request: UpdateTemplateRequ
             details={"error": str(e)}
         )
 
-@router.post("/{template_id}/instantiate")
+@router.post(
+    "/{template_id}/instantiate",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 async def instantiate_template(template_id: str, request: InstantiateRequest, current_user: User = Depends(get_current_user)):
     """Create a runnable workflow from a template"""
     try:
@@ -398,7 +423,10 @@ def _persist_imported_workflow(
     }
 
 
-@router.post("/{template_id}/import")
+@router.post(
+    "/{template_id}/import",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
+)
 @require_governance(ActionComplexity.LOW, "import_template", "workflow")
 async def import_template(
     template_id: str,
@@ -444,7 +472,10 @@ async def import_template(
             message="Failed to import template"
         )
 
-@router.get("/executions/{execution_id}/status")
+@router.get(
+    "/executions/{execution_id}/status",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_execution_status(
     execution_id: str,
     current_user: User = Depends(get_current_user),
@@ -535,7 +566,10 @@ def _execution_access_filter(current_user: User):
     return or_(own, legacy_unattributed)
 
 
-@router.get("/executions/{execution_id}/results")
+@router.get(
+    "/executions/{execution_id}/results",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_VIEW))],
+)
 async def get_execution_results(
     execution_id: str,
     current_user: User = Depends(get_current_user),
@@ -589,7 +623,10 @@ async def get_execution_results(
     }
 
 
-@router.post("/{template_id}/execute")
+@router.post(
+    "/{template_id}/execute",
+    dependencies=[Depends(require_permission(Permission.WORKFLOW_RUN))],
+)
 @require_governance(
     action_complexity=ActionComplexity.HIGH,
     action_name="execute_template",

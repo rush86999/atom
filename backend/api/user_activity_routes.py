@@ -11,13 +11,40 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
+from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.auth import get_current_user, User
-from core.models import UserActivity, UserState
+from core.models import User, UserRole, UserActivity, UserActivitySession, UserState
+from core.rbac_service import Permission
+from core.security.rbac import user_meets_role
+from core.security_dependencies import require_permission
 from core.user_activity_service import UserActivityService
 from sqlalchemy.orm import Session
 
-router = APIRouter(prefix="/api/users", tags=["user-activity"])
+router = BaseAPIRouter(prefix="/api/users", tags=["user-activity"])
+
+
+def _ensure_own_activity(user_id: str, current_user: User) -> None:
+    """Activity heartbeats/overrides are per-user: the path user must be
+    the caller. Previously any authenticated user could forge or override
+    anyone else's presence."""
+    if str(user_id) != str(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot manage another user's activity state",
+        )
+
+
+def _ensure_session_access(session: UserActivitySession, current_user: User) -> None:
+    """Activity sessions expose bearer tokens — owner-only, plus the
+    supervisor band (team_lead+) that monitors live sessions."""
+    if str(session.user_id) != str(current_user.id) and not user_meets_role(
+        current_user, UserRole.TEAM_LEAD
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Required role: team_lead or higher",
+        )
 
 
 # ============================================================================
@@ -98,6 +125,7 @@ async def send_heartbeat(
     Updates user's activity state based on recent heartbeat.
     Creates session if it doesn't exist.
     """
+    _ensure_own_activity(user_id, current_user)
     service = UserActivityService(db)
 
     try:
@@ -180,6 +208,7 @@ async def set_manual_override(
 
     Allows users to override automatic activity tracking.
     """
+    _ensure_own_activity(user_id, current_user)
     service = UserActivityService(db)
 
     try:
@@ -236,6 +265,7 @@ async def clear_manual_override(
     """
     Clear manual override and return to automatic activity tracking.
     """
+    _ensure_own_activity(user_id, current_user)
     service = UserActivityService(db)
 
     try:
@@ -262,7 +292,14 @@ async def clear_manual_override(
         )
 
 
-@router.get("/available-supervisors", response_model=AvailableSupervisorsResponse)
+@router.get(
+    "/available-supervisors",
+    response_model=AvailableSupervisorsResponse,
+    # user:view per the permission matrix (viewer+): a workspace directory
+    # read. This is the endpoint that makes USER_VIEW an enforced
+    # permission instead of a granted-but-never-checked one.
+    dependencies=[Depends(require_permission(Permission.USER_VIEW))],
+)
 async def get_available_supervisors(
     category: Optional[str] = None,
     current_user: User = Depends(get_current_user),
@@ -304,6 +341,7 @@ async def get_active_sessions(
     db: Session = Depends(get_db)
 ):
     """Get all active sessions for a user."""
+    _ensure_own_activity(user_id, current_user)
     service = UserActivityService(db)
 
     try:
@@ -342,7 +380,21 @@ async def terminate_session(
 ):
     """
     Terminate a specific session (e.g., user logout).
+
+    Owner-only (plus the supervisor band): the session token identifies the
+    victim, so an arbitrary authenticated user must not be able to kill
+    someone else's session.
     """
+    session = db.query(UserActivitySession).filter(
+        UserActivitySession.session_token == session_token
+    ).first()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session not found: {session_token}"
+        )
+    _ensure_session_access(session, current_user)
+
     service = UserActivityService(db)
 
     try:

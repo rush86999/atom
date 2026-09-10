@@ -31,7 +31,8 @@ from core.auth import get_current_user
 from core.database import get_db
 
 USER = SimpleNamespace(id="u1", email="u1@example.com", tenant_id="t1",
-                       workspace_id="w1", is_admin=False, is_staff=False)
+                       workspace_id="w1", is_admin=False, is_staff=False,
+                       role="workspace_admin")  # 2026-09-09 workflow role matrix
 TENANT = SimpleNamespace(id="t1", name="Tenant One", ai_mode="auto")
 
 

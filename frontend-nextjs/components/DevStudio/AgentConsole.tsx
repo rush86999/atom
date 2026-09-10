@@ -117,15 +117,43 @@ const AgentConsole: React.FC = () => {
     const handleStop = async () => {
         if (!taskId) return;
 
-        // No task-level stop endpoint exists — /api/agent/stop shuts down the
-        // entire daemon (super_admin only). Mark the local task as stopped.
+        // 2026-09-08b role-journey pass: the button used to only flip local
+        // state (the daemon kept running — even super_admins had no working
+        // stop from here). Call the real endpoint; fall back to local-only
+        // if the caller isn't allowed (workspace_admin+).
         setIsRunning(false);
         setStatus("stopped");
         setLogs(prev => [...prev, "[stopped by user]"]);
-        toast({
-            title: "Task Stopped",
-            description: "Local task state cleared. The agent process may still be running.",
-        });
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/agent/stop`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("auth_token") || ""}`,
+                },
+            });
+            if (res.ok) {
+                toast({
+                    title: "Agent Service Stopped",
+                    description: "The background agent daemon was shut down.",
+                });
+            } else {
+                toast({
+                    title: "Task Stopped (local only)",
+                    description:
+                        res.status === 403
+                            ? "Stopping the background daemon requires an admin role (workspace_admin+)."
+                            : `Daemon stop failed (${res.status}). Local task state cleared.`,
+                    variant: "error",
+                });
+            }
+        } catch {
+            toast({
+                title: "Task Stopped (local only)",
+                description: "Daemon unreachable; local task state cleared.",
+                variant: "error",
+            });
+        }
     };
 
     return (

@@ -317,6 +317,95 @@ After completing this training, the agent will be able to handle similar tasks a
         blocked_trigger.proposal_id = proposal.id
         self.db.commit()
 
+        # Tell the owner the proposal is waiting. Without this the proposal
+        # sits silently on /approvals until someone happens to look — the
+        # supervisor had no way to know the STUDENT gate had fired.
+        # 2026-09-09 role-journey pass: the OWNER is often a member, and
+        # deciding is TEAM_LEAD+ — so the owner's copy says "a supervisor
+        # must approve", and the supervisors who CAN act also get notified
+        # (previously they never heard about it and the proposal stalled).
+        # Best-effort by contract: send_notification never raises, and the
+        # whole block is guarded so a notification problem can't fail
+        # proposal creation.
+        if getattr(agent, "user_id", None):
+            try:
+                from core.models import User as UserModel
+                from core.notification_service import (
+                    NotificationService,
+                    workspace_supervisor_ids,
+                )
+                from core.security.rbac import _ROLE_LEVELS, UserRole, role_level
+
+                owner = self.db.query(UserModel).filter(
+                    UserModel.id == agent.user_id).first()
+                owner_is_supervisor = bool(
+                    owner
+                    and role_level(owner.role) >= _ROLE_LEVELS[UserRole.TEAM_LEAD]
+                )
+                agent_workspace = getattr(agent, "workspace_id", None)
+
+                owner_message = (
+                    f"An automated task ({blocked_trigger.trigger_type}) hit "
+                    f"the STUDENT trust gate. A training proposal is waiting "
+                )
+                if owner_is_supervisor:
+                    owner_message += (
+                        "for your approval — approving it opens a supervised "
+                        "training session."
+                    )
+                else:
+                    owner_message += (
+                        "for a supervisor's approval — a team lead or admin "
+                        "can open the supervised training session from the "
+                        "Approvals page."
+                    )
+
+                await NotificationService(self.db).send_notification(
+                    user_id=str(agent.user_id),
+                    notification_type="approval_needed",
+                    data={
+                        "title": f"{agent.name} is blocked and needs training approval",
+                        "message": owner_message,
+                        "workspace_id": agent_workspace or "default",
+                        "tenant_id": agent.tenant_id or "default",
+                        "action_url": "/approvals",
+                        "action_label": "Review proposal",
+                        "agent_id": agent.id,
+                        "proposal_id": proposal.id,
+                    },
+                )
+
+                if not owner_is_supervisor:
+                    owner_label = owner.email if owner else "a member"
+                    for supervisor_id in workspace_supervisor_ids(
+                        self.db,
+                        workspace_id=agent_workspace,
+                        exclude_user_id=str(agent.user_id),
+                    ):
+                        await NotificationService(self.db).send_notification(
+                            user_id=supervisor_id,
+                            notification_type="approval_needed",
+                            data={
+                                "title": f"Training approval needed: {agent.name}",
+                                "message": (
+                                    f"{agent.name} (owned by {owner_label}) hit "
+                                    "the STUDENT trust gate and a training "
+                                    "proposal needs a supervisor's decision."
+                                ),
+                                "workspace_id": agent_workspace or "default",
+                                "tenant_id": agent.tenant_id or "default",
+                                "action_url": "/approvals",
+                                "action_label": "Review proposal",
+                                "agent_id": agent.id,
+                                "proposal_id": proposal.id,
+                            },
+                        )
+            except Exception as notif_err:
+                logger.warning(
+                    "training-proposal notification failed for %s (non-fatal): %s",
+                    agent.id, notif_err,
+                )
+
         logger.info(
             f"Created training proposal {proposal.id} for agent {agent.id} "
             f"with {len(capability_gaps)} capability gaps, "
@@ -408,6 +497,11 @@ After completing this training, the agent will be able to handle similar tasks a
         # can modify — built from the blocked task, the mentor playbook and
         # the hire's live ingested data. Without this the supervisor faced a
         # bare completion form with no idea what the session should be.
+        # The agent is resolved once up front — the lesson-plan build reads
+        # its category/playbook and the canvas step below reuses the row.
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == proposal.agent_id
+        ).first()
         try:
             session.supervisor_guidance = await self._build_lesson_plan(
                 agent, proposal
@@ -421,11 +515,8 @@ After completing this training, the agent will be able to handle similar tasks a
         self.db.flush()  # materialize session.id before the canvas references it
 
         # Mini-canvas: the visual review surface for this supervised pass
-        _canvas_agent = self.db.query(AgentRegistry).filter(
-            AgentRegistry.id == proposal.agent_id
-        ).first()
-        if _canvas_agent is not None:
-            self.ensure_session_canvas(session, _canvas_agent, proposal)
+        if agent is not None:
+            self.ensure_session_canvas(session, agent, proposal)
 
         self.db.commit()
         self.db.refresh(session)

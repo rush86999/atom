@@ -24,12 +24,18 @@ const mockApi = {
   rejectActionProposal: jest.fn(),
 };
 
+const mockUseUserRole = jest.fn();
+jest.mock('@/lib/user-role', () => ({
+    useUserRole: () => mockUseUserRole(),
+}));
+
 jest.mock('../../../lib/maturity-api', () => ({
   __esModule: true,
   ...mockApi,
 }));
 
 import { MaturityApprovalPanel } from '../MaturityApprovalPanel';
+
 
 const trainingProposal = {
   id: 'tp-1',
@@ -50,6 +56,11 @@ beforeEach(() => {
   jest.resetAllMocks();
   mockApi.listTrainingProposals.mockResolvedValue([trainingProposal]);
   mockApi.listActionProposals.mockResolvedValue([actionProposal]);
+  // fail-open default (real fetch failure ⇒ role unknown ⇒ no gating);
+  // individual tests override via mockUseUserRole.mockReturnValue(...)
+  mockUseUserRole.mockReturnValue({
+    role: null, level: 0, isSupervisor: false, isAdmin: false, loading: false,
+  });
 });
 
 describe('MaturityApprovalPanel', () => {
@@ -161,5 +172,34 @@ describe('MaturityApprovalPanel', () => {
     mockApi.listTrainingProposals.mockRejectedValue(new Error('boom'));
     render(<MaturityApprovalPanel />);
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('boom'));
+  });
+
+  test('known non-supervisor gets a read-only panel (no decision buttons)', async () => {
+    mockUseUserRole.mockReturnValue({
+        role: 'member', level: 3, isSupervisor: false, isAdmin: false, loading: false,
+    });
+    render(<MaturityApprovalPanel />);
+    await waitFor(() => screen.getByText(/Create lead at Acme/));
+    expect(screen.getByText(/read-only for you/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Approve & execute/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mark completed' })).not.toBeInTheDocument();
+  });
+
+  test('supervisor keeps decision buttons', async () => {
+    mockUseUserRole.mockReturnValue({
+        role: 'team_lead', level: 4, isSupervisor: true, isAdmin: true, loading: false,
+    });
+    render(<MaturityApprovalPanel />);
+    await waitFor(() => screen.getByText(/Create lead at Acme/));
+    expect(screen.getByRole('button', { name: /Approve & execute/ })).toBeInTheDocument();
+  });
+
+  test('unknown role fails open (decision buttons still shown)', async () => {
+    mockUseUserRole.mockReturnValue({
+        role: null, level: 0, isSupervisor: false, isAdmin: false, loading: false,
+    });
+    render(<MaturityApprovalPanel />);
+    await waitFor(() => screen.getByText(/Create lead at Acme/));
+    expect(screen.getByRole('button', { name: /Approve & execute/ })).toBeInTheDocument();
   });
 });
