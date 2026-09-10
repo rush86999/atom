@@ -7,12 +7,18 @@ canvas data and evolving run parameters — like a salesperson working an
 informal process ("prepare a quote for a lead") across touch points spread over
 days, rather than a rigid pipeline.
 
-- **Status:** implemented 2026-09-09 (all six slices; tests under
-  `backend/tests/test_goal_run_{service,loop,events,learning,routes}.py`,
-  frontend `lib/goal-run-api.ts` + `/goal-runs` pages). Router model choice
-  and mode-promotion criteria remain open questions (§8) — the router
-  defaults to the platform LLM; promotion evidence is advisory. Build order
-  in §7 kept as the record of what landed per slice.
+- **Status:** implemented 2026-09-09 — all six slices PLUS guidance &
+  notifications (§6 "nothing silent": every state change notifies the
+  run's creator via the canonical NotificationService with the guidance
+  embedded; run pages carry a per-state guidance banner) and the loop-
+  semantics fixes (re-wait, stale-hold wake guard, REVISE reuses the
+  step's canvas, checkpoint-rejection rewind, tier WAIT ceilings — §8.6).
+  All six §8 open questions are RESOLVED (see §8). Tests: 7 scope suites
+  under `backend/tests/test_goal_run_*.py` (71 goal-run tests); frontend
+  `lib/goal-run-api.ts` + `/goal-runs` pages. Verified live:
+  `scripts/restart_backend.sh` clean, routes loaded and auth-gated (401
+  boundary), schema present on the dev DB. Build order in §7 kept as the
+  record of what landed per slice.
 - **Research grounding (per AGENTS.md §3):** this is the established
   *plan-and-execute with replanning* pattern ([LangChain planning
   agents](https://www.langchain.com/blog/planning-agents), [multi-agent
