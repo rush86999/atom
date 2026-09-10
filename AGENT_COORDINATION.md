@@ -794,3 +794,37 @@ back to the legacy path, and sent TWICE. Styling tests re-pinned to the
 createReply flow + one-shot fallback. Send path now safe for the live
 training loop.
 
+## 2026-09-09 — ZCode (Rish): GoalRun slice 1 — generic email actions
+
+**Context:** product feedback (2026-09-09) — the email level-B gate was
+Brennan-specific (price-list rule, machinery wording) and this is a
+generalized product that will be sold; the vision is a role-driven,
+long-running, situation-adaptive AI employee. Main already ships that
+architecture as **GoalRun orchestration** (`core/goals/goal_run_*.py`,
+`/api/goal-runs`, `/goal-runs` pages), whose `integration_action` step
+executor calls `action_registry.execute_action(...)`.
+
+**Gap closed (slice 1):** `action_registry` had NO email actions (only
+documents/canvas/mini_app/shopify/knowledge/goals/ontology/tasks/agents),
+so a role-scoped sales run could not search/draft/send. Added three
+GENERIC actions delegating to `UniversalIntegrationService` — no customer
+rules, no per-provider special cases:
+
+- `email.search` — one platform or every connected mail provider
+  (gmail/outlook/zoho_mail); provider failures surfaced, not swallowed.
+- `email.draft` — threaded mailbox DRAFT (`create_draft`), never sends.
+- `email.send` — routes through the GOVERNED path
+  (`mcp_service.execute_tool("local-tools", "send_email", ...)`), so the
+deterministic email policy + tenant HITL apply; a policy BLOCK or pending
+approval is returned, never bypassed.
+
+Tests `backend/tests/test_email_actions.py` (14, green). Live-verified:
+`email.search` against the real Outlook mailbox returns the spotlighted
+result blob (ids included). BEHAVIOR CHANGE: the three actions now appear
+in the agent/RPC tool surface (`get_all_tools` includes action_registry
+definitions) — additive; no test asserts an exact tool total.
+
+**Not merged on purpose:** the Brennan-specific `email_policy_gate.py`
+branch stays unmerged — role/business rules must become workspace config,
+not core constants (planned as a later GoalRun slice).
+

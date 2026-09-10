@@ -1897,3 +1897,184 @@ async def _ontology_inspect(args: Dict[str, Any], context: Dict[str, Any]) -> Di
         "undeclared_relations_in_use": onto.undeclared_relations_in_use(
             context.get("workspace_id", "default")),
     }
+
+
+# ============================================================================
+# Email actions (generic mail surface — gmail / outlook / zoho_mail)
+#
+# GoalRun's ``integration_action`` step executor calls
+# ``action_registry.execute_action(name, args, context)``; email had no
+# registered action, so a role-scoped run could not search/draft/send.
+# These delegate to UniversalIntegrationService (the general mechanism for
+# every integration) and carry NO per-customer business rules — the product
+# is sold to many workspaces (2026-09-09 product feedback). Rules belong to
+# workspace/role config, not to this module.
+# ============================================================================
+
+_MAIL_PROVIDERS = ("gmail", "outlook", "zoho_mail")
+
+_EMAIL_SEARCH_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "query": {"type": "string", "description": "What to look for in the mailbox"},
+        "platform": {"type": "string",
+                     "description": "mail provider: gmail|outlook|zoho_mail (optional — all connected providers when omitted)"},
+        "folder": {"type": "string", "description": "inbox|sent|drafts (default inbox)"},
+        "max_results": {"type": "integer", "description": "Max messages (default 15)"},
+    },
+    "required": ["query"],
+}
+
+_EMAIL_DRAFT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "body": {"type": "string", "description": "The draft reply body"},
+        "message_id": {"type": "string", "description": "Message to reply to (threaded draft)"},
+        "thread_id": {"type": "string", "description": "Conversation/thread id (alternative to message_id)"},
+        "to": {"type": "string", "description": "Recipient for a new-email draft (when there is no message_id/thread_id)"},
+        "subject": {"type": "string"},
+        "platform": {"type": "string", "description": "mail provider (optional — outlook then gmail)"},
+    },
+    "required": ["body"],
+}
+
+_EMAIL_SEND_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "body": {"type": "string", "description": "The reply/new-email body"},
+        "to": {"type": "string", "description": "Recipient (new email)"},
+        "reply_to_message_id": {"type": "string", "description": "Message to reply to in-thread"},
+        "subject": {"type": "string"},
+        "cc": {"type": "string"},
+        "platform": {"type": "string", "description": "mail provider (optional — gmail)"},
+    },
+    "required": ["body"],
+}
+
+
+def _email_context(context: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize the dispatch context for UniversalIntegrationService
+    (which injects its own registry)."""
+    ctx = dict(context or {})
+    ctx.setdefault("workspace_id", "default")
+    ctx.setdefault("tenant_id", ctx.get("workspace_id") or "default")
+    return ctx
+
+
+@register_action(
+    "email.search",
+    description="Search mailboxes (gmail/outlook/zoho_mail) for messages. "
+                "Returns threads/messages with ids to reply to. Omit platform "
+                "to search every connected mail provider.",
+    parameters_schema=_EMAIL_SEARCH_SCHEMA,
+    effects=[{"effect": "read_only"}],
+)
+async def _email_search(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    query = (args.get("query") or "").strip()
+    if not query:
+        return {"success": False, "error": "query is required"}
+    from integrations.universal_integration_service import UniversalIntegrationService
+
+    svc = UniversalIntegrationService()
+    ctx = _email_context(context)
+    params = {
+        "query": query,
+        "folder": args.get("folder") or "inbox",
+        "max_results": int(args.get("max_results") or 15),
+    }
+    platform = args.get("platform")
+    if platform:
+        result = await svc.execute(platform, "list_messages", params, context=ctx)
+        return {"success": True, "platform": platform, "result": result}
+    results: Dict[str, Any] = {}
+    for prov in _MAIL_PROVIDERS:
+        try:
+            results[prov] = await svc.execute(prov, "list_messages", params, context=ctx)
+        except Exception as exc:  # surface, never swallow — the agent must
+            # tell "no results" apart from "not connected"
+            results[prov] = {"status": "error", "error": str(exc)[:200]}
+    return {"success": True, "results": results}
+
+
+@register_action(
+    "email.draft",
+    description="Save a threaded reply as a DRAFT in the mailbox Drafts folder "
+                "(never sends — a human reviews/sends it). Pass message_id or "
+                "thread_id for a reply; pass to for a new-email draft.",
+    parameters_schema=_EMAIL_DRAFT_SCHEMA,
+    effects=[{"effect": "draft_created"}],
+)
+async def _email_draft(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    body = (args.get("body") or "").strip()
+    if not body:
+        return {"success": False, "error": "body is required"}
+    params: Dict[str, Any] = {"body": body}
+    for key in ("message_id", "thread_id", "to", "subject"):
+        if args.get(key):
+            params[key] = args[key]
+    if not any(params.get(k) for k in ("message_id", "thread_id", "to")):
+        return {"success": False,
+                "error": "one of message_id, thread_id or to is required"}
+
+    from integrations.universal_integration_service import UniversalIntegrationService
+
+    svc = UniversalIntegrationService()
+    ctx = _email_context(context)
+    platform = args.get("platform")
+    providers = [platform] if platform else ["outlook", "gmail"]
+    errors: Dict[str, str] = {}
+    for prov in providers:
+        try:
+            result = await svc.execute(prov, "create_draft", params, context=ctx)
+        except Exception as exc:
+            errors[prov] = str(exc)[:200]
+            continue
+        data = (result or {}).get("data") or {}
+        if (result or {}).get("status") == "success" and (
+                data.get("draft_id") or data.get("id")):
+            return {"success": True, "platform": prov,
+                    "draft_id": data.get("draft_id") or data.get("id")}
+        errors[prov] = str((result or {}).get("message")
+                           or (result or {}).get("error") or result)[:200]
+    return {"success": False, "error": "draft failed on all providers: " + "; ".join(
+        f"{prov}: {err}" for prov, err in errors.items())}
+
+
+@register_action(
+    "email.send",
+    description="Send an email or threaded reply. Routed through the governed "
+                "send path (deterministic email policy + tenant HITL approval) — "
+                "a policy block or pending approval is returned, never bypassed.",
+    parameters_schema=_EMAIL_SEND_SCHEMA,
+    effects=[{"effect": "external_message_sent"}],
+    preconditions=[{"fact": "recipient_or_thread_present"}],
+)
+async def _email_send(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    body = (args.get("body") or "").strip()
+    if not body:
+        return {"success": False, "error": "body is required"}
+    # Reuse the SAME governance every agent send uses (register_action callers
+    # must not become a side door around the email policy / HITL gate).
+    from integrations.mcp_service import mcp_service
+
+    ctx = _email_context(context)
+    try:
+        result = await mcp_service.execute_tool(
+            "local-tools", "send_email", dict(args), ctx)
+    except Exception as exc:
+        return {"success": False, "error": f"send failed: {str(exc)[:200]}"}
+    if not isinstance(result, dict):
+        return {"success": True, "result": result}
+    if result.get("requires_approval"):
+        out = {"success": False, "requires_approval": True}
+        for key in ("action_id", "reason", "status"):
+            if key in result:
+                out[key] = result[key]
+        return out
+    if result.get("error") or str(result.get("status", "")).upper() == "BLOCKED":
+        out = {"success": False}
+        for key in ("error", "blocked_by", "status"):
+            if key in result:
+                out[key] = result[key]
+        return out
+    return {"success": True, "result": result}
