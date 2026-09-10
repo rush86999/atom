@@ -145,7 +145,7 @@ for _storage_svc in _STORAGE_SERVICES:
 # Short human descriptions the planner reads (kept compact — this prompt
 # rides on every chat turn).
 _SERVICE_DESCRIPTIONS = {
-    "outlook": "email mailbox — search messages by name, subject, company, keyword",
+    "outlook": "email mailbox — search messages by name, subject, company, keyword (top hits return with FULL bodies); `read` intent pulls FULL message bodies incl. quoted/forwarded threads when previews are cut off",
     "gmail": "email mailbox — search messages",
     "slack": "team chat — search messages and channels",
     "teams": "team chat — search messages",
@@ -305,7 +305,11 @@ Rules:
   file-storage services, when the user wants a specific row, value, price,
   figure or section OUT OF a named document ("open the catalog and find the
   ABC-1234 row" → read; "what files do I have about X" → search — search
-  returns only file names/metadata and can never answer what a file SAYS).
+  returns only file names/metadata and can never answer what a file SAYS),
+  and for the outlook mailbox, when a search's snippets cut off a quoted or
+  forwarded thread ("open that email, get the full thread below the
+  signature" → outlook read — its search already carries full bodies for
+  the top hits; read extends that to the rest and to longer bodies).
   A message that only says WHERE the file lives ("it's an excel file in
   WorkDrive") after a content request is still a READ — the earlier turns
   own the what-for ("check X for the price"), this message adds the where;
@@ -620,7 +624,9 @@ Return a CORRECTED plan:
 - service MUST be one of the exact names in the available list (or null with
   use_tool=false when no tool can help).
 - intent: search or list for lookups; `read` only for file-storage services
-  when the user wants a specific row/value/section out of a named document.
+  when the user wants a specific row/value/section out of a named document,
+  or for outlook when the full body of an email (quoted/forwarded thread)
+  is needed beyond its search snippets.
 - query: minimal retrieval terms that name the subject AND carry every
   identifying code (model, SKU, part, order, invoice number) exactly as
   written anywhere in the conversation — the user's current message often
@@ -758,7 +764,7 @@ async def plan_tool_use(
                 logger.info(f"tool planner: service not connected ({plan.service!r}): {plan.reason[:80]}")
                 return None
         allowed_intents = {"search", "list"}
-        if plan.service in _STORAGE_SERVICES:
+        if plan.service in _STORAGE_SERVICES or plan.service == "outlook":
             allowed_intents.add("read")
         if plan.intent not in allowed_intents:
             plan.intent = "search"
@@ -902,6 +908,48 @@ def _rank_address_hits(rows: List[Dict[str, Any]], addr_l: str, limit: int = 4) 
     return [t[2] for t in scored[:limit]]
 
 
+def _ingested_line_from_row(row: Dict[str, Any], with_body: bool) -> str:
+    """One [ingested mailbox] listing line; with_body appends the FULL
+    message text. Bodies come from metadata.html_body (ingestion's store
+    choke point for original markup) with the plain content column as
+    fallback — the 260-char content excerpt cut mid-signature, exactly
+    where quoted/forwarded originals begin (live 2026-09-09 ryershov
+    thread). Head+tail capped like the Graph hydration."""
+    line = (
+        f"- [ingested mailbox] From: {row.get('sender')} | "
+        f"{str(row.get('subject') or '')[:90]} | "
+        f"received: {str(row.get('timestamp') or '')[:19]}"
+    )
+    if not with_body:
+        return line + f" | {str(row.get('content') or '')[:260]}"
+    body = ""
+    try:
+        import json as _json
+
+        meta = row.get("metadata")
+        if isinstance(meta, str):
+            try:
+                meta = _json.loads(meta)
+            except Exception:
+                meta = None
+        html = (meta or {}).get("html_body") if isinstance(meta, dict) else None
+        if html:
+            from core.communication_styling import html_to_text
+
+            body = html_to_text(str(html))
+    except Exception:
+        body = ""
+    body = (body or str(row.get("content") or "")).strip()
+    if len(body) > _INGESTED_BODY_CAP:
+        head = int(_INGESTED_BODY_CAP * 0.6)
+        body = (
+            body[:head]
+            + "\n[…middle of this quoted thread elided…]\n"
+            + body[-(_INGESTED_BODY_CAP - head):]
+        )
+    return line + " | FULL BODY:\n" + (body or "(empty message)")
+
+
 def _search_ingested_by_address(user_id, address, limit=4):
     """Deterministic LanceDB lookup of ingested messages tied to an email
     address (sender/recipient/content containment, participant rows ranked
@@ -909,7 +957,11 @@ def _search_ingested_by_address(user_id, address, limit=4):
     reliably match sender ADDRESSES (live 2026-09-02: Jacob Schulz's reply
     never surfaced because 'jschulz' is only the local part of the sender
     address) — the ingested copy is authoritative here and needs no
-    embeddings. Fault-isolated; [] on anything."""
+    embeddings. The top rows carry their FULL bodies (see
+    _ingested_line_from_row): on 2026-09-09 Graph's relevance ranking
+    returned unrelated mail for ryershov@nettinc.com and every listing line
+    clipped the thread's quoted content away. Fault-isolated; [] on
+    anything."""
     out = []
     if not address or "@" not in address:
         return out
@@ -920,13 +972,10 @@ def _search_ingested_by_address(user_id, address, limit=4):
         db = lancedb.connect(str(base / "default"))
         table = db.open_table("atom_communications")
         df = table.to_arrow().to_pandas()
-        for row in _rank_address_hits(df.to_dict("records"), address.lower(), limit=limit):
-            out.append(
-                f"- [ingested mailbox] From: {row.get('sender')} | "
-                f"{str(row.get('subject') or '')[:90]} | "
-                f"{str(row.get('content') or '')[:260]} | "
-                f"{str(row.get('timestamp') or '')[:19]}"
-            )
+        for i, row in enumerate(
+            _rank_address_hits(df.to_dict("records"), address.lower(), limit=limit)
+        ):
+            out.append(_ingested_line_from_row(row, with_body=i < _INGESTED_BODY_LINES))
     except Exception as e:
         logger.debug(f"ingested address search skipped: {e}")
     return out
@@ -1098,6 +1147,78 @@ def _graph_styled_fallback(emails: List[Dict[str, Any]]) -> Optional[Dict[str, s
                 "html": content[:_STYLED_BODY_BLOCK_CAP],
             }
     return None
+
+
+# Outlook body hydration. Graph $search returns a fixed property subset:
+# the body field is OMITTED and bodyPreview holds only the first 255 chars
+# (Microsoft's documented pattern for the full body is a follow-up
+# GET /me/messages/{id}). The tool listing's 200-char clip then shrank that
+# window further, so quoted/forwarded thread content was structurally
+# invisible (live 2026-09-09: Roman Yershov's machine listing sat below the
+# signature of the Sep 8 "Fw: Used Equipment sell" forward — the agent
+# answered from previews and told the user the thread "needs to be opened
+# in full" with no tool to do it). Same shape the file-storage legs already
+# have: search → read.
+_OUTLOOK_SEARCH_HYDRATE = 3     # full bodies fetched on every search
+_OUTLOOK_READ_HYDRATE = 4      # intent=read: more hits, larger caps
+_OUTLOOK_SEARCH_BODY_CAP = 3500
+_OUTLOOK_READ_BODY_CAP = 5000
+# Ingested-store listing lines: how many of the top ranked rows carry a
+# FULL body, and the per-body cap (head+tail). The store is the
+# deterministic source Graph's relevance ranking keeps failing to be.
+_INGESTED_BODY_LINES = 2
+_INGESTED_BODY_CAP = 2500
+# A bare Graph item id (60+ base64url chars) on a read intent is fetched
+# directly; prose queries re-run the ranked search instead.
+_GRAPH_ID_RE = re.compile(r"^[A-Za-z0-9_\-]{60,}$")
+
+
+def _graph_body_text(msg: Dict[str, Any], cap: int) -> str:
+    """Plain text of a full Graph message, head+tail capped. Long bodies
+    keep BOTH ends: quoted originals sit BELOW the newest text in
+    top-posted replies, so a head-only clip would re-create the exact
+    blindness the hydration exists to fix. Never raises."""
+    from core.communication_styling import html_to_text
+
+    body = (msg or {}).get("body") or {}
+    content = str(body.get("content") or "")
+    if str(body.get("contentType") or "").lower() == "html":
+        content = html_to_text(content)
+    content = content.strip()
+    if len(content) > cap:
+        head = int(cap * 0.6)
+        content = (
+            content[:head]
+            + "\n[…middle of this quoted thread elided…]\n"
+            + content[-(cap - head):]
+        )
+    return content
+
+
+async def _outlook_full_bodies(
+    user_id: Optional[str], emails: List[Dict[str, Any]], top_n: int, cap: int
+) -> Dict[str, str]:
+    """id → plain-text full body for the top-ranked search hits, fetched
+    with the documented per-message GET. Fetch failures degrade that
+    message to a preview line; the block's tail hint offers intent=read."""
+    from integrations.outlook_service import outlook_service
+
+    async def _one(eid: str):
+        try:
+            msg = await outlook_service.get_email_by_id(user_id=user_id, email_id=eid)
+        except Exception as body_err:
+            logger.warning(
+                f"outlook body hydration failed (id {str(eid)[:24]}…): {body_err}"
+            )
+            return eid, None
+        text = _graph_body_text(msg, cap)
+        return eid, (text or None)
+
+    pairs = await asyncio.gather(
+        *(_one(e["id"]) for e in emails[:top_n] if e.get("id"))
+    )
+    return {eid: text for eid, text in pairs if text}
+
 
 _HEX_COLOR_RE = re.compile(r"^[0-9A-Fa-f]{6}$")
 
@@ -2010,6 +2131,35 @@ async def execute_tool_plan(
                 sanitize_graph_kql,
             )
 
+            read_mode = (plan.intent or "search") == "read"
+            tool_label = "outlook.read_emails" if read_mode else "outlook.search_emails"
+            body_cap = _OUTLOOK_READ_BODY_CAP if read_mode else _OUTLOOK_SEARCH_BODY_CAP
+
+            # intent=read with a bare Graph message id fetches that message
+            # directly: an id is not searchable text (the per-term search
+            # below would 400 or empty the result set on it).
+            if read_mode and _GRAPH_ID_RE.match(query):
+                direct = await outlook_service.get_email_by_id(
+                    user_id=user_id, email_id=query
+                )
+                if not direct:
+                    return _with_grounding(
+                        f"LIVE TOOL RESULTS (outlook.read_emails, id='{query[:40]}…'): "
+                        "message not retrievable (deleted, moved, or no access)."
+                    )
+                direct_from = (
+                    ((direct.get("from_field") or {}).get("emailAddress") or {}).get("address")
+                    or "?"
+                )
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (outlook.read_emails, id='{query[:40]}…') — "
+                    f"FULL body; use it to answer:\n"
+                    f"- From: {direct_from} | "
+                    f"{str(direct.get('subject') or '(no subject)')[:120]} | "
+                    f"received: {str(direct.get('received_date_time'))[:19]}\n"
+                    + _graph_body_text(direct, body_cap)
+                )
+
             tokens = [t for t in query.split() if len(t) >= 2][:3] or [query]
             merged: Dict[str, Dict[str, Any]] = {}
             for term in tokens:
@@ -2048,6 +2198,23 @@ async def execute_tool_plan(
             ranked = sorted(merged.values(), key=_rank)
             emails = [x["email"] for x in ranked[:8]]
 
+            # FULL BODIES for the top hits: Graph $search omits the body
+            # entirely (bodyPreview is only the first 255 chars), so quoted
+            # and forwarded thread content under that window never reached
+            # the model (live 2026-09-09: Roman Yershov's machine listing
+            # sat under the signature of the Sep 8 "Fw: Used Equipment
+            # sell" forward; the agent answered from previews). read intent
+            # hydrates more hits with larger caps.
+            full_bodies = await _outlook_full_bodies(
+                user_id, emails,
+                _OUTLOOK_READ_HYDRATE if read_mode else _OUTLOOK_SEARCH_HYDRATE,
+                body_cap,
+            )
+            logger.info(
+                f"outlook leg: hydrated {len(full_bodies)} full bodies "
+                f"(intent={plan.intent}, {len(emails)} graph hits)"
+            )
+
             # DETERMINISTIC FIRST: ranked ingested-copy lookup — shared with
             # the universal communication path (gmail/slack/telegram/…).
             store_lines = await _ingested_mailbox_lines(user_id, query, context)
@@ -2064,12 +2231,12 @@ async def execute_tool_plan(
                 mem_block = await _memory_search_block(user_id, query, context)
                 if mem_block:
                     return (
-                        f"LIVE TOOL RESULTS (outlook.search_emails, query='{query}'): "
+                        f"LIVE TOOL RESULTS ({tool_label}, query='{query}'): "
                         f"no matching messages in the mailbox. "
                         f"Ingested-workspace matches:\n{mem_block}"
                     )
                 return _with_grounding(
-                    f"LIVE TOOL RESULTS (outlook.search_emails, query='{query}'): "
+                    f"LIVE TOOL RESULTS ({tool_label}, query='{query}'): "
                     "no matching messages in the mailbox or ingested memory."
                 )
             # Deterministic thread-member lines LEAD the block: for an
@@ -2078,16 +2245,38 @@ async def execute_tool_plan(
             # different customer), and the reply model anchors on the first
             # lines it reads — run 1 echoed that junk and declared the
             # thread nonexistent while the real messages sat further down.
+            def _graph_line(e: Dict[str, Any]) -> str:
+                frm = (
+                    ((e.get("from_field") or {}).get("emailAddress") or {}).get("address")
+                    or "?"
+                )
+                head = (
+                    f"- From: {frm} | {str(e.get('subject') or '(no subject)')[:120]} | "
+                    f"received: {str(e.get('received_date_time'))[:19]}"
+                )
+                text = full_bodies.get(e.get("id"))
+                if text:
+                    return head + " | FULL BODY:\n" + text
+                # Hydration miss: keep the Graph preview (≤255 chars) so the
+                # line still says something, and the tail hint below flags
+                # the read-intent follow-up.
+                return head + f" | preview: {str(e.get('body_preview') or '')[:200]}"
+
             listing = "\n".join(store_lines)
-            graph_listing = "\n".join(
-                f"- From: {((e.get('from_field') or {}).get('emailAddress') or {}).get('address') or '?'} | "
-                f"{str(e.get('subject') or '(no subject)')[:120]} | "
-                f"{str(e.get('body_preview') or '')[:200]} | "
-                f"received: {str(e.get('received_date_time'))[:19]}"
-                for e in emails[:6]
-            )
+            graph_listing = "\n".join(_graph_line(e) for e in emails[:6])
             if graph_listing:
                 listing = (listing + "\n" if listing else "") + graph_listing
+            if emails and len(full_bodies) < min(len(emails), 6):
+                listing += (
+                    "\n(preview-only lines above: plan outlook again with "
+                    "intent=read and the same query to pull those full bodies)"
+                )
+            if read_mode:
+                return _with_grounding(
+                    f"LIVE TOOL RESULTS (outlook.read_emails, query='{query}') — "
+                    f"FULL message bodies (quoted/forwarded thread content "
+                    f"included); use these to answer:\n{listing}"
+                )
             # Styled-draft base: the newest ingested message for this
             # participant carries its original markup (metadata.html_body);
             # when the store has none, the top live hit's Graph HTML body
