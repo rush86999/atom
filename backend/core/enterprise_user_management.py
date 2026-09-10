@@ -23,7 +23,9 @@ import logging
 from core.auth import get_password_hash, get_current_user
 from core.database import get_db
 from core.models import Team, User, UserRole, UserStatus, Workspace, WorkspaceStatus
+from core.rbac_service import Permission
 from core.security.rbac import role_level, user_meets_role
+from core.security_dependencies import require_permission
 
 # SECURITY: every endpoint in this router manages users/workspaces/teams —
 # create, update, delete, role changes. ALL require admin auth. Previously
@@ -495,7 +497,16 @@ async def list_roles():
     ]
 
 
-@router.post("/api/enterprise/users", status_code=201)
+@router.post(
+    "/api/enterprise/users",
+    status_code=201,
+    # user:manage per the permission matrix (workspace_admin+/owner; a
+    # plain domain admin deliberately does not provision accounts). This
+    # is the enforcement the journey tripwire flagged as granted-but-never-
+    # checked; the router-level workspace_admin+ gate stays as defense in
+    # depth.
+    dependencies=[Depends(require_permission(Permission.USER_MANAGE))],
+)
 async def create_user(
     data: UserCreate,
     db: Session = Depends(get_db),
@@ -593,7 +604,10 @@ async def get_user(
     }
 
 
-@router.patch("/api/enterprise/users/{user_id}")
+@router.patch(
+    "/api/enterprise/users/{user_id}",
+    dependencies=[Depends(require_permission(Permission.USER_MANAGE))],
+)
 async def update_user(
     user_id: str,
     data: UserUpdate,
@@ -628,7 +642,10 @@ async def update_user(
     return {"message": "User updated successfully"}
 
 
-@router.delete("/api/enterprise/users/{user_id}")
+@router.delete(
+    "/api/enterprise/users/{user_id}",
+    dependencies=[Depends(require_permission(Permission.USER_MANAGE))],
+)
 async def deactivate_user(
     user_id: str,
     db: Session = Depends(get_db),

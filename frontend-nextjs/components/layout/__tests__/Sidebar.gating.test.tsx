@@ -102,4 +102,21 @@ describe("Sidebar role gating", () => {
         expect(screen.getByText("Dev Studio")).toBeInTheDocument();
         expect(screen.getByText("Admin Settings")).toBeInTheDocument();
     });
+
+    // 2026-09-09 batch 4: /goal-runs was orphaned (canvas badges + the
+    // notification bell only). Reads are any-signed-in on the backend, so
+    // every role gets the nav item; the page gates its own actions.
+    it("every role sees Goal Runs (reads are any-signed-in; actions gate in-page)", () => {
+        for (const role of ["member", "team_lead", "workspace_admin"]) {
+            mockUseUserRole.mockReturnValue({
+                role, level: role === "member" ? 3 : role === "team_lead" ? 4 : 5,
+                isSupervisor: role !== "member", isAdmin: role === "workspace_admin",
+                loading: false,
+            });
+            const { unmount } = render(<Sidebar />);
+            const link = screen.getByText("Goal Runs").closest("a");
+            expect(link).toHaveAttribute("href", "/goal-runs");
+            unmount();
+        }
+    });
 });

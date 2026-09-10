@@ -32,6 +32,7 @@ import {
     Brain,
     Wrench,
     GraduationCap,
+    Rocket,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -124,6 +125,12 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 // Approvals = the HITL/supervision queue: decisions need
                 // team_lead+ on the backend.
                 { label: "Approvals", icon: CheckSquare, path: "/approvals", minLevel: SUPERVISOR_MIN_LEVEL },
+                // Goal Runs: role-agent run timelines. Reads are any-signed-in
+                // (mirrors playbook_routes on the backend); the coaching
+                // actions inside are team_lead+ and gate themselves on the
+                // detail page. Previously this page was orphaned — reachable
+                // only via canvas badges and the notification bell.
+                { label: "Goal Runs", icon: Rocket, path: "/goal-runs" },
                 { label: "Marketplace", icon: Store, path: "/marketplace" },
             ]
         },

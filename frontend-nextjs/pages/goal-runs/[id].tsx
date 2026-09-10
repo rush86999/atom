@@ -7,12 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowLeft, Check, X, Play, Ban, FileText, Sparkles, Info } from "lucide-react";
+import { Loader2, ArrowLeft, Check, X, Play, Ban, FileText, Sparkles, Info, TrendingUp } from "lucide-react";
 import {
     getGoalRun, getGoalRunCanvases, resumeGoalRun, resolveCheckpoint,
-    advanceGoalRun, cancelGoalRun, distillGoalRun,
-    GoalRun, GoalRunCanvas, DecisionEntry,
+    advanceGoalRun, cancelGoalRun, distillGoalRun, setSupervisionMode,
+    getPromotionEvidence,
+    GoalRun, GoalRunCanvas, DecisionEntry, PromotionEvidence, SupervisionMode,
 } from "@/lib/goal-run-api";
+import { useUserRole } from "@/lib/user-role";
 
 // Run timeline — the coaching surface (GOAL_RUN_ORCHESTRATION.md §6, §7
 // slice 5): the plan, the canvases each step produced, and EVERY decision
@@ -83,11 +85,26 @@ export function guidanceFor(run: GoalRun): RunGuidance {
     };
 }
 
+const MODES: SupervisionMode[] = ["training", "shadow", "autonomous"];
+
+const MODE_HINT: Record<SupervisionMode, string> = {
+    training: "every decision waits for approval",
+    shadow: "decisions execute; guardrails pause for you",
+    autonomous: "runs alone; checkpoints still notify you",
+};
+
 export default function GoalRunDetailPage() {
     const router = useRouter();
     const { id } = router.query;
+    const { role, isSupervisor } = useUserRole();
+    // Fail-open on unknown role (transient /api/auth/me failure): the
+    // backend enforces every action — hiding buttons would just strand the
+    // operator mid-coaching.
+    const roleKnown = Boolean(role);
+    const canAct = !roleKnown || isSupervisor;
     const [run, setRun] = useState<GoalRun | null>(null);
     const [canvases, setCanvases] = useState<GoalRunCanvas[]>([]);
+    const [promotion, setPromotion] = useState<PromotionEvidence | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [guidance, setGuidance] = useState("");
@@ -109,6 +126,17 @@ export default function GoalRunDetailPage() {
 
     useEffect(() => { void load(); }, [load]);
 
+    // Promotion evidence is advisory supervisor material (team_lead+ on the
+    // backend) — only fetched for users who can act on it.
+    useEffect(() => {
+        if (typeof id !== "string" || !run?.agent_id || !canAct) return;
+        let cancelled = false;
+        getPromotionEvidence(run.agent_id)
+            .then((e) => { if (!cancelled) setPromotion(e); })
+            .catch(() => { /* advisory only — silence is fine */ });
+        return () => { cancelled = true; };
+    }, [id, run?.agent_id, canAct]);
+
     const act = useCallback(async (fn: () => Promise<void>, successMsg?: string) => {
         setBusy(true);
         try {
@@ -129,6 +157,14 @@ export default function GoalRunDetailPage() {
             const draft = await distillGoalRun(id);
             toast.success(`Playbook draft "${draft.name}" queued for review in the Training panel`);
         });
+    }, [id, act]);
+
+    const handleMode = useCallback((mode: SupervisionMode) => {
+        if (typeof id !== "string") return;
+        void act(async () => {
+            await setSupervisionMode(id, mode);
+            toast.success(`Supervision mode set to ${mode}`);
+        }, `Supervision mode set to ${mode}`);
     }, [id, act]);
 
     if (loading) {
@@ -166,27 +202,51 @@ export default function GoalRunDetailPage() {
                         {run.human_interventions} human interventions · goal {run.goal_id.slice(0, 8)}…
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    {run.status === "achieved" && (
-                        <Button size="sm" variant="outline" disabled={busy} onClick={handleDistill}
-                                data-testid="distill-button">
-                            <Sparkles className="h-4 w-4" /> Distill to playbook
-                        </Button>
+                <div className="flex gap-2 flex-wrap items-center">
+                    {canAct && (
+                        <>
+                            <div className="flex items-center gap-1 mr-1" data-testid="mode-switcher">
+                                {MODES.map((m) => (
+                                    <Button key={m} size="sm"
+                                            variant={run.supervision_mode === m ? "default" : "ghost"}
+                                            disabled={busy || run.supervision_mode === m}
+                                            title={MODE_HINT[m]}
+                                            onClick={() => handleMode(m)}>
+                                        {m}
+                                    </Button>
+                                ))}
+                            </div>
+                            {run.status === "achieved" && (
+                                <Button size="sm" variant="outline" disabled={busy} onClick={handleDistill}
+                                        data-testid="distill-button">
+                                    <Sparkles className="h-4 w-4" /> Distill to playbook
+                                </Button>
+                            )}
+                            <Button size="sm" variant="outline" disabled={busy}
+                                    onClick={() => void act(() => advanceGoalRun(run.id), "Advanced one decision cycle")}>
+                                <Play className="h-4 w-4" /> Advance
+                            </Button>
+                            <Button size="sm" variant="outline" disabled={busy}
+                                    onClick={() => void act(async () => {
+                                        await cancelGoalRun(run.id);
+                                        toast.success("Run cancelled");
+                                        router.push("/goal-runs");
+                                    })}>
+                                <Ban className="h-4 w-4" /> Cancel
+                            </Button>
+                        </>
                     )}
-                    <Button size="sm" variant="outline" disabled={busy}
-                            onClick={() => void act(() => advanceGoalRun(run.id), "Advanced one decision cycle")}>
-                        <Play className="h-4 w-4" /> Advance
-                    </Button>
-                    <Button size="sm" variant="outline" disabled={busy}
-                            onClick={() => void act(async () => {
-                                await cancelGoalRun(run.id);
-                                toast.success("Run cancelled");
-                                router.push("/goal-runs");
-                            })}>
-                        <Ban className="h-4 w-4" /> Cancel
-                    </Button>
                 </div>
             </div>
+
+            {roleKnown && !canAct && (
+                <div className="mb-6 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+                     data-testid="read-only-banner">
+                    Read-only view — approving, overriding, advancing, cancelling and mode
+                    changes need a supervisor (team_lead or higher). The run timeline below
+                    is the full record of what this agent decided and why.
+                </div>
+            )}
 
             {(() => {
                 const g = guidanceFor(run);
@@ -214,22 +274,26 @@ export default function GoalRunDetailPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <p className="text-sm">{pending.rationale}</p>
-                        <Textarea
-                            placeholder="Guidance (optional) — overriding teaches the agent instantly"
-                            value={guidance}
-                            onChange={(e) => setGuidance(e.target.value)}
-                            data-testid="guidance-input"
-                        />
-                        <div className="flex gap-2">
-                            <Button size="sm" disabled={busy}
-                                    onClick={() => void act(() => resumeGoalRun(run.id, true), "Approved — the run continues")}>
-                                <Check className="h-4 w-4" /> Approve
-                            </Button>
-                            <Button size="sm" variant="destructive" disabled={busy}
-                                    onClick={() => void act(() => resumeGoalRun(run.id, false, guidance), "Overridden — your guidance became the agent's instant lesson")}>
-                                <X className="h-4 w-4" /> Override with guidance
-                            </Button>
-                        </div>
+                        {canAct && (
+                            <>
+                                <Textarea
+                                    placeholder="Guidance (optional) — overriding teaches the agent instantly"
+                                    value={guidance}
+                                    onChange={(e) => setGuidance(e.target.value)}
+                                    data-testid="guidance-input"
+                                />
+                                <div className="flex gap-2">
+                                    <Button size="sm" disabled={busy}
+                                            onClick={() => void act(() => resumeGoalRun(run.id, true), "Approved — the run continues")}>
+                                        <Check className="h-4 w-4" /> Approve
+                                    </Button>
+                                    <Button size="sm" variant="destructive" disabled={busy}
+                                            onClick={() => void act(() => resumeGoalRun(run.id, false, guidance), "Overridden — your guidance became the agent's instant lesson")}>
+                                        <X className="h-4 w-4" /> Override with guidance
+                                    </Button>
+                                </div>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
             )}
@@ -241,20 +305,57 @@ export default function GoalRunDetailPage() {
                         <CardTitle className="text-base">Checkpoint: human approval requested</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <Textarea
-                            placeholder="Note (optional) — recorded with your decision"
-                            value={guidance}
-                            onChange={(e) => setGuidance(e.target.value)}
-                        />
-                        <div className="flex gap-2">
-                            <Button size="sm" disabled={busy}
-                                    onClick={() => void act(() => resolveCheckpoint(run.id, pendingCheckpointHitl, true, guidance), "Checkpoint approved — the run resumes")}>
-                                <Check className="h-4 w-4" /> Approve
-                            </Button>
-                            <Button size="sm" variant="destructive" disabled={busy}
-                                    onClick={() => void act(() => resolveCheckpoint(run.id, pendingCheckpointHitl, false, guidance), "Checkpoint rejected — the agent re-decides with your note")}>
-                                <X className="h-4 w-4" /> Reject
-                            </Button>
+                        {canAct && (
+                            <Textarea
+                                placeholder="Note (optional) — recorded with your decision"
+                                value={guidance}
+                                onChange={(e) => setGuidance(e.target.value)}
+                            />
+                        )}
+                        {canAct && (
+                            <div className="flex gap-2">
+                                <Button size="sm" disabled={busy}
+                                        onClick={() => void act(() => resolveCheckpoint(run.id, pendingCheckpointHitl, true, guidance), "Checkpoint approved — the run resumes")}>
+                                    <Check className="h-4 w-4" /> Approve
+                                </Button>
+                                <Button size="sm" variant="destructive" disabled={busy}
+                                        onClick={() => void act(() => resolveCheckpoint(run.id, pendingCheckpointHitl, false, guidance), "Checkpoint rejected — the agent re-decides with your note")}>
+                                    <X className="h-4 w-4" /> Reject
+                                </Button>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Promotion evidence (§3.7B): advisory — a supervisor applies it
+                per run with the mode switcher above, never automatic. */}
+            {canAct && promotion && (
+                <Card className="mb-6" data-testid="promotion-evidence">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4" /> Promotion evidence —
+                            recommends <Badge variant="outline">{promotion.recommendation}</Badge>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                            {(["training", "shadow"] as const).map((mode) => {
+                                const s = promotion.evidence[mode];
+                                if (!s) return null;
+                                return (
+                                    <div key={mode} className="rounded-md border border-border p-3">
+                                        <p className="font-medium mb-1 capitalize">{mode} runs</p>
+                                        <p className="text-muted-foreground">
+                                            {s.runs} runs · {Math.round(s.achieved_ratio * 100)}% achieved ·{" "}
+                                            {s.interventions_per_run} interventions/run
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Promotion floor: ≥3 runs · ≥60% achieved · ≤1 intervention/run
+                                        </p>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </CardContent>
                 </Card>

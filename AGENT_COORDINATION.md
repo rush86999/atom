@@ -683,3 +683,62 @@ all remaining failures identical on clean main (12 + 2 + 21 pre-existing
 in the touched suites). Live-verified post-restart: anon → 401/403,
 member view 200 / manage 403 / run 422-permission-passed, admin manage
 422-permission-passed, marketplace reachable (200/401/403/422 as expected).
+
+## 2026-09-09 (c) — ZCode: role-journey batch 4 — GoalRun surface, WS eavesdrop, notify fan-out, USER_VIEW/USER_MANAGE
+
+Re-traced every role's journey against the current tree (after GoalRun
+orchestration, HITL owner-notify, and LLM-spend consolidation landed on top
+of batches 1–3). Fixed:
+
+- **WS eavesdrop (P0)**: `api/websocket_routes.py` accepted ANY subscribe
+  channel — any authenticated client could join `user:{other-id}` and watch
+  their live canvas traffic (charts, office snapshots, attachment strips).
+  New `channel_allowed_for_user`: `user:{id}*` channels are owner-only
+  (denials send an error frame); shared channels (workspace/team/agent/
+  projects) unchanged. Verified live over a real socket.
+- **HITL training-proposal notify was severed**: it notified ONLY the agent
+  owner — usually a member who cannot act (buttons disabled on /approvals)
+  — while the supervisors who can act never heard anything. Owner copy is
+  now role-aware ("a supervisor must approve"), and
+  `notification_service.workspace_supervisor_ids` fans out to ACTIVE
+  team_lead+ users in the agent's workspace (capped 25, owner excluded).
+- **Goal Runs UI gaps**: pages were Sidebar-orphans (reachable only via
+  canvas badges + notification bell); every coaching action rendered for
+  any signed-in user (post-click 403). Sidebar gains "Goal Runs" (reads
+  are any-signed-in, mirroring playbook_routes); the detail page gates
+  actions/banner on the role (fail-open unknown), and now surfaces the
+  supervision-mode switcher + promotion evidence (both were dead exports).
+- **Tenant/telemetry leaks**: `/api/maturity/training/self-directed` never
+  passed tenant scoping (cross-tenant STUDENT queue); `/api/chat/
+  routing-stats` served installation-wide model telemetry to any member —
+  now workspace_admin+ (settings links gated to match).
+- **user_activity routes**: heartbeat/override/sessions for ARBITRARY
+  user_ids were auth-only — presence forgery, cross-user session TOKEN
+  reads, and session-killing. Now owner-scoped (sessions list owner-only;
+  terminate allows owner or team_lead+). w76c suite re-contracted.
+- **USER_VIEW/USER_MANAGE enforced** (tripwire's last granted-but-
+  unenforced pair): available-supervisors = USER_VIEW (viewer+);
+  enterprise user mutations = USER_MANAGE (workspace_admin+/owner — a
+  plain domain `admin` is now denied per the permission contract; zero
+  live users have role=admin). Tripwire: UNENFORCED_PERMISSIONS now empty,
+  live matrix cases added for both.
+
+**Deferred (flagged, not fixed)**: office files (`api/office_routes.py`)
+have no per-user ownership inside ATOM_OFFICE_DIR — any signed-in user can
+read/write/recalc any workbook. Fixing requires namespacing file paths at
+creation + migrating existing canvas payload references; single-tenant is
+the deployment model so this is SaaS-parity work, tracked here for the
+next pass.
+
+**BEHAVIOR CHANGES**: WS subscribe to another user's personal channels now
+denied; member/notification fan-out adds supervisor rows; routing-stats
+403 for member/team_lead; activity heartbeat/override/sessions/terminate
+403 cross-user; enterprise user create/update/delete 403 for plain
+`admin`; self-directed queue tenant-filtered (legacy NULL-tenant rows
+still included by design).
+
+**Tests**: backend test_role_journey_batch4_gaps.py (53), governance +4
+fan-out, w76c re-contracted; affected suites green except stash-verified
+pre-existing failures (22 governance, 11 covpush). Frontend detail.test
+(4) + Sidebar gating; tsc clean. Live-verified on restarted backend — see
+docs/testing/TESTED_FILES_TRACKER.md for the full evidence list.

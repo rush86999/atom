@@ -20,7 +20,8 @@ from integrations.chat_orchestrator import ChatOrchestrator, FeatureType
 from fastapi import Depends
 from core.auth import get_current_user
 from core.llm.routing_overrides import parse_routing_overrides
-from core.models import User
+from core.models import User, UserRole
+from core.security.rbac import require_role
 from core.database import get_db
 from sqlalchemy.orm import Session as _Session
 from core.personal_scope import PERSONAL_TENANT_ID as CHAT_ROUTING_TENANT_KEY
@@ -1343,9 +1344,14 @@ async def submit_chat_feedback(
 
 @router.get("/routing-stats")
 async def get_routing_stats(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_role(UserRole.WORKSPACE_ADMIN)),
 ) -> Dict[str, Any]:
     """Routing-learning statistics for the dashboard.
+
+    Workspace-admin band: these are installation-wide model telemetry
+    (per-model success rates, EMA scores, feedback volume across every
+    user's chat turns), so it rides the operator band like the rest of
+    the LLM spend surfaces (runtime settings, learning-verification).
 
     Returns per-model success rates, total feedback samples, and whether the
     learning router is enabled. When disabled, returns the stats that exist

@@ -87,6 +87,12 @@ PERMISSION_ENDPOINTS = [
     # WORKFLOW_MANAGE — version rollback (team_lead+; bogus id → 404 for
     # permitted roles, 403 for the rest).
     (Permission.WORKFLOW_MANAGE, "POST", "/api/v1/workflows/00000000-0000-0000-0000-000000000000/rollback", {"json": {}}),
+    # USER_VIEW — workspace directory read (viewer+; guest → 403).
+    (Permission.USER_VIEW, "GET", "/api/users/available-supervisors", {}),
+    # USER_MANAGE — provision an account (workspace_admin+/owner; the body
+    # is invalid on purpose so permitted roles fail 422 AFTER the gate,
+    # denied roles fail the gate itself).
+    (Permission.USER_MANAGE, "POST", "/api/enterprise/users", {"json": {}}),
 ]
 
 
@@ -99,11 +105,12 @@ PERMISSION_ENDPOINTS = [
 # its inception, plus workflow_ui/marketplace/template/mobile/versioning/
 # debugging routers in the workflow-role-matrix pass — see
 # backend/tests/test_workflow_rbac_matrix.py for the offline 8-role × 45-
-# endpoint lock). USER_VIEW/USER_MANAGE remain granted-but-unenforced.
-UNENFORCED_PERMISSIONS = [
-    Permission.USER_VIEW,
-    Permission.USER_MANAGE,
-]
+# endpoint lock). USER_VIEW is enforced on the workspace directory read
+# (api/user_activity_routes.py available-supervisors) and USER_MANAGE on the
+# enterprise user mutations (core/enterprise_user_management.py) — live
+# matrix cases for both are wired above. No known unenforced permissions
+# remain.
+UNENFORCED_PERMISSIONS: list[Permission] = []
 
 
 # ============================================================================

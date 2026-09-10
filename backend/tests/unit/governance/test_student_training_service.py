@@ -26,6 +26,7 @@ from core.models import (
     ProposalStatus,
     ProposalType,
     TrainingSession,
+    User,
 )
 
 
@@ -4567,3 +4568,112 @@ class TestProposalOpenNotification:
             NS.return_value.send_notification.assert_not_called()
             # The proposal itself is unaffected.
             assert proposal.status == ProposalStatus.PENDING_APPROVAL.value
+
+    # ------------------------------------------------------------------
+    # 2026-09-09 role-journey batch: the owner is often a MEMBER, but
+    # deciding a training proposal is TEAM_LEAD+. The owner's copy must
+    # point at a supervisor (not "your approval"), and the supervisors
+    # who CAN act must be notified too — otherwise the proposal stalls:
+    # the notified member can't act and the acting supervisor never hears.
+    # ------------------------------------------------------------------
+
+    def _user(self, db_session: Session, email: str, role: str,
+              workspace_id: str = "default") -> User:
+        user = User(
+            email=email, role=role, first_name="Sup", last_name=email.split("@")[0],
+            status="active", workspace_id=workspace_id,
+        )
+        db_session.add(user)
+        db_session.commit()
+        db_session.refresh(user)
+        return user
+
+    @pytest.mark.asyncio
+    async def test_member_owner_copy_points_at_supervisor_and_supervisors_notified(
+        self, db_session: Session
+    ):
+        owner = self._user(db_session, "member-owner@example.com", "member")
+        lead = self._user(db_session, "lead@example.com", "team_lead")
+        admin = self._user(db_session, "wsadmin@example.com", "workspace_admin")
+        agent, blocked_trigger = self._agent_and_trigger(
+            db_session, user_id=owner.id, workspace_id="default")
+        service = StudentTrainingService(db_session)
+
+        with patch("core.notification_service.NotificationService") as NS:
+            NS.return_value.send_notification = AsyncMock(return_value={"success": True})
+            await service.create_training_proposal(blocked_trigger)
+
+            calls = NS.return_value.send_notification.await_args_list
+            notified = [c.kwargs["user_id"] for c in calls]
+            # Owner + every ACTIVE supervisor in the workspace.
+            assert notified[0] == owner.id
+            assert set(notified[1:]) == {lead.id, admin.id}
+            assert len(calls) == 3
+
+            owner_msg = calls[0].kwargs["data"]["message"]
+            assert "supervisor's approval" in owner_msg, owner_msg
+            for c in calls[1:]:
+                assert c.kwargs["data"]["action_url"] == "/approvals"
+                assert "supervisor's decision" in c.kwargs["data"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_supervisor_owner_gets_single_actionable_copy(
+        self, db_session: Session
+    ):
+        owner = self._user(db_session, "chief@example.com", "owner")
+        # A supervisor who must NOT be double-notified (owner already acts).
+        self._user(db_session, "lead2@example.com", "team_lead")
+        agent, blocked_trigger = self._agent_and_trigger(
+            db_session, user_id=owner.id, workspace_id="default")
+        service = StudentTrainingService(db_session)
+
+        with patch("core.notification_service.NotificationService") as NS:
+            NS.return_value.send_notification = AsyncMock(return_value={"success": True})
+            await service.create_training_proposal(blocked_trigger)
+
+            NS.return_value.send_notification.assert_awaited_once()
+            msg = NS.return_value.send_notification.await_args.kwargs["data"]["message"]
+            assert "for your approval" in msg, msg
+
+    @pytest.mark.asyncio
+    async def test_fanout_stays_inside_the_workspace(
+        self, db_session: Session
+    ):
+        owner = self._user(db_session, "m2@example.com", "member")
+        self._user(db_session, "lead-default@example.com", "team_lead",
+                   workspace_id="default")
+        self._user(db_session, "lead-other@example.com", "team_lead",
+                   workspace_id="other-workspace")
+        agent, blocked_trigger = self._agent_and_trigger(
+            db_session, user_id=owner.id, workspace_id="default")
+        service = StudentTrainingService(db_session)
+
+        with patch("core.notification_service.NotificationService") as NS:
+            NS.return_value.send_notification = AsyncMock(return_value={"success": True})
+            await service.create_training_proposal(blocked_trigger)
+
+            notified = [
+                c.kwargs["user_id"]
+                for c in NS.return_value.send_notification.await_args_list
+            ]
+            assert len(notified) == 2  # owner + same-workspace lead only
+
+    @pytest.mark.asyncio
+    async def test_suspended_supervisor_not_notified(self, db_session: Session):
+        owner = self._user(db_session, "m3@example.com", "member")
+        suspended = self._user(db_session, "gone@example.com", "team_lead")
+        suspended.status = "suspended"
+        db_session.commit()
+        agent, blocked_trigger = self._agent_and_trigger(
+            db_session, user_id=owner.id, workspace_id="default")
+        service = StudentTrainingService(db_session)
+
+        with patch("core.notification_service.NotificationService") as NS:
+            NS.return_value.send_notification = AsyncMock(return_value={"success": True})
+            await service.create_training_proposal(blocked_trigger)
+
+            notified = [
+                c.kwargs["user_id"]
+                for c in NS.return_value.send_notification.await_args_list
+            ]
+            assert notified == [owner.id]

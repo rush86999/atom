@@ -7315,3 +7315,34 @@ suites with only the 2 pre-existing template-coverage failures
 users → workspace_admin). Live after restart: anon workflow-ui create 403,
 anon marketplace 401, member templates 200 / create 403 / mobile-trigger
 422 (permission passed), admin create 422, marketplace view 200.
+
+## Session 2026-09-09 (b) — role-journey batch 4: GoalRun surface + leak closures
+
+**Scope**: re-traced all 8 role journeys after the GoalRun / HITL-notify /
+LLM-spend features landed.
+
+**Backend files**: `api/websocket_routes.py` (channel ACL),
+`core/student_training_service.py` + `core/notification_service.py`
+(supervisor fan-out), `api/agent_maturity_routes.py` (tenant scoping),
+`integrations/chat_routes.py` (routing-stats gate),
+`api/user_activity_routes.py` (ownership + USER_VIEW),
+`core/enterprise_user_management.py` (USER_MANAGE),
+`tests/e2e_ui/tests/test_journey_permission_matrix.py` (tripwire).
+
+**Tests**: `tests/test_role_journey_batch4_gaps.py` (53) +
+`tests/unit/governance/test_student_training_service.py` (+4 notify
+fan-out) + w76c re-contract (24 clients → user-1, owned-session db,
+cross-user terminate 403) + tripwire contract lock.
+**Frontend**: `tests/pages/goal-runs/detail.test.tsx` (4 gating cases),
+Sidebar.gating +Goal Runs. tsc clean.
+
+**Evidence**: batch-4 + governance + batch-1 + HITL + w71×2 +
+goal-run-notifications suites: all green except failures stash-verified
+identical on clean main (22 pre-existing in the governance file, 11
+pre-existing across the covpush set). Live on restarted backend
+(pid 3797): admin routing-stats/available-supervisors/self-directed/
+goal-runs 200; scratch member 403 on routing-stats, cross-user
+heartbeat/sessions, enterprise user create, goal-run create; member 200
+on goal-runs read + available-supervisors; WS live: member's
+user:/session channels denied with error frames, own + team channels
+quietly joined. Probe user soft-deleted after verification.

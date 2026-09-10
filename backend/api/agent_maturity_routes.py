@@ -873,8 +873,13 @@ async def self_directed_progress_queue(
     narrows to one agent (the canvas panel's single-card view); omit it
     for the full queue.
     """
+    from core.personal_scope import resolve_tenant_id
     from core.self_directed_progress import snapshot, student_agents
 
-    agents = student_agents(db, agent_id=agent_id)
+    # Tenant-scoped: the queue must not cross tenants (student_agents
+    # deliberately still includes NULL/empty-tenant legacy rows).
+    agents = student_agents(
+        db, tenant_id=resolve_tenant_id(current_user), agent_id=agent_id
+    )
     snapshots = [snapshot(db, a) for a in agents]
     return {"agents": snapshots, "count": len(snapshots)}
