@@ -73,7 +73,7 @@ def test_create_requires_supervisor(supervisor_env):
     assert resp.status_code == 403
 
 
-def test_create_run_seeds_plan_and_activates(supervisor_env):
+def test_create_run_seeds_plan_and_kickoff(supervisor_env):
     client = _make_client(supervisor_env, "gr-lead")
     resp = client.post("/api/goal-runs", json={
         "goal_id": "goal-1", "agent_id": "agent-1", "role": "sales",
@@ -82,10 +82,15 @@ def test_create_run_seeds_plan_and_activates(supervisor_env):
     body = resp.json()
     assert body["success"] is True
     assert body["seed_source"] == "fallback"   # no playbooks match in scratch DB
-    assert body["run"]["status"] == "active"
     assert body["run"]["supervision_mode"] == "training"
     assert [s["kind"] for s in body["run"]["plan"]] == [
         "canvas_work", "canvas_work", "human_checkpoint"]
+    # 2026-09-10 kickoff: the run starts working on create. In training mode
+    # that means the very FIRST decision is held for the supervisor — the run
+    # is not a dormant shell waiting for someone to find "Advance".
+    assert body["started"]["held"] is True
+    assert body["run"]["status"] == "paused_hitl"
+    assert body["run"]["pending_decision"]["decision"] in ("ADVANCE", "ASK_HUMAN")
 
 
 def test_create_unknown_goal_404(supervisor_env):
@@ -96,8 +101,11 @@ def test_create_unknown_goal_404(supervisor_env):
 
 def test_list_and_detail(supervisor_env):
     client = _make_client(supervisor_env, "gr-lead")
+    # start=False stages a dormant run — the pre-kickoff contract, kept
+    # available for callers that want to schedule a run rather than start it.
     run_id = client.post("/api/goal-runs", json={
-        "goal_id": "goal-1", "supervision_mode": "shadow"}).json()["id"]
+        "goal_id": "goal-1", "supervision_mode": "shadow",
+        "start": False}).json()["id"]
     listed = client.get("/api/goal-runs").json()["runs"]
     assert run_id in [r["id"] for r in listed]
     detail = client.get(f"/api/goal-runs/{run_id}").json()
@@ -109,11 +117,14 @@ def test_list_and_detail(supervisor_env):
 
 def test_advance_and_resume_flow(supervisor_env, monkeypatch):
     client = _make_client(supervisor_env, "gr-lead")
-    run_id = client.post("/api/goal-runs", json={
-        "goal_id": "goal-1", "supervision_mode": "training"}).json()["id"]
-    # Training mode: the first advance holds for approval.
-    out = client.post(f"/api/goal-runs/{run_id}/advance").json()
-    assert out["held"] is True
+    created = client.post("/api/goal-runs", json={
+        "goal_id": "goal-1", "supervision_mode": "training"}).json()
+    run_id = created["id"]
+    # Training mode: the kickoff decision already holds for approval, so the
+    # loop is not advanced again here (a second advance would 409 nothing —
+    # it is genuinely waiting on the human).
+    assert created["started"]["held"] is True
+    assert created["run"]["status"] == "paused_hitl"
     # Employee cannot resume; supervisor can.
     emp = _make_client(supervisor_env, "gr-emp")
     assert emp.post(f"/api/goal-runs/{run_id}/resume",

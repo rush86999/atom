@@ -3646,6 +3646,14 @@ try:
         logger.warning(f"Goal run routes not found: {e}")
 
     try:
+        from api.goal_routes import router as goal_router
+
+        app.include_router(goal_router)
+        logger.info("✓ Goal Routes Loaded (/api/goals)")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Goal routes not found: {e}")
+
+    try:
         from api.agent_control_routes import router as agent_control_router
 
         app.include_router(agent_control_router)

@@ -19,6 +19,29 @@ days, rather than a rigid pipeline.
   `scripts/restart_backend.sh` clean, routes loaded and auth-gated (401
   boundary), schema present on the dev DB. Build order in §7 kept as the
   record of what landed per slice.
+- **Status addendum 2026-09-10 — journey start/finish gap closure.** Tracing
+  "start → work → finish a long-running goal for an agent" end to end found
+  the START severed in three places and two finish-line dead ends:
+  (A) `GoalObjective` had no user-facing surface at all — creatable only by
+  the agent action `goals.create`, listable nowhere, so a supervisor could
+  not name the goal `POST /api/goal-runs` requires (unknown id → 404);
+  (B) `lib/goal-run-api.ts` had no create call and `/goal-runs` had no start
+  affordance — the only way to start a run was hand-rolled HTTP;
+  (C) `POST /api/goal-runs` activated the row but ran **no loop turn**, so a
+  freshly started run sat `active` with a cursor and produced nothing until a
+  human found the Advance button. Finish-line: (D) `/goal-runs/[id]` loaded
+  once and never refreshed (a run that finishes on its own is invisible until
+  a manual reload), and (E) terminal runs still rendered Advance/Cancel,
+  whose backend no-ops the UI reported as success. Fixed: `GET/POST
+  /api/goals` (`api/goal_routes.py`; list any-signed-in, create
+  supervisor-gated), a `start` kickoff on `POST /api/goal-runs` (default on;
+  `start:false` stages a dormant run), `StartGoalRunDialog` on `/goal-runs`,
+  goal TITLES on the run surfaces (a UUID is not a goal), quiet polling of
+  non-terminal runs, terminal action gating, and an `advance` 409 on terminal
+  runs. Also fixed workspace resolution in `_service`
+  (`resolve_workspace_id` was handed a **string**, whose `getattr` misses and
+  silently falls back to `"default"` — goals and runs could land in different
+  workspaces).
 - **Research grounding (per AGENTS.md §3):** this is the established
   *plan-and-execute with replanning* pattern ([LangChain planning
   agents](https://www.langchain.com/blog/planning-agents), [multi-agent
@@ -249,10 +272,17 @@ injection; WorkflowEngine changes; multi-agent negotiation.
 - **API:** `backend/api/goal_run_routes.py` — list/get/run/decision-log/
   resume/cancel, RBAC-gated to the repo's current standard (role-journey
   batches; analogous to `workflow:view/run/manage`).
-- **UI:** gallery groups canvases by goal (`pages/canvas/index.tsx`); run
-  timeline page showing the plan, canvases per step, and every decision with
-  its rationale chip (pattern: the existing `matched_playbooks` chips);
-  waiting-on badge for sleeping runs.
+- **API (goals):** `backend/api/goal_routes.py` — `GET /api/goals`,
+  `GET /api/goals/{id}` (any signed-in), `POST /api/goals` (supervisor). The
+  WHAT the run pursues; without it the start journey had no first link.
+- **UI:** `pages/goal-runs/index.tsx` lists runs and hosts the
+  **Start a goal run** dialog (`components/goals/StartGoalRunDialog.tsx`:
+  pick an existing goal or create one inline, bind role agent + supervision
+  mode); `/goal-runs/[id]` shows the goal title, plan, canvases per step,
+  and every decision with its rationale chip (pattern: the existing
+  `matched_playbooks` chips); waiting-on badge for sleeping runs; both
+  surfaces poll quietly while a run is non-terminal. Canvas gallery groups
+  canvases by goal (`pages/canvas/index.tsx`).
 
 ## 6. User journey — training a new role agent (sales persona)
 

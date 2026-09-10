@@ -11,8 +11,8 @@ import { Loader2, ArrowLeft, Check, X, Play, Ban, FileText, Sparkles, Info, Tren
 import {
     getGoalRun, getGoalRunCanvases, resumeGoalRun, resolveCheckpoint,
     advanceGoalRun, cancelGoalRun, distillGoalRun, setSupervisionMode,
-    getPromotionEvidence,
-    GoalRun, GoalRunCanvas, DecisionEntry, PromotionEvidence, SupervisionMode,
+    getPromotionEvidence, getGoal,
+    GoalRun, GoalRunCanvas, DecisionEntry, PromotionEvidence, SupervisionMode, Goal,
 } from "@/lib/goal-run-api";
 import { useUserRole } from "@/lib/user-role";
 
@@ -35,6 +35,13 @@ const STEP_KIND_LABEL: Record<string, string> = {
 export interface RunGuidance {
     tone: "info" | "action" | "success";
     text: string;
+}
+
+/** " Current step: Draft the quote." when the run has a live plan step —
+    a long-running run is only legible if the operator can see where it is. */
+function stepHint(run: GoalRun): string {
+    const step = (run.plan || []).find((s) => s.id === run.cursor);
+    return step?.title ? ` Current step: ${step.title}.` : "";
 }
 
 /** What the supervisor should know/do RIGHT NOW, per state. */
@@ -76,12 +83,21 @@ export function guidanceFor(run: GoalRun): RunGuidance {
     if (run.supervision_mode === "autonomous") {
         return {
             tone: "info",
-            text: "Autonomous mode — the run executes on its own with guardrails only (replan budget, stuck detector, send gates). You'll be notified at checkpoints and on outcome.",
+            text: `Autonomous mode — the run executes on its own with guardrails only (replan budget, stuck detector, send gates). You'll be notified at checkpoints and on outcome.${stepHint(run)}`,
+        };
+    }
+    if (run.status === "active" && !run.cursor) {
+        // A run with no cursor and no plan steps is a dead end the operator
+        // must resolve by hand (start=False staging, or a replan that emptied
+        // the plan). Say so instead of promising autonomous progress.
+        return {
+            tone: "action",
+            text: "This run is active but has no current step. Use Advance to have the router re-decide, or cancel it.",
         };
     }
     return {
         tone: "info",
-        text: "Shadow mode — decisions execute and are logged with their rationale below. Only guardrails (big replans, stuck loops) pause for you.",
+        text: `Shadow mode — decisions execute and are logged with their rationale below. Only guardrails (big replans, stuck loops) pause for you.${stepHint(run)}`,
     };
 }
 
@@ -103,6 +119,7 @@ export default function GoalRunDetailPage() {
     const roleKnown = Boolean(role);
     const canAct = !roleKnown || isSupervisor;
     const [run, setRun] = useState<GoalRun | null>(null);
+    const [goal, setGoal] = useState<Goal | null>(null);
     const [canvases, setCanvases] = useState<GoalRunCanvas[]>([]);
     const [promotion, setPromotion] = useState<PromotionEvidence | null>(null);
     const [loading, setLoading] = useState(true);
@@ -110,21 +127,39 @@ export default function GoalRunDetailPage() {
     const [guidance, setGuidance] = useState("");
     const [busy, setBusy] = useState(false);
 
-    const load = useCallback(async () => {
+    const load = useCallback(async (silent = false) => {
         if (typeof id !== "string") return;
         try {
             const r = await getGoalRun(id);
             setRun(r);
             setCanvases(await getGoalRunCanvases(id));
+            // The goal's TITLE is the run's identity to a human — a UUID is
+            // not a goal. Advisory: a goal fetch failure must not hide the run.
+            getGoal(r.goal_id)
+                .then(setGoal)
+                .catch(() => { /* title falls back to the id */ });
             setError(null);
         } catch (e: any) {
-            setError(e?.message || "Failed to load run");
+            if (!silent) setError(e?.message || "Failed to load run");
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, [id]);
 
     useEffect(() => { void load(); }, [load]);
+
+    // A long-running run advances on its own (wake, timer, canvas edit
+    // elsewhere). Poll quietly while non-terminal so the timeline — and the
+    // finish — are observable without a manual refresh.
+    useEffect(() => {
+        if (!run || ["achieved", "failed", "cancelled"].includes(run.status)) return;
+        const tick = () => {
+            if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+            void load(true);
+        };
+        const timer = setInterval(tick, 10000);
+        return () => clearInterval(timer);
+    }, [run?.status, load]);
 
     // Promotion evidence is advisory supervisor material (team_lead+ on the
     // backend) — only fetched for users who can act on it.
@@ -178,6 +213,7 @@ export default function GoalRunDetailPage() {
     if (!run) return null;
 
     const pending = run.pending_decision;
+    const terminal = ["achieved", "failed", "cancelled"].includes(run.status);
     const pendingCheckpointHitl = run.status === "waiting" &&
         (run.waiting_on as { event?: string; match?: { hitl_id?: string } } | null)?.event === "human_checkpoint"
         ? (run.waiting_on as { match?: { hitl_id?: string } }).match?.hitl_id
@@ -185,55 +221,64 @@ export default function GoalRunDetailPage() {
 
     return (
         <div className="container mx-auto py-8 max-w-4xl" data-testid="goal-run-detail">
-            <Head><title>Goal Run {run.id.slice(0, 8)}</title></Head>
+            <Head><title>{goal?.title ? `Goal run — ${goal.title}` : `Goal Run ${run.id.slice(0, 8)}`}</title></Head>
             <Button variant="ghost" size="sm" onClick={() => router.push("/goal-runs")} className="mb-4">
                 <ArrowLeft className="h-4 w-4" /> All runs
             </Button>
 
             <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
                 <div>
-                    <h1 className="text-2xl font-semibold flex items-center gap-2 flex-wrap">
-                        Goal run <Badge variant="outline">{run.status.replace("_", " ")}</Badge>
+                    <h1 className="text-2xl font-semibold flex items-center gap-2 flex-wrap"
+                        data-testid="run-goal-heading">
+                        {goal?.title || `Goal ${run.goal_id.slice(0, 8)}…`}
+                        <Badge variant="outline">{run.status.replace("_", " ")}</Badge>
                         <Badge variant="outline">{run.supervision_mode}</Badge>
                         {run.role && <Badge variant="outline">{run.role}</Badge>}
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
                         {run.steps_executed} steps · {run.replan_count} replans ·{" "}
-                        {run.human_interventions} human interventions · goal {run.goal_id.slice(0, 8)}…
+                        {run.human_interventions} human interventions
+                        {goal?.description ? ` · ${goal.description}` : ""}
                     </p>
                 </div>
                 <div className="flex gap-2 flex-wrap items-center">
                     {canAct && (
                         <>
-                            <div className="flex items-center gap-1 mr-1" data-testid="mode-switcher">
-                                {MODES.map((m) => (
-                                    <Button key={m} size="sm"
-                                            variant={run.supervision_mode === m ? "default" : "ghost"}
-                                            disabled={busy || run.supervision_mode === m}
-                                            title={MODE_HINT[m]}
-                                            onClick={() => handleMode(m)}>
-                                        {m}
-                                    </Button>
-                                ))}
-                            </div>
-                            {run.status === "achieved" && (
+                            {!terminal && (
+                                <div className="flex items-center gap-1 mr-1" data-testid="mode-switcher">
+                                    {MODES.map((m) => (
+                                        <Button key={m} size="sm"
+                                                variant={run.supervision_mode === m ? "default" : "ghost"}
+                                                disabled={busy || run.supervision_mode === m}
+                                                title={MODE_HINT[m]}
+                                                onClick={() => handleMode(m)}>
+                                            {m}
+                                        </Button>
+                                    ))}
+                                </div>
+                            )}
+                            {terminal && (
                                 <Button size="sm" variant="outline" disabled={busy} onClick={handleDistill}
                                         data-testid="distill-button">
                                     <Sparkles className="h-4 w-4" /> Distill to playbook
                                 </Button>
                             )}
-                            <Button size="sm" variant="outline" disabled={busy}
-                                    onClick={() => void act(() => advanceGoalRun(run.id), "Advanced one decision cycle")}>
-                                <Play className="h-4 w-4" /> Advance
-                            </Button>
-                            <Button size="sm" variant="outline" disabled={busy}
-                                    onClick={() => void act(async () => {
-                                        await cancelGoalRun(run.id);
-                                        toast.success("Run cancelled");
-                                        router.push("/goal-runs");
-                                    })}>
-                                <Ban className="h-4 w-4" /> Cancel
-                            </Button>
+                            {!terminal && (
+                                <>
+                                    <Button size="sm" variant="outline" disabled={busy}
+                                            onClick={() => void act(() => advanceGoalRun(run.id), "Advanced one decision cycle")}>
+                                        <Play className="h-4 w-4" /> Advance
+                                    </Button>
+                                    <Button size="sm" variant="outline" disabled={busy}
+                                            onClick={() => void act(async () => {
+                                                await cancelGoalRun(run.id);
+                                                toast.success("Run cancelled");
+                                                router.push("/goal-runs");
+                                            })}>
+                                        <Ban className="h-4 w-4" /> Cancel
+                                    </Button>
+                                </>
+                            )}
                         </>
                     )}
                 </div>
@@ -365,6 +410,11 @@ export default function GoalRunDetailPage() {
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-base">Plan (advisory path)</CardTitle></CardHeader>
                     <CardContent>
+                        {run.plan.length === 0 ? (
+                            <p className="text-sm text-muted-foreground" data-testid="plan-empty">
+                                No plan yet — the router decides the next step as the run advances.
+                            </p>
+                        ) : (
                         <ol className="space-y-2 text-sm">
                             {run.plan.map((step) => (
                                 <li key={step.id} className="flex items-start gap-2">
@@ -380,6 +430,7 @@ export default function GoalRunDetailPage() {
                                 </li>
                             ))}
                         </ol>
+                        )}
                         <h3 className="text-sm font-medium mt-5 mb-2">Canvases produced</h3>
                         {canvases.length === 0 ? (
                             <p className="text-sm text-muted-foreground">None yet.</p>
