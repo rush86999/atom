@@ -178,7 +178,25 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         }
     }, [lastMessage, toast]);
 
+    // --- history hydration plumbing -------------------------------------
+    // Reconnect-triggered reload: the websocket auto-reconnects (unlimited
+    // attempts in useWebSocket) when the backend restarts — but REST state
+    // fetched before the restart stays stale/failed. A socket false→true
+    // transition AFTER the initial mount connect is the signal that the
+    // backend bounced: re-pull the transcript so the user's history
+    // reappears without a manual page reload (2026-09-10: a restart left
+    // the widget on a welcome-only transcript that looked wiped).
+    const sessionIdRef = useRef(sessionId);
+    useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
+    const wsPrevConnectedRef = useRef<boolean | null>(null); // null = unobserved
+    const reloadInFlightRef = useRef(false);
+    // A reconnect that lands WHILE a hydration is already running (the
+    // restart happened mid-fetch) queues exactly one follow-up instead of
+    // being dropped on the floor by the in-flight guard.
+    const reconnectPendingRef = useRef(false);
+
     const loadSessionHistory = async (sid: string, welcomeMsg: ChatMessageData) => {
+        reloadInFlightRef.current = true;
         try {
             setIsLoading(true);
             // fetchWithRetry bridges transient blips (authFetch alone has no
@@ -223,31 +241,29 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                 setSessionId(freshSessionId);
                 localStorage.setItem('atom_chat_session_id', freshSessionId);
             }
-            // res===null means the network itself failed (every retry) — do
-            // not present that as a clean empty account.
+            // Failure is NOT the same as empty. `res === null` is a thrown
+            // network error; a non-ok Response is a restart answering
+            // 502/503/504 rather than dropping the connection (the likeliest
+            // mode behind a proxy). Before this, only the former was
+            // surfaced, so a 503 still rendered a silent welcome-only
+            // transcript — the exact symptom this fix exists to remove.
+            // Only the 403 stale-session drop above is a legitimate
+            // "start fresh".
             setMessages([welcomeMsg]);
-            setHistoryError(res === null);
+            setHistoryError(res === null || (res.status !== 403 && !res.ok));
         } catch {
             setMessages([welcomeMsg]);
             setHistoryError(true);
         } finally {
             setIsLoading(false);
+            reloadInFlightRef.current = false;
+            if (reconnectPendingRef.current) {
+                reconnectPendingRef.current = false;
+                const pendingSid = sessionIdRef.current;
+                if (pendingSid) void loadSessionHistory(pendingSid, buildWelcomeMessage());
+            }
         }
     };
-
-    // Reconnect-triggered history reload. The websocket auto-reconnects
-    // (unlimited attempts in useWebSocket) when the backend restarts — but
-    // REST state fetched before the restart stays stale/failed. A socket
-    // false→true transition AFTER the initial mount connect is the signal
-    // that the backend bounced: re-pull the transcript so the user's
-    // history reappears without a manual page reload (2026-09-10: a restart
-    // left the widget on a welcome-only transcript that looked wiped).
-    const sessionIdRef = useRef(sessionId);
-    useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
-    const isLoadingRef = useRef(isLoading);
-    useEffect(() => { isLoadingRef.current = isLoading; }, [isLoading]);
-    const wsPrevConnectedRef = useRef<boolean | null>(null); // null = unobserved
-    const reloadInFlightRef = useRef(false);
 
     useEffect(() => {
         const prev = wsPrevConnectedRef.current;
@@ -256,10 +272,14 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         // unrelated dependency changes with isConnected still true are
         // no-ops (prev === isConnected).
         if (prev === null || prev === isConnected || !isConnected) return;
-        if (reloadInFlightRef.current || isLoadingRef.current || !sessionIdRef.current) return;
-        reloadInFlightRef.current = true;
-        loadSessionHistory(sessionIdRef.current, buildWelcomeMessage())
-            .finally(() => { reloadInFlightRef.current = false; });
+        if (!sessionIdRef.current) return;
+        if (reloadInFlightRef.current) {
+            // The restart landed mid-hydration — queue one follow-up so the
+            // reconnect is not swallowed by the in-flight load.
+            reconnectPendingRef.current = true;
+            return;
+        }
+        void loadSessionHistory(sessionIdRef.current, buildWelcomeMessage());
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isConnected]);
 

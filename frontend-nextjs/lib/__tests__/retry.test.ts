@@ -64,6 +64,39 @@ describe("withRetry", () => {
         expect(value).toBe("503-2");
     });
 
+    it("returns the LAST outcome when a throw is followed by a still-flagged value", async () => {
+        // Regression: a restart that first drops the connection and then
+        // answers 502/503/504 mixed the two outcome channels — the stale
+        // attempt-1 error was rethrown even though the final attempt
+        // produced a real Response the caller can classify.
+        let calls = 0;
+        const value = await withRetry(
+            async () => {
+                calls++;
+                if (calls === 1) throw new TypeError("network down");
+                return "503";
+            },
+            { attempts: 3, baseDelayMs: 1, shouldRetryValue: (v) => v === "503" }
+        );
+        expect(value).toBe("503");
+        expect(calls).toBe(3);
+    });
+
+    it("throws the LAST outcome when a flagged value is followed by a throw", async () => {
+        let calls = 0;
+        await expect(
+            withRetry(
+                async () => {
+                    calls++;
+                    if (calls === 1) return "503";
+                    throw new TypeError(`down ${calls}`);
+                },
+                { attempts: 2, baseDelayMs: 1, shouldRetryValue: (v) => v === "503" }
+            )
+        ).rejects.toThrow("down 2");
+        expect(calls).toBe(2);
+    });
+
     it("never retries when attempts is 1", async () => {
         let calls = 0;
         await expect(
@@ -118,6 +151,19 @@ describe("fetchWithRetry", () => {
         let calls = 0;
         const response = await fetchWithRetry(async () => {
             calls++;
+            return res(503);
+        }, { attempts: 3, baseDelayMs: 1 });
+        expect(response.status).toBe(503);
+        expect(calls).toBe(3);
+    });
+
+    it("returns the final transient Response when a network error was followed by 503s", async () => {
+        // The caller (GlobalChatWidget) classifies the returned Response;
+        // a thrown stale error would instead land in its null/network branch.
+        let calls = 0;
+        const response = await fetchWithRetry(async () => {
+            calls++;
+            if (calls === 1) throw new TypeError("Failed to fetch");
             return res(503);
         }, { attempts: 3, baseDelayMs: 1 });
         expect(response.status).toBe(503);

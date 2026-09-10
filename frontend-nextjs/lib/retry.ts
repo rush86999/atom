@@ -41,8 +41,14 @@ export async function withRetry<T>(
     const attempts = Math.max(1, options.attempts ?? 3);
     const baseDelayMs = options.baseDelayMs ?? 500;
     const shouldRetryValue = options.shouldRetryValue;
+    // LAST outcome wins, across BOTH channels. Tracking a value and an error
+    // separately rethrew a stale attempt-1 network error even when the final
+    // attempt produced a real Response the caller could classify — so the
+    // same outage rendered differently depending on whether any attempt
+    // happened to throw (503 throughout → Response; throw-then-503 → error).
     let lastValue: T | undefined;
     let lastError: unknown;
+    let lastWasError = false;
 
     for (let attempt = 0; attempt < attempts; attempt++) {
         if (attempt > 0) {
@@ -54,11 +60,13 @@ export async function withRetry<T>(
             const value = await fn();
             if (!shouldRetryValue || !shouldRetryValue(value)) return value;
             lastValue = value;
+            lastWasError = false;
         } catch (err) {
             lastError = err;
+            lastWasError = true;
         }
     }
-    if (lastError !== undefined) throw lastError;
+    if (lastWasError) throw lastError;
     return lastValue as T;
 }
 
