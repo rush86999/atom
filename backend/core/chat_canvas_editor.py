@@ -857,7 +857,16 @@ async def fetch_fresh_data_section(
                     }} if canvas else {}),
                 },
             )
-            observation = (block or "lookup returned nothing usable")[:2000]
+            observation = (block or "lookup returned nothing usable")[:4000]
+            if block and len(block) > 4000:
+                # Trace display only — the model-facing section below gets
+                # the FULL block. Without the marker a clipped observation
+                # reads like a coherent ending and misleads trace-based
+                # debugging ("the model never saw the price" when it did).
+                observation += (
+                    f"…[display truncated — model received the full "
+                    f"{len(block)}-char block]"
+                )
             await _record(
                 "observation",
                 {"tool": plan.service,
