@@ -33,7 +33,8 @@ days, rather than a rigid pipeline.
   once and never refreshed (a run that finishes on its own is invisible until
   a manual reload), and (E) terminal runs still rendered Advance/Cancel,
   whose backend no-ops the UI reported as success. Fixed: `GET/POST
-  /api/goals` (`api/goal_routes.py`; list any-signed-in, create
+  /api/goals` (`api/goal_routes.py`; list any-signed-in, create at member
+  level — the person doing the work — with criteria/target-date
   supervisor-gated), a `start` kickoff on `POST /api/goal-runs` (default on;
   `start:false` stages a dormant run), `StartGoalRunDialog` on `/goal-runs`,
   goal TITLES on the run surfaces (a UUID is not a goal), quiet polling of
@@ -42,6 +43,15 @@ days, rather than a rigid pipeline.
   (`resolve_workspace_id` was handed a **string**, whose `getattr` misses and
   silently falls back to `"default"` — goals and runs could land in different
   workspaces).
+- **Status addendum 2026-09-10 (b) — role-based access, generalized.** The
+  first cut gated starting/working a run at `team_lead+`, which contradicted
+  the requirement: the people who communicate outside the org must be able to
+  run their own everyday process in ANY business, not just sales. Access is
+  now the ladder in §3.8 — members start/work their OWN role-based runs
+  (role derived from the bound agent's `specialty`/`category`, plan seeded
+  from approved playbooks, no `autonomous`, governance knobs stripped,
+  owner-or-supervisor on acts), `team_lead+` keeps the org-shaping acts, and
+  viewers read. No industry is hardcoded anywhere.
 - **Research grounding (per AGENTS.md §3):** this is the established
   *plan-and-execute with replanning* pattern ([LangChain planning
   agents](https://www.langchain.com/blog/planning-agents), [multi-agent
@@ -250,6 +260,41 @@ keeping with the eval-gated promotion philosophy throughout this repo.
 One loop results: **train on supervised runs → graduate via evals → run
 autonomously → decisions and outcomes keep teaching (corrections,
 experiences, distilled playbooks) → better seeds and judgment.**
+
+### 3.8 Who can run what — role-based access, any business type
+
+The sales/quoting persona in §6 is ONE instance of a general rule. Every
+business has people who communicate outside the org — support reps, claims
+handlers, recruiters, buyers, account managers — and **they must be able to
+start and work their own role-based run** for everyday work. Access is a
+ladder, not a binary supervisor gate:
+
+| Actor | May start a run | May work a run | Org-shaping acts |
+|---|---|---|---|
+| **member** (and up) | yes — **role-based only**: role is required (or derived from the bound agent's `specialty`/`category`), the plan is seeded from that role's **approved playbooks** (never hand-authored), no `autonomous`, governance knobs stripped | yes, on runs **they started** (advance, resume/override, checkpoint, cancel) | no |
+| **team_lead+** | anything: explicit `plan`, any goal, any mode (incl. `autonomous`), governance params | any run, regardless of owner | change `supervision_mode`, view promotion evidence, distill to a playbook draft, inject workspace events, act on runs they do not own |
+| **viewer / guest** | no (403) | no (read-only) | no |
+
+Key properties:
+
+- **Role is business data, never a hardcoded industry list.** `GoalRun.role`
+  is a free business-function label; the start surface *suggests* roles from
+  the workspace's own agents (their `category`) and the API derives the role
+  from the bound agent's `specialty`/`category` when one is not passed. The
+  plan comes from that role's approved playbooks, so "role-based" is enforced
+  by what the run can execute, not by trusting a string.
+- **Owner-or-supervisor, not everyone.** A member cannot drive, approve or
+  cancel someone else's run — the HITL checkpoints of a run belong to its
+  owner and the supervisor chain. The owner may approve their own run's
+  decisions/checkpoints (the rep signs off their own quote); supervisors can
+  act on any run.
+- **The org-shaping acts stay supervisor-grade** even for an owner: mode
+  promotion, distillation into role playbooks, and the workspace-wide event
+  inbox. These change what *other* agents/roles do, not just this run.
+- **The agent's own maturity gates are unchanged.** Role-based access decides
+  who may drive the process; the existing maturity/autonomy gates still decide
+  what the agent is allowed to execute (terminal sends remain on
+  `wants_action`).
 
 ## 4. Explicitly rejected alternatives
 

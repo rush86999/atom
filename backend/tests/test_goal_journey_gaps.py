@@ -33,7 +33,7 @@ from api.goal_routes import router as goals_router
 from api.goal_run_routes import router as goal_runs_router
 from core.auth import get_current_user
 from core.database import get_db as _get_db
-from core.models import Canvas, GoalObjective, GoalRun, User, UserRole
+from core.models import AgentRegistry, Canvas, GoalObjective, GoalRun, User, UserRole
 
 
 def _make_app(db, viewer_id: str) -> TestClient:
@@ -83,6 +83,9 @@ def env(db_session):
     db_session.add(User(
         id="gj-emp", email="gj-emp@example.com", first_name="Emp",
         last_name="Loyee", role=UserRole.MEMBER.value, status="active"))
+    db_session.add(User(
+        id="gj-emp2", email="gj-emp2@example.com", first_name="Other",
+        last_name="Member", role=UserRole.MEMBER.value, status="active"))
     db_session.commit()
     return db_session
 
@@ -101,13 +104,27 @@ class TestGoalsSurface:
         titles = [g["title"] for g in resp.json()["goals"]]
         assert "Prepare a quote" in titles
 
-    def test_create_goal_requires_supervisor(self, env):
+    def test_member_creates_simple_goal_but_not_criteria(self, env):
+        """Role-based model: the person doing a piece of work (any business —
+        a lead, a claim, a candidate) may create the goal for it. Criteria
+        and target dates shape how every agent terminates → supervisor."""
         member = _make_app(env, "gj-emp")
-        assert member.post("/api/goals", json={"title": "X"}).status_code == 403
+        ok = member.post("/api/goals", json={"title": "Quote for a lead"})
+        assert ok.status_code == 200, ok.text
+        assert ok.json()["goal"]["title"] == "Quote for a lead"
+        assert ok.json()["goal"]["owner_id"] == "gj-emp"
+        gated = member.post("/api/goals", json={
+            "title": "X", "criteria": [{"type": "manual"}]})
+        assert gated.status_code == 403, gated.text
+        assert "supervisor" in gated.json()["detail"]
+        gated_date = member.post("/api/goals", json={
+            "title": "X", "target_date": "2026-12-31"})
+        assert gated_date.status_code == 403
+
         lead = _make_app(env, "gj-lead")
         resp = lead.post("/api/goals", json={
             "title": "Prepare a quote for the Acme lead",
-            "description": "multi-touch sales process",
+            "description": "multi-touch process",
             "criteria": [{"type": "manual", "description": "lead replied"}]})
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -131,6 +148,121 @@ class TestGoalsSurface:
             "goal_id": goal_id, "role": "sales", "supervision_mode": "shadow"})
         assert resp.status_code == 200, resp.text
         assert resp.json()["run"]["goal_id"] == goal_id
+
+
+# ------------------------------------ role-based run access (any business type)
+
+class TestRoleBasedRunAccess:
+    """The sales/quoting case is ONE instance. The rule is general: whoever
+    does the external-facing work in ANY business (support reps, claims
+    handlers, recruiters, buyers) starts and works their OWN role-based run;
+    team_lead+ keeps the broader powers."""
+
+    def _goal(self, env, gid="goal-rbac"):
+        env.add(GoalObjective(id=gid, workspace_id="ws-test", tenant_id=None,
+                              title="Resolve a customer request",
+                              status="active"))
+        env.commit()
+        return gid
+
+    def test_member_starts_own_role_based_run(self, env):
+        gid = self._goal(env)
+        client = _make_app(env, "gj-emp")
+        resp = client.post("/api/goal-runs", json={
+            "goal_id": gid, "role": "support", "supervision_mode": "training"})
+        assert resp.status_code == 200, resp.text
+        run = resp.json()["run"]
+        assert run["role"] == "support"
+        assert run["created_by"] == "gj-emp"
+
+    def test_role_derived_from_the_business_agent(self, env):
+        """No hardcoded industry list: the role comes from the agent the
+        business configured (specialty, else category)."""
+        gid = self._goal(env)
+        env.add(AgentRegistry(
+            id="agent-support", name="Support Agent",
+            category="Customer Service", specialty="support",
+            module_path="agents.support", class_name="SupportAgent",
+            status="active"))
+        env.commit()
+        client = _make_app(env, "gj-emp")
+        resp = client.post("/api/goal-runs", json={
+            "goal_id": gid, "agent_id": "agent-support"})
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["run"]["role"] == "support"
+
+    def test_member_cannot_author_plan_or_self_promote(self, env):
+        gid = self._goal(env)
+        client = _make_app(env, "gj-emp")
+        plan = client.post("/api/goal-runs", json={
+            "goal_id": gid, "role": "support",
+            "plan": [{"id": "s1", "kind": "canvas_work", "title": "x"}]})
+        assert plan.status_code == 403, plan.text
+        auto = client.post("/api/goal-runs", json={
+            "goal_id": gid, "role": "support",
+            "supervision_mode": "autonomous"})
+        assert auto.status_code == 403, auto.text
+
+    def test_member_governance_params_stripped(self, env):
+        gid = self._goal(env)
+        client = _make_app(env, "gj-emp")
+        resp = client.post("/api/goal-runs", json={
+            "goal_id": gid, "role": "support", "start": False,
+            "parameters": {"replan_budget": 99, "wait_ceiling_days": 365,
+                           "region": "emea"}})
+        assert resp.status_code == 200, resp.text
+        params = resp.json()["run"]["parameters"]
+        assert "replan_budget" not in params
+        assert "wait_ceiling_days" not in params
+        assert params.get("region") == "emea"
+
+    def test_member_without_role_or_agent_is_422(self, env):
+        gid = self._goal(env)
+        client = _make_app(env, "gj-emp")
+        resp = client.post("/api/goal-runs", json={"goal_id": gid})
+        assert resp.status_code == 422, resp.text
+
+    def test_owner_acts_other_member_refused_supervisor_can(self, env):
+        gid = self._goal(env)
+        owner = _make_app(env, "gj-emp")
+        run_id = owner.post("/api/goal-runs", json={
+            "goal_id": gid, "role": "support", "start": False}).json()["id"]
+        other = _make_app(env, "gj-emp2")
+        assert other.post(f"/api/goal-runs/{run_id}/advance").status_code == 403
+        assert other.post(f"/api/goal-runs/{run_id}/cancel").status_code == 403
+        assert other.post(
+            f"/api/goal-runs/{run_id}/checkpoints/h1/resolve",
+            json={"approved": True}).status_code == 403
+        assert owner.post(f"/api/goal-runs/{run_id}/advance").status_code == 200
+        lead = _make_app(env, "gj-lead")
+        assert lead.post(f"/api/goal-runs/{run_id}/advance").status_code == 200
+
+    def test_owner_resolves_own_held_decision(self, env):
+        gid = self._goal(env)
+        owner = _make_app(env, "gj-emp")
+        created = owner.post("/api/goal-runs", json={
+            "goal_id": gid, "role": "support",
+            "supervision_mode": "training"}).json()
+        assert created["run"]["status"] == "paused_hitl"
+        run_id = created["id"]
+        other = _make_app(env, "gj-emp2")
+        assert other.post(f"/api/goal-runs/{run_id}/resume",
+                          json={"approved": True}).status_code == 403
+        resumed = owner.post(f"/api/goal-runs/{run_id}/resume",
+                             json={"approved": True})
+        assert resumed.status_code == 200, resumed.text
+        assert resumed.json()["resumed"] is True
+
+    def test_member_cannot_change_mode_or_distill(self, env):
+        """Promotion and distillation shape the whole role → supervisor."""
+        gid = self._goal(env)
+        owner = _make_app(env, "gj-emp")
+        run_id = owner.post("/api/goal-runs", json={
+            "goal_id": gid, "role": "support", "start": False}).json()["id"]
+        assert owner.post(
+            f"/api/goal-runs/{run_id}/mode",
+            json={"supervision_mode": "autonomous"}).status_code == 403
+        assert owner.post(f"/api/goal-runs/{run_id}/distill").status_code == 403
 
 
 # --------------------------------------------------------------- B: kickoff

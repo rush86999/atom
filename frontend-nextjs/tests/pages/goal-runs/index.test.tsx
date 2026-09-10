@@ -24,6 +24,15 @@ const mockUseUserRole = jest.fn();
 jest.mock("@/lib/user-role", () => ({
   __esModule: true,
   useUserRole: () => mockUseUserRole(),
+  // The page gates "can this person start a run" on the shared helper; keep
+  // the real semantics (member=3) rather than stubbing a boolean.
+  meetsRole: (role: string | null, minLevel: number) => {
+    const levels: Record<string, number> = {
+      viewer: 2, member: 3, team_lead: 4, workspace_admin: 5, owner: 7,
+    };
+    return (levels[String(role)] ?? 0) >= minLevel;
+  },
+  MEMBER_MIN_LEVEL: 3,
 }));
 
 jest.mock("@/lib/canvas-api", () => ({
@@ -129,8 +138,18 @@ describe("GoalRunsIndexPage", () => {
     expect(screen.getByTestId("new-goal-run")).toBeTruthy();
   });
 
-  it("member does not see the start affordance (backend would 403)", async () => {
+  it("member sees the start affordance — role-based everyday work", async () => {
     mockUseUserRole.mockReturnValue(member);
+    listGoalRuns.mockResolvedValue([]);
+    render(<GoalRunsIndexPage />);
+    await waitFor(() => expect(screen.getByTestId("goal-runs-empty")).toBeTruthy());
+    expect(screen.getByTestId("new-goal-run")).toBeTruthy();
+  });
+
+  it("viewer does not see the start affordance (backend would 403)", async () => {
+    mockUseUserRole.mockReturnValue({
+      role: "viewer", level: 2, isSupervisor: false, isAdmin: false, loading: false,
+    });
     listGoalRuns.mockResolvedValue([]);
     render(<GoalRunsIndexPage />);
     await waitFor(() => expect(screen.getByTestId("goal-runs-empty")).toBeTruthy());

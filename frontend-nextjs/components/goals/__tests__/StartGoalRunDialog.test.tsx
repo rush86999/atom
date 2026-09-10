@@ -132,4 +132,50 @@ describe("StartGoalRunDialog", () => {
     const mode = screen.getByTestId("mode-select") as HTMLSelectElement;
     expect(mode.value).toBe("training");
   });
+
+  // ---- role-based access, generalized to any business ---------------------
+
+  it("member (canSupervise=false): no autonomous mode, and the role is required", async () => {
+    render(<StartGoalRunDialog open canSupervise={false}
+                               onOpenChange={() => {}} onStarted={() => {}} />);
+    await waitFor(() => screen.getByText("Prepare a quote for Acme"));
+    const mode = screen.getByTestId("mode-select") as HTMLSelectElement;
+    expect(Array.from(mode.options).map((o) => o.value)).toEqual(["training", "shadow"]);
+    expect(screen.getByText(/Autonomous runs need a supervisor/i)).toBeTruthy();
+    // No role yet → cannot start (the backend would 422 a role-less run).
+    expect((screen.getByTestId("submit-start-run") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByTestId("role-input"), { target: { value: "support" } });
+    expect((screen.getByTestId("submit-start-run") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("suggests roles from the business's own agents and fills one when chosen", async () => {
+    listAttachableAgents.mockResolvedValue([
+      { id: "agent-cs", name: "Support Agent", category: "Customer Service" },
+      { id: "agent-fin", name: "Finance Agent", category: "Finance" },
+    ]);
+    render(<StartGoalRunDialog open onOpenChange={() => {}} onStarted={() => {}} />);
+    await waitFor(() => screen.getByText("Prepare a quote for Acme"));
+
+    const suggestions = Array.from(
+      document.querySelectorAll("#goal-run-role-options option"),
+    ).map((o) => (o as HTMLOptionElement).value);
+    expect(suggestions).toContain("Customer Service");
+    expect(suggestions).toContain("Finance");
+
+    fireEvent.change(screen.getByTestId("agent-select"), { target: { value: "agent-cs" } });
+    expect((screen.getByTestId("role-input") as HTMLInputElement).value)
+      .toBe("Customer Service");
+  });
+
+  it("member submission carries the role and never autonomous", async () => {
+    const onStarted = jest.fn();
+    render(<StartGoalRunDialog open canSupervise={false}
+                               onOpenChange={() => {}} onStarted={onStarted} />);
+    await waitFor(() => screen.getByText("Prepare a quote for Acme"));
+    fireEvent.change(screen.getByTestId("role-input"), { target: { value: "claims" } });
+    fireEvent.click(screen.getByTestId("submit-start-run"));
+    await waitFor(() => expect(createGoalRun).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "claims" })));
+    expect(createGoalRun.mock.calls[0][0].supervision_mode).not.toBe("autonomous");
+  });
 });

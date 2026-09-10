@@ -67,10 +67,20 @@ def supervisor_env(db_session):
     return db_session
 
 
-def test_create_requires_supervisor(supervisor_env):
+def test_member_create_requires_role_based_shape(supervisor_env):
+    """Role-based access: a member may start their OWN role-based run, but
+    not a role-less one (422) and not with supervisor-grade shape (403)."""
     client = _make_client(supervisor_env, "gr-emp")
-    resp = client.post("/api/goal-runs", json={"goal_id": "goal-1"})
-    assert resp.status_code == 403
+    roleless = client.post("/api/goal-runs", json={"goal_id": "goal-1"})
+    assert roleless.status_code == 422
+    ok = client.post("/api/goal-runs", json={
+        "goal_id": "goal-1", "role": "support", "supervision_mode": "training"})
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["run"]["created_by"] == "gr-emp"
+    gated = client.post("/api/goal-runs", json={
+        "goal_id": "goal-1", "role": "support",
+        "plan": [{"id": "s1", "kind": "canvas_work", "title": "x"}]})
+    assert gated.status_code == 403
 
 
 def test_create_run_seeds_plan_and_kickoff(supervisor_env):

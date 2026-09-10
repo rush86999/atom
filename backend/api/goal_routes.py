@@ -33,16 +33,25 @@ from core.security.rbac import user_meets_role
 router = BaseAPIRouter(prefix="/api/goals", tags=["goals"])
 
 _SUPERVISOR_MIN = UserRole.TEAM_LEAD
+_RUNNER_MIN = UserRole.MEMBER
 
 
-def _require_supervisor(db: Session, current_user: User) -> None:
+def _is_supervisor(db: Session, current_user: User) -> bool:
     user = db.query(UserModel).filter(UserModel.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if not user_meets_role(user, _SUPERVISOR_MIN):
+    return user_meets_role(user, _SUPERVISOR_MIN)
+
+
+def _require_runner(db: Session, current_user: User) -> None:
+    """Creating the goal for a piece of work is a member act; viewers read."""
+    user = db.query(UserModel).filter(UserModel.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user_meets_role(user, _RUNNER_MIN):
         raise HTTPException(
             status_code=403,
-            detail="Insufficient permissions. Required role: team_lead or higher",
+            detail="Creating a goal requires at least the member role",
         )
 
 
@@ -100,10 +109,24 @@ async def create_goal(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _require_supervisor(db, current_user)
+    # Role-based access (2026-09-10): goals are per-piece-of-work in ANY
+    # business (a lead, a claim, a candidate, a purchase), so the people
+    # doing that work may create one — but machine-checkable success
+    # criteria and target dates shape how every agent terminates, so those
+    # stay supervisor-grade.
+    supervisor = _is_supervisor(db, current_user)
+    if not supervisor:
+        _require_runner(db, current_user)
     title = (payload.title or "").strip()
     if not title:
         raise HTTPException(status_code=422, detail="goal title is required")
+    if not supervisor and (payload.criteria or payload.key_results
+                           or payload.target_date):
+        raise HTTPException(
+            status_code=403,
+            detail="criteria, key_results and target_date require a "
+                   "supervisor (team_lead or higher) — create the goal with "
+                   "a title and description, and a supervisor can enrich it")
     target_dt = None
     if payload.target_date:
         try:

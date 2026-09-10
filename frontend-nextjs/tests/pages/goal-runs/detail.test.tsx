@@ -72,6 +72,7 @@ const run = (overrides: Partial<GoalRun> = {}): GoalRun => ({
   replan_count: 0,
   steps_executed: 1,
   human_interventions: 0,
+  created_by: "owner-1",
   created_at: null,
   ...overrides,
 });
@@ -204,5 +205,51 @@ describe("GoalRunDetailPage journey finish-line (2026-09-10)", () => {
     await waitFor(() =>
       expect(screen.getByTestId("distill-button")).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: /advance/i })).toBeNull();
+  });
+});
+
+describe("GoalRunDetailPage role-based access (any business)", () => {
+  const member = (userId: string) => ({
+    role: "member", userId, level: 3, isSupervisor: false, isAdmin: false, loading: false,
+  });
+
+  it("the run's OWNER works and approves it, but gets no supervisor powers", async () => {
+    mockUseUserRole.mockReturnValue(member("owner-1"));
+    getGoalRun.mockResolvedValue(run({
+      status: "paused_hitl",
+      pending_decision: {
+        ts: "", kind: "decision", decision: "ADVANCE", rationale: "next step",
+      },
+    }));
+    render(<GoalRunDetailPage />);
+    await waitFor(() => screen.getByTestId("pending-decision"));
+    // Owner can act on their own run…
+    expect(screen.getByRole("button", { name: /^approve/i })).toBeInTheDocument();
+    expect(screen.queryByTestId("read-only-banner")).toBeNull();
+    // …but mode changes and promotion evidence are supervisor acts.
+    expect(screen.queryByTestId("mode-switcher")).toBeNull();
+    expect(screen.queryByTestId("promotion-evidence")).toBeNull();
+  });
+
+  it("a DIFFERENT member is read-only on someone else's run", async () => {
+    mockUseUserRole.mockReturnValue(member("not-the-owner"));
+    getGoalRun.mockResolvedValue(run({ status: "active" }));
+    render(<GoalRunDetailPage />);
+    await waitFor(() => screen.getByTestId("goal-run-detail"));
+    expect(screen.getByTestId("read-only-banner")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /advance/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /cancel/i })).toBeNull();
+  });
+
+  it("a supervisor can act on ANY run they do not own", async () => {
+    mockUseUserRole.mockReturnValue({
+      role: "team_lead", userId: "not-the-owner", level: 4,
+      isSupervisor: true, isAdmin: false, loading: false,
+    });
+    getGoalRun.mockResolvedValue(run({ status: "active" }));
+    render(<GoalRunDetailPage />);
+    await waitFor(() => screen.getByTestId("mode-switcher"));
+    expect(screen.getByRole("button", { name: /advance/i })).toBeInTheDocument();
+    expect(screen.queryByTestId("read-only-banner")).toBeNull();
   });
 });

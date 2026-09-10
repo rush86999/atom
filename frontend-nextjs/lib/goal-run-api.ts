@@ -94,6 +94,8 @@ export interface GoalRun {
   replan_count: number;
   steps_executed: number;
   human_interventions: number;
+  /** Who started the run — its owner, who may work and approve it. */
+  created_by?: string | null;
   created_at: string | null;
 }
 
@@ -139,6 +141,7 @@ function runFromRow(row: Record<string, unknown>): GoalRun {
     replan_count: Number(row.replan_count ?? 0),
     steps_executed: Number(row.steps_executed ?? 0),
     human_interventions: Number(row.human_interventions ?? 0),
+    created_by: (row.created_by as string) ?? null,
     created_at: (row.created_at as string) ?? null,
   };
 }

@@ -24,6 +24,8 @@ export const ROLE_LEVELS: Record<string, number> = {
 
 /** team_lead and above may decide HITL/training/supervision actions. */
 export const SUPERVISOR_MIN_LEVEL = ROLE_LEVELS.team_lead;
+/** member and above do the everyday work — including starting role-based runs. */
+export const MEMBER_MIN_LEVEL = ROLE_LEVELS.member;
 /** workspace_admin and above manage users/settings/workspaces. */
 export const ADMIN_MIN_LEVEL = ROLE_LEVELS.workspace_admin;
 
@@ -38,26 +40,42 @@ export function meetsRole(role: string | null | undefined, minLevel: number): bo
 
 const ROLE_CACHE_KEY = "atom_user_role";
 
-export async function fetchCurrentRole(): Promise<string | null> {
-    if (typeof window === "undefined") return null;
+export interface CurrentUser {
+    role: string | null;
+    id: string | null;
+}
+
+/**
+ * The signed-in identity from /api/auth/me. `id` is needed by surfaces that
+ * gate on ownership (a GoalRun is worked by its owner OR a supervisor), not
+ * just on role.
+ */
+export async function fetchCurrentUser(): Promise<CurrentUser> {
+    if (typeof window === "undefined") return { role: null, id: null };
     const API = process.env.NEXT_PUBLIC_API_URL || "";
     const token =
         window.localStorage.getItem("auth_token") ||
         window.localStorage.getItem("token") ||
         "";
-    if (!token) return null;
+    if (!token) return { role: null, id: null };
     try {
         const res = await fetch(`${API}/api/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) return null;
+        if (!res.ok) return { role: null, id: null };
         const data = await res.json();
         const role = typeof data?.role === "string" ? data.role : null;
+        const id = data?.id != null ? String(data.id)
+            : data?.user_id != null ? String(data.user_id) : null;
         if (role) window.localStorage.setItem(ROLE_CACHE_KEY, role);
-        return role;
+        return { role, id };
     } catch {
-        return null;
+        return { role: null, id: null };
     }
+}
+
+export async function fetchCurrentRole(): Promise<string | null> {
+    return (await fetchCurrentUser()).role;
 }
 
 export function cachedRole(): string | null {
@@ -73,6 +91,8 @@ export function clearCachedRole(): void {
 export type UseUserRole = {
     /** raw role string once known; null while loading/unauthenticated */
     role: string | null;
+    /** signed-in user id once known; null while loading/unauthenticated */
+    userId: string | null;
     /** numeric level (0 = unknown) */
     level: number;
     isSupervisor: boolean;
@@ -93,15 +113,17 @@ import { useEffect, useState } from "react";
  */
 export function useUserRole(): UseUserRole {
     const [role, setRole] = useState<string | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         let cancelled = false;
         const cached = cachedRole();
         if (cached) setRole(cached);
-        fetchCurrentRole().then((fresh) => {
+        fetchCurrentUser().then((fresh) => {
             if (cancelled) return;
-            if (fresh) setRole(fresh);
+            if (fresh.role) setRole(fresh.role);
+            if (fresh.id) setUserId(fresh.id);
             setLoading(false);
         });
         return () => {
@@ -112,6 +134,7 @@ export function useUserRole(): UseUserRole {
     const level = roleLevel(role);
     return {
         role,
+        userId,
         level,
         isSupervisor: meetsRole(role, SUPERVISOR_MIN_LEVEL),
         isAdmin: meetsRole(role, ADMIN_MIN_LEVEL),

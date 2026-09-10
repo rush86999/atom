@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,26 +15,37 @@ import { listAttachableAgents, AgentRegistryEntry } from "@/lib/canvas-api";
 // Start-a-goal-run dialog — the missing first link of the journey
 // (GOAL_RUN_ORCHESTRATION.md §6 Journey A). Before this, a run could only be
 // created by hand-rolled HTTP with a goal_id nothing in the UI could produce
-// or show. Now a supervisor picks an existing goal or writes a new one,
-// binds the role agent, chooses the supervision mode, and starts — the
-// backend kicks off the first loop turn, so the run is working immediately
-// (training mode holds that first decision for approval, by design).
+// or show. Now the person doing the work picks an existing goal or writes a
+// new one, binds the role agent, and starts — the backend kicks off the first
+// loop turn, so the run is working immediately (training mode holds that
+// first decision for approval, by design).
+//
+// Business-type agnostic: "role" is the business function the run belongs to
+// and is DERIVED from the business's own agents (their category), with free
+// text for anything not yet configured. Sales/quoting is one instance;
+// support, claims, recruiting, procurement are the same mechanism. Only
+// supervisors may self-promote a run to `autonomous`.
 
 export interface StartGoalRunDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     /** Called with the new run id after a successful start. */
     onStarted: (runId: string) => void;
+    /** team_lead+: unlocks `autonomous` and makes the role optional. */
+    canSupervise?: boolean;
 }
 
 const MODE_HINT: Record<SupervisionMode, string> = {
-    training: "every decision waits for your approval",
-    shadow: "decisions execute; guardrails pause for you",
-    autonomous: "runs alone; checkpoints still notify you",
+    training: "every decision waits for approval",
+    shadow: "decisions execute; guardrails pause for approval",
+    autonomous: "runs alone; checkpoints still notify",
 };
 
+/** Modes a non-supervisor may pick (autonomous is a supervisor act). */
+const MODES_FOR_MEMBER: SupervisionMode[] = ["training", "shadow"];
+
 export default function StartGoalRunDialog({
-    open, onOpenChange, onStarted,
+    open, onOpenChange, onStarted, canSupervise = true,
 }: StartGoalRunDialogProps) {
     const [goals, setGoals] = useState<Goal[]>([]);
     const [agents, setAgents] = useState<AgentRegistryEntry[]>([]);
@@ -49,6 +60,21 @@ export default function StartGoalRunDialog({
     const [role, setRole] = useState("");
     const [agentId, setAgentId] = useState("");
     const [mode, setMode] = useState<SupervisionMode>("training");
+
+    // Role suggestions come from the business's OWN configured agents — no
+    // hardcoded industry list.
+    const roleOptions = useMemo(() => {
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const a of agents) {
+            const c = (a.category || "").trim();
+            if (c && !seen.has(c.toLowerCase())) {
+                seen.add(c.toLowerCase());
+                out.push(c);
+            }
+        }
+        return out.sort((a, b) => a.localeCompare(b));
+    }, [agents]);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -79,8 +105,22 @@ export default function StartGoalRunDialog({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
+    // Picking an agent fills the role from what that agent IS in this
+    // business (its category), unless the user already typed one.
+    const handleAgentChange = useCallback((value: string) => {
+        setAgentId(value);
+        const agent = agents.find((a) => a.id === value);
+        const implied = (agent?.category || "").trim();
+        if (implied) setRole((current) => current.trim() ? current : implied);
+    }, [agents]);
+
+    const modeChoices = canSupervise
+        ? (["training", "shadow", "autonomous"] as SupervisionMode[])
+        : MODES_FOR_MEMBER;
+
     const canSubmit = !starting && (
-        goalMode === "existing" ? Boolean(goalId) : newTitle.trim().length > 0);
+        goalMode === "existing" ? Boolean(goalId) : newTitle.trim().length > 0)
+        && (canSupervise || role.trim().length > 0);
 
     const handleStart = useCallback(async () => {
         if (!canSubmit) return;
@@ -178,11 +218,17 @@ export default function StartGoalRunDialog({
 
                     <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="gr-role">Role</Label>
+                            <Label htmlFor="gr-role">
+                                Role{!canSupervise && <span className="text-destructive"> *</span>}
+                            </Label>
                             <Input id="gr-role" data-testid="role-input"
-                                   placeholder="e.g. sales"
+                                   list="goal-run-role-options"
+                                   placeholder="e.g. Sales, Support, Procurement"
                                    value={role}
                                    onChange={(e) => setRole(e.target.value)} />
+                            <datalist id="goal-run-role-options">
+                                {roleOptions.map((r) => <option key={r} value={r} />)}
+                            </datalist>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="gr-agent">Role agent</Label>
@@ -192,7 +238,7 @@ export default function StartGoalRunDialog({
                                 data-testid="agent-select"
                                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                                 value={agentId}
-                                onChange={(e) => setAgentId(e.target.value)}
+                                onChange={(e) => handleAgentChange(e.target.value)}
                             >
                                 <option value="">No agent (I&apos;ll work the canvases)</option>
                                 {agents.map((a) => (
@@ -212,10 +258,16 @@ export default function StartGoalRunDialog({
                             value={mode}
                             onChange={(e) => setMode(e.target.value as SupervisionMode)}
                         >
-                            {(["training", "shadow", "autonomous"] as SupervisionMode[]).map((m) => (
+                            {modeChoices.map((m) => (
                                 <option key={m} value={m}>{m} — {MODE_HINT[m]}</option>
                             ))}
                         </select>
+                        {!canSupervise && (
+                            <p className="text-xs text-muted-foreground">
+                                Autonomous runs need a supervisor. Your run is seeded from
+                                your role's approved playbooks.
+                            </p>
+                        )}
                     </div>
 
                     {error && (

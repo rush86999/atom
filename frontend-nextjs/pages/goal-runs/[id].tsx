@@ -112,12 +112,13 @@ const MODE_HINT: Record<SupervisionMode, string> = {
 export default function GoalRunDetailPage() {
     const router = useRouter();
     const { id } = router.query;
-    const { role, isSupervisor } = useUserRole();
-    // Fail-open on unknown role (transient /api/auth/me failure): the
-    // backend enforces every action — hiding buttons would just strand the
-    // operator mid-coaching.
+    const { role, isSupervisor, userId } = useUserRole();
+    // Role-based, generalized: a run is worked by its OWNER (whoever started
+    // it) or any supervisor. team_lead+ additionally owns the org-shaping
+    // acts — mode changes, promotion evidence, distillation. Fail-open on
+    // unknown role (transient /api/auth/me failure): the backend enforces.
     const roleKnown = Boolean(role);
-    const canAct = !roleKnown || isSupervisor;
+    const canSupervise = !roleKnown || isSupervisor;
     const [run, setRun] = useState<GoalRun | null>(null);
     const [goal, setGoal] = useState<Goal | null>(null);
     const [canvases, setCanvases] = useState<GoalRunCanvas[]>([]);
@@ -126,6 +127,11 @@ export default function GoalRunDetailPage() {
     const [error, setError] = useState<string | null>(null);
     const [guidance, setGuidance] = useState("");
     const [busy, setBusy] = useState(false);
+    // Owner check needs the run, so it is derived after load; undefined user
+    // id (mocked/unknown) fails closed on ownership but stays supervisor-open.
+    const isOwner = Boolean(
+        userId && run?.created_by && String(userId) === String(run.created_by));
+    const canActOnRun = canSupervise || isOwner;
 
     const load = useCallback(async (silent = false) => {
         if (typeof id !== "string") return;
@@ -164,13 +170,13 @@ export default function GoalRunDetailPage() {
     // Promotion evidence is advisory supervisor material (team_lead+ on the
     // backend) — only fetched for users who can act on it.
     useEffect(() => {
-        if (typeof id !== "string" || !run?.agent_id || !canAct) return;
+        if (typeof id !== "string" || !run?.agent_id || !canSupervise) return;
         let cancelled = false;
         getPromotionEvidence(run.agent_id)
             .then((e) => { if (!cancelled) setPromotion(e); })
             .catch(() => { /* advisory only — silence is fine */ });
         return () => { cancelled = true; };
-    }, [id, run?.agent_id, canAct]);
+    }, [id, run?.agent_id, canSupervise]);
 
     const act = useCallback(async (fn: () => Promise<void>, successMsg?: string) => {
         setBusy(true);
@@ -242,9 +248,9 @@ export default function GoalRunDetailPage() {
                     </p>
                 </div>
                 <div className="flex gap-2 flex-wrap items-center">
-                    {canAct && (
+                    {canActOnRun && (
                         <>
-                            {!terminal && (
+                            {!terminal && canSupervise && (
                                 <div className="flex items-center gap-1 mr-1" data-testid="mode-switcher">
                                     {MODES.map((m) => (
                                         <Button key={m} size="sm"
@@ -257,7 +263,7 @@ export default function GoalRunDetailPage() {
                                     ))}
                                 </div>
                             )}
-                            {terminal && (
+                            {terminal && canSupervise && (
                                 <Button size="sm" variant="outline" disabled={busy} onClick={handleDistill}
                                         data-testid="distill-button">
                                     <Sparkles className="h-4 w-4" /> Distill to playbook
@@ -284,12 +290,12 @@ export default function GoalRunDetailPage() {
                 </div>
             </div>
 
-            {roleKnown && !canAct && (
+            {roleKnown && !canActOnRun && (
                 <div className="mb-6 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
                      data-testid="read-only-banner">
-                    Read-only view — approving, overriding, advancing, cancelling and mode
-                    changes need a supervisor (team_lead or higher). The run timeline below
-                    is the full record of what this agent decided and why.
+                    Read-only view — this run is worked by whoever started it and by
+                    supervisors (team_lead or higher). The timeline below is the full
+                    record of what this agent decided and why.
                 </div>
             )}
 
@@ -319,7 +325,7 @@ export default function GoalRunDetailPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <p className="text-sm">{pending.rationale}</p>
-                        {canAct && (
+                        {canActOnRun && (
                             <>
                                 <Textarea
                                     placeholder="Guidance (optional) — overriding teaches the agent instantly"
@@ -343,21 +349,24 @@ export default function GoalRunDetailPage() {
                 </Card>
             )}
 
-            {/* Process-intrinsic checkpoint (e.g. quote approval before send). */}
+            {/* Process-intrinsic checkpoint: a human sign-off step the
+                role's process defines (any business — a quote, a claim
+                decision, a contract). The run's owner or a supervisor
+                resolves it. */}
             {pendingCheckpointHitl && (
                 <Card className="mb-6 border-primary/50" data-testid="pending-checkpoint">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base">Checkpoint: human approval requested</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        {canAct && (
+                        {canActOnRun && (
                             <Textarea
                                 placeholder="Note (optional) — recorded with your decision"
                                 value={guidance}
                                 onChange={(e) => setGuidance(e.target.value)}
                             />
                         )}
-                        {canAct && (
+                        {canActOnRun && (
                             <div className="flex gap-2">
                                 <Button size="sm" disabled={busy}
                                         onClick={() => void act(() => resolveCheckpoint(run.id, pendingCheckpointHitl, true, guidance), "Checkpoint approved — the run resumes")}>
@@ -375,7 +384,7 @@ export default function GoalRunDetailPage() {
 
             {/* Promotion evidence (§3.7B): advisory — a supervisor applies it
                 per run with the mode switcher above, never automatic. */}
-            {canAct && promotion && (
+            {canSupervise && promotion && (
                 <Card className="mb-6" data-testid="promotion-evidence">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base flex items-center gap-2">

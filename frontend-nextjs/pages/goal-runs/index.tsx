@@ -7,17 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Target, Clock, CheckCircle2, XCircle, PauseCircle, Rocket } from "lucide-react";
 import { listGoalRuns, listGoals, GoalRun, GoalRunStatus, Goal } from "@/lib/goal-run-api";
-import { useUserRole } from "@/lib/user-role";
+import { useUserRole, meetsRole, MEMBER_MIN_LEVEL } from "@/lib/user-role";
 import StartGoalRunDialog from "@/components/goals/StartGoalRunDialog";
 
 // GoalRuns index — every run's status at a glance. The run timeline page
-// (/goal-runs/[id]) is the coaching surface: plan, canvases per step, and
-// every decision with its rationale.
+// (/goal-runs/[id]) is the working + coaching surface: plan, canvases per
+// step, and every decision with its rationale.
 //
 // 2026-09-10 journey fix: this page was where the journey ended before it
 // began — it could only LIST runs (created by hand-rolled HTTP against a
-// goal nothing in the UI could create). Now supervisors start a run from
-// here and the list shows the goal's TITLE instead of a bare UUID.
+// goal nothing in the UI could create). Now the person doing the work starts
+// their own role-based run here, and the list shows the goal's TITLE instead
+// of a bare UUID. Business-agnostic: the role comes from the business's own
+// agents, not a hardcoded industry.
 
 const STATUS_BADGE: Record<GoalRunStatus, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string; icon?: React.ReactNode }> = {
     planning: { variant: "outline" },
@@ -50,10 +52,12 @@ export const waitingLabel = (run: GoalRun): string | null => {
 export default function GoalRunsIndexPage() {
     const router = useRouter();
     const { role, isSupervisor } = useUserRole();
-    // Fail-open on unknown role (transient /api/auth/me failure): the backend
-    // enforces every action; hiding the start button would just strand the
-    // operator. Known non-supervisors never see it (post-click 403s).
-    const canStart = !role || isSupervisor;
+    // Role-based, generalized: any member does the everyday work (start and
+    // work their OWN role-based run); team_lead+ gets the extra powers; a
+    // viewer only reads. Fail-open on unknown role (transient /api/auth/me
+    // failure) — the backend enforces.
+    const canStart = !role || meetsRole(role, MEMBER_MIN_LEVEL);
+    const canSupervise = !role || isSupervisor;
     const [runs, setRuns] = useState<GoalRun[]>([]);
     const [goalTitles, setGoalTitles] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
@@ -123,6 +127,7 @@ export default function GoalRunsIndexPage() {
                 <StartGoalRunDialog
                     open={startOpen}
                     onOpenChange={setStartOpen}
+                    canSupervise={canSupervise}
                     onStarted={(runId) => { void router.push(`/goal-runs/${runId}`); }}
                 />
             )}
