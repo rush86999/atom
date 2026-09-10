@@ -4,8 +4,7 @@ import React from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
 import { ChatMessage, ChatMessageData } from "../GlobalChat/ChatMessage";
-import { marked } from "marked";
-import { renderMarkdownSafe } from "@/lib/sanitize";
+import ChatMarkdown from "@/components/canvas/ChatMarkdown";
 import { AGENT_CHAT } from "@/src/lib/testIds";
 
 interface MessageListProps {
@@ -62,11 +61,7 @@ export const MessageList: React.FC<MessageListProps> = ({
                         </div>
                         <div className="flex-1 space-y-2 overflow-hidden">
                             <div className="font-semibold text-sm">Atom Assistant</div>
-                            <div className="prose dark:prose-invert max-w-none text-sm prose-p:leading-relaxed">
-                                <div dangerouslySetInnerHTML={{
-                                    __html: renderMarkdownSafe(streamingContent.get(currentStreamId) || "")
-                                }} />
-                            </div>
+                            <ChatMarkdown content={streamingContent.get(currentStreamId) || ""} />
                         </div>
                     </div>
                 )}

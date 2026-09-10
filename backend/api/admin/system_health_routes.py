@@ -4,7 +4,7 @@ from fastapi import Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from core.admin_endpoints import get_super_admin
+from core.admin_endpoints import get_platform_admin  # was get_super_admin — see 2026-09-08b role-journey pass
 from core.base_routes import BaseAPIRouter
 from core.cache import cache
 from core.database import get_db
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # Hardcoded path to avoid prefix issues
 @router.get("/api/admin/health")
 def get_system_health(
-    admin: User = Depends(get_super_admin),
+    admin: User = Depends(get_platform_admin),
     db: Session = Depends(get_db)
 ):
     """

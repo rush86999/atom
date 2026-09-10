@@ -11,11 +11,24 @@ from pydantic import BaseModel
 
 from core.database import get_db
 from core.auth import get_current_user, User
-from core.models import QueueStatus
+from core.models import QueueStatus, UserRole
+from core.security.rbac import user_meets_role
 from core.supervised_queue_service import SupervisedQueueService
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/api/supervised-queue", tags=["supervised-queue"])
+
+
+def _require_supervisor(db: Session, current_user: User) -> None:
+    """TEAM_LEAD+ gate for queue mutations (2026-09-08 role-journey pass):
+    processing/cancelling supervised executions drives AGENT actions —
+    previously any authenticated member could."""
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user or not user_meets_role(user, UserRole.TEAM_LEAD):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Required role: team_lead or higher",
+        )
 
 
 # ============================================================================
@@ -169,6 +182,7 @@ async def cancel_queue_entry(
     User must own the queue entry to cancel it.
     Only pending entries can be cancelled.
     """
+    _require_supervisor(db, current_user)
     service = SupervisedQueueService(db)
 
     try:
@@ -205,6 +219,7 @@ async def process_queue_manually(
 
     Processes pending queue entries for available users.
     """
+    _require_supervisor(db, current_user)
     service = SupervisedQueueService(db)
 
     try:
@@ -277,6 +292,7 @@ async def mark_expired_entries(
 
     Normally called by background worker.
     """
+    _require_supervisor(db, current_user)
     service = SupervisedQueueService(db)
 
     try:

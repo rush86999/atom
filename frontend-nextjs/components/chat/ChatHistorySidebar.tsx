@@ -90,7 +90,9 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({ selectedSession
                     };
                 }));
             } else {
-                console.error("Error fetching chat history:", new Error(`Unexpected status ${response?.status}`));
+                // Empty history is the normal fresh-user case, not an error —
+                // logging it via console.error trips the Next.js dev overlay
+                // and blocks the whole page in dev.
                 setHistory([]);
             }
         } catch (error) {

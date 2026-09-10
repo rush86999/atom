@@ -783,13 +783,21 @@ def _activity(expires_at=None, state=UserState.online):
 
 
 class TestUserActivityRoutes:
-    """Coverage: api/user_activity_routes.py"""
+    """Coverage: api/user_activity_routes.py
+
+    2026-09-09 re-contract: activity heartbeats/overrides/sessions are
+    owner-scoped (the path user must be the caller) and terminate-session
+    pre-resolves the token's session row. The client therefore authenticates
+    AS user-1 — cross-user 403s are locked in
+    tests/test_role_journey_batch4_gaps.py.
+    """
 
     # ---- heartbeat ----
 
     def test_send_heartbeat_success(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session,
+                              user_id="user-1")
         fake = _FakeUserActivityService(db=db_session,
                                         heartbeat=_activity())
         with patch("api.user_activity_routes.UserActivityService",
@@ -807,7 +815,7 @@ class TestUserActivityRoutes:
 
     def test_send_heartbeat_with_expiry(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(
             db=db_session,
             heartbeat=_activity(expires_at=datetime.now(timezone.utc)),
@@ -825,7 +833,7 @@ class TestUserActivityRoutes:
 
     def test_send_heartbeat_service_error_500(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session, heartbeat=Exception)
         fake.record_heartbeat = AsyncMock(side_effect=RuntimeError("boom"))
         with patch("api.user_activity_routes.UserActivityService",
@@ -838,7 +846,7 @@ class TestUserActivityRoutes:
 
     def test_send_heartbeat_missing_token_422(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         resp = client.post("/api/users/user-1/activity/heartbeat", json={})
         assert resp.status_code == 422
 
@@ -852,7 +860,7 @@ class TestUserActivityRoutes:
         query = Mock()
         query.filter = Mock(return_value=chain)
         db_session.query = Mock(return_value=query)
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session)
         with patch("api.user_activity_routes.UserActivityService",
                    return_value=fake):
@@ -865,7 +873,7 @@ class TestUserActivityRoutes:
 
     def test_get_user_state_without_record(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session,
                                         state=UserState.away)
         with patch("api.user_activity_routes.UserActivityService",
@@ -879,7 +887,7 @@ class TestUserActivityRoutes:
 
     def test_get_user_state_error_500(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session,
                                         state_error=RuntimeError("boom"))
         with patch("api.user_activity_routes.UserActivityService",
@@ -891,7 +899,7 @@ class TestUserActivityRoutes:
 
     def test_set_manual_override_success(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(
             db=db_session,
             override=_activity(expires_at=datetime.now(timezone.utc)),
@@ -909,7 +917,7 @@ class TestUserActivityRoutes:
 
     def test_set_manual_override_without_expiry(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session,
                                         override=_activity())
         with patch("api.user_activity_routes.UserActivityService",
@@ -923,7 +931,7 @@ class TestUserActivityRoutes:
 
     def test_set_manual_override_invalid_state_400(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session)
         with patch("api.user_activity_routes.UserActivityService",
                    return_value=fake):
@@ -936,7 +944,7 @@ class TestUserActivityRoutes:
 
     def test_set_manual_override_invalid_expiry_400(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session)
         with patch("api.user_activity_routes.UserActivityService",
                    return_value=fake):
@@ -949,7 +957,7 @@ class TestUserActivityRoutes:
 
     def test_set_manual_override_service_error_500(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session)
         fake.set_manual_override = AsyncMock(
             side_effect=RuntimeError("boom"))
@@ -965,7 +973,7 @@ class TestUserActivityRoutes:
 
     def test_clear_manual_override_success(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(
             db=db_session,
             clear=_activity(expires_at=datetime.now(timezone.utc)),
@@ -978,7 +986,7 @@ class TestUserActivityRoutes:
 
     def test_clear_manual_override_value_error_404(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session)
         fake.clear_manual_override = AsyncMock(
             side_effect=ValueError("no activity"))
@@ -989,7 +997,7 @@ class TestUserActivityRoutes:
 
     def test_clear_manual_override_error_500(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session)
         fake.clear_manual_override = AsyncMock(
             side_effect=RuntimeError("boom"))
@@ -1013,7 +1021,7 @@ class TestUserActivityRoutes:
 
     def test_get_available_supervisors_all(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session, supervisors=[
             self._supervisor_dict("u1", "backend"),
             self._supervisor_dict("u2", "frontend"),
@@ -1028,7 +1036,7 @@ class TestUserActivityRoutes:
 
     def test_get_available_supervisors_filtered(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session, supervisors=[
             self._supervisor_dict("u1", "backend"),
             self._supervisor_dict("u2", "frontend"),
@@ -1044,7 +1052,7 @@ class TestUserActivityRoutes:
 
     def test_get_available_supervisors_filtered_no_match(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session, supervisors=[
             self._supervisor_dict("u1", "backend"),
         ])
@@ -1056,7 +1064,7 @@ class TestUserActivityRoutes:
 
     def test_get_available_supervisors_error_500(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session)
         fake.get_available_supervisors = AsyncMock(
             side_effect=RuntimeError("boom"))
@@ -1069,7 +1077,7 @@ class TestUserActivityRoutes:
 
     def test_get_active_sessions_success(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         s = Mock()
         s.id = "sess-1"
         s.session_type = "web"
@@ -1089,7 +1097,7 @@ class TestUserActivityRoutes:
 
     def test_get_active_sessions_empty(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session, sessions=[])
         with patch("api.user_activity_routes.UserActivityService",
                    return_value=fake):
@@ -1099,7 +1107,7 @@ class TestUserActivityRoutes:
 
     def test_get_active_sessions_error_500(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session)
         fake.get_active_sessions = AsyncMock(side_effect=RuntimeError("boom"))
         with patch("api.user_activity_routes.UserActivityService",
@@ -1109,9 +1117,21 @@ class TestUserActivityRoutes:
 
     # ---- terminate session ----
 
-    def test_terminate_session_success(self):
+    def _owned_session_db(self, owner_id="user-1"):
+        """Mock db whose UserActivitySession lookup resolves to a row owned
+        by owner_id (the route pre-resolves the token before terminating)."""
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        row = Mock()
+        row.user_id = owner_id
+        row.session_token = "tok-1"
+        db_session.query.return_value.filter.return_value.first = Mock(
+            return_value=row
+        )
+        return db_session
+
+    def test_terminate_session_success(self):
+        db_session = self._owned_session_db()
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session, terminated=True)
         with patch("api.user_activity_routes.UserActivityService",
                    return_value=fake):
@@ -1121,7 +1141,7 @@ class TestUserActivityRoutes:
 
     def test_terminate_session_not_found_404(self):
         db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session, terminated=False)
         with patch("api.user_activity_routes.UserActivityService",
                    return_value=fake):
@@ -1130,14 +1150,22 @@ class TestUserActivityRoutes:
         assert "not found" in resp.json()["detail"]
 
     def test_terminate_session_error_500(self):
-        db_session = _empty_db_session()
-        client = _make_client(user_activity_router, db_session)
+        db_session = self._owned_session_db()
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
         fake = _FakeUserActivityService(db=db_session)
         fake.terminate_session = AsyncMock(side_effect=RuntimeError("boom"))
         with patch("api.user_activity_routes.UserActivityService",
                    return_value=fake):
             resp = client.delete("/api/users/activity/sessions/tok-1")
         assert resp.status_code == 500
+
+    def test_terminate_session_of_another_user_forbidden(self):
+        db_session = self._owned_session_db(owner_id="someone-else")
+        client = _make_client(user_activity_router, db_session, user_id="user-1")
+        with patch("api.user_activity_routes.UserActivityService") as svc:
+            resp = client.delete("/api/users/activity/sessions/tok-1")
+        assert resp.status_code == 403
+        svc.return_value.terminate_session.assert_not_called()
 
 
 # ============================================================================

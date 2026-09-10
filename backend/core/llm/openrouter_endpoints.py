@@ -252,6 +252,13 @@ class OpenRouterEndpointMonitor:
                 return parse_best_endpoint(resp.json(), slug)
 
         fetched: Dict[str, EndpointHealth] = {}
+        # Slugs that got a DEFINITIVE "no telemetry" answer (200 with an
+        # empty endpoints array, or a 404). These must still mark freshness,
+        # otherwise every later BPC ranking re-fetches them until data
+        # appears — observed live 2026-09-09 as 37 slugs × 10 fetches
+        # (370 HTTP calls) inside a single chat request, a large share of
+        # that request blowing the frontend's 120s timeout.
+        answered: List[str] = []
         try:
             async with self._make_client() as client:
                 results = await asyncio.gather(
@@ -262,16 +269,22 @@ class OpenRouterEndpointMonitor:
             return 0
         for slug, result in zip(slugs, results):
             if isinstance(result, BaseException):
-                logger.debug(f"Endpoint telemetry failed for {slug}: {result}")
+                # A 404 is definitive (no endpoints page for the slug).
+                # Everything else — 429, 5xx, timeouts, connect errors — is
+                # transient: leave the slug stale so the next ranking retries.
+                if isinstance(result, httpx.HTTPStatusError) and result.response.status_code == 404:
+                    answered.append(slug)
+                else:
+                    logger.debug(f"Endpoint telemetry failed for {slug}: {result}")
                 continue
-            if result is None:
-                continue
-            fetched[slug] = result
-        if fetched:
+            answered.append(slug)
+            if result is not None:
+                fetched[slug] = result
+        if answered:
             now = time.monotonic()
             with self._lock:
                 self._cache.update(fetched)
-                for slug in fetched:
+                for slug in answered:
                     self._fetched_at[slug] = now
         return len(fetched)
 

@@ -193,7 +193,8 @@ async def get_review(
 
         if not recording or (recording.user_id != user.id):
             # Verify user is admin
-            if user.role not in [UserRole.SUPER_ADMIN.value, UserRole.ADMIN.value, UserRole.WORKSPACE_ADMIN.value]:
+            from core.security.rbac import user_meets_role as _meets
+            if not _meets(user, UserRole.WORKSPACE_ADMIN):
                 raise router.permission_denied_error(
                     action="get_review",
                     resource="Recording",

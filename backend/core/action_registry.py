@@ -244,6 +244,32 @@ _CANVAS_UPDATE_SCHEMA = {
     "required": ["canvas_id", "content"],
 }
 
+_CANVAS_PRESENT_CHART_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "chart_type": {
+            "type": "string",
+            "description": "line_chart, bar_chart, or pie_chart",
+        },
+        "data": {
+            "type": "array",
+            "description": 'Chart data points, e.g. [{"x": "Jan", "y": 100}]',
+            "items": {"type": "object"},
+        },
+        "title": {"type": "string", "description": "Chart title"},
+    },
+    "required": ["chart_type", "data"],
+}
+
+_CANVAS_PRESENT_MARKDOWN_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "content": {"type": "string", "description": "Markdown formatted content"},
+        "title": {"type": "string", "description": "Content title"},
+    },
+    "required": ["content"],
+}
+
 _CANVAS_LIST_VERSIONS_SCHEMA = {
     "type": "object",
     "properties": {
@@ -987,6 +1013,87 @@ async def _canvas_update(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[
         content=content,
         canvas_type=args.get("canvas_type", "generic"),
         title=args.get("title"),
+    )
+
+
+@register_action(
+    "canvas.present_chart",
+    description=(
+        "Present a chart (line_chart, bar_chart, pie_chart) to the user's "
+        "canvas surface as a live visualization card. Use this when the user "
+        "asks to SEE/plot/chart/display data visually — do not describe the "
+        "chart in text when this tool is available."
+    ),
+    parameters_schema=_CANVAS_PRESENT_CHART_SCHEMA,
+)
+async def _canvas_present_chart(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.canvas_tool import present_chart
+
+    chart_type = args.get("chart_type") or args.get("type")
+    data = args.get("data")
+    nested = args.get("chart")
+    if data is None and isinstance(nested, dict):
+        # Models frequently wrap chart params in a nested "chart" object and
+        # split the data into parallel categories/values arrays (live
+        # 2026-09-09: glm-5.3-flash sent {'chart': {'type': 'bar_chart',
+        # 'categories': ['Alpha', 'Beta'], 'values': [5, 3]}}) — the agent
+        # loop renders tool parameters in a simplified lossy form, so the
+        # model never sees the exact data shape. Normalize the observed
+        # shapes instead of bouncing the call.
+        chart_type = chart_type or nested.get("type") or nested.get("chart_type")
+        data = nested.get("data")
+        if data is None and nested.get("categories") is not None:
+            cats = nested.get("categories") or []
+            vals = nested.get("values") or []
+            data = [{"x": c, "y": v} for c, v in zip(cats, vals)]
+    if not chart_type or data is None:
+        return {"success": False, "error": (
+            "chart_type and data are required — data must be a list of "
+            '{"x": <category>, "y": <number>} points')}
+    user_id = _context_user_id(context)
+    if not user_id:
+        return {"success": False, "error": "Authenticated user is required to present a chart"}
+    # 2026-09-09: the present_* tools existed in tools/registry.py but were
+    # never registered here — the agent loop's tool surface (rendered from
+    # THIS registry) could not present anything, so chart requests degraded
+    # to text descriptions.
+    title = args.get("title")
+    if title is None and isinstance(nested, dict):
+        title = nested.get("title")
+    return await present_chart(
+        user_id=str(user_id),
+        chart_type=str(chart_type),
+        data=data,
+        title=title,
+        agent_id=(context or {}).get("agent_id"),
+        session_id=(context or {}).get("session_id") or args.get("session_id"),
+    )
+
+
+@register_action(
+    "canvas.present_markdown",
+    description=(
+        "Present markdown-formatted content to the user's canvas surface as "
+        "a live card. Use when the user asks to show/display/put content on "
+        "the canvas rather than for an inline chat reply."
+    ),
+    parameters_schema=_CANVAS_PRESENT_MARKDOWN_SCHEMA,
+)
+async def _canvas_present_markdown(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from tools.canvas_tool import present_markdown
+
+    content = args.get("content")
+    if not content:
+        return {"success": False, "error": "content is required"}
+    user_id = _context_user_id(context)
+    if not user_id:
+        return {"success": False, "error": "Authenticated user is required to present markdown"}
+    return await present_markdown(
+        user_id=str(user_id),
+        content=str(content),
+        title=args.get("title"),
+        agent_id=(context or {}).get("agent_id"),
+        session_id=(context or {}).get("session_id") or args.get("session_id"),
     )
 
 

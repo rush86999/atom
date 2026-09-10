@@ -76,7 +76,7 @@ def client(mock_data_mapper, mock_bulk_processor):
     app.include_router(router)
     app.dependency_overrides[get_data_mapper] = override_get_data_mapper
     app.dependency_overrides[get_bulk_processor] = override_get_bulk_processor
-    app.dependency_overrides[iee.get_current_user] = lambda: MagicMock(id="test-user")
+    app.dependency_overrides[iee.get_current_user] = lambda: MagicMock(id="test-user", role="super_admin")
 
     with TestClient(app) as test_client:
         yield test_client

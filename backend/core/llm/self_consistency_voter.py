@@ -281,6 +281,7 @@ class SelfConsistencyVoter:
         agent_id: str | None = None,
         cascade: bool = False,
         sample_count: int | None = None,
+        allow_usc_judge: bool = True,
         **kwargs: Any,
     ) -> VoteResult:
         """Draw N samples and return the modal plan + agreement metadata.
@@ -293,7 +294,12 @@ class SelfConsistencyVoter:
         Same hard invariants as ``vote()``: never executes anything, never
         imports the executor. Caller runs the winner exactly once.
 
-        Args: same as ``vote()``.
+        Args: same as ``vote()``. ``allow_usc_judge=False`` skips the USC
+        judge call on all-distinct votes and falls straight back to the
+        lowest-temperature sample — the verify panel passes False in shadow
+        mode, where the judge's pick is recorded but cannot change anything
+        (live 2026-09-09: the judge picked index 0, the exact sample the
+        free fallback would have chosen).
 
         Returns:
             A ``VoteResult``. ``winner`` is ``None`` if every sample failed.
@@ -435,7 +441,9 @@ class SelfConsistencyVoter:
             # consistent with the others — recovering signal from
             # otherwise-wasted votes. Opt-in (ATOM_SC_USC_FALLBACK); any
             # failure degrades to the conservative lowest-temp sample.
-            judge_idx = await self._usc_judge_pick(valid, prompt)
+            judge_idx: int | None = None
+            if allow_usc_judge:
+                judge_idx = await self._usc_judge_pick(valid, prompt)
             if judge_idx is not None:
                 logger.info(
                     f"Self-consistency vote: all {len(valid)} distinct; "

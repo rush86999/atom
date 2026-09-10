@@ -27,7 +27,7 @@ def _app(router):
 
 def _client(router, db):
     app = _app(router)
-    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id="u-1")
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id="u-1", role="workspace_admin")  # 2026-09-09 workflow role matrix
     app.dependency_overrides[get_db] = lambda: db
     return TestClient(app, raise_server_exceptions=False)
 

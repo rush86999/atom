@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from cli.daemon import DaemonManager
 
 # Import authentication and authorization
-from core.admin_endpoints import get_super_admin
+from core.admin_endpoints import get_platform_admin  # was get_super_admin — see 2026-09-08b role-journey pass
 from core.auth import get_current_user, User
 from core.models import User, DelegationChain
 from core.database import get_db
@@ -112,7 +112,7 @@ class ExecuteCommandResponse(BaseModel):
 @router.post("/start", response_model=StartAgentResponse)
 async def start_atom(
     request: StartAgentRequest,
-    current_user: User = Depends(get_super_admin)
+    current_user: User = Depends(get_platform_admin)
 ):
     """Start Atom OS as background service (super_admin only).
 
@@ -175,7 +175,7 @@ async def start_atom(
 
 
 @router.post("/stop", response_model=StopAgentResponse)
-async def stop_atom(current_user: User = Depends(get_super_admin)):
+async def stop_atom(current_user: User = Depends(get_platform_admin)):
     """Stop Atom OS background service (super_admin only).
 
     **SECURITY**: Requires super_admin authentication to prevent unauthorized
@@ -224,7 +224,7 @@ async def stop_atom(current_user: User = Depends(get_super_admin)):
 @router.post("/restart", response_model=RestartAgentResponse)
 async def restart_atom(
     request: StartAgentRequest,
-    current_user: User = Depends(get_super_admin)
+    current_user: User = Depends(get_platform_admin)
 ):
     """Restart Atom OS background service (super_admin only).
 
@@ -288,7 +288,7 @@ async def restart_atom(
 
 @router.get("/status", response_model=AgentStatusResponse)
 async def get_status(
-    current_user: User = Depends(get_super_admin),
+    current_user: User = Depends(get_platform_admin),
 ):
     """Get Atom OS status and running info.
 
@@ -336,7 +336,7 @@ async def get_status(
 @router.post("/execute", response_model=ExecuteCommandResponse)
 async def execute_atom_command(
     request: ExecuteCommandRequest,
-    current_user: User = Depends(get_super_admin)
+    current_user: User = Depends(get_platform_admin)
 ):
     """Execute single Atom command and return result (super_admin only).
 
@@ -389,7 +389,7 @@ async def analyze_chain_bottlenecks(
     chain_id: str,
     db: Session = Depends(get_db),
     # For Upstream, we restrict this to admins as it reveals internal telemetry
-    current_user: User = Depends(get_super_admin)
+    current_user: User = Depends(get_platform_admin)
 ):
     """
     Perform diagnostic analysis to identify bottlenecks in the delegation chain.
@@ -422,7 +422,7 @@ async def analyze_chain_bottlenecks(
 @router.get("/fleet/health")
 async def get_fleet_health_summary(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_super_admin)
+    current_user: User = Depends(get_platform_admin)
 ):
     """
     Get fleet-wide health metrics for the supervisor dashboard.

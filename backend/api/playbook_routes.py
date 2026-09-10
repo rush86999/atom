@@ -15,6 +15,7 @@ from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import User as UserModel, UserRole
+from core.security.rbac import user_meets_role
 from core.personal_scope import resolve_tenant_id
 
 router = BaseAPIRouter(prefix="/api/playbooks", tags=["playbooks"])
@@ -23,21 +24,21 @@ router = BaseAPIRouter(prefix="/api/playbooks", tags=["playbooks"])
 # advised by — supervisor-grade only (same gate as the other supervision
 # surfaces: agent_maturity/audit/episode/supervision routes). Listing stays
 # any-signed-in-user: employees may see the queue; only supervisors act.
-_SUPERVISOR_ROLES = [
-    UserRole.TEAM_LEAD.value,
-    UserRole.WORKSPACE_ADMIN.value,
-    UserRole.SUPER_ADMIN.value,
-]
+# 2026-09-08 role-journey pass: the old 3-role allowlist excluded
+# admin/owner — a level-6 admin was denied what a level-4 team_lead
+# may do (privilege inversion, the H1 class of bug). Compare against
+# the shared hierarchy instead of a hand-maintained list.
+_SUPERVISOR_MIN = UserRole.TEAM_LEAD
 
 
 def _require_supervisor(db: Session, current_user: User) -> None:
     user = db.query(UserModel).filter(UserModel.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if user.role not in _SUPERVISOR_ROLES:
+    if not user_meets_role(user, _SUPERVISOR_MIN):
         raise HTTPException(
             status_code=403,
-            detail="Insufficient permissions. Required role: TEAM_LEAD or ADMIN",
+            detail="Insufficient permissions. Required role: team_lead or higher",
         )
 
 

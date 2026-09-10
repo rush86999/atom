@@ -153,7 +153,14 @@ class WorkbookRuntime:
             return file_path
 
     async def _recalc_with_formulas(self, file_path: Path) -> Path:
-        """Use the `formulas` Python library to evaluate and write cached values."""
+        """Use the `formulas` Python library to evaluate and cache results.
+
+        The formula strings must survive the recalc (they are the file's
+        source of truth — overwriting them turned every recalc into formula
+        loss). The computed values are injected as cached <v> elements in the
+        saved sheet XML instead, so `data_only=True` reads return fresh
+        values while raw reads keep '=...'.
+        """
         try:
             import formulas
             from openpyxl import load_workbook
@@ -162,32 +169,152 @@ class WorkbookRuntime:
             xl_model = formulas.ExcelModel().loads(str(file_path)).finish()
             solution = xl_model.calculate()
 
-            # Open with openpyxl and write back the computed values as cached.
+            # The formulas library keys refs like "'[book.xlsx]SHEET1'!A3"
+            # (sheet name upper-cased, filename verbatim) — index
+            # case-insensitively so mixed-case sheets still match.
+            by_ref = {str(k).upper(): v for k, v in solution.items()}
+
+            computed: Dict[Tuple[str, str], Any] = {}
             wb = load_workbook(file_path)
             for sheet_name in wb.sheetnames:
                 ws = wb[sheet_name]
                 for row in ws.iter_rows():
                     for cell in row:
-                        if cell.value and isinstance(cell.value, str) and cell.value.startswith("="):
-                            # Try to find the computed value in the solution.
-                            # The formulas library keys by fully-qualified refs.
-                            ref = f"'[{file_path.name}]{sheet_name}'!{cell.coordinate}"
-                            # Also try without quotes
-                            ref_alt = f"[{file_path.name}]{sheet_name}!{cell.coordinate}"
-                            for key in (ref, ref_alt, ref.upper(), ref_alt.upper()):
-                                if key in solution:
-                                    val = solution[key]
-                                    if hasattr(val, "value"):
-                                        cell.value = val.value
-                                    elif isinstance(val, (int, float, str)):
-                                        cell.value = val
-                                    break
+                        if not (isinstance(cell.value, str) and cell.value.startswith("=")):
+                            continue
+                        ref = f"'[{file_path.name}]{sheet_name}'!{cell.coordinate}".upper()
+                        val = by_ref.get(ref)
+                        if val is None:
+                            continue
+                        if hasattr(val, "value"):
+                            val = val.value
+                        # A single-cell formula evaluates to a 1x1 grid that
+                        # arrives as a numpy array or nested list — collapse
+                        # it to the plain scalar before caching.
+                        while isinstance(val, (list, tuple)) and len(val) == 1:
+                            val = val[0]
+                        if hasattr(val, "item") and not isinstance(val, (int, float, bool, str)):
+                            try:
+                                val = val.item()
+                            except (ValueError, TypeError):
+                                pass
+                        if val is not None:
+                            computed[(sheet_name, cell.coordinate)] = val
             wb.save(file_path)
+            if computed:
+                self._write_cached_values(file_path, computed)
             logger.info(f"Recalculated workbook via formulas lib: {file_path.name}")
             return file_path
         except Exception as e:
             logger.warning(f"Formulas recalc failed: {e}")
             return file_path
+
+    @staticmethod
+    def _write_cached_values(file_path: Path, computed: Dict[Tuple[str, str], Any]) -> bool:
+        """Inject computed values as cached <v> elements for formula cells.
+
+        openpyxl's public API cannot persist a formula's cached value
+        (assigning cell.value REPLACES the formula), so the saved sheet XML
+        is patched at the zip level: each <c> carrying an <f> gains a <v>.
+        The patched file is verified with openpyxl before it replaces the
+        original; on any failure the plain save (formulas intact, no cached
+        values) is kept. Best-effort — returns False when injection failed.
+        """
+        import zipfile
+        from xml.etree import ElementTree as ET
+
+        NS_MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+        NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+        NS_PKG_R = "http://schemas.openxmlformats.org/package/2006/relationships"
+        ET.register_namespace("", NS_MAIN)
+        ET.register_namespace("r", NS_R)
+
+        # Keep an .xlsx suffix — openpyxl dispatches on extension and refuses
+        # to load .tmp files during verification.
+        tmp_path = Path(str(file_path.with_suffix("")) + ".recalc.xlsx")
+        try:
+            with zipfile.ZipFile(file_path) as zin:
+                items = {n: zin.read(n) for n in zin.namelist() if not n.endswith("/")}
+
+            # Map sheet name → sheet XML path via workbook.xml + its rels —
+            # the archive's internal ordering is not reliable for foreign files.
+            rels_root = ET.fromstring(items["xl/_rels/workbook.xml.rels"])
+            rel_target = {
+                rel.get("Id"): rel.get("Target", "")
+                for rel in rels_root.iter(f"{{{NS_PKG_R}}}Relationship")
+            }
+            sheet_paths: Dict[str, str] = {}
+            wb_root = ET.fromstring(items["xl/workbook.xml"])
+            for sheet in wb_root.iter(f"{{{NS_MAIN}}}sheet"):
+                target = rel_target.get(sheet.get(f"{{{NS_R}}}id"), "")
+                if target.startswith("/"):
+                    target = target.lstrip("/")
+                elif target and not target.startswith("xl/"):
+                    target = f"xl/{target}"
+                if target:
+                    sheet_paths[sheet.get("name", "")] = target
+
+            patched: Dict[str, bytes] = {}
+            for (sheet_name, coord), value in computed.items():
+                path = sheet_paths.get(sheet_name)
+                if not path or path not in items:
+                    continue
+                root = ET.fromstring(patched.get(path) or items[path])
+                for c in root.iter(f"{{{NS_MAIN}}}c"):
+                    if c.get("r") != coord or c.find(f"{{{NS_MAIN}}}f") is None:
+                        continue
+                    v = c.find(f"{{{NS_MAIN}}}v")
+                    if v is None:
+                        v = ET.SubElement(c, f"{{{NS_MAIN}}}v")
+                    if isinstance(value, bool):
+                        c.set("t", "b")
+                        v.text = "1" if value else "0"
+                    elif isinstance(value, (int, float)):
+                        c.attrib.pop("t", None)
+                        v.text = str(float(value))
+                    elif isinstance(value, str) and value:
+                        c.set("t", "str")
+                        v.text = value
+                    else:
+                        # Unknown shape — leave the cell uncached rather than
+                        # write a repr() string as its computed value.
+                        continue
+                patched[path] = ET.tostring(root, xml_declaration=True, encoding="UTF-8")
+
+            if not patched:
+                return False
+
+            with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zout:
+                for name, data in items.items():
+                    zout.writestr(name, patched.get(name, data))
+
+            # Verify before replacing: the patched workbook must load in both
+            # modes and keep its formulas.
+            from openpyxl import load_workbook
+
+            raw = load_workbook(tmp_path, data_only=False)
+            checked = 0
+            for sheet_name, coord in computed.keys():
+                try:
+                    cell_val = raw[sheet_name][coord].value
+                except (KeyError, TypeError):
+                    continue
+                if not (isinstance(cell_val, str) and cell_val.startswith("=")):
+                    raise ValueError(f"Formula lost at {sheet_name}!{coord} during cached-value injection")
+                checked += 1
+            load_workbook(tmp_path, data_only=True)
+            if not checked:
+                return False
+
+            shutil.move(str(tmp_path), str(file_path))
+            return True
+        except Exception as e:
+            logger.debug(f"Cached-value injection skipped for {file_path.name}: {e}")
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+            return False
 
     # ------------------------------------------------------------------
     # Macros and VBA

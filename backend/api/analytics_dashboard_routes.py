@@ -465,8 +465,12 @@ async def get_user_patterns(
         # Ownership gate: behavioral patterns (active hours, response times,
         # message-type preferences) are per-user PII. Only the user themself
         # (or an admin) may read them — cross-user reads were previously
-        # allowed for any authenticated user (IDOR).
-        if str(user_id) != str(current_user.id) and not getattr(current_user, "is_admin", False):
+        # allowed for any authenticated user (IDOR); the admin side of the
+        # OR checked a nonexistent is_admin column (denied everyone).
+        from core.models import UserRole
+        from core.security.rbac import user_meets_role
+
+        if str(user_id) != str(current_user.id) and not user_meets_role(current_user, UserRole.WORKSPACE_ADMIN):
             raise router.permission_denied_error(
                 action="view_user_patterns",
                 resource="UserPatterns",

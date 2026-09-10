@@ -304,7 +304,14 @@ def daemon_manager():
 def agent_control_client(admin_user):
     app = FastAPI()
     app.include_router(agent_control_router)
-    app.dependency_overrides[get_super_admin] = _override(get_super_admin, admin_user)[get_super_admin]
+    # 2026-09-08b role-journey pass: agent-control gates moved from
+    # exact-super_admin to the workspace_admin+ hierarchy
+    # (core.admin_endpoints.get_platform_admin).
+    from core.admin_endpoints import get_platform_admin
+
+    app.dependency_overrides[get_platform_admin] = _override(
+        get_platform_admin, admin_user
+    )[get_platform_admin]
 
     mock_db = Mock()
 

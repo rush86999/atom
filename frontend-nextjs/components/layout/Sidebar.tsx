@@ -32,17 +32,34 @@ import {
     Brain,
     Wrench,
     GraduationCap,
+    Rocket,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
+import {
+    useUserRole,
+    ADMIN_MIN_LEVEL,
+    SUPERVISOR_MIN_LEVEL,
+} from "../../lib/user-role";
 
 interface SidebarProps {
     className?: string;
 }
 
+interface SidebarItem {
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    path: string;
+    /** minimum role level; items are hidden once the viewer's role is known
+     * to be below it (backend still enforces every gate — this only stops
+     * roles from clicking into guaranteed 403s). */
+    minLevel?: number;
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     const router = useRouter();
     const { data: session } = useSession();
+    const { level: roleLevel } = useUserRole();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     // Real identity fallback: the API-first login (persistBackendToken) stores
@@ -92,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         return () => window.removeEventListener("resize", handleResize);
     }, []);
 
-    const categories = [
+    const categories: { name: string; items: SidebarItem[] }[] = [
         {
             name: "CORE",
             items: [
@@ -105,7 +122,15 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 { label: "Kanban", icon: KanbanSquare, path: "/boards" },
                 { label: "Automations", icon: Play, path: "/automations" },
                 { label: "Agents", icon: Bot, path: "/agents" },
-                { label: "Approvals", icon: CheckSquare, path: "/approvals" },
+                // Approvals = the HITL/supervision queue: decisions need
+                // team_lead+ on the backend.
+                { label: "Approvals", icon: CheckSquare, path: "/approvals", minLevel: SUPERVISOR_MIN_LEVEL },
+                // Goal Runs: role-agent run timelines. Reads are any-signed-in
+                // (mirrors playbook_routes on the backend); the coaching
+                // actions inside are team_lead+ and gate themselves on the
+                // detail page. Previously this page was orphaned — reachable
+                // only via canvas badges and the notification bell.
+                { label: "Goal Runs", icon: Rocket, path: "/goal-runs" },
                 { label: "Marketplace", icon: Store, path: "/marketplace" },
             ]
         },
@@ -139,19 +164,33 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         {
             name: "GOVERNANCE",
             items: [
-                { label: "JIT Verification", icon: Shield, path: "/admin/jit-verification" },
-                { label: "BPE Workspace", icon: Brain, path: "/admin/bpe" },
-                { label: "Learning & Verification", icon: GraduationCap, path: "/admin/learning-verification" },
+                // Admin band (workspace_admin+): these pages call admin-gated
+                // APIs — previously they rendered for every role and 403'd.
+                { label: "JIT Verification", icon: Shield, path: "/admin/jit-verification", minLevel: ADMIN_MIN_LEVEL },
+                { label: "BPE Workspace", icon: Brain, path: "/admin/bpe", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Learning & Verification", icon: GraduationCap, path: "/admin/learning-verification", minLevel: ADMIN_MIN_LEVEL },
                 { label: "Self-Healing Harness", icon: Wrench, path: "/settings/harness-evolution" },
-                { label: "Business Facts", icon: CheckCircle, path: "/admin/business-facts" },
-                { label: "User Management", icon: Shield, path: "/admin/users" },
+                { label: "Business Facts", icon: CheckCircle, path: "/admin/business-facts", minLevel: ADMIN_MIN_LEVEL },
+                { label: "User Management", icon: Shield, path: "/admin/users", minLevel: ADMIN_MIN_LEVEL },
+                // Was unreachable: the Runtime Settings page existed but no
+                // nav link pointed at it.
+                { label: "Admin Settings", icon: Settings, path: "/admin/settings", minLevel: ADMIN_MIN_LEVEL },
+                // 2026-09-08b: orphaned pages wired into the nav. Audit Trail
+                // reads are team_lead+ (/api/audit/*); the rest are the
+                // workspace_admin+ operator band. (/dashboard/risk stays
+                // unlinked: its backend router was deliberately left
+                // unmounted in round 80f.)
+                { label: "Audit Trail", icon: FileText, path: "/audit-trail", minLevel: SUPERVISOR_MIN_LEVEL },
+                { label: "Skill Builder", icon: Wrench, path: "/admin/skills/new", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Owner Cockpit", icon: BarChart3, path: "/dashboard/owner", minLevel: ADMIN_MIN_LEVEL },
+                { label: "Forensics", icon: Search, path: "/dashboard/forensics", minLevel: ADMIN_MIN_LEVEL },
             ]
         },
         {
             name: "PLATFORM",
             items: [
                 { label: "Integrations", icon: Layers, path: "/integrations" },
-                { label: "Dev Studio", icon: Terminal, path: "/dev-studio" },
+                { label: "Dev Studio", icon: Terminal, path: "/dev-studio", minLevel: ADMIN_MIN_LEVEL },
                 { label: "Settings", icon: Settings, path: "/settings" },
             ]
         }
@@ -187,7 +226,18 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
 
             {/* Navigation Categories */}
             <nav aria-label="Main Navigation" className="flex-1 overflow-y-auto py-6 space-y-6 px-3 scrollbar-hide">
-                {categories.map((category) => (
+                {categories.map((category) => {
+                    // Role-aware filtering: while the role is unknown
+                    // (level 0 — loading or fetch failed) everything stays
+                    // visible; the backend enforces the real gates.
+                    const visibleItems =
+                        roleLevel > 0
+                            ? category.items.filter(
+                                  (item) => !item.minLevel || roleLevel >= item.minLevel
+                              )
+                            : category.items;
+                    if (visibleItems.length === 0) return null;
+                    return (
                     <div key={category.name} className="space-y-1">
                         {!isCollapsed && (
                             <h3 className="px-3 text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-2 ml-1">
@@ -195,7 +245,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                             </h3>
                         )}
                         <div className="space-y-1">
-                            {category.items.map((item) => {
+                            {visibleItems.map((item) => {
                                 const isActive = router.pathname === item.path ||
                                     (item.path !== "/" && router.pathname.startsWith(item.path));
 
@@ -240,7 +290,8 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                             })}
                         </div>
                     </div>
-                ))}
+                    );
+                })}
             </nav>
 
             {/* Footer / User Profile & Toggle */}

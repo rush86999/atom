@@ -262,8 +262,12 @@ describe('ChatHistorySidebar', () => {
     });
   });
 
-  // Test 15: non-200 status falls back to the empty state
-  test('handles non-200 responses as a failure', async () => {
+  // Test 15: a 2xx response with an empty session list is the normal
+  // fresh-user case — it renders the empty state and must NOT log a
+  // console.error (the old "Unexpected status 200" log tripped the Next.js
+  // dev overlay over the whole page in dev). True HTTP failures (4xx/5xx)
+  // throw in apiClient and are covered by the next test.
+  test('empty session list under a 2xx status is not an error', async () => {
     server.use(
       rest.get('*/api/chat/sessions', (req, res, ctx) => res(ctx.status(201), ctx.json({ sessions: [] })))
     );
@@ -276,7 +280,7 @@ describe('ChatHistorySidebar', () => {
     await waitFor(() => {
       expect(screen.getByText('No chat history.')).toBeInTheDocument();
     });
-    expect(consoleSpy).toHaveBeenCalledWith('Error fetching chat history:', expect.anything());
+    expect(consoleSpy).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
   });

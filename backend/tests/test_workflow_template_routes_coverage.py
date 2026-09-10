@@ -135,7 +135,7 @@ def app_with_overrides(template_manager, monkeypatch):
     # Round 37: template mutations require auth — override the dependency.
     from unittest.mock import MagicMock
     from core.auth import get_current_user
-    app.dependency_overrides[get_current_user] = lambda: MagicMock(id="test-user")
+    app.dependency_overrides[get_current_user] = lambda: MagicMock(id="test-user", role="workspace_admin")  # 2026-09-09 workflow role matrix
 
     yield app
 

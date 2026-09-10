@@ -29,19 +29,19 @@ from core.auth import User, get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import UserRole
+from core.security.rbac import user_meets_role
 
 logger = logging.getLogger(__name__)
 
 router = BaseAPIRouter(prefix="/api/v1/ontology-drafts", tags=["Ontology Drafts"])
 
-_ADMIN_ROLES = [
-    UserRole.WORKSPACE_ADMIN.value,
-    UserRole.SUPER_ADMIN.value,
-]
+# 2026-09-08 role-journey pass: the 2-role list denied admin/owner while
+# allowing workspace_admin (privilege inversion). Use the shared hierarchy.
+_ADMIN_MIN = UserRole.WORKSPACE_ADMIN
 
 
 def _require_admin(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role not in _ADMIN_ROLES:
+    if not user_meets_role(current_user, _ADMIN_MIN):
         raise HTTPException(status_code=403, detail="Admin role required")
     return current_user
 

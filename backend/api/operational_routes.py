@@ -9,6 +9,8 @@ from core.base_routes import BaseAPIRouter
 from core.business_health_service import business_health_service
 from core.cross_system_reasoning import CrossSystemReasoningEngine
 from core.database import get_db
+from core.models import User, UserRole
+from core.security.rbac import user_meets_role
 
 # Round 37: these endpoints expose business/financial forensics and can execute
 # active interventions — they must be authenticated (were fully anonymous).
@@ -17,6 +19,18 @@ router = BaseAPIRouter(
     tags=["operational-intelligence"],
     dependencies=[Depends(get_current_user)],
 )
+
+
+def _require_supervisor(db: Session, current_user: User) -> None:
+    """TEAM_LEAD+ gate (mirrors supervision_routes)."""
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user or not user_meets_role(user, UserRole.TEAM_LEAD):
+        from fastapi import HTTPException as _HE
+
+        raise _HE(
+            status_code=403,
+            detail="Insufficient permissions. Required role: team_lead or higher",
+        )
 logger = logging.getLogger(__name__)
 
 @router.get("/priorities")
@@ -120,11 +134,18 @@ async def generate_interventions(
 async def execute_intervention(
     id: str,
     payload: Dict[str, Any] = Body(...),
-    action: str = Body(..., embed=True)
+    action: str = Body(..., embed=True),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Executes a specific intervention action.
+
+    2026-09-08 role-journey pass: this previously had NO auth dependency at
+    all — any caller (even anonymous) could execute operational actions.
+    Executing interventions is a supervisor operation (TEAM_LEAD+).
     """
+    _require_supervisor(db, current_user)
     try:
         result = await active_intervention_service.execute_intervention(id, action, payload)
         return router.success_response(

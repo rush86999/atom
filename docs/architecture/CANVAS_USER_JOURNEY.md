@@ -159,3 +159,27 @@ Existing canvases created before this rule (chat-created, PDF uploads) are
 not migrated: they show the same attach CTA the first time someone tries to
 load data into them, and one click brings them into the journey. Humans
 choose the hire; the canvas keeps the story.
+
+---
+
+## 7. Canvases that belong to a goal (GoalRun touch points)
+
+A canvas can now be produced as a STEP of a GoalRun — the role agent's
+multi-touch-point pursuit of one goal (docs/architecture/GOAL_RUN_ORCHESTRATION.md).
+Such canvases carry `goal_run_id` + `goal_run_step_id` back-links (nullable;
+ordinary canvas flows never set them), which surfaces in three places:
+
+1. **Canvas gallery** (`/canvas`): a "Produced by goal runs" strip groups
+   the run's touch points, and each linked card carries a **Goal** badge
+   deep-linking to the run.
+2. **Run timeline** (`/goal-runs/[id]`): the run's canvases are listed per
+   plan step next to the decision log — the research doc, the quote sheet,
+   the sent email, visible as ONE effort.
+3. **Notifications**: run state changes (approval needed, waiting,
+   achieved) arrive in the bell with the guidance embedded and deep-link
+   to the run, not the individual canvas.
+
+The canvas's own journey (draft → correction → dispatch) is unchanged;
+the goal-run link adds the "which effort does this belong to" answer the
+gallery never had. `goal_run_canvas_create` / `goal_run_action_dispatched`
+audit rows keep the episodic-memory trail goal-scoped.
