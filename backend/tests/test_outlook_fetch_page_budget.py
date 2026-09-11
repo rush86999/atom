@@ -14,6 +14,7 @@ from integrations.atom_communication_ingestion_pipeline import (
     _OUTLOOK_CATCHUP_FETCH_PAGES,
     _OUTLOOK_INCREMENTAL_FETCH_PAGES,
     _outlook_fetch_page_budget,
+    _outlook_head_since,
 )
 
 NOW = datetime(2026, 9, 11, 12, 0, tzinfo=timezone.utc)
@@ -40,3 +41,16 @@ def test_naive_and_bad_cursors_are_safe():
         _OUTLOOK_CATCHUP_FETCH_PAGES)
     assert _outlook_fetch_page_budget("not-a-date", NOW) == (
         _OUTLOOK_INCREMENTAL_FETCH_PAGES)
+
+
+def test_head_pass_uses_the_cursor_when_present():
+    cur = NOW - timedelta(days=5)
+    assert _outlook_head_since(cur, NOW) == cur
+
+
+def test_head_pass_first_run_is_bounded_lookback():
+    assert _outlook_head_since(None, NOW) == NOW - timedelta(days=2)
+
+
+def test_head_pass_bad_cursor_degrades_to_lookback():
+    assert _outlook_head_since("nonsense", NOW) == NOW - timedelta(days=2)

@@ -161,6 +161,26 @@ def _outlook_fetch_page_budget(
     return _OUTLOOK_INCREMENTAL_FETCH_PAGES
 
 
+_OUTLOOK_HEAD_FIRST_RUN_DAYS = 2
+
+
+def _outlook_head_since(
+    head_cursor: Any, now: Optional[datetime] = None,
+) -> datetime:
+    """Lower bound for the newest-first HEAD pass.
+
+    ``head_cursor`` when present (exclusive ``gt``); on first run, a short
+    lookback so the first head pass is bounded instead of re-walking history.
+    The head pass has NO upper bound — that is the point: it always contains
+    the newest mail regardless of how far behind the backfill walk is."""
+    if head_cursor is not None:
+        coerced = _coerce_utc_ts(head_cursor)
+        if coerced is not None:
+            return coerced
+    return (now or datetime.now(timezone.utc)) - timedelta(
+        days=_OUTLOOK_HEAD_FIRST_RUN_DAYS)
+
+
 def _coerce_utc_ts(value: Any) -> Optional[datetime]:
     """Coerce a persisted cursor / Graph timestamp to an AWARE UTC datetime.
 
@@ -3545,6 +3565,82 @@ class CommunicationIngestionPipeline:
                 owners = [cfg_user]
         return owners
 
+    async def _fetch_outlook_head_for_owner(
+        self, owner: str, head_cursor: Optional[datetime], max_pages: int = 3,
+    ) -> tuple:
+        """Newest-first HEAD pass: the recent window, independent of backfill.
+
+        The backfill walk covers ``(cursor, resume]``; while the cursor is
+        ancient, that window structurally CANNOT contain recent mail, so
+        September mail was never even fetched (live 2026-09-11) — more pages
+        in a June window is still a June window. This pass always fetches the
+        newest mail since ``head_cursor`` with NO upper bound, so recency lands
+        every poll no matter how far behind history is.
+
+        Returns (messages, newest_timestamp)."""
+        try:
+            from integrations.outlook_service import outlook_service
+
+            access_token = await outlook_service._get_access_token(user_id=owner)
+            if not access_token:
+                return [], None
+            headers = {"Authorization": f"Bearer {access_token}"}
+            graph_base = os.getenv(
+                "MICROSOFT_GRAPH_BASE_URL", "https://graph.microsoft.com/v1.0"
+            ).rstrip("/")
+            params = {
+                "$top": 50,
+                "$orderBy": "receivedDateTime desc",
+                "$filter": (
+                    "receivedDateTime gt "
+                    + _format_graph_timestamp(_outlook_head_since(head_cursor))
+                ),
+            }
+            messages: List[Dict[str, Any]] = []
+            newest: Optional[datetime] = None
+            next_link = None
+            pages = 0
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                while pages < max_pages:
+                    response = (
+                        await client.get(next_link, headers=headers)
+                        if next_link
+                        else await client.get(
+                            f"{graph_base}/me/messages",
+                            headers=headers, params=params)
+                    )
+                    if response.status_code == 429:
+                        await asyncio.sleep(
+                            int(response.headers.get("Retry-After", 15)))
+                        continue
+                    if response.status_code != 200:
+                        logger.warning(
+                            f"Outlook head pass HTTP {response.status_code} "
+                            f"for user {owner}")
+                        break
+                    data = response.json()
+                    for raw in data.get("value", []):
+                        normalized = self._normalize_outlook_graph_message(
+                            raw, owner)
+                        if not normalized:
+                            continue
+                        messages.append(normalized)
+                        ts = normalized.get("timestamp")
+                        if isinstance(ts, datetime) and (newest is None or ts > newest):
+                            newest = ts
+                    pages += 1
+                    next_link = data.get("@odata.nextLink")
+                    if not next_link:
+                        break
+            if messages:
+                logger.info(
+                    f"Outlook head pass: {len(messages)} recent message(s) "
+                    f"for user {owner} (backfill independent)")
+            return messages, newest
+        except Exception as e:  # noqa: BLE001 — head pass is additive
+            logger.debug(f"Outlook head pass skipped for user {owner}: {e}")
+            return [], None
+
     async def _fetch_outlook_messages(self, last_fetch: Optional[datetime]) -> List[Dict[str, Any]]:
         """Fetch new Outlook mail for EVERY connected user (per-user cursors).
 
@@ -3573,6 +3669,16 @@ class CommunicationIngestionPipeline:
             # page cap, the remaining range (cursor, resume] is walked to
             # completion BEFORE the cursor is promoted (see the fetch method).
             resume_max = self.fetch_timestamps.get(resume_key)
+            # HEAD pass FIRST: the newest mail must land every poll no matter
+            # how far behind the backfill walk is (see the method docstring).
+            head_key = f"last_fetch_outlook_head_{owner}"
+            head_messages, head_newest = await self._fetch_outlook_head_for_owner(
+                owner, self.fetch_timestamps.get(head_key)
+            )
+            if head_newest is not None:
+                self.fetch_timestamps[head_key] = head_newest
+            if head_messages:
+                all_messages.extend(head_messages)
             messages, new_cursor, new_resume = await self._fetch_outlook_for_owner(
                 owner, owner_cursor, resume_max
             )
