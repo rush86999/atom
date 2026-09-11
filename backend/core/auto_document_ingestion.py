@@ -1652,14 +1652,24 @@ class AutoDocumentIngestionService:
 
                         if success:
                             # Re-ingest of a modified file: remove the OLD
-                            # vector row so search returns exactly one (fresh)
+                            # vector FAMILY so search returns exactly one (fresh)
                             # copy instead of a stale+fresh duplicate pair.
+                            # The base id alone is not enough: a chunked ingest
+                            # stores `<doc_id>::c0..cN`, so deleting by id left
+                            # every chunk orphaned in LanceDB forever — still
+                            # retrievable, still stamped with the departed parent
+                            # (2,676 such orphans measured live 2026-09-11).
                             if existing and existing.id and existing.id != new_id:
                                 try:
                                     await asyncio.to_thread(
                                         self.memory_handler.delete_documents_by_id,
                                         "documents",
                                         existing.id,
+                                    )
+                                    await asyncio.to_thread(
+                                        self.memory_handler.delete_documents_by_prefix,
+                                        "documents",
+                                        f"{existing.id}::",
                                     )
                                 except Exception as old_del_err:  # noqa: BLE001 — best-effort cleanup
                                     logger.warning(
@@ -2454,13 +2464,21 @@ class AutoDocumentIngestionService:
         for ext_id, doc in list(self.ingested_docs.items()):
             if doc.integration_id == integration_id:
                 removed_ids.append(ext_id)
-                # Real vector cleanup: delete the stored row by its doc id.
+                # Real vector cleanup: delete the stored row by its doc id, plus
+                # its chunk family (`<doc_id>::c0..cN`) — removing only the base
+                # id leaves every chunk behind, still retrievable and still
+                # stamped with a parent that no longer exists.
                 if self.memory_handler and doc.id:
                     try:
                         await asyncio.to_thread(
                             self.memory_handler.delete_documents_by_id,
                             "documents",
                             doc.id,
+                        )
+                        await asyncio.to_thread(
+                            self.memory_handler.delete_documents_by_prefix,
+                            "documents",
+                            f"{doc.id}::",
                         )
                     except Exception as del_err:  # noqa: BLE001 — removal best-effort
                         logger.warning(f"LanceDB delete failed for {doc.id}: {del_err}")

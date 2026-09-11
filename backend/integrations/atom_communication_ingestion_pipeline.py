@@ -41,6 +41,7 @@ except ImportError:
 from pathlib import Path
 
 from core.knowledge_ingestion import get_knowledge_ingestion
+from core.lancedb_index_selfheal import ensure_fts_index
 from .ingestion_models import RecordType
 
 logger = logging.getLogger(__name__)
@@ -724,14 +725,16 @@ class LanceDBMemoryManager:
                 logger.debug(f"dim check skipped: {dim_err}")
             logger.info("Opened existing atom_communications table")
             
-        # Create FTS index for hybrid search. replace=True: an index left by
-        # a prior run turned this into a per-boot WARNING (lance refuses
-        # same-name index creation) — rebuilding is idempotent and cheap.
-        try:
-            self.connections_table.create_fts_index("content", replace=True)
+        # FTS index for hybrid search. Bare `create_fts_index(replace=True)`
+        # is NOT enough: when the on-disk index was written in a format the
+        # installed reader rejects it logs "content_idx has version 2 ...
+        # ignoring it" and silently full-scans on every boot. The version-aware
+        # bootstrap drop+recreates the index only when it is missing or was
+        # built by a different lancedb version, and no-ops otherwise.
+        if ensure_fts_index(self.connections_table, column="content"):
             logger.info("FTS index enabled on 'content' column")
-        except Exception as e:
-            logger.warning(f"Could not create FTS index (non-fatal): {e}")
+        else:
+            logger.warning("Could not create FTS index (non-fatal)")
     
     def _create_metadata_table(self):
         """Create metadata table for ingestion pipeline"""

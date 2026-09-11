@@ -8113,3 +8113,114 @@ by baseline stash: `test_jit_office_file_opens_in_app_canvas`,
 `test_drive_multi_folder_ingestion.py::{test_gdrive,test_onedrive}_service_ingest_folder_scopes_walk`
 (stub `ingest_file_to_memory` lacks the newer `role=` kwarg),
 `test_chat_tool_planner_web.py::test_platform_services_present_with_key`.
+
+---
+
+## Session 2026-09-11i (self-healing, version-aware LanceDB FTS index bootstrap)
+
+**Context**: every boot logged
+`[WARN lance::index] Index content_idx has version 2, which is not supported
+(<=0), ignoring it` for `atom_communications` (`lancedb==0.24.3`, store
+`backend/data/atom_memory/default`, 6912 rows). Root cause: the on-disk FTS
+index was written in a format version the installed reader rejects, so LanceDB
+silently ignores it and falls back to a full scan (correct results, lost
+performance). The pipeline's existing
+`create_fts_index("content", replace=True)` did **not** heal it —
+`replace=True` reuses the incompatible index instead of rewriting it. Only an
+explicit `drop_index` + fresh `create_fts_index` clears the warning, which
+would be wasteful to run on every boot, hence the version marker.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/lancedb_index_selfheal.py` | NEW `ensure_fts_index(table, column, index_name, marker_key)` — reads `lancedb.__version__` lazily/defensively; persists a per-table marker (beside the LanceDB data via the table's connection URI, local fallback for remote stores, explicit `marker_key` override) recording the version that last (re)built the index; fast no-op when marker matches + index present; otherwise drops the existing FTS index (swallowing not-found; resolves the real listed name defensively) then `create_fts_index(column, replace=True)` and rewrites the marker; never raises (failure → `False` + warning). Marker-write failure alone still returns `True` (index is usable) | `tests/test_lancedb_index_selfheal.py` (11, new) |
+| `backend/integrations/atom_communication_ingestion_pipeline.py` | `_create_connections_table` FTS step now calls `ensure_fts_index(self.connections_table, column="content")`; INFO on ready, WARNING when unavailable, non-fatal semantics preserved | same suite + `tests/test_covpush_w86_gmail_ingestion_ai.py::test_mm_create_tables` (green) |
+
+**Verification**: `cd backend && PYTHONPATH=. venv/bin/python -m pytest tests/test_lancedb_index_selfheal.py tests/test_covpush_w86_gmail_ingestion_ai.py::test_mm_create_tables -q`
+→ **12 passed**. `mypy core/lancedb_index_selfheal.py` → 0 errors.
+Live against the real store: `ensure_fts_index` rebuilt once (2.57s) and
+no-op'd on the next call (0.065s); marker written at
+`backend/data/atom_memory/default/.lancedb_fts_index/atom_communications.content.json`;
+a fresh process afterwards shows **no** `lance::index ... version 2` warning and
+FTS queries return hits. Unrelated pre-existing failures in the gmail suite
+(`test_mm_ingest_communication`, `test_mm_ingest_batch`,
+`test_mm_generate_embedding`, `test_mm_update_metadata`,
+`test_fetch_gmail_messages`) do not touch the changed code path.
+
+---
+
+## Session 2026-09-11j (join-key bridge ignored; chunk families orphaned)
+
+**Context**: following up the two "known-remaining" items flagged in 2026-09-11h.
+Both turned out to be real, but not the ones originally named.
+
+### 1. `documents.search` never read `metadata.pg_document_id`
+
+Measured on the live store: the LanceDB `documents` table held **38,983** rows,
+of which only **981** bridged to an `IngestedDocument` by id equality.
+**35,325** were CHUNK rows (`<doc_id>::cN`) whose parent id was sitting in
+`metadata.pg_document_id` — stamped at ingest, and re-stamped by
+`scripts/backfill_lancedb_join_keys.py` (which reports 38,982/38,983 already
+bridged, so the backfill was never the gap). The **reader** was: `_fuse_rrf`
+matched on `hit["id"]` alone, so every chunk hit reported `bridged:false` and —
+worse — landed on a different RRF key than its parent's lexical hit, meaning the
+two legs could never reinforce each other. That is the one thing hybrid fusion
+exists to do.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/hybrid_search/documents_hybrid.py` | `_fuse_rrf` resolves each vector hit through three legs (exact id → `metadata.pg_document_id` → `::cN` parent suffix) in ONE `IN (...)` query, and keys the fused entry by the RESOLVED parent id. Metadata normalized via `_coerce_metadata` (writers emit dict OR JSON string); `_parent_doc_id` helper | `tests/core/test_documents_hybrid.py` (+5: chunk hydration by stamp, by suffix, parent+chunk fusion into one entry, unknown chunk still surfaced, JSON-string metadata) |
+
+**Verified live** (same query, before → after):
+`semantic_only`, `lexical_hits=0`, `unbridged=28` → `bm25_vector_rrf`,
+`lexical_hits=30`, `unbridged=3`, every top hit hydrated with its real PG
+`file_name` instead of the metadata fallback.
+
+### 2. Deleting a document orphaned its chunk family
+
+The 2,676 rows whose stamp pointed at a nonexistent parent had a cause: both
+cleanup sites in `auto_document_ingestion.py` called only
+`delete_documents_by_id("documents", doc.id)` — an exact `id = '<doc>'` match —
+while chunks are stored as `<doc_id>::c0..cN`. Every chunk survived its
+parent's deletion: still retrievable, still stamped with a departed parent.
+`LanceDBHandler.delete_documents_by_prefix` already existed for exactly this
+(its docstring names the `{doc}::c0..c3400` family) and was never called from
+these sites.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/auto_document_ingestion.py` | `remove_integration_documents` and the modified-file re-ingest path now delete the base row AND the `{doc_id}::` chunk family | `tests/test_document_vector_family_cleanup.py` (3, new) |
+
+**Fresh installs are covered by construction**: both ingest paths stamp
+`pg_document_id` from day one, chunks inherit it, and the reader now honours it —
+no backfill or startup pass needed. The existing 2,676 historical orphans are
+left alone deliberately (cleaning them is a data decision, not an automatic one).
+
+### 3. Environment correction — which lancedb actually serves requests
+
+`scripts/restart_backend.sh` prefers **`backend/venv314` (Python 3.14.7, lancedb
+0.38.0)**, while `backend/venv` is Python 3.11 / lancedb **0.24.3**. Ad-hoc store
+scripts run with `./venv` therefore write an index format the server cannot read,
+and vice-versa — which is the actual source of the `content_idx has version 2`
+mismatch. The server log confirms it was real server-side, not a script artifact:
+**3,400** `not supported` hits in `logs/uvicorn_8001_restart.log`. Use
+`venv314` for anything touching the live store. The version-marker in
+`ensure_fts_index` makes this self-correcting: a boot after a wrong-venv write
+logs `Dropped stale FTS index` and rebuilds once, then no-ops on subsequent
+boots.
+
+**Verification**:
+- 34 passed under **venv314** (the server's env) across
+  `tests/test_documents_fts_bootstrap.py`, `tests/test_lancedb_index_selfheal.py`,
+  `tests/test_document_vector_family_cleanup.py`, `tests/core/test_documents_hybrid.py`.
+- 131 passed across the ingestion suites
+  (`test_document_vector_family_cleanup`, `test_drive_multi_folder_ingestion`,
+  `test_integration_general_ingest`, `test_integration_memory_index`,
+  `test_auto_document_ingestion`, `test_on_demand_attachment_ingest`).
+- Steady-state boot verified: first boot logged `Dropped stale FTS index
+  'content_idx'` → `(re)built ... for lancedb 0.38.0`; the **next** boot logged
+  neither, with **0** `not supported` warnings — marker fast path confirmed.
+- Live agent turn still returns the F-5216 specs, attributed to "the F-5216 spec
+  sheet (ingested 2026-09-08)", i.e. from the document store.
+- `tests/test_covpush_w86_gmail_ingestion_ai.py`: 5 failures confirmed
+  **pre-existing** by targeted `git stash` of the one changed file — baseline and
+  current FAILED sets are byte-identical (94 passed both ways).
