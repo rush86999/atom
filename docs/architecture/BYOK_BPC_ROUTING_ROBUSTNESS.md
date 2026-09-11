@@ -279,6 +279,7 @@ All P0 + P1 items landed with red→green tests; backend restarted healthy.
 | P2.3 | Optional hard price ceiling `ATOM_BPC_MAX_PRICE_PER_MTOK` (default 0 = disabled) filters candidates before scoring. | existing BPC suites |
 | P2.4 | Empty/inactive outcomes record `cost=0.0` — zero-completion responses never pollute spend/quality feedback. | `tests/test_llm_model_cooldown.py` |
 | Grounding | Canvas context was cut at 4000 chars (head-only), hiding the END of the draft — the agent told the operator the draft had no alternative machine. `_elide_middle(text, 12000)` keeps head + tail with an elision marker. | `tests/test_llm_p2_fallbacks.py` |
+| Grounding | `_resolve_canvas_ctx` — when a client sends `canvas_id` but no `canvas_content`, the server loads the draft from the store (`read_canvas`) instead of silently running the turn canvas-blind (the same incident, from the harness/API side). Client snapshot still wins; failures degrade to no context. | `tests/test_canvas_ctx_store_fallback.py` (4) |
 
 ### Verification
 

@@ -870,13 +870,8 @@ class ChatOrchestrator:
             # unchanged (and the intent router side-effect created junk
             # tasks from edit requests). Handled edits return early.
             _canvas_ctx: Optional[Dict[str, Any]] = None
-            if context and context.get("canvas_id") and context.get("canvas_content") is not None:
-                _canvas_ctx = {
-                    "canvas_id": str(context["canvas_id"]),
-                    "canvas_type": context.get("canvas_type") or "generic",
-                    "title": context.get("canvas_title"),
-                    "content": context.get("canvas_content"),
-                }
+            if context:
+                _canvas_ctx = await self._resolve_canvas_ctx(context, user_id)
             # Tool planning OVERLAPS the canvas-edit plan: both are
             # structured LLM calls over the same message, neither needs the
             # other's output, and serialized they cost the turn ~4s of dead
@@ -2622,6 +2617,49 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         except Exception as e:
             logger.warning(f"Zoho CRM write failed: {e}")
             return None
+
+    async def _resolve_canvas_ctx(
+        self, context: Optional[Dict[str, Any]], user_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Canvas context for a chat turn, falling back to the durable store.
+
+        The CLIENT snapshot wins when present (it is what the user sees right
+        now). When only ``canvas_id`` is sent — an API/harness client that omits
+        the content — load it from the store so the agent is never silently
+        blinded (live 2026-09-11: a canvas turn without ``canvas_content``
+        answered as if the draft had no alternative machine, because the draft
+        was never in its prompt). Fault-isolated: any lookup failure yields no
+        canvas context, i.e. exactly the previous behavior."""
+        if not context or not context.get("canvas_id"):
+            return None
+        canvas_id = str(context["canvas_id"])
+        if context.get("canvas_content") is not None:
+            return {
+                "canvas_id": canvas_id,
+                "canvas_type": context.get("canvas_type") or "generic",
+                "title": context.get("canvas_title"),
+                "content": context.get("canvas_content"),
+            }
+        try:
+            from tools.canvas_crud_tool import read_canvas
+
+            result = await read_canvas(str(user_id), canvas_id)
+            if result.get("success") and result.get("content") is not None:
+                logger.info(
+                    f"[CHATCTX] canvas {canvas_id} content resolved from the "
+                    f"store (client sent none)")
+                return {
+                    "canvas_id": canvas_id,
+                    "canvas_type": (
+                        result.get("canvas_type")
+                        or context.get("canvas_type") or "generic"
+                    ),
+                    "title": result.get("title") or context.get("canvas_title"),
+                    "content": result.get("content"),
+                }
+        except Exception as e:  # noqa: BLE001 — context is best-effort
+            logger.debug(f"canvas ctx store fallback skipped: {e}")
+        return None
 
     async def _refresh_canvas_from_store(
         self, user_id: str, canvas: Dict[str, Any]

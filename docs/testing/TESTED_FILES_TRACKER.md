@@ -24,7 +24,7 @@
 
 **Verification**: all four new suites red→green; provider/orchestrator regression **351 passed, 1 pre-existing failure** (`TestGetQwenResponse::test_overrides_and_sticky_hint_forwarded`, stash-verified on clean main). Backend restarted healthy (`scripts/restart_backend.sh`, `:8001` pid 40519).
 
-**P2 + grounding (also landed)**: `_is_context_length_error`/`_is_content_policy_error` → skip same-model providers and jump to model fallback (`test_llm_p2_fallbacks.py` 3); `ATOM_BPC_MAX_PRICE_PER_MTOK` hard ceiling (default off); empty outcomes record `cost=0.0`; canvas-context head-only cut at 4000 chars → `_elide_middle(text, 12000)` keeps head+tail (the agent had claimed the draft had no alternative machine). Final sweep **267 passed**; restarted (`:8001` pid 48059); live smoke turn HTTP 200 in 13s.
+**P2 + grounding (also landed)**: `_is_context_length_error`/`_is_content_policy_error` → skip same-model providers and jump to model fallback (`test_llm_p2_fallbacks.py` 3); `ATOM_BPC_MAX_PRICE_PER_MTOK` hard ceiling (default off); empty outcomes record `cost=0.0`; canvas-context head-only cut at 4000 chars → `_elide_middle(text, 12000)` keeps head+tail; `_resolve_canvas_ctx` loads the draft from the store when a client sends `canvas_id` without `canvas_content` (`test_canvas_ctx_store_fallback.py` 4) — verified live: a content-less request answered "F-52"x16G Foot Shear (F-5216) at $7,519.00 … 2–3 week delivery". Final sweep **267 passed**; restarted (`:8001`); live smoke turn HTTP 200 with no empty-stream/fallback/budget events.
 
 ---
 
