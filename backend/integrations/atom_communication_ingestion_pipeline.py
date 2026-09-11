@@ -2135,8 +2135,16 @@ class CommunicationIngestionPipeline:
         }
 
     
-    async def ingest_message(self, app_type: str, message_data: Dict[str, Any]) -> bool:
-        """Ingest single message from any communication app"""
+    async def ingest_message(self, app_type: str, message_data: Dict[str, Any],
+                             *, describe_images: bool = False) -> bool:
+        """Ingest single message from any communication app.
+
+        ``describe_images``: images with NO text layer get a vision DESCRIPTION
+        so they still land in memory. Set by the explicit on-demand ingest
+        (``ingest_email_on_demand``) where the user/agent asked for THIS
+        message; the bulk poll/webhook paths leave it False so one mailbox
+        sync never turns into a vision call per decorative image.
+        """
         try:
             # Initialize memory manager if needed
             if self.memory_manager.db is None:
@@ -2160,7 +2168,8 @@ class CommunicationIngestionPipeline:
             # text is already folded into the comms content above.
             if raw_attachments:
                 await self._ingest_binary_attachments(
-                    app_type, raw_attachments, normalized_data
+                    app_type, raw_attachments, normalized_data,
+                    describe_images=describe_images,
                 )
 
             # Convert to CommunicationData
@@ -3775,6 +3784,9 @@ class CommunicationIngestionPipeline:
                 # cursors on truncation instead (order_untrusted).
                 order_trusted = True
                 params["$orderBy"] = "receivedDateTime desc"
+                # Attachments ride the row (inline images must reach OCR).
+                # Dropped automatically if this backend rejects the combo.
+                params["$expand"] = "attachments"
                 max_fetches = _outlook_fetch_page_budget(last_fetch)
                 if last_fetch:
                     # Graph OData requires UTC 'Z' format — a bare isoformat()
@@ -3837,6 +3849,11 @@ class CommunicationIngestionPipeline:
                                     if k != "$orderBy"
                                 }
                                 order_trusted = False
+                                # $expand can also be part of the rejection
+                                # (some backends disallow $expand with
+                                # $filter) — drop it here too rather than
+                                # failing the whole walk over attachments.
+                                params.pop("$expand", None)
                                 response = await client.get(
                                     f"{graph_base}/me/messages",
                                     headers=headers,
@@ -4157,7 +4174,9 @@ class CommunicationIngestionPipeline:
                     "message_id": message_id,
                 }
 
-            success = await self.ingest_message(app_type, normalized)
+            success = await self.ingest_message(
+                app_type, normalized, describe_images=True
+            )
             if not success:
                 # NOT marked seen — the message stays on the retry path
                 # (same contract as _ingest_and_mark).
@@ -4258,6 +4277,7 @@ class CommunicationIngestionPipeline:
         app_type: str,
         raw_attachments: List[Dict[str, Any]],
         normalized: Dict[str, Any],
+        describe_images: bool = False,
     ) -> None:
         """Give binary attachments (pdf/docx/xlsx/images…) a real text layer in
         the documents memory index via core.email_attachment_ingestion.
@@ -4341,6 +4361,10 @@ class CommunicationIngestionPipeline:
                     else str(received_at or "")
                 ),
                 inline=inline,
+                # Explicit on-demand ingest only: textless images (product
+                # photos, inlined machine pictures) become a vision description
+                # instead of dying as no_text. The poller path never sets this.
+                describe_images=bool(describe_images),
             )
             for cleaned in normalized.get("attachments") or []:
                 if not isinstance(cleaned, dict):
