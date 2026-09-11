@@ -817,3 +817,6 @@ workflow_states/
 
 # ZCode session artifacts (tool-local; same posture as .claude/)
 .zcode/
+
+# SQLite in-memory session markers
+:memory:.ses
