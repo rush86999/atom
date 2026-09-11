@@ -176,8 +176,12 @@ class GoalRunRouter:
                 if agent_id:
                     try:
                         from core.student_learning_service import get_agent_lessons
+                        # goal_id = the scope being worked: lessons taught
+                        # against THIS goal ride along with the agent's global
+                        # guidance; other goals' deal-specific lessons stay out.
                         lessons = get_agent_lessons(db, str(agent_id),
-                                                    query=goal_text, limit=4)
+                                                    query=goal_text, limit=4,
+                                                    goal_id=run.get("goal_id"))
                         if lessons:
                             parts.append("YOUR LESSONS:\n"
                                          + "\n".join(f"- {l.get('lesson', l)}"

@@ -685,6 +685,10 @@ async def get_canvas_training_context(
                 "learned_at": entry.get("learned_at"),
                 "edited_at": entry.get("edited_at"),
                 "canvas": canvas_payload,
+                # Scope: "global" = all of the agent's work; "goal" = only
+                # while working ``goal_id``. Absent (pre-scope rows) = global.
+                "scope": entry.get("scope") or "global",
+                "goal_id": entry.get("goal_id"),
             }
             if source == "observation":
                 point.update(
@@ -740,6 +744,40 @@ def _scoped_agent(db: Session, agent_id: str, current_user: User) -> Any:
     if agent is None or (agent.tenant_id or "default") != resolve_tenant_id(current_user):
         raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
     return agent
+
+
+@router.get("/agents/{agent_id}/lessons")
+async def list_agent_lessons_endpoint(
+    agent_id: str,
+    goal_id: Optional[str] = Query(
+        None,
+        description=(
+            "Optional goal whose scoped lessons should be included. The "
+            "agent's GLOBAL lessons are always returned; a lesson scoped to "
+            "a DIFFERENT goal is not."
+        ),
+    ),
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The agent's PERMANENT lessons, newest first, each with its scope.
+
+    Powers the goal-run page's "what has it learned" list: a supervisor
+    coaching a long run needs to see whether their overrides and taught rules
+    actually landed, and on which scope. Read-only, tenant-scoped (same IDOR
+    guard as the teaching-point mutations) — every WRITE stays on /teach, the
+    goal-run override, and the canvas-correction paths.
+    """
+    agent = _scoped_agent(db, agent_id, current_user)
+    from core.student_learning_service import list_agent_lessons
+
+    return {
+        "agent_id": agent.id,
+        "agent_name": agent.name,
+        "goal_id": goal_id,
+        "lessons": list_agent_lessons(db, agent.id, goal_id=goal_id, limit=limit),
+    }
 
 
 @router.patch("/agents/{agent_id}/teaching-points/{point_id}")

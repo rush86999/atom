@@ -221,6 +221,160 @@ def _bind_canvas_chat_session(
         return False
 
 
+def _goal_inference_enabled() -> bool:
+    """Whether chat teaching may INFER a goal scope (kill switch).
+
+    Inference only ever narrows a lesson to a goal the agent is actively
+    working, and the confirmation card shows that scope with a one-click
+    widen — but a deployment that would rather every chat lesson be global
+    can turn it off."""
+    try:
+        from core.runtime_settings import get_bool_setting
+
+        return get_bool_setting("ATOM_CHAT_TEACH_GOAL_INFERENCE", True)
+    except Exception:  # noqa: BLE001
+        return str(os.getenv("ATOM_CHAT_TEACH_GOAL_INFERENCE", "true")).strip().lower() in (
+            "1", "true", "yes", "on",
+        )
+
+
+async def _teach_command_response(
+    *,
+    request: "ChatMessageRequest",
+    db: _Session,
+    current_user: User,
+    active_user_id: str,
+    session_id: Optional[str],
+    context_with_agent: Dict[str, Any],
+    canvas_id: Optional[str],
+    workspace_id: str,
+    agent_id: Optional[str],
+    lesson: str,
+) -> "ChatMessageResponse":
+    """Deterministic reply for an explicit ``/teach <rule>`` chat command.
+
+    Teaching is a training instruction, not a task, so it must NOT be handed
+    to the reply model — which could reword the rule, hedge, or claim a save
+    that never happened. The lesson is written through the shared delivery
+    composite (``core/chat_teaching`` → ``deliver_teacher_lesson``) and the
+    reply is built from the real outcome. The turn is recorded through the
+    orchestrator's own session helpers so it survives restart/rehydration
+    exactly like any other chat turn.
+
+    SCOPE. A lesson is usually ABOUT whatever the agent is working on, so the
+    goal is resolved in two steps, cheapest and most reliable first:
+    1. EXPLICIT — the chat carried ``goal_run_id`` (opened from a run page).
+       Deterministic; no model call.
+    2. INFERRED — plain chat with an agent that has live goals: one small
+       structured call picks the goal the rule clearly belongs to, or none.
+       Suggestion-grade, and the card always shows the scope so the user can
+       widen it in one click.
+    """
+    import uuid as _uuid
+
+    from core.chat_teaching import teach_from_chat
+
+    goal_id: Optional[str] = None
+    goal_label: Optional[str] = None
+    goal_inferred = False
+
+    # 1) Explicit: the chat was opened from a goal run.
+    try:
+        from core.chat_teaching import goal_context_for_run
+
+        _run_ctx = goal_context_for_run(db, (context_with_agent or {}).get("goal_run_id"))
+        if _run_ctx:
+            goal_id = _run_ctx["goal_id"]
+            goal_label = _run_ctx.get("title") or None
+    except Exception as run_ctx_err:  # noqa: BLE001
+        logger.debug(f"teach goal context skipped: {run_ctx_err}")
+
+    # 2) Inferred: only for an agent with live goals, and only when enabled.
+    if goal_id is None and agent_id and _goal_inference_enabled():
+        try:
+            from core.chat_teaching import active_goals_for_agent, infer_lesson_goal
+
+            _candidates = active_goals_for_agent(db, agent_id)
+            if _candidates:
+                _match = await infer_lesson_goal(
+                    getattr(chat_orchestrator, "llm_service", None),
+                    lesson=lesson,
+                    candidates=_candidates,
+                )
+                if _match:
+                    goal_id = _match["goal_id"]
+                    goal_label = _match.get("title") or None
+                    goal_inferred = True
+        except Exception as infer_err:  # noqa: BLE001 — inference is optional
+            logger.debug(f"teach goal inference skipped: {infer_err}")
+
+    notice: Dict[str, Any]
+    try:
+        notice = teach_from_chat(
+            db,
+            agent_id=agent_id,
+            lesson=lesson,
+            canvas_id=canvas_id,
+            workspace_id=workspace_id,
+            goal_id=goal_id,
+            goal_title=goal_label,
+            goal_inferred=goal_inferred,
+        )
+    except Exception as e:  # noqa: BLE001 — never 500 a chat turn on a teach
+        logger.error(f"Teach-from-chat failed: {e}")
+        notice = {
+            "status": "error",
+            "lesson": lesson,
+            "message": "I couldn't save that lesson — nothing was changed.",
+        }
+
+    resolved_session_id = session_id or str(_uuid.uuid4())
+    try:
+        session = chat_orchestrator._get_or_create_session(
+            active_user_id, resolved_session_id, context_with_agent
+        )
+        chat_orchestrator._update_session(
+            session,
+            request.message,
+            {
+                "success": True,
+                "message": notice.get("message", ""),
+                "data": {"teaching": notice},
+            },
+            {"primary_intent": "teaching", "confidence": 1.0},
+        )
+    except Exception as record_err:  # noqa: BLE001
+        logger.debug(f"teach-command session record skipped: {record_err}")
+
+    try:
+        _bind_canvas_chat_session(
+            canvas_id=canvas_id,
+            canvas_type=(request.context or {}).get("canvas_type") or "generic",
+            user_id=active_user_id,
+            tenant_id=getattr(current_user, "tenant_id", None),
+            agent_id=agent_id,
+            session_id=resolved_session_id,
+        )
+    except Exception as bind_err:  # noqa: BLE001
+        logger.debug(f"teach-command canvas bind skipped: {bind_err}")
+
+    # ``success`` stays True even for a failed save: the request was processed
+    # and the outcome is carried in metadata.teaching. A False here makes the
+    # client throw its generic error bubble and swallow the real message.
+    return ChatMessageResponse(
+        success=True,
+        message=notice.get("message", ""),
+        session_id=resolved_session_id,
+        intent="teaching",
+        confidence=1.0,
+        suggested_actions=[],
+        requires_confirmation=False,
+        next_steps=[],
+        timestamp=datetime.utcnow().isoformat(),
+        metadata={"teaching": notice},
+    )
+
+
 def _persist_session_rebind(session_id: str, user_id: str) -> bool:
     """Durably re-point a reclaimed legacy session at its new owner.
 
@@ -570,8 +724,8 @@ async def get_session_agent_trace(
     enforced the same way as /history/{session_id}; unknown sessions simply
     have no runs and return an empty list.
     """
-    from sqlalchemy import func
     from core.models import AgentExecution, AgentReasoningStep
+    from core.sql_json import json_field_equals
 
     try:
         known = chat_orchestrator.conversation_sessions.get(session_id)
@@ -582,8 +736,14 @@ async def get_session_agent_trace(
         executions = (
             db.query(AgentExecution)
             .filter(
-                func.json_extract(AgentExecution.metadata_json, '$.session_id')
-                == session_id
+                # Corruption-tolerant: one malformed metadata_json row (SQLite
+                # does not validate the column) used to make json_extract raise
+                # `malformed JSON` for this WHOLE statement — 500ing the
+                # endpoint for EVERY session and killing the canvas Agent
+                # Workspace history restore. See core/sql_json.
+                json_field_equals(
+                    db, AgentExecution.metadata_json, '$.session_id', session_id
+                )
             )
             .order_by(AgentExecution.started_at.desc())
             .limit(limit)
@@ -981,7 +1141,8 @@ async def get_session_details(
 async def send_chat_message(
     request: ChatMessageRequest,
     http_request: Request,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: _Session = Depends(get_db),
 ) -> ChatMessageResponse:
     """
     Send a chat message to the ATOM chat orchestrator (authenticated with optional dev fallback)
@@ -1056,6 +1217,60 @@ async def send_chat_message(
                 )
         _ctx_tokens = set_chat_context(session_id, getattr(request, "agent_id", None))
         try:
+            # ── Teach-from-chat: the chat IS a training surface ──────────
+            # Both the canvas co-editor panel and regular chat post here; the
+            # canvas's own hire is already resolved above, so a canvas turn
+            # teaches its attached agent with no extra plumbing. Detection is
+            # conservative (core/chat_teaching): an explicit /teach saves, a
+            # detected cue only SUGGESTS (confirmed inline) — lessons are
+            # permanent prompt instructions, so a human gate is mandatory.
+            _effective_agent_id = getattr(request, "agent_id", None) or (
+                request.context or {}
+            ).get("agent_id")
+            _teaching_canvas_id = (request.context or {}).get("canvas_id")
+            _teaching_workspace_id = (
+                getattr(current_user, "workspace_id", None) or "default"
+            )
+
+            _teach_lesson: Optional[str] = None
+            try:
+                from core.chat_teaching import parse_teach_command
+
+                _teach_lesson = parse_teach_command(request.message)
+            except Exception as parse_err:  # noqa: BLE001
+                logger.debug(f"teach-command parse skipped: {parse_err}")
+
+            if _teach_lesson is not None:
+                return await _teach_command_response(
+                    request=request,
+                    db=db,
+                    current_user=current_user,
+                    active_user_id=active_user_id,
+                    session_id=session_id,
+                    context_with_agent=context_with_agent,
+                    canvas_id=_teaching_canvas_id,
+                    workspace_id=_teaching_workspace_id,
+                    agent_id=_effective_agent_id,
+                    lesson=_teach_lesson,
+                )
+
+            # Detected cue → confirm-first suggestion attached to the reply.
+            _teaching_suggestion: Optional[Dict[str, Any]] = None
+            try:
+                from core.chat_teaching import detect_teaching_cue, suggest_lesson
+
+                _cue_lesson = detect_teaching_cue(request.message)
+                if _cue_lesson:
+                    _teaching_suggestion = suggest_lesson(
+                        db,
+                        agent_id=_effective_agent_id,
+                        lesson=_cue_lesson,
+                        canvas_id=_teaching_canvas_id,
+                        workspace_id=_teaching_workspace_id,
+                    )
+            except Exception as cue_err:  # noqa: BLE001
+                logger.debug(f"teaching-cue detection skipped: {cue_err}")
+
             # Chat vision: user-submitted images ride to the LLM as
             # image_payload (vision-capable model routing inside the handler).
             _images = None
@@ -1075,6 +1290,17 @@ async def send_chat_message(
                 routing_overrides=routing_overrides or None,
                 images=_images,
             )
+
+            # Riding the reply, not replacing it: a detected cue attaches the
+            # confirm-first lesson card to whichever leg answered (LLM reply,
+            # canvas edit, or action) — every path funnels `data` into the
+            # response's `metadata`, which the chat clients render.
+            if _teaching_suggestion:
+                _existing_data = response.get("data")
+                response["data"] = {
+                    **(_existing_data if isinstance(_existing_data, dict) else {}),
+                    "teaching": _teaching_suggestion,
+                }
         finally:
             reset_chat_context(_ctx_tokens)
 

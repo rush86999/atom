@@ -993,3 +993,77 @@ bounded, always-in-context distilled guidance — and CLAUDE.md-style
 imperative/bounded instruction guidance. Poisoning caveat: lessons are
 human-gated writes; keep it that way. See
 `docs/architecture/AGENT_MEMORY_UNIFICATION_PLAN.md` addendum.)
+
+---
+
+## Teaching from chat (implemented Sep 11, 2026)
+
+> Previously: `/teach` was reachable only from the canvas Training tab's
+> form (plus thumbs-down comments). Typing a rule in the agent chat —
+> canvas co-editor OR regular chat — was answered as ordinary conversation
+> and changed nothing.
+
+The chat is now a teaching surface. `core/chat_teaching.py` is the single
+detector; `student_learning_service.deliver_teacher_lesson` is the single
+write, shared with `POST /api/agents/{id}/teach` so a lesson means the same
+thing wherever it was taught.
+
+| Trigger | Behaviour |
+|---|---|
+| `/teach <rule>` | **Saved immediately**, confirmed in the transcript. Deterministic — the reply model never runs, so it cannot reword the rule or claim a save that did not happen. |
+| Detected directive (`always …`, `never …`, `from now on …`, `remember that …`, `keep in mind …`, `make sure you …`, `when …, always …`) | **Confirm-first.** The agent answers normally and an inline card asks `Save this as a permanent lesson?` Nothing is written until the user clicks. Questions and conversational openers ("never mind") are not cues. |
+| No agent attached | The reply asks which agent should learn it and lists the pickable agents (same workspace-scoped read as `GET /api/agents`). Canvas turns resolve their attached hire automatically. |
+| Repeat of an existing lesson | Reported as already-known; nothing is appended (dedup runs before EITHER pathway now — the STUDENT pedagogy path used to stack duplicates). |
+| **Undo** (saved lessons) | A supervisor (TEAM_LEAD+) can remove the lesson from the confirmation card itself. Hidden for everyone else — removal is a training-state mutation gated by `_require_supervisor`, so a member's Undo would only collect a 403. The `/teach` response returns `teaching_point_id`, the same handle `DELETE /api/maturity/agents/{id}/teaching-points/{point_id}` resolves. |
+
+**UI**: `frontend-nextjs/components/chat/TeachingNotice.tsx`, rendered by both
+chat surfaces from the turn's `metadata.teaching` (regular chat via
+`GlobalChat/ChatMessage`, canvas side-chat via `pages/canvas/[id].tsx`).
+
+**Still true**: the human gate is mandatory. A detected cue alone never writes
+a lesson; only the explicit command or a confirmed suggestion does.
+
+---
+
+## Lesson scope: goal-specific vs general (implemented Sep 11, 2026)
+
+Some teaching points are true for ONE goal ("confirm the FX rate before asking
+me" — right for that deal, noise everywhere else) and others are standing
+guidance for everything the agent does. Scope is data on the lesson, and the
+**reader** decides:
+
+| `scope` | Applies to |
+|---|---|
+| `global` (default) | Chat, canvas edits, every task, every goal run. |
+| `goal` (+ `goal_id`) | Only while working THAT goal. |
+
+Rows written before scope existed carry no field and read as **global**, so
+nothing historical changed.
+
+- **Where you choose it**: the goal-run page's Coaching card (teach box, and
+  the override on a held decision) offers "This goal only" / "All of this
+  agent's work". The chat `/teach` command and the canvas Training panel teach
+  global rules by default.
+- **How chat picks the goal** (two steps, cheapest first):
+  1. **Explicit** — the run page's "Chat with this agent" link carries
+     `goal_run_id`, so a `/teach` there is scoped to that run's goal with no
+     model call.
+  2. **Inferred** — plain chat with an agent that has LIVE goals: one small
+     structured call (`infer_lesson_goal`) picks the goal the rule is clearly
+     about, or none. Biased to "none" (a general rule wrongly narrowed stops
+     applying elsewhere), confidence-floored at 0.7, and an unoffered goal id is
+     discarded. No live goals → no call at all. The card marks an inferred scope
+     and always offers a one-click **Apply to all work**; kill switch
+     `ATOM_CHAT_TEACH_GOAL_INFERENCE`.
+- **How it is applied**: work-time readers call
+  `get_agent_lessons(db, agent_id, ...)` without `goal_id` and therefore see
+  global guidance only. The goal-run router (`_role_context`) and goal-step
+  `GenericAgent` runs pass the goal they are working, so that goal's lessons
+  ride along.
+- **Who is already covered**: a supervisor's goal-run override journals a
+  permanent lesson and the router injects it into the next decision — the loop
+  was already closed; scope stops it leaking outside the goal.
+
+See `core/student_learning_service.py` (`_lesson_in_scope`,
+`_has_covering_lesson`, `list_agent_lessons`) and
+`GET /api/maturity/agents/{id}/lessons` for the run page's read-back.

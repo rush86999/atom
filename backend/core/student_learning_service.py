@@ -147,6 +147,7 @@ def get_agent_lessons(
     agent_id: str,
     query: Optional[str] = None,
     limit: int = WORK_TIME_LESSON_LIMIT,
+    goal_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """The agent's permanent lessons, newest first, for injection at work time.
 
@@ -157,24 +158,19 @@ def get_agent_lessons(
     keyword-scored against it and relevance breaks recency ties, so the
     lessons that matter for THIS task fit in the limit. Fault-isolated:
     returns [] on any failure — never blocks the working turn.
-    """
-    try:
-        agent = db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id
-        ).first()
-    except Exception as e:
-        logger.debug(f"lesson lookup failed for {agent_id}: {e}")
-        return []
-    if agent is None:
-        return []
-    config = agent.configuration if isinstance(agent.configuration, dict) else {}
-    learning = config.get("learning")
-    log = learning.get("log") if isinstance(learning, dict) else None
-    if not isinstance(log, list):
-        return []
 
-    lessons = [e for e in log if _is_permanent_lesson(e)]
-    lessons.reverse()  # newest first (the log is append-ordered)
+    ``goal_id`` is the SCOPE the caller is working in. A lesson can be taught
+    against one goal ("check the FX rate before asking me" — true for that
+    deal, noise everywhere else) or for all of the agent's work. Pass the
+    goal being worked and goal-scoped lessons for THAT goal are included;
+    omit it (chat, canvas edits, ordinary task runs) and only the agent's
+    global lessons apply. Entries written before scope existed have none and
+    are therefore global — the historical behaviour, unchanged.
+    """
+    lessons = [
+        e for e in _permanent_lessons(db, agent_id)
+        if _lesson_in_scope(e, goal_id)
+    ]
 
     if query:
         q_tokens = {
@@ -199,6 +195,74 @@ def get_agent_lessons(
         lessons.sort(key=_score, reverse=True)
 
     return lessons[:max(0, limit)]
+
+
+def _permanent_lessons(db: Session, agent_id: str) -> List[Dict[str, Any]]:
+    """EVERY permanent lesson for the agent, newest first, ignoring scope.
+
+    The raw journal view: dedup ("is this rule already known at least as
+    broadly?") and the goal-run page's "what has it learned" list need to see
+    goal-scoped entries too, which ``get_agent_lessons`` deliberately hides
+    from work time. Fault-isolated → []."""
+    try:
+        agent = db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id
+        ).first()
+    except Exception as e:
+        logger.debug(f"lesson lookup failed for {agent_id}: {e}")
+        return []
+    if agent is None:
+        return []
+    config = agent.configuration if isinstance(agent.configuration, dict) else {}
+    learning = config.get("learning")
+    log = learning.get("log") if isinstance(learning, dict) else None
+    if not isinstance(log, list):
+        return []
+
+    lessons = [e for e in log if _is_permanent_lesson(e)]
+    lessons.reverse()  # newest first (the log is append-ordered)
+    return lessons
+
+
+def _lesson_in_scope(entry: Dict[str, Any], goal_id: Optional[str]) -> bool:
+    """True when this lesson applies while working ``goal_id``.
+
+    Only lessons explicitly scoped to a goal are excluded — everything else
+    (and everything written before scope existed) is global guidance and
+    always applies."""
+    if not isinstance(entry, dict) or entry.get("scope") != "goal":
+        return True
+    return bool(goal_id) and str(entry.get("goal_id") or "") == str(goal_id)
+
+
+def list_agent_lessons(
+    db: Session,
+    agent_id: str,
+    goal_id: Optional[str] = None,
+    limit: int = 20,
+) -> List[Dict[str, Any]]:
+    """The agent's permanent lessons for DISPLAY, newest first, with scope.
+
+    Powers the goal-run page's "what has it learned" list: unlike
+    ``get_agent_lessons`` this returns a flat, render-ready shape and can be
+    asked for one goal's view (that goal's scoped lessons + the agent's
+    global guidance). Fault-isolated → []."""
+    out: List[Dict[str, Any]] = []
+    for entry in _permanent_lessons(db, agent_id):
+        if not _lesson_in_scope(entry, goal_id):
+            continue
+        out.append({
+            "id": entry.get("id"),
+            "text": _lesson_text(entry),
+            "scope": entry.get("scope") or "global",
+            "goal_id": entry.get("goal_id"),
+            "source": entry.get("source"),
+            "topic": entry.get("topic") or entry.get("observation_type"),
+            "learned_at": entry.get("learned_at"),
+        })
+        if len(out) >= max(0, limit):
+            break
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -356,7 +420,7 @@ def delete_teaching_point(
     return {"status": "ok", "point_id": teaching_point_id(entry, index)}
 
 
-def journal_standing_lesson(
+def journal_standing_lesson_entry(
     db: Session,
     agent_id: str,
     lesson: str,
@@ -367,7 +431,9 @@ def journal_standing_lesson(
     teacher_agent_id: Optional[str] = None,
     details: Optional[Dict[str, Any]] = None,
     canvas_context: Optional[Dict[str, Any]] = None,
-) -> bool:
+    scope: str = "global",
+    goal_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     """Append a permanent lesson DIRECTLY to an agent's registry lesson log —
     status-independent, so a taught rule reaches SUPERVISED and graduated
     hires too (StudentLearningService's instance methods only accept
@@ -375,21 +441,25 @@ def journal_standing_lesson(
     for their own agent" — commit eaaa8b71a's rationale, generalized to
     every teaching surface). Deduped against the existing log so repeated
     identical lessons don't stack. Fresh-dict assign + flag_modified so the
-    JSON column actually flushes. Returns False when the agent is missing
-    or the lesson is empty/duplicate; raises nothing."""
+    JSON column actually flushes.
+
+    Returns the appended entry (whose ``id`` is the teaching-point handle
+    the Training tab and the chat confirmation chip address) or None when
+    the agent is missing or the lesson is empty/duplicate; raises nothing.
+    """
     text = str(lesson or "").strip()
     if not text or not agent_id:
-        return False
+        return None
     try:
         agent = db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id).first()
         if agent is None:
-            return False
+            return None
         existing = {
             _lesson_text(e) for e in get_agent_lessons(db, agent_id, limit=50)
         }
         if text in existing:
-            return False
+            return None
 
         if source == "teacher":
             entry: Dict[str, Any] = {
@@ -411,6 +481,14 @@ def journal_standing_lesson(
             }
         if canvas_context:
             entry["canvas"] = canvas_context
+        # Scope: a lesson taught against ONE goal applies only while working
+        # that goal; everything else is global guidance. Absent scope (rows
+        # written before this existed) reads as global.
+        if scope == "goal" and goal_id:
+            entry["scope"] = "goal"
+            entry["goal_id"] = str(goal_id)
+        else:
+            entry["scope"] = "global"
 
         from sqlalchemy.orm.attributes import flag_modified
 
@@ -426,10 +504,41 @@ def journal_standing_lesson(
         agent.configuration = config
         flag_modified(agent, "configuration")
         db.commit()
-        return True
+        return entry
     except Exception as e:
         logger.debug(f"standing-lesson journal skipped for {agent_id}: {e}")
-        return False
+        return None
+
+
+def journal_standing_lesson(
+    db: Session,
+    agent_id: str,
+    lesson: str,
+    *,
+    source: str = "observation",
+    observation_type: Optional[str] = "human_correction",
+    topic: Optional[str] = None,
+    teacher_agent_id: Optional[str] = None,
+    details: Optional[Dict[str, Any]] = None,
+    canvas_context: Optional[Dict[str, Any]] = None,
+    scope: str = "global",
+    goal_id: Optional[str] = None,
+) -> bool:
+    """Boolean face of :func:`journal_standing_lesson_entry` — the shape every
+    existing caller (canvas corrections, teaching circuits, goal runs) already
+    depends on. True when the lesson landed, False when it was empty, a
+    duplicate, or the agent is missing."""
+    return journal_standing_lesson_entry(
+        db, agent_id, lesson,
+        source=source,
+        observation_type=observation_type,
+        topic=topic,
+        teacher_agent_id=teacher_agent_id,
+        details=details,
+        canvas_context=canvas_context,
+        scope=scope,
+        goal_id=goal_id,
+    ) is not None
 
 
 def learn_user_style(
@@ -548,10 +657,14 @@ class StudentLearningService:
         lesson: str,
         topic: Optional[str] = None,
         canvas_context: Optional[Dict[str, Any]] = None,
+        scope: str = "global",
+        goal_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Record a teacher-delivered lesson (fast path). ``canvas_context``
         (see build_canvas_context) pins the lesson to the canvas it was
-        taught on so retrieval can recall the subject, not just the rule."""
+        taught on so retrieval can recall the subject, not just the rule.
+        ``scope``/``goal_id`` mark a lesson that is true only for ONE goal
+        (see journal_standing_lesson_entry)."""
         student = self._get_student(student_agent_id)
         if student is None:
             return {"status": "error", "reason": "student_not_found"}
@@ -566,6 +679,11 @@ class StudentLearningService:
         }
         if canvas_context:
             entry["canvas"] = canvas_context
+        if scope == "goal" and goal_id:
+            entry["scope"] = "goal"
+            entry["goal_id"] = str(goal_id)
+        else:
+            entry["scope"] = "global"
         result = self._apply_learning(student, entry, boost=_TEACHER_BOOST)
 
         # Pedagogy circuit: a taught lesson is a POSITIVE exposure for its
@@ -841,6 +959,181 @@ async def auto_observe(
             session.close()
     except Exception as e:
         logger.debug(f"Auto-observation skipped (non-fatal): {e}")
+
+
+def deliver_teacher_lesson(
+    db: Session,
+    agent_id: str,
+    lesson: str,
+    *,
+    topic: Optional[str] = None,
+    canvas_id: Optional[str] = None,
+    teacher_agent_id: str = "human_supervisor",
+    record_session_lesson: bool = True,
+    scope: str = "global",
+    goal_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """One human/mentor-delivered lesson → permanent training, at ANY tier.
+
+    This is the composite EVERY teaching surface shares — ``POST
+    /api/agents/{id}/teach`` (the canvas Training tab's form, the goal-run
+    page's teach box) and the chat teaching channel (``/teach`` in the
+    message box, detected teaching cues) — so a lesson means the same thing
+    wherever it was taught:
+
+      1. snapshot the canvas the lesson was taught on (recall context),
+      2. a STUDENT gets the pedagogy circuit (confidence nudge + mastery
+         exposure + filing into an ACTIVE training session),
+      3. everyone else gets the status-independent standing journal (a
+         graduated hire still learns; lessons survive graduation).
+
+    ``scope="goal"`` + ``goal_id`` records a lesson that is true only while
+    working THAT goal (a deal-specific instruction); the default is global
+    guidance for all of the agent's work.
+
+    Fault-isolated: returns a service-shaped dict and never raises. The
+    ``entry`` is the appended lesson (its ``id`` is the teaching-point
+    handle the Training tab and the chat confirmation chip address).
+    """
+    result: Dict[str, Any] = {
+        "status": "agent_not_found",
+        "mode": None,
+        "agent_name": None,
+        "agent_status": None,
+        "entry": None,
+        "confidence": None,
+        "data": {},
+    }
+    try:
+        agent = db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id).first()
+    except Exception as e:  # noqa: BLE001 — a lookup failure must not 500 the chat turn
+        logger.debug(f"teacher-lesson agent lookup skipped for {agent_id}: {e}")
+        return result
+    if agent is None:
+        return result
+
+    text = str(lesson or "").strip()
+    result["agent_name"] = agent.name
+    result["agent_status"] = agent.status
+    if not text:
+        return {**result, "status": "empty"}
+
+    # Dedup must cover BOTH pathways. The standing journal already refused
+    # repeated identical lessons, but the STUDENT pedagogy path did not — so
+    # teaching the same rule twice stacked two identical entries, and the
+    # bounded work-time block rendered the same instruction twice while
+    # spending a lesson slot. Checked here, before either write, so every
+    # teaching surface (the /teach form, the chat channel, mentor lessons)
+    # behaves alike.
+    #
+    # Scope-aware: a lesson already known GLOBALLY covers a goal-scoped
+    # request (global applies everywhere), and a lesson already scoped to
+    # THIS goal covers a repeat of it — but the same words taught against a
+    # DIFFERENT goal is genuinely new guidance and must be allowed.
+    try:
+        already_taught = _has_covering_lesson(db, agent_id, text, scope, goal_id)
+    except Exception:  # noqa: BLE001 — a read failure must not block a teach
+        already_taught = False
+    if already_taught:
+        return {**result, "status": "duplicate"}
+
+    canvas_context = build_canvas_context(db, canvas_id)
+
+    # STUDENT fast path: the pedagogy circuit (confidence + mastery).
+    student_result = StudentLearningService(db).learn_from_teacher(
+        student_agent_id=agent_id,
+        teacher_agent_id=teacher_agent_id,
+        lesson=text,
+        topic=topic,
+        canvas_context=canvas_context,
+        scope=scope,
+        goal_id=goal_id,
+    )
+    if student_result.get("status") == "ok":
+        entry = None
+        try:
+            newest = get_agent_lessons(db, agent_id, goal_id=goal_id, limit=1)
+            entry = newest[0] if newest else None
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"teacher-lesson entry read skipped for {agent_id}: {e}")
+
+        if record_session_lesson:
+            # A lesson taught while a training session is ACTIVE also lands in
+            # that session's guidance record (best-effort — the journal and
+            # confidence above are the contract).
+            try:
+                from core.student_training_service import StudentTrainingService
+
+                StudentTrainingService(db).record_session_lesson(
+                    agent_id=agent_id, lesson=text, topic=topic,
+                )
+            except Exception as session_lesson_err:  # noqa: BLE001
+                logger.debug(f"session lesson record skipped: {session_lesson_err}")
+
+        return {
+            **result,
+            "status": "ok",
+            "mode": "student",
+            "entry": entry,
+            "confidence": student_result.get("confidence"),
+            "data": dict(student_result),
+        }
+
+    # Standing-guidance path: the same status-independent journal the canvas
+    # correction and chat-feedback circuits use.
+    entry = journal_standing_lesson_entry(
+        db, str(agent.id), text,
+        source="teacher",
+        topic=topic,
+        teacher_agent_id=teacher_agent_id,
+        canvas_context=canvas_context,
+        scope=scope,
+        goal_id=goal_id,
+    )
+    if entry is not None:
+        return {
+            **result,
+            "status": "ok",
+            "mode": "standing_guidance",
+            "entry": entry,
+            "data": {"status": "ok", "mode": "standing_guidance",
+                     "agent_status": agent.status},
+        }
+
+    # Nothing was appended: either the agent already carries this exact lesson
+    # (dedup) or the journal failed. Distinguish so the UI can be honest.
+    try:
+        duplicate = _has_covering_lesson(db, agent_id, text, scope, goal_id)
+    except Exception:  # noqa: BLE001
+        duplicate = False
+    return {**result, "status": "duplicate" if duplicate else "journal_failed"}
+
+
+def _has_covering_lesson(
+    db: Session,
+    agent_id: str,
+    text: str,
+    scope: str,
+    goal_id: Optional[str],
+) -> bool:
+    """True when this exact rule is ALREADY known at least as broadly.
+
+    A global lesson covers every scope (it applies everywhere), and a lesson
+    scoped to the same goal covers a repeat of itself. The same words scoped
+    to a DIFFERENT goal is new guidance, not a duplicate — so coaching goal A
+    never blocks coaching goal B with the same phrasing. Checks the raw
+    journal (``_permanent_lessons``), because ``get_agent_lessons`` hides
+    other goals' lessons from work-time callers."""
+    want_goal = str(goal_id or "")
+    for entry in _permanent_lessons(db, agent_id):
+        if _lesson_text(entry) != text:
+            continue
+        if entry.get("scope") != "goal":
+            return True  # already global — covers every scope
+        if scope == "goal" and str(entry.get("goal_id") or "") == want_goal:
+            return True
+    return False
 
 
 # ─────────────────────────────────────────────────────────────────────────

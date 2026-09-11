@@ -13,6 +13,7 @@ import {
     advanceGoalRun, cancelGoalRun, distillGoalRun, setSupervisionMode,
     getPromotionEvidence, getGoal,
     GoalRun, GoalRunCanvas, DecisionEntry, PromotionEvidence, SupervisionMode, Goal,
+    AgentLesson, listAgentLessons, teachAgentFromRun,
 } from "@/lib/goal-run-api";
 import { useUserRole } from "@/lib/user-role";
 
@@ -126,7 +127,19 @@ export default function GoalRunDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [guidance, setGuidance] = useState("");
+    // Scope of the coaching the supervisor is giving. An override is a
+    // correction to a specific decision, but the LESSON it becomes can be
+    // deal-specific ("this goal only") or standing guidance for all of the
+    // agent's work — the supervisor chooses. Default global keeps the
+    // historical behaviour of overrides.
+    const [guidanceScope, setGuidanceScope] = useState<'global' | 'goal'>('global');
     const [busy, setBusy] = useState(false);
+    // Coaching panel: teach a permanent rule from here + see what stuck.
+    const [teachLesson, setTeachLesson] = useState("");
+    const [teachScope, setTeachScope] = useState<'goal' | 'global'>('goal');
+    const [teachBusy, setTeachBusy] = useState(false);
+    const [teachNotice, setTeachNotice] = useState<string | null>(null);
+    const [lessons, setLessons] = useState<AgentLesson[]>([]);
     // Owner check needs the run, so it is derived after load; undefined user
     // id (mocked/unknown) fails closed on ownership but stays supervisor-open.
     const isOwner = Boolean(
@@ -177,6 +190,46 @@ export default function GoalRunDetailPage() {
             .catch(() => { /* advisory only — silence is fine */ });
         return () => { cancelled = true; };
     }, [id, run?.agent_id, canSupervise]);
+
+    // What this agent has permanently learned — the coaching panel's feedback
+    // loop. Reloaded after every teach/override so the supervisor sees the
+    // rule they just gave land, scope included.
+    const loadLessons = useCallback(async () => {
+        if (typeof id !== "string" || !run?.agent_id) return;
+        try {
+            setLessons(await listAgentLessons(run.agent_id, run.goal_id, 20));
+        } catch {
+            /* advisory: never block the run view */
+        }
+    }, [id, run?.agent_id, run?.goal_id]);
+
+    useEffect(() => { void loadLessons(); }, [loadLessons]);
+
+    const handleTeach = useCallback(async () => {
+        const lesson = teachLesson.trim();
+        if (!lesson || !run?.agent_id) return;
+        setTeachBusy(true);
+        setTeachNotice(null);
+        try {
+            const res = await teachAgentFromRun(run.agent_id, lesson, {
+                scope: teachScope,
+                goalId: run.goal_id,
+            });
+            const where = teachScope === "goal"
+                ? "this goal" : "all of this agent's work";
+            setTeachNotice(
+                res?.status === "ok"
+                    ? `Lesson saved for ${where} — it applies from the next decision.`
+                    : `Lesson not saved (${res?.status || "unknown"}).`,
+            );
+            setTeachLesson("");
+            await loadLessons();
+        } catch (e: any) {
+            setTeachNotice(e?.message || "Could not save that lesson.");
+        } finally {
+            setTeachBusy(false);
+        }
+    }, [teachLesson, teachScope, run?.agent_id, run?.goal_id, loadLessons]);
 
     const act = useCallback(async (fn: () => Promise<void>, successMsg?: string) => {
         setBusy(true);
@@ -339,15 +392,126 @@ export default function GoalRunDetailPage() {
                                         <Check className="h-4 w-4" /> Approve
                                     </Button>
                                     <Button size="sm" variant="destructive" disabled={busy}
-                                            onClick={() => void act(() => resumeGoalRun(run.id, false, guidance), "Overridden — your guidance became the agent's instant lesson")}>
+                                            data-testid="override-with-guidance"
+                                            onClick={() => void act(
+                                                () => resumeGoalRun(run.id, false, guidance, guidanceScope),
+                                                "Overridden — your guidance became the agent's instant lesson",
+                                            ).then(loadLessons)}>
                                         <X className="h-4 w-4" /> Override with guidance
                                     </Button>
                                 </div>
+                                {/* Scope of the lesson the override becomes. */}
+                                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span>Apply this guidance to</span>
+                                    <select
+                                        value={guidanceScope}
+                                        onChange={(e) => setGuidanceScope(e.target.value as 'global' | 'goal')}
+                                        className="h-7 rounded-md border bg-background px-1.5 text-xs"
+                                        data-testid="guidance-scope"
+                                    >
+                                        <option value="global">All of this agent&apos;s work</option>
+                                        <option value="goal">This goal only</option>
+                                    </select>
+                                </label>
                             </>
                         )}
                     </CardContent>
                 </Card>
             )}
+
+            {/* Coaching: a long run is where a supervisor most needs to teach
+                — and to see that the teaching stuck. Both the override above
+                and the box here write permanent lessons through the same
+                /teach channel; the list below is the journal read back. */}
+            <Card className="mb-6" data-testid="run-coaching">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Coaching</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {run.agent_id ? (
+                        <Link
+                            href={`/chat?agent_id=${encodeURIComponent(run.agent_id)}&goal_run_id=${encodeURIComponent(run.id)}`}
+                            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                            data-testid="chat-with-run-agent"
+                        >
+                            Chat with this agent →
+                        </Link>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            This run has no agent attached, so there is nothing to coach.
+                        </p>
+                    )}
+
+                    {canActOnRun && run.agent_id && (
+                        <>
+                            <Textarea
+                                placeholder="Teach a permanent rule — e.g. “Always confirm the price with the lead before quoting”"
+                                value={teachLesson}
+                                onChange={(e) => setTeachLesson(e.target.value)}
+                                data-testid="run-teach-input"
+                            />
+                            <div className="flex flex-wrap items-center gap-2">
+                                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span>Applies to</span>
+                                    <select
+                                        value={teachScope}
+                                        onChange={(e) => setTeachScope(e.target.value as 'goal' | 'global')}
+                                        className="h-7 rounded-md border bg-background px-1.5 text-xs"
+                                        data-testid="run-teach-scope"
+                                    >
+                                        <option value="goal">This goal only</option>
+                                        <option value="global">All of this agent&apos;s work</option>
+                                    </select>
+                                </label>
+                                <Button size="sm" disabled={teachBusy || !teachLesson.trim()}
+                                        onClick={() => void handleTeach()}
+                                        data-testid="run-teach-submit">
+                                    {teachBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                    Teach
+                                </Button>
+                            </div>
+                            {teachNotice && (
+                                <p className="text-xs text-muted-foreground" role="status"
+                                   data-testid="run-teach-notice">{teachNotice}</p>
+                            )}
+                        </>
+                    )}
+
+                    <div data-testid="run-lessons">
+                        <p className="text-xs font-medium text-muted-foreground">
+                            Learned so far{" "}
+                            <span className="font-normal">
+                                ({lessons.length})
+                            </span>
+                        </p>
+                        {lessons.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                                Nothing yet — overrides and taught rules appear here.
+                            </p>
+                        ) : (
+                            <ul className="mt-1 space-y-1">
+                                {lessons.slice(0, 6).map((l, i) => (
+                                    <li key={l.id || `${i}-${l.learned_at}`}
+                                        className="flex items-start gap-2 text-xs"
+                                        data-testid="run-lesson">
+                                        <Badge
+                                            variant="outline"
+                                            className="mt-0.5 shrink-0 text-[9px]"
+                                            title={l.scope === "goal"
+                                                ? "Applies only while working this goal"
+                                                : "Applies to all of this agent's work"}
+                                            data-testid={`run-lesson-scope-${l.scope}`}
+                                        >
+                                            {l.scope === "goal" ? "this goal" : "all work"}
+                                        </Badge>
+                                        <span className="break-words">{l.text}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Process-intrinsic checkpoint: a human sign-off step the
                 role's process defines (any business — a quote, a claim

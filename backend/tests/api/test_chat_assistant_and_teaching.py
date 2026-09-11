@@ -146,6 +146,10 @@ class TestTeachEndpoint:
         db_session.refresh(student)
         entry = student.configuration["learning"]["log"][0]
         assert entry["teacher_agent_id"] == "human_supervisor"
+        # The returned handle addresses exactly the row that was appended: the
+        # Training panel's journal and the chat confirmation card's inline Undo
+        # both resolve a lesson by it (delete_teaching_point accepts this id).
+        assert data["teaching_point_id"] == entry["id"]
 
     def test_teaching_missing_agent_404(self, client, employee_user):
         global _current_test_user

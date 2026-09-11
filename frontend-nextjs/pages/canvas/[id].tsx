@@ -29,6 +29,10 @@ import { fetchSessionTrace, submitStepFeedback } from "@/lib/agent-trace-api";
 import { useCanvasStateRegistration } from "@/hooks/useCanvasStateRegistration";
 import { getCurrentUserId } from "@/lib/identity";
 import type { CanvasTrainingContext } from "@/lib/maturity-api";
+import {
+    TeachingNotice,
+    type TeachingNoticeData,
+} from "@/components/chat/TeachingNotice";
 
 interface CanvasMessage {
     id: string;
@@ -50,6 +54,9 @@ interface CanvasMessage {
     agentId?: string;
     /** Company playbooks that guided this reply's canvas edit (P3 transparency). */
     matchedPlaybooks?: { id: string; name: string }[];
+    /** Train-from-chat: a `/teach` confirmation, or a detected directive
+     * awaiting one-click confirmation (backend metadata.teaching). */
+    teaching?: TeachingNoticeData;
 }
 
 export default function CanvasDetailPage() {
@@ -873,6 +880,10 @@ export default function CanvasDetailPage() {
                 // P3 transparency: company playbooks that guided this edit
                 // (chat_routes maps the orchestrator's `data` to `metadata`).
                 const matchedPlaybooks = data.metadata?.canvas_edit?.matched_playbooks;
+                // Train-from-chat: a `/teach` confirmation, or a detected
+                // directive awaiting one-click confirmation — rendered inline
+                // under the reply that produced it.
+                const teaching = data.metadata?.teaching as TeachingNoticeData | undefined;
                 setMessages(prev => {
                     const streamed = prev.find(m => m.id === streamId && mine(m));
                     if (streamed) {
@@ -888,6 +899,7 @@ export default function CanvasDetailPage() {
                                 ? m.reasoningTrace
                                 : (restReasoningStep ? [restReasoningStep] : m.reasoningTrace),
                             ...(matchedPlaybooks ? { matchedPlaybooks } : {}),
+                            ...(teaching ? { teaching } : {}),
                         } : m));
                     }
                     const noStreamTrace = restReasoningStep ? [restReasoningStep] : undefined;
@@ -911,6 +923,7 @@ export default function CanvasDetailPage() {
                             reasoning: data.reasoning ?? m.reasoning ?? undefined,
                             ...(noStreamTrace && !m.reasoningTrace?.length ? { reasoningTrace: noStreamTrace } : {}),
                             ...(matchedPlaybooks ? { matchedPlaybooks } : {}),
+                            ...(teaching ? { teaching } : {}),
                         } : m));
                     }
                     return [...prev, {
@@ -925,6 +938,7 @@ export default function CanvasDetailPage() {
                         executionId: respExec,
                         ...(noStreamTrace ? { reasoningTrace: noStreamTrace } : {}),
                         ...(matchedPlaybooks ? { matchedPlaybooks } : {}),
+                        ...(teaching ? { teaching } : {}),
                     }];
                 });
                 // The WS canvas:update broadcast is the primary live carrier,
@@ -1528,6 +1542,9 @@ export default function CanvasDetailPage() {
                                     )}
                                     {msg.type === "assistant" && (
                                         <>
+                                            {!!msg.teaching && (
+                                                <TeachingNotice notice={msg.teaching} />
+                                            )}
                                             {!!msg.matchedPlaybooks?.length && (
                                                 <div className="flex flex-wrap gap-1 mt-1" data-testid="matched-playbooks">
                                                     {msg.matchedPlaybooks.map(pb => (

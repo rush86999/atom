@@ -673,7 +673,8 @@ class GoalRunService:
 
     async def resume(self, run_id: str, approved: bool,
                      reviewer: Optional[str] = None,
-                     guidance: Optional[str] = None) -> Dict[str, Any]:
+                     guidance: Optional[str] = None,
+                     guidance_scope: Optional[str] = None) -> Dict[str, Any]:
         """Resolve a held decision: approve → execute it; reject/override →
         the run continues from the supervisor's guidance (the override is a
         correction — goal_run_learning, fault-isolated)."""
@@ -690,7 +691,8 @@ class GoalRunService:
             try:
                 from core.goals.goal_run_learning import record_decision_override
                 record_decision_override(self, run, pending,
-                                         guidance=guidance, approved=False)
+                                         guidance=guidance, approved=False,
+                                         scope=guidance_scope or "global")
             except Exception as exc:
                 logger.warning(f"goal run {run_id}: override learning "
                                f"recording failed: {exc}")

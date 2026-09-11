@@ -1248,4 +1248,61 @@ describe("canvas chat reasoning steps (training parity)", () => {
     fireEvent.doubleClick(handle);
     expect(panel.style.width).toBe("320px"); // back to the default
   });
+
+  // ── Train-from-chat (the canvas co-editor panel) ────────────────────────
+  // The panel had no way to teach: /teach was reachable only from the
+  // Training tab's form. A teaching turn now renders its outcome inline.
+  test("chat: a /teach confirmation renders the learned card in the panel", async () => {
+    mockPost.mockResolvedValue({
+      data: {
+        success: true,
+        message: "✓ Learned — Learner will apply this from now on.",
+        metadata: {
+          teaching: {
+            status: "saved",
+            lesson: "Always CC the lead on quotes",
+            message: "✓ Learned.",
+            agent: { id: "hire-cv1", name: "Learner", status: "student" },
+          },
+        },
+      },
+    });
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "/teach Always CC the lead on quotes" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    await waitFor(() => expect(screen.getByTestId("teaching-saved")).toBeInTheDocument());
+    expect(screen.getByTestId("teaching-saved")).toHaveTextContent(
+      "Always CC the lead on quotes",
+    );
+  });
+
+  test("chat: a detected directive renders the confirm-first card, not a save", async () => {
+    mockPost.mockResolvedValue({
+      data: {
+        success: true,
+        message: "Sure — here's the draft.",
+        metadata: {
+          teaching: {
+            status: "suggested",
+            lesson: "Always CC the lead on quotes",
+            message: "Save this as a permanent lesson for Learner?",
+            agent: { id: "hire-cv1", name: "Learner", status: "student" },
+          },
+        },
+      },
+    });
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "Always CC the lead on quotes" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+
+    await waitFor(() => expect(screen.getByTestId("teaching-suggestion")).toBeInTheDocument());
+    expect(screen.queryByTestId("teaching-saved")).not.toBeInTheDocument();
+  });
 });

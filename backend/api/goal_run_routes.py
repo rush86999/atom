@@ -124,6 +124,10 @@ class GoalRunCreate(BaseModel):
 class ResumeBody(BaseModel):
     approved: bool
     guidance: Optional[str] = None
+    # Scope of the guidance when it becomes a lesson: "global" (default —
+    # applies to all of this agent's work) or "goal" (true only for THIS run's
+    # goal). See core/student_learning_service lesson scope.
+    guidance_scope: Optional[str] = None
 
 
 class ModeBody(BaseModel):
@@ -334,7 +338,8 @@ async def resume_goal_run(
     try:
         return await svc.resume(run_id, approved=payload.approved,
                                 reviewer=str(current_user.id),
-                                guidance=payload.guidance)
+                                guidance=payload.guidance,
+                                guidance_scope=payload.guidance_scope)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 

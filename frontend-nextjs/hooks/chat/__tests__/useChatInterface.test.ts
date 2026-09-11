@@ -1019,3 +1019,139 @@ describe('useChatInterface', () => {
     }
   });
 });
+
+/**
+ * Train-from-chat: the backend attaches `metadata.teaching` to the turn
+ * (a `/teach` confirmation, or a detected directive awaiting one click).
+ * The hook must carry it onto the assistant message so any surface using
+ * the shared ChatMessage renders the notice.
+ */
+describe('useChatInterface teach-from-chat metadata', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockWsState = {
+      isConnected: false,
+      lastMessage: null,
+      streamingContent: '',
+      subscribe: jest.fn(),
+    };
+    mockGet.mockImplementation(() => Promise.resolve({ status: 200, data: { messages: [] } }));
+  });
+
+  test('maps metadata.teaching onto the assistant message', async () => {
+    mockPost.mockImplementation((url: string) => {
+      if (url === '/api/chat/message') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            message: '✓ Learned — Learner will apply this from now on.',
+            session_id: 's-teach',
+            metadata: {
+              teaching: {
+                status: 'saved',
+                lesson: 'Always CC the lead on quotes',
+                message: '✓ Learned.',
+                agent: { id: 'a1', name: 'Learner', status: 'student' },
+              },
+            },
+          },
+        });
+      }
+      return Promise.resolve({ data: { success: true } });
+    });
+
+    const { result } = renderHook(() =>
+      useChatInterface({ sessionId: null, initialAgentId: 'a1' })
+    );
+
+    await act(async () => {
+      result.current.setInput('/teach Always CC the lead on quotes');
+    });
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    await waitFor(() => {
+      const taught = result.current.messages.find(m => m.teaching);
+      expect(taught?.teaching?.status).toBe('saved');
+      expect(taught?.teaching?.lesson).toBe('Always CC the lead on quotes');
+    });
+  });
+
+  test('leaves teaching undefined on an ordinary reply', async () => {
+    mockPost.mockImplementation((url: string) => {
+      if (url === '/api/chat/message') {
+        return Promise.resolve({
+          data: { success: true, message: 'Here you go.', session_id: 's1', metadata: {} },
+        });
+      }
+      return Promise.resolve({ data: { success: true } });
+    });
+
+    const { result } = renderHook(() =>
+      useChatInterface({ sessionId: null, initialAgentId: null })
+    );
+
+    await act(async () => {
+      result.current.setInput('What is the status?');
+    });
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages.some(m => m.content === 'Here you go.')).toBe(true);
+    });
+    expect(result.current.messages.every(m => !m.teaching)).toBe(true);
+  });
+});
+
+/**
+ * Opened from a goal run ("Chat with this agent"): the run id must ride in the
+ * request context so a /teach here scopes the lesson to the goal being worked
+ * — deterministic, no inference.
+ */
+describe('useChatInterface goal-run context', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockWsState = {
+      isConnected: false, lastMessage: null, streamingContent: '', subscribe: jest.fn(),
+    };
+    mockGet.mockImplementation(() => Promise.resolve({ status: 200, data: { messages: [] } }));
+    mockPost.mockImplementation(() => Promise.resolve({
+      data: { success: true, message: 'ok', session_id: 's1' },
+    }));
+  });
+
+  test('carries goal_run_id into the chat context', async () => {
+    const { result } = renderHook(() => useChatInterface({
+      sessionId: null, initialAgentId: 'a1', initialGoalRunId: 'run-1',
+    }));
+
+    await act(async () => { result.current.setInput('/teach Be concise'); });
+    await act(async () => { await result.current.handleSend(); });
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith(
+      '/api/chat/message',
+      expect.objectContaining({
+        context: expect.objectContaining({
+          agent_id: 'a1', goal_run_id: 'run-1',
+        }),
+      }),
+      expect.anything(),
+    ));
+  });
+
+  test('omits goal_run_id when the chat has no run context', async () => {
+    const { result } = renderHook(() => useChatInterface({
+      sessionId: null, initialAgentId: 'a1',
+    }));
+
+    await act(async () => { result.current.setInput('hello'); });
+    await act(async () => { await result.current.handleSend(); });
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalled());
+    const ctx = mockPost.mock.calls[0][1].context;
+    expect(ctx).not.toHaveProperty('goal_run_id');
+  });
+});

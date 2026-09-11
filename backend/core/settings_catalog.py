@@ -269,6 +269,12 @@ SETTING_CATALOG: tuple[SettingSpec, ...] = (
       "Panel auto-promotion gate: minimum fraction of runs that completed (0-1)"),
     F("ATOM_VERIFY_PANEL_MIN_AGREEMENT", 0.5, C_LEARN,
       "Panel auto-promotion gate: minimum mean judge agreement (0-1) for votes to count as meaningful"),
+    B("ATOM_CHAT_TEACH_GOAL_INFERENCE", True, C_LEARN,
+      "Teaching a rule from chat: when the chat has no goal context of its own, let the agent's "
+      "ACTIVE goals be matched against the rule so it can be scoped to the goal it is about "
+      "(instead of applying to all of the agent's work). Only ever narrows a lesson to a goal the "
+      "agent is currently working, the confirmation card always shows that scope with a one-click "
+      "'apply to all work', and a general rule is left general. off = every chat lesson is global"),
     # --- Installation Adaptation (docs/architecture/INSTALLATION_ADAPTATION_PLAN.md) ---
     S("ATOM_PLAYBOOKS", "shadow", C_LEARN,
       "Company playbooks (processes as data): off = never enter prompts; shadow (recommended) = "

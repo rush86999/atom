@@ -85,10 +85,17 @@ def seed_plan_for_run(goal_title: str, role: Optional[str] = None,
 def record_decision_override(service, run: Dict[str, Any],
                              decision: Dict[str, Any],
                              guidance: Optional[str] = None,
-                             approved: bool = False) -> None:
+                             approved: bool = False,
+                             scope: str = "global") -> None:
     """A supervisor overriding a held decision IS the correction (§3.7C):
     journal it as a standing lesson on the run's agent and reflect it into
-    the critique pool."""
+    the critique pool.
+
+    ``scope``: "global" (default — applies to all of this agent's work, the
+    historical behaviour) or "goal" (true only for THIS run's goal: it rides
+    this goal's decisions and never leaks into unrelated work). The supervisor
+    picks on the run page.
+    """
     agent_id = run.get("agent_id")
     lesson = (guidance or "").strip()
     if agent_id and lesson:
@@ -106,6 +113,8 @@ def record_decision_override(service, run: Dict[str, Any],
                     details={"goal_run_id": run.get("id"),
                              "overridden_decision": decision.get("decision"),
                              "original_rationale": decision.get("rationale")},
+                    scope="goal" if scope == "goal" else "global",
+                    goal_id=run.get("goal_id"),
                 )
         except Exception as exc:
             logger.warning(f"goal run {run.get('id')}: override lesson "

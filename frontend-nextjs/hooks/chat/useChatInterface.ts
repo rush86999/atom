@@ -12,10 +12,13 @@ import { chatTurnTouchedCanvas, syncCanvasFromStore } from "@/lib/canvasSync";
 interface UseChatInterfaceProps {
     sessionId: string | null;
     initialAgentId?: string | null;
+    /** Goal run this chat was opened from (?goal_run_id=…) — carried into
+     * the request context so /teach scopes to the goal being worked. */
+    initialGoalRunId?: string | null;
     onSessionCreated?: (sessionId: string) => void;
 }
 
-export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }: UseChatInterfaceProps) => {
+export const useChatInterface = ({ sessionId, initialAgentId, initialGoalRunId, onSessionCreated }: UseChatInterfaceProps) => {
     const [input, setInput] = useState("");
     // Pending user-submitted images (data URLs) for the next send — routed
     // to vision-capable models via the chat request images field.
@@ -251,6 +254,10 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                 context: {
                     current_page: "/chat",
                     agent_id: initialAgentId,
+                    // Opened from a goal run: carry it so a /teach in this chat
+                    // scopes the lesson to the goal the agent is working
+                    // (deterministic — no inference needed).
+                    ...(initialGoalRunId ? { goal_run_id: initialGoalRunId } : {}),
                     // An open canvas (any canvas app that registers into the
                     // window.atom.canvas registry) rides along so the chat
                     // can co-edit it — same contract the /canvas/{id} panel
@@ -373,6 +380,13 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     provider: data.provider,
                     memoryContext: data.memory_context || undefined,
                     reasoning: data.reasoning || undefined,
+                    // Train-from-chat: the backend attaches `teaching` to the
+                    // turn (a /teach confirmation, or a detected directive
+                    // awaiting one-click confirmation). Rendered inline by
+                    // ChatMessage so both chat surfaces stay identical.
+                    ...(data.metadata?.teaching
+                        ? { teaching: data.metadata.teaching }
+                        : {}),
                     ...(reasoningTrace.length ? { reasoningTrace } : {}),
                 };
                 setMessages(prev => [...prev, agentMsg]);

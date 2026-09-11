@@ -158,3 +158,111 @@ def test_promotion_evidence_thresholds(backend):
                                    tenant_id="t_test",
                                    session_factory=svc._session_factory)
     assert out2["recommendation"] == "training"
+
+
+# ===========================================================================
+# Cross-feature contract: the chat teaching channel and the goal-run router
+# share ONE lesson store.
+# ===========================================================================
+
+def test_lesson_taught_in_chat_reaches_the_next_goal_decision(
+    db_session, monkeypatch
+):
+    """A rule taught in chat (/teach) shapes the very next goal-run decision.
+
+    Nothing wires the two features together explicitly — that IS the point:
+    `core/chat_teaching` writes and `GoalRunRouter._role_context` reads the
+    same `AgentRegistry.configuration["learning"]["log"]`, so "long-running
+    goals" get the same trained agent as chat, canvas edits and task runs.
+    This test pins that shared-store contract so a future refactor of either
+    side cannot silently fork the lesson store.
+    """
+    import contextlib
+    import uuid as _uuid
+
+    from core.chat_teaching import teach_from_chat
+    from core.goals.goal_run_router import GoalRunRouter
+    from core.models import AgentRegistry
+
+    agent = AgentRegistry(
+        id=f"goal-lesson-{_uuid.uuid4().hex[:8]}",
+        name="Goal Runner", category="sales", description="t",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        status="student", confidence_score=0.1, configuration={},
+        capabilities=["send_email"], workspace_id="default", tenant_id="default",
+    )
+    db_session.add(agent)
+    db_session.commit()
+
+    notice = teach_from_chat(
+        db_session, agent_id=agent.id,
+        lesson="Always confirm the price with the lead before quoting",
+    )
+    assert notice["status"] == "saved"
+
+    # _role_context opens its own session; point it at this test's session so
+    # the assertion is about the shared STORE, not two databases.
+    monkeypatch.setattr(
+        "core.database.get_db_session",
+        lambda: contextlib.nullcontext(db_session),
+    )
+
+    run = {"id": "run-1", "goal_id": "goal-1", "agent_id": agent.id,
+           "tenant_id": "default"}
+    advisory = GoalRunRouter(tenant_id="default")._role_context(run)
+
+    assert "YOUR LESSONS" in advisory
+    assert "Always confirm the price with the lead before quoting" in advisory
+
+
+def test_goal_override_lesson_and_chat_lesson_land_in_the_same_journal(
+    db_session, monkeypatch
+):
+    """A supervisor's goal-run override (the existing goal teaching channel)
+    and a /teach lesson (the new chat channel) are the SAME kind of permanent
+    guidance — both must be recalled at work time. Guards against either
+    channel writing a shape `_is_permanent_lesson` does not recognise
+    (the override passes source="human_correction", which the journal
+    normalises to observation/human_correction)."""
+    import uuid as _uuid
+
+    from core.chat_teaching import teach_from_chat
+    from core.goals.goal_run_learning import record_decision_override
+    from core.models import AgentRegistry
+    from core.student_learning_service import get_agent_lessons
+
+    agent = AgentRegistry(
+        id=f"goal-both-{_uuid.uuid4().hex[:8]}",
+        name="Goal Runner", category="sales", description="t",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        status="intern", confidence_score=0.5, configuration={},
+        capabilities=["send_email"], workspace_id="default", tenant_id="default",
+    )
+    db_session.add(agent)
+    db_session.commit()
+
+    teach_from_chat(db_session, agent_id=agent.id,
+                    lesson="Quote in the client's currency")
+
+    class _Svc:
+        tenant_id = "default"
+
+    monkeypatch.setattr(
+        "core.database.get_db_session",
+        lambda: __import__("contextlib").nullcontext(db_session),
+    )
+    record_decision_override(
+        _Svc(),
+        {"id": "run-1", "goal_id": "goal-1", "agent_id": agent.id,
+         "tenant_id": "default"},
+        {"decision": "ASK_HUMAN", "rationale": "unclear pricing"},
+        guidance="check the FX rate before asking me",
+    )
+
+    db_session.refresh(agent)
+    lessons = [l.get("lesson") or l.get("summary")
+               for l in get_agent_lessons(db_session, agent.id, limit=20)]
+
+    assert "Quote in the client's currency" in lessons           # chat channel
+    assert any("check the FX rate before asking me" in (t or "")
+               for t in lessons)                                  # override channel
