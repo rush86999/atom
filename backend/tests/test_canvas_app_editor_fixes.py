@@ -337,6 +337,61 @@ def test_failure_reply_generic_for_ops_mismatch_without_empty_fields():
     assert "couldn't apply it cleanly" in msg
 
 
+# ─────────────── office-file canvases carry legacy generic types ───────────────
+# Live incident 2026-09-10 (canvas 7f078cea…): the office .xlsx canvas stored
+# the registry canvas_type "sheets" (OFFICE_COMPONENT_MAP for .xlsx) with
+# content {"office_file": …}. get_app_spec() maps "sheets" onto the generic
+# GRID app (the frontend alias vocabulary), so the co-editor planned a cell
+# edit against an office BINDING, reproduced the content byte-for-byte and
+# answered "I read the canvas and it already reflects that" — a false claim:
+# the file still had its USD and Exch columns. The file binding must win.
+
+OFFICE_CANVAS_CONTENT = {
+    "office_file": "data/office/chat-Draft-I-searched-Workdrive-live-for-Trum-2fb2bc2e.xlsx",
+    "file_path": "data/office/chat-Draft-I-searched-Workdrive-live-for-Trum-2fb2bc2e.xlsx",
+    "format": "xlsx",
+}
+
+
+def _office_canvas(canvas_type="sheets", content=None):
+    return {
+        "canvas_id": "7f078cea-5d6e-487b-b7b9-145336edf42c",
+        "canvas_type": canvas_type,
+        "title": 'Draft — I searched Workdrive live for "Trumatic-L3030S"',
+        "content": dict(content if content is not None else OFFICE_CANVAS_CONTENT),
+    }
+
+
+@pytest.mark.asyncio
+async def test_apply_refuses_legacy_typed_office_canvas_as_file_backed():
+    result, reason = await apply_canvas_edit(
+        CanvasEditPlan(wants_edit=True, edit_mode="replace",
+                       updated_content_json=json.dumps(OFFICE_CANVAS_CONTENT)),
+        "user-1", _office_canvas(), return_reason=True,
+    )
+    assert result is None and reason == "file_backed"
+    assert "real file" in describe_apply_failure(reason, "sheets", _office_canvas())
+
+
+def test_prompt_section_detects_office_content_despite_legacy_type():
+    sec = app_prompt_section("sheets", OFFICE_CANVAS_CONTENT)
+    assert "REAL file" in sec
+    assert "grid of rows" not in sec
+
+
+def test_resolve_app_spec_prefers_office_format_over_alias():
+    from core.canvas_app_schema import resolve_app_spec
+
+    assert resolve_app_spec("sheets", OFFICE_CANVAS_CONTENT).canvas_type == "office_excel"
+    assert resolve_app_spec("docs", {"office_file": "/tmp/a.docx"}).canvas_type == "office_word"
+    assert resolve_app_spec(
+        "presentation", {"office_file": "/tmp/a.pptx", "format": "pptx"}
+    ).canvas_type == "office_pptx"
+    # Plain grid/text canvases are untouched by the office override.
+    assert resolve_app_spec("sheets", [["a", "b"]]).canvas_type == "sheet"
+    assert resolve_app_spec("docs", "hello").canvas_type == "document"
+
+
 @pytest.mark.asyncio
 async def test_try_canvas_edit_apply_failure_reply_is_actionable():
     from integrations.chat_orchestrator import ChatOrchestrator

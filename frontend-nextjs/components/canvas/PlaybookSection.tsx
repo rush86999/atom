@@ -52,9 +52,14 @@ function writeSeenLearned(ids: string[]) {
 export function PlaybookSection({
   isSupervisor,
   onDraftsCountChange,
+  refreshKey = 0,
 }: {
   isSupervisor: boolean;
   onDraftsCountChange?: (count: number) => void;
+  /** Bump to force a re-read — TrainingPanel increments it after a lesson is
+      taught with "Save as playbook", so the just-drafted rule appears in the
+      queue without a remount (Playbook Journey A step 3). */
+  refreshKey?: number;
 }) {
   const [playbooks, setPlaybooks] = useState<Playbook[] | null>(null);
   const [segment, setSegment] = useState<Segment>("draft");
@@ -89,7 +94,7 @@ export function PlaybookSection({
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   const dismissNotice = () => setNewLearnedCount(0);
 

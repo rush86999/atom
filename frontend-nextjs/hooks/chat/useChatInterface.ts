@@ -301,6 +301,10 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
             // UI renders a budget-halted alert (not a normal assistant bubble).
             // Mirrors the no_llm_provider structured-error pattern above.
             if (data && data.error_code === "budget_exceeded") {
+                if (processingTimeoutRef.current) {
+                    clearTimeout(processingTimeoutRef.current);
+                    processingTimeoutRef.current = null;
+                }
                 if (data.session_id && data.session_id !== "unknown") {
                     onSessionCreated?.(data.session_id);
                 }
@@ -308,6 +312,29 @@ export const useChatInterface = ({ sessionId, initialAgentId, onSessionCreated }
                     id: "budget-exceeded",
                     type: "error",
                     content: data.message || "Budget limit reached — execution halted.",
+                    timestamp: new Date(),
+                }]);
+                return false;
+            }
+
+            // Turn-budget exhausted: the backend bounded this turn's reply
+            // generation and answered with a structured failure instead of
+            // letting the request run past this client's 120s timeout. Render
+            // it as a retryable error bubble — do NOT fall through to the
+            // success path, which would show an empty reply.
+            if (data && data.error_code === "turn_budget_exceeded") {
+                if (processingTimeoutRef.current) {
+                    clearTimeout(processingTimeoutRef.current);
+                    processingTimeoutRef.current = null;
+                }
+                if (data.session_id && data.session_id !== "unknown") {
+                    onSessionCreated?.(data.session_id);
+                }
+                setMessages(prev => [...prev, {
+                    id: `turn-budget-${Date.now()}`,
+                    type: "error",
+                    content: data.message
+                        || "This turn ran past its time budget before a reply could be generated. Please try again.",
                     timestamp: new Date(),
                 }]);
                 return false;

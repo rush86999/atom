@@ -153,7 +153,11 @@ class TestTeachEndpoint:
         resp = client.post("/api/agents/nope/teach", json={"lesson": "something useful"})
         assert resp.status_code == 404
 
-    def test_teaching_non_student_returns_skip_not_error(self, client, employee_user, db_session):
+    def test_teaching_non_student_records_standing_guidance(self, client, employee_user, db_session):
+        """A human supervisor may teach their own hire at ANY tier: the lesson
+        lands as permanent standing guidance (status ok / mode
+        standing_guidance) and only the STUDENT-only confidence circuit is
+        skipped — teaching is the guidance channel, not a STUDENT privilege."""
         global _current_test_user
         _current_test_user = employee_user
         intern = _make_student(db_session, status="intern")
@@ -162,8 +166,15 @@ class TestTeachEndpoint:
 
         assert resp.status_code == 200, resp.text
         data = resp.json()["data"]
-        assert data["status"] == "skipped"
+        assert data["status"] == "ok"
+        assert data["mode"] == "standing_guidance"
         assert data["agent_status"] == "intern"
+        db_session.refresh(intern)
+        entry = intern.configuration["learning"]["log"][-1]
+        assert entry["source"] == "teacher"
+        assert entry["lesson"] == "something useful"
+        # No confidence nudge on the standing-guidance path.
+        assert intern.confidence_score == pytest.approx(0.1)
 
     def test_agent_teacher_must_be_qualified_mentor(self, client, employee_user, db_session):
         """Role-specific mentorship: a Finance intern cannot teach a Finance

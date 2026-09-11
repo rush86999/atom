@@ -1350,18 +1350,22 @@ async def answer_from_datasets(
 
     from core.data.dataset_manager import _validate_dataset_sql
 
-    # Pin the (provider, model) exactly like the tool planner: unpinned
-    # structured routing can pick an unreachable client and burn the read
-    # leg's 45s budget on connection retries (live 2026-09-07).
-    llm_kwargs: Dict[str, Any] = {}
-    try:
-        if "openrouter" in llm_service._get_handler().clients:
-            llm_kwargs["provider_model"] = (
-                "openrouter",
-                os.getenv("ATOM_TOOL_PLANNER_MODEL", "qwen/qwen3.7-flash"),
-            )
-    except Exception:  # noqa: BLE001 — pinning is best-effort
-        pass
+    # NL→SQL planning is a small structured call, so it is SHAPED cheaply
+    # (``disable_reasoning`` via the shared helper) and ROUTED by BPC — no
+    # hardcoded model. The old pin existed because unpinned routing could pick
+    # an unreachable client and burn the read leg's 45s budget on connection
+    # retries (live 2026-09-07); BPC now excludes connection-dead providers
+    # (`_filter_by_health` + provider circuit breaker), which is the same
+    # fix that let the canvas editor and tool planner drop their pins. A pin
+    # additionally collapses the candidate list to one tuple, removing every
+    # provider fallback — a transient 429 then became fatal (2026-09-10).
+    #
+    # ``ATOM_SHEET_SQL_MODEL`` remains an OPTIONAL operator override.
+    from core.llm.pinned_planning import resolve_pinned_provider_model
+
+    llm_kwargs: Dict[str, Any] = resolve_pinned_provider_model(
+        llm_service, "ATOM_SHEET_SQL_MODEL", "", provider="openrouter"
+    )
 
     import time as _time
 
@@ -1421,14 +1425,19 @@ async def answer_from_datasets(
             break
         _a0 = _time.monotonic()
         try:
-            plan = await llm_service.generate_structured_response(
-                _prompt(shown, tried),
-                _SheetSQLPlan,
+            from core.llm.pinned_planning import pinned_structured_call
+
+            plan = await pinned_structured_call(
+                llm_service,
+                prompt=_prompt(shown, tried),
+                response_model=_SheetSQLPlan,
                 system_instruction=(
                     "You convert natural-language questions about spreadsheet "
                     "contents into one safe DuckDB SELECT statement. Output JSON only."
                 ),
-                **llm_kwargs,
+                call_kwargs=llm_kwargs,
+                log_label="sheet dataset NL→SQL",
+                task_type="nl2sql",
             )
         except Exception as llm_err:  # noqa: BLE001 — fall through to the live path
             logger.info(

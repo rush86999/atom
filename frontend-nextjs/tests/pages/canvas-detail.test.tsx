@@ -8,8 +8,15 @@
  */
 
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import CanvasDetailPage from "@/pages/canvas/[id]";
+
+/** jsdom lacks PointerEvent; a plain Event carrying clientX is enough. */
+function pointerEvent(type: string, props: Record<string, any> = {}): Event {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.assign(event, props);
+  return event;
+}
 
 const mockRouterPush = jest.fn();
 
@@ -543,7 +550,12 @@ describe("CanvasDetailPage", () => {
 
   test("chat: failed hydration drops the stale session and starts fresh", async () => {
     mockGet.mockImplementation(async (url: string) => {
-      if (url.startsWith("/api/chat/history/sess-dead")) throw new Error("403");
+      // Must be axios-shaped: the page classifies on err.response.status, and
+      // a bare Error("403") carries no status — it fell through to the
+      // transient branch and the dead id was reused (red suite 2026-09-10).
+      if (url.startsWith("/api/chat/history/sess-dead")) {
+        throw Object.assign(new Error("Forbidden"), { response: { status: 403 } });
+      }
       if (url.endsWith("/context")) {
         return { data: { data: { current_state: { chat_session_id: "sess-dead" } } } };
       }
@@ -561,6 +573,46 @@ describe("CanvasDetailPage", () => {
     // Stale id must not be reused — the turn starts a new session.
     expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
       session_id: "new",
+    }), expect.objectContaining({ retry: false, timeout: 120000 }));
+  });
+
+  test("chat: transient hydration failure keeps the session and offers a retry", async () => {
+    // A backend restart fails the history fetch TRANSIENTLY (502 here).
+    // The panel must say so rather than masquerade as a fresh conversation,
+    // and must KEEP the server binding so the next turn continues the same
+    // session instead of forking a new one.
+    let historyGets = 0;
+    mockGet.mockImplementation(async (url: string) => {
+      if (url.startsWith("/api/chat/history/sess-flaky")) {
+        historyGets += 1;
+        throw Object.assign(new Error("Bad Gateway"), { response: { status: 502 } });
+      }
+      if (url.endsWith("/context")) {
+        return { data: { data: { current_state: { chat_session_id: "sess-flaky" } } } };
+      }
+      if (url.endsWith("/history")) return { data: { count: 1 } };
+      return { data: CANVAS };
+    });
+
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    expect(await screen.findByText(/Couldn't load chat history/)).toBeInTheDocument();
+    // …and NOT the fresh-conversation placeholder.
+    expect(screen.queryByText(/Ask the agent to modify this canvas/)).not.toBeInTheDocument();
+
+    // Retry actually re-attempts the pull.
+    expect(historyGets).toBe(1);
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    await waitFor(() => expect(historyGets).toBe(2));
+
+    // The binding survived the failure — the send continues "sess-flaky".
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() => expect(mockPost).toHaveBeenCalled());
+    expect(mockPost).toHaveBeenCalledWith("/api/chat/message", expect.objectContaining({
+      session_id: "sess-flaky",
     }), expect.objectContaining({ retry: false, timeout: 120000 }));
   });
 
@@ -609,6 +661,43 @@ describe("CanvasDetailPage", () => {
     expect(screen.getByText(/Agent is working/)).toBeInTheDocument();
     resolvePost!({ data: { success: true, message: "done" } });
     await waitFor(() => expect(screen.queryByText(/Agent is working/)).not.toBeInTheDocument());
+  });
+
+  test("chat: chat_token_done releases the composer before the POST resolves", async () => {
+    // The backend keeps working long after the reply has streamed (verify
+    // panel + feature routing + outcome/episode writes) — the POST can stay
+    // pending for 10–40s more. The composer must not wait for that tail, or
+    // the panel reads as "still responding" with the answer already on screen.
+    let resolvePost: (v: any) => void;
+    mockPost.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePost = resolve;
+      })
+    );
+    const { rerender } = render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    const input = screen.getByPlaceholderText("Ask the agent to edit…");
+    fireEvent.change(input, { target: { value: "pending" } });
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    expect(input).toBeDisabled();
+
+    // The reply streamed to completion while the POST is still in flight.
+    wsState = {
+      lastMessage: {
+        type: "chat_token_done",
+        data: { session_id: "s-1", execution_id: "exec-1", content: "the reply" },
+      },
+      isConnected: true,
+    };
+    rerender(<CanvasDetailPage />);
+
+    await waitFor(() => expect(input).not.toBeDisabled());
+    expect(screen.queryByText(/Agent is working/)).not.toBeInTheDocument();
+
+    resolvePost!({
+      data: { success: true, message: "the reply", session_id: "s-1", execution_id: "exec-1" },
+    });
   });
 
   test("websocket canvas:update refreshes canvas content", async () => {
@@ -1095,5 +1184,68 @@ describe("canvas chat reasoning steps (training parity)", () => {
     const payload = mockSubmitStepFeedback.mock.calls[0][0];
     expect(payload.executionId).toBe("exec-9");
     expect(payload.stepNumber).toBe(1);
+  });
+
+  // ── Resizable canvas view ↔ chat split ─────────────────────────────────
+  // The vertical border between the canvas and its side chat must be
+  // draggable so the chat can be made small or large.
+
+  test("renders a draggable border between the canvas view and the chat panel", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    const handle = screen.getByTestId("canvas-panel-resizer");
+    expect(handle).toHaveAttribute("role", "separator");
+    expect(handle).toHaveAttribute("aria-orientation", "vertical");
+
+    // The panel width tracks the separator's aria-valuenow.
+    const panel = screen.getByTestId("canvas-side-panel");
+    expect(panel.style.width).toBe("320px");
+    expect(handle).toHaveAttribute("aria-valuenow", "320");
+  });
+
+  test("dragging the border left widens the chat and right shrinks it", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    const handle = screen.getByTestId("canvas-panel-resizer");
+    const panel = screen.getByTestId("canvas-side-panel");
+
+    act(() => {
+      handle.dispatchEvent(
+        pointerEvent("pointerdown", { pointerType: "mouse", button: 0, clientX: 800 })
+      );
+    });
+    act(() => {
+      window.dispatchEvent(pointerEvent("pointermove", { clientX: 700 }));
+    });
+    expect(panel.style.width).toBe("420px");
+
+    act(() => {
+      window.dispatchEvent(pointerEvent("pointermove", { clientX: 820 }));
+    });
+    expect(panel.style.width).toBe("300px");
+
+    act(() => {
+      window.dispatchEvent(pointerEvent("pointerup"));
+    });
+  });
+
+  test("keyboard resizing clamps the chat to small/large and double-click resets", async () => {
+    render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("canvas-panel")).toBeInTheDocument());
+
+    const handle = screen.getByTestId("canvas-panel-resizer");
+    const panel = screen.getByTestId("canvas-side-panel");
+
+    fireEvent.keyDown(handle, { key: "Home" });
+    expect(panel.style.width).toBe("260px"); // small
+
+    const large = handle.getAttribute("aria-valuemax");
+    fireEvent.keyDown(handle, { key: "End" });
+    expect(panel.style.width).toBe(`${large}px`); // large (viewport cap)
+
+    fireEvent.doubleClick(handle);
+    expect(panel.style.width).toBe("320px"); // back to the default
   });
 });

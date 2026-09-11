@@ -628,7 +628,13 @@ class DocumentRenderer:
                 import asyncio as _asyncio
                 runtime = get_workbook_runtime()
                 try:
-                    loop = _get_event_loop()
+                    # `import asyncio as _asyncio` above — this call read
+                    # `_get_event_loop()`, a name that never existed, so the
+                    # whole xlsx branch died in its own except and EVERY Excel
+                    # canvas silently fell back to the basic HTML table (live
+                    # stderr, 2026-09-10: "Error rendering Excel to HTML: name
+                    # '_get_event_loop' is not defined").
+                    loop = _asyncio.get_event_loop()
                     if loop.is_running():
                         # We're in an async context — can't await here directly.
                         # Fall back to basic render (the sync path).

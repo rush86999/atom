@@ -14,11 +14,23 @@ action, and the agent ingest tool — so all of them land identical rows:
 Text-like attachments (txt/csv/…) are NOT routed here: the communication
 pipeline already folds them into the comms record content, and a second
 copy in the documents index would double-index the same text.
+
+Images (png/jpg/tiff/…) ARE routed here: they are OCR'd via
+``core.image_ocr`` (Docling → Tesseract → vision LLM), so a scanned
+invoice or pasted screenshot becomes searchable instead of being dropped as
+``no_text``. Inline body images are handled too, but signature blocks,
+logos and tracking pixels are filtered first — see ``inline`` below.
 """
 
 import logging
 import os
 from typing import Any, Dict, Optional
+
+from core.image_ocr import (
+    is_image_content_type,
+    is_image_filename,
+    is_likely_signature_or_logo,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +43,27 @@ _BINARY_ATTACHMENT_EXTENSIONS = {
     "html", "htm", "asciidoc",
 }
 
+# MIME fallback for attachments that arrive WITHOUT a filename (Gmail/Graph
+# inline parts sometimes omit it). Matched by prefix; ``image/`` covers every
+# raster format in the extension set above.
+_BINARY_CONTENT_TYPES = (
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument",
+    "application/vnd.ms-excel",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.oasis.opendocument",
+    "application/rtf",
+    "text/html",
+    "image/",
+)
+
 # Budget defaults: the poller path must never let one bulky mailbox turn a
 # 15s poll into minutes of Docling work.
 DEFAULT_MAX_ATTACHMENT_MB = 10
+
+# Inline images below this OCR length are treated as signature/logo noise.
+DEFAULT_INLINE_IMAGE_MIN_TEXT_CHARS = 16
 
 
 def _env_int(name: str, default: int) -> int:
@@ -43,10 +73,40 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
-def attachment_ingestible(filename: str) -> bool:
-    """True when the filename's extension is a binary format we text-extract."""
+def attachment_ingestible(filename: str, content_type: str = "") -> bool:
+    """True when the attachment is a binary format we text-extract.
+
+    The extension decides when present; otherwise the MIME type does, so
+    attachments that arrive without a filename (Gmail inline parts) are not
+    silently ignored.
+    """
     ext = os.path.splitext(filename or "")[1].lstrip(".").lower()
-    return bool(ext) and ext in _BINARY_ATTACHMENT_EXTENSIONS
+    if ext:
+        return ext in _BINARY_ATTACHMENT_EXTENSIONS
+    ctype = (content_type or "").strip().lower()
+    return bool(ctype) and ctype.startswith(_BINARY_CONTENT_TYPES)
+
+
+def inline_image_ocr_enabled() -> bool:
+    """OCR images embedded inline in an email body (env > UI setting)."""
+    from core.runtime_settings import get_bool_setting
+
+    return bool(get_bool_setting("ATOM_EMAIL_INLINE_IMAGE_OCR", True))
+
+
+def inline_image_min_text_chars() -> int:
+    """OCR-text floor below which an inline image counts as decorative."""
+    from core.runtime_settings import get_int_setting
+
+    return max(
+        0,
+        int(
+            get_int_setting(
+                "ATOM_EMAIL_INLINE_IMAGE_MIN_TEXT_CHARS",
+                DEFAULT_INLINE_IMAGE_MIN_TEXT_CHARS,
+            )
+        ),
+    )
 
 
 def max_ingest_bytes() -> int:
@@ -74,6 +134,7 @@ async def ingest_email_attachment_bytes(
     email_from: str = "",
     email_received_at: str = "",
     source_url: str = "",
+    inline: bool = False,
 ) -> Dict[str, Any]:
     """Index one email attachment's text into the documents memory index.
 
@@ -81,10 +142,30 @@ async def ingest_email_attachment_bytes(
       {"status": "indexed"|"skipped"|"unsupported"|"error",
        "doc_id": str|None, "chars": int, "cached": bool}
 
+    ``inline`` marks an image embedded in the email body rather than a real
+    file attachment. Inline images are OCR'd too (screenshots and receipts
+    are frequently pasted rather than attached) but pass a minimum-text floor
+    so signature blocks, logos and tracking pixels never enter memory. Real
+    attachments keep every character.
+
     Never raises — callers treat failures as "attachment stays metadata-only".
     """
     try:
-        if not attachment_ingestible(filename):
+        if inline:
+            if not inline_image_ocr_enabled():
+                return {
+                    "status": "skipped", "doc_id": None, "chars": 0,
+                    "reason": "inline_disabled",
+                }
+            if (
+                is_image_filename(filename) or is_image_content_type(content_type)
+            ) and is_likely_signature_or_logo(content, filename):
+                return {
+                    "status": "skipped", "doc_id": None, "chars": 0,
+                    "reason": "signature_or_decorative",
+                }
+
+        if not attachment_ingestible(filename, content_type):
             return {"status": "unsupported", "doc_id": None, "chars": 0}
 
         if len(content) > max_ingest_bytes():
@@ -105,6 +186,7 @@ async def ingest_email_attachment_bytes(
             user_id=user_id or "system",
             workspace_id=workspace_id,
             external_id=f"{message_id}:{attachment_id}",
+            image_min_chars=inline_image_min_text_chars() if inline else 0,
             extra_metadata={
                 "source_type": "email_attachment",
                 "email_message_id": message_id,

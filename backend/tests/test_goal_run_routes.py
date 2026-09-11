@@ -200,6 +200,15 @@ def test_event_ingestion_endpoint(supervisor_env):
     assert out["woke"] == [run_id]
 
 
+def test_event_ingestion_requires_supervisor(supervisor_env):
+    """Inbound events wake runs and drive router decisions/executor actions —
+    a member must not be able to inject them."""
+    member = _make_client(supervisor_env, "gr-emp")
+    resp = member.post("/api/goal-runs/events",
+                       json={"event": "email_reply", "from": "acme@x.com"})
+    assert resp.status_code == 403
+
+
 def test_mode_change_requires_supervisor(supervisor_env):
     client = _make_client(supervisor_env, "gr-lead")
     run_id = client.post("/api/goal-runs", json={

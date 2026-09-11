@@ -117,6 +117,19 @@ class RejectProposalRequest(BaseModel):
     reason: str
 
 
+class TeachingPointUpdate(BaseModel):
+    """Inline correction of ONE teaching point in the agent's learning log.
+
+    ``text`` rewrites the lesson (a teacher lesson's ``lesson`` / an observed
+    correction's ``summary``); ``topic`` retitles a teacher lesson only —
+    an observation's type is its classification, not a topic, and changing it
+    would silently change how the lesson is applied at work time.
+    """
+
+    text: Optional[str] = Field(None, min_length=1, max_length=2000)
+    topic: Optional[str] = Field(None, min_length=1, max_length=200)
+
+
 # ============================================================================
 # Training Proposals (STUDENT journey)
 # ============================================================================
@@ -642,14 +655,18 @@ async def get_canvas_training_context(
         (mentor lessons + absorbed observations), newest first. This is the
         read side of POST /api/agents/{id}/teach, which previously had no
         surface: the Training tab could teach but never show what was taught.
+        Each point carries an ``id`` (stored uuid, else the legacy positional
+        handle) so the panel can edit or remove THAT point in place.
         """
+        from core.student_learning_service import teaching_point_id
+
         config = a.configuration if isinstance(a.configuration, dict) else {}
         learning = config.get("learning") if isinstance(config.get("learning"), dict) else {}
         log = learning.get("log") if isinstance(learning, dict) else None
         if not isinstance(log, list):
             return []
         points: List[Dict[str, Any]] = []
-        for entry in log:
+        for index, entry in enumerate(log):
             if not isinstance(entry, dict):
                 continue
             source = str(entry.get("source") or "teacher")
@@ -663,27 +680,30 @@ async def get_canvas_training_context(
                  "label": str(canvas.get("label") or "")}
                 if canvas else None
             )
+            point: Dict[str, Any] = {
+                "id": teaching_point_id(entry, index),
+                "learned_at": entry.get("learned_at"),
+                "edited_at": entry.get("edited_at"),
+                "canvas": canvas_payload,
+            }
             if source == "observation":
-                points.append(
+                point.update(
                     {
                         "source": "observation",
                         "topic": str(entry.get("observation_type") or "general"),
                         "text": str(entry.get("summary") or ""),
-                        "learned_at": entry.get("learned_at"),
-                        "canvas": canvas_payload,
                     }
                 )
             else:
-                points.append(
+                point.update(
                     {
                         "source": "teacher",
                         "topic": str(entry.get("topic") or "general"),
                         "text": str(entry.get("lesson") or ""),
-                        "learned_at": entry.get("learned_at"),
                         "teacher_agent_id": entry.get("teacher_agent_id"),
-                        "canvas": canvas_payload,
                     }
                 )
+            points.append(point)
         points.sort(key=lambda p: p.get("learned_at") or "", reverse=True)
         return points[:50]
 
@@ -708,6 +728,78 @@ async def get_canvas_training_context(
         "viewer_is_supervisor": viewer_is_supervisor,
         "teaching_points": _teaching_points(agent) if agent is not None else [],
     }
+
+
+def _scoped_agent(db: Session, agent_id: str, current_user: User) -> Any:
+    """Resolve an agent for teaching-point mutation under the same tenant IDOR
+    guard the canvas-context read uses: a foreign-tenant (or missing) agent
+    404s with no existence leak."""
+    from core.models import AgentRegistry
+
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    if agent is None or (agent.tenant_id or "default") != resolve_tenant_id(current_user):
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+    return agent
+
+
+@router.patch("/agents/{agent_id}/teaching-points/{point_id}")
+async def update_agent_teaching_point(
+    agent_id: str,
+    point_id: str,
+    request: TeachingPointUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Correct ONE teaching point in place (canvas Training tab journal).
+
+    Any signed-in human may edit — that is the same channel that may teach
+    (POST /api/agents/{id}/teach); a lesson once taught is injected into every
+    later turn, so a wrong or superseded rule must be fixable, not just
+    appendable. Deleting standing guidance is the supervisor-gated operation.
+    """
+    agent = _scoped_agent(db, agent_id, current_user)
+    if request.text is None and request.topic is None:
+        raise HTTPException(status_code=400, detail="Provide text and/or topic to update")
+
+    from core.student_learning_service import update_teaching_point
+
+    result = update_teaching_point(
+        db, agent.id, point_id, text=request.text, topic=request.topic
+    )
+    if result.get("status") != "ok":
+        reason = result.get("reason")
+        if reason == "point_not_found":
+            raise HTTPException(status_code=404, detail=f"Teaching point {point_id} not found")
+        if reason == "topic_not_editable":
+            raise HTTPException(
+                status_code=400,
+                detail="Observed teaching points keep their type — only their text can be edited",
+            )
+        raise HTTPException(status_code=400, detail=reason or "Teaching point not updated")
+    return {"status": "ok", "teaching_point": result["entry"]}
+
+
+@router.delete("/agents/{agent_id}/teaching-points/{point_id}")
+async def delete_agent_teaching_point(
+    agent_id: str,
+    point_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Remove ONE teaching point (supervisor-gated, TEAM_LEAD+).
+
+    Removal is destructive — the lesson stops shaping the agent's work from
+    the next turn on — so it carries the same gate as other training-state
+    mutations (R65)."""
+    _require_supervisor(db, current_user)
+    agent = _scoped_agent(db, agent_id, current_user)
+
+    from core.student_learning_service import delete_teaching_point
+
+    result = delete_teaching_point(db, agent.id, point_id)
+    if result.get("status") != "ok":
+        raise HTTPException(status_code=404, detail=f"Teaching point {point_id} not found")
+    return {"status": "ok", "point_id": result.get("point_id")}
 
 
 @router.get("/agents/{agent_id}/training-history")

@@ -555,6 +555,21 @@ class GoalRunService:
             return {"advanced": False, "reason": "run not found"}
         kind = decision.get("decision")
 
+        if kind == "ASK_HUMAN":
+            original = decision.get("original_decision")
+            if (isinstance(original, dict) and original.get("decision")
+                    and original.get("decision") != "ASK_HUMAN"):
+                # A guardrail forced this hold (replan budget, wait ceiling,
+                # stuck detector) or a DONE claim failed criteria. Approving
+                # the hold approves THAT decision — replay it with the
+                # human-approval flag so the guardrail doesn't re-raise.
+                return await self.execute_decision(
+                    run_id, {**original, "human_approved": True},
+                    executors=executors)
+            # A genuine router ASK_HUMAN carries no concrete action to run.
+            return {"advanced": True, "decision": "ASK_HUMAN",
+                    "result": None, "run": self.get_run(run_id)}
+
         if kind == "WAIT":
             spec = decision.get("wait_spec") or {"event": "timer"}
             updated = self.set_wait(run_id, spec)
@@ -565,11 +580,14 @@ class GoalRunService:
             if isinstance(new_plan, list) and new_plan:
                 # Magnitude guardrail (§3.5): a replan that discards more
                 # than half the remaining plan is a direction change big
-                # enough to require a human before it takes effect.
-                if self._replan_is_major(run, new_plan):
+                # enough to require a human before it takes effect. A
+                # supervisor-approved replay skips the re-check.
+                if (not decision.get("human_approved")
+                        and self._replan_is_major(run, new_plan)):
                     return self._hold_for_approval(
                         run_id,
                         {**decision, "decision": "ASK_HUMAN",
+                         "original_decision": decision,
                          "rationale": f"major replan (drops most of the "
                                       f"remaining plan) — human approval "
                                       f"required: {decision.get('rationale')}"},
@@ -692,7 +710,10 @@ class GoalRunService:
         if not approved:
             return {"resumed": True, "approved": False,
                     "run": self.get_run(run_id)}
-        executed = await self.execute_decision(run_id, pending)
+        # human_approved lets a guardrail-forced hold replay its original
+        # decision without the guardrail re-raising (the human approved it).
+        executed = await self.execute_decision(
+            run_id, {**pending, "human_approved": True})
         return {"resumed": True, "approved": True, **executed}
 
     # -------------------------------------------------------- guardrails
@@ -708,6 +729,9 @@ class GoalRunService:
                 and run.get("replan_count", 0) >= budget):
             return {**decision, "decision": "ASK_HUMAN",
                     "held": False,
+                    # Keep the decision the supervisor is approving: resume()
+                    # replays it instead of no-op'ing on "ASK_HUMAN".
+                    "original_decision": decision,
                     "rationale": f"replan budget ({budget}) exhausted — "
                                  f"human checkpoint required"}
         window = STUCK_DECISION_WINDOW - 1
@@ -722,6 +746,7 @@ class GoalRunService:
                         for d in recent)
                 and decision.get("decision") in ("REVISE_CURRENT", "REPLAN")):
             return {**decision, "decision": "ASK_HUMAN", "held": False,
+                    "original_decision": decision,
                     "rationale": f"stuck detector: {STUCK_DECISION_WINDOW} "
                                  f"identical decisions — human checkpoint"}
         return decision
@@ -754,6 +779,7 @@ class GoalRunService:
             return decision
         if parsed > ceiling:
             return {**decision, "decision": "ASK_HUMAN", "held": False,
+                    "original_decision": decision,
                     "rationale": f"wait deadline {deadline} exceeds the "
                                  f"{ceiling_days}-day ceiling for "
                                  f"'{run.get('supervision_mode')}' mode — "
@@ -816,6 +842,17 @@ class GoalRunService:
         plan = run.get("plan") or []
         cursor = run.get("cursor")
         ids = [s.get("id") for s in plan]
+        # An UNRESOLVED human_checkpoint owns the cursor through an ADVANCE:
+        # the checkpoint step moves exactly once, when it is resolved
+        # (complete_checkpoint), never when the checkpoint is merely created.
+        # Advancing here as well made the approval a second advance and
+        # silently skipped the first plan step after the checkpoint (live:
+        # research → quote → approval → send → follow-up lost the send).
+        # SKIP/BRANCH keep their normal (single) cursor advance.
+        if decision.get("decision") == "ADVANCE" and cursor in ids:
+            current = plan[ids.index(cursor)]
+            if current.get("kind") == "human_checkpoint" and not current.get("done"):
+                return
         if cursor in ids:
             idx = ids.index(cursor)
             if idx + 1 < len(plan):
@@ -825,6 +862,16 @@ class GoalRunService:
         """DONE is claimed by the router but verified against criteria
         (§3.2) — an unsatisfied goal downgrades to a human checkpoint."""
         run = self.get_run(run_id)
+        if decision.get("human_approved"):
+            # The supervisor verified a DONE whose machine criteria did not
+            # all pass — the human override IS the verification.
+            self.append_decision(run_id, {
+                "kind": "run_done",
+                "rationale": ("human-verified DONE: "
+                              + str(decision.get("rationale") or "")).strip(),
+            })
+            return {"advanced": True, "decision": "DONE",
+                    "run": self.transition(run_id, "achieved")}
         goal_state = self._evaluate_goal(run)
         fully_satisfied = (goal_state.get("total", 0) > 0
                            and goal_state.get("satisfied", 0)
@@ -838,6 +885,7 @@ class GoalRunService:
         return self._hold_for_approval(
             run_id,
             {**decision, "decision": "ASK_HUMAN",
+             "original_decision": decision,
              "rationale": "router claimed DONE but goal criteria are not "
                           f"all satisfied ({goal_state.get('satisfied', 0)}/"
                           f"{goal_state.get('total', 0)}) — human verification"},

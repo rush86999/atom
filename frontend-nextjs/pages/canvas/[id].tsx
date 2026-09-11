@@ -17,6 +17,8 @@ import { JourneyPanel } from "@/components/canvas/JourneyPanel";
 import { AutonomyPanel } from "@/components/canvas/AutonomyPanel";
 import { AgentAttachModal } from "@/components/canvas/AgentAttachModal";
 import { CanvasDataSection } from "@/components/canvas/CanvasDataSection";
+import { ResizableDivider } from "@/components/ui/ResizableDivider";
+import { useResizablePanel } from "@/hooks/useResizablePanel";
 import ChatMarkdown from "@/components/canvas/ChatMarkdown";
 import { listCanvasAgents, type CanvasAgent } from "@/lib/canvas-api";
 import { ChatFeedbackControls, ChatFeedbackType } from "@/components/canvas/ChatFeedbackControls";
@@ -75,6 +77,17 @@ export default function CanvasDetailPage() {
     const [loading, setLoading] = useState(true);
     const [showHistory, setShowHistory] = useState(false);
 
+    // The vertical border between the canvas view and the side chat is
+    // draggable: shove it left for a small chat, right for a large one. The
+    // width persists per browser so a "small chat" survives a reload.
+    const sidePanel = useResizablePanel({
+        defaultWidth: 320,
+        minWidth: 260,
+        maxWidth: 900,
+        side: "right",
+        storageKey: "atom.canvas.sidePanelWidth",
+    });
+
     // Chat panel state
     const [messages, setMessages] = useState<CanvasMessage[]>([]);
     // CanvasPanel registers a flush of its pending autosave here; every chat
@@ -128,12 +141,18 @@ export default function CanvasDetailPage() {
     // binding for this canvas. Extracted so the websocket-reconnect effect
     // can re-run it after a backend restart (the binding fetch may itself
     // have been a casualty of the bounce).
-    const resolveChatSession = useCallback(async (): Promise<void> => {
-        if (!canvasId || typeof window === "undefined") return;
-        const fromQuery = router.query.session as string | undefined;
-        if (fromQuery && fromQuery !== "new") {
-            setChatSessionId(fromQuery);
-        }
+    //
+    // Returns the resolved id: the setChatSessionId calls below only land on
+    // the NEXT render, so a caller that awaits this and then reads the state
+    // (or its ref) still sees the pre-restart value — usually null right
+    // after a restart, which silently skipped the reconnect re-pull.
+    const resolveChatSession = useCallback(async (): Promise<string | null> => {
+        const fromQuery =
+            router.query.session && router.query.session !== "new"
+                ? (router.query.session as string)
+                : null;
+        if (!canvasId || typeof window === "undefined") return fromQuery;
+        if (fromQuery) setChatSessionId(fromQuery);
         try {
             const { apiClient } = await import("../../lib/api-client");
             const resp = await apiClient.get(`/api/canvas/${canvasId}/context`);
@@ -146,9 +165,11 @@ export default function CanvasDetailPage() {
             if (state?.chat_feedback) {
                 setRestoredFeedback(state.chat_feedback as Record<string, { feedback_type: ChatFeedbackType; comment?: string }>);
             }
+            return bound || fromQuery;
         } catch {
             // No context/binding yet — the panel starts a new
             // conversation on first send; the binding appears after it.
+            return fromQuery;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [canvasId, router.query.session]);
@@ -281,6 +302,15 @@ export default function CanvasDetailPage() {
     useEffect(() => { chatSessionIdRef.current = chatSessionId; }, [chatSessionId]);
     const isAgentRespondingRef = useRef(false);
     useEffect(() => { isAgentRespondingRef.current = isAgentResponding; }, [isAgentResponding]);
+    // Turn ownership: the reply streams over the WS and can finish LONG before
+    // the POST resolves (the server keeps doing verify-panel + feature routing
+    // + outcome/episode writes after the last token, 10–40s on heavy turns).
+    // The composer used to stay disabled for that whole tail, so the panel
+    // read as "still responding" even though the answer was on screen. The
+    // active turn id lets the WS `chat_token_done` release the composer, and
+    // stops a stale POST's finally from clearing a NEWER turn's state.
+    const turnSeqRef = useRef(0);
+    const activeTurnRef = useRef<number | null>(null);
     const wsPrevConnectedRef = useRef<boolean | null>(null); // null = unobserved
     const chatRehydrateInFlightRef = useRef(false);
 
@@ -296,8 +326,11 @@ export default function CanvasDetailPage() {
         chatRehydrateInFlightRef.current = true;
         (async () => {
             try {
-                await resolveChatSession();
-                const sid = chatSessionIdRef.current;
+                // Hydrate from the freshly-resolved id directly: setChatSessionId
+                // only lands on the next render, so reading the state/ref here
+                // would still see the pre-restart value (usually null) and skip
+                // the re-pull.
+                const sid = (await resolveChatSession()) || chatSessionIdRef.current;
                 if (sid) {
                     hydratedSessionRef.current = null; // allow the re-pull
                     await hydrateHistory(sid);
@@ -677,6 +710,17 @@ export default function CanvasDetailPage() {
                 }
                 return [...prev, { id: streamId, type: "assistant" as const, content: delta, timestamp: new Date(), streaming: true, executionId: frameExec }];
             });
+            // The reply is complete — release the composer now instead of
+            // waiting for the POST (the server's post-reply tail is not the
+            // user's answer). Same session guard as the token filter above so
+            // a concurrent turn on ANOTHER panel/session can't clear this one.
+            if (msg.type === "chat_token_done") {
+                const doneSession = String(data.session_id || "");
+                if (!doneSession || !chatSessionIdRef.current || doneSession === chatSessionIdRef.current) {
+                    activeTurnRef.current = null;
+                    setIsAgentResponding(false);
+                }
+            }
             return;
         }
 
@@ -752,6 +796,11 @@ export default function CanvasDetailPage() {
             return [...retired, userMsg];
         });
         setChatInput("");
+        // Claim this turn before any await: the WS done frame or the POST's
+        // finally may clear isAgentResponding, and only the LATEST turn owns
+        // it (a slow POST for turn N must not clear turn N+1's spinner).
+        const turnId = ++turnSeqRef.current;
+        activeTurnRef.current = turnId;
         setIsAgentResponding(true);
         // Persist any pending composer edit BEFORE the turn reads the canvas:
         // the agent's view of the draft is the durable store, not this page's
@@ -992,7 +1041,13 @@ export default function CanvasDetailPage() {
                 }]);
             }
         } finally {
-            setIsAgentResponding(false);
+            // Only the turn that still owns the spinner may clear it — the WS
+            // done frame may already have released it, and a newer turn may
+            // have taken over.
+            if (activeTurnRef.current === turnId) {
+                activeTurnRef.current = null;
+                setIsAgentResponding(false);
+            }
         }
     };
 
@@ -1217,7 +1272,7 @@ export default function CanvasDetailPage() {
                 {/* Main content: canvas + side chat */}
                 <div className="flex-1 flex overflow-hidden">
                     {/* Canvas panel (left/center, takes most space) + mini-app harness (bottom) */}
-                    <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
                         {/* Step 3 of the journey: load data — refused until a
                             hire is attached (the section disables itself; the
                             backend 409s regardless). */}
@@ -1293,13 +1348,27 @@ export default function CanvasDetailPage() {
                         )}
                     </div>
 
+                    {/* Draggable vertical border (canvas view ↔ side chat):
+                        arrow keys / Home / End also resize it, double-click resets. */}
+                    <ResizableDivider
+                        {...sidePanel.handleProps}
+                        isResizing={sidePanel.isResizing}
+                        label="Resize canvas chat panel"
+                        data-testid="canvas-panel-resizer"
+                    />
+
                     {/* Side panel (right): agent co-editor chat ↔ agent training */}
-                    <div className="w-80 border-l flex flex-col bg-muted/30 shrink-0">
+                    <div
+                        className="flex flex-col bg-muted/30 shrink-0"
+                        style={{ width: sidePanel.width }}
+                        data-testid="canvas-side-panel"
+                    >
                         {/* Panel tabs */}
                         <div className="px-2 pt-1.5 border-b bg-background/50 shrink-0" role="tablist" aria-label="Agent panel">
                             {/* 4-column grid: a flex row of four labelled tabs is wider
-                                than the w-80 panel — the last tabs were clipped out
-                                of view entirely (Journey/Autonomy "missing"). */}
+                                than the panel at its narrowest — the last tabs were
+                                clipped out of view entirely (Journey/Autonomy
+                                "missing"). Widen the panel to read them all. */}
                             <div className="grid grid-cols-4 gap-0.5">
                                 <button
                                     role="tab"
@@ -1562,7 +1631,10 @@ export default function CanvasDetailPage() {
                 {/* Version history slide-out — shared component, same panel the
                     chat-page host renders (restore works for every canvas app) */}
                 {showHistory && (
-                    <div className="absolute right-80 top-12 bottom-0 w-64 bg-background border-l shadow-lg z-10 overflow-y-auto">
+                    <div
+                        className="absolute top-12 bottom-0 w-64 bg-background border-l shadow-lg z-10 overflow-y-auto"
+                        style={{ right: sidePanel.width }}
+                    >
                         <div className="p-3 border-b flex justify-between items-center">
                             <h3 className="text-sm font-semibold">Version History</h3>
                             <Button variant="ghost" size="sm" onClick={() => setShowHistory(false)}>

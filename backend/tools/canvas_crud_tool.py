@@ -22,33 +22,101 @@ from core.chat_session_context import audit_agent_id, audit_session_id
 logger = logging.getLogger(__name__)
 
 
+# Canvas-audit action types that record an EVENT on a canvas rather than
+# AUTHORSHIP of it. ``submit`` lands here: a public/shared form canvas accepts
+# submissions from users who do not own it (api/canvas_routes.py::submit_canvas
+# appends the caller's user_id with no ownership check), so such a row proves
+# interaction, not ownership. It must therefore never be accepted as an
+# ownership claim — nor as grounds for listing the canvas in the submitter's
+# gallery (see list_canvases).
+_EVENT_ONLY_ACTIONS = ("submit",)
+
+
 def _verify_canvas_owner(db, canvas_id: str, user_id: str) -> bool:
-    """Return True if ``canvas_id`` exists and is owned by ``user_id``.
+    """Return True if ``canvas_id`` exists and belongs to ``user_id``.
 
     Guards against IDOR: the canvas CRUD functions previously queried by
     canvas_id only, so any authenticated user could read/modify/delete another
-    user's canvas by guessing the id. The Canvas.created_by column is the
-    authoritative owner (NOT NULL).
+    user's canvas by guessing the id.
+
+    Ownership is established by EITHER source of record:
+      * ``Canvas.created_by`` — the authoritative creator (NOT NULL), and/or
+      * ``CanvasAudit.user_id`` — the acting user, for any action that records
+        authorship (create / update / present / restore / fork / mini_app_* …).
+
+    Both are needed because the two are legitimately different users: the
+    gallery lists every canvas the user has an audit row on, and a canvas
+    CREATED by one user can then be EDITED by another (canvas co-editing; the
+    office ``/present`` flow persists ONE Canvas row per file and every later
+    presenter edits that same row). Trusting only ``created_by`` whenever a
+    Canvas row existed made those canvases 404 on read/update/delete while the
+    gallery kept listing them — live 2026-09-10: ``canvas_formulacheck01``
+    (created_by a test member, newest audit row the admin) 404'd on GET and on
+    the gallery's DELETE.
 
     Agent-created canvases (present_markdown & friends) historically write
-    ONLY a CanvasAudit row — no Canvas row exists for them, which made every
-    agent-created canvas 404 on read/update/delete. Fall back to the audit
-    trail's user_id (the acting owner) for those; IDOR protection is
-    preserved because CanvasAudit.user_id is set by the creating user.
+    ONLY a CanvasAudit row — no Canvas row exists for them — and are covered by
+    the same audit-trail branch.
+
+    Event-only rows (``_EVENT_ONLY_ACTIONS``) are ignored, so a form submitter
+    gains nothing. IDOR protection is otherwise unchanged: a user with neither
+    a matching Canvas row nor an authoring audit row is still denied.
     """
     from core.models import Canvas, CanvasAudit
 
     canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
-    if canvas is not None:
-        return canvas.created_by == user_id
+    if canvas is not None and canvas.created_by == user_id:
+        return True
 
-    audit = (
+    authorship = (
         db.query(CanvasAudit)
-        .filter(CanvasAudit.canvas_id == canvas_id)
-        .order_by(CanvasAudit.created_at.desc())
+        .filter(
+            CanvasAudit.canvas_id == canvas_id,
+            CanvasAudit.user_id == user_id,
+            CanvasAudit.action_type.notin_(_EVENT_ONLY_ACTIONS),
+        )
         .first()
     )
-    return audit is not None and audit.user_id == user_id
+    return authorship is not None
+
+
+def deleted_canvas_ids(db, canvas_ids) -> set:
+    """Subset of ``canvas_ids`` whose NEWEST audit row is a delete tombstone.
+
+    The delete path is append-only (``delete_canvas``), so a deleted canvas
+    keeps ``Canvas.status == "active"`` and is recognizable ONLY by the latest
+    row of its trail (``restore_deleted_canvas`` appends past the tombstone).
+    Callers that touch a canvas outside this module — the office file→canvas
+    fan-out, office canvas reuse — must consult this, or they silently
+    un-delete a canvas the user removed: live 2026-09-10, the duplicate office
+    canvas ``canvas_c7b3491aebf8`` was deleted at 13:46:10 and an agent file
+    edit appended an "update" row at 14:04:10, putting the card back in the
+    gallery.
+
+    One grouped query, dialect-portable (no window function needed); the
+    created_at/id ordering matches ``list_canvases``' newest-row tiebreak.
+    """
+    wanted = [cid for cid in canvas_ids if cid]
+    if not wanted:
+        return set()
+
+    from core.models import CanvasAudit
+    from sqlalchemy import desc
+
+    rows = (
+        db.query(CanvasAudit.canvas_id, CanvasAudit.action_type)
+        .filter(CanvasAudit.canvas_id.in_(wanted))
+        .order_by(
+            CanvasAudit.canvas_id,
+            desc(CanvasAudit.created_at),
+            desc(CanvasAudit.id),
+        )
+        .all()
+    )
+    newest: Dict[str, str] = {}
+    for canvas_id, action_type in rows:
+        newest.setdefault(canvas_id, action_type)
+    return {cid for cid, action in newest.items() if action == "delete"}
 
 
 async def read_canvas(
@@ -927,7 +995,14 @@ async def list_canvases(
                 .label("version_count")
             )
             base = db.query(CanvasAudit, rn, version_count).filter(
-                CanvasAudit.user_id == user_id
+                CanvasAudit.user_id == user_id,
+                # Only AUTHORSHIP rows establish that a canvas belongs in this
+                # user's gallery — the same predicate _verify_canvas_owner
+                # authorizes with. Event-only rows (form submissions on a
+                # shared canvas) used to list somebody else's canvas here while
+                # every per-canvas endpoint 404'd on it; they also leaked the
+                # owner's content through the listing's Canvas.content fallback.
+                CanvasAudit.action_type.notin_(_EVENT_ONLY_ACTIONS),
             )
             if canvas_type:
                 base = base.filter(CanvasAudit.canvas_type == canvas_type)

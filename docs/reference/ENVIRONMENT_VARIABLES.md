@@ -216,16 +216,29 @@ before enforcing. See [`docs/architecture/SWITCHYARD_GAP_ANALYSIS.md`](../archit
 
 ---
 
-## 6b. Background task model pins (planner / canvas editor / knowledge extraction)
+## 6b. Background task model pins (planner / knowledge extraction)
 
-Interactive calls can't always trust BPC's value ranking — tiny or bulk
-structured calls pin one flash-class (provider, model) via
-`generate_structured_response(provider_model=...)`, each with an unpinned
-retry. Same convention as `ATOM_TOOL_PLANNER_MODEL` / `ATOM_CANVAS_EDITOR_MODEL`.
+Some structured calls used to pin one flash-class `(provider, model)` via
+`generate_structured_response(provider_model=...)`. A pin is implemented by
+**collapsing the candidate list to that single tuple**, which also removes
+every provider fallback — so a brief upstream 429 became fatal to the whole
+feature (canvas edits, 2026-09-10: OpenRouter rate-limited
+`qwen/qwen3.7-flash` and the agent answered "nothing was changed").
+
+Where a pin is still warranted (bulk background extraction, where unpinned
+BPC routing sent the workload to frontier-priced models), it is applied through
+`core/llm/pinned_planning.pinned_structured_call`, which retries **once
+unpinned** when the pin returns nothing or raises.
+
+**The canvas editor is deliberately NOT pinned** — model choice is BPC's job
+(`core/chat_canvas_editor._plan_structured`). Its small-call *shape* is
+enforced by `disable_reasoning=True` + temperature 0 rather than by naming a
+model. `ATOM_CANVAS_EDITOR_MODEL` no longer exists.
 
 | Variable | Default | Required? | Description |
 |----------|---------|-----------|-------------|
-| `ATOM_KG_EXTRACTION_MODEL` | `qwen/qwen3.7-flash` | — | Model pinned for background knowledge-graph extraction (communication/document ingestion, ~800+ calls/6h observed). Flash-class: unpinned BPC routing sent this bulk workload to frontier models at ~26-30x the per-token cost (2026-09-05). |
+| `ATOM_KG_EXTRACTION_MODEL` | *(unset)* | — | OPTIONAL override for background knowledge-graph extraction (~800 calls/6h). UNSET = BPC routes, kept cheap by `task_type="extraction"` (max_quality 90 + o-series exclusion). Format `provider:model` or a bare model (paired with `openrouter`). No in-code default. |
+| `ATOM_SHEET_SQL_MODEL` | *(unset)* | — | OPTIONAL override for the spreadsheet NL→SQL read leg. UNSET = BPC routes. Format `provider:model`. |
 
 ## 6c. Multi-Agent Coordination (AgentRadio)
 

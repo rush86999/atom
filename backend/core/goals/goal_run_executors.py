@@ -54,6 +54,14 @@ class GoalRunExecutors:
                                                 revise=(kind == "REVISE_CURRENT"))
         if kind == "BRANCH_NEW_CANVAS":
             return await self._branch_new_canvas(run, decision)
+        if kind == "SKIP":
+            return {"skipped": decision.get("target_step") or run.get("cursor")}
+        if kind == "WAIT":
+            return {"wait": decision.get("wait_spec")}
+        if kind in ("ASK_HUMAN", "DONE", "REPLAN"):
+            return {"delegated_to": kind}  # handled by the service itself
+        logger.warning(f"goal run {run.get('id')}: unhandled decision {kind!r}")
+        return {"error": f"unhandled decision {kind!r}"}
 
     async def _branch_new_canvas(self, run, decision) -> Dict[str, Any]:
         """The multi-canvas requirement (§1.1): an additional canvas opened
@@ -67,14 +75,6 @@ class GoalRunExecutors:
         canvas_id = self._create_linked_canvas(
             run, workspace_id, tenant_id, step_id, title, canvas_type)
         return {"canvas_id": canvas_id, "step_id": step_id, "branched": True}
-        if kind == "SKIP":
-            return {"skipped": decision.get("target_step") or run.get("cursor")}
-        if kind == "WAIT":
-            return {"wait": decision.get("wait_spec")}
-        if kind in ("ASK_HUMAN", "DONE", "REPLAN"):
-            return {"delegated_to": kind}  # handled by the service itself
-        logger.warning(f"goal run {run.get('id')}: unhandled decision {kind!r}")
-        return {"error": f"unhandled decision {kind!r}"}
 
     # ---------------------------------------------------------- canvas work
 

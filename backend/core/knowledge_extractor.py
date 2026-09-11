@@ -15,11 +15,15 @@ logger = logging.getLogger(__name__)
 
 # Background extraction (communication/document ingestion) runs at machine
 # volume — 800+ calls in 6h with no user in the loop (observed 2026-09-05) —
-# so it pins a flash-class model instead of trusting BPC's value ranking,
-# which routed bulk extraction to frontier models (qwen3-max / mimo-v2.5-pro,
-# ~26-30x flash per-token pricing) for ~400-char supplier emails. Same pin +
-# unpinned-retry convention as chat_tool_planner / chat_canvas_editor.
-KG_EXTRACTION_MODEL = os.getenv("ATOM_KG_EXTRACTION_MODEL", "qwen/qwen3.7-flash")
+# and once pinned a flash-class model because BPC's value ranking sent that bulk
+# workload to frontier models (qwen3-max / mimo-v2.5-pro, ~26-30x flash per-token
+# pricing) for ~400-char supplier emails.
+#
+# The cost control now comes from the REQUEST, not a hardcoded model:
+# ``task_type="extraction"`` makes BPC apply its own cheap-model cap
+# (max_quality 90 + o-series exclusion). ``ATOM_KG_EXTRACTION_MODEL`` remains as
+# an OPTIONAL operator override; unset means BPC routes. There is deliberately
+# no in-code default — do not add one back (see _extraction_llm_kwargs).
 
 
 class ExtractionResult(BaseModel):
@@ -143,26 +147,41 @@ class KnowledgeExtractor:
         """
 
     def _extraction_llm_kwargs(self) -> Dict[str, Any]:
-        """Pin (provider, model) exactly like the planner: generate_structured_
-        response forwards provider_model into the handler, collapsing the
-        option list to one reachable (provider, model). Unpinned "auto"
-        routing sends bulk extraction to frontier models by value score."""
-        kwargs: Dict[str, Any] = {}
-        try:
-            if "openrouter" in self.llm_service._get_handler().clients:
-                kwargs["provider_model"] = ("openrouter", KG_EXTRACTION_MODEL)
-        except Exception:
-            pass
-        return kwargs
+        """OPTIONAL operator pin for background extraction.
+
+        Routing is BPC's job: the call passes ``task_type="extraction"``, which
+        applies BPC's own cheap-model cap (max_quality 90 + o-series exclusion)
+        and — verified against the live pricing cache — keeps the ranked
+        candidates flash-class while dropping the priciest option. That is what
+        the old HARDCODED pin was really buying.
+
+        A hardcoded ``(provider, model)`` pin also collapses the candidate list
+        to a single tuple, removing every provider fallback, so a transient
+        upstream 429 became fatal (the same single point of failure that took
+        the canvas editor down, 2026-09-10).
+
+        Setting ``ATOM_KG_EXTRACTION_MODEL`` to ``provider:model`` (or a bare
+        model, paired with ``openrouter``) still honours an explicit operator
+        override; UNSET means BPC routes. Watch per-call cost if you run
+        unset — bulk ingestion ran ~800 calls/6h, and the historical reason for
+        pinning was that unpinned routing picked frontier-priced models. With
+        ``task_type="extraction"`` that no longer happens; if it ever does,
+        re-introduce an operator override rather than a code default.
+        """
+        from core.llm.pinned_planning import resolve_pinned_provider_model
+
+        return resolve_pinned_provider_model(
+            self.llm_service, "ATOM_KG_EXTRACTION_MODEL", "", provider="openrouter"
+        )
 
     async def _extract_via_llm(self, system_prompt: str, text: str, workspace_id: Optional[str]) -> Optional[Dict[str, Any]]:
-        """Pinned extraction call with one UNPINNED retry (planner pattern).
+        """Extraction call with an optional operator pin and one unpinned retry.
 
-        The pin is a single attempt with no provider fallback; if it returns
-        None (key can't serve the pinned model — out of credits, gated,
-        revoked), the unpinned retry re-ranks across the workspace's own
-        configured providers so extraction still lands. Both failing returns
-        None so the caller keeps its empty-knowledge contract."""
+        ``task_type="extraction"`` is what keeps this workload cheap now that no
+        model is hardcoded. If an operator DID set ``ATOM_KG_EXTRACTION_MODEL``,
+        the pin is a single attempt with no provider fallback; this retries
+        unpinned when it returns nothing, so extraction still lands. Both
+        failing returns None so the caller keeps its empty-knowledge contract."""
         llm_kwargs = self._extraction_llm_kwargs()
         call = dict(
             prompt=f"Text to analyze:\n{text[:10000]}",
@@ -170,6 +189,7 @@ class KnowledgeExtractor:
             system_instruction=system_prompt,
             temperature=0.1,
             disable_reasoning=True,
+            task_type="extraction",
         )
         result = await self.llm_service.generate_structured_response(
             workspace_id=workspace_id, **call, **llm_kwargs

@@ -1175,6 +1175,26 @@ async def send_chat_message(
                 except Exception as episode_error:  # never block the chat response
                     logger.warning(f"Failed to trigger episode creation: {episode_error}")
 
+        # R90 turn-budget honesty: the orchestrator bounded the reply leg by the
+        # turn's LLM budget (default 95s, below this route's 120s client
+        # timeout) and produced a structured error rather than a reply. Pass
+        # the code through so the UI offers a retry instead of rendering the
+        # error as a normal assistant message.
+        if response.get("error_code") == "turn_budget_exceeded":
+            return ChatMessageResponse(
+                success=False,
+                message=response.get("message", "This turn ran past its time budget."),
+                session_id=response.get("session_id") or request.session_id or "unknown",
+                intent=response.get("intent", "unknown"),
+                confidence=response.get("confidence", 0.5),
+                suggested_actions=[],
+                requires_confirmation=False,
+                next_steps=[],
+                timestamp=response.get("timestamp") or datetime.utcnow().isoformat(),
+                error_code="turn_budget_exceeded",
+                recovery_url=response.get("recovery_url"),
+            )
+
         return ChatMessageResponse(
             success=response.get("success", True),
             message=response.get("message", "Message processed successfully"),
@@ -1386,7 +1406,7 @@ def _office_draft(content: str, kind: str, title: str) -> Optional[tuple]:
     import uuid as _uuid
 
     from core.chat_draft_classifier import extract_slide_outline, markdown_table_rows
-    from core.office_service import OfficeService
+    from core.office_service import OfficeService, _validate_office_path
 
     ext = {"table": ".xlsx", "slides": ".pptx", "doc": ".docx"}.get(kind)
     if not ext:
@@ -1394,7 +1414,19 @@ def _office_draft(content: str, kind: str, title: str) -> Optional[tuple]:
 
     slug = re.sub(r"[^A-Za-z0-9]+", "-", (title or "draft").strip())[:40].strip("-") or "draft"
     office_dir = os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))
-    file_path = os.path.join(office_dir, f"chat-{slug}-{_uuid.uuid4().hex[:8]}{ext}")
+    # ABSOLUTE, office-dir-validated path: the binding is persisted on the
+    # Canvas row and later compared against _validate_office_path() output
+    # (ensure_canvas_for_file / notify_file_canvases). A CWD-relative binding
+    # orphaned the canvas — the same file got a DUPLICATE canvas row and
+    # agent edits to the file never reached the canvas the user had open
+    # (live incident 2026-09-10, canvas 7f078cea…).
+    try:
+        file_path = _validate_office_path(
+            os.path.join(office_dir, f"chat-{slug}-{_uuid.uuid4().hex[:8]}{ext}")
+        )
+    except ValueError:
+        logger.warning("Office draft creation refused: path outside ATOM_OFFICE_DIR")
+        return None
 
     office = OfficeService()
     try:

@@ -289,10 +289,15 @@ export interface CanvasTrainingSession {
 
 /** One entry of the agent's learning journal (mentor lesson or observation). */
 export interface TeachingPoint {
+  /** Stable handle for editing/removing THIS point (stored uuid, or the
+   * legacy positional `log:<index>` handle for rows written before ids). */
+  id: string;
   source: string; // "teacher" | "observation"
   topic: string;
   text: string;
   learned_at: string | null;
+  /** Set when a human corrected this point in place (learned_at is preserved). */
+  edited_at?: string | null;
   teacher_agent_id?: string | null;
   /** The canvas the lesson was taught on (right-panel teaches), when captured. */
   canvas?: { canvas_id: string; name: string; canvas_type: string; label: string } | null;
@@ -352,7 +357,68 @@ export async function teachAgent(
     }),
   });
   if (!res.ok) throw new Error(`Teach failed (${res.status})`);
-  return res.json();
+  const body = await res.json();
+  // /api/agents/{id}/teach answers through BaseAPIRouter.success_response,
+  // i.e. {success, data: {status, playbook_id, ...}, message, timestamp}
+  // (backend/tests/api/test_chat_assistant_and_teaching.py asserts
+  // resp.json()["data"]["status"]). Callers read `status`/`playbook_id` off
+  // the return value, so unwrap `data` — with a bare-payload fallback for
+  // direct/test mocks and any future unwrapping proxy.
+  if (body && typeof body === 'object' && body.data && typeof body.data === 'object') {
+    return body.data as {
+      status: string;
+      playbook_id?: string | null;
+      [key: string]: unknown;
+    };
+  }
+  return body;
+}
+
+/** Correct ONE teaching point in the agent's journal, in place.
+ *
+ * Learning grows the log; this fixes it. The lesson is permanent guidance
+ * injected at work time, so a wrong/duplicated rule must be correctable —
+ * same channel that may teach (`teachAgent`), i.e. any signed-in human. */
+export async function updateTeachingPoint(
+  agentId: string,
+  pointId: string,
+  patch: { text?: string; topic?: string }
+): Promise<void> {
+  const res = await fetchJson(
+    `/api/maturity/agents/${agentId}/teaching-points/${encodeURIComponent(pointId)}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    }
+  );
+  if (!res.ok) {
+    let message = `Teaching point update failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (typeof body?.detail === 'string') message = body.detail;
+    } catch {
+      // non-JSON error body — keep the generic message
+    }
+    throw new Error(message);
+  }
+}
+
+/** Remove one teaching point (supervisor-only on the backend). */
+export async function deleteTeachingPoint(
+  agentId: string,
+  pointId: string
+): Promise<void> {
+  const res = await fetchJson(
+    `/api/maturity/agents/${agentId}/teaching-points/${encodeURIComponent(pointId)}`,
+    { method: 'DELETE' }
+  );
+  if (!res.ok) {
+    if (res.status === 403) {
+      throw new Error('Only supervisors can delete a teaching point');
+    }
+    throw new Error(`Teaching point delete failed (${res.status})`);
+  }
 }
 
 /** Supervisor edits the mentor-proposed lesson plan for a session. */

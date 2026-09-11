@@ -89,7 +89,20 @@ class IntelligenceBackgroundWorker:
         # on existing entities were never detected (BUG-051).
         for platform in [PlatformType.SALESFORCE, PlatformType.JIRA, PlatformType.ASANA]:
             user_id = self._get_configured_user_id(platform.value)
-            context = {"user_id": user_id} if user_id else {}
+            # No active IntegrationToken for this platform means it was never
+            # configured (or was disconnected). Skipping the fetch keeps the
+            # scan honest: UniversalIntegrationService needs an owner identity
+            # to resolve a per-user OAuth token, and calling it with an empty
+            # context raised "user_id required for non-system agents" every
+            # 300s — ~6,400 ERROR logs + tracebacks and circuit-breaker churn
+            # over 8 days of the live log, for integrations nothing was
+            # connected to. Nothing to refresh is not an error.
+            if not user_id:
+                logger.debug(
+                    f"No configured token owner for {platform.value} — skipping refresh"
+                )
+                continue
+            context = {"user_id": user_id}
             try:
                 data = await self.engine._get_platform_data(platform, context)
                 if data:

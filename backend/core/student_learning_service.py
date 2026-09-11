@@ -24,8 +24,9 @@ edit plan, and task execution — the point of teaching.
 import json
 import logging
 import re
+import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -63,6 +64,13 @@ _CANVAS_DIGEST_CHARS = 400
 
 # Log entries that carry standing guidance (vs. one-time event observations).
 _PERMANENT_OBSERVATIONS = {"human_correction", "user_style"}
+
+
+def _new_entry_id() -> str:
+    """Stable per-entry handle, minted at write time so the canvas Training
+    tab can address ONE teaching point for editing/deletion (the log itself
+    is append-only JSON, not a keyed table)."""
+    return uuid.uuid4().hex
 
 
 def _is_permanent_lesson(entry: Dict[str, Any]) -> bool:
@@ -112,18 +120,21 @@ def build_canvas_context(db: Session, canvas_id: Optional[str]) -> Optional[Dict
     if not canvas_id:
         return None
     try:
-        from core.canvas_app_schema import get_app_spec, normalize_app_type
+        from core.canvas_app_schema import normalize_app_type, resolve_app_spec
         from core.models import Canvas
 
         canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
         if canvas is None:
             return None
-        canvas_type = normalize_app_type(canvas.canvas_type)
+        # File binding wins over the legacy registry canvas_type so an office
+        # .xlsx canvas reports "office_excel" instead of the generic "sheet".
+        spec = resolve_app_spec(canvas.canvas_type, canvas.content)
+        canvas_type = spec.canvas_type or normalize_app_type(canvas.canvas_type)
         return {
             "canvas_id": str(canvas.id),
             "name": str(canvas.name or "")[:120],
             "canvas_type": canvas_type,
-            "label": get_app_spec(canvas.canvas_type).label,
+            "label": spec.label,
             "digest": _canvas_digest(canvas.content),
         }
     except Exception as e:
@@ -190,6 +201,161 @@ def get_agent_lessons(
     return lessons[:max(0, limit)]
 
 
+# ---------------------------------------------------------------------------
+# Teaching-point editing (canvas Training tab)
+# ---------------------------------------------------------------------------
+# The journal is the read side of the teach channel; a lesson that is wrong,
+# duplicated, or superseded must be CORRECTABLE in place, not only appendable —
+# a permanent lesson is injected into every later turn, so a typo outlives the
+# mistake it was meant to fix. Entries written before ids existed are addressed
+# by position ("log:<index>"); the first edit mints a real id so later edits
+# survive log trimming (the append path drops the OLDEST rows, which shifts
+# every positional handle).
+
+
+def teaching_point_id(entry: Any, index: int) -> str:
+    """The stable handle for one log entry — the stored uuid, or the legacy
+    positional id for rows written before ids existed."""
+    if isinstance(entry, dict):
+        stored = entry.get("id")
+        if isinstance(stored, str) and stored:
+            return stored
+    return f"log:{index}"
+
+
+def resolve_teaching_point(
+    agent: AgentRegistry, point_id: str
+) -> Optional[Tuple[int, Dict[str, Any]]]:
+    """``(index, entry)`` for a teaching-point handle, or None when it does
+    not exist on this agent.
+
+    Accepts a stored uuid or a legacy "log:<index>" positional id. A
+    positional handle stops resolving once its row carries a real id (the
+    uuid is then the only addressing), so a stale index can never rewrite a
+    different lesson after the log shifts.
+    """
+    config = agent.configuration if isinstance(agent.configuration, dict) else {}
+    learning = config.get("learning") if isinstance(config.get("learning"), dict) else {}
+    log = learning.get("log") if isinstance(learning, dict) else None
+    if not isinstance(log, list):
+        return None
+    pid = str(point_id or "")
+    if pid.startswith("log:"):
+        try:
+            index = int(pid[4:])
+        except ValueError:
+            return None
+        if (
+            0 <= index < len(log)
+            and isinstance(log[index], dict)
+            and not log[index].get("id")
+        ):
+            return index, log[index]
+        return None
+    for index, entry in enumerate(log):
+        if isinstance(entry, dict) and entry.get("id") == pid:
+            return index, entry
+    return None
+
+
+def _commit_log(db: Session, agent: AgentRegistry, log: List[Any]) -> None:
+    """Persist a rewritten lesson log. Fresh-dict assign + flag_modified so
+    the JSON column actually flushes (same contract as journal_standing_lesson)."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    config = dict(agent.configuration) if isinstance(agent.configuration, dict) else {}
+    learning = dict(config.get("learning") or {})
+    if len(log) > MAX_LOG_ENTRIES:
+        del log[:-MAX_LOG_ENTRIES]
+    learning["log"] = list(log)
+    learning["pathways_used"] = sorted(
+        {str(e.get("source") or "observation") for e in log if isinstance(e, dict)}
+    )
+    config["learning"] = learning
+    agent.configuration = config
+    flag_modified(agent, "configuration")
+    db.commit()
+
+
+def update_teaching_point(
+    db: Session,
+    agent_id: str,
+    point_id: str,
+    *,
+    text: Optional[str] = None,
+    topic: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Rewrite one teaching point in place (its text and, for teacher
+    lessons, its topic). Never raises — returns a service-shaped result.
+
+    An edit is a CORRECTION, not new learning: ``learned_at`` is preserved,
+    no confidence nudge is applied, and ``edited_at`` records the change. The
+    rewritten text is what ``get_agent_lessons`` injects from now on.
+    """
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    if agent is None:
+        return {"status": "error", "reason": "agent_not_found"}
+    resolved = resolve_teaching_point(agent, point_id)
+    if resolved is None:
+        return {"status": "error", "reason": "point_not_found"}
+    index, entry = resolved
+
+    new_text = text.strip() if isinstance(text, str) else None
+    new_topic = topic.strip() if isinstance(topic, str) else None
+    if new_text == "":
+        return {"status": "error", "reason": "empty_lesson"}
+    if new_topic == "":
+        new_topic = None
+    if new_text is None and new_topic is None:
+        return {"status": "error", "reason": "nothing_to_update"}
+    # observation_type classifies the entry (human_correction IS standing
+    # guidance, hitl_approval is not) — a topic edit must not silently change
+    # how the lesson is applied at work time.
+    if new_topic is not None and entry.get("source") == "observation":
+        return {"status": "error", "reason": "topic_not_editable"}
+
+    config = agent.configuration if isinstance(agent.configuration, dict) else {}
+    learning = config.get("learning") if isinstance(config.get("learning"), dict) else {}
+    log = list(learning.get("log") or [])
+
+    updated: Dict[str, Any] = dict(entry)
+    if new_text is not None:
+        if updated.get("source") == "observation":
+            updated["summary"] = new_text[:1000]
+        else:
+            updated["lesson"] = new_text[:2000]
+    if new_topic is not None:
+        updated["topic"] = new_topic[:200]
+    updated["id"] = updated.get("id") or _new_entry_id()
+    updated["edited_at"] = datetime.now(timezone.utc).isoformat()
+
+    log[index] = updated
+    _commit_log(db, agent, log)
+    return {"status": "ok", "point_id": updated["id"], "entry": updated}
+
+
+def delete_teaching_point(
+    db: Session, agent_id: str, point_id: str
+) -> Dict[str, Any]:
+    """Drop one teaching point from the agent's log. Used for junk/duplicate
+    lessons that would otherwise be injected at work time forever. Never
+    raises — returns a service-shaped result."""
+    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    if agent is None:
+        return {"status": "error", "reason": "agent_not_found"}
+    resolved = resolve_teaching_point(agent, point_id)
+    if resolved is None:
+        return {"status": "error", "reason": "point_not_found"}
+    index, entry = resolved
+
+    config = agent.configuration if isinstance(agent.configuration, dict) else {}
+    learning = config.get("learning") if isinstance(config.get("learning"), dict) else {}
+    log = list(learning.get("log") or [])
+    del log[index]
+    _commit_log(db, agent, log)
+    return {"status": "ok", "point_id": teaching_point_id(entry, index)}
+
+
 def journal_standing_lesson(
     db: Session,
     agent_id: str,
@@ -227,6 +393,7 @@ def journal_standing_lesson(
 
         if source == "teacher":
             entry: Dict[str, Any] = {
+                "id": _new_entry_id(),
                 "source": "teacher",
                 "teacher_agent_id": teacher_agent_id or "human_supervisor",
                 "topic": topic or "general",
@@ -235,6 +402,7 @@ def journal_standing_lesson(
             }
         else:
             entry = {
+                "id": _new_entry_id(),
                 "source": "observation",
                 "observation_type": observation_type or "human_correction",
                 "summary": text[:1000],
@@ -290,6 +458,7 @@ def learn_user_style(
     log = learning.setdefault("log", [])
 
     entry = {
+        "id": _new_entry_id(),
         "source": "observation",
         "observation_type": "user_style",
         "topic": "email_style",
@@ -388,6 +557,7 @@ class StudentLearningService:
             return {"status": "error", "reason": "student_not_found"}
 
         entry = {
+            "id": _new_entry_id(),
             "source": "teacher",
             "teacher_agent_id": teacher_agent_id,
             "topic": topic or "general",
@@ -439,6 +609,7 @@ class StudentLearningService:
             return {"status": "error", "reason": "student_not_found"}
 
         entry = {
+            "id": _new_entry_id(),
             "source": "observation",
             "observation_type": observation_type,
             "summary": summary[:1000],

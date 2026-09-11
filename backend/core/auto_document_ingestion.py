@@ -16,6 +16,10 @@ import logging
 import os
 from typing import Any, Dict, List, Optional, Set
 
+# Image formats OCR'd by core.image_ocr (single source of truth — the email
+# attachment gate imports the same set for its own routing).
+from core.image_ocr import IMAGE_FILENAME_EXTENSIONS as _IMAGE_PARSE_EXTENSIONS
+
 # Import for lazy loading to avoid circular imports
 # from core.atom_meta_agent import handle_data_event_trigger
 
@@ -329,18 +333,24 @@ class DocumentParser:
     
     @staticmethod
     async def parse_document(file_content: bytes, file_type: str, file_name: str,
-                             max_chars: Optional[int] = None) -> str:
+                             max_chars: Optional[int] = None,
+                             image_min_chars: int = 0) -> str:
         """Parse document and extract text content.
 
         ``max_chars`` overrides the per-file extraction budget for this call
         (None = the configured budget). The explicit read path passes a
         much larger ceiling: when the user opens a NAMED file, the answer
         must be able to see every sheet/page of it.
+
+        ``image_min_chars`` applies to IMAGE inputs only: an OCR result
+        shorter than this is treated as decorative (signature block, logo,
+        tracking pixel) and yields "". Inline email images pass a floor;
+        real file attachments pass 0 and keep every character.
         """
         try:
             # Try docling first for supported formats
             docling = DocumentParser._get_docling_processor()
-            docling_formats = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'htm', 'png', 'jpg', 'jpeg', 'tiff']
+            docling_formats = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls', 'html', 'htm', 'png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp']
 
             if docling and file_type in docling_formats:
                 try:
@@ -383,6 +393,15 @@ class DocumentParser:
 
             elif file_type in ["xlsx", "xls"]:
                 return await DocumentParser._parse_excel(file_content, max_chars=max_chars)
+
+            elif file_type in _IMAGE_PARSE_EXTENSIONS:
+                # Standalone images (scanned invoices, screenshots, receipts):
+                # Docling above, then the local→vision OCR ladder. Without this
+                # branch images returned "" and were dropped as no_text.
+                return await DocumentParser._parse_image(
+                    file_content, file_name, file_type,
+                    max_chars=max_chars, min_text_chars=image_min_chars,
+                )
 
             else:
                 logger.warning(f"Unsupported file type: {file_type}")
@@ -674,6 +693,43 @@ class DocumentParser:
                     return fallback_text
             except Exception as raw_err:
                 logger.error(f"Raw-XML Excel fallback failed: {raw_err}")
+            return ""
+
+    @staticmethod
+    async def _parse_image(file_content: bytes, file_name: str, file_type: str,
+                           max_chars: Optional[int] = None,
+                           min_text_chars: int = 0) -> str:
+        """OCR one standalone image via the local → vision ladder.
+
+        Reached only after Docling declined (unavailable or produced nothing),
+        this is the fallback that makes image attachments searchable on a
+        default install — previously every image returned "". Never raises: a
+        failure returns "" and the caller records ``no_text``.
+        """
+        try:
+            from core.image_ocr import ocr_image_bytes
+
+            result = await ocr_image_bytes(
+                file_content,
+                filename=file_name,
+                min_text_chars=min_text_chars,
+            )
+            text = (result.get("text") or "").strip()
+            if not text:
+                logger.info(
+                    f"Image OCR produced no text for {file_name} "
+                    f"(reason={result.get('reason')})"
+                )
+                return ""
+            logger.info(
+                f"Image OCR ({result.get('engine')}) parsed {file_name}: "
+                f"{len(text)} chars"
+            )
+            budget = _ExtractionBudget(limit=max_chars)
+            budget.add(text)
+            return budget.join()
+        except Exception as e:
+            logger.warning(f"Image OCR failed for {file_name}: {e}")
             return ""
 
     @staticmethod
@@ -1050,6 +1106,7 @@ class AutoDocumentIngestionService:
         extra_metadata: Optional[Dict[str, Any]] = None,
         external_id: Optional[str] = None,
         explicit: bool = True,
+        image_min_chars: int = 0,
     ) -> Dict[str, Any]:
         """Parse raw file bytes and ingest the extracted text into Atom memory.
 
@@ -1076,6 +1133,9 @@ class AutoDocumentIngestionService:
                 content mode (hybrid/list_only) skip content ingestion to save
                 disk + extraction cost. Explicit user/agent pulls always pass
                 True and are never mode-gated.
+            image_min_chars: Image inputs only — OCR text shorter than this is
+                treated as decorative (inline email signature/logo) and skipped.
+                Real file attachments pass 0 (keep every character).
 
         Returns:
             Dict with ``status``, ``file_name``, ``chars_ingested``, ``doc_id``.
@@ -1178,7 +1238,9 @@ class AutoDocumentIngestionService:
             logger.debug(f"sheet dataset materialization skipped for {file_name}: {ds_err}")
 
         try:
-            text = await self.parser.parse_document(content, file_ext, file_name)
+            text = await self.parser.parse_document(
+                content, file_ext, file_name, image_min_chars=image_min_chars
+            )
         except Exception as parse_err:
             logger.warning(f"Failed to parse {file_name} ({file_ext}): {parse_err}")
             return {"status": "error", "reason": "parse_failed", "file_name": file_name}

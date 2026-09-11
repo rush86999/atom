@@ -346,11 +346,17 @@ Rules:
 - If the needed integration is NOT in the available list, use_tool=false and
   say which integration is missing in `reason`."""
 
-# Pin the planner to a known-reachable vetted model: unpinned "auto" routing
-# prefers the free local Ollama client by value, which is frequently
-# unreachable — the structured path retries then fails, and the whole plan
-# is lost. Planner prompts are tiny; the cheap vetted workhorse is ideal.
-PLANNER_MODEL = os.getenv("ATOM_TOOL_PLANNER_MODEL", "qwen/qwen3.7-flash")
+# The planner does NOT pin a model — routing is BPC's job. Planning prompts are
+# tiny, so the call is SHAPED cheaply (``disable_reasoning=True``,
+# temperature 0) instead of naming a model.
+#
+# The pin was removed because a ``provider_model`` pin collapses the handler's
+# candidate list to one tuple, which deletes every provider fallback: the same
+# single point of failure that took the canvas editor down on a transient 429
+# (2026-09-10). Its original justification — unpinned routing preferring an
+# unreachable local Ollama client — is handled by BPC itself, which excludes
+# connection-dead providers (`_filter_by_health` +
+# provider circuit breaker). Do not reintroduce a PLANNER_MODEL constant.
 
 
 # Explicit web-research phrasings. DETECTOR ONLY — it never chooses the
@@ -561,53 +567,31 @@ def _history_transcript(history: List[Dict[str, Any]], current: str) -> str:
     return "\n".join(lines)
 
 
-def _planner_llm_kwargs(llm_service: Any) -> Dict[str, Any]:
-    """Pin (provider, model): `model=` on generate_structured maps to
-    task_type, NOT model selection — unpinned routing preferred the free
-    local Ollama client by value, which is frequently unreachable; the
-    connection-error retries ate ~6s and often lost the plan entirely.
-    generate_structured_response forwards provider_model into the handler,
-    pinning the option list to one reachable (provider, model)."""
-    kwargs: Dict[str, Any] = {}
-    try:
-        if "openrouter" in llm_service._get_handler().clients:
-            kwargs["provider_model"] = ("openrouter", PLANNER_MODEL)
-    except Exception:
-        pass
-    return kwargs
-
-
 async def _structured_with_fallback(
     llm_service: Any, *, prompt: str, response_model: Any,
     system_instruction: str,
 ) -> Any:
-    """Pinned planner call with one UNPINNED retry.
+    """Planner structured call routed by BPC (no model pin).
 
-    The pin collapses the handler's option list to (openrouter,
-    PLANNER_MODEL) — a single attempt with no provider fallback. That
-    client is frequently built from the workspace's BYOK credential, so a
-    key that can't serve the pinned model (out of credits, model gated,
-    revoked) silently returns None and the whole routing leg vanishes.
-    The unpinned retry re-ranks across the tenant's OWN configured
-    providers only (OAuth -> BYOK -> env), so a BYOK workspace still
-    routes within its own keys."""
-    result = await llm_service.generate_structured_response(
-        disable_reasoning=True,
+    Delegates to :mod:`core.llm.pinned_planning` with NO pin, so BPC ranks the
+    candidates and the call keeps the provider fallback that a pin would remove.
+    The prompt is still SHAPED as a small non-reasoning plan via
+    ``pinned_structured_call``'s ``disable_reasoning=True`` default.
+
+    Historically this pinned ``("openrouter", PLANNER_MODEL)`` with one unpinned
+    retry. That retry existed only to undo the pin; with no pin there is nothing
+    to undo, so exactly one call is issued.
+    """
+    from core.llm.pinned_planning import pinned_structured_call
+
+    return await pinned_structured_call(
+        llm_service,
         prompt=prompt,
         response_model=response_model,
         system_instruction=system_instruction,
-        temperature=0.0,
-        **_planner_llm_kwargs(llm_service),
-    )
-    if result is not None:
-        return result
-    logger.info("planner pinned call returned None — retrying unpinned")
-    return await llm_service.generate_structured_response(
-        disable_reasoning=True,
-        prompt=prompt,
-        response_model=response_model,
-        system_instruction=system_instruction,
-        temperature=0.0,
+        call_kwargs=None,  # no pin — BPC ranks the candidates
+        log_label="tool planner",
+        task_type="planning",
     )
 
 

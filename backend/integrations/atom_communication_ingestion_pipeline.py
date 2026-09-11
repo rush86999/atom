@@ -295,6 +295,34 @@ _TEXT_ATTACHMENT_EXTENSIONS = {
 _MAX_ATTACHMENT_DECODE_BYTES = 512 * 1024   # don't decode huge payloads
 _MAX_ATTACHMENT_TEXT_CHARS = 20_000         # indexed text per attachment
 
+# Inline body images are OCR'd (pasted screenshots/receipts) — everything
+# else inline is body markup (logos live in signatures and are filtered by
+# the decorative heuristic inside core.email_attachment_ingestion).
+_IMAGE_ATTACHMENT_EXTENSIONS = {
+    "png", "jpg", "jpeg", "tif", "tiff", "bmp", "webp", "gif",
+}
+_IMAGE_MIME_EXTENSIONS = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/tiff": "tif",
+    "image/bmp": "bmp",
+    "image/webp": "webp",
+    "image/gif": "gif",
+}
+
+
+def _is_image_attachment(filename: str, content_type: str = "") -> bool:
+    """True when the attachment is a raster image (by name or MIME type)."""
+    ext = os.path.splitext(filename or "")[1].lstrip(".").lower()
+    if ext in _IMAGE_ATTACHMENT_EXTENSIONS:
+        return True
+    return str(content_type or "").strip().lower().startswith("image/")
+
+
+def _image_extension_for(content_type: str) -> str:
+    return _IMAGE_MIME_EXTENSIONS.get((content_type or "").strip().lower(), "png")
+
 
 def _attachment_field(attachment: Dict[str, Any], *names: str) -> Any:
     """First non-empty value among camelCase/snake_case key variants."""
@@ -4094,15 +4122,18 @@ class CommunicationIngestionPipeline:
         raw_attachments: List[Dict[str, Any]],
         normalized: Dict[str, Any],
     ) -> None:
-        """Give binary attachments (pdf/docx/xlsx/…) a real text layer in the
-        documents memory index via core.email_attachment_ingestion.
+        """Give binary attachments (pdf/docx/xlsx/images…) a real text layer in
+        the documents memory index via core.email_attachment_ingestion.
 
-        Budget-capped per message; failures never fail the message ingest —
-        the attachment stays metadata-only in the comms row. Requires raw
-        bytes in the payload: the Outlook poller expands attachments inline,
-        but the Graph webhook path fetches messages without attachment
-        content, so binary files arriving on that channel are picked up by
-        on-demand (canvas/agent) ingestion instead.
+        Images are OCR'd (local engine → vision LLM), including images pasted
+        inline in the body; signature/logo/tracking images are filtered inside
+        the shared ingestion module. Budget-capped per message with real file
+        attachments served before inline images; failures never fail the
+        message ingest — the attachment stays metadata-only in the comms row.
+        Requires raw bytes in the payload: the Outlook poller expands
+        attachments inline, but the Graph webhook path fetches messages
+        without attachment content, so binary files arriving on that channel
+        are picked up by on-demand (canvas/agent) ingestion instead.
         """
         if not self._binary_memory_ingest_enabled():
             return
@@ -4115,15 +4146,29 @@ class CommunicationIngestionPipeline:
         meta = normalized.get("metadata") or {}
         user_id = meta.get("user_id") or "default_user"
         received_at = normalized.get("timestamp")
-        for att in raw_attachments:
+        # Real file attachments consume the per-message budget before inline
+        # body images — a signature strip must never crowd out the invoice.
+        # ``sorted`` is stable, so order within each group is preserved.
+        ordered = sorted(
+            raw_attachments,
+            key=lambda a: 1 if a.get("isInline", a.get("is_inline", False)) else 0,
+        )
+        for att in ordered:
             if cap <= 0:
                 return
-            filename = (
-                _attachment_field(att, "name", "filename") or ""
+            inline = bool(att.get("isInline", att.get("is_inline", False)))
+            content_type = (
+                _attachment_field(att, "contentType", "content_type", "mimetype") or ""
             )
-            if att.get("isInline", att.get("is_inline", False)):
+            filename = _attachment_field(att, "name", "filename") or ""
+            # Inline eligibility: images only. Other inline parts are body
+            # markup (or reference attachments) and stay metadata-only.
+            if inline and not _is_image_attachment(filename, content_type):
                 continue
-            if not _binary_extension(filename):
+            if not filename and inline:
+                # Some inline parts arrive nameless; the MIME type still routes.
+                filename = f"inline_image.{_image_extension_for(content_type)}"
+            if not _binary_extension(filename, content_type):
                 continue
             data = att.get("contentBytes") or att.get("data")
             if not data:
@@ -4148,10 +4193,7 @@ class CommunicationIngestionPipeline:
                 attachment_id=str(attachment_id),
                 filename=filename,
                 content=raw,
-                content_type=_attachment_field(
-                    att, "contentType", "content_type", "mimetype"
-                )
-                or "",
+                content_type=content_type,
                 size=att.get("size") or len(raw),
                 user_id=user_id,
                 email_subject=normalized.get("subject") or "",
@@ -4161,6 +4203,7 @@ class CommunicationIngestionPipeline:
                     if isinstance(received_at, datetime)
                     else str(received_at or "")
                 ),
+                inline=inline,
             )
             for cleaned in normalized.get("attachments") or []:
                 if not isinstance(cleaned, dict):

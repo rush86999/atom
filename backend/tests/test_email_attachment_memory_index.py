@@ -193,13 +193,13 @@ async def test_pipeline_hook_indexes_binary_and_stamps_status():
 
 
 @pytest.mark.asyncio
-async def test_pipeline_hook_skips_textlike_inline_and_byteless():
+async def test_pipeline_hook_skips_textlike_nonimage_inline_and_byteless():
     import integrations.atom_communication_ingestion_pipeline as mod
 
     normalized = _normalized_for(
         [
             {"id": "att-t", "name": "notes.txt", "contentType": "text/plain"},
-            {"id": "att-i", "name": "logo.png", "contentType": "image/png", "isInline": True},
+            {"id": "att-i", "name": "inline.pdf", "contentType": "application/pdf", "isInline": True},
             {"id": "att-n", "name": "nofetch.pdf", "contentType": "application/pdf"},
             {"id": "att-y", "name": "yes.pdf", "contentType": "application/pdf",
              "contentBytes": _pdf_b64()},
@@ -208,7 +208,7 @@ async def test_pipeline_hook_skips_textlike_inline_and_byteless():
     raw = [
         {"id": "att-t", "name": "notes.txt", "contentType": "text/plain",
          "contentBytes": _pdf_b64()},
-        {"id": "att-i", "name": "logo.png", "contentType": "image/png", "isInline": True,
+        {"id": "att-i", "name": "inline.pdf", "contentType": "application/pdf", "isInline": True,
          "contentBytes": _pdf_b64()},
         {"id": "att-n", "name": "nofetch.pdf", "contentType": "application/pdf"},
         {"id": "att-y", "name": "yes.pdf", "contentType": "application/pdf",
@@ -287,3 +287,172 @@ async def test_pipeline_hook_survives_ingestion_failure():
         # must not raise — the message still ingests, attachment stays metadata-only
         await mod.ingestion_pipeline._ingest_binary_attachments("outlook", raw, normalized)
     assert normalized["attachments"][0]["ingestion"]["status"] == "error"
+
+
+# ─── image OCR: content-type gate, inline policy, signature filter ───────────
+
+
+@pytest.mark.parametrize(
+    "filename,content_type,expected",
+    [
+        ("scan.png", "", True),
+        ("report.pdf", "", True),
+        ("noext", "image/png", True),
+        ("noext", "application/pdf", True),
+        ("noext", "application/zip", False),
+        ("archive.zip", "", False),
+        ("", "", False),
+    ],
+)
+def test_attachment_ingestible_content_type_fallback(filename, content_type, expected):
+    """Gmail/Graph sometimes omit the filename — the MIME type still decides."""
+    assert attachment_ingestible(filename, content_type) is expected
+
+
+@pytest.mark.asyncio
+async def test_ingest_inline_image_sets_min_chars():
+    """Inline images are OCR'd, but signature-length text is dropped."""
+    with _ingest_patch(
+        {"status": "ingested", "doc_id": "d", "chars_ingested": 40}
+    ) as mock, patch(
+        "core.email_attachment_ingestion.is_likely_signature_or_logo", return_value=False
+    ):
+        result = await ingest_email_attachment_bytes(
+            provider="outlook", message_id="m", attachment_id="a",
+            filename="image001.png", content_type="image/png",
+            content=b"\x89PNG fake", inline=True,
+        )
+
+    assert result["status"] == "indexed"
+    assert mock.await_args.kwargs["image_min_chars"] > 0
+
+
+@pytest.mark.asyncio
+async def test_ingest_non_inline_image_keeps_every_ocr_char():
+    """A deliberately attached file named logo.png is still a real document."""
+    with _ingest_patch(
+        {"status": "ingested", "doc_id": "d", "chars_ingested": 4}
+    ) as mock, patch(
+        "core.email_attachment_ingestion.is_likely_signature_or_logo", return_value=True
+    ) as signature:
+        result = await ingest_email_attachment_bytes(
+            provider="outlook", message_id="m", attachment_id="a",
+            filename="logo.png", content_type="image/png", content=b"\x89PNG fake",
+        )
+
+    assert result["status"] == "indexed"
+    assert mock.await_args.kwargs["image_min_chars"] == 0
+    signature.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_ingest_inline_signature_skipped_before_parsing():
+    with _ingest_patch({"status": "ingested", "doc_id": "d", "chars_ingested": 4}) as mock, patch(
+        "core.email_attachment_ingestion.is_likely_signature_or_logo", return_value=True
+    ):
+        result = await ingest_email_attachment_bytes(
+            provider="outlook", message_id="m", attachment_id="a",
+            filename="signature.png", content_type="image/png",
+            content=b"\x89PNG fake", inline=True,
+        )
+
+    assert result["status"] == "skipped"
+    assert result["reason"] == "signature_or_decorative"
+    mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_ingest_inline_disabled_by_flag(monkeypatch):
+    monkeypatch.setenv("ATOM_EMAIL_INLINE_IMAGE_OCR", "false")
+    with _ingest_patch({"status": "ingested", "doc_id": "d", "chars_ingested": 4}) as mock:
+        result = await ingest_email_attachment_bytes(
+            provider="outlook", message_id="m", attachment_id="a",
+            filename="image001.png", content_type="image/png",
+            content=b"\x89PNG fake", inline=True,
+        )
+
+    assert result["status"] == "skipped"
+    assert result["reason"] == "inline_disabled"
+    mock.assert_not_awaited()
+
+
+def _png_b64() -> str:
+    import base64
+    import io as _io
+
+    from PIL import Image
+
+    buf = _io.BytesIO()
+    Image.new("RGB", (800, 600), "white").save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+@pytest.mark.asyncio
+async def test_pipeline_hook_ocrs_inline_images():
+    """Red-first: inline images used to be skipped outright (isInline → continue)."""
+    import integrations.atom_communication_ingestion_pipeline as mod
+
+    normalized = _normalized_for(
+        [{"id": "att-i", "name": "image001.png", "contentType": "image/png", "isInline": True}]
+    )
+    raw = [
+        {"id": "att-i", "name": "image001.png", "contentType": "image/png",
+         "isInline": True, "contentBytes": _png_b64()},
+    ]
+    with patch.object(
+        mod, "ingest_email_attachment_bytes", new=AsyncMock(
+            return_value={"status": "indexed", "doc_id": "img_doc", "chars": 120}
+        )
+    ) as fake_ingest:
+        await mod.ingestion_pipeline._ingest_binary_attachments("outlook", raw, normalized)
+
+    fake_ingest.assert_awaited_once()
+    assert fake_ingest.await_args.kwargs["inline"] is True
+    assert normalized["attachments"][0]["ingestion"]["doc_id"] == "img_doc"
+
+
+@pytest.mark.asyncio
+async def test_pipeline_hook_skips_inline_non_image():
+    import integrations.atom_communication_ingestion_pipeline as mod
+
+    normalized = _normalized_for(
+        [{"id": "att-i", "name": "inline.pdf", "contentType": "application/pdf", "isInline": True}]
+    )
+    raw = [
+        {"id": "att-i", "name": "inline.pdf", "contentType": "application/pdf",
+         "isInline": True, "contentBytes": _pdf_b64()},
+    ]
+    with patch.object(
+        mod, "ingest_email_attachment_bytes", new=AsyncMock()
+    ) as fake_ingest:
+        await mod.ingestion_pipeline._ingest_binary_attachments("outlook", raw, normalized)
+    fake_ingest.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_pipeline_hook_real_attachments_beat_inline_for_the_cap(monkeypatch):
+    """Inline images must not crowd a real document out of the per-message budget."""
+    import integrations.atom_communication_ingestion_pipeline as mod
+
+    monkeypatch.setenv("MAX_BINARY_ATTACHMENTS_INDEXED_PER_MESSAGE", "1")
+    normalized = _normalized_for(
+        [
+            {"id": "att-i", "name": "image001.png", "contentType": "image/png", "isInline": True},
+            {"id": "att-d", "name": "report.pdf", "contentType": "application/pdf"},
+        ]
+    )
+    raw = [
+        {"id": "att-i", "name": "image001.png", "contentType": "image/png",
+         "isInline": True, "contentBytes": _png_b64()},
+        {"id": "att-d", "name": "report.pdf", "contentType": "application/pdf",
+         "contentBytes": _pdf_b64()},
+    ]
+    with patch.object(
+        mod, "ingest_email_attachment_bytes", new=AsyncMock(
+            return_value={"status": "indexed", "doc_id": "d", "chars": 1}
+        )
+    ) as fake_ingest:
+        await mod.ingestion_pipeline._ingest_binary_attachments("outlook", raw, normalized)
+
+    fake_ingest.assert_awaited_once()
+    assert fake_ingest.await_args.kwargs["attachment_id"] == "att-d"

@@ -474,7 +474,13 @@ async def ingest_goal_run_event(
     db: Session = Depends(get_db),
 ):
     """Integration inbox for waiting runs (inbound email replies, webhook
-    events, human input). Matching runs wake and advance one loop turn."""
+    events, human input). Matching runs wake and advance one loop turn.
+
+    Supervisor-gated: an event wakes a run and drives the router (and, in
+    shadow/autonomous, the executors) — a member must not be able to inject
+    one. Consistent with every other run-mutating route here.
+    """
+    _require_supervisor(db, current_user)
     event = {"event": payload.event,
              "from": payload.from_email, "subject": payload.subject,
              "summary": payload.summary, "source": payload.source,

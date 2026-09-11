@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiClient } from "@/lib/api-client";
@@ -10,6 +10,7 @@ import {
   approveTrainingProposal,
   CanvasTrainingContext,
   completeTrainingSession,
+  deleteTeachingPoint,
   getAgentGraduationProgress,
   getCanvasTrainingContext,
   fetchSelfDirectedProgress,
@@ -20,6 +21,8 @@ import {
   SelfDirectedAgentProgress,
   rejectTrainingProposal,
   teachAgent,
+  TeachingPoint,
+  updateTeachingPoint,
   updateTrainingGuidance,
 } from "@/lib/maturity-api";
 import { PlaybookSection } from "./PlaybookSection";
@@ -103,6 +106,9 @@ export function TrainingPanel({
   const [teachBusy, setTeachBusy] = useState(false);
   // P2: ALSO capture the lesson as a structured playbook draft.
   const [asPlaybook, setAsPlaybook] = useState(false);
+  // Bumped when a teach actually drafted a rule — PlaybookSection re-reads so
+  // the new draft shows in the queue below (it self-fetches on mount only).
+  const [playbookRefreshKey, setPlaybookRefreshKey] = useState(0);
 
   // Lesson plan editor (objective + one-task-per-line)
   const [lessonDraft, setLessonDraft] = useState<{ objective: string; tasks: string }>({ objective: "", tasks: "" });
@@ -126,6 +132,12 @@ export function TrainingPanel({
 
   // Teaching points journal (collapsible when long)
   const [showAllTeaching, setShowAllTeaching] = useState(false);
+  // Inline correction of ONE journal entry. A lesson is permanent guidance
+  // injected at work time, so a wrong/duplicated/superseded point must be
+  // fixable in place rather than re-taught around.
+  const [editingPointId, setEditingPointId] = useState<string | null>(null);
+  const [pointDraft, setPointDraft] = useState({ text: "", topic: "" });
+  const [pointBusy, setPointBusy] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -229,10 +241,78 @@ export function TrainingPanel({
       setAsPlaybook(false);
       // The journal below should show the point just taught — refresh.
       if (status === "ok") await load();
+      // …and the Playbooks queue must show the rule /teach just drafted.
+      if (draftedPlaybook) setPlaybookRefreshKey((k) => k + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setTeachBusy(false);
+    }
+  };
+
+  // ── Teaching-point journal: in-place correction / removal ──────────────
+  // A lesson is permanent guidance injected at work time (get_agent_lessons),
+  // so a wrong, duplicated, or superseded point must be fixable here — the
+  // alternative is teaching around a bad rule forever.
+  const startPointEdit = (point: TeachingPoint) => {
+    setEditingPointId(point.id);
+    setPointDraft({
+      text: point.text,
+      // "general" is the absence of a topic, not a topic to retype.
+      topic: point.topic === "general" ? "" : point.topic,
+    });
+    setError(null);
+    setNotice(null);
+  };
+
+  const cancelPointEdit = () => {
+    setEditingPointId(null);
+    setPointDraft({ text: "", topic: "" });
+  };
+
+  const handleSavePointEdit = async () => {
+    if (!agent || !editingPointId) return;
+    const text = pointDraft.text.trim();
+    if (!text) return;
+    const point = (ctx?.teaching_points ?? []).find((p) => p.id === editingPointId);
+    // An observation's "topic" is its classification (human_correction IS
+    // standing guidance) — text is the only editable field there.
+    const topic = point && point.source !== "observation" ? pointDraft.topic.trim() : "";
+    setPointBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await updateTeachingPoint(agent.id, editingPointId, {
+        text,
+        ...(topic ? { topic } : {}),
+      });
+      setNotice("Teaching point corrected — the hire uses this version from now on.");
+      cancelPointEdit();
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPointBusy(false);
+    }
+  };
+
+  const handleDeletePoint = async (point: TeachingPoint) => {
+    if (!agent) return;
+    if (!window.confirm(
+      `Delete this teaching point? ${agent.name} stops using it from the next turn on.`
+    )) return;
+    setPointBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await deleteTeachingPoint(agent.id, point.id);
+      setNotice("Teaching point removed.");
+      if (editingPointId === point.id) cancelPointEdit();
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPointBusy(false);
     }
   };
 
@@ -680,8 +760,8 @@ export function TrainingPanel({
               {(showAllTeaching
                 ? ctx?.teaching_points ?? []
                 : (ctx?.teaching_points ?? []).slice(0, TEACHING_PREVIEW_COUNT)
-              ).map((tp, i) => (
-                <div key={i} className="border rounded px-2 py-1.5 space-y-0.5" data-testid="teaching-point">
+              ).map((tp) => (
+                <div key={tp.id} className="border rounded px-2 py-1.5 space-y-0.5" data-testid="teaching-point">
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <span
                       className={`px-1 rounded ${
@@ -693,11 +773,92 @@ export function TrainingPanel({
                       {tp.source === "observation" ? "observed" : "taught"}
                     </span>
                     {tp.topic && tp.topic !== "general" && <span className="truncate">· {tp.topic}</span>}
+                    {tp.edited_at && (
+                      <span
+                        className="shrink-0"
+                        title={`Corrected ${formatPointDate(tp.edited_at)}`}
+                        data-testid="teaching-point-edited"
+                      >
+                        · edited
+                      </span>
+                    )}
                     {tp.learned_at && <span className="ml-auto shrink-0">{formatPointDate(tp.learned_at)}</span>}
+                    {editingPointId !== tp.id && (
+                      <button
+                        type="button"
+                        onClick={() => startPointEdit(tp)}
+                        aria-label="Edit teaching point"
+                        title="Correct this teaching point"
+                        className="shrink-0 p-0.5 rounded hover:bg-muted"
+                        data-testid="teaching-point-edit"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
+                    {isSupervisor && editingPointId !== tp.id && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePoint(tp)}
+                        disabled={pointBusy}
+                        aria-label="Delete teaching point"
+                        title="Delete this teaching point"
+                        className="shrink-0 p-0.5 rounded hover:bg-muted text-red-600 dark:text-red-400"
+                        data-testid="teaching-point-delete"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
-                  <p className="text-[11px] whitespace-pre-line break-words">
-                    {tp.text.length > 280 ? `${tp.text.slice(0, 280)}…` : tp.text}
-                  </p>
+                  {editingPointId === tp.id ? (
+                    <div className="space-y-1.5 pt-1" data-testid="teaching-point-editor">
+                      <textarea
+                        value={pointDraft.text}
+                        onChange={(e) => setPointDraft((d) => ({ ...d, text: e.target.value }))}
+                        rows={3}
+                        className="w-full border rounded-md px-2 py-1 text-[11px] bg-background"
+                        aria-label="Teaching point text"
+                        data-testid="teaching-point-text-input"
+                      />
+                      {tp.source !== "observation" && (
+                        <Input
+                          value={pointDraft.topic}
+                          onChange={(e) => setPointDraft((d) => ({ ...d, topic: e.target.value }))}
+                          placeholder="Topic (optional)"
+                          className="h-7 text-xs"
+                          aria-label="Teaching point topic"
+                          data-testid="teaching-point-topic-input"
+                        />
+                      )}
+                      <div className="flex gap-1.5">
+                        <Button
+                          size="sm"
+                          className="h-6 text-[11px]"
+                          onClick={handleSavePointEdit}
+                          disabled={pointBusy || !pointDraft.text.trim()}
+                          data-testid="teaching-point-save"
+                        >
+                          {pointBusy ? "Saving…" : "Save"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[11px]"
+                          onClick={cancelPointEdit}
+                          disabled={pointBusy}
+                          data-testid="teaching-point-cancel"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Corrections apply to every later turn — the hire uses this version at work time.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] whitespace-pre-line break-words">
+                      {tp.text.length > 280 ? `${tp.text.slice(0, 280)}…` : tp.text}
+                    </p>
+                  )}
                   {tp.canvas && (
                     <p className="text-[10px] text-muted-foreground" data-testid="teaching-point-canvas">
                       · canvas "{tp.canvas.name}"
@@ -725,6 +886,7 @@ export function TrainingPanel({
           <PlaybookSection
             isSupervisor={isSupervisor}
             onDraftsCountChange={onPlaybookDraftsChange}
+            refreshKey={playbookRefreshKey}
           />
 
           {/* Graduation (supervisor) */}

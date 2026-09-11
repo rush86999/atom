@@ -556,6 +556,43 @@ describe('useChatInterface', () => {
     expect(result.current.isProcessing).toBe(false);
   });
 
+  // Test 21b: turn_budget_exceeded renders a retryable error, not an empty reply
+  test('surfaces turn_budget_exceeded as an error message', async () => {
+    const onSessionCreated = jest.fn();
+    mockPost.mockImplementation((url: string) => {
+      if (url === '/api/chat/message') {
+        return Promise.resolve({
+          data: {
+            success: false,
+            error_code: 'turn_budget_exceeded',
+            message: 'This turn ran past its time budget before a reply could be generated. Please try again.',
+            session_id: 'sess-tb',
+          },
+        });
+      }
+      return Promise.resolve({ status: 200, data: { success: true } });
+    });
+
+    const { result } = renderHook(() =>
+      useChatInterface({ sessionId: null, initialAgentId: null, onSessionCreated })
+    );
+
+    await act(async () => {
+      result.current.setInput('Do a very slow thing');
+    });
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    expect(onSessionCreated).toHaveBeenCalledWith('sess-tb');
+    expect(
+      result.current.messages.some(
+        m => m.type === 'error' && m.content.includes('time budget')
+      )
+    ).toBe(true);
+    expect(result.current.isProcessing).toBe(false);
+  });
+
   // Test 22: a rejected send appends the generic error message
   test('appends a system error message when the chat API rejects', async () => {
     mockPost.mockImplementation((url: string) => {

@@ -192,9 +192,14 @@ def test_playbook_states_and_retrieval(db):
     miss = svc.get_relevant("quarterly tax filing", canvas_type="document")
     assert miss == []
 
-    # draft playbooks never enter prompts
+    # draft playbooks never enter prompts. The APPROVED playbook above still
+    # recalls on its canvas trigger (hybrid retrieval — canvas-type match is a
+    # recall path, keywords are a boost not a gate, 2fafc176a), so assert the
+    # draft's absence directly, and use a non-matching canvas for the empty case.
     svc.create("Unapproved", source="learned", approval_state="draft")
-    assert svc.get_relevant("unapproved", canvas_type="email") == []
+    recalled = svc.get_relevant("unapproved", canvas_type="email")
+    assert [h["name"] for h in recalled] == ["Bandsaw selection"]
+    assert svc.get_relevant("unapproved", canvas_type="document") == []
     assert len(svc.list(include_drafts=True)) == 2
 
 
