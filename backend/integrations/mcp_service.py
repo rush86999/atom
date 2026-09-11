@@ -362,7 +362,7 @@ class MCPService(IntegrationService):
                 },
                 {
                     "name": "ingest_message_attachment",
-                    "description": "Fetch an email's attachment(s) from the connected mailbox and add their text to memory so it is recallable (PDF/DOCX/XLSX text; images via OCR). Idempotent — content already in memory is skipped. Pass attachment_id to target one attachment; omit it to ingest every attachment on the message.",
+                    "description": "Ingest an email's attachment(s) into memory: fetch them from the connected mailbox and add their text or extracted content (PDF/DOCX/XLSX; images via OCR, textless photos described) so it is recallable. Idempotent — content already in memory is skipped. Pass attachment_id to target one attachment; omit it to ingest every attachment on the message.",
                     "parameters": {
                         "message_id": "string",
                         "attachment_id": "string (optional — omit to ingest every attachment on the message)",
@@ -1128,27 +1128,45 @@ class MCPService(IntegrationService):
         agent lazy-loads these results as callable tools, so dropping the
         parameter schema here left discovered tools uncallable without
         guesswork (Aug 2026 awareness gap).
+
+        Matching is TOKEN-scored, not whole-query substring: the agent asks in
+        natural language ("ingest an email attachment into memory") and the old
+        ``query in name or query in desc`` matched nothing at all for any
+        multi-word ask — so capabilities the platform had stayed invisible to
+        the very search meant to surface them. Name hits outrank description
+        hits; a whole-query substring still dominates.
         """
         all_tools = await self.get_all_tools()
-        query = query.lower()
+        q = (query or "").lower().strip()
+        if not q:
+            return []
+        tokens = [t for t in re.split(r"[^a-z0-9_.]+", q) if len(t) > 2] or [q]
 
-        matches = []
+        scored: List[tuple] = []
         for tool in all_tools:
-            name = tool.get("name", "").lower()
-            desc = tool.get("description", "").lower()
+            name = str(tool.get("name", "")).lower()
+            desc = str(tool.get("description", "")).lower()
+            score = 0
+            if q in name:
+                score += 100
+            elif q in desc:
+                score += 5
+            score += 10 * sum(1 for t in tokens if t in name)
+            score += sum(1 for t in tokens if t in desc)
+            if score <= 0:
+                continue
+            scored.append((score, tool))
 
-            # Simple keyword matching for now
-            if query in name or query in desc:
-                matches.append({
-                    "name": tool["name"],
-                    "description": tool["description"],
-                    "parameters": tool.get("parameters", {}),
-                })
-
-        # Sort by relevance (exact match first)
-        matches.sort(key=lambda x: 0 if query in x["name"].lower() else 1)
-
-        return matches[:limit]
+        # Stable sort: equal scores keep catalog order.
+        scored.sort(key=lambda pair: -pair[0])
+        return [
+            {
+                "name": tool["name"],
+                "description": tool["description"],
+                "parameters": tool.get("parameters", {}),
+            }
+            for _, tool in scored[:limit]
+        ]
 
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """

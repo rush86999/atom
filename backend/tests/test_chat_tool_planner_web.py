@@ -33,6 +33,11 @@ def _tavily_key(monkeypatch):
 def test_platform_services_present_with_key(monkeypatch):
     # memory is ALWAYS available (queries the workspace's own ingested data,
     # no external key); web tools stay Tavily-key-gated.
+    # `datasets` is appended from HOST state (catalog non-empty), so pin it off
+    # here — this test is about the key gate, not about dataset availability.
+    monkeypatch.setattr(
+        "core.chat_tool_planner._datasets_service_available", lambda: False
+    )
     monkeypatch.delenv("TAVILY_API_KEY", raising=False)
     assert _available_platform_services() == ["memory"]
     monkeypatch.setenv("TAVILY_API_KEY", "k")

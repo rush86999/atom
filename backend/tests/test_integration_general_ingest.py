@@ -286,3 +286,80 @@ async def test_planner_general_ingest_kill_switch(monkeypatch):
         )
     assert "disabled by configuration" in block
     ingest.assert_not_awaited()
+
+
+# ─── resolving ONE record by id, with no query to guide search ──────────────
+
+
+@pytest.mark.asyncio
+async def test_record_by_external_id_resolves_from_structure_index(monkeypatch, ingest_env):
+    """A named id must resolve even when the caller has no query: the mapped
+    structure index row IS the record's summary for record apps, and its doc id
+    is deterministic (one point lookup)."""
+    index_row = {
+        "id": "idx_zoho_crm_lead-1",
+        "text": "Acme Corp, stage: Qualified",
+        "source": "zoho_crm-index:zoho_crm/Jane Doe",
+        "metadata": '{"file_name": "Jane Doe", "external_id": "lead-1"}',
+    }
+
+    class _Handler:
+        def add_document(self, **kwargs):
+            ingest_env.append(kwargs)
+            return True
+
+        def get_document_by_id(self, table_name, doc_id):
+            return index_row if doc_id == "idx_zoho_crm_lead-1" else None
+
+    monkeypatch.setattr(
+        "core.lancedb_handler.get_lancedb_handler",
+        lambda workspace_id=None: _Handler(),
+    )
+    monkeypatch.setattr(dti, "_live_search_records", AsyncMock(return_value=[]))
+
+    out = await dti.ingest_integration_content("zoho_crm", "u-1", external_id="lead-1")
+
+    assert out["success"] is True
+    assert out["ingested"] == 1
+    assert "Acme Corp" in ingest_env[0]["text"]
+
+
+@pytest.mark.asyncio
+async def test_record_by_external_id_matches_live_search_exactly(monkeypatch, ingest_env):
+    """When the index has no row, a live search using the id as the query is
+    matched EXACTLY — an incidental hit is never mistaken for the id."""
+    monkeypatch.setattr(
+        "core.lancedb_handler.get_lancedb_handler",
+        lambda workspace_id=None: _SyncHandler(ingest_env),
+    )
+    monkeypatch.setattr(
+        dti,
+        "_live_search_records",
+        AsyncMock(
+            return_value=[
+                {"id": "someone-else", "Full_Name": "Decoy"},
+                {"id": "lead-1", "Full_Name": "Jane Doe", "company": "Acme"},
+            ]
+        ),
+    )
+
+    out = await dti.ingest_integration_content("zoho_crm", "u-1", external_id="lead-1")
+
+    assert out["ingested"] == 1
+    assert len(ingest_env) == 1  # the decoy hit is NOT ingested
+    assert "Jane Doe" in ingest_env[0]["text"]
+
+
+@pytest.mark.asyncio
+async def test_record_external_id_unresolved_is_honest(monkeypatch, ingest_env):
+    monkeypatch.setattr(
+        "core.lancedb_handler.get_lancedb_handler",
+        lambda workspace_id=None: _SyncHandler(ingest_env),
+    )
+    monkeypatch.setattr(dti, "_live_search_records", AsyncMock(return_value=[]))
+
+    out = await dti.ingest_integration_content("zoho_crm", "u-1", external_id="ghost-9")
+
+    assert out["success"] is False
+    assert "ghost-9" in out["error"]
+    assert ingest_env == []

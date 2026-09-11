@@ -365,13 +365,15 @@ def test_jit_office_file_opens_in_app_canvas(monkeypatch, tmp_path):
     monkeypatch.setattr("core.database.SessionLocal", Sess)
     monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
 
-    # Ingestion into memory is not under test here — stub it.
+    # Ingestion into memory is not under test here — stub it. The stub must
+    # report the ingest status the shared interpreter accepts ("ingested");
+    # a bare "ok" is read as a failed ingest and fails the tool.
     class _FakeIngestor:
         def __init__(self, workspace_id="default"):
             pass
 
         async def process_file_bytes(self, content=None, **kw):
-            return {"status": "ok", "doc_id": "doc-1"}
+            return {"status": "ingested", "doc_id": "doc-1", "chars_ingested": 2}
 
     with patch("core.auto_document_ingestion.AutoDocumentIngestionService", _FakeIngestor):
         out = get_event_loop().run_until_complete(
@@ -411,7 +413,7 @@ def test_jit_non_office_file_ignores_canvas_request(monkeypatch):
             pass
 
         async def process_file_bytes(self, content=None, **kw):
-            return {"status": "ok", "doc_id": "doc-2"}
+            return {"status": "ingested", "doc_id": "doc-2", "chars_ingested": 2}
 
     with patch("core.auto_document_ingestion.AutoDocumentIngestionService", _FakeIngestor):
         out = get_event_loop().run_until_complete(

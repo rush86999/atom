@@ -588,7 +588,10 @@ class TestFreshnessHelpers:
     def test_persist_existing_row(self):
         svc = make_service()
         session = MagicMock()
-        existing = SimpleNamespace()
+        # The in-place update path compares existing.id to doc.id (join-key
+        # realignment), so the row must carry the id the incoming doc has —
+        # without it the branch raises AttributeError instead of updating.
+        existing = SimpleNamespace(id="doc-1")
         session.query.return_value.filter.return_value.first.return_value = existing
         session.close = MagicMock()
         freshness = MagicMock()

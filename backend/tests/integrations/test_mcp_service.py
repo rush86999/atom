@@ -26,23 +26,44 @@ from unittest.mock import MagicMock, AsyncMock, patch, Mock
 from datetime import datetime
 import httpx
 
-# Mock problematic imports before loading MCP service
-sys.modules['flask'] = MagicMock()
-sys.modules['integrations.whatsapp_business_integration'] = MagicMock()
-
-# Create proper async mock for universal integration service
-mock_universal_integration = MagicMock()
-mock_universal_integration_service = MagicMock()
-
-# Create async execute function that returns a dict
+# Modules stubbed so THIS file's tests are isolated. They are installed by the
+# module-scoped fixture below, NOT at import time: pytest imports every test
+# module during COLLECTION, so an import-time ``sys.modules`` swap leaks into
+# every other file in the session — running this file alongside
+# test_covpush_integrations_core.py handed it a MagicMock
+# UniversalIntegrationService and failed 27 of its tests. mcp_service imports
+# UniversalIntegrationService lazily, so the stub is not needed to import it.
 async def mock_execute(*args, **kwargs):
     return {"success": True, "mock": True}
 
-mock_universal_integration_service.universal_integration_service = MagicMock()
-mock_universal_integration_service.universal_integration_service.execute = mock_execute
-mock_universal_integration_service.UniversalIntegrationService = MagicMock()
-mock_universal_integration_service.NATIVE_INTEGRATIONS = {'slack', 'salesforce', 'hubspot'}
-sys.modules['integrations.universal_integration_service'] = mock_universal_integration_service
+
+_mock_universal_integration_service = MagicMock()
+_mock_universal_integration_service.universal_integration_service = MagicMock()
+_mock_universal_integration_service.universal_integration_service.execute = mock_execute
+_mock_universal_integration_service.UniversalIntegrationService = MagicMock()
+_mock_universal_integration_service.NATIVE_INTEGRATIONS = {'slack', 'salesforce', 'hubspot'}
+
+_STUBBED_MODULES = {
+    "flask": MagicMock(),
+    "integrations.whatsapp_business_integration": MagicMock(),
+    "integrations.universal_integration_service": _mock_universal_integration_service,
+}
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _stub_problematic_imports():
+    """Install the stubs for this module's tests only, then restore."""
+    saved = {name: sys.modules.get(name) for name in _STUBBED_MODULES}
+    sys.modules.update(_STUBBED_MODULES)
+    try:
+        yield
+    finally:
+        for name, original in saved.items():
+            if original is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = original
+
 
 from integrations.mcp_service import MCPService
 from integrations.mcp_converter import MCPToolConverter
@@ -84,7 +105,7 @@ def mock_tavily_key():
 def mock_byok_manager():
     """Mock BYOK manager for API key retrieval tests."""
     mock_manager = MagicMock()
-    mock_manager.get_api_key.return_value = "byok_tavily_key_67890"
+    mock_manager.get_tenant_api_key.return_value = "byok_tavily_key_67890"
     return mock_manager
 
 
@@ -349,7 +370,7 @@ class TestWebSearch:
             mock_client.post = AsyncMock(return_value=mock_response)
             mock_client_class.return_value = mock_client
 
-            result = await mcp_service.web_search("test query", user_id="test_user")
+            result = await mcp_service.web_search("test query", tenant_id="test_user")
 
             assert isinstance(result, dict)
             assert result["query"] == "test query"
@@ -359,7 +380,7 @@ class TestWebSearch:
     async def test_web_search_with_byok_key(self, mcp_service, mock_byok_manager):
         """Test web search using BYOK Tavily key."""
         # Patch in the correct location (where it's imported)
-        with patch('core.byok_endpoints.get_byok_manager') as mock_get_byok:
+        with patch('integrations.mcp_service.get_byok_manager') as mock_get_byok:
             mock_get_byok.return_value = mock_byok_manager
 
             with patch('httpx.AsyncClient') as mock_client_class:
@@ -376,10 +397,11 @@ class TestWebSearch:
                 mock_client.post = AsyncMock(return_value=mock_response)
                 mock_client_class.return_value = mock_client
 
-                result = await mcp_service.web_search("byok test", user_id="byok_user")
+                result = await mcp_service.web_search("byok test", tenant_id="byok_user")
 
                 # Verify BYOK manager was called
-                mock_byok_manager.get_api_key.assert_called_once_with("tavily")
+                mock_byok_manager.get_tenant_api_key.assert_called_once_with(
+                    "byok_user", "tavily")
 
     @pytest.mark.asyncio
     async def test_web_search_no_api_key(self, reset_mcp_singleton):

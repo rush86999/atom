@@ -8224,3 +8224,27 @@ boots.
 - `tests/test_covpush_w86_gmail_ingestion_ai.py`: 5 failures confirmed
   **pre-existing** by targeted `git stash` of the one changed file — baseline and
   current FAILED sets are byte-identical (94 passed both ways).
+
+---
+
+## Session 2026-09-11i (fix all outstanding issues from the ingestion work)
+
+**Scope**: every failure and gap reported after the generalization — four
+pre-existing test failures, the record-by-id gap, the `search_tools`
+discoverability gap, and two stale suites found while sweeping.
+
+| Area | Root cause | Fix |
+|---|---|---|
+| `tests/integrations/test_mcp_service.py` (CROSS-FILE POISON) | Module-level `sys.modules['integrations.universal_integration_service'] = MagicMock()` ran at IMPORT time — and pytest imports every test module during COLLECTION. Running this file in the same session as `test_covpush_integrations_core.py` handed it a MagicMock UIS: **30 failed / 12 errors**. Each file passed alone, which hid it | Stubs moved into a module-scoped autouse fixture that installs them for this file's tests and restores after (mcp_service imports UIS lazily, so nothing needed them at import). Batch now **318 passed / 0 failed** |
+| `tests/integrations/test_mcp_service.py::TestWebSearch` (2) | Called `web_search(..., user_id=)` — the signature is `tenant_id` — and patched `core.byok_endpoints.get_byok_manager` while `mcp_service` bound the name at import; asserted the old `get_api_key` accessor | Call with `tenant_id=`, patch `integrations.mcp_service.get_byok_manager`, assert `get_tenant_api_key(tenant, "tavily")` |
+| `tests/test_integration_memory_index.py` JIT canvas tests (2) | Stubbed `process_file_bytes` with `{"status": "ok"}`; `interpret_ingest_result` only accepts `ingested` | Stubs return `{"status": "ingested", ...}` |
+| `tests/test_drive_multi_folder_ingestion.py` folder tests (2) | `_IngestResult.__call__` lacked the newer `role=` kwarg the service passes | Stub accepts `role=None` |
+| `tests/test_covpush_w34_auto_document.py::test_persist_existing_row` | Fixture built `SimpleNamespace()` with no `id`, but the join-key realignment path reads `existing.id` | Fixture carries `id="doc-1"` |
+| `tests/test_chat_tool_planner_web.py::test_platform_services_present_with_key` | Asserted the exact platform list, but `datasets` is appended from HOST catalog state | Pin `_datasets_service_available` off (the test is about the Tavily key gate) |
+| `core/drive_tree_ingestion.py` — record by id | Gap: a record `external_id` alone could not be fetched (no query to search with) | New `_resolve_record_by_external_id()`: structure-index point lookup (`idx_<service>_<external_id>`) then a live search matched EXACTLY on the id; a named id now ingests THAT record only, never the search's incidental neighbours |
+| `integrations/mcp_service.py::search_tools` | Whole-query substring matching returned `[]` for any natural-language ask ("ingest an email attachment into memory"), so capabilities stayed invisible to the very search meant to surface them | Token-scored ranking (name hits ≫ description hits; whole-query substring still dominates; stable order for ties). `ingest_message_attachment`'s description now leads with "Ingest" so it matches on name and description |
+
+**Verification**: 479 passed / 0 failed across the combined affected suites;
+the once-poisoned batch is 318 passed / 0 failed; the ingestion sweep is 214
+passed / 0 failed. Every "pre-existing" claim above was confirmed by stashing
+the working changes and re-running before fixing.

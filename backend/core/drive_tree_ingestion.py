@@ -641,6 +641,61 @@ def _resolve_item_ids(
     return ids[:limit]
 
 
+async def _resolve_record_by_external_id(
+    integration_id: str,
+    external_id: str,
+    entity_type: str,
+    context: Dict[str, Any],
+    workspace_id: str,
+) -> Optional[Dict[str, Any]]:
+    """Find ONE record by its source-native id when no query guides search.
+
+    Two sources, cheapest first:
+
+    1. the mapped structure index row (``idx_<service>_<external_id>``) — for
+       record apps that row IS the record's summary fields, and the doc id is
+       deterministic, so this is one point lookup;
+    2. a live search using the id as the query, matched EXACTLY on
+       ``_item_external_id`` (provider search may or may not index ids).
+
+    None when neither resolves — the caller says so instead of guessing.
+    """
+    try:
+        from core.lancedb_handler import get_lancedb_handler
+
+        handler = get_lancedb_handler(workspace_id)
+        doc_id = f"idx_{integration_id}_{external_id}"[:200]
+        row = await asyncio.to_thread(
+            handler.get_document_by_id, "documents", doc_id
+        )
+        if row:
+            meta = row.get("metadata")
+            if isinstance(meta, str):
+                try:
+                    meta = json.loads(meta)
+                except Exception:  # noqa: BLE001 — metadata is advisory
+                    meta = {}
+            return {
+                "id": external_id,
+                "name": (meta or {}).get("file_name")
+                or str(row.get("source") or external_id),
+                "summary": str(row.get("text") or "")[:2000],
+                "_resolved_from": "integration_index",
+            }
+    except Exception as index_err:  # noqa: BLE001 — falls through to live search
+        logger.debug(
+            f"structure-index id lookup skipped ({integration_id}:{external_id}): {index_err}"
+        )
+
+    records = await _live_search_records(
+        integration_id, external_id, entity_type, context
+    )
+    for record in records:
+        if _item_external_id(record) == external_id:
+            return record
+    return None
+
+
 def _family_result(
     integration_id: str, strategy: str, items: List[Dict[str, Any]], error: str = ""
 ) -> Dict[str, Any]:
@@ -977,7 +1032,28 @@ async def ingest_integration_content(
         )
 
     records = await _live_search_records(integration_id, query, entity_type, context)
-    if not records and not external_id:
+    if external_id:
+        # A NAMED id must win over incidental search hits.
+        exact = next(
+            (r for r in records if _item_external_id(r) == external_id), None
+        )
+        if exact is None:
+            exact = await _resolve_record_by_external_id(
+                integration_id, external_id, entity_type, context, ws
+            )
+        if exact is not None:
+            # A named id is unambiguous: ingest THAT record, not the search's
+            # incidental neighbours (which would land unrelated rows in memory).
+            records = [exact]
+        elif not query:
+            return _family_result(
+                integration_id, "records", [],
+                error=(
+                    f"no {integration_id} record with id '{external_id}' could be "
+                    "resolved — pass a query to search for it instead"
+                ),
+            )
+    if not records:
         return _family_result(
             integration_id, "records", [],
             error=f"no matching {integration_id} content found to ingest",
