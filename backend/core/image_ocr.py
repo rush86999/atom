@@ -82,6 +82,48 @@ _VISION_PROMPT = (
     "reply with an empty string. Do not describe the image or add commentary."
 )
 
+# Second-pass prompt for images with NO text layer (product photos, machine
+# pictures, diagrams). Pure OCR drops them as ``no_text`` — memory gets
+# nothing, so an agent asked to "use the product image from that quote email"
+# can only report it inaccessible. Only the explicit on-demand pull requests
+# this (see ``describe_when_textless``), so bulk ingestion stays cheap.
+_VISION_DESCRIBE_PROMPT = (
+    "Describe this image in 1-3 plain sentences: what it shows, the object or "
+    "machine type, visible brand names, model numbers, labels and any notable "
+    "markings. Do not speculate about what is not visible. Plain text only, "
+    "no markdown."
+)
+
+# Vision models answer with a conversational failure instead of OCR when the
+# provider key is missing, the model is overloaded, or the request is
+# rejected. Those strings were previously accepted as document text and
+# indexed as memory content: three rows in the default store read
+# "I'm sorry, I couldn't generate a response. Please check your API key
+# configurati…" — garbage that then polluted recall. Treat them as "no text".
+# Markers are deliberately SPECIFIC: a generic "sorry" would reject the OCR of
+# a genuine letter.
+_VISION_FAILURE_MARKERS = (
+    "couldn't generate a response",
+    "could not generate a response",
+    "please check your api key",
+    "check your api key configuration",
+    "api key not configured",
+    "no api key",
+    "insufficient balance",
+    "insufficient credits",
+    "quota exceeded",
+    "rate limit exceeded",
+    "unable to process this image",
+)
+
+
+def _looks_like_vision_failure(text: str) -> bool:
+    """True when a vision-LLM reply is an error/refusal, not extracted text."""
+    lowered = (text or "").strip().lower()
+    if not lowered:
+        return False
+    return any(marker in lowered for marker in _VISION_FAILURE_MARKERS)
+
 DEFAULT_TESSERACT_TIMEOUT_SECONDS = 30
 DEFAULT_VISION_MAX_TOKENS = 2048
 
@@ -101,6 +143,13 @@ def vision_ocr_enabled() -> bool:
     from core.runtime_settings import get_bool_setting
 
     return bool(get_bool_setting("ATOM_IMAGE_OCR_VISION_ENABLED", True))
+
+
+def image_describe_enabled() -> bool:
+    """Master switch for the textless-image DESCRIPTION fallback."""
+    from core.runtime_settings import get_bool_setting
+
+    return bool(get_bool_setting("ATOM_IMAGE_DESCRIBE_ENABLED", True))
 
 
 def tesseract_command() -> Optional[str]:
@@ -269,7 +318,53 @@ async def _vision_ocr_text(content: bytes, filename: str, content_type: str) -> 
     )
     if not isinstance(response, dict):
         return ""
-    return str(response.get("content") or response.get("text") or "").strip()
+    text = str(response.get("content") or response.get("text") or "").strip()
+    if _looks_like_vision_failure(text):
+        logger.info(
+            "Vision OCR returned a failure message for %s — treating as no text",
+            filename,
+        )
+        return ""
+    return text
+
+
+async def _vision_describe_text(content: bytes, filename: str, content_type: str) -> str:
+    """Vision-LLM DESCRIPTION of a textless image. "" when no vision model."""
+    from core.llm_service import get_llm_service
+
+    service = get_llm_service()
+    if not service.is_available():
+        return ""
+
+    data_url = (
+        f"data:{_mime_for(filename, content_type)};base64,"
+        f"{base64.b64encode(content).decode('ascii')}"
+    )
+    response = await service.generate_completion(
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": _VISION_DESCRIBE_PROMPT},
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                ],
+            }
+        ],
+        model="auto",
+        temperature=0.0,
+        max_tokens=DEFAULT_VISION_MAX_TOKENS,
+        task_type="image_comprehension",
+    )
+    if not isinstance(response, dict):
+        return ""
+    text = str(response.get("content") or response.get("text") or "").strip()
+    if _looks_like_vision_failure(text):
+        logger.info(
+            "Vision description returned a failure message for %s — ignoring",
+            filename,
+        )
+        return ""
+    return text
 
 
 # ─── public entry point ──────────────────────────────────────────────────────
@@ -298,6 +393,7 @@ async def ocr_image_bytes(
     content_type: str = "",
     *,
     min_text_chars: int = 0,
+    describe_when_textless: bool = False,
 ) -> Dict[str, Any]:
     """Extract text from one image via the local → vision ladder.
 
@@ -308,6 +404,12 @@ async def ocr_image_bytes(
         min_text_chars: Drop results shorter than this. Inline email images
             pass a floor so signature blocks and logos that OCR to a word or
             two are not indexed; real file attachments pass 0.
+        describe_when_textless: After both text engines find nothing, ask the
+            vision model to DESCRIBE the image instead of dropping it. Used by
+            the explicit on-demand attachment pull: a product photo has no
+            text layer, and without this it never reaches memory. Bulk
+            ingestion leaves it False so the poller stays cheap and
+            descriptions never turn signature images into memory noise.
 
     Returns:
         ``{"success", "text", "engine", "chars", "reason"}``. Never raises.
@@ -343,6 +445,20 @@ async def ocr_image_bytes(
                 candidate = ""
             if (candidate or "").strip():
                 text, engine = candidate.strip(), "vision"
+
+        # Textless image (product photo, machine picture): a DESCRIPTION is
+        # the only usable content. Tagged so recall can tell a description
+        # apart from extracted text.
+        if not text and describe_when_textless and image_describe_enabled():
+            attempted.append("vision-description")
+            try:
+                candidate = await _vision_describe_text(content, filename, content_type)
+            except Exception as exc:  # noqa: BLE001 — describe is best-effort
+                logger.debug(f"vision describe failed for {filename}: {exc}")
+                candidate = ""
+            if (candidate or "").strip():
+                text = f"Image description: {candidate.strip()}"
+                engine = "vision-description"
 
         if not text:
             return _result(

@@ -362,11 +362,12 @@ class MCPService(IntegrationService):
                 },
                 {
                     "name": "ingest_message_attachment",
-                    "description": "Extract and ingest an attachment from a message into memory",
+                    "description": "Fetch an email's attachment(s) from the connected mailbox and add their text to memory so it is recallable (PDF/DOCX/XLSX text; images via OCR). Idempotent — content already in memory is skipped. Pass attachment_id to target one attachment; omit it to ingest every attachment on the message.",
                     "parameters": {
-                        "message_id": "string", 
-                        "attachment_id": "string",
-                        "file_name": "string (optional)"
+                        "message_id": "string",
+                        "attachment_id": "string (optional — omit to ingest every attachment on the message)",
+                        "platform": "string (outlook or gmail; optional — inferred from the connected mailbox)",
+                        "file_name": "string (optional label used when the provider omits the filename)"
                     }
                 },
                 {
@@ -1261,6 +1262,61 @@ class MCPService(IntegrationService):
 
         return {"error": f"Tool '{tool_name}' not found on any active server."}
 
+    async def _ingest_message_attachment(
+        self, arguments: Dict[str, Any], context: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Fetch a mailbox message's attachment(s) and index their text into
+        memory — the real implementation behind the local-tools
+        ``ingest_message_attachment`` action.
+
+        The action used to be a placeholder that returned "Successfully
+        ingested … 0 knowledge edges" without touching the attachment. That
+        fabricated success is what let an agent report an attachment as
+        accessible while memory still had nothing: the Graph webhook path
+        fetches messages WITHOUT attachment bytes, so binary attachments that
+        arrived on that channel are absent until something pulls them.
+
+        Governance: the per-user ``email_attachment`` autonomy topic gates it
+        (same knob as the ``email_attachment_*`` / ``email_ingest_message``
+        tools), so an owner who pinned that topic to human approval still gets
+        a proposal. Gate lookup failures fail OPEN — this is a reversible
+        memory write, not a send, and a DB hiccup must not stop the agent from
+        reading mail the user pointed it at.
+        """
+        user_id = (
+            (context or {}).get("user_id")
+            or arguments.get("user_id")
+            or "default_user"
+        )
+        agent_id = (context or {}).get("agent_id")
+        try:
+            from core.database import get_db_session
+            from tools.email_attachment_tool import _gate
+
+            with get_db_session() as db:
+                gated = _gate(db, user_id, agent_id)
+            if gated:
+                return gated
+        except Exception as gate_err:  # noqa: BLE001 — fail-open (reversible write)
+            logger.debug(
+                "ingest_message_attachment autonomy gate skipped: %s", gate_err
+            )
+
+        from core.email_attachment_ingestion import (
+            ingest_message_attachments_on_demand,
+        )
+
+        return await ingest_message_attachments_on_demand(
+            user_id=user_id,
+            message_id=arguments.get("message_id") or arguments.get("id") or "",
+            attachment_id=arguments.get("attachment_id") or "",
+            platform=arguments.get("platform") or arguments.get("provider") or "",
+            filename_hint=arguments.get("file_name") or "",
+            workspace_id=(context or {}).get("workspace_id")
+            or arguments.get("workspace_id"),
+            agent_id=agent_id,
+        )
+
     async def _check_hitl_policy(self, workspace_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """
         Checks if the action violates tenant governance policies.
@@ -1676,12 +1732,7 @@ class MCPService(IntegrationService):
                     )
 
             elif tool_name == "ingest_message_attachment":
-                # TODO: Actual ingestion logic is not implemented; returning
-                # a placeholder result with safe defaults.
-                file_name = arguments.get("file_name", "attachment")
-                edges = 0
-                graphrag = {}
-                return f"Successfully ingested attachment '{file_name}'. Extracted {edges} knowledge edges. GraphRAG: {graphrag.get('entities', 0)} entities, {graphrag.get('relationships', 0)} relationships."
+                return await self._ingest_message_attachment(arguments, context)
 
             elif tool_name.startswith("shopify_"):
                 from integrations.shopify_service import ShopifyService

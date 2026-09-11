@@ -7834,3 +7834,35 @@ here). mypy baseline unchanged — HEAD and post-change both report the same 27
 errors in `auto_document_ingestion.py`; `image_ocr.py` and
 `email_attachment_ingestion.py` are clean.
 
+
+---
+
+## Session 2026-09-11g (agent can ingest from the integration into memory on demand)
+
+**Context**: a canvas co-editor turn needed the image attached to "Chandrakant's
+original quote email" and answered *"the image itself isn't in any data I can
+access"*. Verified against the live store (`data/atom_memory/default`):
+`ingest_message_attachment` was advertised to agents but was a PLACEHOLDER that
+returned `"Successfully ingested … 0 knowledge edges"` without fetching
+anything; the live-evidence tool planner (chat lane AND canvas co-editor) had no
+way to pull a mailbox message into memory; and images with no text layer were
+dropped as `no_text` (only 6 image docs existed, three of them literal
+vision-LLM error strings).
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/email_attachment_ingestion.py` | NEW `ingest_message_attachments_on_demand(...)`: provider-resolved (outlook/gmail, explicit or inferred from connected mailbox) fetch of a message's attachment(s) → shared `ingest_email_attachment_bytes`. Idempotent: documented doc-id probe short-circuits `already_ingested` without a download; truthful per-attachment statuses (indexed/already_ingested/unsupported/error); spotlight-wrapped `text` preview. `ingest_email_attachment_bytes` gained `describe_images=` + `text_preview` passthrough | `tests/test_on_demand_attachment_ingest.py` (13, new) |
+| `backend/integrations/mcp_service.py` | `ingest_message_attachment` dispatch: placeholder → real `_ingest_message_attachment()` (autonomy-topic gate, fail-open on lookup error); catalog entry now names `platform`, optional `attachment_id` (omit = all attachments), idempotency and OCR | `tests/test_on_demand_attachment_ingest.py` dispatch cases; 4 stale covpush tests re-contracted (they locked the fabricated success) |
+| `backend/core/chat_tool_planner.py` | NEW mailbox `ingest` intent for `outlook`/`gmail`: resolves a message id (Graph id direct, else per-term fan-out) → `ingest_email_on_demand` → memory read-back. Gated by the `email_attachment` topic + `ATOM_PLANNER_INGEST_ENABLED`; planner prompt now forbids reporting email content inaccessible without trying `ingest` | `tests/test_tool_planner_mailbox_ingest.py` (8, new) |
+| `backend/core/image_ocr.py` | Vision failure/refusal text ("I'm sorry, I couldn't generate a response…", "insufficient balance") is never accepted as document text; NEW textless-image DESCRIPTION fallback (`describe_when_textless=`), master switch `ATOM_IMAGE_DESCRIBE_ENABLED` | `tests/test_image_ocr.py` (40) |
+| `backend/core/auto_document_ingestion.py` | `image_describe=` plumbed `process_file_bytes` → `parse_document` → `_parse_image` → `ocr_image_bytes`; `text_preview` added to the `process_file_bytes` success return | `tests/test_image_ocr.py` parser case; `tests/test_email_attachment_memory_index.py` |
+| `backend/integrations/atom_communication_ingestion_pipeline.py` | `ingest_message(..., describe_images=)` → `_ingest_binary_attachments`; `ingest_email_on_demand` passes `True` (explicit pull describes textless images; poller/webhook default False) | `tests/test_on_demand_attachment_ingest.py` pipeline case |
+| `backend/core/settings_catalog.py` | `ATOM_PLANNER_INGEST_ENABLED`, `MAX_ON_DEMAND_ATTACHMENTS_FETCHED`, `ATOM_IMAGE_DESCRIBE_ENABLED` (Email & Attachments) | `tests/test_runtime_settings*.py` green |
+
+**Verification**: 543 passed across the 11 affected suites
+(on-demand/MCP/planner/image-OCR/attachment/pipeline); 3 pre-existing failures
+in `test_chat_tool_planner_web.py` + `test_context_window_adaptation.py` and 1
+in `test_covpush_w34_auto_document.py` fail identically on the unmodified
+baseline (confirmed by stash). Discovery checked at the boundary: the tool is
+exposed by `get_server_tools("local-tools")` with params
+`[message_id, attachment_id, platform, file_name]`.

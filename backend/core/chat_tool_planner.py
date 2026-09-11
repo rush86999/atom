@@ -94,6 +94,9 @@ _COMMUNICATION_SERVICES = (
     "gmail", "slack", "teams", "discord", "google_chat", "telegram",
     "whatsapp", "zoho_mail",
 )
+# Mailbox providers that support the on-demand `ingest` intent (pull a
+# message's body + attachments from the integration INTO memory).
+_MAILBOX_SERVICES = ("outlook", "gmail")
 
 
 def _haystack_has_address(query: str, context: Optional[Dict[str, Any]]) -> bool:
@@ -145,8 +148,8 @@ for _storage_svc in _STORAGE_SERVICES:
 # Short human descriptions the planner reads (kept compact — this prompt
 # rides on every chat turn).
 _SERVICE_DESCRIPTIONS = {
-    "outlook": "email mailbox — search messages by name, subject, company, keyword (top hits return with FULL bodies); `read` intent pulls FULL message bodies incl. quoted/forwarded threads when previews are cut off",
-    "gmail": "email mailbox — search messages",
+    "outlook": "email mailbox — search messages by name, subject, company, keyword (top hits return with FULL bodies); `read` intent pulls FULL message bodies incl. quoted/forwarded threads when previews are cut off; `ingest` intent pulls a named message's body AND attachments into memory when they are not there yet (PDF/DOCX text; images OCR'd, textless photos described)",
+    "gmail": "email mailbox — search messages; `ingest` intent pulls a message's body + attachments into memory on demand",
     "slack": "team chat — search messages and channels",
     "teams": "team chat — search messages",
     "discord": "community chat — search messages",
@@ -301,7 +304,8 @@ Rules:
   "brennan.ca WG-350DSAV"). Search results carry the real URLs; fetching
   the site's homepage cannot enumerate a site, and inventing a URL from a
   pattern (adding "/products/…" to the model number) is fabrication.
-- Read-only: search/list intents for lookups; `read` intent ONLY for the
+- Read-only EXCEPT the mailbox `ingest` intent: search/list intents for
+  lookups; `read` intent ONLY for the
   file-storage services, when the user wants a specific row, value, price,
   figure or section OUT OF a named document ("open the catalog and find the
   ABC-1234 row" → read; "what files do I have about X" → search — search
@@ -314,7 +318,16 @@ Rules:
   WorkDrive") after a content request is still a READ — the earlier turns
   own the what-for ("check X for the price"), this message adds the where;
   planning search again just re-lists the file name the user already named.
-  Never plan sends, writes, or deletes.
+- NEVER plan sends, deletes, or edits. The ONE exception is the mailbox
+  `ingest` intent (outlook/gmail): it copies a named message's body AND
+  attachments (images via OCR) from the connected mailbox INTO the
+  workspace's own memory, so content the poller never indexed becomes
+  recallable. Plan it when the user needs content that lives in an email —
+  an attachment, a product image, a quoted/forwarded thread — and the
+  conversation shows it is NOT already available; it is idempotent, so a
+  repeat ask is a no-op. Never report email content as inaccessible without
+  planning `ingest` first. Query = the sender/subject/keywords that name the
+  message (or the provider message id itself).
 - ALSO classify the turn for routing: suggested_intent is ONE of
   search_request | message_send | task_management | workflow_creation |
   scheduling | data_analysis | automation_trigger | integration_setup |
@@ -750,6 +763,8 @@ async def plan_tool_use(
         allowed_intents = {"search", "list"}
         if plan.service in _STORAGE_SERVICES or plan.service == "outlook":
             allowed_intents.add("read")
+        if plan.service in _MAILBOX_SERVICES:
+            allowed_intents.add("ingest")
         if plan.intent not in allowed_intents:
             plan.intent = "search"
         if not (plan.query or "").strip():
@@ -1807,6 +1822,169 @@ async def _site_search_evidence(
         return None
 
 
+def _planner_ingest_enabled() -> bool:
+    """Kill switch for the planner's mailbox ``ingest`` leg (env > UI > on)."""
+    try:
+        from core.runtime_settings import get_bool_setting
+
+        return bool(get_bool_setting("ATOM_PLANNER_INGEST_ENABLED", True))
+    except Exception:  # noqa: BLE001 — a settings lookup must never block
+        return True
+
+
+async def _resolve_mailbox_message_ids(
+    service: str, user_id: Optional[str], query: str, limit: int = 2
+) -> List[str]:
+    """Message ids for the ingest leg.
+
+    A bare provider id is authoritative and used directly (Graph ids are not
+    searchable text). Otherwise the mailbox is searched with the same
+    per-term fan-out the search leg uses — Graph's OR-ranking buries rare
+    terms under common ones — and the top hits are returned. [] on any
+    failure or miss.
+    """
+    query = (query or "").strip()
+    if not query:
+        return []
+    if service == "outlook" and _GRAPH_ID_RE.match(query):
+        return [query]
+
+    ids: List[str] = []
+
+    def _remember(candidate: Any) -> None:
+        if candidate and str(candidate) not in ids:
+            ids.append(str(candidate))
+
+    try:
+        if service == "outlook":
+            from integrations.outlook_service import (
+                outlook_service,
+                sanitize_graph_kql,
+            )
+
+            for term in ([t for t in query.split() if len(t) >= 2][:3] or [query]):
+                kql = sanitize_graph_kql(term)
+                if not kql:
+                    continue
+                emails = await outlook_service.search_emails(
+                    user_id=user_id, query=kql, max_results=5, quote=False
+                )
+                for e in emails or []:
+                    _remember(e.get("id"))
+                if len(ids) >= limit:
+                    break
+        else:
+            from integrations.gmail_service import GmailService
+
+            def _search() -> List[Dict[str, Any]]:
+                svc = GmailService()
+                if not svc.service:
+                    try:
+                        svc._authenticate()
+                    except Exception:  # noqa: BLE001 — reported as a miss
+                        return []
+                return svc.get_messages(query=query, max_results=5) or []
+
+            for m in await asyncio.to_thread(_search):
+                _remember(m.get("id"))
+                if len(ids) >= limit:
+                    break
+    except Exception as e:  # noqa: BLE001 — the leg reports the miss honestly
+        logger.warning(f"mailbox ingest message lookup failed ({service}): {e}")
+        return []
+    return ids[:limit]
+
+
+async def _mailbox_ingest_block(
+    service: str,
+    user_id: Optional[str],
+    query: str,
+    context: Optional[Dict[str, Any]],
+) -> str:
+    """Pull a mailbox message's body + attachments INTO memory, then return
+    the freshly indexed evidence.
+
+    Why this leg exists: the Graph webhook path fetches messages WITHOUT
+    attachment bytes, so binary attachments (product photos, scanned quotes)
+    never reach memory, and mail predating the pipeline is absent too. An
+    agent asked to use such content could only report it inaccessible. The
+    poller is not the fix — the agent needs to be able to say "fetch it now".
+
+    Governance: the per-user ``email_attachment`` autonomy topic gates it
+    (same knob as the email_attachment_* agent tools); a pinned
+    human-approval setting returns a proposal block instead of writing.
+    """
+    label = f"mailbox ingest, {service}, query='{query}'"
+    if not _planner_ingest_enabled():
+        return _with_grounding(
+            f"LIVE TOOL RESULTS ({label}): on-demand ingest is disabled by "
+            "configuration."
+        )
+
+    agent_id = (context or {}).get("agent_id")
+    try:
+        from core.database import get_db_session
+        from tools.email_attachment_tool import _gate
+
+        with get_db_session() as db:
+            gated = _gate(db, user_id, agent_id)
+        if gated:
+            return _with_grounding(
+                f"LIVE TOOL RESULTS ({label}): needs owner approval — "
+                f"{gated.get('reason') or 'the email_attachment autonomy topic is pinned to review'}"
+            )
+    except Exception as gate_err:  # noqa: BLE001 — fail-open (reversible write)
+        logger.debug(f"mailbox ingest autonomy gate skipped: {gate_err}")
+
+    message_ids = await _resolve_mailbox_message_ids(service, user_id, query)
+    if not message_ids:
+        return _with_grounding(
+            f"LIVE TOOL RESULTS ({label}): no matching message found in the "
+            "mailbox to ingest."
+        )
+
+    from integrations.atom_communication_ingestion_pipeline import (
+        ingestion_pipeline,
+    )
+
+    lines: List[str] = []
+    for message_id in message_ids:
+        try:
+            result = await ingestion_pipeline.ingest_email_on_demand(
+                service, user_id or "", message_id
+            )
+        except Exception as e:  # noqa: BLE001 — one bad message must not kill the leg
+            logger.warning(f"on-demand ingest failed for {message_id}: {e}")
+            result = {"status": "error", "reason": str(e)[:200]}
+        status = result.get("status")
+        short_id = message_id[:24]
+        if status == "ingested":
+            lines.append(
+                f"- message {short_id}… INGESTED | subject: "
+                f"{str(result.get('subject') or '(no subject)')[:100]} | "
+                f"attachments indexed: {result.get('attachments') or 0}"
+            )
+        elif status == "already_ingested":
+            lines.append(f"- message {short_id}… already in memory (no-op)")
+        else:
+            lines.append(
+                f"- message {short_id}… could not be ingested: "
+                f"{result.get('reason') or status}"
+            )
+
+    mem_block = await _memory_search_block(user_id, query, context)
+    detail = (
+        f"\n\nNow in memory:\n{mem_block}"
+        if mem_block
+        else "\n\n(no indexed excerpt matched the query yet — search memory "
+        "again or widen the query)"
+    )
+    return _with_grounding(
+        f"LIVE TOOL RESULTS ({label}) — content pulled from the connected "
+        f"mailbox into memory just now:\n" + "\n".join(lines) + detail
+    )
+
+
 async def execute_tool_plan(
     plan: ToolPlan,
     user_id: Optional[str],
@@ -1826,6 +2004,13 @@ async def execute_tool_plan(
         return None
     service = plan.service
     query = (plan.query or "").strip()
+
+    # Mailbox on-demand INGEST: the one write this planner performs. Runs
+    # BEFORE the web-query rewrite (the query names a message, not a search
+    # phrase) and before the search/read legs — the user needs the content
+    # pulled from the integration into memory, not another metadata listing.
+    if service in _MAILBOX_SERVICES and (plan.intent or "") == "ingest":
+        return await _mailbox_ingest_block(service, user_id, query, context)
 
     if service in ("web_search", "web_fetch"):
         try:

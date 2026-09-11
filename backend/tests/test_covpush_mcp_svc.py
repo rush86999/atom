@@ -922,10 +922,13 @@ class TestExecuteToolLocalTools:
 
     @pytest.mark.asyncio
     async def test_ingest_message_attachment(self, svc):
+        # Real ingestion now — a call without message_id is an honest failure
+        # rather than the old fabricated "Successfully ingested" placeholder.
         result = await svc.execute_tool(
             "local-tools", "ingest_message_attachment", {"file_name": "f.txt"}, {}
         )
-        assert "ingested" in result
+        assert result["success"] is False
+        assert "message_id" in result["error"]
 
     @pytest.mark.asyncio
     async def test_shopify_no_store(self, svc, monkeypatch):

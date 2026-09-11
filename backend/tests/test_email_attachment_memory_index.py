@@ -66,12 +66,37 @@ async def test_ingest_maps_processed_to_indexed():
             email_from="boss@corp.test",
         )
 
-    assert result == {"status": "indexed", "doc_id": "ext_abc", "chars": 420}
+    assert result == {
+        "status": "indexed",
+        "doc_id": "ext_abc",
+        "chars": 420,
+        "text_preview": "",
+    }
     kwargs = mock.await_args.kwargs
     assert kwargs["external_id"] == "m1:a1"  # stable, source-scoped identity
     assert kwargs["source"] == "outlook"
     assert kwargs["extra_metadata"]["source_type"] == "email_attachment"
     assert kwargs["extra_metadata"]["email_subject"] == "Q3 numbers"
+
+
+@pytest.mark.asyncio
+async def test_ingest_passes_extracted_preview_to_on_demand_callers():
+    """On-demand callers (agent attachment ingest) show the content in the
+    same turn instead of re-parsing the bytes — a second OCR pass would double
+    the vision-LLM cost."""
+    with _ingest_patch(
+        {
+            "status": "ingested",
+            "doc_id": "ext_abc",
+            "chars_ingested": 12,
+            "text_preview": "Machine photo: BS-460GB",
+        }
+    ):
+        result = await ingest_email_attachment_bytes(
+            provider="outlook", message_id="m1", attachment_id="a1",
+            filename="photo.png", content=b"PNG",
+        )
+    assert result["text_preview"] == "Machine photo: BS-460GB"
 
 
 @pytest.mark.asyncio

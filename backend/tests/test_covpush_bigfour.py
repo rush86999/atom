@@ -3202,9 +3202,12 @@ class TestMCPLocalToolsExtra:
 
     @pytest.mark.asyncio
     async def test_ingest_message_attachment(self, svc):
+        # Real ingestion now — no message_id is an honest failure, not the
+        # old fabricated "Successfully ingested" placeholder string.
         result = await svc.execute_tool("local-tools", "ingest_message_attachment",
                                         {"file_name": "f.pdf"}, {})
-        assert "Successfully ingested" in result
+        assert result["success"] is False
+        assert "message_id" in result["error"]
 
     @pytest.mark.asyncio
     async def test_unified_knowledge_search_query_skip(self, svc, monkeypatch):

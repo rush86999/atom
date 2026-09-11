@@ -334,7 +334,8 @@ class DocumentParser:
     @staticmethod
     async def parse_document(file_content: bytes, file_type: str, file_name: str,
                              max_chars: Optional[int] = None,
-                             image_min_chars: int = 0) -> str:
+                             image_min_chars: int = 0,
+                             image_describe: bool = False) -> str:
         """Parse document and extract text content.
 
         ``max_chars`` overrides the per-file extraction budget for this call
@@ -346,6 +347,9 @@ class DocumentParser:
         shorter than this is treated as decorative (signature block, logo,
         tracking pixel) and yields "". Inline email images pass a floor;
         real file attachments pass 0 and keep every character.
+
+        ``image_describe`` asks for a vision DESCRIPTION when an image has no
+        text layer (see ``_parse_image``); explicit on-demand pulls set it.
         """
         try:
             # Try docling first for supported formats
@@ -401,6 +405,7 @@ class DocumentParser:
                 return await DocumentParser._parse_image(
                     file_content, file_name, file_type,
                     max_chars=max_chars, min_text_chars=image_min_chars,
+                    describe_when_textless=image_describe,
                 )
 
             else:
@@ -698,13 +703,18 @@ class DocumentParser:
     @staticmethod
     async def _parse_image(file_content: bytes, file_name: str, file_type: str,
                            max_chars: Optional[int] = None,
-                           min_text_chars: int = 0) -> str:
+                           min_text_chars: int = 0,
+                           describe_when_textless: bool = False) -> str:
         """OCR one standalone image via the local → vision ladder.
 
         Reached only after Docling declined (unavailable or produced nothing),
         this is the fallback that makes image attachments searchable on a
         default install — previously every image returned "". Never raises: a
         failure returns "" and the caller records ``no_text``.
+
+        ``describe_when_textless`` (explicit on-demand pulls only) asks the
+        vision model for a DESCRIPTION when no text layer exists, so a product
+        photo still lands in memory instead of being dropped as ``no_text``.
         """
         try:
             from core.image_ocr import ocr_image_bytes
@@ -713,6 +723,7 @@ class DocumentParser:
                 file_content,
                 filename=file_name,
                 min_text_chars=min_text_chars,
+                describe_when_textless=describe_when_textless,
             )
             text = (result.get("text") or "").strip()
             if not text:
@@ -1107,6 +1118,7 @@ class AutoDocumentIngestionService:
         external_id: Optional[str] = None,
         explicit: bool = True,
         image_min_chars: int = 0,
+        image_describe: bool = False,
     ) -> Dict[str, Any]:
         """Parse raw file bytes and ingest the extracted text into Atom memory.
 
@@ -1136,6 +1148,10 @@ class AutoDocumentIngestionService:
             image_min_chars: Image inputs only — OCR text shorter than this is
                 treated as decorative (inline email signature/logo) and skipped.
                 Real file attachments pass 0 (keep every character).
+            image_describe: Image inputs only — when no text layer exists, ask
+                the vision model to describe the image so it still lands in
+                memory. Explicit on-demand attachment pulls set this; bulk
+                syncs leave it False to keep ingestion cheap.
 
         Returns:
             Dict with ``status``, ``file_name``, ``chars_ingested``, ``doc_id``.
@@ -1239,7 +1255,8 @@ class AutoDocumentIngestionService:
 
         try:
             text = await self.parser.parse_document(
-                content, file_ext, file_name, image_min_chars=image_min_chars
+                content, file_ext, file_name, image_min_chars=image_min_chars,
+                image_describe=image_describe,
             )
         except Exception as parse_err:
             logger.warning(f"Failed to parse {file_name} ({file_ext}): {parse_err}")
@@ -1423,6 +1440,11 @@ class AutoDocumentIngestionService:
             "chars_ingested": chars_ingested,
             "source": source,
             "doc_id": _file_doc_id,
+            # Callers that need to SHOW the content (on-demand attachment
+            # fetches) read this instead of re-parsing the bytes — a second
+            # parse would double the OCR/vision cost. Capped; the durable
+            # copy is the memory row itself.
+            "text_preview": text[:2000] if text else "",
         }
 
     async def ingested_external_ids(self, source: str, external_ids: List[str]) -> List[str]:

@@ -583,7 +583,8 @@ class TestExecuteToolLocalTools:
     async def test_ingest_message_attachment(self):
         svc = _svc()
         r = await _run_local(svc, "ingest_message_attachment", {"file_name": "f.pdf"})
-        assert "ingested" in r
+        assert r["success"] is False
+        assert "message_id" in r["error"]
 
     async def test_shopify_tools(self):
         svc = _svc()

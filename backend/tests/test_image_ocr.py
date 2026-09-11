@@ -276,3 +276,114 @@ async def test_parse_document_image_ocr_failure_returns_no_text():
         text = await DocumentParser.parse_document(_image(800, 600), "png", "scan.png")
 
     assert text == ""
+
+
+
+# ─── vision failure messages must never become document text ────────────────
+
+
+@pytest.mark.asyncio
+async def test_vision_failure_message_is_not_treated_as_ocr_text():
+    """A missing/misconfigured BYOK key makes the vision model reply with a
+    conversational error; indexing that string as document content pollutes
+    recall (live: three memory rows read "I'm sorry, I couldn't generate a
+    response. Please check your API key configurati…")."""
+    failure = (
+        "I'm sorry, I couldn't generate a response. Please check your API key "
+        "configuration and try again."
+    )
+    with patch.object(image_ocr, "tesseract_command", return_value=None), patch(
+        "core.llm_service.get_llm_service"
+    ) as get_llm:
+        service = get_llm.return_value
+        service.is_available.return_value = True
+        service.generate_completion = AsyncMock(return_value={"content": failure})
+        result = await image_ocr.ocr_image_bytes(_image(800, 600), "photo.png", "image/png")
+
+    assert result["success"] is False
+    assert result["text"] == ""
+
+
+def test_looks_like_vision_failure_markers():
+    assert image_ocr._looks_like_vision_failure(
+        "I'm sorry, I couldn't generate a response."
+    )
+    assert image_ocr._looks_like_vision_failure("Error: insufficient balance")
+    assert image_ocr._looks_like_vision_failure("Please check your API key configuration")
+    # Real OCR content is never rejected.
+    assert not image_ocr._looks_like_vision_failure("Invoice total 1,240.00 CAD")
+    assert not image_ocr._looks_like_vision_failure("Sorry for the delay — see specs below")
+    assert not image_ocr._looks_like_vision_failure("")
+
+
+# ─── textless images: description fallback (explicit on-demand pulls) ───────
+
+
+@pytest.mark.asyncio
+async def test_textless_image_gets_description_when_requested():
+    """A product photo has no text layer; without a description it is dropped
+    as no_text and an agent can only report it inaccessible."""
+    with patch.object(image_ocr, "tesseract_command", return_value=None), patch.object(
+        image_ocr, "_vision_ocr_text", new=AsyncMock(return_value="")
+    ), patch.object(
+        image_ocr,
+        "_vision_describe_text",
+        new=AsyncMock(return_value="A metal bandsaw on a factory floor."),
+    ):
+        result = await image_ocr.ocr_image_bytes(
+            _image(800, 600), "photo.png", "image/png", describe_when_textless=True
+        )
+
+    assert result["success"] is True
+    assert result["engine"] == "vision-description"
+    assert result["text"].startswith("Image description:")
+    assert "bandsaw" in result["text"]
+
+
+@pytest.mark.asyncio
+async def test_textless_image_not_described_for_bulk_ingestion():
+    """The poller must not pay for a description per decorative image."""
+    with patch.object(image_ocr, "tesseract_command", return_value=None), patch.object(
+        image_ocr, "_vision_ocr_text", new=AsyncMock(return_value="")
+    ), patch.object(
+        image_ocr, "_vision_describe_text", new=AsyncMock(return_value="A photo")
+    ) as describe:
+        result = await image_ocr.ocr_image_bytes(_image(800, 600), "photo.png", "image/png")
+
+    assert result["success"] is False
+    describe.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_description_kill_switch(monkeypatch):
+    monkeypatch.setenv("ATOM_IMAGE_DESCRIBE_ENABLED", "false")
+    with patch.object(image_ocr, "tesseract_command", return_value=None), patch.object(
+        image_ocr, "_vision_ocr_text", new=AsyncMock(return_value="")
+    ), patch.object(
+        image_ocr, "_vision_describe_text", new=AsyncMock(return_value="A photo")
+    ) as describe:
+        result = await image_ocr.ocr_image_bytes(
+            _image(800, 600), "photo.png", "image/png", describe_when_textless=True
+        )
+
+    assert result["success"] is False
+    describe.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_parse_document_propagates_image_describe_flag():
+    from core.auto_document_ingestion import DocumentParser
+
+    with patch.object(DocumentParser, "_get_docling_processor", return_value=None), patch(
+        "core.image_ocr.ocr_image_bytes",
+        new=AsyncMock(return_value={
+            "success": True, "text": "Image description: a bandsaw",
+            "engine": "vision-description", "chars": 30, "reason": None,
+        }),
+    ) as ocr:
+        text = await DocumentParser.parse_document(
+            _image(800, 600), "png", "photo.png", image_describe=True
+        )
+
+    assert "a bandsaw" in text
+    assert ocr.await_args.kwargs["describe_when_textless"] is True

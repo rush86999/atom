@@ -502,9 +502,12 @@ async def test_local_collaboration_tools_import_missing(svc):
 
 
 async def test_local_ingest_message_attachment(svc):
-    res = await svc.execute_tool("local-tools", "ingest_message_attachment",
-                                 {"file_name": "spec.pdf"})
-    assert "spec.pdf" in res and "knowledge edges" in res
+    # Real provider-fetch + memory write now: with no message_id it must
+    # report that honestly instead of fabricating success (the old
+    # placeholder returned "Successfully ingested … 0 knowledge edges").
+    res = await svc.execute_tool("local-tools", "ingest_message_attachment", {})
+    assert res["success"] is False
+    assert "message_id" in res["error"]
 
 
 async def test_local_list_workflows(svc, base_env, tmp_path):
