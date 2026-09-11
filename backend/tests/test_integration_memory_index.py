@@ -107,6 +107,37 @@ def test_index_structure_writes_provenance_and_freshness_columns():
     assert by_text and any("[zoho_crm:lead]" in t for t in by_text)
 
 
+def test_index_structure_writes_with_the_real_sync_handler():
+    """Regression: LanceDBHandler.add_document is SYNC. The indexer used to
+    ``await`` it, which raised TypeError on every row and was swallowed by the
+    per-row guard — the structure index silently wrote ZERO rows in production
+    (the async mock in the test above hid it)."""
+    from core.drive_tree_ingestion import IntegrationMemoryIndexer
+
+    written: list = []
+
+    class _SyncHandler:
+        def add_document(self, **kwargs):  # sync, like production
+            written.append(kwargs)
+            return True
+
+    async def fake_adapter(user_id):
+        return [
+            {"external_id": "f-1", "kind": "file", "entity_type": "file",
+             "name": "Q3-contracts.pdf", "path": "Contracts/2026"},
+        ]
+
+    svc = IntegrationMemoryIndexer("default")
+    with patch("core.drive_tree_ingestion.STRUCTURE_ADAPTERS", {"onedrive": fake_adapter}), \
+         patch.object(svc, "_handler", return_value=_SyncHandler()):
+        out = get_event_loop().run_until_complete(
+            svc.index_structure("onedrive", "user-1")
+        )
+
+    assert out["rows_written"] == 1
+    assert written and "Q3-contracts.pdf" in written[0]["text"]
+
+
 # ============================================================================
 # Agent tools — just-in-time ingestion respects the user's settings
 # ============================================================================
@@ -153,20 +184,43 @@ def test_ingest_item_enforces_size_cap(monkeypatch):
     assert "cap" in out["error"]
 
 
-def test_record_apps_have_no_fetcher_and_say_so(monkeypatch):
-    """CRM/Books/Inventory rows already carry their fields — the tool
-    explains instead of pretending to download bytes."""
+def test_record_apps_ingest_from_live_search(monkeypatch):
+    """Record apps have no file bytes, but they ARE ingestible now: the
+    general on-demand path renders the live record's fields to searchable
+    text (previously the tool refused with "no file-fetch adapter")."""
     import tools.drive_tool as dt
 
     monkeypatch.setattr(dt, "_settings_for", lambda iid, ws: None)
-    monkeypatch.setitem(dt.STRUCTURE_ADAPTERS, "zoho_crm", AsyncMock(return_value=[]))
-    assert "zoho_crm" not in dt.FILE_FETCHERS
+    captured = {}
+
+    async def fake_ingest(integration_id, user_id, **kwargs):
+        captured["integration_id"] = integration_id
+        captured["user_id"] = user_id
+        captured.update(kwargs)
+        return {
+            "success": True, "integration_id": integration_id,
+            "strategy": "records", "ingested": 1, "already_ingested": 0,
+            "skipped": 0, "items": [], "message": "ok",
+        }
+
+    monkeypatch.setattr(
+        "core.drive_tree_ingestion.ingest_integration_content", fake_ingest
+    )
 
     out = get_event_loop().run_until_complete(
-        dt.integration_ingest_item("zoho_crm", "lead-1")
+        dt.integration_ingest_item("zoho_crm", query="Acme lead")
     )
+    assert out["success"] is True
+    assert captured["integration_id"] == "zoho_crm"
+    assert captured["query"] == "Acme lead"
+
+
+def test_ingest_item_requires_an_id_or_query(monkeypatch):
+    import tools.drive_tool as dt
+
+    out = get_event_loop().run_until_complete(dt.integration_ingest_item("zoho_crm"))
     assert out["success"] is False
-    assert "no file-fetch adapter" in out["error"]
+    assert "external_id or query" in out["error"]
 
 
 # ============================================================================

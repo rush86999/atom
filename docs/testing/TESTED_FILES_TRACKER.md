@@ -8076,3 +8076,40 @@ warning comes from the communications table's own LanceDB index (a prebuilt
 IVF index written by a newer LanceDB than the reader); retrieval is unaffected
 because the query falls back to a full scan.
 
+
+---
+
+## Session 2026-09-11h (generalize on-demand ingest to ALL integrations)
+
+**Context**: the on-demand ingest shipped for mailbox attachments; the ask was
+to generalize it. Two findings drove the design:
+
+1. `integration_ingest_item` (the existing JIT-ingest tool) only covered
+   integrations in `STRUCTURE_ADAPTERS` with a `FILE_FETCHERS` entry — 4 drives
+   — and EXPLICITLY refused record apps ("no file-fetch adapter"), so CRM /
+   Books / Inventory / support / PM services had no on-demand path at all.
+2. `IntegrationMemoryIndexer.index_structure` did `await handler.add_document(…)`
+   on a **sync** `LanceDBHandler.add_document` — TypeError on every row,
+   swallowed by the per-row guard, so the structure index wrote ZERO rows in
+   production (the async mock in its test hid it). `integration_search_index`
+   therefore searched an index nothing wrote.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/drive_tree_ingestion.py` | NEW `ingest_integration_content()` — one entry point for EVERY connected integration: mailbox → pipeline full-message ingest; storage → the shared find→open→read leg (which already ingests); everything else → live `UniversalIntegrationService.search` → `render_integration_record()` → documents store under `ext_sha1(service:external_id)` (same id the file path uses, so ONE `ingested_external_ids` probe covers both). Selective-ingestion gate applied once, for every family. NEW `_write_document()` handles sync (production) and async (test) handlers; `index_structure` uses it (bug fix above) | `tests/test_integration_general_ingest.py` (12, new); `tests/test_integration_memory_index.py::test_index_structure_writes_with_the_real_sync_handler` |
+| `backend/tools/drive_tool.py` | `integration_ingest_item` generalized: `query` param + optional `external_id`; no-fetcher / no-exact-id integrations delegate to the general function instead of erroring. Registry description/params updated to cover all integrations | `tests/test_integration_memory_index.py` (record-app case rewritten to the new capability) |
+| `backend/core/chat_tool_planner.py` | `ingest` intent allowed for every connected integration (`_INGEST_EXCLUDED_SERVICES` = web_search/web_fetch/memory/datasets); NEW `_integration_ingest_block()` (governance + evidence framing) alongside the mailbox leg; planner prompt generalized ("never report content inaccessible without planning ingest") | `tests/test_integration_general_ingest.py` planner cases; `tests/test_tool_planner_mailbox_ingest.py` |
+| `backend/core/autonomy_policy.py` | NEW `integration_ingest` topic (label/description/gate: `integration_ingest_write`, INTERN floor, own trust domain) | `tests/test_autonomy_policy_gate.py` (green) |
+| `backend/core/agent_governance_service.py` | `integration_ingest_write: 2` (moderate, INTERN+) — exact key so it cannot fall to the generic default | `tests/test_agent_governance_service.py` |
+
+**Verification**: 12 new general-ingest tests + the rewritten record-app case,
+`test_index_structure_writes_with_the_real_sync_handler` (fails against the old
+`await`), 33 passed in the integration/planner batch, 81 passed across the
+autonomy/governance/planner suites. Pre-existing failures confirmed unchanged
+by baseline stash: `test_jit_office_file_opens_in_app_canvas`,
+`test_jit_non_office_file_ignores_canvas_request` (they stub
+`process_file_bytes` with `{"status": "ok"}`, which `ee310abf6`'s
+`interpret_ingest_result` no longer treats as success),
+`test_drive_multi_folder_ingestion.py::{test_gdrive,test_onedrive}_service_ingest_folder_scopes_walk`
+(stub `ingest_file_to_memory` lacks the newer `role=` kwarg),
+`test_chat_tool_planner_web.py::test_platform_services_present_with_key`.

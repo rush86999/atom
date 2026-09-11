@@ -189,20 +189,48 @@ async def test_plan_tool_use_keeps_ingest_intent_for_mailbox():
 
 
 @pytest.mark.asyncio
-async def test_plan_tool_use_rejects_ingest_for_non_mailbox():
+async def test_plan_tool_use_rejects_ingest_for_services_with_no_upstream():
+    """`ingest` is valid for every connected INTEGRATION; the platform web
+    tools and the local memory/dataset stores have nothing to pull from, so a
+    stray `ingest` there downgrades to `search`."""
     from core.chat_tool_planner import ToolPlan, plan_tool_use
 
     with patch(
-        "core.chat_tool_planner.get_connected_services", return_value=["google_drive"]
+        "core.chat_tool_planner.get_connected_services", return_value=[]
+    ), patch(
+        "core.chat_tool_planner._available_platform_services",
+        return_value=["web_search", "memory"],
     ), patch(
         "core.chat_tool_planner._structured_with_fallback",
         new=AsyncMock(
             return_value=ToolPlan(
-                use_tool=True, service="google_drive", intent="ingest", query="x"
+                use_tool=True, service="web_search", intent="ingest", query="x"
             )
         ),
     ):
-        plan = await plan_tool_use("ingest this file", [], "u-1", object())
+        plan = await plan_tool_use("ingest the web", [], "u-1", object())
 
     assert plan is not None
     assert plan.intent == "search"
+
+
+@pytest.mark.asyncio
+async def test_plan_tool_use_keeps_ingest_for_record_integrations():
+    """Not just mailboxes: a CRM/finance/ticket service is ingestible too."""
+    from core.chat_tool_planner import ToolPlan, plan_tool_use
+
+    with patch(
+        "core.chat_tool_planner.get_connected_services", return_value=["zoho_crm"]
+    ), patch(
+        "core.chat_tool_planner._structured_with_fallback",
+        new=AsyncMock(
+            return_value=ToolPlan(
+                use_tool=True, service="zoho_crm", intent="ingest", query="Acme lead"
+            )
+        ),
+    ):
+        plan = await plan_tool_use("ingest the Acme lead", [], "u-1", object())
+
+    assert plan is not None
+    assert plan.service == "zoho_crm"
+    assert plan.intent == "ingest"

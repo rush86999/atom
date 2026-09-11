@@ -220,6 +220,10 @@ class AgentGovernanceService:
         # resolution can't drop these to the generic default invisibly.
         "email_attachment_read": 1,     # list / read text (STUDENT+)
         "email_attachment_write": 2,    # stage / attach / remove / ingest (INTERN+)
+        # On-demand integration ingestion (any connected service → memory):
+        # a memory write, reversible by design (idempotent, source-scoped),
+        # same weight as email_attachment_write.
+        "integration_ingest_write": 2,  # pull integration content into memory (INTERN+)
         # Memory tools (tools/memory_tool.py contracts): storing durable facts
         # is MODERATE (INTERN+); destroying them is HIGH (SUPERVISED+).
         # Without exact keys both resolved to the level-2 default, letting an

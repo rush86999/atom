@@ -97,6 +97,11 @@ _COMMUNICATION_SERVICES = (
 # Mailbox providers that support the on-demand `ingest` intent (pull a
 # message's body + attachments from the integration INTO memory).
 _MAILBOX_SERVICES = ("outlook", "gmail")
+# Services with no upstream integration to pull FROM: the platform web tools
+# and the local memory/dataset stores. Any other service supports `ingest`.
+_INGEST_EXCLUDED_SERVICES = frozenset(
+    {"web_search", "web_fetch", "memory", "datasets"}
+)
 
 
 def _haystack_has_address(query: str, context: Optional[Dict[str, Any]]) -> bool:
@@ -304,7 +309,7 @@ Rules:
   "brennan.ca WG-350DSAV"). Search results carry the real URLs; fetching
   the site's homepage cannot enumerate a site, and inventing a URL from a
   pattern (adding "/products/…" to the model number) is fabrication.
-- Read-only EXCEPT the mailbox `ingest` intent: search/list intents for
+- Read-only EXCEPT the `ingest` intent: search/list intents for
   lookups; `read` intent ONLY for the
   file-storage services, when the user wants a specific row, value, price,
   figure or section OUT OF a named document ("open the catalog and find the
@@ -318,16 +323,18 @@ Rules:
   WorkDrive") after a content request is still a READ — the earlier turns
   own the what-for ("check X for the price"), this message adds the where;
   planning search again just re-lists the file name the user already named.
-- NEVER plan sends, deletes, or edits. The ONE exception is the mailbox
-  `ingest` intent (outlook/gmail): it copies a named message's body AND
-  attachments (images via OCR) from the connected mailbox INTO the
-  workspace's own memory, so content the poller never indexed becomes
-  recallable. Plan it when the user needs content that lives in an email —
-  an attachment, a product image, a quoted/forwarded thread — and the
-  conversation shows it is NOT already available; it is idempotent, so a
-  repeat ask is a no-op. Never report email content as inaccessible without
-  planning `ingest` first. Query = the sender/subject/keywords that name the
-  message (or the provider message id itself).
+- NEVER plan sends, deletes, or edits. The ONE exception is the `ingest`
+  intent, valid for ANY connected integration: it pulls content that is NOT
+  already in memory from the integration INTO the workspace's own memory and
+  is idempotent (a repeat ask is a no-op). Use it before ever telling the user
+  that content is inaccessible. What it pulls depends on the service: mailbox
+  (outlook/gmail) → the message body AND attachments (images OCR'd); file
+  storage → the file's contents; record apps (CRM, Books, Inventory, support,
+  tickets, project trackers, …) → the matching record's fields rendered to
+  searchable text. Query = the identifying terms (sender/subject, file name,
+  model code, person/company) or the exact provider id when one is known.
+  Never plan `ingest` for web_search/web_fetch/memory/datasets — they have no
+  upstream to pull from.
 - ALSO classify the turn for routing: suggested_intent is ONE of
   search_request | message_send | task_management | workflow_creation |
   scheduling | data_analysis | automation_trigger | integration_setup |
@@ -763,7 +770,10 @@ async def plan_tool_use(
         allowed_intents = {"search", "list"}
         if plan.service in _STORAGE_SERVICES or plan.service == "outlook":
             allowed_intents.add("read")
-        if plan.service in _MAILBOX_SERVICES:
+        # `ingest` (pull content that is NOT in memory yet from the
+        # integration) is valid for EVERY connected integration — the platform
+        # web tools and the local memory/dataset stores have no upstream.
+        if plan.service not in _INGEST_EXCLUDED_SERVICES:
             allowed_intents.add("ingest")
         if plan.intent not in allowed_intents:
             plan.intent = "search"
@@ -1985,6 +1995,102 @@ async def _mailbox_ingest_block(
     )
 
 
+async def _integration_ingest_block(
+    service: str,
+    user_id: Optional[str],
+    query: str,
+    context: Optional[Dict[str, Any]],
+) -> str:
+    """Pull an item's content from ANY connected integration INTO memory.
+
+    The general form of the mailbox leg: drives get the file's bytes (via the
+    shared find→open→read leg), record apps (CRM/Books/Inventory/support/PM/…)
+    get the matching record(s) rendered to searchable text. Strategy dispatch
+    and the idempotency contract live in
+    ``core.drive_tree_ingestion.ingest_integration_content``; this function
+    owns only the planner's governance and evidence framing.
+
+    Governance: the ``integration_ingest`` autonomy topic (one knob for every
+    family), plus the ``ATOM_PLANNER_INGEST_ENABLED`` kill switch.
+    """
+    label = f"integration ingest, {service}, query='{query}'"
+    if not _planner_ingest_enabled():
+        return _with_grounding(
+            f"LIVE TOOL RESULTS ({label}): on-demand ingest is disabled by "
+            "configuration."
+        )
+
+    agent_id = (context or {}).get("agent_id")
+    try:
+        from core.autonomy_policy import OUTCOME_PROPOSE, gate_for_topic
+        from core.database import get_db_session
+
+        with get_db_session() as db:
+            gate = gate_for_topic(db, user_id, "integration_ingest", agent_id)
+        if gate.get("outcome") == OUTCOME_PROPOSE:
+            return _with_grounding(
+                f"LIVE TOOL RESULTS ({label}): needs owner approval — "
+                f"{gate.get('reason') or 'the integration_ingest autonomy topic is pinned to review'}"
+            )
+    except Exception as gate_err:  # noqa: BLE001 — fail-open (reversible write)
+        logger.debug(f"integration ingest autonomy gate skipped: {gate_err}")
+
+    try:
+        from core.drive_tree_ingestion import ingest_integration_content
+
+        result = await ingest_integration_content(
+            service,
+            user_id or "",
+            query=query,
+            workspace_id=(context or {}).get("workspace_id") or "default",
+            agent_id=agent_id or "",
+        )
+    except Exception as e:  # noqa: BLE001 — reported, never raised to the turn
+        logger.warning(f"integration ingest failed ({service}): {e}")
+        return _with_grounding(
+            f"LIVE TOOL RESULTS ({label}): ingest failed — {str(e)[:200]}"
+        )
+
+    lines: List[str] = []
+    for item in result.get("items") or []:
+        status = str(item.get("status") or "error")
+        ident = str(item.get("external_id") or "")[:40]
+        if status == "ingested":
+            extra = (
+                item.get("name") or item.get("subject") or item.get("file_name") or ""
+            )
+            lines.append(
+                f"- {ident} INGESTED"
+                + (f" | {str(extra)[:100]}" if extra else "")
+            )
+        elif status == "already_ingested":
+            lines.append(f"- {ident} already in memory (no-op)")
+        else:
+            lines.append(f"- {ident} {status}: {item.get('reason') or ''}".rstrip())
+    if not lines:
+        lines.append(
+            "- nothing ingested ("
+            + str(
+                result.get("error")
+                or result.get("message")
+                or "no matching item found"
+            )[:200]
+            + ")"
+        )
+
+    mem_block = await _memory_search_block(user_id, query, context)
+    detail = (
+        f"\n\nNow in memory:\n{mem_block}"
+        if mem_block
+        else "\n\n(no indexed excerpt matched the query yet — search memory "
+        "again or widen the query)"
+    )
+    return _with_grounding(
+        f"LIVE TOOL RESULTS ({label}) — content pulled from the connected "
+        f"integration into memory just now:\n" + "\n".join(lines) + detail
+    )
+
+
 async def execute_tool_plan(
     plan: ToolPlan,
     user_id: Optional[str],
@@ -2005,12 +2111,15 @@ async def execute_tool_plan(
     service = plan.service
     query = (plan.query or "").strip()
 
-    # Mailbox on-demand INGEST: the one write this planner performs. Runs
-    # BEFORE the web-query rewrite (the query names a message, not a search
-    # phrase) and before the search/read legs — the user needs the content
-    # pulled from the integration into memory, not another metadata listing.
-    if service in _MAILBOX_SERVICES and (plan.intent or "") == "ingest":
-        return await _mailbox_ingest_block(service, user_id, query, context)
+    # On-demand INGEST: the one write this planner performs. Runs BEFORE the
+    # web-query rewrite (the query names an item/message, not a search phrase)
+    # and before the search/read legs — the user needs the content pulled from
+    # the integration into memory, not another metadata listing. Works for
+    # EVERY integration family; mailbox keeps its body+attachments leg.
+    if (plan.intent or "") == "ingest" and service not in _INGEST_EXCLUDED_SERVICES:
+        if service in _MAILBOX_SERVICES:
+            return await _mailbox_ingest_block(service, user_id, query, context)
+        return await _integration_ingest_block(service, user_id, query, context)
 
     if service in ("web_search", "web_fetch"):
         try:

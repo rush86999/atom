@@ -21,6 +21,9 @@ a newer modified_at marks the row stale, mirroring "changed fact = new fact").
 """
 from __future__ import annotations
 
+import asyncio
+import hashlib
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -29,6 +32,29 @@ logger = logging.getLogger(__name__)
 
 _TEXT_CHARS = 400
 MAX_INDEX_ROWS = 5000
+
+
+async def _write_document(handler: Any, **kwargs: Any) -> bool:
+    """Write one document through whichever ``add_document`` the handler has.
+
+    The production ``LanceDBHandler.add_document`` is SYNC — the bare ``await``
+    this replaces raised TypeError on every row and the per-row guard swallowed
+    it, so the structure index silently wrote NOTHING while the async mock in
+    tests hid it. Test/alternate handlers may still be async, so accept both.
+    """
+    fn = getattr(handler, "add_document")
+    if asyncio.iscoroutinefunction(fn):
+        return bool(await fn(**kwargs))
+    return bool(await asyncio.to_thread(fn, **kwargs))
+
+# On-demand ("the agent needs THIS now") content pull. Families decide the
+# strategy; the strategies are the repo's existing general layers, never a
+# per-integration special case.
+MAILBOX_INTEGRATIONS: Tuple[str, ...] = ("outlook", "gmail")
+STORAGE_INTEGRATIONS: Tuple[str, ...] = (
+    "google_drive", "dropbox", "onedrive", "box", "zoho_workdrive", "notion",
+)
+DEFAULT_MAX_ONDEMAND_ITEMS = 3
 
 
 def _row_text(integration_id: str, row: Dict[str, Any]) -> str:
@@ -387,7 +413,10 @@ class IntegrationMemoryIndexer:
             modified = _to_datetime(row.get("modified"))
             path = str(row.get("path") or "")
             try:
-                success = await handler.add_document(
+                # add_document is SYNC in production (see _write_document) —
+                # the old bare `await` dropped every row silently.
+                success = await _write_document(
+                    handler,
                     table_name="documents",
                     text=_row_text(integration_id, row),
                     source=f"{integration_id}-index:{path}/{name}",
@@ -458,3 +487,502 @@ class IntegrationMemoryIndexer:
 
 # Back-compat alias (the original name of this module's service)
 DriveTreeIngestionService = IntegrationMemoryIndexer
+
+
+# ===========================================================================
+# General on-demand ingestion — ANY connected integration, not just drives
+# ===========================================================================
+#
+# "Ingest if not already in memory, directly from the integration" must not be
+# a mailbox special case: the same ask applies to a CRM lead, an inventory
+# item, a support ticket, a Slack thread. The strategy is chosen by what the
+# integration can actually serve, always through an EXISTING general layer:
+#
+#   mailbox (outlook/gmail) → CommunicationIngestionPipeline.ingest_email_on_demand
+#                             (body + attachments, images OCR'd)
+#   storage                 → UniversalIntegrationService `read` (download →
+#                             extract → best-effort ingest under the file's
+#                             stable identity; already the find→open→read leg)
+#   anything else           → live UniversalIntegrationService search → render
+#                             the matching record(s) to text → documents store
+#
+# Idempotency is one mechanism for every family: the record/file identity is
+# hashed into the standalone `ext_sha1(source:external_id)` doc id that
+# AutoDocumentIngestionService.ingested_external_ids already probes, so a
+# repeat ask reports already_ingested instead of writing a duplicate row.
+
+
+def _item_external_id(record: Dict[str, Any]) -> str:
+    """Best source-native id for a live record (shape varies per service)."""
+    for key in ("id", "Id", "ID", "record_id", "file_id", "fileId",
+                "message_id", "messageId", "conversation_id", "key", "uid",
+                "number"):
+        value = record.get(key)
+        if value not in (None, "", [], {}):
+            return str(value)
+    return ""
+
+
+def _record_display_name(record: Dict[str, Any]) -> str:
+    for key in ("name", "title", "subject", "deal_name", "Deal_Name",
+                "full_name", "Full_Name", "display_name", "description"):
+        value = record.get(key)
+        if value not in (None, "", [], {}):
+            return str(value)[:200]
+    return "(unnamed)"
+
+
+def _extract_records(payload: Any) -> List[Dict[str, Any]]:
+    """Normalize the many live-search response shapes to a record list.
+
+    UIS search/search-helpers return either a bare list or
+    ``{"status", "data": <list | {"data"/"value"/"entries"/…: <list>}>}`` —
+    all of them are accepted here so the ingest leg works for every service
+    without a per-service branch.
+    """
+    if isinstance(payload, list):
+        return [r for r in payload if isinstance(r, dict)]
+    if not isinstance(payload, dict):
+        return []
+    data = payload.get("data", payload)
+    if isinstance(data, list):
+        return [r for r in data if isinstance(r, dict)]
+    if isinstance(data, dict):
+        for key in ("data", "records", "items", "results", "value", "entries",
+                    "messages", "rows", "issues", "tickets"):
+            inner = data.get(key)
+            if isinstance(inner, list):
+                return [r for r in inner if isinstance(r, dict)]
+        return [data] if data else []
+    return []
+
+
+def render_integration_record(
+    integration_id: str, record: Dict[str, Any], entity_type: str = ""
+) -> str:
+    """Flatten ONE integration record to the text that goes to memory.
+
+    Generic by design: services disagree on field names, so every scalar field
+    is rendered as ``key: value`` and nested containers are JSON-compacted.
+    Bounded so one pathological record cannot bloat the embedding.
+    """
+    label = entity_type or str(record.get("entity_type") or "record")
+    name = _record_display_name(record)
+    lines = [f"[{integration_id}:{label}] {name}"]
+    for key, value in record.items():
+        if key in ("id", "Id", "ID"):
+            continue
+        if isinstance(value, (dict, list)):
+            try:
+                value = json.dumps(value, default=str)
+            except Exception:  # noqa: BLE001 — render whatever we can
+                value = str(value)
+        text = str(value).strip()
+        if not text or text in ("None", "{}", "[]"):
+            continue
+        lines.append(f"{key}: {text[:400]}")
+    return "\n".join(lines)[:8000]
+
+
+def _record_doc_id(integration_id: str, external_id: str) -> str:
+    """Same identity scheme as file ingestion, so ONE probe covers both."""
+    digest = hashlib.sha1(f"{integration_id}:{external_id}".encode("utf-8")).hexdigest()
+    return f"ext_{digest[:24]}"
+
+
+def _integration_settings(integration_id: str, workspace_id: str) -> Any:
+    """The user's selective-ingestion row (None when unset)."""
+    try:
+        from core.auto_document_ingestion import AutoDocumentIngestionService
+
+        return AutoDocumentIngestionService(
+            workspace_id=workspace_id
+        ).get_settings(integration_id)
+    except Exception as settings_err:  # noqa: BLE001 — gate is best-effort
+        logger.debug(f"ingestion settings unavailable for {integration_id}: {settings_err}")
+        return None
+
+
+async def _live_search_records(
+    integration_id: str,
+    query: str,
+    entity_type: str,
+    context: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    """One live search through the universal layer (never raises)."""
+    if not query:
+        return []
+    try:
+        from integrations.universal_integration_service import (
+            UniversalIntegrationService,
+        )
+
+        result = await UniversalIntegrationService().search(
+            integration_id, query, entity_type or None, context=context
+        )
+    except Exception as search_err:  # noqa: BLE001 — reported as an empty search
+        logger.warning(f"on-demand ingest search failed ({integration_id}): {search_err}")
+        return []
+    return _extract_records(result)
+
+
+def _resolve_item_ids(
+    records: List[Dict[str, Any]], external_id: str, limit: int
+) -> List[str]:
+    ids: List[str] = []
+    if external_id:
+        ids.append(external_id)
+    for record in records:
+        rid = _item_external_id(record)
+        if rid and rid not in ids:
+            ids.append(rid)
+        if len(ids) >= limit:
+            break
+    return ids[:limit]
+
+
+def _family_result(
+    integration_id: str, strategy: str, items: List[Dict[str, Any]], error: str = ""
+) -> Dict[str, Any]:
+    ingested = sum(1 for i in items if i.get("status") == "ingested")
+    already = sum(1 for i in items if i.get("status") == "already_ingested")
+    skipped = len(items) - ingested - already
+    if ingested:
+        message = f"Ingested {ingested} item(s) from {integration_id} into memory"
+    elif already:
+        message = (
+            f"{already} {integration_id} item(s) were already in memory — nothing to do"
+        )
+    elif error:
+        message = error
+    else:
+        message = f"No {integration_id} content could be added to memory"
+    return {
+        "success": bool(ingested or already),
+        "integration_id": integration_id,
+        "strategy": strategy,
+        "items": items,
+        "ingested": ingested,
+        "already_ingested": already,
+        "skipped": skipped,
+        "message": message,
+        **({"error": error} if error and not (ingested or already) else {}),
+    }
+
+
+async def _ingest_records_into_memory(
+    integration_id: str,
+    user_id: str,
+    records: List[Dict[str, Any]],
+    *,
+    entity_type: str,
+    workspace_id: str,
+    max_items: int,
+) -> Dict[str, Any]:
+    """Records (CRM/PM/support/finance/…) → documents, idempotently.
+
+    Record apps have no file bytes; their CONTENT is the record itself. We
+    render the live record to text and write it under the same ``ext_``
+    identity the file path uses, so `ingested_external_ids` answers "already
+    in memory?" for both kinds with one probe.
+    """
+    from core.auto_document_ingestion import AutoDocumentIngestionService
+    from core.lancedb_handler import get_lancedb_handler
+
+    candidates: List[Tuple[str, Dict[str, Any]]] = []
+    for record in records:
+        rid = _item_external_id(record)
+        if not rid:
+            continue
+        candidates.append((rid, record))
+        if len(candidates) >= max(1, int(max_items)):
+            break
+    if not candidates:
+        return _family_result(integration_id, "records", [])
+
+    already: set = set()
+    try:
+        service = AutoDocumentIngestionService(workspace_id=workspace_id)
+        already = set(
+            await service.ingested_external_ids(
+                integration_id, [rid for rid, _ in candidates]
+            )
+            or []
+        )
+    except Exception as probe_err:  # noqa: BLE001 — probe is an optimization
+        logger.debug(f"record already-ingested probe skipped: {probe_err}")
+
+    handler = get_lancedb_handler(workspace_id)
+    items: List[Dict[str, Any]] = []
+    for rid, record in candidates:
+        doc_id = _record_doc_id(integration_id, rid)
+        if rid in already:
+            items.append(
+                {"external_id": rid, "status": "already_ingested", "doc_id": doc_id}
+            )
+            continue
+        text = render_integration_record(integration_id, record, entity_type)
+        if not text.strip():
+            items.append(
+                {"external_id": rid, "status": "skipped", "reason": "empty_record"}
+            )
+            continue
+        label = entity_type or str(record.get("entity_type") or "record")
+        name = _record_display_name(record)
+        try:
+            # add_document is SYNC — see _write_document.
+            written = await _write_document(
+                handler,
+                table_name="documents",
+                text=text,
+                source=f"{integration_id}:{label}:{name}",
+                metadata={
+                    "source_type": "integration_record",
+                    "integration_id": integration_id,
+                    "external_id": rid,
+                    "entity_type": label,
+                    "record_name": name,
+                    "ingested_via": "agent_on_demand",
+                },
+                user_id=user_id or "system",
+                doc_id=doc_id,
+                extra_columns={
+                    "freshness_status": "fresh",
+                    "source_url": f"{integration_id}:{rid}",
+                },
+            )
+        except Exception as write_err:  # noqa: BLE001 — reported per item
+            logger.warning(f"record ingest failed ({integration_id}:{rid}): {write_err}")
+            written = False
+        if written:
+            items.append(
+                {
+                    "external_id": rid,
+                    "status": "ingested",
+                    "doc_id": doc_id,
+                    "name": name,
+                    "chars": len(text),
+                }
+            )
+        else:
+            items.append(
+                {
+                    "external_id": rid,
+                    "status": "error",
+                    "reason": "write_failed",
+                    "doc_id": None,
+                }
+            )
+    return _family_result(integration_id, "records", items)
+
+
+async def _ingest_mailbox_items(
+    integration_id: str,
+    user_id: str,
+    *,
+    query: str,
+    external_id: str,
+    max_items: int,
+    context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Mailbox: full message (body + attachments, images OCR'd) → memory."""
+    from integrations.atom_communication_ingestion_pipeline import (
+        ingestion_pipeline,
+    )
+
+    records = (
+        await _live_search_records(integration_id, query, "", context)
+        if query and not external_id
+        else []
+    )
+    ids = _resolve_item_ids(records, external_id, max(1, int(max_items)))
+    if not ids:
+        return _family_result(
+            integration_id, "mailbox", [],
+            error=f"no matching {integration_id} message found to ingest",
+        )
+
+    items: List[Dict[str, Any]] = []
+    for message_id in ids:
+        try:
+            result = await ingestion_pipeline.ingest_email_on_demand(
+                integration_id, user_id, message_id
+            )
+        except Exception as ingest_err:  # noqa: BLE001 — reported per item
+            result = {"status": "error", "reason": str(ingest_err)[:200]}
+        status = (result or {}).get("status")
+        if status == "ingested":
+            items.append(
+                {
+                    "external_id": message_id,
+                    "status": "ingested",
+                    "subject": result.get("subject") or "",
+                    "attachments": result.get("attachments") or 0,
+                }
+            )
+        elif status == "already_ingested":
+            items.append({"external_id": message_id, "status": "already_ingested"})
+        else:
+            items.append(
+                {
+                    "external_id": message_id,
+                    "status": "error",
+                    "reason": result.get("reason") or status or "ingest_failed",
+                }
+            )
+    return _family_result(integration_id, "mailbox", items)
+
+
+async def _ingest_storage_items(
+    integration_id: str,
+    *,
+    query: str,
+    external_id: str,
+    max_items: int,
+    context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Storage: file bytes → extract → ingest, via the shared `read` leg.
+
+    ``_read_storage_file`` already downloads, extracts and best-effort ingests
+    under the file's stable identity — reusing it keeps ONE implementation of
+    find→open→read for every storage provider.
+    """
+    from integrations.universal_integration_service import (
+        UniversalIntegrationService,
+    )
+
+    records = (
+        await _live_search_records(integration_id, query, "", context)
+        if query and not external_id
+        else []
+    )
+    file_ids = _resolve_item_ids(records, external_id, max(1, int(max_items)))
+    if not file_ids:
+        return _family_result(
+            integration_id, "storage", [],
+            error=f"no matching {integration_id} file found to ingest",
+        )
+
+    uis = UniversalIntegrationService()
+    items: List[Dict[str, Any]] = []
+    for file_id in file_ids:
+        try:
+            result = await uis.execute(
+                integration_id, "read",
+                {"file_id": file_id, "query": query}, context,
+            )
+        except Exception as read_err:  # noqa: BLE001 — reported per item
+            result = {"status": "error", "error": str(read_err)[:200]}
+        data = (result or {}).get("data") or {}
+        if (result or {}).get("status") == "success" and data.get("found"):
+            if data.get("ingested_into_workspace"):
+                status = "ingested"
+            else:
+                # Opened but the index write did not land (unsupported format,
+                # no text layer) — say so instead of claiming memory.
+                status = "skipped"
+            items.append(
+                {
+                    "external_id": file_id,
+                    "status": status,
+                    "file_name": data.get("file_name"),
+                    "doc_id": data.get("doc_id") or file_id,
+                    "chars": data.get("chars_extracted") or 0,
+                    **({"reason": "not_indexed"} if status == "skipped" else {}),
+                }
+            )
+        else:
+            items.append(
+                {
+                    "external_id": file_id,
+                    "status": "error",
+                    "reason": (result or {}).get("error")
+                    or (result or {}).get("message")
+                    or "read_failed",
+                }
+            )
+    return _family_result(integration_id, "storage", items)
+
+
+async def ingest_integration_content(
+    integration_id: str,
+    user_id: str,
+    *,
+    query: str = "",
+    external_id: str = "",
+    entity_type: str = "",
+    workspace_id: str = "default",
+    max_items: int = DEFAULT_MAX_ONDEMAND_ITEMS,
+    agent_id: str = "",
+) -> Dict[str, Any]:
+    """On-demand: pull THIS integration's content into memory, if absent.
+
+    The general form of "ingest from the integration": one entry point for
+    every connected service. Family strategies live above; the identity and
+    idempotency contract is shared with the file path (``ext_`` doc ids probed
+    by ``ingested_external_ids``), so a repeated ask is a truthful no-op.
+
+    Args:
+        integration_id: Connected service, e.g. ``zoho_crm``, ``google_drive``,
+            ``outlook``.
+        user_id: Owning user (provider auth is scoped to them).
+        query: What to ingest (sender/subject/keywords, file name, model code).
+        external_id: Exact source-native id when the caller has one; skips the
+            live search entirely.
+        entity_type: Optional narrowing for record services.
+        max_items: Cap on items pulled per call.
+        workspace_id: Memory workspace.
+
+    Returns:
+        ``{"success", "integration_id", "strategy", "items", "ingested",
+        "already_ingested", "skipped", "message"}``. Never raises.
+    """
+    integration_id = (integration_id or "").strip()
+    user_id = str(user_id or "")
+    query = (query or "").strip()
+    external_id = str(external_id or "").strip()
+    ws = workspace_id or "default"
+
+    if not integration_id:
+        return _family_result("", "", [], error="integration_id is required")
+    if not query and not external_id:
+        return _family_result(
+            integration_id, "", [], error="query or external_id is required"
+        )
+
+    # The user's selective-ingestion lever gates agent-initiated pulls for
+    # EVERY family — one knob, one place (mirrors the file-tool gate).
+    settings = _integration_settings(integration_id, ws)
+    if settings is not None and not getattr(settings, "enabled", True):
+        return _family_result(
+            integration_id, "", [],
+            error=(
+                f"Ingestion for '{integration_id}' is disabled by the user's "
+                "selective-ingestion settings — ask them to enable the scopes you need."
+            ),
+        )
+
+    context = {"user_id": user_id, "workspace_id": ws, "agent_id": agent_id}
+    limit = max(1, int(max_items))
+
+    if integration_id in MAILBOX_INTEGRATIONS:
+        return await _ingest_mailbox_items(
+            integration_id, user_id, query=query, external_id=external_id,
+            max_items=limit, context=context,
+        )
+    if integration_id in STORAGE_INTEGRATIONS:
+        return await _ingest_storage_items(
+            integration_id, query=query, external_id=external_id,
+            max_items=limit, context=context,
+        )
+
+    records = await _live_search_records(integration_id, query, entity_type, context)
+    if not records and not external_id:
+        return _family_result(
+            integration_id, "records", [],
+            error=f"no matching {integration_id} content found to ingest",
+        )
+    return await _ingest_records_into_memory(
+        integration_id, user_id, records,
+        entity_type=entity_type, workspace_id=ws, max_items=limit,
+    )

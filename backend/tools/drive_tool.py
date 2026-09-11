@@ -13,7 +13,13 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
-from core.drive_tree_ingestion import FILE_FETCHERS, STRUCTURE_ADAPTERS
+# STRUCTURE_ADAPTERS is no longer consulted here (the general ingest path
+# resolves items itself) but stays imported: tests and external callers patch
+# it through this module's namespace.
+from core.drive_tree_ingestion import (  # noqa: F401
+    FILE_FETCHERS,
+    STRUCTURE_ADAPTERS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -143,25 +149,37 @@ def _open_office_canvas(
 
 async def integration_ingest_item(
     integration_id: str,
-    external_id: str,
+    external_id: str = "",
     file_name: str = "",
     workspace_id: str = "default",
     open_as_canvas: bool = False,
     user_id: str = "",
+    query: str = "",
 ) -> Dict[str, Any]:
-    """Just-in-time ingestion of ONE file's contents into memory.
+    """Just-in-time ingestion of ONE integration item's content into memory.
 
-    Guardrails: the connector must have a fetch adapter; the integration's
-    selective-ingestion settings must be enabled (when a settings row exists);
-    the file must be within the configured size cap (settings value wins over
-    the default). Record apps (CRM/Books/Inventory) have no file bytes — their
-    index rows already carry the summary fields.
+    Works for EVERY connected integration, not just file drives — the family
+    decides the strategy (all through existing general layers):
+
+    - a drive with a fetch adapter and an exact ``external_id`` → download the
+      file's bytes and ingest them (this function's original path);
+    - mailbox (outlook/gmail) → the message's body + attachments;
+    - other storage → the shared find→open→read leg (also warms the index);
+    - record apps (CRM/Books/Inventory/support/PM/…) → live search, then the
+      matching record(s) rendered to text.
+
+    Guardrails: the integration's selective-ingestion settings must be enabled
+    (when a settings row exists); the file must be within the configured size
+    cap (settings value wins over the default). Idempotent — content already in
+    memory is reported ``already_ingested``, not duplicated.
     """
-    if not integration_id or not external_id:
-        return {"success": False, "error": "integration_id and external_id are required"}
+    if not integration_id:
+        return {"success": False, "error": "integration_id is required"}
 
-    if integration_id not in STRUCTURE_ADAPTERS:
-        return {"success": False, "error": f"Unknown integration '{integration_id}'"}
+    query = (query or "").strip()
+    external_id = str(external_id or "").strip()
+    if not external_id and not query:
+        return {"success": False, "error": "external_id or query is required"}
 
     ws = workspace_id or "default"
     settings = _settings_for(integration_id, ws)
@@ -175,14 +193,28 @@ async def integration_ingest_item(
         }
 
     fetcher = FILE_FETCHERS.get(integration_id)
-    if fetcher is None:
-        return {
-            "success": False,
-            "error": (
-                f"'{integration_id}' has no file-fetch adapter (record apps serve "
-                "their fields from the structure index directly)."
-            ),
-        }
+    if fetcher is None or not external_id:
+        # No file-fetch adapter (record apps) — or no exact file id, so the
+        # item has to be resolved first. Both are the GENERAL on-demand ingest:
+        # every integration family, one entry point.
+        from core.drive_tree_ingestion import ingest_integration_content
+
+        result = await ingest_integration_content(
+            integration_id,
+            user_id or "system",
+            query=query,
+            external_id=external_id,
+            workspace_id=ws,
+        )
+        if result.get("success"):
+            # Per-app feedback: agent pulls count for the integration too.
+            from core.ingestion_feedback import record_ingestion_feedback
+
+            record_ingestion_feedback(
+                None, integration_id, int(result.get("ingested") or 0),
+                True, workspace_id=ws,
+            )
+        return result
 
     # Size guard: cap from the user's settings (tighter wins).
     cap_mb = DEFAULT_MAX_INGEST_MB
@@ -286,21 +318,26 @@ def register_drive_tools(tool_registry=None):
         function=integration_ingest_item,
         version="1.0.0",
         description=(
-            "Just-in-time ingestion: pull ONE file's contents from a connected "
-            "drive into memory so it can be used for the current task. Respects "
-            "the user's selective-ingestion settings (enabled scopes + size "
-            "cap). Only call this when the task needs the file's contents."
+            "Just-in-time ingestion: pull ONE item's content from ANY connected "
+            "integration into memory so it can be used for the current task — a "
+            "drive file (bytes downloaded + extracted), a mailbox message (body "
+            "+ attachments, images OCR'd), or a record from CRM/Books/Inventory/"
+            "support/tickets (the record's fields rendered to searchable text). "
+            "Respects the user's selective-ingestion settings (enabled scopes + "
+            "size cap). Idempotent: content already in memory is skipped. Call "
+            "it when a task needs content that is not in memory yet."
         ),
         category="integrations",
         complexity=2,
         maturity_required="INTERN",
         parameters={
-            "integration_id": "string (required) — e.g. 'onedrive', 'zoho_workdrive'",
-            "external_id": "string (required) — the file id from integration_search_index",
+            "integration_id": "string (required) — e.g. 'onedrive', 'zoho_workdrive', 'zoho_crm', 'outlook'",
+            "external_id": "string (optional) — the exact item id from integration_search_index / a search result; omit to resolve by query",
+            "query": "string (optional) — what to ingest (file name, sender/subject, model code) when there is no exact id",
             "file_name": "string (optional) — helps type detection and provenance",
             "workspace_id": "string (optional) — workspace scope",
             "open_as_canvas": "boolean (optional) — for xlsx/docx/pptx: ALSO open the file as an in-app office canvas and return its /canvas/{id} URL",
             "user_id": "string (optional, required with open_as_canvas) — the owning user",
         },
-        tags=["integrations", "drive", "ingest", "just-in-time", "memory", "canvas"],
+        tags=["integrations", "ingest", "just-in-time", "memory", "drive", "crm", "canvas"],
     )
