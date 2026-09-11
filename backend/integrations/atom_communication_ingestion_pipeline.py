@@ -130,6 +130,37 @@ def _format_graph_timestamp(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+_OUTLOOK_INCREMENTAL_FETCH_PAGES = 5
+_OUTLOOK_CATCHUP_FETCH_PAGES = 40
+_OUTLOOK_CATCHUP_AFTER = timedelta(days=3)
+
+
+def _outlook_fetch_page_budget(
+    last_fetch: Any, now: Optional[datetime] = None,
+) -> int:
+    """Graph pages to walk this Outlook poll.
+
+    A cursor far behind "now" drains at the incremental budget (5 pages ≈ 250
+    messages), so a long-stopped poller or a fresh connection leaves recent
+    mail un-ingested for a long time — live 2026-09-11 the cursor was ~2.5
+    months behind, September mail (and its inline attachments) was never
+    stored, and the agent could not see the quote image. While behind, allow
+    the initial-sync budget so the backlog clears in bounded polls; the
+    resume-bound logic still guarantees no message is skipped."""
+    if last_fetch is None:
+        return _OUTLOOK_CATCHUP_FETCH_PAGES
+    try:
+        cursor = _coerce_utc_ts(last_fetch)
+        if cursor is None:
+            return _OUTLOOK_INCREMENTAL_FETCH_PAGES
+        ref = now or datetime.now(timezone.utc)
+        if (ref - cursor) > _OUTLOOK_CATCHUP_AFTER:
+            return _OUTLOOK_CATCHUP_FETCH_PAGES
+    except Exception:  # noqa: BLE001 — budget is advisory
+        pass
+    return _OUTLOOK_INCREMENTAL_FETCH_PAGES
+
+
 def _coerce_utc_ts(value: Any) -> Optional[datetime]:
     """Coerce a persisted cursor / Graph timestamp to an AWARE UTC datetime.
 
@@ -3638,7 +3669,7 @@ class CommunicationIngestionPipeline:
                 # cursors on truncation instead (order_untrusted).
                 order_trusted = True
                 params["$orderBy"] = "receivedDateTime desc"
-                max_fetches = 5
+                max_fetches = _outlook_fetch_page_budget(last_fetch)
                 if last_fetch:
                     # Graph OData requires UTC 'Z' format — a bare isoformat()
                     # (no timezone marker) returns 400 InvalidFilter, which
