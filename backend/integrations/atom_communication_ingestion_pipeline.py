@@ -1899,6 +1899,17 @@ class CommunicationIngestionPipeline:
                     self._save_fetch_state()
             except Exception as e:
                 logger.warning(f"Seen-id reconciliation failed: {e}")
+            # Periodic ATTACHMENT self-heal: a row stored before the fetch
+            # carried attachments (or before OCR) stays incomplete forever
+            # under store-authoritative dedup. Upsert such rows from the
+            # mailbox so nobody deletes rows by hand (live 2026-09-11: the
+            # Sep 9 quote's inline spec image). Bounded per pass.
+            try:
+                for _owner in self._outlook_token_owners():
+                    await self.self_heal_missing_attachments(
+                        "outlook", _owner, limit=5)
+            except Exception as e:
+                logger.debug(f"attachment self-heal pass skipped: {e}")
             # Periodic token rectification: tokens orphaned by a wipe/re-seed
             # are deactivated and stale-expired ones reported for reconnect.
             try:
@@ -4107,8 +4118,79 @@ class CommunicationIngestionPipeline:
             await self._expand_gmail_attachments(gmail_service, [msg])
         return self._normalize_gmail_service_message(msg)
 
+    def _drop_stored_message(self, app_type: str, message_id: str) -> int:
+        """Delete one stored row by id — the replace half of an upsert.
+
+        Best-effort and bounded (a single id); never raises."""
+        try:
+            mm = self.memory_manager
+            if mm.db is None:
+                mm.initialize()
+            table = mm.connections_table
+            if table is None:
+                return 0
+            safe_id = str(message_id).replace("'", "''")
+            table.delete(f"id = '{safe_id}'")
+            return 1
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"drop stored message skipped: {e}")
+            return 0
+
+    async def self_heal_missing_attachments(
+        self, provider: str = "outlook", owner: str = "", limit: int = 25,
+    ) -> Dict[str, Any]:
+        """Re-ingest stored messages whose attachments never landed.
+
+        A row stored before the fetch carried attachments (or before OCR
+        existed) stays incomplete forever under store-authoritative dedup —
+        there was no app path to refresh it (live 2026-09-11: the Sep 9 quote
+        stored with ``attachments: []``, so its inline spec image was invisible
+        to every local tool). This pass finds such rows and upserts them via
+        ``ingest_email_on_demand(..., refresh=True)`` — fully automated, no
+        operator deleting rows by hand.
+
+        ``owner`` must be the mailbox-owning user id (the fetch uses only that
+        user's token). Never raises; returns counts."""
+        app_type = (provider or "outlook").strip().lower()
+        healed = failed = 0
+        try:
+            mm = self.memory_manager
+            if mm.db is None:
+                mm.initialize()
+            table = mm.connections_table
+            if table is None:
+                return {"status": "no_store", "healed": 0, "failed": 0}
+            rows = (
+                table.search()
+                .select(["id", "app_type", "attachments"])
+                .limit(None)
+                .to_arrow()
+                .to_pylist()
+            )
+            empty = {"", "[]", "null", "None"}
+            candidates = [
+                r for r in rows
+                if str(r.get("app_type") or "") == app_type
+                and str(r.get("attachments") or "[]") in empty
+                and r.get("id")
+            ][: max(1, int(limit))]
+            for r in candidates:
+                res = await self.ingest_email_on_demand(
+                    app_type, owner, str(r["id"]), refresh=True)
+                if (res or {}).get("status") == "ingested":
+                    healed += 1
+                else:
+                    failed += 1
+        except Exception as e:  # noqa: BLE001 — maintenance never raises
+            logger.debug(f"attachment self-heal skipped: {e}")
+        if healed or failed:
+            logger.info(
+                f"attachment self-heal: healed={healed} failed={failed} "
+                f"app={app_type}")
+        return {"status": "ok", "healed": healed, "failed": failed}
+
     async def ingest_email_on_demand(
-        self, provider: str, owner: str, message_id: str
+        self, provider: str, owner: str, message_id: str, refresh: bool = False
     ) -> Dict[str, Any]:
         """On-demand ingest of ONE mailbox email (body + attachments) — the
         agent tool path for "ingest this email". Bypasses the poll loop, so
@@ -4117,6 +4199,15 @@ class CommunicationIngestionPipeline:
         store-level dedup guard behind that. The message dict is built by
         the SAME per-provider normalizers the poller uses, so on-demand and
         polled rows are identical (and dedupe against each other).
+
+        ``refresh=True`` turns this into an UPSERT: an already-stored message
+        is re-fetched and its row REPLACED, so a row stored before a capability
+        existed heals itself instead of being refused by the seen-id
+        short-circuit. Live 2026-09-11: the Sep 9 quote row was stored with
+        ``attachments: []`` (the poll path did not ``$expand`` them) and could
+        never gain its inline spec image — repairing it needed a manual
+        delete + seen-id clear. Self-heal calls this with ``refresh=True``;
+        no operator ever deletes rows by hand.
 
         provider: "outlook" | "gmail". owner: mailbox-owning user id — the
         fetch uses ONLY that user's token (no cross-user fallback).
@@ -4141,11 +4232,17 @@ class CommunicationIngestionPipeline:
 
         try:
             if self.is_message_known(app_type, message_id, owner):
-                return {
-                    "status": "already_ingested",
-                    "app_type": app_type,
-                    "message_id": message_id,
-                }
+                if not refresh:
+                    return {
+                        "status": "already_ingested",
+                        "app_type": app_type,
+                        "message_id": message_id,
+                    }
+                # UPSERT: drop the stale row and its dedup stamp so the ingest
+                # below re-adds a complete row (attachments included).
+                self._drop_stored_message(app_type, message_id)
+                with self._seen_state_lock:
+                    self._seen_message_ids.get(app_type, {}).pop(message_id, None)
 
             if app_type == CommunicationAppType.OUTLOOK.value:
                 raw = await self._fetch_outlook_message_by_id(owner, message_id)
