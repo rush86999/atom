@@ -80,6 +80,22 @@ def _fts_table_exists(db: Session, table_name: str) -> bool:
     return False
 
 
+def _try_self_heal_fts(db: Session) -> bool:
+    """Best-effort provisioning of the FTS index from the search path.
+
+    Never raises: a failure here just leaves the caller on the degraded ILIKE
+    leg, exactly as before. Cheap on the hot path — the bootstrap caches a
+    successful provision per (dialect, database URL).
+    """
+    try:
+        from core.hybrid_search.fts_bootstrap import ensure_documents_fts_for_session
+
+        return ensure_documents_fts_for_session(db)
+    except Exception as e:
+        logger.debug("documents FTS self-heal unavailable: %s", e)
+        return False
+
+
 def _search_ingested_sqlite(
     db: Session,
     fts_query: str,
@@ -361,14 +377,39 @@ def search_documents_lexical(
         if dialect == "sqlite":
             fts_ingested = _fts_table_exists(db, "ingested_documents_fts")
             fts_knowledge = _fts_table_exists(db, "knowledge_documents_fts")
+            if not (fts_ingested and fts_knowledge):
+                # Self-heal: the index is provisioned at startup, but a DB that
+                # appears after boot (restored backup, fresh file, blocked
+                # migrations) has none — and without this the lexical leg
+                # silently degraded to ILIKE for the life of the process
+                # (observed 2026-09-11: lexical_hits=0 on every query, hybrid
+                # reporting "semantic_only"). Provision once per process, then
+                # re-check.
+                if _try_self_heal_fts(db):
+                    fts_ingested = _fts_table_exists(db, "ingested_documents_fts")
+                    fts_knowledge = _fts_table_exists(db, "knowledge_documents_fts")
             if fts_ingested and fts_knowledge:
-                results: List[Dict[str, Any]] = []
-                if source in (None, "", "ingested"):
-                    results.extend(_search_ingested_sqlite(db, fts_query, limit, since, author))
-                if source in (None, "", "knowledge"):
-                    results.extend(_search_knowledge_sqlite(db, fts_query, limit, since))
-                results.sort(key=lambda r: r.get("score", 0.0), reverse=True)
-                return results[:limit]
+                def _run_sqlite(fts_q: str) -> List[Dict[str, Any]]:
+                    out: List[Dict[str, Any]] = []
+                    if source in (None, "", "ingested"):
+                        out.extend(_search_ingested_sqlite(db, fts_q, limit, since, author))
+                    if source in (None, "", "knowledge"):
+                        out.extend(_search_knowledge_sqlite(db, fts_q, limit, since))
+                    out.sort(key=lambda r: r.get("score", 0.0), reverse=True)
+                    return out[:limit]
+
+                results = _run_sqlite(fts_query)
+                if not results:
+                    # FTS5 space-separated terms are ANDed, so a natural-language
+                    # query dies entirely if ANY single token is absent from the
+                    # indexed columns — e.g. "1320mm 16GA... packing size" returned
+                    # nothing because "packing"/"size" are not in content_preview.
+                    # Retry once with OR so partial matches still surface; AND is
+                    # tried first so a fully-matching query keeps its precision.
+                    or_query = " OR ".join(f"{t}*" for t in tokens)
+                    if or_query != fts_query:
+                        results = _run_sqlite(or_query)
+                return results
             # Fall through to ILIKE when any FTS table is missing.
             return _search_iliike_fallback(db, query, limit, since, source, author)
 

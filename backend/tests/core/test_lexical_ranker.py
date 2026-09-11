@@ -185,8 +185,31 @@ def test_lexical_since_filter(db):
     assert "doc_a" not in ids, "since filter must exclude older docs"
 
 
-def test_lexical_iliike_fallback_when_fts_missing(db_without_fts):
+def test_lexical_self_heals_when_fts_missing(db_without_fts):
+    """Contract change (2026-09-11): a missing FTS index is now provisioned.
+
+    Previously this fixture produced ``lexical_mode == "iliike_fallback"`` —
+    i.e. the lexical leg stayed degraded for the process lifetime. Hybrid search
+    now self-provisions the index on first miss (see
+    ``core/hybrid_search/fts_bootstrap.py``), so the same setup yields a real
+    BM25 leg. The ILIKE path is still covered below for the genuinely
+    unprovisionable case.
+    """
     from core.hybrid_search.lexical_ranker import search_documents_lexical
+
+    results = search_documents_lexical(db_without_fts, "quarterly revenue")
+    assert results, "self-healed lexical leg must return matches"
+    assert results[0]["id"] == "doc_fb"
+    assert results[0]["lexical_mode"] == "fts5_bm25"
+
+
+def test_lexical_iliike_fallback_when_fts_unavailable(db_without_fts, monkeypatch):
+    """When FTS genuinely cannot be provisioned, ILIKE must still answer."""
+    from core.hybrid_search import lexical_ranker
+    from core.hybrid_search.lexical_ranker import search_documents_lexical
+
+    # Simulate a host where provisioning is impossible (e.g. read-only DB).
+    monkeypatch.setattr(lexical_ranker, "_try_self_heal_fts", lambda db: False)
 
     results = search_documents_lexical(db_without_fts, "quarterly revenue")
     assert results, "fallback must still return matches"

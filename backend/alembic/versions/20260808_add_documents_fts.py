@@ -41,22 +41,28 @@ def _create_fts_sqlite(fts_name: str, base_name: str, cols: str) -> None:
         f"INSERT INTO {fts_name}(rowid, {cols}) "
         f"SELECT rowid, {col_sql} FROM {base_name}"
     )
+    # Trigger bodies MUST qualify columns as new./old.: SQLite does not resolve
+    # bare column names inside a trigger. The original bare-COALESCE form raised
+    # "no such column: <col>" on every INSERT into the base table, which would
+    # have broken document ingestion on any DB where this migration ran.
+    new_sql = ", ".join(f"COALESCE(new.{c},'')" for c in cols.split(", "))
+    old_sql = ", ".join(f"COALESCE(old.{c},'')" for c in cols.split(", "))
     op.execute(
         f"CREATE TRIGGER {fts_name}_ai AFTER INSERT ON {base_name} BEGIN "
         f"INSERT INTO {fts_name}(rowid, {cols}) "
-        f"VALUES (new.rowid, {col_sql}); END"
+        f"VALUES (new.rowid, {new_sql}); END"
     )
     op.execute(
         f"CREATE TRIGGER {fts_name}_ad AFTER DELETE ON {base_name} BEGIN "
         f"INSERT INTO {fts_name}({fts_name}, rowid, {cols}) "
-        f"VALUES('delete', old.rowid, {col_sql}); END"
+        f"VALUES('delete', old.rowid, {old_sql}); END"
     )
     op.execute(
         f"CREATE TRIGGER {fts_name}_au AFTER UPDATE ON {base_name} BEGIN "
         f"INSERT INTO {fts_name}({fts_name}, rowid, {cols}) "
-        f"VALUES('delete', old.rowid, {col_sql}); "
+        f"VALUES('delete', old.rowid, {old_sql}); "
         f"INSERT INTO {fts_name}(rowid, {cols}) "
-        f"VALUES (new.rowid, {col_sql}); END"
+        f"VALUES (new.rowid, {new_sql}); END"
     )
 
 
