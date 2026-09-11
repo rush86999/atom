@@ -298,7 +298,7 @@ class TestFreshDataRecording:
 
         monkeypatch.setattr(
             "core.chat_tool_planner.plan_tool_use", _slow)
-        monkeypatch.setattr(cce, "_FRESH_DATA_TIMEOUT_SECONDS", 0.05)
+        monkeypatch.setattr(cce, "_FRESH_DATA_PLAN_TIMEOUT_SECONDS", 0.05)
 
         steps = []
 

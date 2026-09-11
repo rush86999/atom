@@ -34,17 +34,19 @@ from core.evidence_grounding import CANVAS_ARTIFACT_GROUNDING_RULE
 
 logger = logging.getLogger(__name__)
 
-# Pin to a known-reachable vetted model — same rationale as the planner's
-# PLANNER_MODEL (unpinned "auto" routing prefers the free local Ollama client
-# by value, which is frequently unreachable; the connection-error retries eat
-# seconds and lose the structured output entirely).
-# Flash-class non-reasoning pin: the previous pin (minimax-m3) is a
-# reasoning model whose provider ignores the disable flag — every tiny
-# planning call burned 1,100-2,000 hidden tokens and 30-75s (measured
-# 2026-09-01; the canvas-edit plan alone blew the 30s budget). The editor
-# plans ~60-line JSON; a fast non-reasoning flash model is the right shape.
-CANVAS_EDITOR_MODEL = os.getenv(
-    "ATOM_CANVAS_EDITOR_MODEL", "qwen/qwen3.7-flash")
+# The editor plans ~60-line JSON, so the call is SHAPED as a cheap,
+# non-reasoning one (``disable_reasoning=True``, temperature 0). WHICH model
+# serves it is BPC's decision — see ``_plan_structured`` below.
+#
+# Do not reintroduce a model constant/pin here. ``provider_model`` collapses
+# the candidate list to a single tuple (byok_handler: ``options =
+# [provider_model]``), which removes every provider fallback; a brief upstream
+# 429 then becomes fatal to the whole edit leg (OpenRouter, 2026-09-10). The
+# earlier pin existed ONLY as a shape fix — the previous model (minimax-m3)
+# ignored the disable flag and burned 1,100–2,000 hidden tokens / 30–75s on a
+# tiny planning answer (measured 2026-09-01), blowing the 30s stage budget.
+# Shape is now enforced by ``disable_reasoning`` + the handler's
+# reasoning-mandatory exclusion, so routing can stay dynamic.
 
 # The current canvas content rides in the prompt; bound it so a huge sheet
 # can't blow the structured-call budget.
@@ -110,6 +112,40 @@ class CanvasPlanUnavailable(Exception):
     edit succeeded while the canvas never changed (observed live 2026-08-31:
     "Append this exact line … LIVEUPDATEcheck456" answered with a false
     success, no audit row, no broadcast)."""
+
+
+async def _plan_structured(
+    llm_service: Any,
+    *,
+    prompt: str,
+    response_model: Any,
+    system_instruction: str,
+) -> Any:
+    """Structured canvas-planning call routed by BPC (no model pin).
+
+    Routing is deliberately left to BPC so model choice stays dynamic —
+    cost/quality/health aware, and free to move off a model that is briefly
+    rate-limited. The call is still SHAPED as a small non-reasoning plan
+    (``disable_reasoning=True``, temperature 0), which is what the old
+    hardcoded pin was really buying: reasoning models ignore the disable flag
+    and burn 1,100–2,000 hidden tokens / 30–75s on a 60-line planning answer,
+    which blew this stage's 30s budget.
+
+    Fault-isolated: a provider error returns ``None`` so the caller keeps its
+    own failure contract (``CanvasPlanUnavailable`` for an infrastructure
+    failure vs ``None`` for a genuine "not an edit").
+    """
+    from core.llm.pinned_planning import pinned_structured_call
+
+    return await pinned_structured_call(
+        llm_service,
+        prompt=prompt,
+        response_model=response_model,
+        system_instruction=system_instruction,
+        call_kwargs=None,  # no pin — BPC ranks the candidates
+        log_label="canvas edit planning",
+        task_type="planning",
+    )
 
 
 _EDITOR_SYSTEM = """You are the canvas editor for an AI co-editing panel.
@@ -718,7 +754,7 @@ def _versions_section(
 # out). 20s: the lookup now includes the planner's repair pass and the
 # storage query rewrite, so 12s false-timed-out constantly. 25s (the top of
 # the orchestrator-compatible band, 2026-09-06): the lookup also covers a
-# storage READ — planner + rewrite + download + parse. The live case was
+# storage READ — query rewrite + download + parse. The live case was
 # Consolidated Price List 2019.xlsx (13MB, ~10s parse alone), and the read
 # timed out twice, so the data-dependent edit declined and the price the
 # user asked to fill in was never filled. Repeat reads of the same bytes
@@ -726,6 +762,16 @@ def _versions_section(
 # so only the first cold read needs the extra seconds; a lookup that still
 # overruns declines the edit unchanged — never fabricates.
 _FRESH_DATA_TIMEOUT_SECONDS = 25
+
+# The PLANNER is the shared chat-leg call (_tool_plan_task): the turn pays its
+# latency either way, so it must not be charged against the evidence budget
+# above. A planner overrun also says NOTHING about whether the edit needs live
+# data — treating it as "needs data" declined data-INDEPENDENT edits (live
+# 2026-09-11: a header-style edit was declined because the shared planner took
+# ~62s, and the fallback reply then claimed the edit had landed). Bounded
+# separately and generously; if even this is exceeded the edit declines with
+# the honest no-edit flag.
+_FRESH_DATA_PLAN_TIMEOUT_SECONDS = 75
 
 
 class FreshDataResult(NamedTuple):
@@ -799,46 +845,109 @@ async def fetch_fresh_data_section(
     try:
         from core.chat_tool_planner import execute_tool_plan, plan_tool_use
 
-        async def _fetch() -> Tuple[bool, str, str]:
-            # REUSE: an earlier leg on this turn already planned AND executed
-            # — reformat its block instead of hitting providers a second
-            # (or third) time with the identical query.
-            if existing_block:
-                return True, (
+        # REUSE: an earlier leg on this turn already planned AND executed
+        # — reformat its block instead of hitting providers a second
+        # (or third) time with the identical query.
+        if existing_block:
+            return FreshDataResult(
+                section=(
                     "FRESH DATA for this edit (live tool results, fetched just "
                     f"now):\n{existing_block}\n\n"
-                ), existing_block
-            # SINGLEFLIGHT: plan_tool_use is one structured LLM call per
-            # turn, and the chat leg pre-starts it (_tool_plan_task). Join
-            # the in-flight call instead of paying for a second one; a
-            # second planner pass re-decided the same need from the same
-            # words and doubled planning latency on every canvas turn.
+                ),
+                needed=True,
+                ok=True,
+                block=existing_block,
+            )
+
+        async def _resolve_plan() -> Any:
+            """The SINGLEFLIGHT planner call: plan_tool_use is one structured
+            LLM call per turn, and the chat leg pre-starts it
+            (_tool_plan_task). Join the in-flight call instead of paying for a
+            second one; a second planner pass re-decided the same need from
+            the same words and doubled planning latency on every canvas turn.
+            The chat leg awaits this same task, so waiting here adds no work
+            the turn wasn't already doing."""
             if plan_task is not None:
+                # SHIELD: this leg's timeout must NOT cancel the shared task
+                # — cancellation propagates through a plain `await task` and
+                # would poison it for the chat leg (live 2026-09-08: a
+                # fresh-data timeout killed the plan task → whole turn
+                # failed). The shield keeps it running for the chat leg.
                 try:
-                    # SHIELD: this leg's fresh-data timeout must NOT cancel
-                    # the shared task — cancellation propagates through a
-                    # plain `await task` and would poison it for the chat
-                    # leg (live 2026-09-08: 25s fresh-data timeout killed
-                    # the plan task → whole turn failed). On timeout the
-                    # CancelledError re-raises here (wait_for converts it)
-                    # while plan_task keeps running for the chat leg.
-                    plan = await asyncio.shield(plan_task)
+                    return await asyncio.shield(plan_task)
                 except asyncio.CancelledError:
                     raise
                 except Exception as plan_err:  # noqa: BLE001
+                    # A failed SHARED plan is a provider hiccup, not a
+                    # live-data need: the chat leg owns the retry, so proceed
+                    # without evidence (pre-existing contract).
                     logger.debug(f"shared tool plan failed: {plan_err}")
-                    plan = None
-            else:
-                plan = await plan_tool_use(message, history, user_id, llm_service)
-            if not plan or not plan.use_tool:
-                return False, "", ""
+                    return None
+            return await plan_tool_use(message, history, user_id, llm_service)
+
+        def _resolved_plan_if_done() -> Any:
+            """The shared plan's verdict when it landed just after our cap.
+
+            A planner TIMEOUT says nothing about whether the edit needs live
+            data; treating it as "needs data" declined data-INDEPENDENT edits
+            (live 2026-09-11: the header-style edit declined because the
+            shared planner overran, and the reply then claimed it had landed).
+            When the task has since resolved, honor its verdict."""
+            if plan_task is None or not plan_task.done() or plan_task.cancelled():
+                return None
+            try:
+                return plan_task.result()
+            except Exception:  # noqa: BLE001
+                return None
+
+        plan = None
+        try:
+            # This cap bounds the PLANNER wait only — never the evidence
+            # lookup below. Charging planner latency to the evidence budget
+            # is what declined edits whose plan resolved to "no live data
+            # needed" seconds later.
+            plan = await asyncio.wait_for(
+                _resolve_plan(), timeout=_FRESH_DATA_PLAN_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError:
+            plan = _resolved_plan_if_done()
+            if plan is None:
+                logger.info(
+                    "canvas edit evidence planner timed out — declining "
+                    "before any lookup")
+                await _record(
+                    "observation",
+                    {"tool": "fresh_data",
+                     "params": {"source": "canvas_edit_fresh_data"}},
+                    "evidence planner timed out — data-dependent edit must decline")
+                return FreshDataResult("", True, False)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001 — fault-isolated by contract
+            # Reachable only when plan_tool_use itself raised (no shared
+            # task): a failed planner cannot be trusted to say "no live data
+            # needed", so decline rather than edit ungrounded.
+            logger.warning(
+                f"canvas edit evidence planner failed — declining "
+                f"evidence-dependent edit: {e}")
             await _record(
-                "tool_planner",
-                {"tool": plan.service,
-                 "params": {"intent": plan.intent, "query": plan.query,
-                            "source": "canvas_edit_fresh_data"}},
-                f"canvas edit needs live data; planning "
-                f"{plan.service}.{plan.intent} query={plan.query!r}")
+                "observation",
+                {"tool": "fresh_data",
+                 "params": {"source": "canvas_edit_fresh_data"}},
+                f"live evidence lookup failed: {str(e)[:500]}")
+            return FreshDataResult("", True, False)
+
+        if not plan or not plan.use_tool:
+            return FreshDataResult("", False, True)
+
+        await _record(
+            "tool_planner",
+            {"tool": plan.service,
+             "params": {"intent": plan.intent, "query": plan.query,
+                        "source": "canvas_edit_fresh_data"}},
+            f"canvas edit needs live data; planning "
+            f"{plan.service}.{plan.intent} query={plan.query!r}")
+
+        async def _lookup() -> Tuple[bool, str, str]:
             # Canvas context feeds the intelligent query rewrite (subject
             # resolution from the open draft). Live 2026-09-08: this leg
             # executed an explicit web-research search with NO canvas — the
@@ -891,7 +1000,7 @@ async def fetch_fresh_data_section(
             ), block
 
         needed, section, raw_block = await asyncio.wait_for(
-            _fetch(), timeout=_FRESH_DATA_TIMEOUT_SECONDS
+            _lookup(), timeout=_FRESH_DATA_TIMEOUT_SECONDS
         )
         return FreshDataResult(section=section, needed=needed,
                                ok=bool(section) or not needed,
@@ -914,6 +1023,28 @@ async def fetch_fresh_data_section(
             {"tool": "fresh_data", "params": {"source": "canvas_edit_fresh_data"}},
             f"live evidence lookup failed: {str(e)[:500]}")
         return FreshDataResult("", True, False)
+
+
+def canvas_no_edit_note(evidence_unavailable: bool) -> str:
+    """System directive for the reply path after a DECLINED canvas edit.
+
+    When the co-editor declines an edit because its required live lookup
+    failed, the orchestrator falls through to the conversational leg (so a
+    plain data QUESTION still gets answered). That leg has no idea an edit was
+    attempted: observed live 2026-09-11 (canvas a1a13834, "fix the table
+    header background color with text and also properly update the
+    alternatives price") — the reply shipped "Done — here's what I changed"
+    for an edit that was never applied, which reads as the agent lying and
+    hides the failure. This directive tells the fallback model the canvas is
+    unchanged and forbids the claim. Returns "" when no edit was declined."""
+    if not evidence_unavailable:
+        return ""
+    return (
+        "NO CANVAS EDIT WAS APPLIED THIS TURN — a required live-data lookup "
+        "failed, so the open canvas is unchanged. Do NOT claim or imply that "
+        "you changed, fixed, updated or reformatted the canvas; state plainly "
+        "that nothing was changed and invite the user to retry."
+    )
 
 
 async def plan_canvas_edit(
@@ -1034,23 +1165,11 @@ async def plan_canvas_edit(
         f"{history_section}"
     )
 
-    # Pin (provider, model) exactly like the planner: generate_structured_
-    # response forwards provider_model into the handler, pinning the option
-    # list to one reachable (provider, model).
-    kwargs: Dict[str, Any] = {}
-    try:
-        if "openrouter" in llm_service._get_handler().clients:
-            kwargs["provider_model"] = ("openrouter", CANVAS_EDITOR_MODEL)
-    except Exception:
-        pass
-
-    plan = await llm_service.generate_structured_response(
-                disable_reasoning=True,
+    plan = await _plan_structured(
+        llm_service,
         prompt=prompt,
         response_model=CanvasEditPlan,
         system_instruction="You return only the requested JSON object.",
-        temperature=0.0,
-        **kwargs,
     )
     if plan is None:
         # The structured call failed outright (all providers/timeout) — a
@@ -1094,13 +1213,11 @@ async def plan_canvas_edit(
         logger.info(
             f"canvas edit: {reask_reason} — falling back to a replace-mode re-ask"
         )
-        replan = await llm_service.generate_structured_response(
-                disable_reasoning=True,
+        replan = await _plan_structured(
+            llm_service,
             prompt=f"{prompt}\n\n{_REPLACE_FALLBACK_SUFFIX}",
             response_model=CanvasEditPlan,
             system_instruction="You return only the requested JSON object.",
-            temperature=0.0,
-            **kwargs,
         )
         if replan is None:
             # First call proved this IS an edit; the re-ask dying is an
@@ -1124,8 +1241,12 @@ async def plan_canvas_edit(
         # Instructor/tool-mode structured calls are exactly where weak
         # models mangle the embedded JSON string; a raw completion often
         # carries the same JSON intact.
+        #
+        # No pin is passed: with routing left to BPC the raw completion is
+        # ranked like any other call. The empty dict keeps the helper's
+        # optional ``provider_model`` contract intact.
         raw_plan = await _raw_json_replace_plan(
-            llm_service, f"{prompt}\n\n{_REPLACE_FALLBACK_SUFFIX}", kwargs
+            llm_service, f"{prompt}\n\n{_REPLACE_FALLBACK_SUFFIX}", {}
         )
         if raw_plan is not None and (raw_plan.updated_content_json or "").strip():
             logger.info("canvas edit replace plan recovered via raw-JSON fallback")
@@ -1191,9 +1312,9 @@ def _merge_replace_content(
 
     Returns (new_content, failure_reason) — failure_reason None on success.
     """
-    from core.canvas_app_schema import get_app_spec, known_field_names
+    from core.canvas_app_schema import known_field_names, resolve_app_spec
 
-    spec = get_app_spec(canvas_type)
+    spec = resolve_app_spec(canvas_type, current)
 
     if isinstance(parsed, dict) and isinstance(current, dict):
         if isinstance(current.get("rows"), list) or isinstance(current.get("cells"), dict):
@@ -1370,7 +1491,7 @@ async def apply_canvas_edit(
     Returns the update result dict on success, None on any failure. With
     ``return_reason=True`` returns ``(result_or_None, reason_or_None)`` so
     the caller can answer with WHAT failed instead of a generic retry."""
-    from core.canvas_app_schema import get_app_spec
+    from core.canvas_app_schema import resolve_app_spec
 
     def _out(result, reason):
         return (result, reason) if return_reason else result
@@ -1381,7 +1502,10 @@ async def apply_canvas_edit(
     current = canvas.get("content")
     canvas_id = str(canvas.get("canvas_id"))
     canvas_type = str(canvas.get("canvas_type") or "generic")
-    spec = get_app_spec(canvas_type)
+    # File binding wins over the legacy canvas_type: office canvases are
+    # persisted with generic registry types ("sheets"/"docs"/"presentation")
+    # that would otherwise resolve to the plain grid/text apps.
+    spec = resolve_app_spec(canvas_type, current)
 
     if spec.content_kind == "file_backed":
         return _out(None, "file_backed")
@@ -1483,9 +1607,13 @@ def normalize_degenerate_content(
     narration marker is replaced by the draft's real subject. Manual user
     edits can't be clobbered. Returns the healed content, or None when
     there is nothing to heal (the overwhelmingly common case)."""
-    from core.canvas_app_schema import empty_fillable_fields, get_app_spec, normalize_app_type
+    from core.canvas_app_schema import (
+        empty_fillable_fields,
+        normalize_app_type,
+        resolve_app_spec,
+    )
 
-    spec = get_app_spec(canvas_type)
+    spec = resolve_app_spec(canvas_type, content)
     if spec.content_kind != "fields" or not isinstance(content, dict):
         return None
     empty = empty_fillable_fields(spec, content)
@@ -1580,11 +1708,11 @@ def describe_apply_failure(
     act on, instead of the old generic "try rephrasing" dead end."""
     from core.canvas_app_schema import (
         empty_fillable_fields,
-        get_app_spec,
+        resolve_app_spec,
     )
 
-    spec = get_app_spec(canvas_type)
     content = (canvas or {}).get("content")
+    spec = resolve_app_spec(canvas_type, content)
     empty = empty_fillable_fields(spec, content)
     field_hint = ""
     if empty:
@@ -1737,20 +1865,11 @@ async def plan_canvas_action(
         "Return the action plan as RAW JSON — do NOT wrap it in ```json fences."
     )
 
-    kwargs: Dict[str, Any] = {}
-    try:
-        if "openrouter" in llm_service._get_handler().clients:
-            kwargs["provider_model"] = ("openrouter", CANVAS_EDITOR_MODEL)
-    except Exception:
-        pass
-
-    plan = await llm_service.generate_structured_response(
-                disable_reasoning=True,
+    plan = await _plan_structured(
+        llm_service,
         prompt=prompt,
         response_model=CanvasActionPlan,
         system_instruction="You return only the requested JSON object — raw JSON, no markdown fences.",
-        temperature=0.0,
-        **kwargs,
     )
     if plan is None:
         # Deterministic fallback: the structured (Instructor/tool-mode) path
@@ -1760,7 +1879,7 @@ async def plan_canvas_action(
         # instead") even though the completion holds perfect JSON (observed
         # live across provider variants). Parse a raw completion ourselves:
         # fence-stripping + pydantic validation.
-        plan = await _raw_json_action_plan(llm_service, prompt, kwargs)
+        plan = await _raw_json_action_plan(llm_service, prompt, {})
         if plan is not None:
             logger.info("canvas action plan recovered via raw-JSON fallback")
     if plan and plan.wants_action:

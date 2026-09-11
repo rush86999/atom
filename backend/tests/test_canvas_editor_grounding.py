@@ -138,9 +138,13 @@ async def test_fetch_failure_does_not_raise():
 @pytest.mark.asyncio
 async def test_fetch_bounded_by_timeout(monkeypatch):
     """Evidence gathering must never cost the edit its own turn — but a
-    timeout is a FAILED lookup (decline), not license to fabricate."""
+    timeout is a FAILED lookup (decline), not license to fabricate.
+
+    The bound now applies to the PLANNER wait (the lookup keeps its own
+    `_FRESH_DATA_TIMEOUT_SECONDS` budget); a planner overrun with no verdict
+    in still declines."""
     monkeypatch.setattr(
-        "core.chat_canvas_editor._FRESH_DATA_TIMEOUT_SECONDS", 0.05)
+        "core.chat_canvas_editor._FRESH_DATA_PLAN_TIMEOUT_SECONDS", 0.05)
 
     async def slow_planner(*a, **k):
         await asyncio.sleep(2)

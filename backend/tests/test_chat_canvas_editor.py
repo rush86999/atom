@@ -8,6 +8,7 @@ new behavior: canvas-context turns either edit the canvas through
 canvas_crud_tool (durable + broadcast) or fall through to the normal path.
 """
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
+import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -77,7 +78,7 @@ async def test_plan_returns_none_without_canvas_id():
 
 
 @pytest.mark.asyncio
-async def test_plan_builds_prompt_with_canvas_content_and_pins_model():
+async def test_plan_builds_prompt_with_canvas_content_and_routes_via_bpc():
     llm = MagicMock()
     llm._get_handler.return_value.clients = {"openrouter": object()}
     llm.generate_structured_response = AsyncMock(return_value=CanvasEditPlan(
@@ -93,7 +94,13 @@ async def test_plan_builds_prompt_with_canvas_content_and_pins_model():
     assert "remove the sign-off" in kwargs["prompt"]
     assert "Hello" in kwargs["prompt"]          # current content rides along
     assert "draft an email to Mark" in kwargs["prompt"]  # history for follow-ups
-    assert kwargs["provider_model"][0] == "openrouter"   # pinned, planner-style
+    # Routing is BPC's job: no model is pinned. A provider_model pin collapses
+    # the candidate list to one tuple and removes every fallback, which made a
+    # transient upstream 429 fatal to the whole edit leg (2026-09-10).
+    assert "provider_model" not in kwargs
+    # The pin's real purpose — a cheap, non-thinking planning call — is still
+    # enforced on the request shape.
+    assert kwargs["disable_reasoning"] is True
 
 
 @pytest.mark.asyncio
@@ -529,6 +536,83 @@ async def test_canvas_action_plans_against_durable_store_content():
     assert seen["content"] == {"body": "fresh DB body"}
 
 
+@pytest.mark.asyncio
+async def test_canvas_action_plan_overlaps_edit_plan_singleflight():
+    """The send/action planner must NOT run serially after the edit planner.
+
+    Both are independent structured LLM calls over the same turn inputs
+    (message, history, canvas, fresh data). Serialized, every non-edit canvas
+    turn paid BOTH latencies before the reply even started — measured live at
+    4–8s each, i.e. ~10s of dead air per message from /canvas/{id} before any
+    token streamed. The edit leg pre-starts the action plan on the turn
+    blackboard; the action leg joins the in-flight call instead of planning a
+    second time.
+    """
+    from core.chat_canvas_editor import CanvasActionPlan, CanvasEditPlan
+
+    orch = _orch()
+    calls = {"edit": 0, "action": 0}
+
+    async def fake_edit_plan(*a, **k):
+        calls["edit"] += 1
+        # Let the concurrently-started action plan make progress: a serial
+        # implementation would not have started it at this point at all.
+        await asyncio.sleep(0.01)
+        return CanvasEditPlan(wants_edit=False, reply="")
+
+    async def fake_action_plan(*a, **k):
+        calls["action"] += 1
+        return CanvasActionPlan(wants_action=False)
+
+    shared = {}
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_edit",
+               new=AsyncMock(side_effect=fake_edit_plan)), \
+         patch("core.chat_canvas_editor.plan_canvas_action",
+               new=AsyncMock(side_effect=fake_action_plan)):
+        resp = await orch._try_canvas_edit(
+            "what does this say?", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
+            shared_tool_state=shared,
+        )
+        assert resp is None  # not an edit
+        # The edit leg must have pre-started the action plan.
+        pre = shared.get("action_plan_task")
+        assert pre is not None and not pre.cancelled()
+
+        action_resp = await orch._try_canvas_action(
+            "what does this say?", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
+            shared_tool_state=shared,
+        )
+
+    assert action_resp is None
+    # Exactly one call each: the action leg joined the pre-started plan rather
+    # than planning a second time.
+    assert calls == {"edit": 1, "action": 1}
+
+
+@pytest.mark.asyncio
+async def test_canvas_action_leg_still_plans_when_not_prestarted():
+    """Backward-compat: callers without a shared blackboard (direct callers,
+    tests) still get the action planner invoked normally."""
+    from core.chat_canvas_editor import CanvasActionPlan
+
+    orch = _orch()
+    seen = {"n": 0}
+
+    async def fake_action_plan(*a, **k):
+        seen["n"] += 1
+        return CanvasActionPlan(wants_action=False)
+
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch("core.chat_canvas_editor.plan_canvas_action",
+               new=AsyncMock(side_effect=fake_action_plan)):
+        resp = await orch._try_canvas_action(
+            "what does this say?", [], _canvas(), "user-1", "s-1", "exec-1", "hire-1",
+        )
+    assert resp is None
+    assert seen["n"] == 1
+
+
 # ───────────────────────── apply_canvas_edit ─────────────────────────
 
 @pytest.mark.asyncio
@@ -631,6 +715,82 @@ async def test_canvas_edit_planning_failure_replies_honestly():
     assert resp["data"]["canvas_edit"]["updated"] is False
     assert resp["data"]["canvas_edit"]["plan_unavailable"] is True
     assert "nothing was changed" in resp["message"]
+
+
+@pytest.mark.asyncio
+async def test_canvas_edit_evidence_failure_flags_turn_as_unedited():
+    """A declined canvas edit must mark the turn "no edit applied" for the
+    conversational reply.
+
+    When the co-editor declines because its required live lookup failed, it
+    returns None and the fallback model answers "Done — here's what I
+    changed" for an edit that never landed (live 2026-09-11, canvas
+    a1a13834: dark-header/price edit claimed, canvas untouched). The flag is
+    what lets the reply path forbid that claim.
+    """
+    from core.chat_canvas_editor import FreshDataResult
+
+    orch = _orch()
+    shared = {"plan_task": None, "block": None}
+    with patch.object(orch, "_record_chat_step", new=AsyncMock()), \
+         patch.object(orch, "_sender_identity", new=AsyncMock(return_value=None)), \
+         patch("core.chat_canvas_editor.fetch_fresh_data_section", new=AsyncMock(
+             return_value=FreshDataResult(section="", needed=True, ok=False))), \
+         patch("core.chat_canvas_editor.plan_canvas_edit", new=AsyncMock()) as plan:
+        resp = await orch._try_canvas_edit(
+            "fix the table header background color with text and also "
+            "properly update the alternatives price.",
+            [], _canvas(), "user-1", "s-1", "exec-1", None,
+            shared_tool_state=shared,
+        )
+    assert resp is None, "declined edit must fall through to the reply path"
+    assert shared.get("canvas_evidence_unavailable") is True
+    plan.assert_not_awaited()
+
+
+def test_canvas_no_edit_note_forbids_claiming_an_edit():
+    """The reply-path directive exists exactly when the edit was declined."""
+    from core.chat_canvas_editor import canvas_no_edit_note
+
+    assert canvas_no_edit_note(False) == ""
+    note = canvas_no_edit_note(True)
+    assert "NO CANVAS EDIT WAS APPLIED" in note
+    assert "Do NOT claim" in note
+
+
+@pytest.mark.asyncio
+async def test_reply_prompt_carries_no_edit_directive_when_flagged():
+    """The flag must reach the actual reply prompt — not just the decline
+    site. This is the guard that stops "Done — here's what I changed" on a
+    declined edit."""
+    orch = _orch()
+    llm = MagicMock()
+    llm.generate_completion = AsyncMock(return_value={
+        "success": True, "content": "nothing changed", "model": "m", "provider": "p",
+    })
+    orch.llm_service = llm
+
+    await orch._get_qwen_response(
+        "fix the alternatives price", [], user_id="user-1",
+        canvas_context=_canvas(), canvas_evidence_unavailable=True,
+    )
+    sent = llm.generate_completion.call_args[1]["messages"]
+    system_text = " ".join(m["content"] for m in sent if m.get("role") == "system")
+    assert "NO CANVAS EDIT WAS APPLIED" in system_text
+
+    # Absent on an ordinary turn — the directive must not scare normal chat.
+    llm.generate_completion.reset_mock()
+    await orch._get_qwen_response(
+        "what does the draft say?", [], user_id="user-1", canvas_context=_canvas(),
+    )
+    sent2 = llm.generate_completion.call_args[1]["messages"]
+    system_text2 = " ".join(m["content"] for m in sent2 if m.get("role") == "system")
+    assert "NO CANVAS EDIT WAS APPLIED" not in system_text2
+
+
+# ─────────────── fresh-data budget: planner vs lookup ───────────────
+# (moved to tests/test_canvas_fresh_data_budget.py — this module's autouse
+#  `_no_live_fresh_data` fixture mocks fetch_fresh_data_section)
 
 
 @pytest.mark.asyncio

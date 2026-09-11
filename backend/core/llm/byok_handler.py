@@ -77,6 +77,15 @@ _LOGPROBS_UNSUPPORTED: set = set()
 # pairs go straight to instructor Mode.JSON hereafter.
 _TOOLCHOICE_UNSUPPORTED: set = set()
 
+# Models whose endpoint REQUIRES reasoning and rejects the disable switch with
+# a 400 ("Reasoning is mandatory for this endpoint and cannot be disabled").
+# Memoized for the process lifetime so later structured calls skip sending
+# ``extra_body.reasoning`` to a pair already known to reject it — mirroring
+# _TOOLCHOICE_UNSUPPORTED above. Without the memo every planning call re-pays a
+# doomed round trip (observed live 2026-09-10 on openrouter/z-ai/glm-5.3-flash
+# and openrouter/openai/gpt-5-mini; the retry meant to handle it never fired).
+_REASONING_MANDATORY: set = set()
+
 
 def _run_coroutine_sync(coro, timeout: float = 15.0):
     """Run ``coro`` synchronously from sync code — safe with or without a
@@ -149,6 +158,15 @@ class AwaitableResult:
 
     def __rsub__(self, other):
         return other - self.value
+
+    def __neg__(self):
+        """Unary minus. Completes the numeric surface: ``calculate_effective_cost``
+        returns an ``AwaitableResult``-wrapped float, so any arithmetic done on a
+        candidate's cost must survive the wrapper. Without this, cost-keyed
+        ranking raised ``bad operand type for unary -: 'AwaitableResult'``
+        (caught by get_ranked_providers' broad handler, which then silently fell
+        back to the static mapping — masking the failure as "one model")."""
+        return -self.value
 
     def __mul__(self, other):
         val = other.value if isinstance(other, AwaitableResult) else other
@@ -340,6 +358,72 @@ class _EmptyCompletionError(RuntimeError):
     provider serves the turn — never a silent None success."""
 
 
+class _StreamInactivityError(RuntimeError):
+    """A streaming response produced no chunk for longer than the idle bound.
+
+    The SDK's request-level timeout covers connect + getting the response
+    object; once a 200 stream is open, inter-chunk silence is unbounded
+    (Qwen Code incident: ~595s of silence with no finish_reason). This makes
+    that silence a first-class failed attempt so the next provider/model can
+    serve the turn — and, after visible output, ends the stream instead of
+    replaying it."""
+
+
+def _stream_idle_timeout_seconds() -> float:
+    """Idle bound between stream chunks; ``<=0`` disables the watchdog.
+
+    Read per call so tests and runtime settings can flip it. Default 45s is
+    below the 95s turn budget, leaving room for one fallback attempt."""
+    raw = os.getenv("ATOM_STREAM_IDLE_TIMEOUT_SECONDS")
+    if raw:
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            logger.warning(
+                "Invalid ATOM_STREAM_IDLE_TIMEOUT_SECONDS=%r; using 45", raw)
+    return 45.0
+
+
+async def _stream_with_idle_watchdog(source: Any, idle_seconds: float):
+    """Yield chunks from ``source``, failing if none arrives for ``idle_seconds``.
+
+    The timer resets on EVERY chunk (including reasoning deltas), so a
+    long-thinking model that streams reasoning is never wrongly aborted — only
+    true silence trips it."""
+    it = source.__aiter__()
+    while True:
+        try:
+            if idle_seconds and idle_seconds > 0:
+                chunk = await asyncio.wait_for(
+                    it.__anext__(), timeout=idle_seconds)
+            else:
+                chunk = await it.__anext__()
+        except StopAsyncIteration:
+            return
+        except asyncio.TimeoutError:
+            raise _StreamInactivityError(
+                f"stream produced no chunk for {idle_seconds}s")
+        yield chunk
+
+
+def _is_context_length_error(text: str) -> bool:
+    """True when a provider rejected the request for exceeding its context."""
+    t = (text or "").lower()
+    return any(s in t for s in (
+        "context length", "context_length", "maximum context", "context window",
+        "too many tokens", "reduce the length", "maximum number of tokens",
+    ))
+
+
+def _is_content_policy_error(text: str) -> bool:
+    """True when a provider refused the request on content-policy grounds."""
+    t = (text or "").lower()
+    return any(s in t for s in (
+        "content policy", "content_policy", "moderation", "content filter",
+        "content_filter", "flagged", "safety system",
+    ))
+
+
 def _visible_content_missing(result: Any) -> bool:
     """True when a completion returned nothing the caller can use.
 
@@ -357,6 +441,21 @@ def _visible_content_missing(result: Any) -> bool:
 # starves the answer at finish_reason='length' with content=None. The cap is
 # a ceiling, not a target — short answers are unaffected.
 _DEFAULT_COMPLETION_MAX_TOKENS = int(os.getenv("ATOM_COMPLETION_MAX_TOKENS", "6000"))
+
+# Providers that speak OpenRouter's unified ``reasoning`` object (the field is
+# an OpenRouter extension, passed through ``extra_body`` for SDK requests).
+_REASONING_GATEWAY_PROVIDERS = frozenset(
+    {"openrouter", "opencode-go", "opencode", "zen"}
+)
+# Bounded chat reasoning budget — a fraction of the completion cap, floored and
+# capped so both tiny and very large caps keep room for the visible answer.
+_REASONING_CHAT_MIN_BUDGET = 1024
+_REASONING_CHAT_MAX_BUDGET = 8000
+# (provider, model) pairs that rejected the reasoning field (memoized, same
+# pattern as _REASONING_MANDATORY) — never asked twice.
+_REASONING_BUDGET_UNSUPPORTED: set = set()
+# How long a (provider, model) pair is benched after empty/inactivity output.
+_MODEL_COOLDOWN_SECONDS = 120.0
 
 
 # Provider tier mapping for cost optimization
@@ -853,9 +952,16 @@ class BYOKHandler:
         if not model:
             return True
         model_l = model.lower()
-        # Local/open providers serve whatever model name is configured.
+        # Local/open providers serve whatever BARE model name is configured.
+        # A namespaced id ("z-ai/glm-5.3-flash") is a gateway catalog model,
+        # not a local name: treating it as locally servable made the streaming
+        # fallback retry the SAME OpenRouter model on ollama, which 404s and
+        # burned the final provider slot (live 2026-09-11 — the Sales Agent's
+        # canvas turn ended "All 2 providers failed for z-ai/glm-5.3-flash").
+        # Callers always try the REQUESTED provider regardless of this gate,
+        # so an explicitly selected local model still works.
         if provider_id in {"ollama", "vllm", "lmstudio", "local"} or provider_id.startswith("local_"):
-            return True
+            return "/" not in model_l
         # Gateways (opencode-go/zen, openrouter) serve model families from
         # many vendors under bare gateway IDs (e.g. 'deepseek-v4-flash'),
         # so family-prefix matching can't apply — the gateway client is
@@ -1198,6 +1304,68 @@ class BYOKHandler:
         """
         capabilities = self.pricing_fetcher.get_model_capabilities(model_id)
         return capabilities.get("supports_reasoning", False)
+
+    # Chat replies keep reasoning but BOUNDED. A reasoning model that spends
+    # the whole completion cap on hidden thinking returns
+    # ``finish_reason='length'`` with no visible content (live 2026-09-11:
+    # openrouter/z-ai/glm-5.3-flash streamed 0 chunks at max_tokens=6000 and the
+    # Sales Agent turn died). OpenRouter's contract is explicit: "max_tokens must
+    # be strictly higher than the reasoning budget". Planning already disables
+    # reasoning entirely (`disable_reasoning` / `_REASONING_MANDATORY`); this is
+    # the chat-path counterpart.
+    def _reasoning_request_body(
+        self, provider_id: str, model: str, max_tokens: int,
+    ) -> Optional[Dict[str, Any]]:
+        """``extra_body`` reasoning budget for a chat completion, or ``None``.
+
+        Returns ``None`` (send no reasoning field) unless the provider speaks
+        OpenRouter's unified ``reasoning`` object, the capability cache marks
+        the model as a reasoning model, and the pair has not previously
+        rejected the field."""
+        if not provider_id or not model:
+            return None
+        if provider_id not in _REASONING_GATEWAY_PROVIDERS:
+            return None
+        if f"{provider_id}/{model}" in _REASONING_BUDGET_UNSUPPORTED:
+            return None
+        try:
+            if not self._model_supports_reasoning(model):
+                return None
+        except Exception:  # noqa: BLE001 — capability lookup is best-effort
+            return None
+        try:
+            cap = int(max_tokens or 0)
+        except (TypeError, ValueError):
+            return None
+        if cap <= _REASONING_CHAT_MIN_BUDGET:
+            return None
+        budget = max(
+            _REASONING_CHAT_MIN_BUDGET,
+            min(cap // 3, _REASONING_CHAT_MAX_BUDGET),
+        )
+        if budget >= cap:  # never violate max_tokens > reasoning budget
+            return None
+        return {"reasoning": {"max_tokens": budget}}
+
+    def _model_cooldown_active(self, provider_id: str, model: str) -> bool:
+        """True while a (provider, model) pair is benched for bad output.
+
+        Connection failures bench a PROVIDER via the health monitor; a model
+        can be HTTP-healthy yet unusable (empty/truncated/reasoning-starved).
+        Benching the pair stops BPC re-picking it every turn until the
+        learning router's slower EMA catches up."""
+        until = getattr(self, "_model_cooldown_until", None) or {}
+        return until.get(f"{provider_id}/{model}", 0) > time.time()
+
+    def _bench_model(self, provider_id: str, model: str,
+                     seconds: Optional[float] = None) -> None:
+        """Bench a (provider, model) pair for a short cooldown."""
+        until = getattr(self, "_model_cooldown_until", None)
+        if until is None:
+            until = {}
+            self._model_cooldown_until = until
+        until[f"{provider_id}/{model}"] = time.time() + (
+            seconds if seconds is not None else _MODEL_COOLDOWN_SECONDS)
 
     # Availability probe caching. A DOWN runtime must neither stall routing
     # (probes are cached, and localhost connection-refused is instant anyway)
@@ -1870,6 +2038,31 @@ class BYOKHandler:
             "No LLM providers available. You need an AI provider to do this. Add an API key or enable local Ollama to continue."
         )
 
+    def get_fallback_models(
+        self, complexity: QueryComplexity, primary_model: str,
+        limit: int = 2, **rank_kwargs,
+    ) -> List[str]:
+        """Distinct models ranked below ``primary_model`` — model-level fallback.
+
+        The ranked ladder already computes alternatives; exposing them lets the
+        streaming path try the next MODEL when every provider for the chosen one
+        fails (live 2026-09-11: a single ranked model with one healthy provider
+        had nowhere to go). Fault-isolated: any ranking failure yields an empty
+        list, i.e. exactly the previous behavior."""
+        try:
+            options = self.get_ranked_providers(complexity, **rank_kwargs)
+        except Exception as e:  # noqa: BLE001 — fallback list is best-effort
+            logger.debug(f"fallback-model ranking skipped: {e}")
+            return []
+        out: List[str] = []
+        for _prov, _model in (options or []):
+            if not _model or _model == primary_model or _model in out:
+                continue
+            out.append(_model)
+            if len(out) >= max(1, int(limit)):
+                break
+        return out
+
     def get_ranked_providers(
         self,
         complexity: QueryComplexity,
@@ -1884,7 +2077,8 @@ class BYOKHandler:
         cognitive_tier: Optional[CognitiveTier] = None,  # Phase 68: Cognitive tier system
         max_quality: Optional[int] = None,  # Stage-router "fast" steering: upper quality bound
         required_capability: Optional[str] = None,  # Phase 226.4-04: Capability-based routing
-        turn_index: int = 0 # NEW: Deterministic BPC
+        turn_index: int = 0, # NEW: Deterministic BPC
+        cost_priority: Optional[bool] = None,  # Small structured tasks: let price drive
     ) -> List[tuple[str, str]]:
         """
         Get a ranked list of providers and models using the BPC (Benchmark-Price-Capability) algorithm.
@@ -2206,6 +2400,66 @@ class BYOKHandler:
             else:
                 relative_floor = 1e-9  # all-free pool — original behavior
 
+            # --- Cost-priority mode (small structured tasks) ----------------
+            # A planning/extraction/NL→SQL call produces a few hundred tokens of
+            # JSON, so the reply-quality spread among flash-class models is a
+            # couple of points while their prices differ by >2.5x. The default
+            # score rewards quality disproportionately: it breaks down as
+            # (quality²) vs (relative cost), and because effective_cost is
+            # normalized to the cheapest candidate, the quality term is what
+            # actually separates neighbours. Measured on the live pool
+            # (estimated_tokens=3000):
+            #
+            #   model                            quality  eff.cost   score   rank
+            #   z-ai/glm-5.3-flash                  92    3.25e-7   26043     1
+            #   qwen/qwen3.8-flash                  90    3.10e-7   26129     2
+            #   deepseek/deepseek-v4-flash-0731     88    1.225e-7  63216     3 <- cheapest
+            #
+            # So the cheapest model by a factor of 2.65 loses to a 5%
+            # quality edge. For a task whose answer is a small JSON object that
+            # is the wrong trade, and it is why "flash" workloads drifted onto
+            # 2-6x pricier models.
+            #
+            # Cost-priority instead ranks by PRICE with a quality floor: never
+            # spend more for a worse small-plan model, but do not drop below a
+            # model that is genuinely deficient just to save fractions of a
+            # cent. The floor is deliberately a filter, not a tiebreak, so the
+            # ordering itself is unambiguously cost-first (auditable).
+            #
+            # Resolution: an explicit argument wins; otherwise the task type
+            # decides. Only small-verdict workloads opt in — user-facing
+            # generation (chat replies, drafting) keeps quality-weighted BPC.
+            _COST_PRIORITY_TASKS = {
+                "extraction", "planning", "classification", "routing",
+                "nl2sql", "structured_extract",
+            }
+            _cost_priority = (
+                cost_priority
+                if cost_priority is not None
+                else (task_type or "").strip().lower() in _COST_PRIORITY_TASKS
+            )
+            _COST_PRIORITY_MIN_QUALITY = 85
+            if _cost_priority:
+                _above = [
+                    c for c in candidates
+                    if (c.get("quality") or 0) * 100 >= _COST_PRIORITY_MIN_QUALITY
+                ]
+                if _above:
+                    _dropped = len(candidates) - len(_above)
+                    if _dropped:
+                        logger.info(
+                            "BPC cost-priority: %d candidate(s) below quality "
+                            "floor %d excluded (task_type=%s)",
+                            _dropped, _COST_PRIORITY_MIN_QUALITY, task_type,
+                        )
+                    candidates = _above
+                else:
+                    logger.warning(
+                        "BPC cost-priority: NO candidate clears quality floor %d "
+                        "(task_type=%s) — ranking all %d candidates by cost",
+                        _COST_PRIORITY_MIN_QUALITY, task_type, len(candidates),
+                    )
+
             # Rate-aware pass: providers with custom RPM/TPM limits (e.g.
             # opencode-go) are penalized by their remaining headroom, and
             # hard-skipped once their budget is exhausted this window. Without
@@ -2266,6 +2520,20 @@ class BYOKHandler:
             # ranked output or break the value-score sort below.
             candidates = [c for c in candidates if "headroom" in c]
 
+            # Hard price ceiling (P2.3): optional per-Mtok cap so a mis-ranked
+            # expensive model can never win by default. 0/empty disables the
+            # guard, i.e. no behavior change unless the operator opts in.
+            try:
+                _max_price_per_mtok = float(
+                    os.getenv("ATOM_BPC_MAX_PRICE_PER_MTOK", "0") or 0)
+            except (TypeError, ValueError):
+                _max_price_per_mtok = 0.0
+            if _max_price_per_mtok > 0:
+                candidates = [
+                    c for c in candidates
+                    if (c.get("cost", 0) * 1e6) <= _max_price_per_mtok
+                ]
+
             for c in candidates:
                 normalized_cost = max(c["cost"], relative_floor)
                 # BPC Score: Higher is better value.
@@ -2284,16 +2552,50 @@ class BYOKHandler:
                 weight = c.get("quota_weight") or 1.0
                 if weight > 1.0:
                     quota_factor = max(0.25, min(1.0, (1.0 / weight) ** 0.2))
+                # Latency/health factor (P1.6): the provider health monitor
+                # already folds rolling success rate (70%) and average latency
+                # (30%; 5s -> 0) into one score. Use it as a mild multiplier so
+                # a cheap-but-slow/unreliable provider does not outrank a
+                # healthy one at quality parity. Unknown providers stay 1.0.
+                health_factor = 1.0
+                try:
+                    _hs = self.health_monitor.get_health_score(c["provider"])
+                    if _hs is not None:
+                        health_factor = max(0.5, min(1.0, float(_hs)))
+                except Exception:  # noqa: BLE001 — telemetry is advisory only
+                    pass
                 c["value_score"] = (
                     ((c["quality"] ** 2) / (normalized_cost * 1e6))
                     * max(0.25, c["headroom"])
                     * quota_factor
+                    * health_factor
                     * c.get("endpoint_penalty", 1.0)
                 )
+                # Cost-priority ranks on PRICE (see the _cost_priority block):
+                # the pool has already been floored on quality above. The key is
+                # the raw cost and the sort is ASCENDING — negating it here and
+                # sorting ascending selected the most expensive model first.
+                c["cost_rank_key"] = c["cost"]
+
 
             
-            # Sort by Value Score (Descending)
-            candidates.sort(key=lambda x: x["value_score"], reverse=True)
+            # Sort by Value Score (Descending). In cost-priority mode the pool
+            # is already floored on quality, so the ordering key is price
+            # (cheapest first) — see the _cost_priority block above for why.
+            if _cost_priority:
+                candidates.sort(key=lambda x: x["cost_rank_key"])
+                if candidates:
+                    logger.info(
+                        "BPC cost-priority active (task_type=%s): cheapest "
+                        "capable model %s/%s (eff.cost=%.3e, quality=%s, "
+                        "default score would have picked %s)",
+                        task_type,
+                        candidates[0]["provider"], candidates[0]["model"],
+                        candidates[0]["cost"], candidates[0]["quality"],
+                        max(candidates, key=lambda c: c["value_score"])["model"],
+                    )
+            else:
+                candidates.sort(key=lambda x: x["value_score"], reverse=True)
             
             # Filter by plan restrictions. Plan gating is for MANAGED
             # (platform-billed) keys only: an env-provided key IS the
@@ -2957,12 +3259,24 @@ class BYOKHandler:
                     # round trip — one in-flight extraction/chat turn stalled
                     # EVERY concurrent request (observed: ingestion-status
                     # hung 60s while GraphRAG extraction awaited openrouter).
+                    _cap = (
+                        max_tokens if max_tokens is not None
+                        else _DEFAULT_COMPLETION_MAX_TOKENS
+                    )
+                    _req_kwargs = {
+                        "model": model,
+                        "messages": messages,
+                        "temperature": temperature,
+                        "max_tokens": _cap,
+                    }
+                    # Same bounded-reasoning rule as the streaming path.
+                    _reasoning_body = self._reasoning_request_body(
+                        provider_id, model, _cap)
+                    if _reasoning_body:
+                        _req_kwargs["extra_body"] = _reasoning_body
                     response = await _to_thread_safe(
                         client.chat.completions.create,
-                        model=model,
-                        messages=messages,
-                        temperature=temperature,
-                        max_tokens=max_tokens if max_tokens is not None else _DEFAULT_COMPLETION_MAX_TOKENS,
+                        **_req_kwargs,
                     )
                     self._capture_echoed_model(response)
                     self._stash_last_reasoning(response)
@@ -4057,6 +4371,11 @@ class BYOKHandler:
                 complexity, task_type, True, tenant_plan, is_managed,
                 requires_tools=True, requires_structured=True,
                 estimated_tokens=estimated_input_tokens,
+                # Small structured verdicts (planning/extraction/NL→SQL) opt
+                # into cost-priority ranking via their task_type — see the
+                # _cost_priority block in get_ranked_providers. A pinned
+                # provider_model still overrides the list entirely below.
+                cost_priority=False if provider_model is not None else None,
             )
 
             # R72 Workstream F — MoA recursion guard: when a (provider, model)
@@ -4273,6 +4592,11 @@ class BYOKHandler:
                         temperature=temperature,
                         max_tokens=_structured_max_tokens,
                     )
+                    # Key for the three per-(provider, model) capability memos
+                    # below (_TOOLCHOICE_UNSUPPORTED / _REASONING_MANDATORY /
+                    # _LOGPROBS_UNSUPPORTED). Defined BEFORE them because the
+                    # extra_body decision already consults the reasoning memo.
+                    _logprobs_key = f"{provider_id}/{model}"
                     if disable_reasoning:
                         # OpenRouter unified reasoning switch: a reasoning
                         # model burns 1,200–2,000 hidden tokens (30–60s)
@@ -4282,65 +4606,106 @@ class BYOKHandler:
                         # this turns minute-long stages into seconds.
                         # extra_body, because the typed SDK create() rejects
                         # provider-extension kwargs directly.
-                        _create_kwargs["extra_body"] = {
-                            "reasoning": {"enabled": False, "exclude": True},
-                        }
-                    _logprobs_key = f"{provider_id}/{model}"
+                        #
+                        # Skipped entirely for a pair already memoized as
+                        # reasoning-MANDATORY (see _REASONING_MANDATORY): sending
+                        # it again just buys the same 400.
+                        if _logprobs_key not in _REASONING_MANDATORY:
+                            _create_kwargs["extra_body"] = {
+                                "reasoning": {"enabled": False, "exclude": True},
+                            }
                     if _soft_sc_on and _logprobs_key not in _LOGPROBS_UNSUPPORTED:
                         _create_kwargs["logprobs"] = True
-                    try:
-                        # to_thread: instructor here wraps the SYNC client — a
-                        # bare call blocked the loop for the whole structured
-                        # round trip (same starvation as generate_response).
-                        result = await _to_thread_safe(
-                            instructor_client.chat.completions.create, **_create_kwargs
-                        )
-                    except Exception as _toolchoice_reject:
-                        # Thinking-mode endpoints reject Mode.TOOLS'
-                        # tool_choice="required". Retry once with the JSON-mode
-                        # instructor client (no tools in the request) and
-                        # memoize the pair so later calls skip TOOLS mode.
-                        _err_txt = str(_toolchoice_reject).lower()
-                        if ("tool_choice" in _err_txt and "thinking" in _err_txt
-                                and not _json_mode):
-                            _TOOLCHOICE_UNSUPPORTED.add(_logprobs_key)
-                            logger.warning(
-                                f"{provider_id}/{model} rejects tool_choice in "
-                                f"thinking mode — retrying once in JSON mode "
-                                f"and memoizing the pair"
-                            )
-                            instructor_client = instructor.from_openai(
-                                client, mode=instructor.Mode.JSON)
+                    # Request-kwarg recovery loop. Each recoverable rejection
+                    # (thinking-mode tool_choice, reasoning-mandatory 400,
+                    # unsupported logprobs) strips the offending kwarg ONCE and
+                    # re-issues. Previously these were three SIBLING ``except``
+                    # clauses whose ``else: raise`` relied on re-raised
+                    # exceptions chaining to the next clause — they do NOT: only
+                    # one clause body ever runs, so the later recoveries were
+                    # dead code. That silently killed the reasoning-mandatory
+                    # retry (live 2026-09-10: every attempt failed with
+                    # "Reasoning is mandatory …" and never retried; 13x on
+                    # glm-5.3-flash, then gpt-5-mini once routing became
+                    # dynamic). A loop makes each recovery reachable, in order,
+                    # with each step dropping exactly one kwarg so it cannot
+                    # re-trigger itself.
+                    _recovered: set = set()
+                    result = None
+                    while True:
+                        try:
+                            # to_thread: instructor here wraps the SYNC client —
+                            # a bare call blocked the loop for the whole
+                            # structured round trip (same starvation as
+                            # generate_response).
                             result = await _to_thread_safe(
-                                instructor_client.chat.completions.create, **_create_kwargs
+                                instructor_client.chat.completions.create,
+                                **_create_kwargs
                             )
-                        else:
+                            break
+                        except Exception as _attempt_err:
+                            _err_txt = str(_attempt_err).lower()
+
+                            # (1) Thinking-mode endpoints reject Mode.TOOLS'
+                            # tool_choice="required". Retry once with the
+                            # JSON-mode instructor client (no tools in the
+                            # request) and memoize the pair.
+                            if (
+                                "tool_choice" in _err_txt
+                                and "thinking" in _err_txt
+                                and not _json_mode
+                                and "toolchoice" not in _recovered
+                            ):
+                                _recovered.add("toolchoice")
+                                _TOOLCHOICE_UNSUPPORTED.add(_logprobs_key)
+                                logger.warning(
+                                    f"{provider_id}/{model} rejects tool_choice "
+                                    f"in thinking mode — retrying once in JSON "
+                                    f"mode and memoizing the pair"
+                                )
+                                instructor_client = instructor.from_openai(
+                                    client, mode=instructor.Mode.JSON)
+                                continue
+
+                            # (2) Reasoning-mandatory endpoints reject the
+                            # disable switch. Drop it, memoize the pair, retry.
+                            if (
+                                "reasoning" in _err_txt
+                                and _create_kwargs.get("extra_body")
+                                and "reasoning" not in _recovered
+                            ):
+                                _recovered.add("reasoning")
+                                _REASONING_MANDATORY.add(_logprobs_key)
+                                _create_kwargs.pop("extra_body", None)
+                                logger.warning(
+                                    f"{provider_id}/{model} requires reasoning "
+                                    f"and rejects the disable switch — retrying "
+                                    f"once without it and memoizing the pair"
+                                )
+                                continue
+
+                            # (3) Soft-SC logprobs unsupported. Deliberately
+                            # narrow: ONLY an error that actually names
+                            # logprobs triggers this. A broader match would
+                            # swallow genuine schema/validation failures by
+                            # retrying them once without logprobs.
+                            if (
+                                _soft_sc_on
+                                and "logprobs" in _create_kwargs
+                                and "logprobs are not supported" in _err_txt
+                                and "logprobs" not in _recovered
+                            ):
+                                _recovered.add("logprobs")
+                                _create_kwargs.pop("logprobs", None)
+                                _LOGPROBS_UNSUPPORTED.add(_logprobs_key)
+                                logger.warning(
+                                    f"soft-SC logprobs request failed for "
+                                    f"{provider_id}/{model} ({_attempt_err}); "
+                                    f"retrying once without logprobs"
+                                )
+                                continue
+
                             raise
-                    except Exception as _reasoning_reject:
-                        # Some endpoints run reasoning-mandatory models and
-                        # reject the disable switch with a 400 ("Reasoning is
-                        # mandatory for this endpoint"). Retry once WITHOUT
-                        # the extra_body rather than failing the stage.
-                        if "reasoning" in str(_reasoning_reject).lower() and _create_kwargs.get("extra_body"):
-                            _create_kwargs.pop("extra_body", None)
-                            result = await _to_thread_safe(
-                                instructor_client.chat.completions.create, **_create_kwargs
-                            )
-                        else:
-                            raise
-                    except Exception as _soft_exc:
-                        if not _soft_sc_on or "logprobs" not in _create_kwargs:
-                            raise
-                        _create_kwargs.pop("logprobs", None)
-                        if "logprobs are not supported" in str(_soft_exc).lower():
-                            _LOGPROBS_UNSUPPORTED.add(_logprobs_key)
-                        logger.warning(
-                            f"soft-SC logprobs request failed for {provider_id}/{model} "
-                            f"({_soft_exc}); retrying once without logprobs"
-                        )
-                        result = await _to_thread_safe(
-                            instructor_client.chat.completions.create, **_create_kwargs
-                        )
                     self._capture_echoed_model(result)  # reads _raw_response.model
                     _structured_latency_ms = (time.time() - _structured_start) * 1000.0
                     if _soft_sc_on:
@@ -4919,6 +5284,7 @@ class BYOKHandler:
         task_type: Optional[str] = "chat",
         extra_kwargs: Optional[Dict[str, Any]] = None,
         reasoning_sink: Optional[Dict[str, Any]] = None,
+        fallback_models: Optional[List[str]] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream LLM responses token-by-token with optional governance tracking.
@@ -4983,8 +5349,23 @@ class BYOKHandler:
 
         last_error = None
 
+        # Reasoning models can spend the WHOLE visible-token budget on hidden
+        # reasoning and stream nothing (finish_reason=length). The provider is
+        # healthy — the budget was too small for the agent-sized prompt. Retry
+        # the SAME provider once with a larger budget (live 2026-09-11: only
+        # one real provider was configured, so the fallback loop had nothing
+        # left and the Sales Agent's canvas turn died "All 2 providers failed"
+        # while the same model answered fine on a direct non-streamed call).
+        _empty_stream_retry_max_tokens = max(int(max_tokens or 0) * 3, 16000)
+        _empty_budget_retry_used: set = set()
+
         # Try each provider in fallback order
         for attempt_provider_id in provider_order:
+            _attempt_max_tokens = (
+                _empty_stream_retry_max_tokens
+                if attempt_provider_id in _empty_budget_retry_used
+                else max_tokens
+            )
             # Per-provider flag: at most one self-heal stream retry.
             heal_attempted_stream = False
             # Get client for this provider (prefer async, fallback to sync)
@@ -5008,6 +5389,14 @@ class BYOKHandler:
                 logger.debug(
                     f"Skipping stream fallback to {attempt_provider_id}: does not serve model '{model}'"
                 )
+                continue
+
+            # Bench a pair that recently produced empty/inactive output. This
+            # is the deterministic counterpart to the learning router: BPC can
+            # rank a model top while it is HTTP-healthy but unusable.
+            if self._model_cooldown_active(attempt_provider_id, model):
+                logger.info(
+                    f"Skipping {attempt_provider_id}/{model}: model cooldown active")
                 continue
 
             logger.info(f"Attempting stream with provider: {attempt_provider_id} (requested: {provider_id})")
@@ -5038,14 +5427,27 @@ class BYOKHandler:
                     "model": model,
                     "messages": messages,
                     "temperature": temperature,
-                    "max_tokens": max_tokens,
+                    "max_tokens": _attempt_max_tokens,
                     "stream": True,
                 }
                 if extra_kwargs:
                     create_kwargs.update(
                         {k: v for k, v in extra_kwargs.items() if v is not None}
                     )
+                # Bound hidden reasoning so the visible answer always has room
+                # (see _reasoning_request_body). Merged, never clobbering an
+                # extra_body a caller supplied.
+                _reasoning_body = self._reasoning_request_body(
+                    attempt_provider_id, model, _attempt_max_tokens)
+                if _reasoning_body:
+                    _merged_extra = dict(create_kwargs.get("extra_body") or {})
+                    _merged_extra.update(_reasoning_body)
+                    create_kwargs["extra_body"] = _merged_extra
                 stream = await client.chat.completions.create(**create_kwargs)
+                # Bound inter-chunk silence (see _stream_with_idle_watchdog).
+                _idle_s = _stream_idle_timeout_seconds()
+                if _idle_s and _idle_s > 0:
+                    stream = _stream_with_idle_watchdog(stream, _idle_s)
 
                 token_count = 0
                 # Accumulate streamed content (capped) so the outcome hook can
@@ -5081,6 +5483,30 @@ class BYOKHandler:
                         fr = getattr(choice, "finish_reason", None)
                         if fr:
                             _stream_finish_reason = fr
+
+                # An empty visible stream is a FAILED attempt, not a success.
+                # Same contract the non-streaming path enforces for an empty
+                # visible payload (_EmptyCompletionError): a provider that
+                # streams no visible content — reasoning-only drift
+                # (model_provenance logged openrouter/z-ai/glm-5.3-flash
+                # resolving to qwen/qwen3.7-flash), an upstream that closes
+                # the stream early, or a model that returned only
+                # finish_reason chunks — must hand the turn to the next
+                # ranked provider instead of being recorded healthy and
+                # returning. The live 2026-09-10 incident: the silent stream
+                # returned "success", the caller re-ran the SAME model on the
+                # non-streaming path, and the turn (serialized with the
+                # grounded-regeneration second call) overshot the frontend's
+                # 120s axios budget — 128.7s / 196.5s / 245.5s / 392.4s
+                # reply-generation times.
+                if not _tokens_yielded:
+                    _empty_detail = (
+                        f"{attempt_provider_id}/{model} streamed no visible "
+                        f"content (chunks={token_count}, "
+                        f"finish_reason={_stream_finish_reason})"
+                    )
+                    logger.warning(f"[stream-empty] {_empty_detail}")
+                    raise _EmptyCompletionError(_empty_detail)
 
                 # Record successful completion
                 if agent_execution and governance_enabled and db:
@@ -5130,6 +5556,17 @@ class BYOKHandler:
                 last_error = e
                 logger.warning(f"Streaming failed for {attempt_provider_id}/{model}: {e}")
 
+                # Mid-stream inactivity: the user already has partial output.
+                # End the stream with what arrived — replaying the request
+                # would duplicate visible content (Qwen Code: never retry after
+                # the first chunk).
+                if isinstance(e, _StreamInactivityError) and _tokens_yielded:
+                    logger.warning(
+                        f"mid-stream inactivity on {attempt_provider_id}/{model} "
+                        f"after {token_count} visible chunk(s) — keeping the "
+                        f"partial answer, not replaying")
+                    return
+
                 # Phase 226.4-04: Record failed streaming API call for health monitoring
                 try:
                     latency_ms = (time.time() - request_start) * 1000
@@ -5147,6 +5584,60 @@ class BYOKHandler:
                         error=str(e)[:500],
                     )
                 except Exception:                     pass  # Don't let health monitoring errors affect primary flow
+
+                # Reasoning-only empty stream: the BUDGET failed, not the
+                # provider. `finish_reason=length` with zero visible content
+                # means hidden reasoning consumed max_tokens; the same model
+                # answers fine with more room. Re-queue the same provider once
+                # with the larger budget before falling through.
+                if (
+                    isinstance(e, _EmptyCompletionError)
+                    and "finish_reason=length" in str(e)
+                    and attempt_provider_id not in _empty_budget_retry_used
+                ):
+                    _empty_budget_retry_used.add(attempt_provider_id)
+                    provider_order.append(attempt_provider_id)
+                    logger.warning(
+                        f"[stream-empty] retrying {attempt_provider_id}/{model} "
+                        f"with max_tokens={_empty_stream_retry_max_tokens} "
+                        f"(was {max_tokens})")
+                    continue
+
+                # Empty / inactive output survives the budget retry → this
+                # pair is unusable right now. Bench it (P1.4) and record the
+                # outcome so the learning router down-ranks it for this
+                # workload too (P1.5).
+                if isinstance(e, (_EmptyCompletionError, _StreamInactivityError)):
+                    self._bench_model(attempt_provider_id, model)
+                    try:
+                        await self._record_outcome_feedback(
+                            model=model, provider_id=attempt_provider_id,
+                            task_type=task_type, content="",
+                            finish_reason=(
+                                "length" if "finish_reason=length" in str(e)
+                                else "empty"),
+                            # Zero-completion accounting (P2.4): an empty
+                            # response carries no model cost — never let a dead
+                            # completion pollute spend/quality feedback.
+                            success=False, cost=0.0,
+                            latency_ms=(time.time() - request_start) * 1000,
+                            routing_result_id=stream_decision_id,
+                        )
+                    except Exception as _fb_err:  # noqa: BLE001
+                        logger.debug(f"empty-stream feedback skipped: {_fb_err}")
+
+                # Context-window / content-policy errors fail on EVERY provider
+                # of this model — skip the rest of them and jump straight to the
+                # model-level fallback (LiteLLM's context_window_fallbacks /
+                # content_policy_fallbacks classes). P2.1/P2.2.
+                if (fallback_models and not _tokens_yielded
+                        and (_is_context_length_error(str(e))
+                             or _is_content_policy_error(str(e)))):
+                    logger.warning(
+                        f"{attempt_provider_id}/{model} failed with a "
+                        f"{'context-window' if _is_context_length_error(str(e)) else 'content-policy'}"
+                        f" error — skipping same-model providers for the model fallback")
+                    break
 
                 # --- Self-healing autofix (rule-based, single attempt) ---
                 # For repairable 4xx errors only. Retries the stream creation
@@ -5330,6 +5821,32 @@ class BYOKHandler:
 
                 # This was the last provider, fall through to error handling
                 break
+
+        # Model-level fallback: every provider for THIS model failed. Try the
+        # next ranked MODEL before declaring the turn dead — the mature-gateway
+        # behavior (LiteLLM model-group fallbacks, OpenRouter `models: []`).
+        # Zero visible tokens reached the caller here (a mid-stream stall
+        # returns above), so replaying on another model cannot duplicate output.
+        if fallback_models:
+            _next_model = fallback_models[0]
+            logger.warning(
+                f"all {len(provider_order)} provider(s) failed for {model} — "
+                f"falling back to ranked model {_next_model}")
+            async for _fb_tok in self.stream_completion(
+                messages=messages,
+                model=_next_model,
+                provider_id=provider_id,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                agent_id=agent_id,
+                db=db,
+                task_type=task_type,
+                extra_kwargs=extra_kwargs,
+                reasoning_sink=reasoning_sink,
+                fallback_models=list(fallback_models[1:]),
+            ):
+                yield _fb_tok
+            return
 
         # All providers failed — mark execution as failed and yield error.
         # #4 fix: wrap post-loop error path so CancelledError (client
