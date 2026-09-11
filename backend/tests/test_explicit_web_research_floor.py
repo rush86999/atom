@@ -323,7 +323,7 @@ async def test_fresh_data_timeout_leaves_shared_plan_task_alive(monkeypatch):
         return ToolPlan(use_tool=False, reason="slow planner")
 
     plan_task = asyncio.ensure_future(_slow_plan())
-    monkeypatch.setattr(cce, "_FRESH_DATA_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr(cce, "_FRESH_DATA_PLAN_TIMEOUT_SECONDS", 0.05)
     fresh = await fetch_fresh_data_section(
         "web research the lead's bandsaw", [], llm, "u1", plan_task=plan_task,
     )

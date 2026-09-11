@@ -433,11 +433,21 @@ class LLMService:
         if explicit_temperature is not None:
             kwargs["temperature"] = explicit_temperature
 
+        # The `model` argument doubles as the DEFAULT task_type
+        # ("quality"/"fast"/a model name) — legacy behaviour, kept when the
+        # caller is silent. A caller-supplied task_type MUST win: it is how
+        # small structured workloads (planning / extraction / nl2sql) declare
+        # themselves for BPC's cost-priority ranking. Passing both is a
+        # TypeError ("got multiple values for keyword argument 'task_type'"),
+        # which silently killed every tagged leg — the planner and canvas
+        # editor both returned no plan in 0.2s (observed live 2026-09-10).
+        effective_task_type = kwargs.pop("task_type", None) or model
+
         return await handler.generate_structured_response(
             prompt=prompt,
             system_instruction=system_instruction,
             response_model=response_model,
-            task_type=model,
+            task_type=effective_task_type,
             **kwargs
         )
 
@@ -768,6 +778,7 @@ class LLMService:
         agent_id: Optional[str] = None,
         db = None,
         reasoning_sink: Optional[Dict[str, Any]] = None,
+        fallback_models: Optional[List[str]] = None,
     ):
         """
         Stream LLM responses token-by-token with automatic provider fallback.
@@ -828,6 +839,7 @@ class LLMService:
             agent_id=agent_id,
             db=db,
             reasoning_sink=reasoning_sink,
+            fallback_models=fallback_models,
         ):
             yield token
 

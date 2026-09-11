@@ -112,6 +112,12 @@ export default function CanvasDetailPage() {
     // devices/browsers; ?session= (arrived via chat) still wins as the
     // explicit navigation intent.
     const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+    // History hydration is best-effort over a network that restarts under
+    // the page (backend restarts take 15–20s; axios's 1s/2s/4s retries lose
+    // that race). On ultimate failure the panel must SAY so — a silent
+    // fresh-looking "💬 Ask the agent" placeholder read as a wiped
+    // conversation (observed live 2026-09-10).
+    const [historyLoadError, setHistoryLoadError] = useState(false);
     const hydratedSessionRef = useRef<string | null>(null);
     // Thumbs choices restored from the canvas context (survive refresh);
     // keyed by assistant message input_summary — exactly what the feedback
@@ -119,87 +125,101 @@ export default function CanvasDetailPage() {
     const [restoredFeedback, setRestoredFeedback] = useState<Record<string, { feedback_type: ChatFeedbackType; comment?: string }> | null>(null);
 
     // Resolve the panel's session: ?session= wins, else the server-side
-    // binding for this canvas.
-    useEffect(() => {
+    // binding for this canvas. Extracted so the websocket-reconnect effect
+    // can re-run it after a backend restart (the binding fetch may itself
+    // have been a casualty of the bounce).
+    const resolveChatSession = useCallback(async (): Promise<void> => {
         if (!canvasId || typeof window === "undefined") return;
         const fromQuery = router.query.session as string | undefined;
         if (fromQuery && fromQuery !== "new") {
             setChatSessionId(fromQuery);
         }
-        let cancelled = false;
-        (async () => {
-            try {
-                const { apiClient } = await import("../../lib/api-client");
-                const resp = await apiClient.get(`/api/canvas/${canvasId}/context`);
-                const snap = (resp as any).data || resp;
-                const state = snap?.current_state || snap?.data?.current_state;
-                const bound = state?.chat_session_id;
-                if (!cancelled && bound) setChatSessionId(bound);
-                // Persisted thumbs state (keyed by assistant message
-                // input_summary) — applied to restored messages at hydration.
-                if (!cancelled && state?.chat_feedback) {
-                    setRestoredFeedback(state.chat_feedback as Record<string, { feedback_type: ChatFeedbackType; comment?: string }>);
-                }
-            } catch {
-                // No context/binding yet — the panel starts a new
-                // conversation on first send; the binding appears after it.
+        try {
+            const { apiClient } = await import("../../lib/api-client");
+            const resp = await apiClient.get(`/api/canvas/${canvasId}/context`);
+            const snap = (resp as any).data || resp;
+            const state = snap?.current_state || snap?.data?.current_state;
+            const bound = state?.chat_session_id;
+            if (bound) setChatSessionId(bound);
+            // Persisted thumbs state (keyed by assistant message
+            // input_summary) — applied to restored messages at hydration.
+            if (state?.chat_feedback) {
+                setRestoredFeedback(state.chat_feedback as Record<string, { feedback_type: ChatFeedbackType; comment?: string }>);
             }
-        })();
-        return () => { cancelled = true; };
+        } catch {
+            // No context/binding yet — the panel starts a new
+            // conversation on first send; the binding appears after it.
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [canvasId, router.query.session]);
+
+    useEffect(() => {
+        resolveChatSession();
+    }, [resolveChatSession]);
 
     // Hydrate the panel transcript from the session store so a refresh
     // doesn't wipe the co-editing conversation (same pattern as
-    // GlobalChatWidget's loadSessionHistory).
-    useEffect(() => {
-        if (!chatSessionId || hydratedSessionRef.current === chatSessionId) return;
-        hydratedSessionRef.current = chatSessionId;
-        let cancelled = false;
-        (async () => {
-            try {
-                const { apiClient } = await import("../../lib/api-client");
-                const resp = await apiClient.get(
-                    `/api/chat/history/${chatSessionId}?user_id=${userId}`
-                );
-                const data = (resp as any).data || resp;
-                const rebuilt: CanvasMessage[] = [];
-                for (const h of data?.messages || []) {
-                    const ts = new Date(h.timestamp || Date.now());
-                    if (typeof h.message === "string" && h.message.trim()) {
-                        rebuilt.push({
-                            id: `hu_${rebuilt.length}`,
-                            type: "user",
-                            content: h.message,
-                            timestamp: ts,
-                        });
-                    }
-                    const ai = h?.response?.message;
-                    if (typeof ai === "string" && ai.trim()) {
-                        // Restore the thumbs state recorded on the canvas
-                        // context — keyed by the same input_summary slice
-                        // the feedback call sends (stable across refresh).
-                        const restored = restoredFeedback?.[ai.slice(0, 200)];
-                        rebuilt.push({
-                            id: `ha_${rebuilt.length}`,
-                            type: "assistant",
-                            content: ai,
-                            timestamp: ts,
-                            feedback: restored?.feedback_type ?? null,
-                        });
-                    }
+    // GlobalChatWidget's loadSessionHistory). Extracted so the
+    // reconnect effect and the error affordance's Retry can re-run it.
+    const hydrateHistory = useCallback(async (sid: string | null) => {
+        if (!sid || hydratedSessionRef.current === sid) return;
+        hydratedSessionRef.current = sid;
+        try {
+            const { apiClient } = await import("../../lib/api-client");
+            const resp = await apiClient.get(
+                `/api/chat/history/${sid}?user_id=${userId}`
+            );
+            const data = (resp as any).data || resp;
+            const rebuilt: CanvasMessage[] = [];
+            for (const h of data?.messages || []) {
+                const ts = new Date(h.timestamp || Date.now());
+                if (typeof h.message === "string" && h.message.trim()) {
+                    rebuilt.push({
+                        id: `hu_${rebuilt.length}`,
+                        type: "user",
+                        content: h.message,
+                        timestamp: ts,
+                    });
                 }
-                if (!cancelled && rebuilt.length > 0) setMessages(rebuilt);
-            } catch {
-                // Stale/dead session id — clear the state so the next send
-                // starts fresh instead of reusing it. (The server binding is
-                // not deleted: the id may be valid again later, e.g. after a
-                // transient history-store failure; a later turn rebinds.)
-                if (!cancelled) setChatSessionId(null);
-                hydratedSessionRef.current = null;
+                const ai = h?.response?.message;
+                if (typeof ai === "string" && ai.trim()) {
+                    // Restore the thumbs state recorded on the canvas
+                    // context — keyed by the same input_summary slice
+                    // the feedback call sends (stable across refresh).
+                    const restored = restoredFeedback?.[ai.slice(0, 200)];
+                    rebuilt.push({
+                        id: `ha_${rebuilt.length}`,
+                        type: "assistant",
+                        content: ai,
+                        timestamp: ts,
+                        feedback: restored?.feedback_type ?? null,
+                    });
+                }
             }
-        })();
-        return () => { cancelled = true; };
-    }, [chatSessionId, canvasId, userId, restoredFeedback]);
+            if (rebuilt.length > 0) setMessages(rebuilt);
+            setHistoryLoadError(false);
+        } catch (err: any) {
+            if (err?.response?.status === 403) {
+                // Stale/dead session id owned elsewhere — clear the state so
+                // the next send starts fresh instead of reusing it. (The
+                // server binding is not deleted: the id may be valid again
+                // later, e.g. after a transient history-store failure; a
+                // later turn rebinds.)
+                setChatSessionId(null);
+                hydratedSessionRef.current = null;
+            } else {
+                // Network/5xx after axios's own retries: the session binding
+                // is fine — surface the failure instead of masquerading as a
+                // fresh conversation, and allow a retry.
+                hydratedSessionRef.current = null;
+                setHistoryLoadError(true);
+            }
+        }
+    }, [userId, restoredFeedback]);
+
+    useEffect(() => {
+        hydrateHistory(chatSessionId);
+    }, [chatSessionId, hydrateHistory]);
 
     // Restored sessions: the reasoning steps of PAST canvas turns were
     // persisted all along (AgentReasoningStep) but never surfaced. Pull the
@@ -248,6 +268,57 @@ export default function CanvasDetailPage() {
         [userId, chatSessionId]
     );
     const { lastMessage, isConnected, onMessage } = useWebSocket({ initialChannels: wsChannels });
+
+    // Reconnect-triggered chat re-hydration. The websocket auto-reconnects
+    // (unlimited attempts in useWebSocket) when the backend restarts, but
+    // the transcript/binding fetched BEFORE the restart stays stale or
+    // failed silently — a restart left this panel on the fresh-conversation
+    // placeholder with zero refetches until a manual reload (observed live
+    // 2026-09-10). A socket false→true transition AFTER the initial mount
+    // connect is the signal the backend bounced: re-resolve the binding and
+    // re-pull the transcript. Guarded against clobbering a live turn.
+    const chatSessionIdRef = useRef(chatSessionId);
+    useEffect(() => { chatSessionIdRef.current = chatSessionId; }, [chatSessionId]);
+    const isAgentRespondingRef = useRef(false);
+    useEffect(() => { isAgentRespondingRef.current = isAgentResponding; }, [isAgentResponding]);
+    const wsPrevConnectedRef = useRef<boolean | null>(null); // null = unobserved
+    const chatRehydrateInFlightRef = useRef(false);
+
+    useEffect(() => {
+        const prev = wsPrevConnectedRef.current;
+        wsPrevConnectedRef.current = isConnected;
+        // Fire ONLY on a genuine false→true transition. Effect re-runs from
+        // dependency changes (callback identities) with isConnected still
+        // true are no-ops — without the prev check every such re-run would
+        // refetch the transcript.
+        if (prev === null || prev === isConnected || !isConnected) return;
+        if (chatRehydrateInFlightRef.current || isAgentRespondingRef.current) return;
+        chatRehydrateInFlightRef.current = true;
+        (async () => {
+            try {
+                await resolveChatSession();
+                const sid = chatSessionIdRef.current;
+                if (sid) {
+                    hydratedSessionRef.current = null; // allow the re-pull
+                    await hydrateHistory(sid);
+                }
+            } finally {
+                chatRehydrateInFlightRef.current = false;
+            }
+        })();
+    }, [isConnected, resolveChatSession, hydrateHistory]);
+
+    const retryChatHistory = useCallback(() => {
+        setHistoryLoadError(false);
+        if (chatSessionId) {
+            hydratedSessionRef.current = null;
+            hydrateHistory(chatSessionId);
+        } else {
+            // The binding resolution itself may have been the casualty.
+            resolveChatSession();
+        }
+    }, [chatSessionId, hydrateHistory, resolveChatSession]);
+
 
     // Training panel state: the sidebar hosts the co-editor chat and the
     // agent training panel (approve, teach, score, graduate) side by side.
@@ -388,11 +459,10 @@ export default function CanvasDetailPage() {
         if (canvasData?.content?.type === "training_session") setSideTab("training");
     }, [canvasData?.content?.type]);
 
-    // Mirror for the WS handler: step events are filtered by the chat
-    // session, which is set asynchronously — a state read here would be a
-    // stale closure.
-    const chatSessionIdRef = useRef<string | null>(null);
-    useEffect(() => { chatSessionIdRef.current = chatSessionId; }, [chatSessionId]);
+    // (chatSessionIdRef lives with the reconnect-triggered re-hydration
+    // effect above — this WS handler shares it: step events are filtered by
+    // the chat session, which is set asynchronously — a state read here
+    // would be a stale closure.)
 
     // Listen for live canvas updates via WebSocket.
     // DELIVERY: this handler registers through the socket's onMessage
@@ -1331,7 +1401,15 @@ export default function CanvasDetailPage() {
 
                         {/* Chat messages */}
                         <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                            {messages.length === 0 && (
+                            {messages.length === 0 && historyLoadError && (
+                                <div className="flex flex-col items-center gap-2 py-8 text-sm">
+                                    <p className="text-destructive">Couldn't load chat history.</p>
+                                    <Button variant="outline" size="sm" className="gap-1.5" onClick={retryChatHistory}>
+                                        <RefreshCw className="h-3.5 w-3.5" /> Retry
+                                    </Button>
+                                </div>
+                            )}
+                            {messages.length === 0 && !historyLoadError && (
                                 <div className="text-center text-muted-foreground text-sm py-8">
                                     <p className="mb-2">💬 Ask the agent to modify this canvas</p>
                                     <p className="text-xs">e.g. "Add a new row to the spreadsheet" or "Change the chart to a bar chart"</p>

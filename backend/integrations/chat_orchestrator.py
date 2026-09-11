@@ -121,6 +121,103 @@ from core.database import SessionLocal
 
 REGULATORY_DISCLAIMER = "\n\n---\n*Disclaimer: ATOM's financial features are powered by AI and intended for strategic guidance. This system is not a licensed CPA or tax advisor. All automated records should be reviewed by a qualified professional before filing.*"
 
+# --- Turn latency budget (R90) -------------------------------------------
+# The chat surfaces call POST /api/chat/message with a hard client timeout
+# (frontend-nextjs hooks/chat/useChatInterface.ts: timeout: 120000). The reply
+# leg could previously run unbounded: a streaming attempt, the non-streaming
+# fallback, and up to six "guard" regenerations each issue their own provider
+# call, and each provider call carries its own SDK timeout
+# (LLM_REQUEST_TIMEOUT_DEFAULT_SECONDS = 120s, also the per-read timeout on
+# streams). Live 2026-09-10 reply-generation times: 128.7s, 196.5s, 245.5s,
+# 392.4s — all past the client's budget, so the browser aborted with
+# "timeout of 120000ms exceeded" while the server kept generating a reply
+# nobody would ever see (and paid for).
+#
+# The budget is anchored at `_plan_t0` inside the reply path (the same clock
+# the "[stage-timing] reply generation" log uses, re-anchored after planner +
+# tool execution) and is kept strictly below the client timeout so the backend
+# always gets to answer. Set ATOM_CHAT_TURN_BUDGET_SECONDS=0 to restore the
+# old unbounded behavior.
+CHAT_TURN_BUDGET_DEFAULT_SECONDS = 95.0
+# While a stream is silent (provider thinking), emit a keepalive frame at most
+# this often so the websocket/proxy layer never sees an idle connection.
+_HEARTBEAT_SLICE_SECONDS = 10.0
+
+
+def _chat_turn_budget_seconds() -> float:
+    """Total LLM budget (seconds) for one chat reply leg.
+
+    ``ATOM_CHAT_TURN_BUDGET_SECONDS`` overrides; ``0`` (or negative) disables
+    the budget entirely. Invalid values fall back to the default. Never
+    raises — this sits on the chat hot path.
+    """
+    raw = os.getenv("ATOM_CHAT_TURN_BUDGET_SECONDS")
+    if raw:
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            logger.warning(
+                "Invalid ATOM_CHAT_TURN_BUDGET_SECONDS=%r, using default %s",
+                raw,
+                CHAT_TURN_BUDGET_DEFAULT_SECONDS,
+            )
+            return CHAT_TURN_BUDGET_DEFAULT_SECONDS
+        return value
+    return CHAT_TURN_BUDGET_DEFAULT_SECONDS
+
+
+def _elide_middle(text: str, cap: int) -> str:
+    """Bound ``text`` to ``cap`` chars keeping BOTH ends.
+
+    A head-only cut hid the END of an email draft from the model — the
+    alternative-machine row sat past a 4000-char cut, so the agent told the
+    operator the draft had no alternative (live 2026-09-11). Head + tail with
+    an explicit elision marker keeps the salient tail (prices, signature).
+    """
+    if text is None:
+        return ""
+    if len(text) <= cap:
+        return text
+    head = max(0, int(cap * 0.6))
+    tail = max(0, cap - head)
+    return (
+        text[:head]
+        + "\n…[canvas middle elided — head + tail preserved]…\n"
+        + (text[-tail:] if tail else "")
+    )
+
+
+def _remaining_budget(turn_t0: float, budget: Optional[float] = None) -> float:
+    """Seconds still available for this turn's LLM calls (never negative).
+
+    ``budget`` is resolved once per turn by the caller; a non-positive budget
+    means "unbounded" and is reported as an infinite remainder so callers can
+    hand it straight to ``asyncio.wait_for``.
+    """
+    if budget is None:
+        budget = _chat_turn_budget_seconds()
+    if budget <= 0:
+        return float("inf")
+    return max(0.0, budget - (time.monotonic() - turn_t0))
+
+
+def _turn_budget_error_response() -> Dict[str, Any]:
+    """Structured reply for a turn that exhausted its LLM budget.
+
+    Mirrors the ``no_llm_provider`` / ``budget_exceeded`` envelopes the chat
+    route already understands, so the client renders a recoverable message
+    instead of the axios timeout error page.
+    """
+    return {
+        "success": False,
+        "content": None,
+        "error_code": "turn_budget_exceeded",
+        "message": (
+            "This turn ran past its time budget before a reply could be "
+            "generated. Please try again."
+        ),
+    }
+
 
 class FeatureType(Enum):
     """Types of ATOM features that can be accessed through chat"""
@@ -367,6 +464,11 @@ class ChatOrchestrator:
         # Cancellation registry: session_ids that have been cancelled by the user.
         # Checked between processing steps so a long generation can be halted.
         self._cancelled_sessions: set = set()
+        # R90: execution_ids whose reply leg exhausted the turn's LLM budget.
+        # Recorded by the reply path, read once when the final response is
+        # assembled, so the user gets a structured "try again" instead of the
+        # canned template fallback (and never an axios timeout).
+        self._budget_exceeded_runs: set = set()
         
         # Initialize LLMService (Unified interface replaces direct clients)
         self.llm_service = None
@@ -865,11 +967,16 @@ class ChatOrchestrator:
 
                     # Not an edit — is it an ACTION on the canvas ("send this")?
                     # Gated by the owner's autonomy policy + hire maturity.
+                    _action_t0 = time.monotonic()
                     _action_response = await self._try_canvas_action(
                         message, history, _canvas_ctx, user_id, session_id,
                         _execution_id, (context or {}).get("agent_id"),
                         shared_tool_state=_shared_tool,
                     )
+                    logger.info(
+                        f"[stage-timing] canvas-action plan: "
+                        f"{time.monotonic() - _action_t0:.1f}s "
+                        f"(overlapped with canvas-edit plan)")
                     if _action_response:
                         self._update_session(
                             session, message, _action_response,
@@ -891,6 +998,8 @@ class ChatOrchestrator:
                     canvas_context=_canvas_ctx,
                     tool_plan_task=_tool_plan_task,
                     prefetched_tool_block=_shared_tool.get("block"),
+                    canvas_evidence_unavailable=bool(
+                        _shared_tool.get("canvas_evidence_unavailable")),
                     mission_critical=bool((context or {}).get("mission_critical")),
                     canvas_provenance=(context or {}).get("canvas_provenance"),
                     images=images,
@@ -903,6 +1012,19 @@ class ChatOrchestrator:
                         # retrieve so an unconsumed planner failure doesn't
                         # log "Task exception was never retrieved"
                         _tool_plan_task.exception()
+                # The pre-started action plan (canvas turns) may be unconsumed
+                # when the edit leg won the turn or the reply path returned
+                # early — cancel/retrieve it so it never leaks a stray call or
+                # an unretrieved-exception warning.
+                _action_task = _shared_tool.get("action_plan_task")
+                if _action_task is not None:
+                    if not _action_task.done():
+                        _action_task.cancel()
+                    elif not _action_task.cancelled():
+                        try:
+                            _action_task.exception()
+                        except Exception:  # noqa: BLE001
+                            pass
 
             # Check for cancellation between steps.
             if self._is_cancelled(session_id):
@@ -1056,6 +1178,17 @@ class ChatOrchestrator:
                 response["error_code"] = "budget_exceeded"
                 response["failure_reason"] = budget_failure.get("failure_reason")
                 response["recovery_url"] = "/settings/billing"
+
+            # R90 turn-budget honesty: the reply leg ran out of its LLM budget
+            # and returned a structured error instead of a reply. Surface that
+            # code (and skip the canned template text, which would read as a
+            # normal answer) so the client can offer a retry. Mirrors the
+            # budget_exceeded precedence above.
+            if _execution_id and _execution_id in self._budget_exceeded_runs:
+                self._budget_exceeded_runs.discard(_execution_id)
+                response["success"] = False
+                response["error_code"] = "turn_budget_exceeded"
+                response["message"] = _turn_budget_error_response()["message"]
 
             # Durable fact extraction on the chat path (P0, memory unification
             # plan): fire-and-forget, same extractor the meta agent uses. Chat
@@ -1261,6 +1394,7 @@ class ChatOrchestrator:
         canvas_provenance: Optional[Dict[str, Any]] = None,
         images: Optional[List[str]] = None,
         prefetched_tool_block: Optional[str] = None,
+        canvas_evidence_unavailable: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """Get a real conversational AI response using unified LLMService.
 
@@ -1463,10 +1597,23 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                         f"id: {canvas_context.get('canvas_id')}). When they refer to "
                         "\"the draft\", \"the email\", \"this canvas\" etc., they mean "
                         "THIS canvas. Its current content is the authoritative and "
-                        f"most recent version:\n{_cc_text[:4000]}"
+                        f"most recent version:\n{_elide_middle(_cc_text, 12000)}"
                     )})
                 except Exception as canvas_ctx_err:
                     logger.debug(f"canvas context block skipped: {canvas_ctx_err}")
+
+            # A canvas edit was DECLINED this turn (required live lookup
+            # failed). The fallback reply must not claim the edit happened —
+            # see core.chat_canvas_editor.canvas_no_edit_note.
+            if canvas_evidence_unavailable:
+                try:
+                    from core.chat_canvas_editor import canvas_no_edit_note
+
+                    _no_edit_note = canvas_no_edit_note(True)
+                    if _no_edit_note:
+                        messages.append({"role": "system", "content": _no_edit_note})
+                except Exception as _no_edit_err:  # noqa: BLE001
+                    logger.debug(f"canvas no-edit note skipped: {_no_edit_err}")
 
             # Canvas ORIGIN (provenance): the conversation this canvas was
             # created from, hydrated by chat_routes from the create-audit
@@ -1522,6 +1669,39 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             # connected platforms.").
             _plan_t0 = time.monotonic()
             _step_n = 0
+            # R90: total LLM budget for this reply leg, resolved once. It is
+            # anchored at _plan_t0 — the same clock the "[stage-timing] reply
+            # generation" log uses, re-anchored after planner + tool execution
+            # — and enforced on every LLM call below (stream, non-streaming
+            # fallback, guard regenerations). 0/negative disables the budget
+            # (legacy unbounded behavior).
+            _turn_budget = _chat_turn_budget_seconds()
+
+            async def _guarded_regen(_coro):
+                """Run a guard regeneration only while turn budget remains.
+
+                The reply path has six corrective "regeneration" branches, each
+                a full extra provider call. They are quality improvements, not
+                correctness gates, so once the turn's budget is spent the
+                original (already complete) reply is shipped rather than
+                blowing the client's timeout. Returns None when skipped or
+                when the regeneration itself does not finish in time.
+                """
+                _left = _remaining_budget(_plan_t0, _turn_budget)
+                if _left <= 0:
+                    logger.warning(
+                        "guard regeneration skipped — turn budget exhausted; "
+                        "shipping the current reply"
+                    )
+                    return None
+                try:
+                    return await asyncio.wait_for(_coro, timeout=_left)
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "guard regeneration timed out on the turn budget — "
+                        "shipping the current reply"
+                    )
+                    return None
 
             async def _trace(step_type: str, action: Optional[Dict[str, Any]], observation: str,
                              thought: Optional[str] = None) -> None:
@@ -1708,6 +1888,14 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     )
                     _cx = self.llm_service.handler.analyze_query_complexity(_prompt_for_cx)
                     _s_prov, _s_model = await self.llm_service.handler.get_optimal_provider(_cx)
+                    # Model-level fallback ladder: if every provider for the
+                    # chosen model fails (empty stream, outage), try the next
+                    # ranked model instead of ending the turn.
+                    try:
+                        _fb_models = self.llm_service.handler.get_fallback_models(
+                            _cx, _s_model, limit=2)
+                    except Exception:
+                        _fb_models = []
 
                     _buf: List[str] = []
                     _t0 = _time.monotonic()
@@ -1719,14 +1907,65 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     # feedback training captures WHAT the model was thinking.
                     _reasoning_parts: List[str] = []
                     _reasoning_sink: Dict[str, Any] = {"deltas": _reasoning_parts}
-                    async for _tok in self.llm_service.stream_completion(
+                    _stream_agen = self.llm_service.stream_completion(
                         messages=messages,
                         model=_s_model,
                         provider_id=_s_prov,
                         temperature=0.7,
                         max_tokens=_DEFAULT_COMPLETION_MAX_TOKENS,
                         reasoning_sink=_reasoning_sink,
-                    ):
+                        fallback_models=_fb_models,
+                    )
+                    # Turn budget: the provider stream gets whatever remains of
+                    # this turn's budget. Every provider attempt inside
+                    # stream_completion carries its own 120s SDK read timeout,
+                    # so without this a wedged/slow provider can outlive the
+                    # client's 120s axios budget (R90). A timeout here means
+                    # the turn stops streaming and lets the caller fall back.
+                    _stream_budget = _remaining_budget(_plan_t0, _turn_budget)
+                    # Slice the wait so a long provider "thinking" gap can emit
+                    # a keepalive frame rather than leaving the socket silent
+                    # (LiteLLM keepalive_seconds). The overall bound is still
+                    # the turn budget.
+                    _wait_deadline = (
+                        None if _stream_budget == float("inf")
+                        else _time.monotonic() + _stream_budget
+                    )
+                    while True:
+                        try:
+                            _slice = _HEARTBEAT_SLICE_SECONDS
+                            if _wait_deadline is not None:
+                                _slice = max(
+                                    0.1, min(_slice, _wait_deadline - _time.monotonic())
+                                )
+                            _tok = await asyncio.wait_for(
+                                _stream_agen.__anext__(), timeout=_slice
+                            )
+                        except StopAsyncIteration:
+                            break
+                        except asyncio.TimeoutError:
+                            if (_wait_deadline is not None
+                                    and _time.monotonic() >= _wait_deadline):
+                                logger.warning(
+                                    f"chat streaming exceeded the turn budget "
+                                    f"({_turn_budget:.0f}s) during reply generation — "
+                                    f"stopping the stream ({len(_buf)} chunks buffered)"
+                                )
+                                break
+                            # Silent but still within budget: keep the client
+                            # connection warm (thinking models can pause long).
+                            try:
+                                await _ws_manager.broadcast(f"user:{user_id}", {
+                                    "type": "chat_heartbeat",
+                                    "data": {
+                                        "session_id": session_id,
+                                        "execution_id": execution_id,
+                                        "elapsed_ms": int((_time.monotonic() - _t0) * 1000),
+                                    },
+                                })
+                            except Exception:
+                                pass
+                            continue
                         if not _tok:
                             continue
                         _buf.append(_tok)
@@ -1759,11 +1998,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "now, in plain language, with no capability "
                                 "disclaimers."
                             )})
-                            _fix = await self.llm_service.generate_completion(
-                                messages=messages,
-                                model=forced_model,
-                                tenant_id=self.tenant_id,
-                                **extra_kwargs,
+                            _fix = await _guarded_regen(
+                                self.llm_service.generate_completion(
+                                    messages=messages,
+                                    model=forced_model,
+                                    tenant_id=self.tenant_id,
+                                    **extra_kwargs,
+                                )
                             )
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not _reply_claims_inability(_fixed):
@@ -1795,11 +2036,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "you could not verify this turn, and offer to "
                                 "retry — never claim the tool does not exist."
                             )})
-                            _fix = await self.llm_service.generate_completion(
-                                messages=messages,
-                                model=forced_model,
-                                tenant_id=self.tenant_id,
-                                **extra_kwargs,
+                            _fix = await _guarded_regen(
+                                self.llm_service.generate_completion(
+                                    messages=messages,
+                                    model=forced_model,
+                                    tenant_id=self.tenant_id,
+                                    **extra_kwargs,
+                                )
                             )
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not _reply_claims_inability(_fixed):
@@ -1826,11 +2069,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "where relevant — real findings, real numbers, "
                                 "no platform-status filler."
                             )})
-                            _fix = await self.llm_service.generate_completion(
-                                messages=messages,
-                                model=forced_model,
-                                tenant_id=self.tenant_id,
-                                **extra_kwargs,
+                            _fix = await _guarded_regen(
+                                self.llm_service.generate_completion(
+                                    messages=messages,
+                                    model=forced_model,
+                                    tenant_id=self.tenant_id,
+                                    **extra_kwargs,
+                                )
                             )
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not _reply_is_generic_non_answer(_fixed, message):
@@ -1861,11 +2106,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                 "share the spec sheets so we can confirm?\"). "
                                 "Do not assert it as true."
                             )})
-                            _fix = await self.llm_service.generate_completion(
-                                messages=messages,
-                                model=forced_model,
-                                tenant_id=self.tenant_id,
-                                **extra_kwargs,
+                            _fix = await _guarded_regen(
+                                self.llm_service.generate_completion(
+                                    messages=messages,
+                                    model=forced_model,
+                                    tenant_id=self.tenant_id,
+                                    **extra_kwargs,
+                                )
                             )
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not asserts_unverified_confirmation(message, _fixed):
@@ -1905,11 +2152,13 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                                     "the reply with the SAME content, signed as "
                                     f"{_owner}."
                                 )})
-                            _fix = await self.llm_service.generate_completion(
-                                messages=messages,
-                                model=forced_model,
-                                tenant_id=self.tenant_id,
-                                **extra_kwargs,
+                            _fix = await _guarded_regen(
+                                self.llm_service.generate_completion(
+                                    messages=messages,
+                                    model=forced_model,
+                                    tenant_id=self.tenant_id,
+                                    **extra_kwargs,
+                                )
                             )
                             _fixed = _strip_protocol_tags((_fix or {}).get("content"))
                             if _fixed and not signature_signer_status(_fixed, _primary, _team):
@@ -1957,22 +2206,52 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                     logger.warning(f"chat streaming failed — non-streaming fallback: {stream_err}")
 
             if _streamed is None:
-                response_data = await self.llm_service.generate_completion(
-                    messages=messages,
-                    model=forced_model,  # "auto" unless overridden
-                    tenant_id=self.tenant_id,
-                    **extra_kwargs,
-                )
-                # Non-streaming path: same chain-of-thought capture as the
-                # streaming leg — the response's separate reasoning field
-                # (if any) plus inline <think> blocks (captured by the strip
-                # call on the next line via the shared _reasoning_parts list).
-                _reasoning_parts: List[str] = []
-                _strip_protocol_tags(response_data.get("content"), captured=_reasoning_parts)
-                _turn_reasoning = (
-                    (response_data or {}).get("reasoning")
-                    or ("\n\n".join(p.strip() for p in _reasoning_parts if p and p.strip()).strip() or None)
-                )
+                # R90: the non-streaming leg is the slow one (observed live:
+                # 128.7s / 196.5s / 245.5s / 392.4s reply-generation times for
+                # a turn whose client budget is 120s). Bound it by what is
+                # left of the turn budget and answer with a structured
+                # failure the client can actually receive, instead of letting
+                # the provider hold the request past the axios timeout and
+                # have the browser abort a reply nobody sees.
+                _ns_left = _remaining_budget(_plan_t0, _turn_budget)
+                if _ns_left <= 0:
+                    logger.warning(
+                        "chat reply skipped — turn budget exhausted before the "
+                        "non-streaming fallback"
+                    )
+                    response_data = _turn_budget_error_response()
+                    if execution_id:
+                        self._budget_exceeded_runs.add(execution_id)
+                else:
+                    try:
+                        response_data = await asyncio.wait_for(
+                            self.llm_service.generate_completion(
+                                messages=messages,
+                                model=forced_model,  # "auto" unless overridden
+                                tenant_id=self.tenant_id,
+                                **extra_kwargs,
+                            ),
+                            timeout=_ns_left,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            f"chat reply generation timed out on the turn budget "
+                            f"({_turn_budget:.0f}s) — returning a structured error"
+                        )
+                        response_data = _turn_budget_error_response()
+                        if execution_id:
+                            self._budget_exceeded_runs.add(execution_id)
+                if response_data.get("success"):
+                    # Non-streaming path: same chain-of-thought capture as the
+                    # streaming leg — the response's separate reasoning field
+                    # (if any) plus inline <think> blocks (captured by the strip
+                    # call on the next line via the shared _reasoning_parts list).
+                    _reasoning_parts: List[str] = []
+                    _strip_protocol_tags(response_data.get("content"), captured=_reasoning_parts)
+                    _turn_reasoning = (
+                        (response_data or {}).get("reasoning")
+                        or ("\n\n".join(p.strip() for p in _reasoning_parts if p and p.strip()).strip() or None)
+                    )
             
             logger.info(
                 f"[stage-timing] reply generation: {time.monotonic() - _plan_t0:.1f}s "
@@ -2764,8 +3043,38 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
                 "canvas edit declined: the turn needs live data and the "
                 "lookup failed — falling through to the tool path instead "
                 "of editing without evidence")
+            if shared_tool_state is not None:
+                # Hand the failure to the reply path. Without this the
+                # conversational fallback answered "Done — here's what I
+                # changed" for an edit that never landed (live 2026-09-11,
+                # canvas a1a13834): the user cannot tell a declined edit from
+                # an applied one.
+                shared_tool_state["canvas_evidence_unavailable"] = True
             return None
         fresh_data = fresh.section
+
+        # Overlap the ACTION planner with this edit plan. Both are independent
+        # structured LLM calls over the same turn inputs (message, history,
+        # canvas, fresh data) and neither needs the other's verdict — but
+        # serialized they added the action planner's FULL latency to every
+        # canvas turn that was not an edit, i.e. to every ordinary message
+        # sent from the /canvas/{id} panel (measured 4-8s each on top of the
+        # edit plan's own 4-8s before the reply even started). Pre-start it
+        # here on the turn blackboard; _try_canvas_action joins the in-flight
+        # call instead of planning a second time. On an edit-won turn the task
+        # is cancelled in process_chat_message's finally.
+        if shared_tool_state is not None and shared_tool_state.get("action_plan_task") is None:
+            try:
+                from core.chat_canvas_editor import plan_canvas_action
+                shared_tool_state["action_plan_task"] = asyncio.create_task(
+                    plan_canvas_action(
+                        message, history, canvas, self.llm_service,
+                        fresh_data=fresh_data,
+                    )
+                )
+            except Exception as action_task_err:  # noqa: BLE001
+                logger.debug(
+                    f"canvas action plan task not started: {action_task_err}")
 
         try:
             plan = await asyncio.wait_for(
@@ -3132,10 +3441,18 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         fresh_data = fresh.section
 
         try:
-            plan = await asyncio.wait_for(
-                plan_canvas_action(message, history, canvas, self.llm_service, fresh_data=fresh_data),
-                timeout=25,
-            )
+            # SINGLEFLIGHT: the edit leg pre-started this turn's action plan on
+            # the blackboard (both planners are independent structured calls).
+            # Join the in-flight call instead of paying for a second one — a
+            # serial second call was the whole per-message canvas tax.
+            _pre_action = (shared_tool_state or {}).get("action_plan_task")
+            if _pre_action is not None:
+                plan = await asyncio.wait_for(_pre_action, timeout=25)
+            else:
+                plan = await asyncio.wait_for(
+                    plan_canvas_action(message, history, canvas, self.llm_service, fresh_data=fresh_data),
+                    timeout=25,
+                )
         except Exception as e:
             logger.warning(f"canvas action planning skipped: {e}")
             return None

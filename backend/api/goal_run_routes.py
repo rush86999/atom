@@ -6,6 +6,7 @@ not a hand-maintained allowlist).
 """
 from __future__ import annotations
 
+import logging
 from contextlib import contextmanager
 from typing import List, Optional
 
@@ -22,18 +23,66 @@ from core.personal_scope import resolve_tenant_id, resolve_workspace_id
 
 router = BaseAPIRouter(prefix="/api/goal-runs", tags=["goal-runs"])
 
+logger = logging.getLogger(__name__)
+
 _SUPERVISOR_MIN = UserRole.TEAM_LEAD
 
+# Terminal statuses accept no further loop turns. Kept beside the guarded
+# transition table in goal_run_service so a reader can see both.
+_TERMINAL_STATUSES = ("achieved", "failed", "cancelled")
 
-def _require_supervisor(db: Session, current_user: User) -> None:
+# Role-based runs are everyday work: anyone who talks to people outside the
+# org (a rep quoting a lead) must be able to start and work their own run.
+# team_lead+ keeps the broader powers (arbitrary plans/goals, autonomous mode,
+# mode changes, distillation, the workspace-wide event inbox). Viewers and
+# guests read only.
+MEMBER_MODES = ("training", "shadow")
+_RUNNER_MIN = UserRole.MEMBER
+# Governance knobs a run's worker must not tune for themselves.
+_GOVERNANCE_PARAM_KEYS = ("replan_budget", "wait_ceiling_days")
+
+
+def _is_supervisor(db: Session, current_user: User) -> bool:
     user = db.query(UserModel).filter(UserModel.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if not user_meets_role(user, _SUPERVISOR_MIN):
+    return user_meets_role(user, _SUPERVISOR_MIN)
+
+
+def _require_runner(db: Session, current_user: User) -> None:
+    """A viewer/guest may read runs but not start or drive one."""
+    user = db.query(UserModel).filter(UserModel.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user_meets_role(user, _RUNNER_MIN):
+        raise HTTPException(
+            status_code=403,
+            detail="Starting or working a goal run requires at least the "
+                   "member role",
+        )
+
+
+def _require_supervisor(db: Session, current_user: User) -> None:
+    if not _is_supervisor(db, current_user):
         raise HTTPException(
             status_code=403,
             detail="Insufficient permissions. Required role: team_lead or higher",
         )
+
+
+def _require_run_access(db: Session, current_user: User, run: dict) -> None:
+    """A run is worked by its OWNER (the person who started it) or any
+    supervisor — not by every member. A member must not be able to drive,
+    approve or cancel somebody else's run."""
+    if _is_supervisor(db, current_user):
+        return
+    if str(run.get("created_by") or "") == str(current_user.id):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail="Only the run's owner or a supervisor (team_lead or higher) "
+               "can act on this run",
+    )
 
 
 def _service(current_user: User, db: Session):
@@ -46,8 +95,11 @@ def _service(current_user: User, db: Session):
 
     from core.goals.goal_run_service import GoalRunService
     return GoalRunService(
-        workspace_id=resolve_workspace_id(
-            getattr(current_user, "workspace_id", None)),
+        # resolve_workspace_id inspects ATTRIBUTES on the sources it is
+        # given. Passing the raw workspace string here made getattr() miss
+        # and silently fall back to "default" — goals and runs could land in
+        # different workspaces. Pass the user (2026-09-10).
+        workspace_id=resolve_workspace_id(current_user),
         tenant_id=resolve_tenant_id(current_user),
         session_factory=_session,
     )
@@ -62,6 +114,11 @@ class GoalRunCreate(BaseModel):
     supervision_mode: str = "shadow"
     plan: Optional[List[dict]] = None   # omitted → seed from role playbooks
     parameters: Optional[dict] = None
+    # Kick off the first loop turn on create (2026-09-10 journey fix): a
+    # started run must actually start working — otherwise it sits `active`
+    # with a cursor and does nothing until a human finds the Advance button.
+    # False stages a dormant run for callers that want to schedule it.
+    start: bool = True
 
 
 class ResumeBody(BaseModel):
@@ -155,31 +212,84 @@ async def create_goal_run(
     from core.models import GoalObjective
     from core.goals.goal_run_learning import seed_plan_for_run
 
-    _require_supervisor(db, current_user)
+    supervisor = _is_supervisor(db, current_user)
+    if not supervisor:
+        _require_runner(db, current_user)
     svc = _service(current_user, db)
     goal = db.query(GoalObjective).filter(
         GoalObjective.id == payload.goal_id).first()
     if not goal:
         raise router.not_found_error("Goal", payload.goal_id)
+
+    # Role-based access (2026-09-10, generalized to ANY business): a member
+    # who works with people outside the org starts their OWN role-based run.
+    # The role is the business function, derived from the business's OWN data
+    # (the selected agent's specialty/category) when not given — never a
+    # hardcoded industry. Members get: role from the agent, a plan seeded
+    # from that role's approved playbooks (never hand-authored), no
+    # self-promotion to `autonomous`, and no tuning the governance knobs.
+    # team_lead+ keeps the broader powers.
+    role = (payload.role or "").strip() or None
+    if not role and payload.agent_id:
+        from core.models import AgentRegistry
+        agent = db.query(AgentRegistry).filter(
+            AgentRegistry.id == payload.agent_id).first()
+        if agent:
+            role = (getattr(agent, "specialty", None)
+                    or getattr(agent, "category", None) or "").strip() or None
+    mode = payload.supervision_mode
+    parameters = payload.parameters
+    if not supervisor:
+        if not role:
+            raise HTTPException(
+                status_code=422,
+                detail="role is required to start a role-based run — bind a "
+                       "role agent (its specialty defines the role) or pass "
+                       "an explicit role")
+        if payload.plan:
+            raise HTTPException(
+                status_code=403,
+                detail="A custom plan requires a supervisor (team_lead or "
+                       "higher) — role-based runs are seeded from the role's "
+                       "approved playbooks")
+        if mode not in MEMBER_MODES:
+            raise HTTPException(
+                status_code=403,
+                detail=f"supervision_mode '{mode}' requires a supervisor; "
+                       f"members may use {list(MEMBER_MODES)}")
+        parameters = {k: v for k, v in (parameters or {}).items()
+                      if k not in _GOVERNANCE_PARAM_KEYS}
+
     plan = payload.plan
     seed_source = None
     if not plan:
         seeded = seed_plan_for_run(
-            goal.title, role=payload.role, agent_id=payload.agent_id,
+            goal.title, role=role, agent_id=payload.agent_id,
             tenant_id=resolve_tenant_id(current_user))
         plan = seeded["plan"]
         seed_source = seeded["source"]
     try:
         run = svc.create_run(payload.goal_id, agent_id=payload.agent_id,
-                             role=payload.role,
-                             supervision_mode=payload.supervision_mode,
-                             plan=plan, parameters=payload.parameters,
+                             role=role,
+                             supervision_mode=mode,
+                             plan=plan, parameters=parameters,
                              created_by=str(current_user.id))
         svc.transition(run["id"], "active")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+
+    # Kick off the first loop turn so "start" means started. Fault-isolated:
+    # a router/executor hiccup still returns the created run (the supervisor
+    # can Advance it), and an exception here must never lose the run row.
+    started = None
+    if payload.start:
+        try:
+            started = await svc.advance(run["id"])
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(f"goal run {run['id']}: kickoff advance failed: {exc}")
+            started = {"advanced": False, "error": "kickoff failed"}
     return {"success": True, "id": run["id"], "seed_source": seed_source,
-            "run": svc.get_run(run["id"])}
+            "started": started, "run": svc.get_run(run["id"])}
 
 
 @router.post("/{run_id}/advance")
@@ -188,9 +298,19 @@ async def advance_goal_run(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Manual loop turn (done-signal hook / supervisor nudge)."""
-    _require_supervisor(db, current_user)
+    """Manual loop turn (owner or supervisor nudge)."""
     svc = _service(current_user, db)
+    run = svc.get_run(run_id)
+    if not run:
+        raise router.not_found_error("GoalRun", run_id)
+    _require_run_access(db, current_user, run)
+    if run["status"] in _TERMINAL_STATUSES:
+        # Was a 200 no-op the UI reported as success ("Advanced one decision
+        # cycle" while nothing moved). Terminal is terminal.
+        raise HTTPException(
+            status_code=409,
+            detail=f"run is {run['status']} — a finished goal run takes no "
+                   f"further loop turns")
     result = await svc.advance(run_id)
     if not result.get("advanced") and result.get("reason") == "run not found":
         raise router.not_found_error("GoalRun", run_id)
@@ -205,9 +325,12 @@ async def resume_goal_run(
     db: Session = Depends(get_db),
 ):
     """Resolve a held decision: approve → execute; reject → the guidance is
-    a correction (instant lesson for the agent)."""
-    _require_supervisor(db, current_user)
+    a correction (instant lesson for the agent). Owner or supervisor."""
     svc = _service(current_user, db)
+    run = svc.get_run(run_id)
+    if not run:
+        raise router.not_found_error("GoalRun", run_id)
+    _require_run_access(db, current_user, run)
     try:
         return await svc.resume(run_id, approved=payload.approved,
                                 reviewer=str(current_user.id),
@@ -224,12 +347,14 @@ async def resolve_checkpoint(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Resolve a PROCESS-INTRINSIC checkpoint (e.g. quote approval): the
-    HITL row closes and the wake drives the next loop turn."""
-    _require_supervisor(db, current_user)
+    """Resolve a PROCESS-INTRINSIC checkpoint (a human sign-off step the
+    role's process defines): the HITL row closes and the wake drives the next
+    loop turn. Owner or supervisor."""
     svc = _service(current_user, db)
-    if not svc.get_run(run_id):
+    run = svc.get_run(run_id)
+    if not run:
         raise router.not_found_error("GoalRun", run_id)
+    _require_run_access(db, current_user, run)
     hitl = db.query(HITLAction).filter(HITLAction.id == hitl_id).first()
     if not hitl or (hitl.params or {}).get("run_id") != run_id:
         raise router.not_found_error("Checkpoint", hitl_id)
@@ -294,8 +419,7 @@ async def distill_goal_run(
         GoalObjective.id == run["goal_id"]).first()
     draft = distill_run_to_playbook_draft(
         run, tenant_id=resolve_tenant_id(current_user),
-        workspace_id=resolve_workspace_id(
-            getattr(current_user, "workspace_id", None)),
+        workspace_id=resolve_workspace_id(current_user),
         goal_title=goal.title if goal else "")
     if draft is None:
         raise HTTPException(
@@ -329,8 +453,11 @@ async def cancel_goal_run(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _require_supervisor(db, current_user)
     svc = _service(current_user, db)
+    existing = svc.get_run(run_id)
+    if not existing:
+        raise router.not_found_error("GoalRun", run_id)
+    _require_run_access(db, current_user, existing)
     try:
         run = svc.cancel(run_id)
     except ValueError as exc:
@@ -359,8 +486,7 @@ async def ingest_goal_run_event(
         yield db
 
     out = await ingest_event(event,
-                             workspace_id=resolve_workspace_id(
-                                 getattr(current_user, "workspace_id", None)),
+                             workspace_id=resolve_workspace_id(current_user),
                              tenant_id=resolve_tenant_id(current_user),
                              session_factory=_session)
     return {"success": True, **out}
@@ -382,7 +508,6 @@ async def promotion_evidence(
 
     return evaluate_mode_promotion(
         agent_id,
-        workspace_id=resolve_workspace_id(
-            getattr(current_user, "workspace_id", None)),
+        workspace_id=resolve_workspace_id(current_user),
         tenant_id=resolve_tenant_id(current_user),
         session_factory=_session)

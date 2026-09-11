@@ -15,9 +15,19 @@ import { getCurrentUserId } from "@/lib/identity";
 import { getOpenCanvasChatContext } from "@/hooks/useCanvasStateRegistration";
 import { chatTurnTouchedCanvas, syncCanvasFromStore } from "@/lib/canvasSync";
 import { authHeaders } from "@/lib/auth-headers";
+import { fetchWithRetry } from "@/lib/retry";
 
 interface GlobalChatWidgetProps {
     userId?: string;
+}
+
+function buildWelcomeMessage(): ChatMessageData {
+    return {
+        id: "welcome",
+        type: "assistant",
+        content: 'Hi! I am your Universal ATOM Assistant. 🚀\n\nI can help you with:\n📅 **Calendar**: "Schedule meeting tomorrow"\n📧 **Email**: "Send email to boss"\n⚙️ **Workflows**: "Run Daily Report"\n\nWhat would you like to do?',
+        timestamp: new Date(),
+    };
 }
 
 export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps) {
@@ -25,6 +35,11 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
     const [messages, setMessages] = useState<ChatMessageData[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string>("");
+    // History hydration is best-effort over a network that restarts under
+    // the page (backend restarts 15–20s). When it ultimately fails the user
+    // must see THAT, not a welcome-only transcript that looks like an empty
+    // account (2026-09-10: canvas chat looked wiped after a restart).
+    const [historyError, setHistoryError] = useState(false);
     const [pendingApproval, setPendingApproval] = useState<{ action_id: string; tool: string; reason: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     // WS reasoning steps that arrive before this turn's assistant message
@@ -36,12 +51,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
 
     // Initialize session
     useEffect(() => {
-        const welcomeMessage: ChatMessageData = {
-            id: "welcome",
-            type: "assistant",
-            content: 'Hi! I am your Universal ATOM Assistant. 🚀\n\nI can help you with:\n📅 **Calendar**: "Schedule meeting tomorrow"\n📧 **Email**: "Send email to boss"\n⚙️ **Workflows**: "Run Daily Report"\n\nWhat would you like to do?',
-            timestamp: new Date(),
-        };
+        const welcomeMessage = buildWelcomeMessage();
 
         const storedSessionId = localStorage.getItem('atom_chat_session_id');
 
@@ -168,12 +178,35 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         }
     }, [lastMessage, toast]);
 
+    // --- history hydration plumbing -------------------------------------
+    // Reconnect-triggered reload: the websocket auto-reconnects (unlimited
+    // attempts in useWebSocket) when the backend restarts — but REST state
+    // fetched before the restart stays stale/failed. A socket false→true
+    // transition AFTER the initial mount connect is the signal that the
+    // backend bounced: re-pull the transcript so the user's history
+    // reappears without a manual page reload (2026-09-10: a restart left
+    // the widget on a welcome-only transcript that looked wiped).
+    const sessionIdRef = useRef(sessionId);
+    useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
+    const wsPrevConnectedRef = useRef<boolean | null>(null); // null = unobserved
+    const reloadInFlightRef = useRef(false);
+    // A reconnect that lands WHILE a hydration is already running (the
+    // restart happened mid-fetch) queues exactly one follow-up instead of
+    // being dropped on the floor by the in-flight guard.
+    const reconnectPendingRef = useRef(false);
+
     const loadSessionHistory = async (sid: string, welcomeMsg: ChatMessageData) => {
+        reloadInFlightRef.current = true;
         try {
             setIsLoading(true);
-            const res = await authFetch(`/api/chat/history/${sid}?user_id=${userId || getCurrentUserId()}`, {
-                headers: authHeaders(),
-            }).catch((): null => null);
+            // fetchWithRetry bridges transient blips (authFetch alone has no
+            // retry); a full backend restart outlives it and is covered by
+            // the reconnect-triggered reload below.
+            const res = await fetchWithRetry(
+                () => authFetch(`/api/chat/history/${sid}?user_id=${userId || getCurrentUserId()}`, {
+                    headers: authHeaders(),
+                })
+            ).catch((): null => null);
 
             if (res && res.ok) {
                 const data = await res.json().catch((): null => null);
@@ -194,6 +227,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                             };
                         });
                         setMessages(chatMessages);
+                        setHistoryError(false);
                         return;
                     }
                 }
@@ -207,13 +241,47 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
                 setSessionId(freshSessionId);
                 localStorage.setItem('atom_chat_session_id', freshSessionId);
             }
+            // Failure is NOT the same as empty. `res === null` is a thrown
+            // network error; a non-ok Response is a restart answering
+            // 502/503/504 rather than dropping the connection (the likeliest
+            // mode behind a proxy). Before this, only the former was
+            // surfaced, so a 503 still rendered a silent welcome-only
+            // transcript — the exact symptom this fix exists to remove.
+            // Only the 403 stale-session drop above is a legitimate
+            // "start fresh".
             setMessages([welcomeMsg]);
+            setHistoryError(res === null || (res.status !== 403 && !res.ok));
         } catch {
             setMessages([welcomeMsg]);
+            setHistoryError(true);
         } finally {
             setIsLoading(false);
+            reloadInFlightRef.current = false;
+            if (reconnectPendingRef.current) {
+                reconnectPendingRef.current = false;
+                const pendingSid = sessionIdRef.current;
+                if (pendingSid) void loadSessionHistory(pendingSid, buildWelcomeMessage());
+            }
         }
     };
+
+    useEffect(() => {
+        const prev = wsPrevConnectedRef.current;
+        wsPrevConnectedRef.current = isConnected;
+        // Fire ONLY on a genuine false→true transition. Effect re-runs from
+        // unrelated dependency changes with isConnected still true are
+        // no-ops (prev === isConnected).
+        if (prev === null || prev === isConnected || !isConnected) return;
+        if (!sessionIdRef.current) return;
+        if (reloadInFlightRef.current) {
+            // The restart landed mid-hydration — queue one follow-up so the
+            // reconnect is not swallowed by the in-flight load.
+            reconnectPendingRef.current = true;
+            return;
+        }
+        void loadSessionHistory(sessionIdRef.current, buildWelcomeMessage());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isConnected]);
 
     const handleSendMessage = async (text: string) => {
         const userMessage: ChatMessageData = {
@@ -499,6 +567,23 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
 
                         {/* Messages */}
                         <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+                            {historyError && messages.length <= 1 && (
+                                <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg border border-destructive/40 bg-destructive/10 text-xs">
+                                    <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                                    <span className="flex-1">Couldn't load chat history.</span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 px-2 text-xs"
+                                        onClick={() => {
+                                            setHistoryError(false);
+                                            if (sessionId) loadSessionHistory(sessionId, buildWelcomeMessage());
+                                        }}
+                                    >
+                                        Retry
+                                    </Button>
+                                </div>
+                            )}
                             {messages.map(msg => (
                                 <ChatMessage
                                     key={msg.id}

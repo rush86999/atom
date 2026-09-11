@@ -275,6 +275,52 @@ class TestCanvasFork:
         assert new_canvas.share_token is None
         assert new_canvas.status == "active"
 
+    def test_fork_copies_audit_trail_content_not_stale_row(self, fork_client, db_session, source_canvas):
+        """The audit trail is the read source-of-truth, so a fork must copy the
+        content the user actually sees — not the ``Canvas.content`` column.
+
+        Every agent/UI edit appends to ``CanvasAudit`` only, leaving the row
+        column at its creation-era snapshot. A fork that copies the row served
+        pre-edit content (live incident 2026-09-11, canvas a1a13834: forking
+        the Foot Shear quote would have restored the broken markdown tables).
+        """
+        from datetime import datetime, timedelta
+
+        source = source_canvas["canvas"]
+        user = source_canvas["user"]
+
+        newer = {"body": "UPDATED body", "sections": [9, 9, 9]}
+        db_session.add(CanvasAudit(
+            canvas_id=source.id,
+            tenant_id=source.tenant_id,
+            action_type="update",
+            user_id=str(user.id),
+            canvas_type="document",
+            details_json={"content": newer, "title": source.name},
+            created_at=datetime.utcnow() + timedelta(minutes=5),
+        ))
+        db_session.commit()
+
+        # The row column is deliberately stale (creation-era snapshot) while
+        # the audit trail holds the current body.
+        db_session.expire_all()
+        row_content = db_session.query(Canvas).filter(Canvas.id == source.id).first().content
+        assert row_content == {"body": "hello", "sections": [1, 2]}
+
+        resp = fork_client.post(f"/api/canvas/{source.id}/fork")
+        assert resp.status_code == 200, resp.text
+        new_id = resp.json()["canvas"]["id"]
+
+        new_canvas = db_session.query(Canvas).filter(Canvas.id == new_id).first()
+        assert new_canvas.content == newer
+
+        # The copy's audit trail carries the body so the audit-first read path
+        # serves it without falling back to the row column.
+        fork_audit = db_session.query(CanvasAudit).filter(
+            CanvasAudit.canvas_id == new_id
+        ).one()
+        assert (fork_audit.details_json or {}).get("content") == newer
+
     def test_fork_carries_no_audit_history_beyond_fork_row(self, fork_client, db_session, source_canvas):
         source = source_canvas["canvas"]
         resp = fork_client.post(f"/api/canvas/{source.id}/fork")

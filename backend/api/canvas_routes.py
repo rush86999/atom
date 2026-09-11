@@ -713,8 +713,9 @@ async def fork_canvas(
 
     P5 Blueprint Security: forking never leaks credentials or history. The copy
     gets a fresh id, ``share_token`` reset to None, ``status`` "active", and
-    ``created_by`` set to the current user. No audit history is carried over
-    (exactly one "fork" row is written), and no context/artifacts/recordings/
+    ``created_by`` set to the current user. The copy's body is the audit-trail
+    content (what the user sees), recorded on the single "fork" row — no audit
+    HISTORY is carried over, and no context/artifacts/recordings/
     presence/handoffs are copied. Component installation configs are run
     through ``strip_credentials`` before they are re-created on the copy. The
     source canvas is never modified.
@@ -740,7 +741,11 @@ async def fork_canvas(
 
         new_id = str(uuid.uuid4())
         new_name = f"{src.name} (copy)"
-        new_canvas_type = src.canvas_type
+        # The audit trail is the read source-of-truth (see read_canvas): every
+        # agent/UI edit appends a CanvasAudit row and never rewrites the
+        # Canvas.content column, so copying src.content forked the creation-era
+        # snapshot instead of the draft the user sees. Copy the resolved read.
+        new_canvas_type = source_read.get("canvas_type") or src.canvas_type
 
         # 2. Independent copy: copied fields, all identity/state fields reset.
         new_canvas = Canvas(
@@ -751,7 +756,7 @@ async def fork_canvas(
             name=new_name,
             description=src.description,
             canvas_type=new_canvas_type,
-            content=src.content,
+            content=source_read["content"],
             style=src.style,
             is_collaborative=src.is_collaborative,
             share_token=None,          # never inherit a share token
@@ -776,13 +781,20 @@ async def fork_canvas(
             ))
 
         # 4. Exactly one audit row for the copy — history is NOT carried over.
+        #    The body rides on this row (it is the copy's current content, not
+        #    carried history) so the audit-first read path serves the fork
+        #    without depending on the Canvas.content fallback.
         db.add(CanvasAudit(
             canvas_id=new_id,
             tenant_id=src.tenant_id,
             action_type="fork",
             user_id=str(current_user.id),
             canvas_type=new_canvas_type,
-            details_json={"source_canvas_id": canvas_id},
+            details_json={
+                "source_canvas_id": canvas_id,
+                "title": new_name,
+                "content": source_read["content"],
+            },
         ))
 
         db.commit()

@@ -6,6 +6,137 @@
 
 ---
 
+## Session 2026-09-11b (BYOK/BPC routing hardening — P0+P1 from web research)
+
+**Context**: after the Foot Shear routing incident (reasoning model streamed empty at the token cap, provider fallback 404'd, turn died), the operator asked for research into how mature gateways make BYOK/cost-quality routing robust across all scenarios. Research + gap analysis: `docs/architecture/BYOK_BPC_ROUTING_ROBUSTNESS.md` (cited: LiteLLM, OpenRouter, Qwen Code).
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/llm/byok_handler.py` | P0.2 `_reasoning_request_body` (bounded `reasoning.max_tokens`, always `< max_tokens`) wired into stream + non-stream chat; P0.1 `fallback_models` recursion + `get_fallback_models`; P0.3 `_stream_with_idle_watchdog`/`_StreamInactivityError`; P1.4 `_bench_model`/`_model_cooldown_active`; P1.5 failure `_record_outcome_feedback` on empty/inactive; P1.6 `health_factor` in the BPC value score | 4 new suites |
+| `backend/core/llm_service.py` | `stream_completion(fallback_models=…)` pass-through | — |
+| `backend/integrations/chat_orchestrator.py` | reply path supplies the ranked fallback-model ladder; `chat_heartbeat` keepalive frame while streaming is silent but in-budget (`_HEARTBEAT_SLICE_SECONDS`) | orchestrator suites |
+| `backend/tests/test_llm_reasoning_budget.py` (new) | reasoning model gets budget + headroom; non-reasoning / non-gateway get none | 3 |
+| `backend/tests/test_llm_model_fallback.py` (new) | next ranked model serves when the primary model exhausts; no fallback without the list | 2 |
+| `backend/tests/test_llm_stream_idle_watchdog.py` (new) | zero-chunk silence fails fast; mid-stream silence keeps partial and never replays | 2 |
+| `backend/tests/test_llm_model_cooldown.py` (new) | empty output benches the pair + records failure; benched pair is skipped | 1 |
+
+**Verification**: all four new suites red→green; provider/orchestrator regression **351 passed, 1 pre-existing failure** (`TestGetQwenResponse::test_overrides_and_sticky_hint_forwarded`, stash-verified on clean main). Backend restarted healthy (`scripts/restart_backend.sh`, `:8001` pid 40519).
+
+**P2 + grounding (also landed)**: `_is_context_length_error`/`_is_content_policy_error` → skip same-model providers and jump to model fallback (`test_llm_p2_fallbacks.py` 3); `ATOM_BPC_MAX_PRICE_PER_MTOK` hard ceiling (default off); empty outcomes record `cost=0.0`; canvas-context head-only cut at 4000 chars → `_elide_middle(text, 12000)` keeps head+tail (the agent had claimed the draft had no alternative machine). Final sweep **267 passed**; restarted (`:8001` pid 48059); live smoke turn HTTP 200 in 13s.
+
+---
+
+## Session 2026-09-11 (Foot Shear quote canvas — dark table headers + real F-5216 price; canvas fork copied the stale row)
+
+**Context**: Operator report — `/canvas/a1a13834-7bb3-4b3b-91cf-e83a2287daf0` "didn't update". The Sales Agent's reply claimed dark `#333333` header rows with white bold text and the alternative price set to "TBC", but **no `CanvasAudit` row ever contained `#333333`** (0/19 rows; the only `#333333` in `backend/logs/uvicorn_8001_restart.log` is the agent's streamed chat token) — the edit was narrated, never applied. The served draft had `#f0f0f0` headers and a truncated `$7,5` alternative price. Separately, `POST /api/canvas/{id}/fork` read the source audit-first but copied `Canvas.content` — the creation-era column every agent/UI edit leaves stale (all writes append `CanvasAudit` only).
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/api/canvas_routes.py` | `fork_canvas` copies `source_read["content"]` / `canvas_type` (the audit-first read) instead of `src.content` / `src.canvas_type`, and records the body on the single "fork" row so `read_canvas` serves the copy without the row fallback | `test_canvas_fork.py` +1 |
+| `backend/tests/test_canvas_fork.py` | `test_fork_copies_audit_trail_content_not_stale_row` (Red→Green): stale row column vs newer audit row — fork must copy what the user sees | +1 |
+
+**Not a code fix (data repair, applied live)**: canvas `a1a13834` rewritten through `tools.canvas_crud_tool.update_canvas_content` (append-only audit, `canvas_type="email"`): both tables' `<th>` → `background-color:#333333; color:#ffffff; font-weight:bold`; both price cells bold + `text-align:right`; alternative price `$7,5` → **`$7,519.00`**, delivery → `2-3 Weeks`. Price verified against the ingested mailbox store (`data/atom_memory/default/atom_communications.lance`): Chandrakant Sharma 2026-08-26 11:50 "Re: Quote for SR48P and for shear" — `F-52”x16G Foot Shear | $7,519.00 | 2-3 Weeks`; confirms `$7,5` was a truncation of `$7,519.00`.
+
+**Verification**: new test red→green; `test_canvas_fork.py` 7/7; fork + api + crud + covpush canvas routes 123 passed. Live read-back via `read_canvas(user, canvas)` serves `#333333` ×8, no `#f0f0f0`, `$7,519.00` ×1, `2-3 Weeks` ×1. Backend restart needed for the fork fix; the canvas-content fix is a committed DB write and already served (a separate-process WS broadcast lands on an empty channel, so an open tab needs a refresh).
+
+### Follow-up (operator: "agent needs to work, not you") — the co-editor lane narrated the edit instead of applying it
+
+**Context**: the manual repair above is not the fix — the AGENT must apply canvas edits. Execution trace (`agent_reasoning_steps`, execution `874668b5-ae54-4af2-8d99-02c814af4ecf`, session `r90e-verify`): step 1 `fresh_data` → "live evidence lookup timed out — data-dependent edit must decline"; step 1 `tool_planner` → "No live lookup needed … This is a write/edit"; step 2 one `llm` call → the reply. **No `canvas_editor`/`update_canvas_content` step ever ran.** Chain: `fetch_fresh_data_section` hit `_FRESH_DATA_TIMEOUT_SECONDS = 25` waiting on the shared chat-leg planner (which resolved ~37s later), so `_try_canvas_edit` returned `None`; the conversational fallback then shipped "Done — here's what I changed" for an edit that never landed.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/integrations/chat_orchestrator.py` | on the fresh-data decline, set `shared_tool_state["canvas_evidence_unavailable"]` (fall-through preserved so a plain canvas data question still gets answered); forward the flag into `_get_qwen_response`; append the no-edit system directive to the reply messages | `test_chat_canvas_editor.py` +3 |
+| `backend/core/chat_canvas_editor.py` | new `canvas_no_edit_note(evidence_unavailable)` — "NO CANVAS EDIT WAS APPLIED THIS TURN … Do NOT claim or imply that you changed the canvas" (empty when no edit was declined) | +1 |
+| `backend/tests/test_chat_canvas_editor.py` | `test_canvas_edit_evidence_failure_flags_turn_as_unedited` (Red→Green: declined edit must flag the turn, planner not reached) + `test_canvas_no_edit_note_forbids_claiming_an_edit` + `test_reply_prompt_carries_no_edit_directive_when_flagged` (asserts the directive is in the `messages` sent to the LLM, and absent on an ordinary turn) | +3 |
+
+**Verification**: new tests red→green; `test_chat_canvas_editor.py` 93 passed (`+test_canvas_app_editor_fixes.py` 121 together); grounding/web-research/trace/deadline suites 69 passed; `main_api_app` imports clean on the server interpreter (`backend/venv314`). `scripts/restart_backend.sh` → healthy pid 75844 (DB snapshot `atom-pre-restart-20260910-215111.db.gz`), so this and the fork fix are live.
+
+### Follow-up 2 — planner latency must not decline a data-independent edit
+
+**Context**: the guard above stops the lie but the edit still declined — a planner overrun was misread as "needs live data".
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/chat_canvas_editor.py` | `fetch_fresh_data_section` now bounds the PLANNER wait separately (`_FRESH_DATA_PLAN_TIMEOUT_SECONDS = 75`) from the LOOKUP budget (`_FRESH_DATA_TIMEOUT_SECONDS = 25`); on planner timeout it re-checks the shared task (`_resolved_plan_if_done`) and honors a just-resolved `use_tool=False` verdict. Planner-exception semantics preserved (failed SHARED task → proceed; failed standalone `plan_tool_use` → decline) | `test_canvas_fresh_data_budget.py` +4 |
+| `backend/tests/test_canvas_fresh_data_budget.py` | new: slow-planner-no-lookup proceeds; planner cap declines; lookup overrun declines; happy path returns evidence | +4 |
+| `backend/tests/test_canvas_editor_grounding.py`, `test_explicit_web_research_floor.py`, `test_fact_watch.py` | three old single-timeout tests re-pointed at `_FRESH_DATA_PLAN_TIMEOUT_SECONDS` (same intent: overrun ⇒ decline, shared task survives) | 3 updated |
+
+**Verification**: wide sweep (fresh-data + chat-canvas-editor + app-editor + grounding + web-research + fact-watch) **189 passed**; restarted (pid 83995).
+
+### Follow-up 3 — local runtimes must not be offered a gateway-namespaced model
+
+**Context**: the live replay (below) died with "All 2 providers failed for `z-ai/glm-5.3-flash`": OpenRouter streamed empty (`finish_reason=length`), then the fallback retried the SAME id on `ollama` → 404. `_provider_serves_model` treated local runtimes as serving ANY model name.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/llm/byok_handler.py` | local/open providers (`ollama`/`vllm`/`lmstudio`/`local*`) serve arbitrary BARE model names but return False for a `namespace/model` id — a gateway catalog model. Callers always try the REQUESTED provider regardless, so an explicitly selected local model still works | `test_llm_fallback_model_gate.py` +3 |
+
+**Verification**: `test_llm_fallback_model_gate.py` red→green; + `test_r90_stream_empty_and_turn_deadline.py` + `test_opencode_go_provider.py` **66 passed**; restarted (pid 85144).
+
+### Follow-up 4 — empty reasoning-only stream retries with a larger budget
+
+**Context**: with the gate fixed the turn no longer 404s but still dies: OpenRouter streams **zero visible content** with `finish_reason=length` (hidden reasoning ate the whole 6000-token budget on the agent-sized prompt). One real provider is configured, so provider fallback has nothing left.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/llm/byok_handler.py` | on an empty stream whose `finish_reason` is `length`, re-queue the SAME provider once with `max(max_tokens*3, 16000)` before falling through (plus an `_attempt_max_tokens` computed per attempt). A non-`length` empty stream still falls through normally | `test_llm_empty_stream_budget_retry.py` +2 |
+| `backend/tests/test_llm_empty_stream_budget_retry.py` | new: budget-aware fake client (empty at 1000, content at the retry budget) → `"Hello world"` and exactly 2 calls; silent-without-length → no same-provider retry, error envelope | +2 |
+
+**Verification**: 72 passed across the provider + fresh-data suites; restarted (pid 86395).
+
+### Live agent replay — pipeline fixed, agent still blocked upstream
+
+**Setup**: reverted canvas `a1a13834` to the pre-fix body, then POSTed the operator's exact instruction to `/api/chat/message` with the Sales Agent (`9837ec71`) + canvas context, using a locally minted owner JWT.
+
+**Outcome**: no agent-attributed edit row. With all pipeline/provider fixes live the turn now ends `chat streaming exceeded the turn budget (95s) … stopping the stream (0 chunks buffered)`. The model/provider are healthy — a **direct** OpenRouter stream for `z-ai/glm-5.3-flash` on a moderate prompt returns `finish=stop`, 148 content chars, 1403 reasoning chars. So the residual blocker is **model selection/effort for the interactive reply leg** (the BPC-chosen reasoning model over-reasons on the agent prompt), not the canvas lane; it belongs to the R90/routing workstream.
+
+**Operator-visible state**: canvas restored to the corrected body (`#333333` headers, bold right-aligned prices, `$7,519.00`, `2-3 Weeks`) — latest audit row `2026-09-11 03:09:05`. One-off replay scripts removed.
+
+---
+
+## Session 2026-09-10 (Gallery DELETE 404 — discovery and authorization disagreed on canvas ownership)
+
+**Context**: Live report — `Runtime AxiosError Request failed with status code 404` at `pages/canvas/index.tsx:146` (`apiClient.delete('/api/canvas/${canvasId}')`). Access log pinned the exact request: `DELETE /api/canvas/canvas_formulacheck01 → 404` (twice, plus earlier `GET /api/canvas/canvas_formulacheck01 → 404`). Root cause: **discovery and authorization used different ownership rules.** `list_canvases` lists a canvas when `CanvasAudit.user_id == caller`; `_verify_canvas_owner` trusted ONLY `Canvas.created_by` whenever a Canvas row existed (the audit fallback applied only to agent-created canvases with no Canvas row). `canvas_formulacheck01` had `canvases.created_by =` a test member (`zcode.mdverify@example.com`) but its newest audit row was the admin — so it was listed in the admin's gallery yet 404'd on every per-canvas endpoint (read/update/delete/undelete/history/journey/logic). The same happens for any co-edited canvas (office `/present` persists ONE Canvas row per file; every later presenter edits that row).
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/tools/canvas_crud_tool.py` | `_EVENT_ONLY_ACTIONS = ("submit",)`; `_verify_canvas_owner` now accepts EITHER `Canvas.created_by == user` OR an authoring audit row by the user (`action_type NOT IN _EVENT_ONLY_ACTIONS`); `list_canvases` also filters those event-only rows out of its base query, so the gallery only lists canvases the guard authorizes (and no longer leaks an owner's content to a mere form submitter) | `test_canvas_idor.py` +4 (read/delete a co-edited canvas; submit-only row grants nothing; every listed canvas is actionable) |
+| `backend/tests/test_covpush_tools_a.py` | `test_verify_canvas_owner` models the two ownership sources (was: one generic mock) | 1 updated |
+| `backend/tests/test_covpush_w75c_tools_a.py` | new `_owner_db()` mock helper (Canvas row vs audit row); `TestVerifyCanvasOwner` +`test_authoring_actor`; `TestReadCanvas::test_not_owner` re-modelled | 4 updated/added |
+| `backend/tests/test_canvas_idor.py` | `TestCoEditorOwnership` + `TestGalleryListingMatchesAuthorization` (regression: gallery-listed ⇒ actionable) | +4 |
+
+**Not** the cause (ruled out with evidence): route registration (`GET`/`DELETE /api/canvas/{id}` exist; `allow: GET` on the path), trailing-slash/rewrite (client uses `NEXT_PUBLIC_API_URL=http://localhost:8001` directly), idempotent double-delete (already returns success). The `:8000` listener on this box is `atom-saas/backend-saas`, NOT this repo — the live backend is `:8001` (`backend/data/atom.db`).
+
+**Verification**: new tests red→green (3 failed/5 passed → 8 passed). Canvas sweeps: crud+idor+list+covpush 317 passed; canvas routes/security (R24/R66/R89, covpush canvasroutes/w64g) 276 passed; tool/present/retype/ws-authz/types/provenance/chat-editor 159 passed; office/fork/version/agent-journey suites passed. Pre-existing-on-baseline failures (verified by stashing the fix): `test_canvas_sessions.py` + `test_canvas_updates.py` 8 failed (stale `tools.canvas_tool.AgentGovernanceService` patch target), `test_canvas_tool_integration.py::TestCanvasAuditTrail::test_chart_creates_audit_entry` 1 failed. Live-DB check against `backend/data/atom.db`: `_verify_canvas_owner(admin, canvas_formulacheck01)` False→True, stranger still False, `read_canvas` returns success, gallery count unchanged (71 incl. deleted / 8 active). Fix needs a backend restart to take effect (`scripts/restart_backend.sh`) — the API server does not run `--reload`.
+
+### Follow-up (same session): duplicate gallery cards + a deleted duplicate that came back
+
+**Context**: operator follow-up — "there's also duplicate copies listed on /canvas". Two canvases were bound to ONE office file (`data/office/chat-Draft-I-searched-Workdrive-live-for-Trum-2fb2bc2e.xlsx`): the original `7f078cea…` (agent `chat_to_canvas`, Sep 9 12:49) and `canvas_c7b3491aebf8` (office `/present`, Sep 9 17:55). The duplicate-creating root cause was ALREADY fixed in the working tree (`_office_path_key` canonical absolute-path comparison — `ensure_canvas_for_file` compared CWD-relative vs absolute and missed the existing binding); the stale duplicate rows remained. Separately, `canvas_c7b3491aebf8` had been deleted at 13:46:10 and an agent file edit appended an `update` row at 14:04:10 — **the fan-out resurrected a deleted canvas**, because the tombstone lives in the audit trail while `Canvas.status` stays `"active"` (so `notify_file_canvases`' `status == "active"` filter matched it).
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/tools/canvas_crud_tool.py` | new `deleted_canvas_ids(db, ids)` — the newest-audit-row-is-`delete` predicate, one grouped portable query (shared by the office paths instead of re-deriving the rule) | `test_canvas_idor.py` (unchanged, still green) |
+| `backend/core/office_sync_service.py` | `notify_file_canvases` drops tombstoned targets; `ensure_canvas_for_file` never REUSES a tombstoned binding (re-presenting starts a fresh canvas); `broadcast_file_update` refuses to append an `update` row over a tombstone — the single writer every caller funnels through, inside the existing `try` so a lookup failure degrades like any other broadcast failure | `test_office_canvas_binding.py` +4 |
+| `backend/core/office_service.py` | `loop = _get_event_loop()` → `_asyncio.get_event_loop()` (`_get_event_loop` was never defined; the NameError killed the whole `.xlsx` branch so EVERY Excel canvas silently fell back to the basic HTML table — live stderr "Error rendering Excel to HTML: name '_get_event_loop' is not defined") | 8 pre-existing red tests in `test_covpush_office.py`/`w58`/`w61_office_service` now green |
+| `backend/tests/test_covpush_w58_office_sync.py`, `…w61_office_sync.py` | `svc` fixtures `Mock()` → `MagicMock()` (the broadcast guard consults the trail; a bare `Mock.all()` is not iterable) | 7 tests unblocked |
+| `backend/tests/test_office_canvas_binding.py` | +4: fan-out skips a tombstoned canvas, still reaches the live one (the duplicate case), reuse ignores a tombstoned binding, `broadcast_file_update` refuses outright | +4 |
+
+**Verification**: binding+coediting+crud+idor+list 92 passed; full office/canvas batch 600 passed, 3 pre-existing failures (`TestService::test_manager_dispatch[_case_insensitive]`, `test_components_initialized` — identical on baseline with the fix stashed). `test_round58_office_present_identity::test_present_uses_token_identity` also fails on baseline (suite-order/env dependent; the same request returns 200 outside pytest) — untouched. Live: deleted the duplicate (`DELETE /api/canvas/canvas_c7b3491aebf8 → 200`), ran the exact resurrection mechanism (`notify_file_canvases` → notified `['7f078cea…']` only, duplicate's newest action stayed `delete`), gallery now lists ONE sheets card, duplicate restorable under "Show deleted". Xlsx render now `{success: True, engine: 'formulas'}` for the live file. Also left alone (not duplicates): two email canvases share the subject "Re: Equivalent to Hydmech DM10 Bandsaw…" — two distinct drafts, not one canvas copied.
+
+**Follow-up 2 (operator: "remove the one with no conversation or training data")**: the two same-subject email drafts were disambiguated by a full-DB reference sweep (all 368 tables / 48 non-empty, `CAST(col AS TEXT) LIKE '%<id>%'`). `f0293df4-7a9a-4dd7-94ab-2114fca78cc8` referenced ONLY by its own `canvases.id` + a single `canvas_audit` create row → removed (`DELETE → 200`, tombstone, restorable). `c3617a7f-79bc-4382-9d34-3445a2324537` kept: 112 audit rows, `canvas_contexts` (incl. a `user_corrections` entry), 18 `agent_reasoning_steps`, 8 `agent_feedback`, 3 `incident_evals`, 3 `playbooks`, 1 `agent_registry.configuration`. Post-delete re-count confirms nothing of the removed draft's history was training-bearing and the kept draft's references are intact.
+
+---
+
 ## Session 2026-09-01 (Agent deletion "comes back" — demo-agent tombstone + stale-list race + main-agent button)
 
 **Context**: Live report — deleting agents from `/agents` didn't stick: "I click delete the next test agent and the previous one comes back." Verified endpoints work (curl + Playwright click-through: confirm dialog → DELETE → 200 → refetch). Root causes found: (1) `ensure_demo_agent()` re-created the "Demo Assistant" under a **fresh id on every backend boot** after an operator deletion (log evidence: boot-created ids `6c49e9ac` → `3e1c2a5c` → `9aafd8eb`, two operator deletes in between; docstring claimed otherwise); (2) the agents page polls every 5s AND refetches after mutations, so a slow earlier poll response can land after a later one and resurrect a just-deleted agent in the UI; (3) `atom_main`'s trash button always errors (backend forbids) — hidden instead.
@@ -7346,3 +7477,360 @@ heartbeat/sessions, enterprise user create, goal-run create; member 200
 on goal-runs read + available-supervisors; WS live: member's
 user:/session channels denied with error frames, own + team channels
 quietly joined. Probe user soft-deleted after verification.
+
+## Session 2026-09-10 — GoalRun review bug fixes (checkpoint cursor, event gate, hold replay, dead code)
+
+**Context**: Review pass over the just-landed GoalRun feature
+(`39bc24dbe`). Found four defects, each reproduced with a failing test
+before the fix; the existing 7 GoalRun suites were green, so all four were
+untested gaps.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/goals/goal_run_service.py` | `_advance_cursor` refuses to move while the cursor step is an unresolved `human_checkpoint` (approval moved it a second time and skipped the next step) — scoped to `ADVANCE` so SKIP/BRANCH keep single-advance semantics; hold conversions (`_apply_guardrails`, `_apply_wait_ceiling`, major-replan gate, `_finish_done`) carry `original_decision`; `execute_decision` replays an approved hold's original decision with `human_approved` (bypasses replan-magnitude re-check; `_finish_done` treats human approval as criteria verification); `resume` stamps `human_approved` | `test_goal_run_bugfixes.py` +8 |
+| `backend/core/goals/goal_run_executors.py` | `SKIP`/`WAIT`/`ASK_HUMAN`/`DONE`/`REPLAN` branches moved from the dead code after `_branch_new_canvas`'s `return` into `execute()` — `SKIP` now returns `{"skipped": …}` instead of `None` | `test_goal_run_bugfixes.py::test_skip_returns_structured_result` |
+| `backend/api/goal_run_routes.py` | `POST /api/goal-runs/events` now `_require_supervisor` (was any authenticated user; events wake runs and drive router/executor actions) | `test_goal_run_routes.py::test_event_ingestion_requires_supervisor` |
+| `backend/tests/test_goal_run_routes.py` | +1 route gate case | 1 |
+| `backend/tests/test_goal_run_bugfixes.py` (new) | 8 regressions: checkpoint owns cursor until resolved, SKIP-over-checkpoint still advances, SKIP structured result, replan-budget/major-replan/WAIT-ceiling/failed-DONE approval replay | 8 |
+
+**Verification**: all 8 GoalRun suites **79 passed**. Neighbor suites
+`test_chat_orchestrator` + `test_covpush_w109/w115_chat_orchestrator` +
+`test_canvas_crud` 162 passed / 1 failed
+(`TestGetQwenResponse::test_overrides_and_sticky_hint_forwarded`,
+`KeyError: 'sticky_hint'`) — **pre-existing on clean main** (stash-verified).
+Backend restarted healthy (`scripts/restart_backend.sh`, :8001 pid 82375) so
+the fixes are live.
+
+---
+
+## Session 2026-09-10b — Resizable canvas chat/view split (draggable vertical border)
+
+**Context**: Request — "make the canvas chat and view flexible by allowing
+the vertical border to move left and right, make it small and large." On
+`/canvas/{id}` the side panel (agent co-editor chat, training, journey,
+autonomy) was hard-coded `w-80` with the divider baked into its `border-l`;
+users could not trade canvas space for chat space.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `frontend-nextjs/hooks/useResizablePanel.ts` (new) | Drag-resize contract for a docked pane: window pointer listeners (no capture dep), clamp to `[min, min(max, viewport-reserve)]` so the other pane always keeps room, Arrow keys / Home / End, double-click reset, `localStorage` persistence (read in an effect for hydration safety, gated so the mount write can't clobber the stored value), body cursor/user-select lock while dragging | `useResizablePanel.test.ts` 14 passed |
+| `frontend-nextjs/components/ui/ResizableDivider.tsx` (new) | The movable border itself: `role="separator"` + `aria-orientation/valuenow/min/max` vertical separator, 6px hit target around the 1px border line, hover/focus grip, `touch-none` | `ResizableDivider.test.tsx` 3 passed |
+| `frontend-nextjs/pages/canvas/[id].tsx` | Side panel `w-80 border-l` → dynamic `style={{ width }}` + `<ResizableDivider>` between the canvas view and the panel (default 320, min 260, max 900 / viewport cap, key `atom.canvas.sidePanelWidth`); canvas pane gains `min-w-0`; version-history slide-out `right-80` now tracks the panel width | `canvas-detail.test.tsx` +3 passed |
+
+**Verification**: `tests/pages/canvas-detail.test.tsx` 53 passed (incl. the 3
+new resize tests: handle is a separator, drag left grows 320→420 / right
+shrinks 320→300, Home/End clamp to 260 / aria-valuemax and double-click
+resets to 320). New hook + divider suites 17 passed. Full
+`components/canvas` + `components/ui` sweep **1371 passed / 52 suites**. `tsc
+--noEmit` clean on all touched files (only pre-existing `lib/retry.ts:68`
+union-narrowing error remains, untouched). Frontend-only; no backend or API
+change.
+
+## Session 2026-09-10 ~09:55 — Chat-history rehydration hardening (verification follow-up on 01d3b0caf)
+
+**Context**: verification of the just-landed `01d3b0caf` found the commit had
+shipped a RED suite and left three silent-failure paths open in the very
+behavior it set out to fix. Four defects, each fixed test-first.
+
+| File | Change | Tests |
+|---|---|---|
+| `frontend-nextjs/lib/retry.ts` | **Last outcome wins across BOTH channels.** Value and error were tracked separately, so attempt 1 throwing + attempts 2–3 returning 503 rethrew attempt 1's stale error — the same outage rendered differently depending on whether any attempt happened to throw. Also fixed a union-narrowing type error tsc flagged. | `retry.test.ts` 14 passed (+2: mixed-outcome both directions, `fetchWithRetry` throw-then-503 returns the Response) |
+| `frontend-nextjs/components/GlobalChatWidget.tsx` | **A non-ok Response is a FAILURE, not an empty account.** `fetchWithRetry` returns the last 503 rather than throwing, so `setHistoryError(res === null)` stayed false for 502/503/504 — a restart behind a proxy still showed a silent welcome-only transcript. Now `res === null \|\| (res.status !== 403 && !res.ok)`. Plus: a reconnect landing mid-hydration queues one follow-up (`reconnectPendingRef`, drained in `loadSessionHistory`'s `finally`) instead of being dropped by the in-flight guard. | `GlobalChatWidget.test.tsx` 29 passed (+2: 503 → retry affordance; reconnect-during-load re-pulls). Non-vacuity checked by temporarily restoring the old bail → test fails 2≠1 |
+| `frontend-nextjs/pages/canvas/[id].tsx` ⚠️ SHARED | `resolveChatSession()` now **returns** the resolved session id; the reconnect effect read `chatSessionIdRef.current` immediately after awaiting it, before `setChatSessionId` had flushed — null right after a restart, silently skipping the re-pull. | covered by the canvas-detail case below |
+| `frontend-nextjs/tests/pages/canvas-detail.test.tsx` ⚠️ SHARED | **Repaired the red suite.** The stale-session case mocked the failure as a bare `throw new Error("403")`, which carries no `err.response.status` — after 01d3b0caf narrowed the catch to 403-only, it fell into the transient branch and the dead id was reused (1 failed / 48 passed). Fixture is now axios-shaped, plus a new test pinning the transient path: a 502 KEEPS the binding, renders "Couldn't load chat history" (not the fresh placeholder), and Retry re-pulls. | `canvas-detail.test.tsx` 53 passed |
+
+**Verification**: `retry.test.ts` (14) + `GlobalChatWidget.test.tsx` (29) +
+`canvas-detail.test.tsx` (53) + 2 provider-config suites = **146 passed**,
+0 failed. Broad sweep `components/__tests__` + `lib/__tests__`:
+**2256 passed / 104 suites / 15 todo**, sole failure
+`outlook-probe.test.tsx::probe empty-state compose` — unrelated scratch probe
+(imports only `OutlookIntegration`, shares no module with this change, fails in
+isolation, flaky-history commit `788740a65`). `tsc --noEmit` **exit 0, zero
+diagnostics**.
+
+⚠️ **Two files are shared with a concurrent session** adding the resizable canvas
+side panel (its 3 resize tests are the other +3 in the 53). Both changesets
+coexist and the merged result passes; I committed only the four exclusively-owned
+files and left these two uncommitted rather than commit another session's
+in-flight work.
+
+---
+
+## Session 2026-09-10 ~10:10 — Office-file canvas answered "already reflects that" (canvas `7f078cea…`)
+
+**Context**: canvas side-chat, user: *"update the canvas to remove usd column and
+exchange rate column and start with CAD"*. Agent replied *"I read the canvas and
+it already reflects that — nothing needed changing."* The bound `.xlsx` still had
+`Machine | USD | Exch | CSA | …`. Two stacked root causes: (1) office canvases
+carry the LEGACY canvas_type (`OFFICE_COMPONENT_MAP`: `.xlsx`→`sheets`) and bind
+their file only in content, so `get_app_spec("sheets")` resolved the plain GRID
+app — the co-editor echoed the binding back → `no_change` → the honest-but-wrong
+reply (the correct `file_backed` refusal was unreachable); (2) `_office_draft`
+persisted a CWD-relative `office_file`, so `ensure_canvas_for_file` /
+`notify_file_canvases` raw `==` missed it → duplicate canvas row + agent edits
+never reached the user's canvas.
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/canvas_app_schema.py` | NEW `office_app_type_for_content()` + `resolve_app_spec(canvas_type, content)` — the FILE BINDING (format/extension) wins over the legacy canvas_type; `app_prompt_section` uses it and now prints the resolved type | `test_resolve_app_spec_prefers_office_format_over_alias`, `test_prompt_section_detects_office_content_despite_legacy_type` |
+| `backend/core/chat_canvas_editor.py` | `apply_canvas_edit` / `_merge_replace_content` / `normalize_degenerate_content` / `describe_apply_failure` resolve the spec content-aware → office content hits the `file_backed` branch instead of grid/field merge | `test_apply_refuses_legacy_typed_office_canvas_as_file_backed` |
+| `backend/core/office_sync_service.py` | NEW `_office_path_key()` (absolute `Path.resolve()` compare); used in `ensure_canvas_for_file` + `notify_file_canvases` so legacy relative rows match and are repaired on reuse | `test_office_path_key_matches_relative_and_absolute`, `test_notify_file_canvases_matches_legacy_relative_binding`, `test_ensure_canvas_for_file_reuses_and_repairs_legacy_row` |
+| `backend/integrations/chat_routes.py` | `_office_draft` returns the `_validate_office_path`-resolved ABSOLUTE path (was CWD-relative) | `test_office_draft_binds_absolute_path` |
+| `backend/core/student_learning_service.py` | `build_canvas_context` labels an office canvas `office_excel` (not `sheet`) | existing `test_build_canvas_context_snapshots_name_type_digest` still green |
+| `backend/data/office/chat-Draft-I-searched-Workdrive-live-for-Trum-2fb2bc2e.xlsx` | Canvas itself rewritten: `Machine \| CAD \| Freight \| Landed \| Warehouse \| Brenn \| Dealer \| Final Price \| Profit \| Margin` (USD + Exch dropped; CAD=20000), same formula chain, recalculated | live `GET /api/canvas/7f078cea…` serves new rows + formulas + values |
+
+**Verification**: `tests/test_office_canvas_binding.py` 5 passed (new);
+`test_canvas_app_editor_fixes.py` 31 passed; `test_office_canvas_coediting.py` +
+`test_student_learning_service.py` + `test_chat_canvas_editor.py` 93 + 90 passed.
+Reproduction: before → `apply_canvas_edit` `(None, "no_change")`; after →
+`(None, "file_backed")`, `resolve_app_spec("sheets", office)` →
+`office_excel/file_backed`. Live end-to-end after `scripts/restart_backend.sh`
+(:8001, healthy) with a short-lived minted token: canvas API returns the CAD
+header row. Pre-existing/unrelated red: 2 `_repair_json` tests in
+`test_canvas_app_editor_fixes.py` (WIP noted by the latency session) and
+`test_round58_office_present_identity.py::test_present_uses_token_identity`
+(`no such column: canvases.goal_run_id` — the goal-run session's in-flight model
+vs an un-migrated test DB; the live dev DB has the column).
+
+---
+
+## Session 2026-09-10 (Canvas Training tab — editable teaching points)
+
+**Context**: The training tab's "Teaching points" journal (`/canvas/{id}` right
+panel → Training) was read-only: lessons are PERMANENT (`get_agent_lessons`
+injects them into every chat turn, canvas edit plan, and task execution), so a
+typo'd, duplicated, or superseded rule could only be taught around, never
+corrected or removed. Added in-place editing + supervisor-only deletion.
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/student_learning_service.py` | `_new_entry_id()` minted at all 4 write paths (journal_standing_lesson / learn_from_teacher / learn_from_observation / learn_user_style); NEW `teaching_point_id`, `resolve_teaching_point`, `_commit_log`, `update_teaching_point` (text + teacher-only topic; preserves `learned_at`, stamps `edited_at`, no confidence nudge), `delete_teaching_point` | `tests/test_teaching_point_editing.py` 15 passed (service + routes, incl. URL-encoded `log%3A0` handle) |
+| `backend/api/agent_maturity_routes.py` | `teaching_points` payload gains `id` (uuid, else legacy `log:<index>`) + `edited_at`; NEW `PATCH/DELETE /api/maturity/agents/{id}/teaching-points/{point_id}` (edit = any signed-in human, parity with `/teach`; delete = `_require_supervisor`; tenant IDOR 404 via shared `_scoped_agent`) | same suite + `test_canvas_training_context.py` 11 passed |
+| `frontend-nextjs/lib/maturity-api.ts` | `TeachingPoint.id`/`edited_at`; `updateTeachingPoint()` (PATCH, surfaces backend detail) + `deleteTeachingPoint()` (DELETE, 403 → supervisor message) | mocked in the panel suite |
+| `frontend-nextjs/components/canvas/TrainingPanel.tsx` | Per-point inline editor (textarea + topic for teacher lessons; observed points edit text only — their type IS the classification), `· edited` marker, Pencil always / Trash2 supervisor-only, confirm-before-delete, journal reload after every mutation | `TrainingPanel.test.tsx` 21 passed (5 new) |
+
+**Verification**: backend `test_teaching_point_editing.py` 15 + `test_canvas_training_context.py` 11 + `test_student_learning_service.py` 40 = 66 passed; all learning-service-touching suites **311 passed / 0 failed**. Frontend `components/canvas/__tests__` + `tests/pages/canvas-detail.test.tsx` = **983 passed / 40 suites** (re-run after the concurrent "Save as playbook" session's edits merged into the same two files — both feature sets coexist); `tsc --noEmit` exit 0; `main_api_app` imports clean. Persistence proven by `db.expire_all()` before the read-back (real SELECT, not identity map).
+
+**Live verification** (backend restarted via `scripts/restart_backend.sh`, pid 60914 on :8001):
+isolated throwaway probe agent created directly in the dev DB, then driven through the
+live API with a minted admin Bearer token — teach (200 `ok`/`standing_guidance`) → journal
+read shows the minted uuid → PATCH (200, text+topic corrected, `edited_at` stamped) →
+DELETE as a `member` token (403, supervisor gate) → DELETE as admin (200, point gone) →
+probe agent row deleted (cleanup verified). Real agent rows untouched. Next.js dev server
+(:3000) recompiled the panel — served chunk contains the new controls.
+
+**Pre-existing red, fixed in the same pass** (each was failing at HEAD with my changes
+stashed): `tests/api/test_chat_assistant_and_teaching.py::TestTeachEndpoint::test_teaching_non_student_returns_skip_not_error`
+— stale; `teach_agent` deliberately returns `status: ok, mode: standing_guidance` for
+non-STUDENT hires now, so the test was rewritten as
+`test_teaching_non_student_records_standing_guidance` (asserts the journal entry + no
+confidence nudge). `tests/test_installation_adaptation.py::test_playbook_states_and_retrieval`
+— stale; hybrid retrieval (2fafc176a) treats a canvas-type match as a recall path, so
+`get_relevant("unapproved", canvas_type="email")` now legitimately returns the APPROVED
+playbook. The assertion now pins the draft's absence directly plus an empty result for a
+non-matching canvas. Both suites: 31 passed.
+
+
+---
+
+## Session 2026-09-10 (b) — "Save as playbook" drafted a rule the UI never showed
+
+**Context**: On `/canvas/{id}` → right panel → Training, ticking **Save as
+playbook** and pressing **Teach** created the taught draft server-side but the
+Playbooks ▸ Drafts queue below stayed empty (and the tab badge stayed 0). Two
+independent defects, both reproduced with failing tests first.
+
+**Root cause**
+
+1. `lib/maturity-api.ts::teachAgent` returned the raw HTTP body. The route
+   answers through `BaseAPIRouter.success_response`
+   (`backend/api/agent_onboarding_routes.py:489,522`), i.e.
+   `{success, data:{status, playbook_id}, message, timestamp}` — proven by
+   `backend/tests/api/test_chat_assistant_and_teaching.py:143`
+   (`resp.json()["data"]["status"]`). `TrainingPanel.handleTeach` read
+   `result.status` / `result.playbook_id` off the TOP level, so both were
+   always `undefined`: the notice fell back to "confidence grew", the
+   `skipped` branch never fired, and `draftedPlaybook` was always false.
+2. Even with the id parsed, `PlaybookSection` self-fetches on mount only; the
+   teach handler refreshed the training context (`load()`) but never the
+   review queue, so a created draft could not appear until a remount
+   (contradicting Playbook Journey A step 3).
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `frontend-nextjs/lib/maturity-api.ts` | `teachAgent` unwraps `body.data` (bare-payload fallback kept for mocks/legacy) | `lib/__tests__/api/maturity-api.test.ts` new envelope test |
+| `frontend-nextjs/components/canvas/PlaybookSection.tsx` | new `refreshKey` prop folded into the load effect | covered via TrainingPanel suite |
+| `frontend-nextjs/components/canvas/TrainingPanel.tsx` | `playbookRefreshKey` bumped when the teach response carries a `playbook_id`; passed to `PlaybookSection` | `components/canvas/__tests__/TrainingPanel.test.tsx` new "reloads the Playbooks queue" test |
+
+**Verification**: Red first — both new tests failed against the unfixed code
+(`maturity-api` envelope test: `out.status` undefined; panel test:
+`listPlaybooks` called once, no `playbook-name`). Green after: the three
+touched suites `maturity-api` + `TrainingPanel` + `PlaybookSection` = 42/42
+passed; `npx tsc --noEmit` exit 0.
+
+## R90 — chat reply-leg latency budget + silent-stream / integration-storm fixes (2026-09-10)
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/llm/byok_handler.py` | `stream_completion`: zero-token stream now raises `_EmptyCompletionError` (parity with the non-streaming empty-payload contract) so the next ranked provider is tried instead of silently returning "success" | `tests/test_r90_stream_empty_and_turn_deadline.py::TestEmptyStreamIsAFailedAttempt` (3) |
+| `backend/integrations/chat_orchestrator.py` | `CHAT_TURN_BUDGET_DEFAULT_SECONDS`/`_chat_turn_budget_seconds`/`_remaining_budget`/`_turn_budget_error_response`; stream loop + non-streaming fallback + all 6 guard regenerations bounded by the turn budget; `_budget_exceeded_runs` surfaced as `error_code=turn_budget_exceeded` | `TestChatTurnBudget` (4) |
+| `backend/integrations/chat_routes.py` | `POST /api/chat/message` forwards the `turn_budget_exceeded` code instead of rendering the failure as a normal reply | `TestChatRouteSurfacesTurnBudget` (1) |
+| `backend/ai/intelligence_background_worker.py` | skip platforms with no configured `IntegrationToken` owner (was ~6,400 anonymous `user_id required` errors / 8 days) | `TestIntelligenceWorkerSkipsUnconfiguredPlatforms` (2) |
+| `backend/ai/data_intelligence.py` | `_get_platform_data` returns `[]` without a `user_id`/`agent_id` instead of reaching `UniversalIntegrationService` | `TestPlatformDataRequiresIdentity` (1) |
+| `backend/integrations/universal_integration_service.py` | `await circuit_breaker.get_stats()` in the circuit-open branch (was `TypeError: 'coroutine' object is not subscriptable`, 420 live tracebacks) + defensive `stats.get` | `TestCircuitOpenShortCircuit` (2) |
+| `frontend-nextjs/hooks/chat/useChatInterface.ts` | render `turn_budget_exceeded` as a retryable error bubble; also clear the safety-net timer on `budget_exceeded` (it previously stayed armed) | `hooks/chat/__tests__/useChatInterface.test.ts` new test |
+
+**Verification**: Red first — 11 of the new tests failed against the unfixed code
+(the circuit-breaker pair was proven non-vacuous by re-introducing the missing
+`await` and watching them fail again). Green: 13/13 new backend tests; regression
+set 294 passed with the **same 6 pre-existing failures as HEAD**; frontend new
+test passes and `npx tsc --noEmit` exits 0. Pre-existing failures deliberately
+NOT touched: `TestRoutingStats` ×4, `TestGetQwenResponse::test_overrides_and_sticky_hint_forwarded`,
+`TestGetChatHistory::test_db_fallback`.
+
+---
+
+## Session 2026-09-10 (GoalRun journey start/finish gap closure)
+
+**Context**: traced "start → work → finish a long-running goal for an agent"
+end to end across `api/goal_run_routes.py` → `GoalRunService.advance` →
+executors → `/goal-runs` pages. The engine was sound; the journey's START had
+three severed links (no goals surface, no run-create UI, no first loop turn)
+and the FINISH had two dead ends (no live refresh; terminal actions no-op'd).
+
+**Files tested/fixed**:
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/api/goal_routes.py` (new) | `GET /api/goals`, `GET /api/goals/{id}` (any signed-in), `POST /api/goals` (supervisor); `GoalService` bound to the request session | `test_goal_journey_gaps.py::TestGoalsSurface` +4 |
+| `backend/api/goal_run_routes.py` | `start: bool = True` on create → route awaits the first `advance()` (fault-isolated); terminal statuses 409 on `/advance`; `resolve_workspace_id(user)` fixed at all 5 call sites (string → silent `"default"` fallback) | `TestRunStartsOnCreate` +3, `TestTerminalRunIsFinal` +2; 3 route tests re-contracted |
+| `backend/main_api_app.py` | register `api.goal_routes` (`/api/goals`) | import smoke + route list |
+| `backend/tests/test_goal_journey_gaps.py` (new) | 9 cases across goals surface, kickoff, terminal | new |
+| `backend/tests/test_goal_run_routes.py` | kickoff contract: training create holds the first decision; `start:false` dormant detail; resume from the kickoff hold | 3 updated |
+| `frontend-nextjs/lib/goal-run-api.ts` | `Goal`, `listGoals`, `getGoal`, `createGoal`, `createGoalRun`, `readDetail` | covered via dialog/page tests |
+| `frontend-nextjs/components/goals/StartGoalRunDialog.tsx` (new) | start dialog: existing/new goal, role, agent picker, supervision mode, error surfacing | `StartGoalRunDialog.test.tsx` 5 |
+| `frontend-nextjs/pages/goal-runs/index.tsx` | "New goal run" (role-gated, fail-open), goal titles, active/finished summary, empty-state CTA, 15s poll | `tests/pages/goal-runs/index.test.tsx` 12 |
+| `frontend-nextjs/pages/goal-runs/[id].tsx` | goal-title heading + description, current-step hint, terminal action gating, Distill on terminal, 10s poll, empty-plan state | `tests/pages/goal-runs/detail.test.tsx` 8 |
+| `docs/architecture/GOAL_RUN_ORCHESTRATION.md` | status addendum + §5 surfaces | doc |
+
+**Verification**: Red first — `test_goal_journey_gaps.py` failed collection on
+the missing `api.goal_routes`, then 3/9 failed before the route changes
+(goals list scoping, terminal 409, distill gate). Green: goal suites **81
+passed against HEAD's service** (other session's uncommitted
+`goal_run_service.py`/`goal_run_executors.py` stashed to prove the commit is
+self-consistent); **88 passed** with them present. Frontend **26/26** goal-run
+tests; broad sweep `tests/pages` + `components/goals` + `components/layout` =
+**2599 passed / 22 failed**, the 22 all in `integrations-salesforce.test.tsx`
+and **reproduced with my frontend changes stashed** (pre-existing). `npx tsc
+--noEmit` exit 0. No live-server restart needed for the committed hunks to be
+reviewed; `/api/goals` mounts on the next `scripts/restart_backend.sh`.
+
+## R90b — pinned planning calls survive a rate-limited/unavailable pin (2026-09-10)
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/llm/pinned_planning.py` (new) | shared `build_provider_model_pin` / `pinned_structured_call`: try the pin once, retry ONCE unpinned when it returns `None` or raises; skip the retry when no pin applied; `resolve_pinned_provider_model` for env-driven pins | `tests/test_chat_canvas_editor_pin_fallback.py`, `tests/test_pinned_planning_rerank.py` |
+| `backend/core/chat_canvas_editor.py` | `plan_canvas_edit` + replace re-ask + `plan_canvas_action` now route through the shared helper (was a bare pin + a raw-JSON rescue that re-issued on the same dead model) | 6 new in `test_chat_canvas_editor_pin_fallback.py` |
+| `backend/core/chat_tool_planner.py` | `_structured_with_fallback` converged onto the shared helper — it previously did not catch a RAISED provider error and issued a duplicate unpinned call even when no pin applied | `tests/test_planner_retry.py`, `tests/test_planner_live_search_routing.py` |
+| `backend/core/knowledge_extractor.py` | `_extraction_llm_kwargs` builds via the shared helper (pin dropped when the provider has no client) | `tests/test_knowledge_extractor_pin.py` (6/6) |
+| `backend/core/sheet_dataset_service.py` | NL→SQL read leg uses `build_provider_model_pin` + `pinned_structured_call` (was a bare pin on the same `qwen/qwen3.7-flash`) | covered by the helper suites |
+| `backend/tests/test_pinned_planning_rerank.py` (new) | handler-level proof that the unpinned retry reaches a DIFFERENT provider | 2 |
+
+**Red first**: 4 of the 6 canvas pin-fallback tests failed against the unfixed
+code (the 2 that passed are the guard tests — "no pin ⇒ one call" and "healthy
+`wants_edit=False` ⇒ no retry" — which must stay green, so the fix cannot simply
+retry everything).
+
+**Verification**: 184 passed in the final sweep. Two pre-existing failures were
+excluded after being proven identical with the changes stashed:
+`test_chat_tool_planner_web.py::test_platform_services_present_with_key` (fails
+in isolation on clean HEAD too) and the 27-failure
+`test_planner_storage_memory_supplement` batch-run pollution (the suite is 36/36
+green when run alone). `main_api_app` imports clean.
+
+## R90c — canvas editor model routing is BPC's, not hardcoded (2026-09-10)
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/chat_canvas_editor.py` | deleted `CANVAS_EDITOR_MODEL`/`ATOM_CANVAS_EDITOR_MODEL` and the local pin-retry wrapper; added `_plan_structured` (no pin → BPC ranks); removed all 3 `provider_model` pins; raw-JSON rescues get `{}` | `tests/test_canvas_editor_bpc_routing.py` (6) |
+| `backend/tests/test_canvas_editor_bpc_routing.py` (new) | no `provider_model` on edit/action plans; non-reasoning shape still requested; exactly one call; `CanvasPlanUnavailable` still raised on total failure; constant stays deleted | 6 |
+| `backend/tests/test_chat_canvas_editor_pin_fallback.py` | **deleted** — encoded the superseded pin contract; valid invariants moved to the new file | — |
+| `backend/tests/test_chat_canvas_editor.py` | `..._and_pins_model` → `..._and_routes_via_bpc`, asserting no pin + `disable_reasoning=True` | 1 updated |
+| `docs/reference/ENVIRONMENT_VARIABLES.md` | §6b rewritten: pin semantics + why the canvas editor is deliberately unpinned; `ATOM_CANVAS_EDITOR_MODEL` removed | — |
+
+**Verification**: 139 passed in the final sweep. Live agent turn after restart:
+11.2s, `intent=canvas_edit`, `updated=True`, zero pinned attempts, BPC tried
+glm-5.3-flash → qwen3.8-flash → gpt-5-mini → kimi-k2.5. `main_api_app` imports
+clean; canvas left in a clean state (test markers removed, both styled tables
+and the signature block intact).
+
+## R90d — all pin sites removed + reasoning-mandatory retry fixed (2026-09-10)
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/llm/byok_handler.py` | 3 sibling `except` clauses (whose `else: raise` never chained) → sequential recovery loop; added `_REASONING_MANDATORY` memo; `extra_body` consults it before sending | `tests/test_reasoning_mandatory_retry.py` (2, red-first) + `tests/unit/llm/test_cascade_routing.py` (4 caught the over-broad logprobs arm) |
+| `backend/core/chat_tool_planner.py` | deleted `PLANNER_MODEL` + `_planner_llm_kwargs`; BPC routing, one call | `tests/test_planner_retry.py` (2 new) |
+| `backend/core/knowledge_extractor.py` | deleted `KG_EXTRACTION_MODEL`; cost control via `task_type="extraction"`; `ATOM_KG_EXTRACTION_MODEL` = optional override, no default | `tests/test_knowledge_extractor_pin.py` (8) |
+| `backend/core/sheet_dataset_service.py` | pin → BPC routing; `ATOM_SHEET_SQL_MODEL` = optional override | covered by helper suites |
+| `docs/reference/ENVIRONMENT_VARIABLES.md` | §6b: removed `ATOM_TOOL_PLANNER_MODEL`; documented the two optional overrides + why unset is the default | — |
+
+**Evidence for extracting the extractor's cost control out of a model name**:
+live pricing-cache probe — `task_type=None` → `glm-5.3-flash, qwen3.8-flash,
+deepseek-v4-flash, mimo-v2.5-pro, minimax-m3`; `task_type="extraction"` →
+`qwen3.8-flash, deepseek-v4-flash, mimo-v2.5-pro, minimax-m3, qwen3-max`
+(priciest option dropped, list stays flash-class).
+
+**Verification**: 246 passed / 1 pre-existing failure (proven on clean HEAD).
+Live: reasoning recovery fired on turn 1 (31.2s), absent on turn 2 (15.7s, memo
+hit); canvas edit applied both times; canvas left clean with both styled tables
+and the CC field intact.
+
+## R90e — BPC cost-priority for small structured tasks (2026-09-10)
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/llm/byok_handler.py` | `get_ranked_providers(cost_priority=)`: quality floor (85) + price-ascending order for small-verdict `task_type`s; `AwaitableResult.__neg__` added | `tests/test_bpc_cost_priority.py` (9, red-first) |
+| `backend/core/llm_service.py` | caller `task_type` now wins over the legacy `model` default (was a duplicate-kwarg TypeError) | `tests/test_llm_service_task_type_forwarding.py` (2, red-first) |
+| `backend/core/llm/pinned_planning.py` | `pinned_structured_call(..., task_type=)` forwards the workload declaration | covered above |
+| `backend/core/chat_canvas_editor.py` | `_plan_structured` declares `task_type="planning"` | `tests/test_canvas_editor_bpc_routing.py` |
+| `backend/core/chat_tool_planner.py` | `_structured_with_fallback` declares `task_type="planning"` | `tests/test_planner_retry.py` |
+| `backend/core/sheet_dataset_service.py` | NL→SQL declares `task_type="nl2sql"` | covered by BPC suite |
+
+**Verification**: 342 passed / 0 failed across the BPC + routing + planner +
+canvas + extractor + handler + cascade suites. Each bug was proven caught by
+re-introducing it (inverted cost sort → 4 failures; missing `AwaitableResult
+.__neg__` → contract test fails). Live: canvas-edit turn logged the
+cost-priority line and completed in 6.7s (16–31s before).
+
+## Email attachment image OCR (2026-09-10)
+
+| File | Change | Tests |
+|---|---|---|
+| `backend/core/image_ocr.py` (new) | Image OCR ladder: Tesseract (pytesseract when importable, else the CLI — no Python dep) → vision-LLM fallback via BYOK; `is_likely_signature_or_logo` decorative heuristic; never raises | `tests/test_image_ocr.py` (34, red-first) |
+| `backend/core/auto_document_ingestion.py` | `parse_document(..., image_min_chars=)` image branch → `_parse_image`; `.tif`/`.bmp` added to the Docling format list; `process_file_bytes(..., image_min_chars=)` | `tests/test_image_ocr.py` parser cases |
+| `backend/core/email_attachment_ingestion.py` | `attachment_ingestible(filename, content_type)` MIME fallback; `ingest_email_attachment_bytes(..., inline=)` signature pre-filter + OCR-length floor | `tests/test_email_attachment_memory_index.py` (33) |
+| `backend/integrations/atom_communication_ingestion_pipeline.py` | `_ingest_binary_attachments` OCRs inline images (inline non-images still skipped); real attachments served first within the per-message cap | `tests/test_email_attachment_memory_index.py` pipeline cases |
+| `backend/core/settings_catalog.py` | New *Email & Attachments* category (incl. the new OCR knobs — uncataloged keys ignore env overrides) | `tests/test_runtime_settings*.py` (green) |
+| `Dockerfile` | `tesseract-ocr` in the runner stage (free local OCR instead of the paid vision fallback) | — |
+| `backend/tools/email_attachment_tool.py` (no code change) | Read path benefits: `email_attachment_get_text` OCRs images through the shared parser | `tests/test_email_attachment_tool.py` (13; new OCR-read case, non-image binary keeps the "suggest ingest" contract) |
+
+**Verification**: 34 + 33 + 13 focused tests green; 224 + 195 related suites
+green. Real end-to-end (no mocks): a synthetic invoice PNG/JPG/TIFF/BMP parsed
+through `DocumentParser.parse_document` returns Tesseract text on this host
+(`tesseract 5.5.1`), and an inline signature-sized strip (400×120, "ACME") is
+dropped by the 16-char floor. Pre-existing, untouched failures:
+`tests/test_docling_integration.py::TestPDFOCRServiceIntegration::{test_service_initialization,test_ocr_method_priority}`
+call `PDFOCRService(use_byok=...)`, a constructor arg that does not exist (stale
+since the `pdf_ocr_service` signature change; those files were not modified
+here). mypy baseline unchanged — HEAD and post-change both report the same 27
+errors in `auto_document_ingestion.py`; `image_ocr.py` and
+`email_attachment_ingestion.py` are clean.
+

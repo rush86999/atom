@@ -695,7 +695,7 @@ describe('GlobalChatWidget (extended coverage)', () => {
     ).toBeInTheDocument();
   });
 
-  it('falls back to the welcome message when history fetch fails at the network level', async () => {
+  it('falls back to the welcome message WITH a visible retry affordance when history fetch fails at the network level', async () => {
     localStorage.setItem('atom_chat_session_id', 'sess-netfail');
     server.use(
       rest.get('/api/chat/history/:sid', (req, res) => res.networkError('boom'))
@@ -704,9 +704,115 @@ describe('GlobalChatWidget (extended coverage)', () => {
     render(<GlobalChatWidget />);
     openChat();
 
+    // fetchWithRetry re-attempts network failures (3 attempts, ~1.5s of
+    // backoff) before giving up — the welcome message lands after the
+    // retry window, not on the first failure.
     expect(
-      await screen.findByText(/Hi! I am your Universal ATOM Assistant/)
+      await screen.findByText(/Hi! I am your Universal ATOM Assistant/, {}, { timeout: 5000 })
     ).toBeInTheDocument();
+    // 2026-09-10: a backend restart used to leave the widget on a
+    // welcome-only transcript that read as a wiped account. The failure
+    // must now be visible with a retry affordance.
+    expect(await screen.findByText(/Couldn't load chat history/)).toBeInTheDocument();
+  });
+
+  it('re-pulls history when the websocket reconnects after a backend restart', async () => {
+    localStorage.setItem('atom_chat_session_id', 'sess-reconnect');
+    let historyGets = 0;
+    server.use(
+      rest.get('/api/chat/history/:sid', (req, res, ctx) => {
+        historyGets += 1;
+        return res(
+          ctx.status(200),
+          ctx.json({
+            messages: [
+              { role: 'user', content: 'hello from history', timestamp: new Date().toISOString() },
+            ],
+          })
+        );
+      })
+    );
+
+    const { rerender } = render(<GlobalChatWidget />);
+    openChat();
+    await screen.findByText('hello from history');
+    expect(historyGets).toBe(1); // mount hydration only
+
+    // Initial socket connect — must NOT trigger a second pull.
+    wsState.isConnected = true;
+    rerender(<GlobalChatWidget />);
+    await waitFor(() => expect(historyGets).toBe(1));
+
+    // Backend restart: socket drops, then auto-reconnects.
+    wsState.isConnected = false;
+    rerender(<GlobalChatWidget />);
+    wsState.isConnected = true;
+    rerender(<GlobalChatWidget />);
+
+    // The reconnect transition is the restart signal → history re-pulled.
+    await waitFor(() => expect(historyGets).toBe(2));
+    expect(await screen.findByText('hello from history')).toBeInTheDocument();
+  });
+
+  it('surfaces the retry affordance when the backend answers 503 for every attempt', async () => {
+    // 2026-09-10 follow-up: a restart behind a proxy answers 502/503/504
+    // instead of dropping the connection, so `fetchWithRetry` RETURNS a
+    // Response rather than throwing. Treating only `res === null` as failure
+    // rendered the welcome-only transcript with no error and no retry — the
+    // exact symptom this fix exists to remove.
+    localStorage.setItem('atom_chat_session_id', 'sess-503');
+    server.use(
+      rest.get('/api/chat/history/:sid', (req, res, ctx) => res(ctx.status(503)))
+    );
+
+    render(<GlobalChatWidget />);
+    openChat();
+
+    expect(
+      await screen.findByText(/Hi! I am your Universal ATOM Assistant/, {}, { timeout: 5000 })
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/Couldn't load chat history/)).toBeInTheDocument();
+  });
+
+  it('queues the reconnect re-pull when it lands while the initial load is still in flight', async () => {
+    // The restart can land mid-hydration. Bailing out of the reconnect
+    // effect on `isLoading` dropped the reload on the floor, leaving the
+    // stale/failed transcript in place until a manual page reload.
+    localStorage.setItem('atom_chat_session_id', 'sess-slow');
+    // Socket is already up at mount, so the FIRST observed value is the
+    // mount connect (skipped) and the drop/reconnect below is a clean
+    // single transition.
+    wsState.isConnected = true;
+    let historyGets = 0;
+    server.use(
+      rest.get('/api/chat/history/:sid', (req, res, ctx) => {
+        historyGets += 1;
+        return res(
+          ctx.delay(300),
+          ctx.status(200),
+          ctx.json({
+            messages: [
+              { role: 'user', content: 'slow history', timestamp: new Date().toISOString() },
+            ],
+          })
+        );
+      })
+    );
+
+    const { rerender } = render(<GlobalChatWidget />);
+    openChat();
+    // Dispatched, and (thanks to ctx.delay) still in flight.
+    await waitFor(() => expect(historyGets).toBe(1));
+
+    // Backend restart while that fetch is running.
+    wsState.isConnected = false;
+    rerender(<GlobalChatWidget />);
+    wsState.isConnected = true;
+    rerender(<GlobalChatWidget />);
+
+    // The reconnect must not be dropped — it queues exactly one follow-up.
+    await waitFor(() => expect(historyGets).toBe(2), { timeout: 4000 });
+    expect(await screen.findByText('slow history')).toBeInTheDocument();
   });
 
   it('keeps messages unchanged when an agent step arrives while a user message is last', async () => {
