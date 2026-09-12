@@ -29,6 +29,19 @@ GRAPH_API_BASE = os.getenv(
 # whitespace and apostrophes (O'Brien).
 _KQL_ILLEGAL = re.compile(r"[^\w\s'\"]")
 
+# Quoted phrases vs bare spans: phrase punctuation ($ , . – %) survives in
+# phrase position (live 2026-09-12: '"$5,350.00"' as $search matches the
+# Seguin quote email) — the old whole-string substitution gutted phrases
+# into '" 5 350 00"', which 400'd and killed the sanitized retry too.
+_KQL_SEGMENT_RE = re.compile(r'"([^"]*)"|([^"]+)')
+
+
+def _quote_mixed_alnum(match: "re.Match") -> str:
+    token = match.group(0)
+    if re.search(r"[A-Za-z]", token) and re.search(r"\d", token):
+        return f'"{token}"'
+    return token
+
 
 def sanitize_graph_kql(query: str) -> str:
     """Make a free-text query safe for Graph $search KQL.
@@ -41,21 +54,50 @@ def sanitize_graph_kql(query: str) -> str:
     position 2 in 'WG350DSAV'", live 2026-09-03) but accepts them as quoted
     phrases. A query that is already legal comes back unchanged, so callers
     can cheaply up-front-sanitize every term.
+
+    Double-quoted spans are treated as exact phrases and preserved verbatim
+    (only embedded quotes/newlines stripped): '"$5,350.00"' used to become
+    '" 5 350 00"' — an equally illegal query — so the 400-retry ladder in
+    search_emails never had a working second rung (live 2026-09-12: the
+    Seguin $5,350.00 vendor-cost email was unfetchable while sitting in
+    both the mailbox and the ingested store).
     """
     if not query:
         return query
 
-    def _quote_mixed_alnum(match: "re.Match") -> str:
-        token = match.group(0)
-        inner = token.strip('"')
-        if inner != token:
-            return token  # already quoted — leave it alone
-        if re.search(r"[A-Za-z]", inner) and re.search(r"\d", inner):
-            return f'"{inner}"'
-        return token
+    out = []
+    for match in _KQL_SEGMENT_RE.finditer(query):
+        phrase, bare = match.group(1), match.group(2)
+        if phrase is not None:
+            inner = re.sub(r'[\r\n"]+', " ", phrase).strip()
+            if inner:
+                out.append(f'"{inner}"')
+        else:
+            cleaned = _KQL_ILLEGAL.sub(" ", bare).strip()
+            if cleaned:
+                out.append(re.sub(r"\S+", _quote_mixed_alnum, cleaned))
+    return " ".join(out).strip()
 
-    cleaned = _KQL_ILLEGAL.sub(" ", query).strip()
-    return re.sub(r"\S+", _quote_mixed_alnum, cleaned)
+
+def decompose_graph_kql(query: str) -> str:
+    """Last-resort KQL form: bare word tokens, every non-word character
+    (except the decimal point) removed rather than space-substituted; tokens
+    containing digits are individually quoted.
+
+    This is the ladder's final rung for queries whose punctuation Graph
+    rejects even quoted — '"$ 5,350.00 – 10 % in stock"' as a phrase AND its
+    sanitized form both 400 (live 2026-09-12); quoted single tokens are
+    legal where the bare run is not: bare digit-leading terms 400 on this
+    backend ("character '5' is not valid at position 0 in '5 350 00'", live
+    2026-09-12). Never emits a multi-token phrase, so it cannot re-introduce
+    phrase syntax errors. Empty string when nothing survives.
+    """
+    if not query:
+        return ""
+    tokens = re.sub(r"[^\w.]+", " ", query).split()
+    return " ".join(
+        f'"{t}"' if re.search(r"\d", t) else t for t in tokens
+    )
 
 
 @dataclass
@@ -1652,39 +1694,74 @@ class OutlookService(IntegrationService):
 
     async def search_emails(
         self, user_id: str, query: str, max_results: int = 50, token: Optional[str] = None,
-        quote: bool = True
+        quote: bool = True, sender: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Search emails across all folders.
 
         ``quote=True`` wraps the query as an exact phrase; ``quote=False``
         passes it through as raw KQL (space-separated terms) — what the chat
         path wants for "find this email … Name : Mark, Kellam", where the
-        phrase form would never match the body's punctuation.
+        phrase form would never match the body's punctuation. ``sender``
+        (an email address) prepends a ``from:`` property-scoped clause —
+        live 2026-09-12: 'from:joelseguin@seguinmach.com' returns the whole
+        thread that relevance-ranked free-text buried under newer mail.
 
-        When Graph rejects the query with a 400 (its KQL syntax errors on
-        characters like ``@`` — live 2026-09-02: "jschulz@blumetric.ca" was
-        the only term that could match the lead email, and the 400 silently
-        emptied the search), the query is retried once in sanitized form.
+        A 400 no longer silently empties the search. Queries mixing
+        addresses, quoted amounts and KQL operators 400 in several forms
+        (live 2026-09-12: 'joelseguin@seguinmach.com "$5,350.00"' failed
+        raw AND failed its sanitized retry because the sanitizer gutted the
+        quoted phrase). The query now climbs a ladder — raw → sanitized
+        (phrases preserved) → decomposed bare tokens — and the first form
+        Graph accepts wins; only ladder exhaustion returns [].
         """
         try:
-            # Graph rejects $orderby combined with $search on /me/messages —
-            # results come back relevance-ranked, so ordering is simply omitted.
-            params = {
-                "$top": max_results,
-                "$search": f'"{query}"' if quote else query,
-            }
-            query_string = urllib.parse.urlencode(params)
-            endpoint = f"/me/messages?{query_string}"
-
-            result = await self._make_graph_request(user_id, endpoint, access_token=token)
-            if result is None:
+            attempts: List[str] = []
+            if sender:
+                # from:-scoping must be QUOTED on this Graph backend: the
+                # bare clause 400s ("character ':' is not valid at position
+                # 4", live 2026-09-12) while '"from:user@host"' matches the
+                # sender reliably — Graph phrase-matches the rendered From
+                # header. Quoted bare address is the final fallback.
+                rest = sanitize_graph_kql(query) if query else ""
+                scoped = f'"from:{sender}"'
+                attempts.append(f"{scoped} {rest}".strip() if rest else scoped)
+                attempts.append(scoped)
+                attempts.append(f'"{sender}"')
+            else:
+                # Embedded quotes must not be double-wrapped — the outer
+                # pair creates nested phrase syntax that always 400s.
+                attempts.append(f'"{query}"' if quote and '"' not in query else query)
                 sanitized = sanitize_graph_kql(query)
-                if sanitized and sanitized != query:
-                    params["$search"] = f'"{sanitized}"' if quote else sanitized
-                    endpoint = f"/me/messages?{urllib.parse.urlencode(params)}"
-                    result = await self._make_graph_request(
-                        user_id, endpoint, access_token=token
-                    )
+                if sanitized and sanitized != attempts[0]:
+                    wrapped = f'"{sanitized}"' if quote and '"' not in sanitized else sanitized
+                    if wrapped != attempts[0]:
+                        attempts.append(wrapped)
+                decomposed = decompose_graph_kql(query)
+                if decomposed and decomposed not in attempts:
+                    attempts.append(decomposed)
+
+            result = None
+            used = None
+            for attempt in attempts:
+                # Graph rejects $orderby combined with $search on
+                # /me/messages — results come back relevance-ranked, so
+                # ordering is simply omitted.
+                params = {
+                    "$top": max_results,
+                    "$search": attempt,
+                }
+                query_string = urllib.parse.urlencode(params)
+                endpoint = f"/me/messages?{query_string}"
+                result = await self._make_graph_request(user_id, endpoint, access_token=token)
+                if result is not None:
+                    used = attempt
+                    break
+            if result is None and attempts:
+                logger.warning(
+                    "search_emails: every KQL form rejected by Graph for "
+                    "query=%r (tried %r) — returning []",
+                    query, attempts,
+                )
 
             if result and "value" in result:
                 emails = []

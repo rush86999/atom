@@ -990,20 +990,113 @@ def _search_ingested_by_address(user_id, address, limit=4):
     return out
 
 
+def _canonical_fig_text(s: Any) -> str:
+    """Separator-insensitive comparison form: '5,350.00', '$5,350.00' and
+    '5 350.00' all canonicalize to '535000' — email bodies render amounts
+    in every one of these shapes."""
+    return re.sub(r"[^a-z0-9]+", "", str(s or "").lower())
+
+
+def _match_rows_by_figure_tokens(
+    rows: List[Dict[str, Any]], tokens: List[str], limit: int = 4
+) -> List[Dict[str, Any]]:
+    """Rank comms rows whose subject/content/html body contains EVERY figure
+    token (canonical form). The amount IS the evidence in vendor-cost
+    queries, so requiring all tokens keeps the scan precise; newest first;
+    duplicate bodies collapse (same key semantics as _rank_address_hits)."""
+    import json as _json
+
+    canon = [_canonical_fig_text(t) for t in tokens]
+    canon = [t for t in canon if len(t) >= 4]
+    if not canon:
+        return []
+    seen_keys = set()
+    scored = []
+    for row in rows:
+        meta = row.get("metadata")
+        if isinstance(meta, str):
+            try:
+                meta = _json.loads(meta)
+            except Exception:
+                meta = {}
+        html = str((meta or {}).get("html_body") or "") if isinstance(meta, dict) else ""
+        hay = _canonical_fig_text(
+            " ".join(
+                [str(row.get("subject") or ""), str(row.get("content") or ""), html]
+            )
+        )
+        if not all(t in hay for t in canon):
+            continue
+        key = (
+            str(row.get("sender") or ""),
+            str(row.get("recipient") or ""),
+            str(row.get("subject") or ""),
+            str(row.get("content") or "")[:120],
+        )
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        scored.append((str(row.get("timestamp") or ""), row))
+    scored.sort(key=lambda t: t[0], reverse=True)
+    return [r for _, r in scored[:limit]]
+
+
+def _search_ingested_by_tokens(user_id, tokens: List[str], limit: int = 4) -> List[str]:
+    """Deterministic LanceDB lookup of ingested messages containing the
+    query's figure tokens (amounts, model codes). Graph $search handles
+    quoted currency amounts unreliably and relevance-buries them, so the
+    ingested store is the authoritative leg for exact-figure queries (live
+    2026-09-12: the '$5,350.00 – 10% in stock' vendor-cost email sat in the
+    store while every live-API form missed it). Fault-isolated; [] on
+    anything."""
+    out: List[str] = []
+    if not tokens:
+        return out
+    try:
+        import lancedb
+
+        base = Path(__file__).resolve().parent.parent / "data" / "atom_memory"
+        db = lancedb.connect(str(base / "default"))
+        table = db.open_table("atom_communications")
+        df = table.to_arrow().to_pandas()
+        for i, row in enumerate(
+            _match_rows_by_figure_tokens(df.to_dict("records"), tokens, limit=limit)
+        ):
+            out.append(_ingested_line_from_row(row, with_body=i < _INGESTED_BODY_LINES))
+    except Exception as e:
+        logger.debug(f"ingested figure-token search skipped: {e}")
+    return out
+
+
 async def _ingested_mailbox_lines(
     user_id, query, context=None, cap: int = 6, hybrid_min: int = 4
 ) -> List[str]:
     """Ranked ingested-mailbox lines for a communication lookup — the second
-    source every mailbox-shaped search gets. Address fragments (query AND
-    recent history) drive the deterministic scan — ONE full-table load per
-    distinct address (the same address in query and history used to trigger
-    two); the hybrid/semantic search only fills slots below ``hybrid_min``
-    (embedding init + vector search was a real contributor to exec timeouts
-    under load, live 2026-09-06, and free-text live APIs — Graph included —
-    do not reliably match sender addresses or nicknames). Fault-isolated:
-    [] on anything."""
+    source every mailbox-shaped search gets. Figure tokens (amounts, model
+    codes) lead, then address fragments (query AND recent history) drive the
+    deterministic scan — ONE full-table load per distinct address (the same
+    address in query and history used to trigger two); the hybrid/semantic
+    search only fills slots below ``hybrid_min`` (embedding init + vector
+    search was a real contributor to exec timeouts under load, live
+    2026-09-06, and free-text live APIs — Graph included — do not reliably
+    match sender addresses or nicknames). Fault-isolated: [] on anything."""
     store_lines: List[str] = []
     import re as _re_addr
+
+    # FIGURE TOKENS LEAD: an amount or model code in the query is the most
+    # specific evidence there is — it must not be crowded out of the cap by
+    # address lines (live 2026-09-12: old Seguin thread lines filled the
+    # mailbox slots while the '$5,350.00' email went unlisted) nor depend on
+    # the hybrid leg running. Same off-loop rule as the address scan.
+    _fig_tokens = _distinctive_figure_phrases(query, limit=3)
+    if _fig_tokens:
+        for _line in await asyncio.to_thread(
+            _search_ingested_by_tokens, user_id, _fig_tokens, max(cap - 2, 2)
+        ):
+            if _line not in store_lines:
+                store_lines.append(_line)
+                if len(store_lines) >= cap:
+                    break
 
     _addr_haystack = query + " " + " ".join(
         _entry_text(m) for m in ((context or {}).get("history") or [])[-6:]
@@ -1013,6 +1106,8 @@ async def _ingested_mailbox_lines(
         if _addr.lower() in _seen_addrs:
             continue
         _seen_addrs.add(_addr.lower())
+        if len(store_lines) >= cap:
+            break  # figure lines filled the cap — skip the table walk
         # SYNC-OFF-LOOP: the scan loads and walks the whole comms table
         # (~4s at 3.5k rows, live 2026-09-06) — on the loop it froze every
         # concurrent request for that long, per address.
@@ -1056,6 +1151,32 @@ _PRODUCT_TOKEN_RE = re.compile(
     r"\b(?=[A-Za-z-]*\d)(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9][A-Za-z0-9-]{4,}\b"
 )
 _STYLED_BODY_BLOCK_CAP = 6000
+
+# Currency amounts with thousands separators / decimals, optionally
+# $-prefixed: "5,350.00", "$ 5,350", "10 000". These are the tokens a
+# mailbox search must match EXACTLY — per-term shredding turns them into
+# noise ("5" "350" "00") and Graph relevance buries them.
+_AMOUNT_PHRASE_RE = re.compile(
+    r"\$?\s*\d{1,3}(?:[,\s]\d{3})+(?:\.\d{1,2})?|\$\s*\d+(?:\.\d{1,2})?"
+)
+_ADDR_IN_QUERY_RE = re.compile(r"[\w.+-]+@[\w.-]+")
+
+
+def _distinctive_figure_phrases(text: str, limit: int = 2) -> List[str]:
+    """Exact-form search phrases for the query's distinctive evidence:
+    currency amounts and product/model codes. '$ 5,350.00' → '5,350.00'
+    (the $ dropped — bodies render both '$5,350.00' and '5,350.00').
+    Small bare numbers are NOT distinctive and are skipped."""
+    out: List[str] = []
+    for m in _AMOUNT_PHRASE_RE.finditer(text or ""):
+        phrase = m.group(0).replace("$", "").strip()
+        if len(phrase) >= 4 and phrase not in out:
+            out.append(phrase)
+    for m in _PRODUCT_TOKEN_RE.finditer(text or ""):
+        tok = m.group(0)
+        if tok not in out:
+            out.append(tok)
+    return out[:limit]
 
 
 def _candidate_addresses(user_id, query, context=None, limit: int = 3) -> List[str]:
@@ -2438,7 +2559,9 @@ async def execute_tool_plan(
                     + _graph_body_text(direct, body_cap)
                 )
 
-            tokens = [t for t in query.split() if len(t) >= 2][:3] or [query]
+            tokens = [
+                t.strip('"$%,;:()') for t in query.split() if len(t.strip('"$%,;:()')) >= 2
+            ][:3] or [query]
             merged: Dict[str, Dict[str, Any]] = {}
             for term in tokens:
                 # Sanitize before the first call: an email address term
@@ -2468,6 +2591,53 @@ async def execute_tool_plan(
                     received = str(e.get("received_date_time") or "")
                     if received > entry["received"]:
                         entry["received"] = received
+
+            # FIGURE PHRASES + SENDER SCOPE (live 2026-09-12, Seguin
+            # vendor-cost miss): per-term shredding destroys the only
+            # distinctive evidence — "$5,350.00" as one quoted phrase
+            # matches the vendor's quote email where every single-term
+            # form misses or drowns — and a named sender address scopes
+            # the mailbox to their thread ('from:' clauses work in Graph
+            # KQL even though a bare '@' term 400s). Both legs merge into
+            # the same ranking; sender-scoped hits outrank free-text noise.
+            async def _merge_hits(hit_list, boost: int) -> None:
+                for e in hit_list or []:
+                    eid = e.get("id")
+                    if not eid:
+                        continue
+                    entry = merged.setdefault(eid, {"email": e, "score": 0, "received": ""})
+                    entry["score"] += boost
+                    received = str(e.get("received_date_time") or "")
+                    if received > entry["received"]:
+                        entry["received"] = received
+
+            for phrase in _distinctive_figure_phrases(query):
+                try:
+                    phrase_emails = await outlook_service.search_emails(
+                        user_id=user_id, query=phrase, max_results=15, quote=True
+                    )
+                except Exception as phrase_err:
+                    logger.warning(f"outlook phrase search failed ({phrase}): {phrase_err}")
+                    continue
+                await _merge_hits(phrase_emails, boost=len(phrase))
+            _addr_in_query = _ADDR_IN_QUERY_RE.search(query)
+            if _addr_in_query:
+                _addr = _addr_in_query.group(0)
+                _rest = " ".join(
+                    t for t in query.replace(_addr, " ").split() if len(t) >= 2
+                )[:200]
+                try:
+                    scoped_emails = await outlook_service.search_emails(
+                        user_id=user_id,
+                        query=_rest,
+                        max_results=25,
+                        quote=False,
+                        sender=_addr,
+                    )
+                except Exception as scoped_err:
+                    logger.warning(f"outlook sender-scoped search failed ({_addr}): {scoped_err}")
+                    scoped_emails = []
+                await _merge_hits(scoped_emails, boost=40)
 
             def _rank(entry: Dict[str, Any]):
                 # Multi-term matches first, then newest — stable and cheap.
