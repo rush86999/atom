@@ -293,6 +293,29 @@ class AtomAgentOSMarketplaceClient:
             logger.error(f"Failed to install agent {template_id}: {e}")
             return {"success": False, "error": str(e)}
 
+    async def publish_listing(self, listing: Dict[str, Any]) -> Dict[str, Any]:
+        """Push a locally packaged listing (package_agent_for_sale output,
+        verified_record included) to the SaaS marketplace. The SaaS lands
+        it PENDING admin approval — remote content never goes live
+        directly."""
+        client = await self._get_http_client()
+
+        try:
+            response = await client.post(
+                "/agents/api/agent-marketplace/ingest-listing", json=listing)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            detail = ""
+            resp = getattr(e, "response", None)
+            if resp is not None:
+                try:
+                    detail = str(resp.json().get("detail") or "")
+                except Exception:
+                    detail = resp.text[:200]
+            logger.error(f"Failed to publish listing to SaaS: {e} {detail}")
+            return {"success": False, "error": str(e), "detail": detail}
+
     async def fetch_workflows(
         self,
         query: str = "",
@@ -648,6 +671,10 @@ class AtomAgentOSMarketplaceClient:
     def install_agent_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for install_agent."""
         return asyncio.run(self.install_agent(*args, **kwargs))
+
+    def publish_listing_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for publish_listing."""
+        return asyncio.run(self.publish_listing(*args, **kwargs))
 
     def fetch_workflows_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for fetch_workflows."""

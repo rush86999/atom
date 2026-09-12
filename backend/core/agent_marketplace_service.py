@@ -331,6 +331,45 @@ class AgentMarketplaceService:
         return {"success": True, "template_id": template.id,
                 "verified_record": record}
 
+    def publish_listing_to_saas(self, template_id: str,
+                                source_instance_id: Optional[str] = None
+                                ) -> Dict[str, Any]:
+        """Push a locally packaged listing to the SaaS marketplace server
+        (which lives with the atom-saas app). The listing lands in the
+        SaaS admin approval queue — remote content never goes live
+        directly. Requires an already-packaged template
+        (package_agent_for_sale)."""
+        template = self.db.query(AgentTemplate).filter(
+            AgentTemplate.id == template_id).first()
+        if not template:
+            return {"success": False, "error": "template not found — "
+                    "package the agent first (package_agent_for_sale)"}
+        if not template.verified_record:
+            return {"success": False,
+                    "error": "template has no verified_record — re-package "
+                             "it (package_agent_for_sale)"}
+
+        listing = {
+            "name": template.name,
+            "description": template.description,
+            "category": template.category,
+            "version": template.version,
+            "price": float(template.price or 0.0),
+            "configuration": template.configuration or {},
+            "capabilities": template.capabilities or [],
+            "canvas_ui_schemas": template.canvas_ui_schemas or [],
+            "tunable_keys": getattr(template, "tunable_keys", None) or [],
+            "permission_profile": template.permission_profile or {},
+            "anonymized_memory_bundle":
+                template.anonymized_memory_bundle or {},
+            "verified_record": template.verified_record,
+            "source_instance_id": source_instance_id,
+        }
+        result = self.saas_client.publish_listing_sync(listing)
+        return {"success": bool(result.get("id")),
+                "saas_result": result,
+                "status": result.get("status")}
+
     def browse_agents(
         self,
         query: str = "",

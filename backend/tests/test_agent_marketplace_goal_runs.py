@@ -362,3 +362,33 @@ class TestRoutes:
                            json={"price": 5})
         assert resp.status_code == 409
         assert "achieved" in resp.json()["detail"]
+
+
+# ------------------------------------------------------- push to SaaS
+
+class TestPushListingToSaas:
+    """The marketplace SERVER lives with the atom-saas app; a locally
+    packaged listing is pushed there and lands PENDING admin approval."""
+
+    def test_push_sends_the_packaged_listing(self, env):
+        published = _svc(env).package_agent_for_sale("agent-quota", price=9)
+        saas = MagicMock()
+        saas.publish_listing_sync.return_value = {
+            "id": "saas-tmpl-1", "status": "pending_approval"}
+        svc = AgentMarketplaceService(env, saas_client=saas)
+
+        out = svc.publish_listing_to_saas(published["template_id"],
+                                          source_instance_id="inst-42")
+        assert out["success"] is True
+        assert out["status"] == "pending_approval"
+
+        sent = saas.publish_listing_sync.call_args[0][0]
+        assert sent["name"] == "Quota Agent"
+        assert sent["verified_record"]["runs"]["achieved"] == 2
+        assert sent["source_instance_id"] == "inst-42"
+        assert sent["configuration"]["playbooks"]
+
+    def test_push_requires_a_packaged_template(self, env):
+        out = _svc(env).publish_listing_to_saas("no-such-template")
+        assert out["success"] is False
+        assert "package" in out["error"]
