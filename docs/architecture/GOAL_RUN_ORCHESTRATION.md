@@ -52,6 +52,35 @@ days, rather than a rigid pipeline.
   from approved playbooks, no `autonomous`, governance knobs stripped,
   owner-or-supervisor on acts), `team_lead+` keeps the org-shaping acts, and
   viewers read. No industry is hardcoded anywhere.
+- **Status addendum 2026-09-12 — agents can start long-running runs.** The
+  start journey had one severed link left: a human could start a run
+  (`POST /api/goal-runs`) and an agent could create the goal
+  (`goals.create`), but the agent could not start the RUN — every
+  "work this goal over the next few days" ask dead-ended in "please click
+  Start for me". The agent surface now exists as action-registry actions
+  (`core/action_registry.py`, dispatched through the standard
+  GenericAgent → MCP → governance path, discoverable via `mcp_tool_search`):
+  - **`goal_runs.start`** (governance complexity 3 / SUPERVISED+, same tier
+    as `create_task`): creates the run, activates it, appends a
+    `started_by_agent` provenance entry to the decision log, and kicks off
+    the first loop turn (fault-isolated, `start:false` stages a dormant
+    run). The agent gets exactly the **member ladder** from §3.8 — role
+    from the bound agent's own `specialty`/`category`, playbook-seeded plan
+    (never hand-authored), `training`/`shadow` only, governance knobs
+    stripped — plus two guards the human API doesn't need: an agent may
+    start a run **only for itself** (directing other agents stays
+    supervisor-grade), and a **duplicate-run guard** (one non-terminal run
+    per goal per agent — a retried tool call must not stack runs).
+    `created_by` stays the owning human, so §6 notifications route to them.
+  - **`goal_runs.list`** (complexity 1 / STUDENT+): compact run summaries —
+    status, current step, what a run waits for, recent decisions, the
+    `/goal-runs/{id}` URL — so the agent can report progress and finish
+    lines without dumping raw run rows into its context.
+  The run itself is unchanged and stays durable: after the kickoff turn it
+  advances on canvas done-signals, inbound events (§3.4) and timer wakes
+  (the maintenance cycle), across restarts. Verified: 15 new tests in
+  `backend/tests/test_goal_run_agent_start.py` + the 113-test goal-run /
+  action-registry neighborhood and the governance suites, all green.
 - **Research grounding (per AGENTS.md §3):** this is the established
   *plan-and-execute with replanning* pattern ([LangChain planning
   agents](https://www.langchain.com/blog/planning-agents), [multi-agent
@@ -273,6 +302,7 @@ ladder, not a binary supervisor gate:
 |---|---|---|---|
 | **member** (and up) | yes — **role-based only**: role is required (or derived from the bound agent's `specialty`/`category`), the plan is seeded from that role's **approved playbooks** (never hand-authored), no `autonomous`, governance knobs stripped | yes, on runs **they started** (advance, resume/override, checkpoint, cancel) | no |
 | **team_lead+** | anything: explicit `plan`, any goal, any mode (incl. `autonomous`), governance params | any run, regardless of owner | change `supervision_mode`, view promotion evidence, distill to a playbook draft, inject workspace events, act on runs they do not own |
+| **the agent itself** (`goal_runs.start`, 2026-09-12) | yes — the member ladder verbatim (role from its own `specialty`/`category`, playbook-seeded plan, `training`/`shadow` only, knobs stripped), **only for itself**, one non-terminal run per goal | yes — by working the run's steps; the router/executor loop is the agent working | no — and no custom plans, no mode changes, no directing other agents |
 | **viewer / guest** | no (403) | no (read-only) | no |
 
 Key properties:

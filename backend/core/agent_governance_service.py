@@ -220,6 +220,12 @@ class AgentGovernanceService:
         # resolution can't drop these to the generic default invisibly.
         "email_attachment_read": 1,     # list / read text (STUDENT+)
         "email_attachment_write": 2,    # stage / attach / remove / ingest (INTERN+)
+        # Goal-run status reads are plain reads; exact key so the substring
+        # resolver can't drift it. Starting a run commits the platform to
+        # future agent-driven work — same tier as create_task (SUPERVISED+),
+        # and the run's own supervision_mode gates everything it executes.
+        "goal_runs.list": 1,            # read run status (STUDENT+)
+        "goal_runs.start": 3,           # start a long-running goal run (SUPERVISED+)
         # On-demand integration ingestion (any connected service → memory):
         # a memory write, reversible by design (idempotent, source-scoped),
         # same weight as email_attachment_write.

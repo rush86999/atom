@@ -1872,6 +1872,261 @@ async def _goals_decompose(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
     return {"success": not plan.get("cycles"), "plan": plan}
 
 
+# An agent starting a goal run gets exactly the member ladder from
+# api/goal_run_routes (training/shadow only, playbook-seeded plan, governance
+# knobs stripped) plus one extra rule the human API doesn't need: an agent
+# directs only ITSELF — binding a different worker agent is supervisor-grade.
+_GOAL_RUN_AGENT_MODES = ("training", "shadow")
+_GOAL_RUN_GOVERNANCE_KEYS = ("replan_budget", "wait_ceiling_days")
+_GOAL_RUN_TERMINAL = ("achieved", "failed", "cancelled")
+
+_GOAL_RUN_START_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "goal_id": {
+            "type": "string",
+            "description": "Existing goal id (goals.create returns it)",
+        },
+        "agent_id": {
+            "type": "string",
+            "description": "Worker agent for the run (default: the calling agent)",
+        },
+        "role": {
+            "type": "string",
+            "description": "Role for the run (default: the bound agent's "
+                           "specialty, else category)",
+        },
+        "supervision_mode": {
+            "type": "string",
+            "enum": list(_GOAL_RUN_AGENT_MODES),
+            "description": "training = every router decision is held for human "
+                           "approval; shadow (default) = the normal gates",
+        },
+        "parameters": {
+            "type": "object",
+            "description": "Extra run parameters (governance knobs are stripped)",
+        },
+        "start": {
+            "type": "boolean",
+            "description": "Kick off the first loop turn now (default true; "
+                           "false stages a dormant run)",
+        },
+    },
+    "required": ["goal_id"],
+}
+
+
+def _goal_run_summary(run: Dict[str, Any], detail: bool = False) -> Dict[str, Any]:
+    """Compact run view for the model — a full run row (whole decision log,
+    every parameter) is context-hostile. Detail adds plan/decisions/wait."""
+    plan = run.get("plan") or []
+    cursor = run.get("cursor")
+    next_step = next((s.get("title") for s in plan if s.get("id") == cursor), None)
+    out = {
+        "id": run.get("id"),
+        "goal_id": run.get("goal_id"),
+        "agent_id": run.get("agent_id"),
+        "role": run.get("role"),
+        "status": run.get("status"),
+        "supervision_mode": run.get("supervision_mode"),
+        "next_step": next_step,
+        "steps_executed": run.get("steps_executed"),
+        "replan_count": run.get("replan_count"),
+        "pending_decision": bool(run.get("pending_decision")),
+        "waiting_on": run.get("waiting_on"),
+        "created_at": run.get("created_at"),
+        "updated_at": run.get("updated_at"),
+        "run_url": f"/goal-runs/{run.get('id')}",
+    }
+    if detail:
+        out["plan"] = [{"id": s.get("id"), "kind": s.get("kind"),
+                        "title": s.get("title"), "done": bool(s.get("done"))}
+                       for s in plan]
+        out["recent_decisions"] = [
+            {k: (str(v)[:160] if v is not None else None)
+             for k, v in (d or {}).items()
+             if k in ("kind", "decision", "rationale", "held", "hitl_id")}
+            for d in (run.get("decision_log") or [])[-5:]
+        ]
+        out["parameters"] = run.get("parameters") or {}
+    return out
+
+
+@register_action(
+    "goal_runs.start",
+    description="Start a LONG-RUNNING goal run: a durable, self-steering "
+                "execution in which this agent pursues a persisted goal "
+                "across multiple steps, canvases and waits (email replies, "
+                "timers, human checkpoints), deciding its next move after "
+                "every step boundary. The run keeps working in the "
+                "background after this call returns; the goal's owner is "
+                "notified on every state change. Create the goal first with "
+                "goals.create (or reuse an existing goal_id). Supervision is "
+                "training (every decision held for approval) or shadow "
+                "(default) — autonomous is a promotion only a human grants. "
+                "Follow progress with goal_runs.list.",
+    parameters_schema=_GOAL_RUN_START_SCHEMA,
+    effects=[{"effect": "goal_run_started", "goal_id": "$args.goal_id",
+              "agent_id": "$args.agent_id"}],
+)
+async def _goal_runs_start(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.database import get_db_session
+    from core.models import AgentRegistry, GoalObjective, GoalRun
+    from core.goals.goal_run_learning import seed_plan_for_run
+    from core.goals.goal_run_service import GoalRunService
+
+    workspace_id = context.get("workspace_id") or "default"
+    tenant_id = context.get("tenant_id") or "default"
+
+    # An agent directs only ITSELF — binding a different worker agent is the
+    # supervisor-grade act (mirrors api/goal_run_routes' RBAC ladder).
+    acting_agent = str(context.get("agent_id") or "").strip()
+    agent_id = str(args.get("agent_id") or "").strip() or acting_agent
+    if not agent_id:
+        return {"success": False,
+                "error": "a goal run is role-bound: call from an agent "
+                         "context or pass agent_id"}
+    if acting_agent and agent_id != acting_agent:
+        return {"success": False,
+                "error": "an agent may start a goal run only for itself — "
+                         "a human starts runs that direct other agents"}
+
+    mode = str(args.get("supervision_mode") or "shadow").strip().lower()
+    if mode not in _GOAL_RUN_AGENT_MODES:
+        return {"success": False,
+                "error": f"an agent cannot set supervision_mode '{mode}' — "
+                         f"allowed: {list(_GOAL_RUN_AGENT_MODES)} (autonomous "
+                         f"is a promotion a human grants per run)"}
+
+    goal_id = str(args.get("goal_id") or "").strip()
+    if not goal_id:
+        return {"success": False, "error": "goal_id is required"}
+    with get_db_session() as db:
+        goal = db.query(GoalObjective).filter(
+            GoalObjective.id == goal_id).first()
+        if not goal:
+            return {"success": False,
+                    "error": f"goal '{goal_id}' not found — create it with "
+                             f"goals.create first"}
+        if (goal.workspace_id or "").strip() not in ("", workspace_id):
+            return {"success": False,
+                    "error": f"goal '{goal_id}' belongs to another workspace"}
+        goal_title = goal.title
+
+        # Idempotence guard the human API doesn't need: an agent must not
+        # stack parallel duplicate runs of the same goal (a retried tool call
+        # or a chatty loop otherwise spawns them silently).
+        existing = db.query(GoalRun).filter(
+            GoalRun.goal_id == goal_id, GoalRun.agent_id == agent_id,
+            GoalRun.status.notin_(_GOAL_RUN_TERMINAL)).first()
+        if existing:
+            return {"success": False, "id": existing.id,
+                    "run_url": f"/goal-runs/{existing.id}",
+                    "error": f"this agent already has run '{existing.id}' "
+                             f"(status {existing.status}) for goal "
+                             f"'{goal_title}' — check it with goal_runs.list "
+                             f"instead of starting another"}
+
+        # Role from the business's OWN data (agent specialty/category) when
+        # not given — the same derivation as the member path in the API.
+        role = str(args.get("role") or "").strip() or None
+        if not role:
+            agent = db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id).first()
+            if agent:
+                role = (getattr(agent, "specialty", None)
+                        or getattr(agent, "category", None) or "").strip() or None
+        created_by = _context_user_id(context)
+
+    if not role:
+        return {"success": False,
+                "error": "role is required for a role-based run — pass role, "
+                         "or bind an agent whose specialty/category defines it"}
+
+    parameters = {k: v for k, v in (args.get("parameters") or {}).items()
+                  if k not in _GOAL_RUN_GOVERNANCE_KEYS}
+    seeded = seed_plan_for_run(goal_title, role=role, agent_id=agent_id,
+                               tenant_id=tenant_id)
+
+    svc = GoalRunService(workspace_id=workspace_id, tenant_id=tenant_id)
+    try:
+        run = svc.create_run(goal_id, agent_id=agent_id, role=role,
+                             supervision_mode=mode, plan=seeded["plan"],
+                             parameters=parameters, created_by=created_by)
+        svc.transition(run["id"], "active")
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+
+    # Provenance the run page can show: this run was started BY an agent
+    # (created_by stays the owning human — notifications route there).
+    svc.append_decision(run["id"], {
+        "kind": "started_by_agent", "agent_id": agent_id,
+        "rationale": "run started by the bound agent via goal_runs.start",
+        "seed_source": seeded["source"],
+    })
+
+    # "start" means started (the 2026-09-10 journey fix): kick off the first
+    # loop turn, fault-isolated so a router hiccup can never lose the run row.
+    started = None
+    if args.get("start", True):
+        try:
+            started = await svc.advance(run["id"])
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(f"goal run {run['id']}: agent kickoff advance "
+                           f"failed: {exc}")
+            started = {"advanced": False, "error": "kickoff failed"}
+
+    return {"success": True, "id": run["id"],
+            "seed_source": seeded["source"], "started": started,
+            "run_url": f"/goal-runs/{run['id']}",
+            "run": _goal_run_summary(svc.get_run(run["id"]), detail=True)}
+
+
+@register_action(
+    "goal_runs.list",
+    description="List goal runs (or one run's detail): status, current step, "
+                "what it waits for, recent router decisions. Read-only — use "
+                "it to report progress on runs started with goal_runs.start.",
+    parameters_schema={
+        "type": "object",
+        "properties": {
+            "run_id": {"type": "string", "description": "Single run detail"},
+            "goal_id": {"type": "string", "description": "Filter by goal"},
+            "status": {"type": "string",
+                       "description": "Filter by status (planning/active/"
+                                       "waiting/paused_hitl/achieved/failed/"
+                                       "cancelled)"},
+            "include_terminal": {"type": "boolean",
+                                 "description": "Include finished runs "
+                                                "(default true)"},
+        },
+        "required": [],
+    },
+    effects=[{"effect": "read_only"}],
+)
+async def _goal_runs_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    from core.goals.goal_run_service import GoalRunService
+    svc = GoalRunService(
+        workspace_id=context.get("workspace_id") or "default",
+        tenant_id=context.get("tenant_id") or "default")
+
+    run_id = str(args.get("run_id") or "").strip()
+    if run_id:
+        run = svc.get_run(run_id)
+        if not run:
+            return {"success": False,
+                    "error": f"goal run '{run_id}' not found"}
+        return {"success": True, "run": _goal_run_summary(run, detail=True)}
+
+    runs = svc.list_runs(
+        goal_id=str(args.get("goal_id") or "").strip() or None,
+        status=str(args.get("status") or "").strip() or None,
+        include_terminal=bool(args.get("include_terminal", True)))
+    return {"success": True, "count": len(runs[:20]),
+            "truncated": len(runs) > 20,
+            "runs": [_goal_run_summary(r) for r in runs[:20]]}
+
+
 @register_action(
     "ontology.inspect",
     description="Inspect the workspace ontology: entity types (with hierarchy), "
