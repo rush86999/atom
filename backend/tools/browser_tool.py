@@ -653,15 +653,19 @@ async def browser_navigate(
         # SSRF guard: block navigation to private/internal/link-local addresses
         # (Bug #6). Previously url was passed straight to Playwright with no
         # validation — cloud metadata, localhost, internal services all reachable.
+        # BROWSER_ALLOW_PRIVATE_ADDRESSES=1 is the explicit eval/local-testing
+        # opt-in (tests/operator_eval serves its site on 127.0.0.1); it stays
+        # blocked for everything else.
         from urllib.parse import urlparse
         import ipaddress
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https"):
             return {"success": False, "error": f"URL scheme '{parsed.scheme}' not allowed"}
+        allow_private = os.getenv("BROWSER_ALLOW_PRIVATE_ADDRESSES", "").lower() in ("1", "true", "yes", "on")
         hostname = parsed.hostname or ""
         try:
             ip = ipaddress.ip_address(hostname)
-            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            if not allow_private and (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved):
                 return {"success": False, "error": "Navigation to private/internal addresses is blocked"}
         except ValueError:
             pass  # DNS name — allow (DNS rebinding is a residual risk)

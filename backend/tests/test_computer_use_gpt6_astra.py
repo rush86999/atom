@@ -572,6 +572,9 @@ class TestConfigAndRegistry:
         registered = service.register_computer_use_models("tenant-1")
 
         assert upserted in registered
-        data = service.upsert_model.call_args.args[1]
+        # astra is the first upsert; the operator model pool (2026-09)
+        # registers researched fallbacks after it, so inspect the astra
+        # call rather than call_args (the last pool entry).
+        data = service.upsert_model.call_args_list[0].args[1]
         assert data["model_name"] == "gpt-6-astra"
         assert "computer_use" in data["capabilities"]

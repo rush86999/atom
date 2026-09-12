@@ -687,6 +687,18 @@ class LLMRegistryService:
         if lux is not None:
             registered.append(lux)
 
+        # Researched computer-use pool (2026-09): Claude 4.6 pair (top
+        # OSWorld-Verified) + OpenAI CUA computer-use-preview (browser-only
+        # leader) — capability/pricing data only, no call-site branches.
+        # Verified-price entries only; see core/operator/models.py for the
+        # evidence trail and the unpriced candidate list.
+        try:
+            from core.operator.models import register_operator_model_pool
+            registered.extend(
+                register_operator_model_pool(self, tenant_id, enabled=enabled))
+        except Exception as exc:
+            logger.error(f"operator model pool registration failed: {exc}")
+
         return registered
 
     def get_computer_use_models(

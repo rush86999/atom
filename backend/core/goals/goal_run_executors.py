@@ -11,6 +11,11 @@ Step kinds (the plan's vocabulary):
                         drive the NEXT run boundary — the agent's tool calls
                         never bypass the existing chat/canvas pipeline or
                         its maturity gates.
+- computer_use_work   → a governed browser operator session runs the step
+                        directive (core/operator/); the run WAITS on the
+                        operator_task_done event, pushed by the operator
+                        when the loop finishes (same consumed-once wake
+                        pattern as human_checkpoint).
 - integration_action  → action_registry.execute_action (the general
                         mechanism — 40+ integrations; no per-integration
                         special cases).
@@ -102,6 +107,8 @@ class GoalRunExecutors:
         kind = (step or {}).get("kind", "canvas_work")
         if kind == "integration_action":
             return await self._integration_action(run, decision, step or {})
+        if kind == "computer_use_work":
+            return await self._computer_use_work(run, decision, step or {})
         if kind == "human_checkpoint":
             return self._human_checkpoint(run, step or {})
         if kind == "wait_for":
@@ -242,6 +249,64 @@ class GoalRunExecutors:
             return {"action": name, "result": result}
         except ActionNotFoundError as exc:
             return {"error": str(exc), "action": name}
+
+    # --------------------------------------------------- computer use work
+
+    async def _computer_use_work(self, run, decision, step) -> Dict[str, Any]:
+        """Operator work step: a governed browser computer-use session
+        (core/operator/) runs the step directive fire-and-forget; the run
+        WAITS on the operator_task_done event, which the operator pushes
+        through goal_run_events.ingest_event when its loop finishes. The
+        wait matches on operator_run_id — the same consumed-once wake
+        pattern human_checkpoint uses, so an operator finishing minutes
+        later advances the run exactly once."""
+        from core.operator.tools import operator_start_task
+        directive = (step.get("directive")
+                     or decision.get("rationale")
+                     or step.get("title")
+                     or "operator work")
+        db = None
+        try:
+            from core.database import SessionLocal
+            db = SessionLocal()
+        except Exception as exc:
+            logger.warning(f"goal run {run.get('id')}: no DB for the "
+                           f"operator governance gate: {exc}")
+        try:
+            result = await operator_start_task(
+                task=directive,
+                start_url=step.get("start_url"),
+                max_steps=step.get("max_steps"),
+                user_id=run.get("created_by") or "goal_run",
+                agent_id=run.get("agent_id"),
+                db=db,
+                workspace_id=run.get("workspace_id") or self.service.workspace_id,
+                tenant_id=run.get("tenant_id") or self.service.tenant_id,
+                goal_run_id=run["id"],
+                goal_run_step_id=step.get("id"),
+            )
+        finally:
+            if db is not None:
+                try:
+                    db.close()
+                except Exception:
+                    pass
+        if not result.get("success"):
+            return {"error": result.get("error"), "step_id": step.get("id")}
+
+        operator_run_id = result["operator_run_id"]
+        self.service.set_wait(run["id"], {
+            "event": "operator_task_done",
+            "match": {"operator_run_id": operator_run_id},
+        })
+        self.service.append_decision(run["id"], {
+            "kind": "operator_task_started",
+            "step_id": step.get("id"),
+            "operator_run_id": operator_run_id,
+            "rationale": str(directive)[:200],
+        })
+        return {"operator_run_id": operator_run_id,
+                "step_id": step.get("id"), "waiting": True}
 
     # ------------------------------------------------------- human checkpoint
 
