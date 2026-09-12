@@ -1148,28 +1148,50 @@ async def _ingested_mailbox_lines(
 
 
 _PRODUCT_TOKEN_RE = re.compile(
-    r"\b(?=[A-Za-z-]*\d)(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9][A-Za-z0-9-]{4,}\b"
+    r"\b(?=[A-Za-z_/-]*\d)(?=[A-Za-z0-9_/-]*[A-Za-z])"
+    r"[A-Za-z0-9][A-Za-z0-9_/-]{4,}\b"
 )
 _STYLED_BODY_BLOCK_CAP = 6000
 
-# Currency amounts with thousands separators / decimals, optionally
-# $-prefixed: "5,350.00", "$ 5,350", "10 000". These are the tokens a
-# mailbox search must match EXACTLY — per-term shredding turns them into
-# noise ("5" "350" "00") and Graph relevance buries them.
+# Currency amounts across locales and business types: any major-economy
+# symbol, ISO code before or after ("CAD 5,350", "5.350,00 EUR"), both
+# decimal conventions (1,234.56 en / 1.234,56 de), space-grouped
+# thousands (10 000, fr-CA), and Indian lakh grouping (1,00,000). These
+# are the tokens a mailbox search must match EXACTLY — per-term
+# shredding turns them into noise ("5" "350" "00") and Graph relevance
+# buries them.
+_CURRENCY_SYMBOLS = "$€£¥₹₩₽₺"
+_CURRENCY_CODE_RE = (
+    r"(?:USD|CAD|EUR|GBP|INR|JPY|AUD|NZD|CHF|CNY|HKD|SGD|MXN|BRL|ZAR"
+    r"|SEK|NOK|DKK|PLN|AED|SAR|TRY|RUB|KRW|ILS|TWD|THB|IDR|VND|PHP|MYR)"
+)
 _AMOUNT_PHRASE_RE = re.compile(
-    r"\$?\s*\d{1,3}(?:[,\s]\d{3})+(?:\.\d{1,2})?|\$\s*\d+(?:\.\d{1,2})?"
+    # Indian lakh/crore grouping first — the bare-symbol branch below would
+    # otherwise eat its leading group as a decimal ("₹1,00" of "₹1,00,000").
+    rf"(?:{_CURRENCY_CODE_RE}\s*)?[{_CURRENCY_SYMBOLS}]?\s*"
+    rf"\d{{1,2}}(?:,\d{{2}})+,\d{{3}}(?:\.\d{{1,2}})?\b"
+    rf"|(?:{_CURRENCY_CODE_RE}\s*)?[{_CURRENCY_SYMBOLS}]?\s*"
+    rf"\d{{1,3}}(?:[.,\s]\d{{3}})+(?:[.,]\d{{1,2}})?\s*(?:{_CURRENCY_CODE_RE})?"
+    rf"|[{_CURRENCY_SYMBOLS}]\s*\d+(?:[.,]\d{{1,2}})?"
+)
+_AMOUNT_TRIM_RE = re.compile(
+    rf"^(?:{_CURRENCY_CODE_RE}\s*)?[{_CURRENCY_SYMBOLS}]?\s*"
+    rf"|\s*(?:{_CURRENCY_CODE_RE})?$"
 )
 _ADDR_IN_QUERY_RE = re.compile(r"[\w.+-]+@[\w.-]+")
 
 
 def _distinctive_figure_phrases(text: str, limit: int = 2) -> List[str]:
     """Exact-form search phrases for the query's distinctive evidence:
-    currency amounts and product/model codes. '$ 5,350.00' → '5,350.00'
-    (the $ dropped — bodies render both '$5,350.00' and '5,350.00').
-    Small bare numbers are NOT distinctive and are skipped."""
+    currency amounts and product/model codes, across locales and
+    industries. 'CAD 5,350.00', '€ 5.350,00', '₹1,00,000' and '$ 5,350'
+    all reduce to the bare amount ('5,350.00', '5.350,00', '1,00,000') —
+    bodies render symbols and codes inconsistently, and the store-side
+    comparison is separator-insensitive. Small bare numbers are NOT
+    distinctive and are skipped."""
     out: List[str] = []
     for m in _AMOUNT_PHRASE_RE.finditer(text or ""):
-        phrase = m.group(0).replace("$", "").strip()
+        phrase = _AMOUNT_TRIM_RE.sub("", m.group(0)).strip()
         if len(phrase) >= 4 and phrase not in out:
             out.append(phrase)
     for m in _PRODUCT_TOKEN_RE.finditer(text or ""):
@@ -2560,7 +2582,8 @@ async def execute_tool_plan(
                 )
 
             tokens = [
-                t.strip('"$%,;:()') for t in query.split() if len(t.strip('"$%,;:()')) >= 2
+                t.strip('"$€£¥₹₩₽₺%,;:()') for t in query.split()
+                if len(t.strip('"$€£¥₹₩₽₺%,;:()')) >= 2
             ][:3] or [query]
             merged: Dict[str, Dict[str, Any]] = {}
             for term in tokens:

@@ -109,6 +109,11 @@ class TestProductTokens:
             "sku NK-AQ0818 stock check": ["NK-AQ0818"],
             "invoice INV-2024-118 status": ["INV-2024-118"],
             "ALU-400 saw and R6U-6SG2 kit": ["ALU-400", "R6U-6SG2"],
+            # Underscore / slash separators: fastener specs, MRO part
+            # numbers, patent-style references.
+            "find SAE_5216 in the fastener spec": ["SAE_5216"],
+            "order 1/2NPT fittings and A-123/B-456 seals": ["1/2NPT", "A-123/B-456"],
+            "patent US_9123456_B2 cited": ["US_9123456_B2"],
         }
         for text, expected in cases.items():
             assert ctp._product_tokens(text) == expected, text
@@ -667,7 +672,8 @@ class TestOutlookEmptyFallback:
         with patch("integrations.outlook_service.outlook_service.search_emails",
                    AsyncMock(return_value=[])), \
              patch("core.hybrid_search.documents_hybrid.DocumentsHybridSearch.search",
-                   AsyncMock(return_value={"results": []})):
+                   AsyncMock(return_value={"results": []})), \
+             patch.object(ctp, "_search_ingested_by_tokens", return_value=[]):
             block = await execute_tool_plan(_plan("outlook"), "user-1")
         mem_block.assert_awaited_once()
         assert "no matching messages in the mailbox" in block
@@ -679,7 +685,8 @@ class TestOutlookEmptyFallback:
         with patch("integrations.outlook_service.outlook_service.search_emails",
                    AsyncMock(return_value=[])), \
              patch("core.hybrid_search.documents_hybrid.DocumentsHybridSearch.search",
-                   AsyncMock(return_value={"results": []})):
+                   AsyncMock(return_value={"results": []})), \
+             patch.object(ctp, "_search_ingested_by_tokens", return_value=[]):
             block = await execute_tool_plan(_plan("outlook"), "user-1")
         assert "no matching messages in the mailbox or ingested memory" in block
 

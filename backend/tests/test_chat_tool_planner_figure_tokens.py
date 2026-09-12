@@ -36,8 +36,19 @@ from core.chat_tool_planner import (
         ("search for this one: $ 5,350.00 – 10 %  in stock", ["5,350.00"]),
         ("find the email for F-5216 original cost", ["F-5216"]),
         ('joelseguin@seguinmach.com "$5,350.00"', ["5,350.00"]),
-        # Space-separated thousands (French-Canadian style) count too.
-        ("he quoted 10 000 for the machine", ["10 000"]),
+        # Currency/locale generality: ISO code before or after, EU decimal
+        # convention, space-grouped thousands, Indian lakh/crore grouping.
+        ("the invoice was CAD 7,200.50 all in", ["7,200.50"]),
+        ("il a payé 5.350,00 EUR pour la machine", ["5.350,00"]),
+        ("10 000 CAD for the pallet", ["10 000"]),
+        ("quote ₹1,00,000 for the line", ["1,00,000"]),
+        ("total 1,00,00,000 INR approved", ["1,00,00,000"]),
+        ("£2,500 deposit received", ["2,500"]),
+        ("1,234,567 annual revenue", ["1,234,567"]),
+        # Identifier shapes across industries: underscored, slashed codes.
+        ("find SAE_5216 washer stock", ["SAE_5216"]),
+        ("part 1/2NPT fitting leak", ["1/2NPT"]),
+        ("case CV-2026-1234 status", ["CV-2026-1234"]),
         # Small bare numbers are not distinctive evidence.
         ("$100 or best offer", []),
         ("", []),
@@ -94,6 +105,31 @@ def test_match_rows_separator_insensitive():
         [OLD_ROW, FW_ROW], ["5,350.00"]
     )
     assert [h["subject"] for h in hits] == ["FW: RFQ - Foot shear"]
+
+
+def test_match_rows_cross_locale_amount_forms():
+    """EU-form query must match a US-form row (and vice versa): the
+    canonical form strips every separator, so '5.350,00' (de-DE),
+    '5,350.00' (en-CA) and '$ 5 350,00' all land on '535000'."""
+    eu_row = _row(
+        "vendor@eu-supplier.example",
+        "Angebot Maschine",
+        "Unser Preis: 5.350,00 EUR netto",
+        "2026-08-26 10:00:00",
+    )
+    assert _match_rows_by_figure_tokens([eu_row], ["5,350.00"])
+    assert _match_rows_by_figure_tokens([FW_ROW], ["5.350,00"])
+    assert _match_rows_by_figure_tokens([eu_row], ["5 350,00"])
+
+
+def test_match_rows_indian_grouping():
+    in_row = _row(
+        "sales@india-supplier.example",
+        "Quotation",
+        "Total amount Rs. 1,00,000 inclusive of GST",
+        "2026-08-26 10:00:00",
+    )
+    assert _match_rows_by_figure_tokens([in_row], ["1,00,000"])
 
 
 def test_match_rows_html_body_counts():
