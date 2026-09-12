@@ -1872,11 +1872,12 @@ async def _goals_decompose(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
     return {"success": not plan.get("cycles"), "plan": plan}
 
 
-# An agent starting a goal run gets exactly the member ladder from
-# api/goal_run_routes (training/shadow only, playbook-seeded plan, governance
-# knobs stripped) plus one extra rule the human API doesn't need: an agent
-# directs only ITSELF — binding a different worker agent is supervisor-grade.
-_GOAL_RUN_AGENT_MODES = ("training", "shadow")
+# Supervision follows the agent's EARNED maturity (graduated autonomy —
+# AWS/Anthropic/LangGraph pattern: approvals shrink as trust is proven, and
+# the residual HITL is risk-based, not per-step). An agent may run
+# autonomous only once its maturity tier IS autonomous; training/shadow are
+# always available (shadow is the default for everyone else).
+_GOAL_RUN_AGENT_MODES = ("training", "shadow", "autonomous")
 _GOAL_RUN_GOVERNANCE_KEYS = ("replan_budget", "wait_ceiling_days")
 _GOAL_RUN_TERMINAL = ("achieved", "failed", "cancelled")
 
@@ -1899,8 +1900,13 @@ _GOAL_RUN_START_SCHEMA = {
         "supervision_mode": {
             "type": "string",
             "enum": list(_GOAL_RUN_AGENT_MODES),
-            "description": "training = every router decision is held for human "
-                           "approval; shadow (default) = the normal gates",
+            "description": "Default follows the agent's earned maturity: an "
+                           "AUTONOMOUS-maturity agent runs autonomous (no "
+                           "routine HITL — only process-intrinsic checkpoints "
+                           "and guardrail holds); everyone else runs shadow. "
+                           "training = every router decision held for human "
+                           "approval. Requesting 'autonomous' requires the "
+                           "agent to have earned AUTONOMOUS maturity.",
         },
         "parameters": {
             "type": "object",
@@ -1954,16 +1960,18 @@ def _goal_run_summary(run: Dict[str, Any], detail: bool = False) -> Dict[str, An
 
 @register_action(
     "goal_runs.start",
-    description="Start a LONG-RUNNING goal run: a durable, self-steering "
-                "execution in which this agent pursues a persisted goal "
-                "across multiple steps, canvases and waits (email replies, "
-                "timers, human checkpoints), deciding its next move after "
-                "every step boundary. The run keeps working in the "
-                "background after this call returns; the goal's owner is "
-                "notified on every state change. Create the goal first with "
-                "goals.create (or reuse an existing goal_id). Supervision is "
-                "training (every decision held for approval) or shadow "
-                "(default) — autonomous is a promotion only a human grants. "
+    description="Start a LONG-RUNNING goal run: a durable execution in which "
+                "this agent works a persisted goal across multiple steps, "
+                "canvases and waits (email replies, timers, human "
+                "checkpoints), deciding its next move after every step "
+                "boundary. The run keeps working in the background after "
+                "this call returns; the goal's owner is notified on every "
+                "state change. Create the goal first with goals.create (or "
+                "reuse an existing goal_id). Supervision follows the "
+                "agent's earned maturity: an AUTONOMOUS-maturity agent runs "
+                "autonomous by default (HITL only for process-intrinsic "
+                "checkpoints and guardrail moments); everyone else runs "
+                "shadow, and training holds every decision for approval. "
                 "Follow progress with goal_runs.list.",
     parameters_schema=_GOAL_RUN_START_SCHEMA,
     effects=[{"effect": "goal_run_started", "goal_id": "$args.goal_id",
@@ -1990,13 +1998,6 @@ async def _goal_runs_start(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
         return {"success": False,
                 "error": "an agent may start a goal run only for itself — "
                          "a human starts runs that direct other agents"}
-
-    mode = str(args.get("supervision_mode") or "shadow").strip().lower()
-    if mode not in _GOAL_RUN_AGENT_MODES:
-        return {"success": False,
-                "error": f"an agent cannot set supervision_mode '{mode}' — "
-                         f"allowed: {list(_GOAL_RUN_AGENT_MODES)} (autonomous "
-                         f"is a promotion a human grants per run)"}
 
     goal_id = str(args.get("goal_id") or "").strip()
     if not goal_id:
@@ -2027,21 +2028,44 @@ async def _goal_runs_start(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
                              f"'{goal_title}' — check it with goal_runs.list "
                              f"instead of starting another"}
 
+        agent = db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id).first()
         # Role from the business's OWN data (agent specialty/category) when
         # not given — the same derivation as the member path in the API.
         role = str(args.get("role") or "").strip() or None
-        if not role:
-            agent = db.query(AgentRegistry).filter(
-                AgentRegistry.id == agent_id).first()
-            if agent:
-                role = (getattr(agent, "specialty", None)
-                        or getattr(agent, "category", None) or "").strip() or None
+        if not role and agent:
+            role = (getattr(agent, "specialty", None)
+                    or getattr(agent, "category", None) or "").strip() or None
+        # The agent's EARNED maturity tier (AgentRegistry.status is the
+        # banded governance tier) owns the run's supervision.
+        maturity = ((getattr(agent, "status", None) or "")
+                    if agent else "").strip().lower() or "unknown"
         created_by = _context_user_id(context)
 
     if not role:
         return {"success": False,
                 "error": "role is required for a role-based run — pass role, "
                          "or bind an agent whose specialty/category defines it"}
+
+    # Supervision mode follows the agent's earned maturity: an autonomous-
+    # maturity agent runs autonomous by default (graduated autonomy — HITL
+    # shrinks to the maturity-independent moments); everyone else defaults
+    # to shadow. Requesting autonomous without having earned it is refused —
+    # the same self-promotion guard the member ladder enforces.
+    from core.models import AgentStatus
+    requested_mode = str(args.get("supervision_mode") or "").strip().lower()
+    if requested_mode == "autonomous" and maturity != AgentStatus.AUTONOMOUS.value:
+        return {"success": False,
+                "error": f"supervision_mode 'autonomous' requires the agent "
+                         f"to have earned AUTONOMOUS maturity (current tier: "
+                         f"'{maturity}') — use training or shadow"}
+    if requested_mode and requested_mode not in _GOAL_RUN_AGENT_MODES:
+        return {"success": False,
+                "error": f"unknown supervision_mode '{requested_mode}' — "
+                         f"allowed: {list(_GOAL_RUN_AGENT_MODES)}"}
+    mode = requested_mode or (
+        "autonomous" if maturity == AgentStatus.AUTONOMOUS.value
+        else "shadow")
 
     parameters = {k: v for k, v in (args.get("parameters") or {}).items()
                   if k not in _GOAL_RUN_GOVERNANCE_KEYS}

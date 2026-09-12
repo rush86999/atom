@@ -81,6 +81,53 @@ days, rather than a rigid pipeline.
   (the maintenance cycle), across restarts. Verified: 15 new tests in
   `backend/tests/test_goal_run_agent_start.py` + the 113-test goal-run /
   action-registry neighborhood and the governance suites, all green.
+- **Status addendum 2026-09-12 (b) — the loop belongs to the agent
+  (maturity owns supervision).** Direction: all LLM calls and HITL
+  checkpoints belong to the agent and its EARNED maturity — an autonomous
+  agent should see essentially no HITL beyond decisions that need a human
+  regardless of maturity — and the run is executed BY the agent (employee
+  model: a request/trigger starts it, the agent works it), not by an
+  independent mechanism. Research grounding (per AGENTS.md §3):
+  [LangGraph HITL](https://docs.langchain.com/oss/python/langchain/human-in-the-loop)
+  interrupts fire conditionally on risk/irreversibility, not on every step;
+  [AWS graduated autonomy](https://aws.amazon.com/blogs/architecture/closing-the-ai-agent-trust-gap-with-graduated-autonomy/)
+  shrinks approvals as trust is proven;
+  [Anthropic](https://www.anthropic.com/research/measuring-agent-autonomy)
+  measures autonomy along reversibility. Four changes:
+  1. **Supervision follows earned maturity.** `goal_runs.start` reads the
+     agent's tier (`AgentRegistry.status`, the banded governance tier): an
+     AUTONOMOUS-maturity agent defaults to AND may request `autonomous`;
+     everyone else defaults `shadow` and is refused `autonomous`
+     (self-promotion guard — the same rule the member ladder enforces).
+     `training` stays available to any agent for coaching.
+  2. **The router knows whose judgment it is.** `_router_context` never
+     sent `maturity_tier`, so EVERY decision ran "unknown → bias toward
+     ASK_HUMAN" regardless of the agent's tier. It now carries the agent's
+     name + tier, and the router prompt expresses the ladder: junior →
+     bias to ask; supervised → act within the process; autonomous → act on
+     your own judgment, ASK_HUMAN only for human authority/information.
+     (`_role_context` also matched playbooks/lessons on the goal's UUID —
+     it now matches on the goal TITLE, which is what seeding uses.)
+  3. **The agent executes the steps (default ON).** `ATOM_GOAL_RUN_AGENT_WORK`
+     is now default-ON (`=0` opts out; under TESTING the default stays off
+     so unit tests never fire live objective loops). Fixed the latent bug
+     that made delegation ALWAYS fail even with the flag on:
+     `GenericAgent(agent_id=<str>)` where the constructor takes the
+     `AgentRegistry` MODEL — it now loads the row, skips paused/stopped/
+     missing agents to the co-editing path, and runs the agent's objective
+     loop with the owner's `user_id` alongside the goal/canvas context.
+     Every LLM call and tool action inside a step passes the agent's OWN
+     governance/maturity gates; canvas done-signals drive the next boundary.
+  4. **The HITL surface is now exactly the maturity-independent few:**
+     process-intrinsic `human_checkpoint` steps (the role's process defines
+     them, e.g. quote sign-off), guardrail holds (replan budget exhausted,
+     major replan, stuck detector, wait-ceiling — tiered, autonomous=30d —
+     and DONE-claim criteria verification), genuine ASK_HUMAN decisions,
+     and training-mode blanket checkpoints (only when training is chosen).
+     An autonomous agent on an autonomous run hits none of these in normal
+     operation. Verified: 21 tests in `test_goal_run_agent_start.py`
+     (maturity-derived mode, router tier wiring, delegation on/off/
+     unavailable) + 129 goal-run/registry/governance neighbors green.
 - **Research grounding (per AGENTS.md §3):** this is the established
   *plan-and-execute with replanning* pattern ([LangChain planning
   agents](https://www.langchain.com/blog/planning-agents), [multi-agent
@@ -302,7 +349,7 @@ ladder, not a binary supervisor gate:
 |---|---|---|---|
 | **member** (and up) | yes — **role-based only**: role is required (or derived from the bound agent's `specialty`/`category`), the plan is seeded from that role's **approved playbooks** (never hand-authored), no `autonomous`, governance knobs stripped | yes, on runs **they started** (advance, resume/override, checkpoint, cancel) | no |
 | **team_lead+** | anything: explicit `plan`, any goal, any mode (incl. `autonomous`), governance params | any run, regardless of owner | change `supervision_mode`, view promotion evidence, distill to a playbook draft, inject workspace events, act on runs they do not own |
-| **the agent itself** (`goal_runs.start`, 2026-09-12) | yes — the member ladder verbatim (role from its own `specialty`/`category`, playbook-seeded plan, `training`/`shadow` only, knobs stripped), **only for itself**, one non-terminal run per goal | yes — by working the run's steps; the router/executor loop is the agent working | no — and no custom plans, no mode changes, no directing other agents |
+| **the agent itself** (`goal_runs.start`, 2026-09-12) | yes — the member ladder (role from its own `specialty`/`category`, playbook-seeded plan, knobs stripped), only for itself, one non-terminal run per goal; **supervision follows its earned maturity**: AUTONOMOUS tier → autonomous by default, everyone else shadow and never autonomous (2026-09-12 b) | yes — the agent IS the worker: each step is delegated to its own objective loop under its own maturity gates (default ON, 2026-09-12 b) | no — and no custom plans, no mode changes, no directing other agents |
 | **viewer / guest** | no (403) | no (read-only) | no |
 
 Key properties:

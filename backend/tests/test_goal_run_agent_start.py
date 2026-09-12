@@ -6,11 +6,15 @@ could start a run (``POST /api/goal-runs``); an agent could create the goal
 (``goals.create``) but not the run — so the agent always had to hand the work
 back to the user for the boring part.
 
-The agent surface deliberately mirrors the MEMBER ladder from
-api/goal_run_routes (role from the bound agent's own data, playbook-seeded
-plan, training/shadow only, governance knobs stripped) plus one extra guard
-the human API doesn't need: an agent directs only ITSELF, and may not stack
-duplicate runs of the same goal.
+The agent surface mirrors the MEMBER ladder from api/goal_run_routes (role
+from the bound agent's own data, playbook-seeded plan, governance knobs
+stripped) EXCEPT supervision, which follows the agent's EARNED maturity
+(graduated autonomy): an AUTONOMOUS-maturity agent runs autonomous by
+default; everyone else runs shadow; nobody below autonomous maturity may
+request it. Extra guards the human API doesn't need: an agent directs only
+ITSELF, and may not stack duplicate runs of the same goal. The loop itself
+belongs to the agent too — the router sees the agent's maturity tier and
+identity, and step work is delegated to the agent's own objective loop.
 
 Pattern: direct action_registry.execute_action on the conftest scratch DB
 (get_db_session routed to the test session — the same fixture shape
@@ -88,7 +92,11 @@ def env(db_session):
     db_session.add(AgentRegistry(
         id="agent-sales", name="Sales Agent", category="Sales",
         specialty="sales", module_path="agents.sales",
-        class_name="SalesAgent", status="active"))
+        class_name="SalesAgent", status="intern"))
+    db_session.add(AgentRegistry(
+        id="agent-trusted", name="Trusted Agent", category="Sales",
+        specialty="sales", module_path="agents.sales",
+        class_name="SalesAgent", status="autonomous"))
     db_session.add(GoalObjective(
         id="goal-a", workspace_id=WS, tenant_id="default",
         title="Prepare a quote for the WFS lead", status="active"))
@@ -143,6 +151,44 @@ class TestAgentStartsRun:
         assert run.status == "paused_hitl"
         assert run.pending_decision["decision"] == "ADVANCE"
         assert run.supervision_mode == "training"
+
+    def test_supervision_follows_earned_maturity(self, env):
+        """Graduated autonomy: an AUTONOMOUS-maturity agent runs autonomous
+        by default (HITL shrinks to the maturity-independent moments);
+        everyone else defaults to shadow."""
+        trusted_ctx = dict(CTX, agent_id="agent-trusted")
+        result = asyncio.run(action_registry.execute_action(
+            "goal_runs.start", {"goal_id": "goal-b"}, trusted_ctx))
+        assert result["success"] is False  # goal-b doesn't exist yet
+        env.add(GoalObjective(id="goal-b", workspace_id=WS,
+                              tenant_id="default", title="Nurture the lead",
+                              status="active"))
+        env.commit()
+        result = asyncio.run(action_registry.execute_action(
+            "goal_runs.start", {"goal_id": "goal-b"}, trusted_ctx))
+        assert result["success"] is True
+        run = env.query(GoalRun).filter(GoalRun.id == result["id"]).one()
+        assert run.supervision_mode == "autonomous"
+        assert run.status == "active"  # no blanket hold on the first decision
+
+        junior = _start(env, {"goal_id": "goal-a"})
+        assert junior["success"] is True
+        junior_run = env.query(GoalRun).filter(
+            GoalRun.id == junior["id"]).one()
+        assert junior_run.supervision_mode == "shadow"
+
+    def test_trusted_agent_may_request_any_mode(self, env):
+        env.add(GoalObjective(id="goal-c", workspace_id=WS,
+                              tenant_id="default", title="Follow up",
+                              status="active"))
+        env.commit()
+        result = asyncio.run(action_registry.execute_action(
+            "goal_runs.start",
+            {"goal_id": "goal-c", "supervision_mode": "training"},
+            dict(CTX, agent_id="agent-trusted")))
+        assert result["success"] is True
+        assert env.query(GoalRun).filter(
+            GoalRun.id == result["id"]).one().supervision_mode == "training"
 
     def test_start_false_stages_a_dormant_run(self, env):
         result = _start(env, {"goal_id": "goal-a", "start": False})
@@ -217,6 +263,95 @@ class TestAgentStartGuards:
         again = _start(env)
         assert again["success"] is True
         assert again["id"] != first["id"]
+
+
+# ------------------------------------------------- the loop belongs to the agent
+
+class TestLoopBelongsToTheAgent:
+    """The run is the agent's job assignment, not an independent mechanism:
+    the router decision carries the agent's identity and EARNED maturity
+    (ASK_HUMAN propensity scales with it), and the step work is executed by
+    the agent's own objective loop under its own maturity gates."""
+
+    def test_router_sees_agent_identity_and_maturity(self, env, monkeypatch):
+        seen = {}
+
+        class _CapturingRouter:
+            async def decide(self, context):
+                seen.update(context)
+                return {"decision": "ADVANCE", "rationale": "stub",
+                        "confidence": 0.9}
+
+        from core.goals.goal_run_service import GoalRunService
+        monkeypatch.setattr(GoalRunService, "_default_router",
+                            lambda self: _CapturingRouter())
+        result = _start(env, {"goal_id": "goal-a", "start": False})
+        asyncio.run(GoalRunService(workspace_id=WS,
+                                   tenant_id="default").advance(result["id"]))
+        assert seen.get("maturity_tier") == "intern"
+        assert seen.get("agent_name") == "Sales Agent"
+
+    def test_step_work_delegates_to_the_agent(self, env, monkeypatch):
+        """Delegation is the default path: the run's agent executes the
+        step through its own GenericAgent loop (constructed from the real
+        AgentRegistry row — the old call passed the id string where the
+        constructor takes the model, so delegation never worked)."""
+        import core.generic_agent as ga
+
+        calls = {}
+
+        class _StubAgent:
+            def __init__(self, agent_model, workspace_id="default", **kw):
+                calls["agent_id"] = agent_model.id
+                calls["workspace_id"] = workspace_id
+
+            async def execute(self, task, context=None, **kw):
+                calls["task"] = task
+                calls["context"] = context or {}
+                return {"ok": True}
+
+        monkeypatch.setattr(ga, "GenericAgent", _StubAgent)
+        monkeypatch.setenv("ATOM_GOAL_RUN_AGENT_WORK", "1")
+        result = _start(env, {"goal_id": "goal-a"})
+        assert result["success"] is True
+        assert result["started"]["result"]["agent_delegated"] is True
+        assert calls["agent_id"] == "agent-sales"
+        assert calls["workspace_id"] == WS
+        assert calls["context"]["goal_run_id"] == result["id"]
+        assert calls["context"]["goal_id"] == "goal-a"
+        assert calls["context"]["user_id"] == "u-owner"
+        assert calls["context"]["canvas_id"]
+
+    def test_delegation_flag_forces_off(self, env, monkeypatch):
+        import core.generic_agent as ga
+
+        class _Boom:
+            def __init__(self, *a, **kw):
+                raise AssertionError("delegation must not construct an agent")
+
+        monkeypatch.setattr(ga, "GenericAgent", _Boom)
+        monkeypatch.setenv("ATOM_GOAL_RUN_AGENT_WORK", "0")
+        result = _start(env, {"goal_id": "goal-a"})
+        assert result["success"] is True
+        assert result["started"]["result"]["agent_delegated"] is False
+
+    def test_unavailable_agent_falls_back_to_co_editing(self, env, monkeypatch):
+        """A paused agent (or a registry miss) keeps the canvas on the
+        human co-editing path instead of delegating."""
+        import core.generic_agent as ga
+
+        class _Boom:
+            def __init__(self, *a, **kw):
+                raise AssertionError("paused agent must not be delegated to")
+
+        monkeypatch.setattr(ga, "GenericAgent", _Boom)
+        monkeypatch.setenv("ATOM_GOAL_RUN_AGENT_WORK", "1")
+        env.query(AgentRegistry).filter(
+            AgentRegistry.id == "agent-sales").one().status = "paused"
+        env.commit()
+        result = _start(env, {"goal_id": "goal-a"})
+        assert result["success"] is True
+        assert result["started"]["result"]["agent_delegated"] is False
 
 
 # --------------------------------------------------------------- listing

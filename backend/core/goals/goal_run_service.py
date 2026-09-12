@@ -821,12 +821,36 @@ class GoalRunService:
                         goal_state: Dict[str, Any],
                         step_digest: Optional[Dict[str, Any]],
                         event: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        return {
+        # The judgment in the loop BELONGS to the run's agent: its identity
+        # and its EARNED maturity tier ride along so ASK_HUMAN propensity
+        # scales with trust (§3.7). Without this the router saw
+        # maturity_tier "unknown" on every call and biased every run toward
+        # ASK_HUMAN regardless of the agent's tier. Fault-isolated — an
+        # agent-registry hiccup must never crash the loop turn.
+        context: Dict[str, Any] = {
             "run": run,
             "goal": goal_state,
             "step_digest": step_digest or {},
             "event": event or {},
+            "maturity_tier": "unknown",
+            "agent_name": None,
         }
+        agent_id = run.get("agent_id")
+        if not agent_id:
+            return context
+        try:
+            from core.models import AgentRegistry
+            with self._sessions()() as session:
+                agent = session.query(AgentRegistry).filter(
+                    AgentRegistry.id == agent_id).first()
+            if agent:
+                context["maturity_tier"] = (getattr(agent, "status", None)
+                                            or "unknown")
+                context["agent_name"] = agent.name
+        except Exception as exc:
+            logger.warning(f"goal run {run.get('id')}: agent tier lookup "
+                           f"failed: {exc}")
+        return context
 
     def _count_step(self, run_id: str, kind: str) -> None:
         with self._sessions()() as session:

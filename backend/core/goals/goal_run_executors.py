@@ -2,13 +2,15 @@
 (docs/architecture/GOAL_RUN_ORCHESTRATION.md §3.3, slice 3).
 
 Step kinds (the plan's vocabulary):
-- canvas_work         → create/link a canvas for the step, then (best-effort,
-                        flag-gated) delegate content work to the step agent's
-                        GenericAgent objective loop with context.goal_id. The
-                        canvas done-signals (apply_canvas_edit `no_change`,
-                        canvas_close, non-terminal dispatch) drive the NEXT
-                        run boundary — the loop never bypasses the existing
-                        chat/canvas pipeline or its maturity gates.
+- canvas_work         → create/link a canvas for the step, then delegate
+                        content work to the run's agent (its GenericAgent
+                        objective loop with context.goal_id — default ON
+                        since 2026-09-12; ATOM_GOAL_RUN_AGENT_WORK=0 opts
+                        out). The canvas done-signals (apply_canvas_edit
+                        `no_change`, canvas_close, non-terminal dispatch)
+                        drive the NEXT run boundary — the agent's tool calls
+                        never bypass the existing chat/canvas pipeline or
+                        its maturity gates.
 - integration_action  → action_registry.execute_action (the general
                         mechanism — 40+ integrations; no per-integration
                         special cases).
@@ -32,10 +34,23 @@ from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-# Opt-in agent delegation for canvas content (off by default: the run
-# creates and links the canvas; content flows through the proven
-# chat/canvas co-editing path unless this is enabled).
+# Agent delegation for canvas content. DEFAULT ON since 2026-09-12: the run
+# is the AGENT's job assignment, not an independent worker — like an
+# employee, the agent starts the run from a request/trigger and then DOES
+# the steps itself (its own objective loop, with its own maturity gates on
+# every tool call). Explicit values force the old behavior either way;
+# under TESTING the default stays OFF so unit tests never fire live
+# objective loops.
 AGENT_WORK_FLAG = "ATOM_GOAL_RUN_AGENT_WORK"
+
+
+def _agent_work_enabled() -> bool:
+    flag = os.environ.get(AGENT_WORK_FLAG, "").strip().lower()
+    if flag in ("1", "true", "yes", "on"):
+        return True
+    if flag in ("0", "false", "no", "off"):
+        return False
+    return os.environ.get("TESTING", "").strip() not in ("1", "true", "yes")
 
 
 class GoalRunExecutors:
@@ -151,22 +166,45 @@ class GoalRunExecutors:
         return canvas_id
 
     async def _delegate_agent_work(self, run, step_id, directive, canvas_id) -> bool:
-        """Best-effort delegation to the step agent's objective loop
-        (GenericAgent.execute with context.goal_id — the DoD loop already
-        exists). Off unless ATOM_GOAL_RUN_AGENT_WORK is enabled; failures are
-        logged, never raised — the run continues and the co-editing pipeline
-        remains the primary content path."""
+        """Delegate the step's content work to the run's AGENT (the
+        employee model): its GenericAgent objective loop runs with
+        context.goal_id, so every LLM call and tool action inside the step
+        passes the agent's OWN governance/maturity gates, and the canvas
+        done-signals drive the next run boundary. Fire-and-forget;
+        failures are logged, never raised — the run continues and the
+        chat/canvas co-editing pipeline remains the fallback content path."""
         if not run.get("agent_id"):
             return False
-        if os.environ.get(AGENT_WORK_FLAG, "").strip().lower() not in ("1", "true", "yes"):
+        if not _agent_work_enabled():
             return False
         try:
-            from core.generic_agent import GenericAgent
-            agent = GenericAgent(agent_id=run["agent_id"])
+            from core.models import AgentRegistry
+            with self.service._sessions()() as session:
+                agent_model = session.query(AgentRegistry).filter(
+                    AgentRegistry.id == run["agent_id"]).first()
+                if agent_model is None:
+                    logger.warning(
+                        f"goal run {run.get('id')}: agent {run['agent_id']} "
+                        f"not in the registry — canvas stays on the "
+                        f"co-editing path")
+                    return False
+                if (getattr(agent_model, "status", "") or "").lower() in (
+                        "paused", "stopped", "deleted", "deprecated"):
+                    logger.info(
+                        f"goal run {run.get('id')}: agent "
+                        f"{run['agent_id']} is {agent_model.status} — "
+                        f"canvas stays on the co-editing path")
+                    return False
+                from core.generic_agent import GenericAgent
+                agent = GenericAgent(
+                    agent_model,
+                    workspace_id=run.get("workspace_id") or "default")
             coro = agent.execute(
                 directive,
                 context={"goal_id": run.get("goal_id"),
                          "workspace_id": run.get("workspace_id"),
+                         "tenant_id": run.get("tenant_id"),
+                         "user_id": run.get("created_by"),
                          "goal_run_id": run["id"],
                          "goal_run_step_id": step_id,
                          "canvas_id": canvas_id},

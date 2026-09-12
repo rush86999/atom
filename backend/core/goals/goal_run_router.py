@@ -107,15 +107,32 @@ class GoalRunRouter:
         recent = [d for d in run.get("decision_log") or []
                   if d.get("kind") in ("decision", "wake", "override")][-6:]
 
+        agent_name = context.get("agent_name")
+        who = (f"You are {agent_name}'s own judgment — the agent working "
+               f"this process decides its next move through you"
+               if agent_name else
+               "You are the judgment of a role agent working this process")
+        tier = str(context.get("maturity_tier") or "unknown").lower()
+        if tier in ("student", "intern"):
+            tier_guidance = ("junior — bias toward ASK_HUMAN; prefer asking "
+                             "over acting on thin evidence")
+        elif tier == "autonomous":
+            tier_guidance = ("fully trusted — act on your own judgment; "
+                             "reserve ASK_HUMAN for decisions that need a "
+                             "human regardless of your skill (sign-offs, "
+                             "external commitments, facts only the human "
+                             "has)")
+        else:
+            tier_guidance = ("operational — act within the process; ask "
+                             "when the evidence is thin")
+
         sections = [
-            "You are the judgment of a role agent working an INFORMAL, "
-            "multi-touch-point process toward one goal — like an experienced "
-            "salesperson, not a pipeline. Decide the next direction from the "
-            "evidence below. The plan is a familiar path, not a schedule: "
-            "deviate from it whenever the data says so.",
+            who + " — an INFORMAL, multi-touch-point process toward one "
+            "goal, like an experienced employee, not a pipeline. Decide the "
+            "next direction from the evidence below. The plan is a familiar "
+            "path, not a schedule: deviate from it whenever the data says so.",
             f"ROLE: {run.get('role') or 'unspecified'}",
-            f"MATURITY TIER: {context.get('maturity_tier') or 'unknown'} "
-            f"(unknown or junior → bias toward ASK_HUMAN)",
+            f"MATURITY TIER: {tier} — {tier_guidance}",
             f"GOAL: {goal.get('status', 'unknown')} "
             f"({goal.get('satisfied', 0)}/{goal.get('total', 0)} criteria "
             f"satisfied) — {run.get('goal_id')}",
@@ -160,7 +177,19 @@ class GoalRunRouter:
         try:
             from core.database import get_db_session
             with get_db_session() as db:
-                goal_text = str(run.get("goal_id") or "")
+                # Match playbooks/lessons on the goal TITLE — passing the
+                # goal_id (a UUID) matched nothing and quietly starved the
+                # router of the company process and the agent's lessons.
+                goal_text = ""
+                try:
+                    from core.models import GoalObjective
+                    goal_row = db.query(GoalObjective).filter(
+                        GoalObjective.id == run.get("goal_id")).first()
+                    if goal_row:
+                        goal_text = str(goal_row.title or "")
+                except Exception:
+                    pass
+                goal_text = goal_text or str(run.get("goal_id") or "")
                 try:
                     from core.playbook_service import PlaybookService
                     pbs = PlaybookService(db, tenant_id=self.tenant_id)
