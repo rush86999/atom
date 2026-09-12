@@ -272,6 +272,30 @@ class GoalRunService:
             except Exception as exc:
                 logger.warning(f"goal run {run.get('id')}: outcome recording "
                                f"failed: {exc}")
+        # Marketplace feedback loop: a run worked by a MANAGED (installed)
+        # agent is usage evidence for its listing — the seller's analytics
+        # and the buyer's ratings ride on verified outcomes, not reviews
+        # alone. Fault-isolated like every terminal hook.
+        try:
+            agent_id = run.get("agent_id")
+            if agent_id:
+                from core.models import AgentRegistry
+                with self._sessions()() as session:
+                    agent = session.query(AgentRegistry).filter(
+                        AgentRegistry.id == agent_id).first()
+                    cfg = (agent.configuration or {}) if agent else {}
+                if cfg.get("marketplace_managed") and cfg.get("template_id"):
+                    from core.marketplace_usage_tracker import (
+                        MarketplaceUsageTracker,
+                    )
+                    MarketplaceUsageTracker.track_usage(
+                        item_type="agent",
+                        item_id=str(cfg["template_id"]),
+                        success=run["status"] == "achieved",
+                    )
+        except Exception as exc:
+            logger.warning(f"goal run {run.get('id')}: marketplace usage "
+                           f"report failed: {exc}")
 
     def activate(self, run_id: str) -> Dict[str, Any]:
         run = self.transition(run_id, "active")

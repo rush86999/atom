@@ -3814,6 +3814,15 @@ try:
     except (ImportError, TypeError) as e:
         logger.warning(f"Experience Marketplace routes not found: {e}")
 
+    # 11d. Agent Marketplace (selling agents on verified goal-run evidence)
+    try:
+        from api.agent_marketplace_routes import router as agent_marketplace_router
+
+        app.include_router(agent_marketplace_router)  # Prefix defined in router
+        logger.info("✓ Agent Marketplace Routes Loaded")
+    except (ImportError, TypeError) as e:
+        logger.warning(f"Agent Marketplace routes not found: {e}")
+
     # 12. Formula Routes
     # Formulas loaded via ESSENTIAL_INTEGRATIONS
 
