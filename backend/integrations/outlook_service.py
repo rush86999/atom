@@ -1793,6 +1793,48 @@ class OutlookService(IntegrationService):
             logger.error(f"Error searching emails: {e}")
             return []
 
+    async def list_recent_emails(
+        self, user_id: str, max_results: int = 50, token: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Newest-first mailbox listing with NO ``$search`` clause.
+
+        The on-demand ingest fallback needs a target even when every search
+        form misses — $search is the thing that fails (400s, relevance
+        flooding), so this path avoids it entirely: plain
+        ``$orderBy=receivedDateTime desc`` paging over the whole mailbox.
+        Callers filter locally (figure tokens, sender). Same dict shape as
+        search_emails; [] on failure.
+        """
+        try:
+            params = {"$top": max_results, "$orderBy": "receivedDateTime desc"}
+            endpoint = f"/me/messages?{urllib.parse.urlencode(params)}"
+            result = await self._make_graph_request(user_id, endpoint, access_token=token)
+            emails = []
+            for email_data in (result or {}).get("value", []):
+                emails.append(asdict(OutlookEmail(
+                    id=email_data.get("id"),
+                    subject=email_data.get("subject", "No Subject"),
+                    body_preview=email_data.get("bodyPreview", ""),
+                    body=email_data.get("body"),
+                    sender=email_data.get("sender"),
+                    from_field=email_data.get("from"),
+                    to_recipients=email_data.get("toRecipients", []),
+                    cc_recipients=email_data.get("ccRecipients", []),
+                    bcc_recipients=email_data.get("bccRecipients", []),
+                    received_date_time=email_data.get("receivedDateTime"),
+                    sent_date_time=email_data.get("sentDateTime"),
+                    has_attachments=email_data.get("hasAttachments", False),
+                    importance=email_data.get("importance", "normal"),
+                    is_read=email_data.get("isRead", False),
+                    web_link=email_data.get("webLink"),
+                    conversation_id=email_data.get("conversationId"),
+                    parent_folder_id=email_data.get("parentFolderId"),
+                )))
+            return emails
+        except Exception as e:
+            logger.error(f"Error listing recent emails: {e}")
+            return []
+
     def get_capabilities(self) -> Dict[str, Any]:
         """Return Outlook integration capabilities"""
         return {
