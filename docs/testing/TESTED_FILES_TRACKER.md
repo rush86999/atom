@@ -8248,3 +8248,61 @@ discoverability gap, and two stale suites found while sweeping.
 the once-poisoned batch is 318 passed / 0 failed; the ingestion sweep is 214
 passed / 0 failed. Every "pre-existing" claim above was confirmed by stashing
 the working changes and re-running before fixing.
+
+## Session 2026-09-13a (fix-all wave: operator governance, goal-run IDOR, marketplace sell path, search/ingest hardening)
+
+**Scope**: every finding from a three-way read-only quality pass over the
+2026-09-11→13 arcs (operator a2f7d6f6e, goals/marketplace 24abc9a70→93bc53d4c,
+search/ingest 2926e381a→03fb2bd7c) — 8 P1s, ~20 P2/P3s — fixed and pinned.
+
+| Area | Root cause | Fix |
+|---|---|---|
+| Operator audit/governance dead code | `OperatorSession` was built with no `db`/`governance_callback`; `_audit` no-oped on `db=None`; the MCP dispatch path never forwards a db | `_browser_governance_permits` opens its own short-lived session (goal_run_events idiom); entry gate AND per-action `governance_callback` share it; `_audit` self-opens. BrowserAudit rows + governance hard-stop now real in both production paths |
+| Operator identity spoofing | `execute_tool` let model-supplied `user_id`/`agent_id` arguments shape run ownership; context-less callers read anything | `operator_*` args stripped at dispatch; `_owned_run_or_denial` denies no-identity callers; `mcp_routes.py` forwards `current_user.id` |
+| Tier floors vs documented ladder | No `operator_*` names in `TIER_FLOOR_TOOL_WHITELISTS` → operator was autonomous-only | reads at student/intern/supervised floors; start/stop at supervised |
+| test_covpush_integrations_core (7 tests) | Still pinned the retired dual-mode browser contract — and launched REAL Chromium in unit tests (no TESTING gate) | Rewritten to the delegation/retirement contract; `BrowserSession.start` refuses under TESTING=1. 189 passed, no browser spawn |
+| Goal-run IDOR | `get_run`/`_load` id-only; GET routes had no access check; writes unchecked across workspaces | Service reads/writes workspace-scoped; route `_require_run_access` 404s cross-workspace. New suite `test_goal_run_access_control.py` (10) |
+| Marketplace sell path dead end-to-end | Client sent `X-API-Token` (server wants `X-Instance-ID`+`X-Federation-Key` federation auth); GET `/details/{id}` route never existed; `publish_listing_to_saas`/`install_agent` had no live caller | Client aligned to `validate_federation_peer` contract (`ATOM_SAAS_INSTANCE_ID` env, documented); GET fixed to the real `/{template_id}`; new permission-checked routes `POST /templates/{id}/push` and `POST /install-remote` |
+| atom_saas_client cross-loop httpx | Cached `AsyncClient` reused across `asyncio.run` loops — 2nd sync call raised RuntimeError → install rollback | `_run_sync` closes/drops the client per call; refuses live-loop reuse; `transport=` test hook. MockTransport test pins two sequential sync calls |
+| Stranded goal runs | `computer_use_work` waits had no deadline; in-memory operator registry + fire-and-forget delegation died silently on restart | Waits carry `deadline`+`watchdog` (45 min default); `due_watchdog_runs` wakes with honest decision; maintenance sweep `interrupt_stalled_runs` (6 h) → `paused_hitl`, never auto-cancel. Suite `test_goal_run_watchdog_sweep.py` (7) |
+| Packaging secret leakage | Only credential-named KEYS stripped; `sk-…`/`ghp_…`/`AKIA…` in free text shipped verbatim | `SECRET_TOKEN_RES` patterns in `redact_pii`; listing description redacted too. Suite `test_marketplace_packaging_redaction.py` (17) |
+| Search-miss ingest unbounded | Fallback (4-rung resolve + ≤2 vision pulls) ran inline with no deadline vs 45s/25s lane budgets; bare aiohttp 300s default; silent write on timeout | Internal 10s budget (`ATOM_PLANNER_INGEST_BUDGET_SECONDS`) around both cores; Graph calls capped 30s; landed-progress checkpoint → honest "pulled into memory" note on timeout |
+| Figure-phrase false positives | Space-grouped regex branch captured phones/versions/quantities; `boost=len(phrase)` let junk outrank real hits; limit 2 vs 3 across paths | Space form requires currency signal; `_is_phone_shaped`/`_FIG_CONTEXT_RE` screens; boost capped at 12; one `_FIGURE_PHRASE_LIMIT=3`. 16 new FP cases, 28 pinned positives green |
+| FTS self-heal blind spot | `CREATE TRIGGER IF NOT EXISTS` collided with the old broken migration's same-named triggers | Trigger bodies read from `sqlite_master` and compared normalized; mismatch → DROP+recreate. Poisoned-DB test |
+| DELETE /documents chunk orphans | The d94a5e6df family-delete fix landed at 2 of 3 sites; chunk-only ids 404'd forever | Prefix delete paired at the route; chunk-only ids now deletable (4 route tests) |
+| RRF chunk-count bias | Every chunk of a parent added 1/(K+rank) — doc size dominated ranking | Vector hits deduped per resolved parent before scoring; regression test (10-chunk flood vs both-legs single-chunk) |
+| sender= KQL injection (latent) | Unvalidated interpolation into `"from:{sender}"` | `^[\w.+-]+@[\w.-]+$` gate at `search_emails`; malformed dropped+logged; injection payload test |
+| Gmail fallback dead-end | Re-ran the exact provider query that just missed; newest-N rung was outlook-only | `skip_provider_query` on fallback paths; gmail newest-N rung via shared `_match_recent_ids` |
+| Per-turn LanceDB reloads | 3–5 full-table loads of atom_communications per search turn (~4s each) | Single `_comms_store_records()` short-TTL cache, invalidated by both ingest cores after a pull |
+| KQL ladder runaway | ~60 Graph calls when failing; 400/401/429 indistinguishable | `last_graph_status` exposed; 401/403 short-circuit; abort after 3 consecutive failures; `$orderBy`→`$orderby` |
+| Lexical fallback gaps | ILIKE path lacked the FTS path's OR-retry; PG had no after-boot self-heal | OR-retry mirrored (coverage-ranked); `_try_self_heal_fts` wired into the PG branch too |
+
+Also fixed: operator run registry bounded (max 20, screenshot TTL 900s),
+`BrowserSessionManager` self-managed TTL cleanup task (was: Chromium until
+restart), mid-run observability (progress callback → live status/screenshot),
+egress allowlist enforced on in-loop operator navigations (was: start_url
+only), `budget_exhausted` marker (status "stopped", not "failed"), single
+loop result shape, legacy-bridge coordinate clamp/validation + audited
+coordinate/type paths + `browser_type` append semantics restored via
+`browser_fill_form(append=True)`, guardrail scoped (money words in typed
+text no longer abort; card numbers still do), stale `browser_click_coords`
+prompts in byok_handler updated, eval harness (order actually verified,
+results gitignored, port released), `_ingest_attempted` explicit per-turn
+flag, comms store path via `LanceDBHandler._resolve_local_db_path`,
+`sql_json` PG dialect branch (was: broken `json_extract` on PG), local paid
+install gate (`paid_override`), playbooks packaged workspace-scoped,
+`goal_runs.start` workspace discipline, browse params mapped to the SaaS
+contract, `sanitize_graph_kql` quotes bare operator words.
+
+**Verification** (each suite its own pytest invocation, TESTING=1):
+operator_loop 41, covpush_integrations_core 189 (was 4+3 failing/Chromium),
+goal_run_access_control 10, goal_run_watchdog_sweep 7, agent_marketplace_goal_runs 18,
+marketplace_packaging_redaction 17, sql_json 14, atom_saas_client 44,
+figure_tokens 45, search_miss_ingest_fallback 15, documents_hybrid 13,
+outlook_search_sanitization 33, planner_storage_memory_supplement 36+1skip,
+lexical_ranker 11, documents_fts_bootstrap 10, document_vector_family_cleanup 7,
+covpush_mcp_svc 194, covpush_w85 71, computer_use_gpt6_astra 30, plus 20+
+neighbor suites in the agents' runs. Pre-existing at clean HEAD (verified via
+throwaway worktree, NOT this wave): test_covpush_bigfour 5 (workflow/governance
+class), test_agent_marketplace_service::test_install_agent_handles_template_not_found
+(int(Mock) wiring), test_covpush_w90_core_services::TestW90AddDocument.
