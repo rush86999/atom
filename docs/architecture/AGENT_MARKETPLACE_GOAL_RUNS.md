@@ -87,6 +87,40 @@ produced the listing's evidence — not on reviews alone.
 Installation stays on the existing `install_agent` path (SaaS + local
 fallback).
 
+## 4b. The marketplace server (atom-saas)
+
+The central marketplace **server lives with the atom-saas app**
+(`/atom-saas/backend-saas`); the self-hosted atom instance is the client.
+Server side (landed in atom-saas@`b4c2055225`):
+
+- `publish_agent` computes `verified_record` **natively from the SaaS's
+  own `goal_runs` rows** (the SaaS ships the same goals module) with the
+  same shape as the instance-side computation, and enforces the same
+  paid gate (price > 0 requires ≥ 1 verified achieved run). Achieved
+  runs' plan step titles ship as sanitized golden paths alongside the
+  execution-derived ones.
+- `browse_agents` / `get_template_listing` serve `verified_record` +
+  aggregate guidance counts; manifest/memory stay server-only.
+- `POST /api/agent-marketplace/ingest-listing` + `ingest_remote_listing`:
+  a self-hosted instance pushes its packaged listing
+  (`publish_listing_to_saas` → `publish_listing_sync`). The payload must
+  carry the platform-computed `verified_record` (free-text listings by
+  hand are refused), publisher free text is **re-sanitized** server-side,
+  and the listing lands **PENDING admin approval** — the same queue as
+  local publishes, which is the trust boundary for evidence not computed
+  by the server itself. `agent_templates.source_instance_id` records
+  provenance.
+- Schema: `agent_templates.verified_record` (JSON) + `source_instance_id`
+  (indexed), migration `20260912_agent_verified_record` chained on the
+  `goal_runs` head of the SaaS alembic graph.
+
+So the full sell path is: agent works goal runs on the instance →
+`package_agent_for_sale` (evidence computed, listing live locally) →
+`publish_listing_to_saas` → SaaS admin approval → browsable on the
+central marketplace with its verified record → another instance installs
+→ installs seed evidence-honest confidence + the publisher's playbooks →
+its runs report usage back to the listing.
+
 ## 5. Schema
 
 `agent_templates.verified_record` (nullable JSON) — migration
